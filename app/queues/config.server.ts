@@ -1,32 +1,80 @@
-import Bull from "bull";
 import { createBullBoard } from "@bull-board/api";
-import { ExpressAdapter } from "@bull-board/express";
 import { BullAdapter } from "@bull-board/api/bullAdapter";
+import { ExpressAdapter } from "@bull-board/express";
+import { Redis as UpstashRedis } from "@upstash/redis";
+import Bull from "bull";
 import Redis from "ioredis";
 
-// Redis connection configuration
-const REDIS_URL = process.env.REDIS_URL;
+// Import Redis client based on environment
+// let redisClient;
 
-if (!REDIS_URL) {
-  throw new Error("REDIS_URL is required");
+// if (process.env.NODE_ENV === "development") {
+//   // Use local Redis in development
+//   redisClient = new Redis(process.env.REDIS_URL);
+// } else {
+//   // Use Upstash KV in production
+//   if (
+//     !process.env.UPSTASH_REDIS_REST_URL ||
+//     !process.env.UPSTASH_REDIS_REST_TOKEN
+//   ) {
+//     throw new Error("Upstash Redis credentials are required in production");
+//   }
+
+//   redisClient = new UpstashRedis({
+//     url: process.env.UPSTASH_REDIS_REST_URL,
+//     token: process.env.UPSTASH_REDIS_REST_TOKEN,
+//   });
+// }
+
+// Redis connection configuration
+// const REDIS_URL = process.env.REDIS_URL;
+
+// if (!REDIS_URL) {
+//   throw new Error("REDIS_URL is required");
+// }
+
+function createRedisClient() {
+  if (process.env.NODE_ENV === "production") {
+    if (!process.env.KV_URL) {
+      throw new Error(
+        "Upstash Redis credentials are missing in production environment."
+      );
+    }
+
+    return new UpstashRedis({
+      url: process.env.KV_URL,
+      token: undefined,
+    });
+  } else {
+    if (!process.env.REDIS_URL) {
+      throw new Error("Redis URL is missing in development environment.");
+    }
+
+    return new Redis(process.env.REDIS_URL);
+  }
 }
+
+const redisClient = createRedisClient();
 
 console.log("Initializing Redis connection");
 
 // Create Redis connection with retry strategy
-export const redis = new Redis(REDIS_URL, {
-  maxRetriesPerRequest: null,
-  retryStrategy(times) {
-    const delay = Math.min(times * 50, 2000);
-    return delay;
-  },
-});
+// export const redis = new Redis(REDIS_URL, {
+//   maxRetriesPerRequest: null,
+//   retryStrategy(times) {
+//     const delay = Math.min(times * 50, 2000);
+//     return delay;
+//   },
+// });
 
 console.log("Initializing Bull queue");
 
 // Create the booking status queue
 export const bookingStatusQueue = new Bull("booking-status-updates", {
-  redis: REDIS_URL,
+  redis:
+    process.env.NODE_ENV === "production"
+      ? process.env.KV_URL
+      : process.env.REDIS_URL,
   defaultJobOptions: {
     removeOnComplete: true,
     attempts: 3,
@@ -47,14 +95,16 @@ createBullBoard({
 
 serverAdapter.setBasePath("/admin/queues");
 
-// Handle Redis connection events
-redis.on("connect", () => {
-  console.log("Redis connected");
-});
+if (redisClient instanceof Redis) {
+  redisClient.on("connect", () => {
+    console.log("Redis connected");
+  });
 
-redis.on("error", (error) => {
-  console.error("Redis connection error:", error);
-});
+  redisClient.on("error", (error) => {
+    console.error("Redis connection error:", error);
+  });
+}
+// Handle Redis connection events
 
 // Handle Bull queue events
 bookingStatusQueue.on("error", (error) => {
