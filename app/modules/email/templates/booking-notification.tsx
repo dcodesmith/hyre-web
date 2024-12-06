@@ -21,11 +21,11 @@ type BookingWithRelations = Booking & {
 export function renderBookingTemplate(booking: BookingWithRelations) {
   const { title, status } = match(booking.status)
     .with(BookingStatus.CONFIRMED, () => ({
-      title: "Started",
+      title: "started",
       status: "active",
     }))
     .with(BookingStatus.ACTIVE, () => ({
-      title: "Ended",
+      title: "ended",
       status: "completed",
     }))
     .otherwise(() => {
@@ -36,11 +36,11 @@ export function renderBookingTemplate(booking: BookingWithRelations) {
 
   return render(
     <EmailTemplate>
-      <Preview>Your Car Rental Has {title}</Preview>
+      <Preview>Your booking has {title}</Preview>
       <Body className="bg-white">
         <Container className="mx-auto py-4">
           <Heading className="text-2xl font-medium text-gray-800">
-            Your Car Rental Has {title}
+            Your booking has {title}
           </Heading>
 
           <Text className="text-base text-gray-800">
@@ -77,11 +77,11 @@ export function renderFleetOwnerBookingCancellationEmail(
 ) {
   return render(
     <EmailTemplate>
-      <Preview>A Booking Has Been Cancelled</Preview>
+      <Preview>A booking has been cancelled</Preview>
       <Body className="bg-white">
         <Container className="mx-auto py-4">
           <Heading className="text-2xl font-medium text-gray-800">
-            A Booking Has Been Cancelled
+            A booking has been cancelled
           </Heading>
 
           <Text className="text-base text-gray-800">
@@ -135,11 +135,11 @@ export function renderFleetOwnerBookingCancellationEmail(
 export function renderBookingCancellationEmail(booking: BookingWithRelations) {
   return render(
     <EmailTemplate>
-      <Preview>Your Booking Has Been Cancelled</Preview>
+      <Preview>Your booking has been cancelled</Preview>
       <Body className="bg-white">
         <Container className="mx-auto py-4">
           <Heading className="text-2xl font-medium text-gray-800">
-            Your Booking Has Been Cancelled
+            Your booking has been cancelled
           </Heading>
 
           <Text className="text-base text-gray-800">
@@ -189,11 +189,11 @@ export function renderBookingCancellationEmail(booking: BookingWithRelations) {
 export function renderBookingConfirmationEmail(booking: BookingWithRelations) {
   return render(
     <EmailTemplate>
-      <Preview>Your Booking Has Been Confirmed</Preview>
+      <Preview>Your booking has been confirmed</Preview>
       <Body className="bg-white">
         <Container className="mx-auto py-4">
           <Heading className="text-2xl font-medium text-gray-800">
-            Your Booking Has Been Confirmed
+            Your booking has been confirmed
           </Heading>
 
           <Text className="text-base text-gray-800">
@@ -297,11 +297,11 @@ export function renderFleetOwnerBookingNotificationEmail(
 export function renderChauffeurAssignedEmail(booking: BookingWithRelations) {
   return render(
     <EmailTemplate>
-      <Preview>Chauffeur Assigned to Your Booking</Preview>
+      <Preview>A chauffeur has been assigned to your booking</Preview>
       <Body className="bg-white">
         <Container className="mx-auto py-4">
           <Heading className="text-2xl font-medium text-gray-800">
-            Chauffeur Assigned to Your Booking
+            A chauffeur has been assigned to your booking
           </Heading>
 
           <Text className="text-base text-gray-800">

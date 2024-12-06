@@ -271,7 +271,7 @@ export async function updateBookingsFromConfirmedToActive() {
 
       await sendEmail({
         to: booking.user.email,
-        subject: `Your Booking Has Started`,
+        subject: `Your booking has started`,
         html,
       });
     }
@@ -319,7 +319,7 @@ export async function updateBookingsFromActiveToCompleted() {
 
       await sendEmail({
         to: booking.user.email,
-        subject: `Your Booking Has Ended`,
+        subject: `Your booking has ended`,
         html,
       });
     }

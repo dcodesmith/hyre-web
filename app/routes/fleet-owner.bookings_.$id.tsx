@@ -89,7 +89,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
 
   await sendEmail({
     to: booking.user.email,
-    subject: "Chauffeur Assigned to Your Booking",
+    subject: "A chauffeur has been assigned to your booking",
     html: await renderChauffeurAssignedEmail(booking),
   });
 

@@ -43,13 +43,13 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
       await sendEmail({
         to: booking.user.email,
-        subject: "Booking Cancelled",
+        subject: "Booking cancelled",
         html: await renderBookingCancellationEmail(booking),
       });
 
       await sendEmail({
         to: booking.user.email,
-        subject: "Booking Cancelled",
+        subject: "Booking cancelled",
         html: await renderFleetOwnerBookingCancellationEmail(booking),
       });
 
@@ -141,13 +141,13 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
       await sendEmail({
         to: booking.user.email,
-        subject: "Booking Confirmed",
+        subject: "Booking confirmed",
         html: await renderBookingConfirmationEmail(booking),
       });
 
       await sendEmail({
         to: "dcodesmith@gmail.com", // booking.car.owner.email,
-        subject: "New Booking Alert",
+        subject: "New booking alert",
         html: await renderFleetOwnerBookingNotificationEmail(booking),
       });
 
