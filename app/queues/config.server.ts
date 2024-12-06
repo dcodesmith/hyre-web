@@ -35,15 +35,15 @@ import Redis from "ioredis";
 
 function createRedisClient() {
   if (process.env.NODE_ENV === "production") {
-    if (!process.env.KV_URL) {
+    if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
       throw new Error(
         "Upstash Redis credentials are missing in production environment."
       );
     }
 
     return new UpstashRedis({
-      url: process.env.KV_URL,
-      token: undefined,
+      url: process.env.KV_REST_API_URL,
+      token: process.env.KV_REST_API_TOKEN,
     });
   } else {
     if (!process.env.REDIS_URL) {
