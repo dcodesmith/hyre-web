@@ -1,0 +1,157 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Car {
+  id                 String @id @default(cuid())
+  make               String
+  model              String
+  year               Int
+  color              String
+  registrationNumber String
+  price              Int
+  status             Status
+
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  bookings  Booking[]
+  images    String[] // Array of S3 image URLs
+
+  @@index([ownerId])
+  @@index([ownerId, updatedAt])
+}
+
+enum Status {
+  AVAILABLE
+  BOOKED
+  HOLD
+  IN_SERVICE
+}
+
+model User {
+  id          String  @id @default(cuid())
+  email       String  @unique
+  username    String? @unique
+  name        String?
+  phoneNumber String?
+  address     String?
+  city        String?
+
+  roles Role[]
+
+  // Relations for fleet owners & chauffeur
+  fleetOwnerId String? // Nullable because not all users are chauffeur
+  fleetOwner   User?   @relation("FleetOwnerChauffeurs", fields: [fleetOwnerId], references: [id])
+  chauffeurs   User[]  @relation("FleetOwnerChauffeurs")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  bookings Booking[] @relation("BookingCustomer")
+
+  // Relations
+  // bookingsAsCustomer Booking[] @relation("BookingCustomer") // Bookings where the user is the customer
+  bookingsAsChauffeur Booking[] @relation("BookingChauffeur") // Bookings where the user is the assigned chauffeur
+
+  cars Car[]
+}
+
+model Role {
+  id          String       @id @default(cuid())
+  name        String       @unique
+  description String       @default("")
+  users       User[]
+  permissions Permission[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Permission {
+  id          String @id @default(cuid())
+  entity      String // E.g. user, admin, fleetOwner, chauffeur 
+  action      String // E.g. create, read, update, delete
+  access      String // E.g. own or any
+  description String @default("")
+  roles       Role[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([action, entity, access])
+}
+
+model Booking {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Booking status
+  status BookingStatus @default(PENDING)
+
+  // Temporal data
+  startDate DateTime
+  endDate   DateTime
+
+  // Payment information
+  totalAmount   Decimal       @db.Decimal(10, 2)
+  paymentStatus PaymentStatus @default(UNPAID)
+  paymentId     String? // Reference to external payment provider
+
+  // Car information
+  carId String
+  car   Car    @relation(fields: [carId], references: [id])
+
+  // Customer information
+  userId String
+  user   User   @relation(fields: [userId], references: [id], name: "BookingCustomer")
+
+  // Optional fields
+  pickupLocation  String
+  returnLocation  String
+  specialRequests String?
+
+  // Chauffeur information
+  chauffeurId String? // Nullable because the chauffeur is assigned later
+  chauffeur   User?   @relation(fields: [chauffeurId], references: [id], name: "BookingChauffeur")
+
+  // Cancellation
+  cancelledAt        DateTime?
+  cancellationReason String?
+
+  @@index([carId])
+  @@index([userId])
+  @@index([status])
+  @@index([chauffeurId])
+}
+
+enum BookingStatus {
+  PENDING // Initial state when booking is created
+  CONFIRMED // After payment/approval
+  ACTIVE // When car is picked up
+  COMPLETED // When car is returned
+  CANCELLED // If booking is cancelled
+  REJECTED // If booking is rejected by admin
+}
+
+enum PaymentStatus {
+  UNPAID
+  PAID
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+// generator seed {
+//   provider = "tsx prisma/seed.ts"
+// }

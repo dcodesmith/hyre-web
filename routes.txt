@@ -1,0 +1,13 @@
+/login
+/verify
+/magic-link
+/logout
+
+/cars/$id
+
+/admin (protected route that shows admin dashboard)
+/admin/users (protected route that shows all users)
+/admin/cars/new (protected route that shows create car form)
+/admin/cars/edit/$id (protected route that shows edit car form)
+/admin/cars/details/$id (protected route that shows car details)
+
