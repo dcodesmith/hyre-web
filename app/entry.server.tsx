@@ -9,17 +9,17 @@ import {
   scheduleConfirmedToActiveUpdates,
   scheduleActiveToCompletedUpdates,
 } from "./queues/bookingStatusProcessor.server";
-import express from "express";
+// import express from "express";
 
-import { serverAdapter } from "./queues/config.server";
+// import { serverAdapter } from "./queues/config.server";
 
-const app = express();
+// const app = express();
 
 const ABORT_DELAY = 5_000;
 
 initEnvs();
 
-app.use("/admin/queues", serverAdapter.getRouter());
+// app.use("/admin/queues", serverAdapter.getRouter());
 
 scheduleConfirmedToActiveUpdates()
   .then((job) => console.log(`Booking status for job ${job.name} scheduled`))
@@ -43,7 +43,7 @@ scheduleActiveToCompletedUpdates()
 //   console.log("Server is running on port 3000");
 // });
 
-app.listen(3000);
+// app.listen(3000);
 
 export default function handleRequest(
   request: Request,

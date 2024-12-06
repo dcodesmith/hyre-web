@@ -1,6 +1,6 @@
-import { createBullBoard } from "@bull-board/api";
-import { BullAdapter } from "@bull-board/api/bullAdapter";
-import { ExpressAdapter } from "@bull-board/express";
+// import { createBullBoard } from "@bull-board/api";
+// import { BullAdapter } from "@bull-board/api/bullAdapter";
+// import { ExpressAdapter } from "@bull-board/express";
 import { Redis as UpstashRedis } from "@upstash/redis";
 import Bull from "bull";
 import Redis from "ioredis";
@@ -86,14 +86,14 @@ export const bookingStatusQueue = new Bull("booking-status-updates", {
 });
 
 // Setup Bull Board (monitoring UI)
-export const serverAdapter = new ExpressAdapter();
+// export const serverAdapter = new ExpressAdapter();
 
-createBullBoard({
-  queues: [new BullAdapter(bookingStatusQueue)],
-  serverAdapter,
-});
+// createBullBoard({
+//   queues: [new BullAdapter(bookingStatusQueue)],
+//   serverAdapter,
+// });
 
-serverAdapter.setBasePath("/admin/queues");
+// serverAdapter.setBasePath("/admin/queues");
 
 if (redisClient instanceof Redis) {
   redisClient.on("connect", () => {
