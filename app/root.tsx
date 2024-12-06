@@ -10,6 +10,7 @@ import {
   Scripts,
   ScrollRestoration,
   useLoaderData,
+  useRouteError,
 } from "@remix-run/react";
 import tailwindStyles from "~/tailwind.css?url";
 import { Toaster } from "./components/ui/toaster";
@@ -91,6 +92,25 @@ export default function App() {
 
         {/* {location.pathname === "/login" && <Login />} */}
         {/* {searchParams.get("login") === "true" && <Login />} */}
+      </body>
+    </html>
+  );
+}
+
+export function ErrorBoundary() {
+  const error = useRouteError();
+  console.error(error);
+  return (
+    <html lang="en">
+      <head>
+        <title>Oh no!</title>
+        <Meta />
+        <Links />
+      </head>
+      <body>
+        {error.status} {error.data?.message}
+        {/* add the UI you want your users to see */}
+        <Scripts />
       </body>
     </html>
   );
