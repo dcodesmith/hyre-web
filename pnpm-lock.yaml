@@ -14,9 +14,6 @@ dependencies:
   '@bull-board/express':
     specifier: ^6.3.3
     version: 6.5.3
-  '@bull-board/ui':
-    specifier: ^6.5.3
-    version: 6.5.3
   '@conform-to/react':
     specifier: ^1.2.2
     version: 1.2.2(react@18.3.1)
@@ -166,6 +163,9 @@ dependencies:
     version: 3.23.8
 
 devDependencies:
+  '@bull-board/ui':
+    specifier: ^6.5.3
+    version: 6.5.3
   '@faker-js/faker':
     specifier: ^9.2.0
     version: 9.3.0
@@ -1227,7 +1227,6 @@ packages:
     dependencies:
       '@bull-board/ui': 6.5.3
       redis-info: 3.1.0
-    dev: false
 
   /@bull-board/express@6.5.3:
     resolution: {integrity: sha512-Jv8llFCJy297MBxFKahL+OsYS4z2b3xsNalYMRFcI635uGWa1rASEV+jR8lYPNBJlpzvZI3fJ0mIJegv94eIbg==}
@@ -1244,7 +1243,6 @@ packages:
     resolution: {integrity: sha512-h2A7HX6Mb1+/sMTYueK5zBgOCPiPyu9ENHUapPiPdrl58xm+J9vHA/TYxzv9vgJ9DckWczXg1JP11P9SmC1oxQ==}
     dependencies:
       '@bull-board/api': 6.5.3(@bull-board/ui@6.5.3)
-    dev: false
 
   /@conform-to/dom@1.2.2:
     resolution: {integrity: sha512-f05EClpNP31o6lX4LYmmLqgsiTOHdGfY7z2XXK6U6rRp+EtxrkUBdrFlIGsfkf7e9AFO19h3/Cb/cXHVd1k1FA==}
@@ -9651,7 +9649,6 @@ packages:
     resolution: {integrity: sha512-ER4L9Sh/vm63DkIE0bkSjxluQlioBiBgf5w1UuldaW/3vPcecdljVDisZhmnCMvsxHNiARTTDDHGg9cGwTfrKg==}
     dependencies:
       lodash: 4.17.21
-    dev: false
 
   /redis-parser@3.0.0:
     resolution: {integrity: sha512-DJnGAeenTdpMEH6uAJRK/uiyEIH9WVsUmoLwzudwGJUwZPp80PDBWPHXSAGNPwNvIXAbe7MSUB1zQFugFml66A==}
