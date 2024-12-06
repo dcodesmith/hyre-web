@@ -9,8 +9,13 @@ const schema = z.object({
   DEV_HOST_URL: z.string().optional(),
   PROD_HOST_URL: z.string().optional(),
   RESEND_API_KEY: z.string(),
-  OPENAI_API_KEY: z.string(),
-  REDIS_URL: z.string(),
+  OPENAI_API_KEY: z.string().optional(),
+  REDIS_URL: z.string().transform((value) => {
+    if (process.env.NODE_ENV === "development" && !value) {
+      throw new Error("REDIS_URL is required in development");
+    }
+    return value;
+  }),
   AWS_ACCESS_KEY_ID: z.string(),
   AWS_SECRET_ACCESS_KEY: z.string(),
   AWS_REGION: z.string(),
