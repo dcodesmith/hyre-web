@@ -45,9 +45,13 @@ function createRedisClient() {
       url: process.env.KV_REST_API_URL,
       token: process.env.KV_REST_API_TOKEN,
     });
-  }
+  } else {
+    if (!process.env.REDIS_URL) {
+      throw new Error("Redis URL is missing in development environment.");
+    }
 
-  return new Redis(process.env.REDIS_URL);
+    return new Redis(process.env.REDIS_URL);
+  }
 }
 
 const redisClient = createRedisClient();
