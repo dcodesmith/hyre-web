@@ -94,12 +94,16 @@ export function UserNav({
               </>
             ) : (
               <>
-                <DropdownMenuItem>Register</DropdownMenuItem>
+                <DropdownMenuItem className="text-muted-foreground cursor-not-allowed">
+                  Register
+                </DropdownMenuItem>
                 <DropdownMenuItem asChild>
                   <Link to="/login">Log in</Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem>Become a fleet owner</DropdownMenuItem>
+                <DropdownMenuItem className="text-muted-foreground cursor-not-allowed">
+                  Become a fleet owner
+                </DropdownMenuItem>
               </>
             )}
           </DropdownMenuContent>
