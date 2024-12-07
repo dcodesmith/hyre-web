@@ -70,7 +70,7 @@ export default function App() {
             <UserNav user={user} />
           </header>
 
-          <main className="flex-grow container mx-auto px-4 py-4 text-sm">
+          <main className="flex-grow container mx-auto px-4 pb-4 text-sm">
             <Outlet />
           </main>
 
