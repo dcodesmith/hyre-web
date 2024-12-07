@@ -60,7 +60,7 @@ export default function App() {
       </head>
       <body className="h-full bg-background">
         <div className="flex flex-col min-h-screen">
-          <header className="p-4 flex container mx-auto justify-between items-center sticky top-0 bg-white z-10">
+          <header className="p-4 flex container mx-auto justify-between items-center sticky top-0 bg-white z-20">
             <Link
               to="/"
               className="text-2xl font-bold font-dancingscript text-slate-600"
