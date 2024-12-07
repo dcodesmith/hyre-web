@@ -24,8 +24,8 @@ dependencies:
     specifier: ^2.1.5
     version: 2.2.0(react@18.3.1)
   '@prisma/client':
-    specifier: ^6.0.1
-    version: 6.0.1(prisma@6.0.1)
+    specifier: ^5.22.0
+    version: 5.22.0(prisma@6.0.1)
   '@radix-ui/react-avatar':
     specifier: ^1.1.1
     version: 1.1.1(@types/react-dom@18.3.2)(@types/react@18.3.14)(react-dom@18.3.1)(react@18.3.1)
@@ -2527,9 +2527,9 @@ packages:
     requiresBuild: true
     optional: true
 
-  /@prisma/client@6.0.1(prisma@6.0.1):
-    resolution: {integrity: sha512-60w7kL6bUxz7M6Gs/V+OWMhwy94FshpngVmOY05TmGD0Lhk+Ac0ZgtjlL6Wll9TD4G03t4Sq1wZekNVy+Xdlbg==}
-    engines: {node: '>=18.18'}
+  /@prisma/client@5.22.0(prisma@6.0.1):
+    resolution: {integrity: sha512-M0SVXfyHnQREBKxCgyo7sffrKttwE6R8PMq330MIUF0pTwjUhLbW84pFDlf06B27XyCR++VtjugEnIHdr07SVA==}
+    engines: {node: '>=16.13'}
     requiresBuild: true
     peerDependencies:
       prisma: '*'
