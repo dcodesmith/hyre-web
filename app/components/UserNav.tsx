@@ -12,12 +12,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "~/components/ui/dropdown-menu";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "~/components/ui/tooltip";
 import { userHasRole } from "~/utils/misc";
 import { ProfileForm } from "./ProfileForm";
 
@@ -51,91 +45,68 @@ export function UserNav({
   return (
     <>
       <div className="flex items-center gap-2">
-        {!user ? (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  className="relative h-8 w-8 rounded-full border flex items-center justify-center capitalize italic"
-                >
-                  <Link to="/login">
-                    <UserIcon className="h-5 w-5 stroke-slate-800" />
-                  </Link>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Click icon to log in</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        ) : (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                className="relative h-8 w-8 rounded-full border flex items-center justify-center capitalize italic"
-              >
-                {user ? (
-                  getInitials(user)
-                ) : (
-                  <UserIcon className="h-5 w-5 stroke-slate-800" />
-                )}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="" align="end" forceMount>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              className="relative h-8 w-8 rounded-full border flex items-center justify-center capitalize italic"
+            >
               {user ? (
-                <>
-                  <DropdownMenuLabel className="font-normal">
-                    <div className="flex flex-col space-y-1">
-                      <p className="text-sm font-medium leading-none">
-                        {user.name ?? user.username}
-                      </p>
-                      <p className="text-xs leading-none text-muted-foreground">
-                        {user.email}
-                      </p>
-                    </div>
-                  </DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuGroup>
-                    <DropdownMenuItem onClick={() => setIsProfileOpen(true)}>
-                      Profile
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      {!userHasRole(user, "fleetOwner") ? (
-                        <Link to="/bookings">Bookings</Link>
-                      ) : (
-                        <Link to="/fleet-owner">Dashboard</Link>
-                      )}
-                    </DropdownMenuItem>
-                  </DropdownMenuGroup>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <Link to="/logout">Log out</Link>
-                  </DropdownMenuItem>
-                </>
+                getInitials(user)
               ) : (
-                <>
-                  <DropdownMenuItem asChild>Register</DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/login">Log in</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    Become a fleet owner
-                  </DropdownMenuItem>
-                </>
+                <span className="block">
+                  <UserIcon className="h-5 w-5 stroke-slate-800" />
+                </span>
               )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
+            </Button>
+          </DropdownMenuTrigger>
+
+          <DropdownMenuContent className="" align="end" forceMount>
+            {user ? (
+              <>
+                <DropdownMenuLabel className="font-normal">
+                  <div className="flex flex-col space-y-1">
+                    <p className="text-sm font-medium leading-none">
+                      {user.name ?? user.username}
+                    </p>
+                    <p className="text-xs leading-none text-muted-foreground">
+                      {user.email}
+                    </p>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuGroup>
+                  <DropdownMenuItem onClick={() => setIsProfileOpen(true)}>
+                    Profile
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    {!userHasRole(user, "fleetOwner") ? (
+                      <Link to="/bookings">Bookings</Link>
+                    ) : (
+                      <Link to="/fleet-owner">Dashboard</Link>
+                    )}
+                  </DropdownMenuItem>
+                </DropdownMenuGroup>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link to="/logout">Log out</Link>
+                </DropdownMenuItem>
+              </>
+            ) : (
+              <>
+                <DropdownMenuItem>Register</DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/login">Log in</Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem>Become a fleet owner</DropdownMenuItem>
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
       {isProfileOpen && (
-        <ProfileForm
-          // open={isProfileOpen}
-          onOpenChange={setIsProfileOpen}
-          user={user}
-        />
+        <ProfileForm onOpenChange={setIsProfileOpen} user={user} />
       )}
     </>
   );
