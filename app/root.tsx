@@ -20,7 +20,7 @@ import { prisma } from "./modules/db/db.server";
 
 export const links: LinksFunction = () => [
   ...(cssBundleHref ? [{ rel: "stylesheet", href: cssBundleHref }] : []),
-  { rel: "stylesheet", href: tailwindStyles, as: "style" },
+  { rel: "stylesheet", href: tailwindStyles },
 ];
 
 export async function loader({ request }: LoaderFunctionArgs) {

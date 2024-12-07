@@ -1,4 +1,3 @@
-import { BookingStatus } from "@prisma/client";
 import {
   ActionFunctionArgs,
   json,
@@ -39,12 +38,12 @@ export default function DashboardRoute() {
   const fetcher = useFetcher();
 
   const statuses = [
-    BookingStatus.ACTIVE,
-    BookingStatus.PENDING,
-    BookingStatus.CONFIRMED,
-    BookingStatus.COMPLETED,
-    BookingStatus.CANCELLED,
-  ];
+    "ACTIVE",
+    "PENDING",
+    "CONFIRMED",
+    "COMPLETED",
+    "CANCELLED",
+  ] as const;
 
   return (
     <div>
