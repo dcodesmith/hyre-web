@@ -15,7 +15,6 @@ import { isCarAvailable } from "~/services/cars.server";
 import util from "util";
 
 export async function action({ request, params }: ActionFunctionArgs) {
-  console.log("car action?!");
   const user = await requireUser(request, {
     redirectTo: `/login?redirectTo=/cars/${params.id}`,
   });
@@ -129,7 +128,7 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
     throw redirect("/");
   }
 
-  console.log(util.inspect(car, { depth: null, colors: true, compact: false }));
+  // console.log(util.inspect(car, { depth: null, colors: true, compact: false }));
 
   return json({ car, isAvailable });
 };
