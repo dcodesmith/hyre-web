@@ -208,7 +208,7 @@ export default function Booking() {
       name: "Afees Adedamola Kolawole",
     },
     customizations: {
-      title: `Car Rental Payment`,
+      title: `Booking Payment`,
       description: `Payment for ${booking?.car?.make} ${booking?.car?.model} rental`,
       logo: "https://picsum.photos/seed/car-rental/800/600",
     },

@@ -24,7 +24,7 @@ export function renderAuthEmail({ code, magicLink }: AuthEmailOptions) {
       <Body className="bg-white">
         <Container className="mx-auto py-4">
           <Heading className="text-2xl font-medium text-gray-800">
-            Your login code for Car Rental
+            Your login code for {process.env.APP_NAME}
           </Heading>
           {magicLink && (
             <Section className="py-4">
