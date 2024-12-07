@@ -49,7 +49,7 @@ export function Toolbar({
   };
 
   return (
-    <div className="flex items-center justify-between sticky top-16 h-16 z-10 bg-white">
+    <div className="flex items-center justify-center sticky top-16 sm:h-16 h-28 z-10 bg-white">
       <div className="flex items-center flex-wrap gap-2">
         <div className="content-center hidden sm:block">
           <AdjustmentsVerticalIcon className="h-5 w-5" />
