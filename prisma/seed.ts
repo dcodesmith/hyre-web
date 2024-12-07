@@ -6,10 +6,6 @@ import fs from "node:fs/promises";
 import { uploadImageToS3 } from "~/services/s3.server";
 import { faker } from "@faker-js/faker";
 
-type MigrationRecord = {
-  finished_at: Date | null; // The `finished_at` field can be null for unfinished migrations
-};
-
 async function getCarImages(basePattern: string) {
   const images: File[] = [];
 
@@ -33,14 +29,6 @@ async function getCarImages(basePattern: string) {
   }
 
   return images;
-}
-
-async function shouldRunSeed() {
-  const latestMigration = await prisma.$queryRaw<MigrationRecord[]>`
-      SELECT finished_at FROM _prisma_migrations
-      ORDER BY finished_at DESC LIMIT 1;
-  `;
-  return latestMigration.length > 0 && !!latestMigration[0].finished_at;
 }
 
 async function seed() {
@@ -337,16 +325,7 @@ async function seed() {
 }
 
 try {
-  const shouldRun = await shouldRunSeed();
-  if (process.env.NODE_ENV === "production") {
-    if (shouldRun) {
-      await seed();
-    } else {
-      console.info("🌱 Seed already run. No migrations detected. Skipping...");
-    }
-  } else {
-    await seed();
-  }
+  await seed();
 } catch (error) {
   console.error(error);
   process.exit(1);
