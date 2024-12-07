@@ -1,7 +1,6 @@
 import { getFormProps, getInputProps, useForm } from "@conform-to/react";
 import { parseWithZod } from "@conform-to/zod";
 import { EllipsisHorizontalIcon } from "@heroicons/react/24/outline";
-import { Status } from "@prisma/client";
 import { useFetcher, useNavigate } from "@remix-run/react";
 import { Row } from "@tanstack/react-table";
 import { Dispatch, SetStateAction, useEffect, useState } from "react";
@@ -32,6 +31,8 @@ import {
   SheetHeader,
   SheetTitle,
 } from "../ui/sheet";
+
+const STATUSES = ["AVAILABLE", "HOLD", "IN_SERVICE"] as const;
 
 const carSchema = z.object({
   make: z
@@ -76,14 +77,10 @@ const carSchema = z.object({
       required_error: "Price is required.",
     })
     .positive("Price must be positive"),
-  status: z.nativeEnum(Status),
+  status: z.enum(STATUSES),
 });
 
-const STATUSES = Object.values(Status).filter(
-  (status) => status !== Status.BOOKED
-);
-
-const statusMap: Record<Exclude<Status, "BOOKED">, string> = {
+const statusMap: Record<(typeof STATUSES)[number], string> = {
   AVAILABLE: "Available",
   HOLD: "On Hold",
   IN_SERVICE: "In Service",
@@ -162,7 +159,7 @@ function EditCarForm({ car, setIsEditOpen }: EditCarFormProps) {
         )}
       </div>
 
-      {car.status !== Status.BOOKED && (
+      {car.status !== "BOOKED" && (
         <div className="space-y-1">
           <Label htmlFor={status.id}>Status</Label>
           <Select name="status">
@@ -229,7 +226,7 @@ export function RowActions({ row }: DataTableRowActionsProps) {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          {row.original.status !== Status.BOOKED && (
+          {row.original.status !== "BOOKED" && (
             <DropdownMenuItem onClick={() => setIsEditOpen(true)}>
               Edit
             </DropdownMenuItem>
