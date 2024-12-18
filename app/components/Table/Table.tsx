@@ -74,24 +74,27 @@ export function Table<T extends object>({ columns, data }: TableProps<T>) {
 
   const isFiltered = table.getState().columnFilters.length > 0;
 
+  const filterableColumns = table
+    .getAllColumns()
+    .filter(
+      (column) =>
+        column.getCanFilter() && column.getFacetedUniqueValues().size > 1
+    );
+
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center flex-wrap gap-2">
-          <div className="content-center hidden sm:block">
-            <AdjustmentsVerticalIcon className="h-5 w-5" />
-          </div>
+      {table.getFilteredRowModel().rows.length > 0 && (
+        <div className="flex items-center justify-between">
+          <div className="flex items-center flex-wrap gap-2">
+            {filterableColumns.length > 0 && (
+              <div className="content-center hidden sm:block">
+                <AdjustmentsVerticalIcon className="h-5 w-5" />
+              </div>
+            )}
 
-          <div className="flex items-center sm:w-auto w-full gap-2 sm:justify-start justify-between">
-            <div className="flex gap-2 flex-wrap">
-              {table
-                .getAllColumns()
-                .filter(
-                  (column) =>
-                    column.getCanFilter() &&
-                    column.getFacetedUniqueValues().size > 1
-                )
-                .map((column) => (
+            <div className="flex items-center sm:w-auto w-full gap-2 sm:justify-start justify-between">
+              <div className="flex gap-2 flex-wrap">
+                {filterableColumns.map((column) => (
                   <FacetedFilter
                     key={column.id}
                     column={column}
@@ -104,23 +107,24 @@ export function Table<T extends object>({ columns, data }: TableProps<T>) {
                     }))}
                   />
                 ))}
+              </div>
+
+              {isFiltered && (
+                <Button
+                  variant="ghost"
+                  onClick={() => table.resetColumnFilters()}
+                  className="h-8 px-2 lg:px-3"
+                >
+                  <span className="hidden sm:block">Reset</span>
+                  <XCircleIcon className="ml-2 h-4 w-4" />
+                </Button>
+              )}
             </div>
-
-            {isFiltered && (
-              <Button
-                variant="ghost"
-                onClick={() => table.resetColumnFilters()}
-                className="h-8 px-2 lg:px-3"
-              >
-                <span className="hidden sm:block">Reset</span>
-                <XCircleIcon className="ml-2 h-4 w-4" />
-              </Button>
-            )}
           </div>
-        </div>
 
-        <ColumnViewOptions table={table} />
-      </div>
+          <ColumnViewOptions table={table} />
+        </div>
+      )}
 
       <div className="rounded border">
         <TableUI className="border-gray-400 w-full border-collapse">
