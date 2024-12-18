@@ -5,14 +5,16 @@ import {
   useLoaderData,
   useSearchParams,
 } from "@remix-run/react";
+import { lazy, Suspense } from "react";
 import invariant from "tiny-invariant";
-import { BookingCard } from "~/components/BookingCard";
 import CarCarousel from "~/components/Carousel";
 import { requireUser } from "~/modules/auth/auth.server";
 import { prisma } from "~/modules/db/db.server";
 import { createBooking } from "~/services/bookings.server";
 import { isCarAvailable } from "~/services/cars.server";
-import util from "util";
+// import util from "util";
+
+const BookingCard = lazy(() => import("~/components/BookingCard"));
 
 export async function action({ request, params }: ActionFunctionArgs) {
   const user = await requireUser(request, {
@@ -229,9 +231,11 @@ export default function CarDetails() {
           </div>
         </div>
 
-        <div className="order-2 lg:order-3">
-          <BookingCard car={carWithDates} isAvailable={isAvailable} />
-        </div>
+        <Suspense fallback={<div>Loading...</div>}>
+          <div className="order-2 lg:order-3">
+            <BookingCard car={carWithDates} isAvailable={isAvailable} />
+          </div>
+        </Suspense>
       </div>
     </div>
   );

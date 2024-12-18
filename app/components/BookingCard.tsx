@@ -52,7 +52,7 @@ function getPickupTimes(date: Date) {
     }));
 }
 
-export function BookingCard({
+export default function BookingCard({
   car,
   isAvailable,
 }: {
@@ -123,6 +123,7 @@ export function BookingCard({
       name: "Afees Adedamola Kolawole",
     },
     customizations: {
+      // TODO: window object is undefined when the page is refreshed
       title: `${window.ENV.APP_NAME} Booking Payment`,
       description: "Payment for Booking",
       logo: "https://picsum.photos/seed/car-rental/800/600",
