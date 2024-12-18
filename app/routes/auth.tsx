@@ -124,17 +124,11 @@ export default function Login() {
   return (
     <>
       <Dialog
-        // open
         defaultOpen
         onOpenChange={(open: boolean) => {
           open ? () => {} : navigate(-1);
         }}
       >
-        {/* <DialogTrigger asChild>
-        <Button variant="outline" className="rounded-full h-10 w-10 px-0">
-          <UserIcon className="h-5 w-5" />
-        </Button>
-      </DialogTrigger> */}
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>Register or Sign In</DialogTitle>

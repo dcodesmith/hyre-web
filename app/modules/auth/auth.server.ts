@@ -24,7 +24,7 @@ const totpStrategy = new TOTPStrategy(
         include: { roles: true },
       });
 
-      if (user && !userHasRole(user, role as RoleName)) {
+      if (user && !userHasRole(user, role)) {
         throw new Error("Did you sign up with a different role?");
       }
 

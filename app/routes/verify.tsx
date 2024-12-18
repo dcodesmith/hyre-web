@@ -7,7 +7,12 @@ import {
   json,
   redirect,
 } from "@remix-run/node";
-import { Form, useLoaderData, useSearchParams } from "@remix-run/react";
+import {
+  Form,
+  useLoaderData,
+  useNavigate,
+  useSearchParams,
+} from "@remix-run/react";
 import { AuthorizationError } from "remix-auth";
 import { z } from "zod";
 import { Button } from "~/components/ui/button";
@@ -96,7 +101,7 @@ export default function Verify() {
   const redirectTo = searchParams.get("redirectTo");
   console.log(redirectTo);
   // const actionData = useActionData<typeof action>();
-  // const navigate = useNavigate();
+  const navigate = useNavigate();
 
   const [codeForm, { code }] = useForm({
     constraint: getZodConstraint(VerifySchema),
@@ -106,7 +111,12 @@ export default function Verify() {
   });
 
   return (
-    <Dialog defaultOpen>
+    <Dialog
+      defaultOpen
+      onOpenChange={(open: boolean) => {
+        open ? () => {} : navigate(-1);
+      }}
+    >
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Verify</DialogTitle>
