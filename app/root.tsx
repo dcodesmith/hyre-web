@@ -105,8 +105,14 @@ export function ErrorBoundary() {
         <Links />
       </head>
       <body>
-        {error.status} {error.data?.message}
-        {/* add the UI you want your users to see */}
+        <main className="min-h-lvh">
+          <div className="p-4">
+            <Link to="/">&laquo; Back to Home</Link>
+          </div>
+          <div className="flex items-center justify-center">
+            <p className="text-4xl font-bold">Yawa dey o!</p>
+          </div>
+        </main>
         <Scripts />
       </body>
     </html>
