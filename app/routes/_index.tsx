@@ -241,7 +241,6 @@ export default function IndexPage() {
             <Link
               key={row.original.id}
               to={`/cars/${row.original.id}?${searchParams.toString()}`}
-              className="block"
             >
               <div className="rounded overflow-hidden hover:shadow-lg transition-shadow">
                 <Carousel
@@ -250,8 +249,8 @@ export default function IndexPage() {
                   }
                 />
 
-                <div className="p-4">
-                  <h2 className="font-semibold mb-2">
+                <div className="p-4 space-y-1">
+                  <h2 className="font-semibold">
                     {row.original.make} {row.original.model} (
                     {row.original.year})
                   </h2>
