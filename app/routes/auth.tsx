@@ -45,7 +45,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
     successRedirect: "/",
     // failureRedirect: "/login",
   });
-  console.log("login loader end");
 
   const cookie = await getSession(request.headers.get("Cookie"));
   const authEmail = cookie.get("auth:email");
@@ -87,7 +86,6 @@ export async function action({ request }: ActionFunctionArgs) {
     }
 
     if (error instanceof Response) {
-      console.log("error here", error);
       // @!@ FLOWS HERE @!@
       return error;
 

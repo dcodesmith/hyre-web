@@ -75,7 +75,6 @@ export async function action({ request }: ActionFunctionArgs) {
     }
 
     if (error instanceof Response) {
-      console.log("error here", error);
       // @!@ FLOWS HERE @!@
       return error;
 
