@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+
+  <path 
+    d="M70 25 
+       C50 15, 30 35, 30 50 
+       C30 70, 50 85, 70 75" 
+    fill="none" 
+    stroke="#94a3b8" 
+    stroke-width="10" 
+    stroke-linecap="round"
+    transform="skewX(-20)"
+  />
+</svg>
