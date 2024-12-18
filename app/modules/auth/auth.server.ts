@@ -1,11 +1,12 @@
+import type { User } from "@prisma/client";
+import { redirect } from "@remix-run/node";
 import { Authenticator } from "remix-auth";
 import { TOTPStrategy } from "remix-auth-totp";
-import { sessionStorage } from "./session.server";
-import { sendAuthEmail } from "~/modules/email/email.server";
+import invariant from "tiny-invariant";
 import { prisma } from "~/modules/db/db.server";
-import { redirect } from "@remix-run/node";
-import type { User } from "@prisma/client";
-import { userHasRole } from "~/utils/misc";
+import { sendAuthEmail } from "~/modules/email/email.server";
+import { RoleName, userHasRole } from "~/utils/misc";
+import { sessionStorage } from "./session.server";
 
 export const authenticator = new Authenticator<User>(sessionStorage, {
   sessionErrorKey: "my-error-key",
@@ -15,8 +16,18 @@ const totpStrategy = new TOTPStrategy(
   {
     secret: process.env.ENCRYPTION_SECRET || "NOT_A_STRONG_SECRET",
     magicLinkPath: "/magic-link",
-    sendTOTP: async ({ email, code, magicLink }) => {
-      console.log({ email, code, magicLink, env: process.env.NODE_ENV });
+    sendTOTP: async ({ email, code, magicLink, context }) => {
+      const role = context?.role as RoleName;
+
+      const user = await prisma.user.findUnique({
+        where: { email },
+        include: { roles: true },
+      });
+
+      if (user && !userHasRole(user, role as RoleName)) {
+        throw new Error("Did you sign up with a different role?");
+      }
+
       if (process.env.NODE_ENV === "development") {
         // Development Only: Log the TOTP code.
         console.log("[ Dev-Only ] TOTP Code:", code);
@@ -28,15 +39,21 @@ const totpStrategy = new TOTPStrategy(
         }
       }
 
-      await sendAuthEmail({ email, code, magicLink });
+      await sendAuthEmail({
+        email,
+        code,
+        magicLink,
+        intent: user ? "login" : "registration",
+      });
     },
-    validateEmail: async () => {
-      // Implement your email validation logic here
-      // For now, we'll just return true
-      return true;
-    },
+    validateEmail: async () => true,
   },
-  async ({ email }) => {
+  async ({ email, request }) => {
+    const url = new URL(request.url);
+    const role = url.searchParams.get("role");
+
+    invariant(role, "Auth:Role is required");
+
     let user = await prisma.user.findUnique({
       where: { email },
       include: {
@@ -46,7 +63,7 @@ const totpStrategy = new TOTPStrategy(
 
     if (!user) {
       user = await prisma.user.create({
-        data: { email, roles: { connect: [{ name: "user" }] } },
+        data: { email, roles: { connect: [{ name: role }] } },
         include: { roles: true },
       });
     }

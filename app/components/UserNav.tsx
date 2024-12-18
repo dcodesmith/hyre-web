@@ -14,7 +14,6 @@ import {
 } from "~/components/ui/dropdown-menu";
 import { userHasRole } from "~/utils/misc";
 import { ProfileForm } from "./ProfileForm";
-import { RegisterForm } from "./RegisterForm";
 
 function getInitials(user: User) {
   if (!user) return "U";
@@ -42,7 +41,6 @@ export function UserNav({
   user: (User & { roles: Pick<Role, "name">[] }) | null;
 }) {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [isRegisterOpen, setIsRegisterOpen] = useState(false);
 
   return (
     <>
@@ -96,11 +94,8 @@ export function UserNav({
               </>
             ) : (
               <>
-                <DropdownMenuItem onClick={() => setIsRegisterOpen(true)}>
-                  Register
-                </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link to="/login">Log in</Link>
+                  <Link to="/auth">Register or Log in</Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem className="text-muted-foreground cursor-not-allowed">
@@ -111,7 +106,6 @@ export function UserNav({
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-      {isRegisterOpen && <RegisterForm onOpenChange={setIsRegisterOpen} />}
       {isProfileOpen && (
         <ProfileForm onOpenChange={setIsProfileOpen} user={user} />
       )}

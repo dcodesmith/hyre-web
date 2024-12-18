@@ -1,5 +1,6 @@
 import { getFormProps, getInputProps, useForm } from "@conform-to/react";
-import { parseWithZod } from "@conform-to/zod";
+import { getZodConstraint, parseWithZod } from "@conform-to/zod";
+import { User } from "@prisma/client";
 import {
   ActionFunctionArgs,
   LoaderFunctionArgs,
@@ -7,6 +8,7 @@ import {
   redirect,
 } from "@remix-run/node";
 import { Form, useLoaderData, useSearchParams } from "@remix-run/react";
+import { AuthorizationError } from "remix-auth";
 import { z } from "zod";
 import { Button } from "~/components/ui/button";
 import {
@@ -21,7 +23,7 @@ import { authenticator } from "~/modules/auth/auth.server";
 import { commitSession, getSession } from "~/modules/auth/session.server";
 import { userHasRole } from "~/utils/misc";
 
-export const VerifyLoginSchema = z.object({
+export const VerifySchema = z.object({
   code: z
     .string({
       required_error: "Code is required.",
@@ -41,7 +43,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const authEmail = cookie.get("auth:email");
   const authError = cookie.get(authenticator.sessionErrorKey);
 
-  if (!authEmail) return redirect("/login");
+  if (!authEmail) return redirect("/auth");
 
   return json({ authEmail, authError } as const, {
     headers: {
@@ -52,34 +54,40 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
 export async function action({ request }: ActionFunctionArgs) {
   const url = new URL(request.url);
-  console.log(url);
   const currentPath = url.pathname;
+  // const redirectTo = url.searchParams.get("redirectTo");
+  const role = url.searchParams.get("role");
 
-  // const formData = await request.clone().formData();
-  // const code = formData.get("code");
+  let user: User | null = null;
 
-  // if (!code) {
-  //   return { errors: { code: "Code is required" } };
-  // }
-  const redirectTo = url.searchParams.get("redirectTo");
-  console.log(redirectTo);
-  // try {
-  // return await authenticator.authenticate("TOTP", request, {
-  //   successRedirect: redirectTo ? `${redirectTo}` : "/",
-  //   failureRedirect: currentPath,
-  // });
+  try {
+    const successRedirect = role === "fleetOwner" ? "/fleet-owner" : "/";
 
-  await authenticator.authenticate("TOTP", request, {
-    successRedirect: redirectTo ? `${redirectTo}` : "/",
-    failureRedirect: currentPath,
-  });
+    user = await authenticator.authenticate("TOTP", request, {
+      successRedirect,
+      failureRedirect: currentPath,
+    });
+  } catch (error) {
+    if (error instanceof AuthorizationError) {
+      console.log("error AuthorizationError", error);
 
-  // userHasRole(user, "fleetOwner") ? redirect("/fleet-owner") : redirect("/");
+      return json({ error: error.message }, { status: 401 });
+    }
 
-  // } catch (error) {
-  //   console.error(error);
-  //   return { errors: { code: "Code is incorrect" } };
-  // }
+    if (error instanceof Response) {
+      console.log("error here", error);
+      // @!@ FLOWS HERE @!@
+      return error;
+
+      // return null;
+    }
+  }
+
+  if (userHasRole(user, "fleetOwner")) {
+    return redirect("/fleet-owner");
+  }
+
+  return redirect("/");
 }
 
 export default function Verify() {
@@ -92,9 +100,9 @@ export default function Verify() {
   // const navigate = useNavigate();
 
   const [codeForm, { code }] = useForm({
-    // constraint: getZodConstraint(VerifyLoginSchema),
+    constraint: getZodConstraint(VerifySchema),
     onValidate({ formData }) {
-      return parseWithZod(formData, { schema: VerifyLoginSchema });
+      return parseWithZod(formData, { schema: VerifySchema });
     },
   });
 

@@ -9,7 +9,7 @@ import { RoleName, userHasRole } from "~/utils/misc";
 // export type RoleName = "user" | "client" | "admin";
 
 export async function requireUserWithRole(request: Request, name: RoleName) {
-  const user = await requireUser(request, { redirectTo: "/login" });
+  const user = await requireUser(request, { redirectTo: "/auth" });
   const hasRole = userHasRole(user, name);
 
   // for security reasons, do we wanna tell you the user they have no access or just redirect them to the home page like the page doesn't exist

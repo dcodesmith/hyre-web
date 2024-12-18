@@ -16,7 +16,7 @@ import util from "util";
 
 export async function action({ request, params }: ActionFunctionArgs) {
   const user = await requireUser(request, {
-    redirectTo: `/login?redirectTo=/cars/${params.id}`,
+    redirectTo: `/auth?redirectTo=/cars/${params.id}`,
   });
 
   invariant(params.id, "Car ID is required");

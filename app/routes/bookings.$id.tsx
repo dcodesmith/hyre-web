@@ -29,7 +29,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
   console.log(`/bookings/${params.id}`);
 
   const user = await requireUser(request, {
-    redirectTo: `/login?redirectTo=/cars/${params.id}`,
+    redirectTo: `/auth?redirectTo=/cars/${params.id}`,
   });
 
   invariant(params.id, "Booking ID is required");

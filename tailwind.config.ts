@@ -6,6 +6,9 @@ export default {
   content: ["./app/**/*.{js,jsx,ts,tsx}"],
   theme: {
     extend: {
+      transitionDuration: {
+        "3000": "3000ms",
+      },
       fontFamily: {
         nunito: ["Nunito Sans", "sans-serif"],
         dancingscript: ["Dancing Script", "cursive"],

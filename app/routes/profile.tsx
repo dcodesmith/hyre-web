@@ -6,7 +6,7 @@ import { profileFormSchema } from "~/schemas/user";
 
 export async function action({ request }: ActionFunctionArgs) {
   const user = await authenticator.isAuthenticated(request, {
-    failureRedirect: "/login",
+    failureRedirect: "/auth",
   });
 
   const formData = await request.formData();

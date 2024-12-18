@@ -2,14 +2,9 @@ import { getFormProps, getInputProps, useForm } from "@conform-to/react";
 import { parseWithZod } from "@conform-to/zod";
 import { CogIcon } from "@heroicons/react/24/outline";
 import { Status } from "@prisma/client";
-import type { ActionFunction, LoaderFunctionArgs } from "@remix-run/node";
+import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json, redirect } from "@remix-run/node";
-import {
-  Form,
-  useActionData,
-  useLoaderData,
-  useNavigation,
-} from "@remix-run/react";
+import { Form, useLoaderData, useNavigation } from "@remix-run/react";
 import invariant from "tiny-invariant";
 import { z } from "zod";
 import { Button } from "~/components/ui/button";
@@ -32,7 +27,7 @@ const carSchema = z.object({
   status: z.nativeEnum(Status).refine((status) => status !== Status.BOOKED),
 });
 
-export const action: ActionFunction = async ({ request, params }) => {
+export async function action({ request, params }: ActionFunctionArgs) {
   const formData = await request.formData();
   const submission = parseWithZod(formData, { schema: carSchema });
 
@@ -53,7 +48,7 @@ export const action: ActionFunction = async ({ request, params }) => {
     console.error("Error updating car:", error);
     return json({ error: "Failed to update car" }, { status: 500 });
   }
-};
+}
 
 export async function loader({ params }: LoaderFunctionArgs) {
   invariant(params.id, "id is required");
@@ -75,13 +70,13 @@ const STATUSES = Object.values(Status).filter(
 
 export default function EditCarForm() {
   const { car } = useLoaderData<typeof loader>();
-  const lastResult = useActionData<typeof action>();
+  // const lastResult = useActionData<typeof action>();
   const navigation = useNavigation();
   const isPending = useIsPending();
 
   const [form, { price, status }] = useForm({
     defaultValue: car,
-    lastResult,
+    // lastResult,
     // Reuse the validation logic on the client
     onValidate({ formData }) {
       return parseWithZod(formData, { schema: carSchema });

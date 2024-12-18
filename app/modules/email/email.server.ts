@@ -62,14 +62,16 @@ type AuthEmailOptions = {
   email: string;
   code: string;
   magicLink?: string | null;
+  intent: "registration" | "login";
 };
 
 export async function sendAuthEmail({
   email,
   code,
   magicLink,
+  intent,
 }: AuthEmailOptions) {
-  const html = await renderAuthEmail({ email, code, magicLink });
+  const html = await renderAuthEmail({ code, magicLink, intent });
 
   await sendEmail({
     to: email,

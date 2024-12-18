@@ -88,10 +88,6 @@ export default function App() {
           }}
         />
         <Scripts />
-        {/* {process.env.NODE_ENV === "development" && <LiveReload />} */}
-
-        {/* {location.pathname === "/login" && <Login />} */}
-        {/* {searchParams.get("login") === "true" && <Login />} */}
       </body>
     </html>
   );

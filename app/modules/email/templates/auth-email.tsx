@@ -12,19 +12,22 @@ import { render } from "@react-email/render";
 import { EmailTemplate } from "./EmailTemplate";
 
 type AuthEmailOptions = {
-  email: string;
   code: string;
   magicLink?: string | null;
+  intent: "registration" | "login";
 };
 
-export function renderAuthEmail({ code, magicLink }: AuthEmailOptions) {
+export function renderAuthEmail({ code, magicLink, intent }: AuthEmailOptions) {
   return render(
     <EmailTemplate>
-      <Preview>Your {process.env.APP_NAME} login code</Preview>
+      <Preview>
+        Your {process.env.APP_NAME} {intent} code
+      </Preview>
       <Body className="bg-white">
         <Container className="mx-auto py-4">
           <Heading className="text-2xl font-medium text-gray-800">
-            Your login code for {process.env.APP_NAME}
+            Your {intent === "registration" ? "registration" : "login"} code for{" "}
+            {process.env.APP_NAME}
           </Heading>
           {magicLink && (
             <Section className="py-4">
@@ -32,13 +35,15 @@ export function renderAuthEmail({ code, magicLink }: AuthEmailOptions) {
                 className="bg-slate-800 text-white font-semibold text-sm p-4"
                 href={magicLink}
               >
-                Login to {process.env.APP_NAME}
+                {intent === "registration"
+                  ? `Complete your ${process.env.APP_NAME} registration`
+                  : `Login to ${process.env.APP_NAME}`}
               </Button>
             </Section>
           )}
           <Text className="text-sm text-gray-800">
             This link and code will only be valid for the next 60 seconds. If
-            the link does not work, you can use the login verification code
+            the link does not work, you can use the {intent} verification code
             directly:
           </Text>
           <code className="text-xl font-semibold">{code}</code>
