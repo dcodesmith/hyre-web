@@ -75,7 +75,9 @@ export async function sendAuthEmail({
 
   await sendEmail({
     to: email,
-    subject: `${process.env.APP_NAME} Login Code`,
+    subject: `${process.env.APP_NAME} ${
+      intent === "login" ? "Login" : "Registration"
+    } Code`,
     html,
   });
 }
