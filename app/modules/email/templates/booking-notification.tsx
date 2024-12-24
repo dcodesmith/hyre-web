@@ -213,7 +213,7 @@ export function renderBookingConfirmationEmail(booking: BookingWithRelations) {
             <br />• Car: {booking.car.make} {booking.car.model} (
             {booking.car.year})
             <br />• Pickup Location: {booking.pickupLocation}
-            <br />• Return Location: {booking.returnLocation}
+            <br />• Drop-off Location: {booking.returnLocation}
             <br />• Total Amount:{" "}
             {new Intl.NumberFormat("en-NG", {
               style: "currency",
@@ -348,6 +348,54 @@ export function renderChauffeurAssignedEmail(booking: BookingWithRelations) {
             Your chauffeur will contact you before the pickup time. If you have
             any questions, please don&apos;t hesitate to reach out to us.
           </Text>
+
+          <Hr className="my-4 border-gray-500" />
+
+          <Text className="text-sm text-gray-800">
+            {new Date().getFullYear()}. Lagos, Nigeria
+          </Text>
+        </Container>
+      </Body>
+    </EmailTemplate>
+  );
+}
+
+export function renderBookingReminder(
+  booking: BookingWithRelations,
+  recipient: "client" | "chauffeur"
+) {
+  const user = recipient === "client" ? booking.user : booking.chauffeur;
+
+  return render(
+    <EmailTemplate>
+      <Preview>This is a reminder that your booking starts in 1 hour.</Preview>
+      <Body className="bg-white">
+        <Container className="mx-auto py-4">
+          <Heading className="text-2xl font-medium text-gray-800">
+            This is a reminder that your booking starts in 1 hour.
+          </Heading>
+
+          <Text className="text-base text-gray-800">Hello {user?.name},</Text>
+
+          <div style={{ marginTop: "20px" }}>
+            <strong>Booking Details:</strong>
+            <p>Date: {new Date(booking.startDate).toLocaleDateString()}</p>
+            <p>Time: {new Date(booking.startDate).toLocaleTimeString()}</p>
+            <p>Location: {booking.pickupLocation}</p>
+          </div>
+
+          {recipient === "client" && booking.chauffeur && (
+            <Text className="text-base text-gray-800">
+              Your chauffeur {booking.chauffeur.name} will meet you at the
+              pickup location.
+            </Text>
+          )}
+          {recipient === "chauffeur" && (
+            <Text className="text-base text-gray-800">
+              Your client {booking.user.name} will meet you at the pickup
+              location.
+            </Text>
+          )}
 
           <Hr className="my-4 border-gray-500" />
 

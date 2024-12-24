@@ -1,7 +1,10 @@
 import { BookingStatus, PaymentStatus, Status } from "@prisma/client";
 import { prisma } from "~/modules/db/db.server";
 import { sendEmail } from "~/modules/email/email.server";
-import { renderBookingTemplate } from "~/modules/email/templates/booking-notification";
+import {
+  renderBookingReminder,
+  renderBookingTemplate,
+} from "~/modules/email/templates/booking-notification";
 
 export type CreateBookingParams = {
   startDate: Date;
@@ -315,6 +318,12 @@ export async function updateBookingsFromActiveToCompleted() {
         data: { status: BookingStatus.COMPLETED },
       });
 
+      // Free up the car
+      await prisma.car.update({
+        where: { id: booking.carId },
+        data: { status: Status.AVAILABLE },
+      });
+
       const html = await renderBookingTemplate(booking);
 
       await sendEmail({
@@ -323,6 +332,62 @@ export async function updateBookingsFromActiveToCompleted() {
         html,
       });
     }
+  } catch (error) {
+    console.error("Error updating booking statuses:", error);
+    throw error;
+  }
+}
+
+export async function sendBookingReminderEmails() {
+  // Find all confirmed bookings where start date is today
+  try {
+    const bookings = await prisma.booking.findMany({
+      where: {
+        status: BookingStatus.CONFIRMED,
+        startDate: {
+          gte: new Date(new Date().setMinutes(0, 0, 0)),
+          lte: new Date(new Date().setMinutes(59, 59, 999)),
+        },
+        car: {
+          status: Status.BOOKED,
+        },
+      },
+      include: {
+        car: {
+          include: {
+            owner: true,
+          },
+        },
+        user: true,
+        chauffeur: true,
+      },
+    });
+
+    if (bookings.length === 0) {
+      return "No reminders to send";
+    }
+
+    for (const booking of bookings) {
+      // Send reminder to client
+      const clientHtml = await renderBookingReminder(booking, "client");
+      await sendEmail({
+        to: booking.user.email,
+        subject: `Booking Reminder - Your booking starts in 1 hour`,
+        html: clientHtml,
+      });
+
+      // Send reminder to chauffeur if assigned
+      if (booking.chauffeur?.email) {
+        const chauffeurHtml = await renderBookingReminder(booking, "chauffeur");
+        await sendEmail({
+          to: "dcodesmith@gmail.com", // booking.chauffeur.email,
+          subject: `Booking Reminder - You have a booking starting in 1 hour`,
+          html: chauffeurHtml,
+        });
+      }
+    }
+
+    return `Sent reminders for ${bookings.length} bookings`;
   } catch (error) {
     console.error("Error updating booking statuses:", error);
     throw error;

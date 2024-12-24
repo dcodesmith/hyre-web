@@ -69,8 +69,7 @@ console.log("Initializing Redis connection");
 
 console.log("Initializing Bull queue");
 
-// Create the booking status queue
-export const bookingStatusQueue = new Bull("booking-status-updates", {
+const bullOptions = {
   redis:
     process.env.NODE_ENV === "production"
       ? process.env.KV_URL
@@ -83,7 +82,14 @@ export const bookingStatusQueue = new Bull("booking-status-updates", {
     stalledInterval: 300000, // 5 minutes
     maxStalledCount: 0,
   },
-});
+};
+
+export const bookingStatusQueue = new Bull(
+  "booking-status-updates",
+  bullOptions
+);
+
+export const bookingReminderQueue = new Bull("booking-reminder", bullOptions);
 
 // Setup Bull Board (monitoring UI)
 // export const serverAdapter = new ExpressAdapter();

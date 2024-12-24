@@ -8,7 +8,8 @@ import { initEnvs } from "./utils/env.server";
 import {
   scheduleConfirmedToActiveUpdates,
   scheduleActiveToCompletedUpdates,
-} from "./queues/bookingStatusProcessor.server";
+} from "./queues/bookingStatus.server";
+import { scheduleBookingReminderEmails } from "./queues/bookingReminder.server";
 // import express from "express";
 
 // import { serverAdapter } from "./queues/config.server";
@@ -37,6 +38,12 @@ scheduleActiveToCompletedUpdates()
       "Failed to schedule booking status update from active to completed",
       error
     )
+  );
+
+scheduleBookingReminderEmails()
+  .then((job) => console.log(`Booking reminder for job ${job.name} scheduled`))
+  .catch((error) =>
+    console.error("Failed to schedule booking reminder emails", error)
   );
 
 // app.once("listening", () => {
