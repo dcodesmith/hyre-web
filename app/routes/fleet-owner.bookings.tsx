@@ -229,6 +229,8 @@ export default function BookingsPage() {
     },
     {
       id: "actions",
+      header: () => null,
+      enableHiding: false,
       cell: ({ row }) => {
         const booking = row.original;
         const showAssignChauffeur =

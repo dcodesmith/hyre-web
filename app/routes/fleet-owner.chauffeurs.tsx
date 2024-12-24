@@ -340,6 +340,8 @@ export default function ChauffeursPage() {
       },
       {
         id: "actions",
+        header: () => null,
+        enableHiding: false,
         cell: ({ row }) => <ChauffeurRowActions row={row} />,
       },
     ],
