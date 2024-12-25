@@ -1,15 +1,10 @@
 import { ActionFunctionArgs, json, LoaderFunctionArgs } from "@remix-run/node";
-import { useFetcher, useLoaderData, useNavigation } from "@remix-run/react";
+import { useFetcher, useLoaderData } from "@remix-run/react";
 import { closePaymentModal, useFlutterwave } from "flutterwave-react-v3";
 import invariant from "tiny-invariant";
 import { Button } from "~/components/ui/button";
+import { formatCurrency } from "~/lib/utils";
 import { requireUser } from "~/modules/auth/auth.server";
-import {
-  cancelBooking,
-  confirmBooking,
-  createBooking,
-  getBooking,
-} from "~/services/bookings.server";
 import { sendEmail } from "~/modules/email/email.server";
 import {
   renderBookingCancellationEmail,
@@ -17,17 +12,14 @@ import {
   renderFleetOwnerBookingCancellationEmail,
   renderFleetOwnerBookingNotificationEmail,
 } from "~/modules/email/templates/booking-notification";
-import { formatCurrency } from "~/lib/utils";
+import {
+  cancelBooking,
+  confirmBooking,
+  createBooking,
+  getBooking,
+} from "~/services/bookings.server";
 
 export async function action({ request, params }: ActionFunctionArgs) {
-  // const formData = await request.formData();
-  // const queryString = new URLSearchParams();
-  // for (const [key, value] of formData.entries()) {
-  //   queryString.append(key, value.toString());
-  // }
-
-  console.log(`/bookings/${params.id}`);
-
   const user = await requireUser(request, {
     redirectTo: `/auth?redirectTo=/cars/${params.id}`,
   });
@@ -41,17 +33,19 @@ export async function action({ request, params }: ActionFunctionArgs) {
         "User requested cancellation"
       );
 
-      await sendEmail({
-        to: booking.user.email,
-        subject: "Booking cancelled",
-        html: await renderBookingCancellationEmail(booking),
-      });
+      await Promise.all([
+        sendEmail({
+          to: booking.user.email,
+          subject: "Booking cancelled",
+          html: await renderBookingCancellationEmail(booking),
+        }),
 
-      await sendEmail({
-        to: booking.user.email,
-        subject: "Booking cancelled",
-        html: await renderFleetOwnerBookingCancellationEmail(booking),
-      });
+        await sendEmail({
+          to: booking.user.email,
+          subject: "Booking cancelled",
+          html: await renderFleetOwnerBookingCancellationEmail(booking),
+        }),
+      ]);
 
       return json({ success: true });
     } catch (error) {
@@ -77,12 +71,12 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
     // const startDate = new Date(String(formData.get("startDate")));
     // const endDate = new Date(String(formData.get("endDate")));
-    const street = String(formData.get("street"));
-    const locality = String(formData.get("locality"));
+    const pickupStreet = String(formData.get("pickupStreet"));
+    const pickupLocality = String(formData.get("pickupLocality"));
     const sameLocation = formData.get("sameLocation");
     const pickupTime = String(formData.get("pickupTime"));
-    const dropStreet = String(formData.get("dropStreet"));
-    const dropLocality = String(formData.get("dropLocality"));
+    const dropOffStreet = String(formData.get("dropOffStreet"));
+    const dropOffLocality = String(formData.get("dropOffLocality"));
 
     // Parse the time from pickupTime (e.g. "8:00 AM") and set it on startDate
     const [time, period] = pickupTime.split(" ");
@@ -108,10 +102,10 @@ export async function action({ request, params }: ActionFunctionArgs) {
     endDateTime.setSeconds(0);
     endDateTime.setMilliseconds(0);
 
-    const pickupLocation = `${street}, ${locality}`;
+    const pickupLocation = `${pickupStreet}, ${pickupLocality}`;
     const returnLocation = sameLocation
       ? pickupLocation
-      : `${dropStreet}, ${dropLocality}`;
+      : `${dropOffStreet}, ${dropOffLocality}`;
 
     try {
       const booking = await createBooking({
@@ -139,17 +133,18 @@ export async function action({ request, params }: ActionFunctionArgs) {
     try {
       const booking = await confirmBooking(params.id, transactionId);
 
-      await sendEmail({
-        to: booking.user.email,
-        subject: "Booking confirmed",
-        html: await renderBookingConfirmationEmail(booking),
-      });
-
-      await sendEmail({
-        to: "dcodesmith@gmail.com", // booking.car.owner.email,
-        subject: "New booking alert",
-        html: await renderFleetOwnerBookingNotificationEmail(booking),
-      });
+      await Promise.all([
+        sendEmail({
+          to: booking.user.email,
+          subject: "Booking confirmed",
+          html: await renderBookingConfirmationEmail(booking),
+        }),
+        sendEmail({
+          to: "dcodesmith@gmail.com", // booking.car.owner.email,
+          subject: "New booking alert",
+          html: await renderFleetOwnerBookingNotificationEmail(booking),
+        }),
+      ]);
 
       return json({ booking });
     } catch (error) {
@@ -157,8 +152,6 @@ export async function action({ request, params }: ActionFunctionArgs) {
     }
   }
 }
-
-// cm3yscmkc000u9tt92s1hv3c8
 
 export async function loader({ params }: LoaderFunctionArgs) {
   invariant(params.id, "Booking ID is required");
@@ -197,8 +190,6 @@ export default function Booking() {
   const { booking } = useLoaderData<typeof loader>();
   const fetcher = useFetcher();
 
-  const navigation = useNavigation();
-
   const handlePayment = useFlutterwave({
     ...config,
     amount: 3000,
@@ -214,14 +205,13 @@ export default function Booking() {
     },
   });
 
-  if (navigation.state === "loading") {
+  if (fetcher.state === "loading") {
     return <div>Loading...</div>;
   }
 
   const onMakePayment = () => {
     handlePayment({
       callback: ({ transaction_id: transactionId, status }) => {
-        console.log("fetcher", fetcher);
         fetcher.submit(
           { transactionId, status },
           { method: "PATCH", action: `/bookings/${booking.id}` }
