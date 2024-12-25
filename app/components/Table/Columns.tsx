@@ -34,7 +34,6 @@ export const columns: ColumnDef<SerializedCar>[] = [
     header: ({ column }) => <ColumnHeader column={column} title="Model" />,
     enableColumnFilter: true,
     filterFn: (row, id, value) => value.includes(row.getValue(id)),
-
     cell: ({ row }) => <div className="w-[150px]">{row.original.model}</div>,
   },
   {
@@ -72,6 +71,7 @@ export const columns: ColumnDef<SerializedCar>[] = [
   {
     id: "actions",
     cell: ({ row }) => <RowActions row={row} />,
+    header: () => null,
     enableHiding: false,
   },
 ];
