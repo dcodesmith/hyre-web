@@ -55,7 +55,7 @@ export default function App() {
     <html lang="en" className="h-full">
       <head>
         <title>
-          {ENV.APP_NAME} - Effortless, Reliable, Safe, and Exceptional Service.
+          {`${ENV.APP_NAME} - Effortless, Reliable, Safe, and Exceptional Service.`}
         </title>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
