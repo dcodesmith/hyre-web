@@ -72,7 +72,7 @@ export default function DashboardRoute() {
                   <div className="flex items-center gap-4">
                     <img
                       src={booking.car.images[0]}
-                      alt="Order Thumbnail"
+                      alt={`${booking.car.make} ${booking.car.model}`}
                       className="w-10 h-10 rounded-full object-cover"
                     />
                     <div>
