@@ -1,6 +1,7 @@
 // "use client";
 
 // import invariant from "tiny-invariant";
+import { BookingStatus } from "@prisma/client";
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { Link, useLoaderData, useSearchParams } from "@remix-run/react";
@@ -30,23 +31,75 @@ import { prisma } from "~/modules/db/db.server";
 
 import type { SerializedCar } from "~/types";
 
+const blockingStatuses: BookingStatus[] = ["PENDING", "CONFIRMED", "ACTIVE"];
+
 export async function loader({ request }: LoaderFunctionArgs) {
   const url = new URL(request.url);
   const from = url.searchParams.get("from");
   const to = url.searchParams.get("to");
 
+  const ownersWithAllChauffeursBusy = await prisma.user.findMany({
+    where: {
+      AND: [
+        // Ensure the user (fleet owner) *has* chauffeurs
+        {
+          chauffeurs: {
+            some: {},
+          },
+        },
+        // For each chauffeur, check if there's *some* booking that overlaps
+        // the requested date range (startDate < booking.endDate && endDate > booking.startDate).
+        {
+          chauffeurs: {
+            every: {
+              bookingsAsChauffeur: {
+                some: {
+                  car: {
+                    owner: {
+                      is: {},
+                    },
+                  },
+                  status: {
+                    in: blockingStatuses,
+                  },
+                  // Overlap condition
+                  // startDate: {
+                  //   lt: endDate,
+                  // },
+                  endDate: {
+                    gte: from ? new Date(from) : undefined,
+                  },
+                  // Optionally, filter by booking status if you only consider
+                  // certain statuses as blocking. E.g.:
+                  // status: { in: ['CONFIRMED', 'ACTIVE'] },
+                },
+              },
+            },
+          },
+        },
+      ],
+    },
+    select: {
+      id: true, // We only need the IDs of these owners
+    },
+  });
+
+  // Collect the IDs of these owners
+  const ownerIdsToExclude = ownersWithAllChauffeursBusy.map((o) => o.id);
+
   const cars = await prisma.car.findMany({
     where: {
+      ownerId: {
+        notIn: ownerIdsToExclude,
+      },
       // make: {
       //   mode: "insensitive",
       //   in: makes.length > 0 ? makes : undefined,
       // },
       OR: [
-        // Available cars with no bookings
         {
           status: "AVAILABLE",
         },
-        // Booked cars but not booked for the requested dates
         {
           status: "BOOKED",
           bookings: {
@@ -54,19 +107,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
               status: { in: ["PENDING", "CONFIRMED", "ACTIVE"] },
               OR: [
                 {
-                  // startDate: { lte: to ? new Date(to) : undefined },
-                  // endDate: { gte: from ? new Date(from) : undefined },
-                  // startDate: { lt: to ? new Date(to) : undefined },
-                  // endDate: { gt: from ? new Date(from) : undefined },
-                  // startDate: {
-                  //   lt: to ? new Date(`${to}T00:00:00Z`) : undefined,
-                  // },
-                  // endDate: {
-                  //   gt: from ? new Date(`${from}T00:00:00Z`) : undefined,
-                  // },
-                  // startDate: { lte: to ? new Date(to) : undefined },
-                  // endDate: { gte: from ? new Date(from) : undefined },
-
                   startDate: {
                     lte: to ? new Date(`${to}T23:59:59Z`) : undefined,
                   },
@@ -239,6 +279,7 @@ export default function IndexPage() {
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-8">
           {table.getRowModel().rows.map((row) => (
             <Link
+              // className="relative"
               key={row.original.id}
               to={`/cars/${row.original.id}?${searchParams.toString()}`}
             >
@@ -275,6 +316,11 @@ export default function IndexPage() {
                       </>
                     )}
                   </p>
+                  {process.env.NODE_ENV === "development" && (
+                    <span className="text-sm text-gray-500">
+                      {row.original.owner.username}
+                    </span>
+                  )}
                 </div>
               </div>
             </Link>
