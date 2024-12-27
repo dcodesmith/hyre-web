@@ -9,7 +9,10 @@ import {
   scheduleConfirmedToActiveUpdates,
   scheduleActiveToCompletedUpdates,
 } from "./queues/bookingStatus.server";
-import { scheduleBookingReminderEmails } from "./queues/bookingReminder.server";
+import {
+  scheduleBookingStartReminderEmails,
+  scheduleBookingEndReminderEmails,
+} from "./queues/bookingReminder.server";
 // import express from "express";
 
 // import { serverAdapter } from "./queues/config.server";
@@ -40,10 +43,20 @@ scheduleActiveToCompletedUpdates()
     )
   );
 
-scheduleBookingReminderEmails()
-  .then((job) => console.log(`Booking reminder for job ${job.name} scheduled`))
+scheduleBookingStartReminderEmails()
+  .then((job) =>
+    console.log(`Booking start reminder for job ${job.name} scheduled`)
+  )
   .catch((error) =>
-    console.error("Failed to schedule booking reminder emails", error)
+    console.error("Failed to schedule booking start reminder emails", error)
+  );
+
+scheduleBookingEndReminderEmails()
+  .then((job) =>
+    console.log(`Booking end reminder for job ${job.name} scheduled`)
+  )
+  .catch((error) =>
+    console.error("Failed to schedule booking end reminder emails", error)
   );
 
 // app.once("listening", () => {

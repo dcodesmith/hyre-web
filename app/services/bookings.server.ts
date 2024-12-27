@@ -243,6 +243,7 @@ export async function updateBookingsFromConfirmedToActive() {
     const bookingsToUpdate = await prisma.booking.findMany({
       where: {
         status: BookingStatus.CONFIRMED,
+        chauffeurId: { not: null },
         // startDate: new Date(), will this work
         startDate: {
           gte: new Date(new Date().setMinutes(0, 0, 0)),
@@ -338,15 +339,19 @@ export async function updateBookingsFromActiveToCompleted() {
   }
 }
 
-export async function sendBookingReminderEmails() {
-  // Find all confirmed bookings where start date is today
+export async function sendBookingStartReminderEmails() {
   try {
     const bookings = await prisma.booking.findMany({
       where: {
         status: BookingStatus.CONFIRMED,
         startDate: {
-          gte: new Date(new Date().setMinutes(0, 0, 0)),
-          lte: new Date(new Date().setMinutes(59, 59, 999)),
+          // Get bookings starting in the next hour
+          gte: new Date(
+            new Date().setMinutes(new Date().getMinutes() + 60, 0, 0)
+          ),
+          lte: new Date(
+            new Date().setMinutes(new Date().getMinutes() + 60, 59, 999)
+          ),
         },
         car: {
           status: Status.BOOKED,
@@ -389,7 +394,70 @@ export async function sendBookingReminderEmails() {
 
     return `Sent reminders for ${bookings.length} bookings`;
   } catch (error) {
-    console.error("Error updating booking statuses:", error);
+    console.error("Error sending booking start reminder emails:", error);
+    throw error;
+  }
+}
+
+export async function sendBookingEndReminderEmails() {
+  try {
+    const bookings = await prisma.booking.findMany({
+      where: {
+        status: BookingStatus.ACTIVE,
+        endDate: {
+          gte: new Date(
+            new Date().setMinutes(new Date().getMinutes() + 60, 0, 0)
+          ),
+          lte: new Date(
+            new Date().setMinutes(new Date().getMinutes() + 60, 59, 999)
+          ),
+        },
+        car: {
+          status: Status.BOOKED,
+        },
+      },
+      include: {
+        car: {
+          include: {
+            owner: true,
+          },
+        },
+        user: true,
+        chauffeur: true,
+      },
+    });
+
+    if (bookings.length === 0) {
+      return "No reminders to send";
+    }
+
+    for (const booking of bookings) {
+      // Send reminder to client
+      const clientHtml = await renderBookingReminder(booking, "client", false);
+      await sendEmail({
+        to: booking.user.email,
+        subject: `Booking Reminder - Your booking ends in 1 hour`,
+        html: clientHtml,
+      });
+
+      // Send reminder to chauffeur if assigned
+      if (booking.chauffeur?.email) {
+        const chauffeurHtml = await renderBookingReminder(
+          booking,
+          "chauffeur",
+          false
+        );
+        await sendEmail({
+          to: "dcodesmith@gmail.com", // booking.chauffeur.email,
+          subject: `Booking Reminder - You have a booking ending in 1 hour`,
+          html: chauffeurHtml,
+        });
+      }
+    }
+
+    return `Sent reminders for ${bookings.length} bookings`;
+  } catch (error) {
+    console.error("Error sending booking end reminder emails:", error);
     throw error;
   }
 }

@@ -11,6 +11,7 @@ import {
 import { render } from "@react-email/render";
 import { match } from "ts-pattern";
 import { EmailTemplate } from "./EmailTemplate";
+import { formatDate } from "~/lib/utils";
 
 type BookingWithRelations = Booking & {
   car: Car & { owner?: User };
@@ -115,8 +116,8 @@ export function renderFleetOwnerBookingCancellationEmail(
 
           <Text className="text-base text-gray-800">
             • Customer: {booking.user.name || booking.user.email}
-            <br />• Start Date: {booking.startDate.toLocaleDateString()}
-            <br />• End Date: {booking.endDate.toLocaleDateString()}
+            <br />• Start Date & Time: {formatDate(booking.startDate)}
+            <br />• End Date & Time: {formatDate(booking.endDate)}
             <br />• Car: {booking.car.make} {booking.car.model} (
             {booking.car.year})
           </Text>
@@ -169,8 +170,8 @@ export function renderBookingCancellationEmail(booking: BookingWithRelations) {
           </Text>
 
           <Text className="text-base text-gray-800">
-            • Start Date: {booking.startDate.toLocaleDateString()}
-            <br />• End Date: {booking.endDate.toLocaleDateString()}
+            • Start Date & Time: {formatDate(booking.startDate)}
+            <br />• End Date & Time: {formatDate(booking.endDate)}
             <br />• Car: {booking.car.make} {booking.car.model} (
             {booking.car.year})
           </Text>
@@ -208,8 +209,8 @@ export function renderBookingConfirmationEmail(booking: BookingWithRelations) {
           <Text className="text-base text-gray-800 mt-4">Booking Details:</Text>
 
           <Text className="text-base text-gray-800">
-            • Start Date: {booking.startDate.toLocaleDateString()}
-            <br />• End Date: {booking.endDate.toLocaleDateString()}
+            • Start Date & Time: {formatDate(booking.startDate)}
+            <br />• End Date & Time: {formatDate(booking.endDate)}
             <br />• Car: {booking.car.make} {booking.car.model} (
             {booking.car.year})
             <br />• Pickup Location: {booking.pickupLocation}
@@ -270,12 +271,12 @@ export function renderFleetOwnerBookingNotificationEmail(
 
           <Text className="text-base text-gray-800">
             • Customer: {booking.user.username || booking.user.email}
-            <br />• Start Date: {booking.startDate.toLocaleDateString()}
-            <br />• End Date: {booking.endDate.toLocaleDateString()}
+            <br />• Start Date & Time: {formatDate(booking.startDate)}
+            <br />• End Date & Time: {formatDate(booking.endDate)}
             <br />• Car: {booking.car.make} {booking.car.model} (
             {booking.car.year})
             <br />• Pickup Location: {booking.pickupLocation}
-            <br />• Return Location: {booking.returnLocation}
+            <br />• Drop-off Location: {booking.returnLocation}
             <br />• Total Amount:{" "}
             {new Intl.NumberFormat("en-NG", {
               style: "currency",
@@ -331,8 +332,8 @@ export function renderChauffeurAssignedEmail(booking: BookingWithRelations) {
           <Text className="text-base text-gray-800 mt-4">Booking Details:</Text>
 
           <Text className="text-base text-gray-800">
-            • Start Date: {booking.startDate.toLocaleDateString()}
-            <br />• End Date: {booking.endDate.toLocaleDateString()}
+            • Start Date & Time: {formatDate(booking.startDate)}
+            <br />• End Date & Time: {formatDate(booking.endDate)}
             <br />• Car: {booking.car.make} {booking.car.model} (
             {booking.car.year})
             <br />• Pickup Location: {booking.pickupLocation}
@@ -362,38 +363,48 @@ export function renderChauffeurAssignedEmail(booking: BookingWithRelations) {
 
 export function renderBookingReminder(
   booking: BookingWithRelations,
-  recipient: "client" | "chauffeur"
+  recipient: "client" | "chauffeur",
+  isStartReminder = true
 ) {
   const user = recipient === "client" ? booking.user : booking.chauffeur;
 
   return render(
     <EmailTemplate>
-      <Preview>This is a reminder that your booking starts in 1 hour.</Preview>
-      <Body className="bg-white">
+      <Preview>
+        This is a reminder that your booking{" "}
+        {isStartReminder ? "starts" : "ends"} in 1 hour.
+      </Preview>
+      <Body className="bg-white text-gray-800">
         <Container className="mx-auto py-4">
-          <Heading className="text-2xl font-medium text-gray-800">
-            This is a reminder that your booking starts in 1 hour.
-          </Heading>
+          <Text>Hello {user?.name},</Text>
 
-          <Text className="text-base text-gray-800">Hello {user?.name},</Text>
-
-          <div style={{ marginTop: "20px" }}>
+          <Text className="mt-4">
             <strong>Booking Details:</strong>
-            <p>Date: {new Date(booking.startDate).toLocaleDateString()}</p>
-            <p>Time: {new Date(booking.startDate).toLocaleTimeString()}</p>
-            <p>Location: {booking.pickupLocation}</p>
-          </div>
+            <p>Start Date & Time: {formatDate(booking.startDate)}</p>
+            <p>End Date & Time: {formatDate(booking.endDate)}</p>
+            <p>Pickup Location: {booking.pickupLocation}</p>
+            <p>Drop-off Location: {booking.returnLocation}</p>
+            <p>
+              Car: {booking.car.make} {booking.car.model} ({booking.car.year})
+            </p>
+          </Text>
 
           {recipient === "client" && booking.chauffeur && (
-            <Text className="text-base text-gray-800">
-              Your chauffeur {booking.chauffeur.name} will meet you at the
-              pickup location.
+            <Text>
+              Your chauffeur {booking.chauffeur.name} will{" "}
+              {isStartReminder
+                ? "meet you at the pickup location"
+                : "drop you off at the drop-off location"}
+              .
             </Text>
           )}
           {recipient === "chauffeur" && (
-            <Text className="text-base text-gray-800">
-              Your client {booking.user.name} will meet you at the pickup
-              location.
+            <Text>
+              Your client {booking.user.name} will{" "}
+              {isStartReminder
+                ? "meet you at the pickup location"
+                : "drop you off at the drop-off location"}
+              .
             </Text>
           )}
 
