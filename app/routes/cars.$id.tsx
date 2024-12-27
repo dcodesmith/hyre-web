@@ -12,7 +12,6 @@ import { requireUser } from "~/modules/auth/auth.server";
 import { prisma } from "~/modules/db/db.server";
 import { createBooking } from "~/services/bookings.server";
 import { isCarAvailable } from "~/services/cars.server";
-// import util from "util";
 
 const BookingCard = lazy(() => import("~/components/BookingCard"));
 

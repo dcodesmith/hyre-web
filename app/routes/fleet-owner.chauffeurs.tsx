@@ -83,7 +83,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
       bookingsAsChauffeur: {
         where: {
           status: {
-            not: BookingStatus.CANCELLED,
+            notIn: [BookingStatus.CANCELLED, BookingStatus.COMPLETED],
           },
         },
         take: 1,
