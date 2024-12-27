@@ -10,7 +10,5 @@ export const vehicles = [
   { make: "Toyota", model: "Highlander" },
   { make: "Mitsubishi", model: "Pajero" },
   { make: "Honda", model: "Pilot" },
-  { make: "Infiniti", model: "QX80" },
   { make: "Audi", model: "Q7" },
-  { make: "Volvo", model: "XC90" },
 ];

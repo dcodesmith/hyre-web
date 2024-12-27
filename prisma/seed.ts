@@ -1,6 +1,6 @@
 import { vehicles } from "~/vehicles";
 import { prisma } from "../app/modules/db/db.server";
-import { BookingStatus, PaymentStatus, Status } from "@prisma/client";
+import { Status } from "@prisma/client";
 import path from "node:path";
 import fs from "node:fs/promises";
 import { uploadImageToS3 } from "~/services/s3.server";
@@ -34,7 +34,6 @@ async function getCarImages(basePattern: string) {
 async function seed() {
   // Clear database in a single transaction
   await prisma.$transaction(async (transaction) => {
-    await transaction.booking.deleteMany();
     await transaction.car.deleteMany();
     await transaction.user.deleteMany();
     await transaction.permission.deleteMany();
@@ -125,12 +124,12 @@ async function seed() {
     },
   ];
 
-  const user = await prisma.user.create({
+  await prisma.user.create({
     select: { id: true },
     data: {
       email: "dcodesmith@gmail.com",
       username: "dcodesmith",
-      name: "Adedamola Kolawole",
+      name: "Damola Kolawole",
       roles: { connect: [{ name: "user" }] },
     },
   });
@@ -234,94 +233,11 @@ async function seed() {
         });
       }
     }
-
-    // Create Cars first, then create bookings for them.
-
-    const bookedCars = await prisma.car.findMany({
-      where: { status: Status.BOOKED },
-    });
-
-    const bookings = bookedCars.map((car) => {
-      // if (car.status !== "BOOKED") return car;
-      // const endDate = new Date();
-      // // Random duration between 1-7 days
-      // const durationDays = Math.floor(Math.random() * 7) + 1;
-      // endDate.setDate(endDate.getDate() + durationDays);
-      // // Random start date between now and 7 days ago
-      // const startDate = new Date();
-      // const daysAgo = Math.floor(Math.random() * 7);
-      // // Create dates for yesterday, today, and tomorrow
-      // const today = new Date();
-      // // const yesterday = new Date(today);
-      // // yesterday.setDate(today.getDate() - 1);
-      // const tomorrow = new Date(today);
-      // tomorrow.setDate(today.getDate() + 1);
-
-      // // Randomly select one of the three dates
-      // // yesterday
-      // const possibleStartDates = [today, tomorrow];
-      // const startTimes = [8, 9, 10, 11, 12];
-      // possibleStartDates.forEach((date) => {
-      //   const startHour =
-      //     startTimes[Math.floor(Math.random() * startTimes.length)];
-      //   date.setHours(startHour, 0, 0, 0);
-      //   endDate.setHours(startHour + 12, 0, 0, 0);
-      // });
-      // startDate.setTime(
-      //   possibleStartDates[Math.floor(Math.random() * 2)].getTime()
-      // );
-      // startDate.setDate(endDate.getDate() - (durationDays + daysAgo));
-
-      // if (car.status !== "BOOKED") return car;
-
-      const now = new Date();
-      const today = new Date();
-      const tomorrow = new Date(today);
-      tomorrow.setDate(today.getDate() + 1);
-
-      // Determine if we should use today or tomorrow as start date
-      const currentHour = now.getHours();
-      const startDate = currentHour < 8 ? today : tomorrow;
-
-      // Set random start hour (8am-12pm)
-      const startHours = [8, 9, 10, 11, 12];
-      const startHour =
-        startHours[Math.floor(Math.random() * startHours.length)];
-      startDate.setHours(startHour, 0, 0, 0);
-
-      // Set end date same day for 1 day booking (12hr period)
-      const durationDays = Math.floor(Math.random() * 3) + 1;
-      const endDate = new Date(startDate);
-      if (durationDays > 1) {
-        // For multi-day bookings, add full days
-        endDate.setDate(startDate.getDate() + (durationDays - 1));
-      }
-      // Set end time to 12 hours after start time (e.g. 9am -> 9pm)
-      endDate.setHours(startHour + 12, 0, 0, 0);
-
-      return {
-        carId: car.id,
-        pickupLocation: "4 Lawrence Road, Ikoyi, Lagos",
-        returnLocation: "4 Lawrence Road, Ikoyi, Lagos",
-        specialRequests: "No special requests",
-        startDate,
-        endDate,
-        status: BookingStatus.CONFIRMED,
-        paymentStatus: PaymentStatus.PAID,
-        totalAmount: car.price * durationDays,
-        userId: user.id,
-      };
-    });
-
-    if (bookings.length > 0) {
-      await prisma.booking.createMany({ data: bookings });
-    }
   }
 
   console.info(`🚗 Cars have been successfully created.`);
   console.info(`🎭 User roles and permissions have been successfully created.`);
   console.info(`👤 Users have been successfully created.`);
-  console.info(`🎫 Bookings have been successfully created.`);
 }
 
 try {
