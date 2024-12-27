@@ -190,20 +190,20 @@ export default function BookingCard({
               </div>
 
               <div className="space-y-1">
-                <Label htmlFor="street">Street Address</Label>
+                <Label htmlFor="pickupStreet">Pickup Street Address</Label>
                 <Input
-                  id="street"
-                  name="street"
+                  id="pickupStreet"
+                  name="pickupStreet"
                   placeholder="Enter street address"
                   className="w-full rounded"
                 />
               </div>
 
               <div className="space-y-1">
-                <Label htmlFor="locality">Locality/Area</Label>
+                <Label htmlFor="pickupLocality">Pickup Locality/Area</Label>
                 <Input
-                  id="locality"
-                  name="locality"
+                  id="pickupLocality"
+                  name="pickupLocality"
                   placeholder="Enter locality or area"
                   className="w-full rounded"
                 />
@@ -226,20 +226,24 @@ export default function BookingCard({
               {!sameLocation && (
                 <>
                   <div className="space-y-1" id="dropoffFields">
-                    <Label htmlFor="dropStreet">Drop-off Street Address</Label>
+                    <Label htmlFor="dropOffStreet">
+                      Drop-off Street Address
+                    </Label>
                     <Input
-                      id="dropStreet"
-                      name="dropStreet"
+                      id="dropOffStreet"
+                      name="dropOffStreet"
                       placeholder="Enter drop-off street address"
                       className="w-full rounded"
                     />
                   </div>
 
                   <div className="space-y-1">
-                    <Label htmlFor="dropLocality">Drop-off Locality/Area</Label>
+                    <Label htmlFor="dropOffLocality">
+                      Drop-off Locality/Area
+                    </Label>
                     <Input
-                      id="dropLocality"
-                      name="dropLocality"
+                      id="dropOffLocality"
+                      name="dropOffLocality"
                       placeholder="Enter drop-off locality or area"
                       className="w-full rounded"
                     />
