@@ -3,7 +3,13 @@ import {
   json,
   type LoaderFunctionArgs,
 } from "@remix-run/node";
-import { Link, useFetcher, useLoaderData } from "@remix-run/react";
+import {
+  Link,
+  useFetcher,
+  useLoaderData,
+  useSearchParams,
+  useNavigate,
+} from "@remix-run/react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import { cancelBooking, getBookingsByStatus } from "~/services/bookings.server";
 import { requireUserWithRole } from "~/utils/permissions.server";
@@ -28,6 +34,7 @@ export async function action({ request }: ActionFunctionArgs) {
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const user = await requireUserWithRole(request, "user");
+
   const bookings = await getBookingsByStatus(user.id);
 
   return json({ bookings });
@@ -36,7 +43,10 @@ export async function loader({ request }: LoaderFunctionArgs) {
 export default function DashboardRoute() {
   const { bookings } = useLoaderData<typeof loader>();
   const fetcher = useFetcher();
+  const [searchParams] = useSearchParams();
+  const status = searchParams.get("status")?.toLocaleUpperCase() ?? "ACTIVE";
 
+  const navigate = useNavigate();
   const statuses = [
     "ACTIVE",
     "PENDING",
@@ -49,10 +59,16 @@ export default function DashboardRoute() {
     <div>
       <h2 className="text-2xl font-bold mb-4">Your Bookings</h2>
 
-      <Tabs defaultValue="ACTIVE" className="w-full">
+      <Tabs defaultValue={status} className="w-full">
         <TabsList className="grid w-full grid-cols-5">
           {statuses.map((status) => (
-            <TabsTrigger key={status} value={status}>
+            <TabsTrigger
+              key={status}
+              value={status}
+              onClick={() => {
+                navigate(`/bookings?status=${status.toLocaleLowerCase()}`);
+              }}
+            >
               {status.charAt(0) + status.slice(1).toLowerCase()}
               <span className="ml-2 text-sm text-gray-500">
                 ({bookings[status]?.length || 0})
@@ -97,7 +113,13 @@ export default function DashboardRoute() {
                         </p>
 
                         {booking.chauffeur ? (
-                          <p>Your chauffeur is {booking.chauffeur.name}</p>
+                          <p>
+                            Your chauffeur{" "}
+                            {["CANCELLED", "COMPLETED"].includes(booking.status)
+                              ? "was"
+                              : "is"}{" "}
+                            {booking.chauffeur.name}
+                          </p>
                         ) : (
                           <p>Chauffeur not assigned yet</p>
                         )}
