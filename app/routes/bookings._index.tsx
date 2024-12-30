@@ -147,13 +147,7 @@ export default function BookingsPage() {
   const status = searchParams.get("status")?.toLocaleUpperCase() ?? "ACTIVE";
 
   const navigate = useNavigate();
-  const statuses = [
-    "ACTIVE",
-    "PENDING",
-    "CONFIRMED",
-    "COMPLETED",
-    "CANCELLED",
-  ] as const;
+  const statuses = ["ACTIVE", "CONFIRMED", "COMPLETED", "CANCELLED"] as const;
 
   return (
     <div>
@@ -227,12 +221,12 @@ export default function BookingsPage() {
                       </div>
                     </div>
                   </div>
-                  <div className="flex flex-col gap-2 items-center">
+                  <div className="flex flex-col gap-2 items-center justify-center">
                     <Link
                       to={`/bookings/${booking.id}`}
                       className="text-blue-500 hover:text-blue-700"
                     >
-                      View Booking
+                      View
                     </Link>
 
                     {["PENDING", "CONFIRMED"].includes(booking.status) && (
@@ -251,7 +245,7 @@ export default function BookingsPage() {
                           )
                         }
                       >
-                        Cancel Booking
+                        Cancel
                       </button>
                     )}
                   </div>
