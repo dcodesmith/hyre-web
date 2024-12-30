@@ -5,31 +5,131 @@ import {
 } from "@remix-run/node";
 import {
   Link,
+  redirect,
   useFetcher,
   useLoaderData,
-  useSearchParams,
   useNavigate,
+  useSearchParams,
 } from "@remix-run/react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
-import { cancelBooking, getBookingsByStatus } from "~/services/bookings.server";
-import { requireUserWithRole } from "~/utils/permissions.server";
-import { formatCurrency, formatDate } from "~/lib/utils";
 import invariant from "tiny-invariant";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
+import { formatCurrency, formatDate } from "~/lib/utils";
+import { requireUser } from "~/modules/auth/auth.server";
+import { sendEmail } from "~/modules/email/email.server";
+import {
+  renderBookingConfirmationEmail,
+  renderFleetOwnerBookingNotificationEmail,
+} from "~/modules/email/templates/booking-notification";
+import {
+  cancelBooking,
+  confirmBooking,
+  getBookingsByStatus,
+} from "~/services/bookings.server";
+import { requireUserWithRole } from "~/utils/permissions.server";
 
 export async function action({ request }: ActionFunctionArgs) {
-  const formData = await request.formData();
-  const bookingId = String(formData.get("bookingId"));
-  const reason = String(formData.get("reason"));
+  const user = await requireUser(request, {
+    redirectTo: `/auth?redirectTo=/bookings`,
+  });
 
-  invariant(bookingId, "Booking ID is required");
-  invariant(reason, "Cancellation reason is required");
+  if (request.method === "DELETE") {
+    const formData = await request.formData();
+    const bookingId = String(formData.get("bookingId"));
+    const reason = String(formData.get("reason"));
 
-  try {
-    await cancelBooking(bookingId, reason);
-    return json({ success: true });
-  } catch (error) {
-    return json({ error: "Failed to cancel booking" }, { status: 500 });
+    invariant(bookingId, "Booking ID is required");
+    invariant(reason, "Cancellation reason is required");
+
+    try {
+      await cancelBooking(bookingId, reason);
+      return json({ success: true });
+    } catch (error) {
+      return json({ error: "Failed to cancel booking" }, { status: 500 });
+    }
   }
+
+  if (request.method === "POST") {
+    const url = new URL(request.url);
+    const startDate = url.searchParams.get("from");
+    const endDate = url.searchParams.get("to");
+
+    invariant(startDate, "From Date is required");
+    invariant(endDate, "To Date is required");
+
+    const formData = await request.formData();
+
+    // TODO:for security reasons, we need to do another validation to check that booking is still available
+    // because the user might have changed the dates in the form
+
+    const pickupStreet = String(formData.get("pickupStreet"));
+    const pickupLocality = String(formData.get("pickupLocality"));
+    const sameLocation = formData.get("sameLocation");
+    const pickupTime = String(formData.get("pickupTime"));
+    const dropOffStreet = String(formData.get("dropOffStreet"));
+    const dropOffLocality = String(formData.get("dropOffLocality"));
+    const carId = String(formData.get("carId"));
+    const paymentId = String(formData.get("paymentId"));
+
+    // Parse the time from pickupTime (e.g. "8:00 AM") and set it on startDate
+    const [time, period] = pickupTime.split(" ");
+    const [hours, minutes] = time.split(":");
+    const startDateTime = new Date(startDate);
+
+    // Convert 12-hour format to 24-hour
+    let hour = parseInt(hours);
+
+    if (period === "PM" && hour !== 12) {
+      hour += 12;
+    }
+
+    startDateTime.setHours(hour);
+    startDateTime.setMinutes(parseInt(minutes));
+    startDateTime.setSeconds(0);
+    startDateTime.setMilliseconds(0);
+
+    // Set end date time to 12 hours after start time
+    const endDateTime = new Date(endDate);
+    endDateTime.setHours(startDateTime.getHours() + 12);
+    endDateTime.setMinutes(startDateTime.getMinutes());
+    endDateTime.setSeconds(0);
+    endDateTime.setMilliseconds(0);
+
+    const pickupLocation = `${pickupStreet}, ${pickupLocality}`;
+    const returnLocation = sameLocation
+      ? pickupLocation
+      : `${dropOffStreet}, ${dropOffLocality}`;
+
+    try {
+      const booking = await confirmBooking({
+        startDate: startDateTime,
+        endDate: endDateTime,
+        carId,
+        userId: user.id,
+        pickupLocation,
+        returnLocation,
+        paymentId,
+      });
+
+      await Promise.all([
+        sendEmail({
+          to: booking.user.email,
+          subject: "Booking confirmed",
+          html: await renderBookingConfirmationEmail(booking),
+        }),
+        sendEmail({
+          to: "dcodesmith@gmail.com", // booking.car.owner.email,
+          subject: "New booking alert",
+          html: await renderFleetOwnerBookingNotificationEmail(booking),
+        }),
+      ]);
+
+      return redirect(`/bookings/${booking.id}`);
+    } catch (error) {
+      return json({ error }, { status: 400 });
+    }
+  }
+
+  return json({ error: "Invalid request method" }, { status: 405 });
 }
 
 export async function loader({ request }: LoaderFunctionArgs) {
@@ -108,7 +208,7 @@ export default function DashboardRoute() {
                             .
                           </span>
                           <span className=" text-gray-500">
-                            {formatDate(booking.updatedAt)}
+                            {formatDate(booking.createdAt)}
                           </span>
                         </p>
 

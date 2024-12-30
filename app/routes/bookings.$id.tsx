@@ -1,27 +1,18 @@
 import { ActionFunctionArgs, json, LoaderFunctionArgs } from "@remix-run/node";
-import { useFetcher, useLoaderData } from "@remix-run/react";
-import { closePaymentModal, useFlutterwave } from "flutterwave-react-v3";
+import { useLoaderData } from "@remix-run/react";
 import invariant from "tiny-invariant";
-import { Button } from "~/components/ui/button";
 import { formatCurrency } from "~/lib/utils";
 import { requireUser } from "~/modules/auth/auth.server";
 import { sendEmail } from "~/modules/email/email.server";
 import {
   renderBookingCancellationEmail,
-  renderBookingConfirmationEmail,
   renderFleetOwnerBookingCancellationEmail,
-  renderFleetOwnerBookingNotificationEmail,
 } from "~/modules/email/templates/booking-notification";
-import {
-  cancelBooking,
-  confirmBooking,
-  createBooking,
-  getBooking,
-} from "~/services/bookings.server";
+import { cancelBooking, getBooking } from "~/services/bookings.server";
 
 export async function action({ request, params }: ActionFunctionArgs) {
-  const user = await requireUser(request, {
-    redirectTo: `/auth?redirectTo=/cars/${params.id}`,
+  await requireUser(request, {
+    redirectTo: `/auth?redirectTo=/bookings/${params.id}`,
   });
 
   invariant(params.id, "Booking ID is required");
@@ -53,104 +44,6 @@ export async function action({ request, params }: ActionFunctionArgs) {
       return json({ error: "Failed to delete car" }, { status: 500 });
     }
   }
-
-  if (request.method === "POST") {
-    invariant(params.id, "Car ID is required");
-
-    const url = new URL(request.url);
-    const startDate = url.searchParams.get("from");
-    const endDate = url.searchParams.get("to");
-
-    invariant(startDate, "From Date is required");
-    invariant(endDate, "To Date is required");
-
-    const formData = await request.formData();
-
-    // TODO:for security reasons, we need to do another validation to check that booking is still available
-    // because the user might have changed the dates in the form
-
-    // const startDate = new Date(String(formData.get("startDate")));
-    // const endDate = new Date(String(formData.get("endDate")));
-    const pickupStreet = String(formData.get("pickupStreet"));
-    const pickupLocality = String(formData.get("pickupLocality"));
-    const sameLocation = formData.get("sameLocation");
-    const pickupTime = String(formData.get("pickupTime"));
-    const dropOffStreet = String(formData.get("dropOffStreet"));
-    const dropOffLocality = String(formData.get("dropOffLocality"));
-
-    // Parse the time from pickupTime (e.g. "8:00 AM") and set it on startDate
-    const [time, period] = pickupTime.split(" ");
-    const [hours, minutes] = time.split(":");
-    const startDateTime = new Date(startDate);
-
-    // Convert 12-hour format to 24-hour
-    let hour = parseInt(hours);
-
-    if (period === "PM" && hour !== 12) {
-      hour += 12;
-    }
-
-    startDateTime.setHours(hour);
-    startDateTime.setMinutes(parseInt(minutes));
-    startDateTime.setSeconds(0);
-    startDateTime.setMilliseconds(0);
-
-    // Set end date time to 12 hours after start time
-    const endDateTime = new Date(endDate);
-    endDateTime.setHours(startDateTime.getHours() + 12);
-    endDateTime.setMinutes(startDateTime.getMinutes());
-    endDateTime.setSeconds(0);
-    endDateTime.setMilliseconds(0);
-
-    const pickupLocation = `${pickupStreet}, ${pickupLocality}`;
-    const returnLocation = sameLocation
-      ? pickupLocation
-      : `${dropOffStreet}, ${dropOffLocality}`;
-
-    try {
-      const booking = await createBooking({
-        startDate: startDateTime,
-        endDate: endDateTime,
-        carId: params.id,
-        userId: user.id,
-        pickupLocation,
-        returnLocation,
-      });
-
-      return json({ booking });
-      // return redirect(`/payment?bookingId=${booking.id}`);
-    } catch (error) {
-      return json({ error }, { status: 400 });
-    }
-  }
-
-  if (request.method === "PATCH") {
-    invariant(params.id, "Booking ID is required");
-
-    const formData = await request.formData();
-    const transactionId = String(formData.get("transactionId"));
-
-    try {
-      const booking = await confirmBooking(params.id, transactionId);
-
-      await Promise.all([
-        sendEmail({
-          to: booking.user.email,
-          subject: "Booking confirmed",
-          html: await renderBookingConfirmationEmail(booking),
-        }),
-        sendEmail({
-          to: "dcodesmith@gmail.com", // booking.car.owner.email,
-          subject: "New booking alert",
-          html: await renderFleetOwnerBookingNotificationEmail(booking),
-        }),
-      ]);
-
-      return json({ booking });
-    } catch (error) {
-      return json({ error }, { status: 500 });
-    }
-  }
 }
 
 export async function loader({ params }: LoaderFunctionArgs) {
@@ -176,51 +69,8 @@ const formatDate = (date: string | Date) => {
   });
 };
 
-const config = {
-  public_key: "FLWPUBK_TEST-02b9b5fc6406bd4a41c3ff141cc45e93-X",
-  tx_ref: "txref-DI0NzMx13",
-  currency: "NGN",
-  payment_options: "card,mobilemoney,ussd",
-  customizations: {
-    logo: "https://st2.depositphotos.com/4403291/7418/v/450/depositphotos_74189661-stock-illustration-online-shop-log.jpg",
-  },
-};
-
 export default function Booking() {
   const { booking } = useLoaderData<typeof loader>();
-  const fetcher = useFetcher();
-
-  const handlePayment = useFlutterwave({
-    ...config,
-    amount: 3000,
-    customer: {
-      email: "dcodesmith@gmail.com",
-      phone_number: "070********",
-      name: "Afees Adedamola Kolawole",
-    },
-    customizations: {
-      title: `Booking Payment`,
-      description: `Payment for ${booking?.car?.make} ${booking?.car?.model} rental`,
-      logo: "https://picsum.photos/seed/car-rental/800/600",
-    },
-  });
-
-  if (fetcher.state === "loading") {
-    return <div>Loading...</div>;
-  }
-
-  const onMakePayment = () => {
-    handlePayment({
-      callback: ({ transaction_id: transactionId, status }) => {
-        fetcher.submit(
-          { transactionId, status },
-          { method: "PATCH", action: `/bookings/${booking.id}` }
-        );
-        closePaymentModal();
-      },
-      onClose: () => {},
-    });
-  };
 
   return (
     <div className="max-w-3xl mx-auto p-6 space-y-2">
@@ -264,10 +114,6 @@ export default function Booking() {
             <h3 className="text-gray-500">Payment Status</h3>
             <div className="flex items-center gap-2">
               <p className="font-medium">{booking.paymentStatus}</p>
-              {booking.paymentStatus === "UNPAID" &&
-                booking.status !== "CANCELLED" && (
-                  <Button onClick={() => onMakePayment()}>Pay Now</Button>
-                )}
             </div>
           </div>
 

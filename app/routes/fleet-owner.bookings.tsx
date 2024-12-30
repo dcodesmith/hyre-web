@@ -87,6 +87,9 @@ export async function loader({ request }: LoaderFunctionArgs) {
         ownerId: user.id,
       },
     },
+    orderBy: {
+      updatedAt: "desc",
+    },
     include: {
       car: true,
       user: true,

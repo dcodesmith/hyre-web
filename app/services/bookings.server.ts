@@ -14,9 +14,10 @@ export type CreateBookingParams = {
   pickupLocation: string;
   returnLocation: string;
   specialRequests?: string;
+  paymentId: string;
 };
 
-export async function createBooking({
+export async function confirmBooking({
   startDate,
   endDate,
   carId,
@@ -24,6 +25,7 @@ export async function createBooking({
   pickupLocation,
   returnLocation,
   specialRequests,
+  paymentId,
 }: CreateBookingParams) {
   // Calculate total amount based on days and car price
   const car = await prisma.car.findUnique({ where: { id: carId } });
@@ -47,6 +49,9 @@ export async function createBooking({
         returnLocation,
         specialRequests,
         totalAmount,
+        paymentId,
+        status: "CONFIRMED",
+        paymentStatus: "PAID",
       },
       include: {
         car: { include: { owner: true } },
@@ -65,21 +70,6 @@ export async function createBooking({
   });
 
   return booking;
-}
-
-export async function confirmBooking(bookingId: string, paymentId: string) {
-  return prisma.booking.update({
-    where: { id: bookingId },
-    data: {
-      paymentId,
-      status: "CONFIRMED",
-      paymentStatus: "PAID",
-    },
-    include: {
-      car: { include: { owner: true } },
-      user: true,
-    },
-  });
 }
 
 export async function cancelBooking(bookingId: string, reason: string) {

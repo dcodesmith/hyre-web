@@ -5,88 +5,17 @@ import {
   useLoaderData,
   useSearchParams,
 } from "@remix-run/react";
-import { lazy, Suspense } from "react";
 import invariant from "tiny-invariant";
+import BookingCard from "~/components/BookingCard";
 import CarCarousel from "~/components/Carousel";
 import { requireUser } from "~/modules/auth/auth.server";
 import { prisma } from "~/modules/db/db.server";
-import { createBooking } from "~/services/bookings.server";
 import { isCarAvailable } from "~/services/cars.server";
 
-const BookingCard = lazy(() => import("~/components/BookingCard"));
-
 export async function action({ request, params }: ActionFunctionArgs) {
-  const user = await requireUser(request, {
+  await requireUser(request, {
     redirectTo: `/auth?redirectTo=/cars/${params.id}`,
   });
-
-  invariant(params.id, "Car ID is required");
-
-  const url = new URL(request.url);
-  const startDate = url.searchParams.get("from");
-  const endDate = url.searchParams.get("to");
-
-  invariant(startDate, "From Date is required");
-  invariant(endDate, "To Date is required");
-
-  const formData = await request.formData();
-
-  // TODO:for security reasons, we need to do another validation to check that booking is still available
-  // because the user might have changed the dates in the form
-
-  // const startDate = new Date(String(formData.get("startDate")));
-  // const endDate = new Date(String(formData.get("endDate")));
-  const street = String(formData.get("street"));
-  const locality = String(formData.get("locality"));
-  const sameLocation = formData.get("sameLocation");
-  const pickupTime = String(formData.get("pickupTime"));
-  const dropStreet = String(formData.get("dropStreet"));
-  const dropLocality = String(formData.get("dropLocality"));
-
-  // Parse the time from pickupTime (e.g. "8:00 AM") and set it on startDate
-  const [time, period] = pickupTime.split(" ");
-  const [hours, minutes] = time.split(":");
-  const startDateTime = new Date(startDate);
-
-  // Convert 12-hour format to 24-hour
-  let hour = parseInt(hours);
-
-  if (period === "PM" && hour !== 12) {
-    hour += 12;
-  }
-
-  startDateTime.setHours(hour);
-  startDateTime.setMinutes(parseInt(minutes));
-  startDateTime.setSeconds(0);
-  startDateTime.setMilliseconds(0);
-
-  // Set end date time to 12 hours after start time
-  const endDateTime = new Date(endDate);
-  endDateTime.setHours(startDateTime.getHours() + 12);
-  endDateTime.setMinutes(startDateTime.getMinutes());
-  endDateTime.setSeconds(0);
-  endDateTime.setMilliseconds(0);
-
-  const pickupLocation = `${street}, ${locality}`;
-  const returnLocation = sameLocation
-    ? pickupLocation
-    : `${dropStreet}, ${dropLocality}`;
-
-  try {
-    const booking = await createBooking({
-      startDate: startDateTime,
-      endDate: endDateTime,
-      carId: params.id,
-      userId: user.id,
-      pickupLocation,
-      returnLocation,
-    });
-
-    // return redirect(`/dashboard?bookingId=${booking.id}`);
-    return json({ booking });
-  } catch (error) {
-    return json({ success: false, error: "Booking failed" }, { status: 400 });
-  }
 }
 
 export const loader = async ({ request, params }: LoaderFunctionArgs) => {
@@ -230,11 +159,9 @@ export default function CarDetails() {
           </div>
         </div>
 
-        <Suspense fallback={<div>Loading...</div>}>
-          <div className="order-2 lg:order-3">
-            <BookingCard car={carWithDates} isAvailable={isAvailable} />
-          </div>
-        </Suspense>
+        <div className="order-2 lg:order-3">
+          <BookingCard car={carWithDates} isAvailable={isAvailable} />
+        </div>
       </div>
     </div>
   );

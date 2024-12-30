@@ -1,10 +1,10 @@
-import { Booking, Car } from "@prisma/client";
+import { Car } from "@prisma/client";
 import { CheckedState } from "@radix-ui/react-checkbox";
-import { useFetcher, useNavigate, useSearchParams } from "@remix-run/react";
+import { Form, useSearchParams, useSubmit } from "@remix-run/react";
 import { closePaymentModal, useFlutterwave } from "flutterwave-react-v3";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { DateRange } from "react-day-picker";
-import { formatCurrency } from "~/lib/utils";
+import { formatCurrency, useIsPending } from "~/lib/utils";
 import { DateRangePicker } from "./DateRangePicker";
 import { Button } from "./ui/button";
 import {
@@ -52,30 +52,23 @@ function getPickupTimes(date: Date) {
     }));
 }
 
-export default function BookingCard({
-  car,
-  isAvailable,
-}: {
+type BookingCardProps = {
   car: Car;
   isAvailable: boolean;
-}) {
+};
+
+export default function BookingCard({ car, isAvailable }: BookingCardProps) {
   const [sameLocation, setSameLocation] = useState<CheckedState>(true);
-  const navigate = useNavigate();
-  const fetcher = useFetcher<{ booking: Booking }>({ key: "make-booking" });
   const [searchParams, setSearchParams] = useSearchParams();
   const fromParam = searchParams.get("from");
   const toParam = searchParams.get("to");
+  const isPending = useIsPending();
+  const submit = useSubmit();
 
   const [dateRange, setDateRange] = useState<DateRange>({
     from: fromParam ? new Date(fromParam) : undefined,
     to: toParam ? new Date(toParam) : undefined,
   });
-
-  useEffect(() => {
-    if (fetcher.data) {
-      navigate(`/bookings/${fetcher.data.booking.id}`);
-    }
-  }, [fetcher.data, navigate]);
 
   const onDateChange = (dateRange: DateRange) => {
     setDateRange(dateRange);
@@ -123,42 +116,41 @@ export default function BookingCard({
       name: "Afees Adedamola Kolawole",
     },
     customizations: {
-      // TODO: window object is undefined when the page is refreshed
-      title: `${window.ENV.APP_NAME} Booking Payment`,
+      // TODO: window object is undefined when the page is refreshed ${window.ENV.APP_NAME}
+      title: `Booking Payment`,
       description: "Payment for Booking",
       logo: "https://picsum.photos/seed/car-rental/800/600",
     },
   });
 
-  const onMakePayment = useCallback(() => {
-    if (!fetcher.data?.booking) return;
+  const onMakePayment = useCallback(
+    async (event: React.FormEvent) => {
+      event.preventDefault();
 
-    const bookingId = fetcher.data.booking.id;
+      const formData = new FormData(event.currentTarget as HTMLFormElement);
 
-    handlePayment({
-      callback: ({ transaction_id: transactionId, status }) => {
-        console.log("fetcher", fetcher);
-        fetcher.submit(
-          { transactionId, status },
-          { method: "PATCH", action: `/bookings/${bookingId}` }
-        );
-        closePaymentModal();
-      },
-      onClose: () => {},
-    });
-  }, [fetcher, handlePayment]);
+      handlePayment({
+        callback: ({ transaction_id: transactionId, status }) => {
+          formData.set("paymentId", String(transactionId));
+          formData.set("status", status);
 
-  useEffect(() => {
-    if (fetcher.data?.booking) {
-      onMakePayment();
-    }
-  }, [fetcher.data, onMakePayment]);
+          submit(formData, {
+            method: "POST",
+            action: `/bookings?${searchParams.toString()}`,
+          });
+          setTimeout(() => {
+            closePaymentModal();
+          }, 1500);
+        },
+        onClose: () => closePaymentModal(),
+      });
+    },
+    [handlePayment, searchParams, submit]
+  );
 
   return (
-    <fetcher.Form
-      method="post"
-      action={`/bookings/${car.id}?${searchParams.toString()}`}
-    >
+    <Form onSubmit={onMakePayment}>
+      <input type="hidden" name="carId" value={car.id} />
       <Card className="rounded sticky top-4">
         <CardHeader>
           <CardTitle className="text-lg">
@@ -275,12 +267,12 @@ export default function BookingCard({
               </div>
 
               <Button type="submit" className="rounded">
-                {fetcher.state === "submitting" ? "Submitting..." : "Book Now"}
+                {isPending ? "Submitting..." : "Book Now"}
               </Button>
             </>
           )}
         </CardFooter>
       </Card>
-    </fetcher.Form>
+    </Form>
   );
 }
