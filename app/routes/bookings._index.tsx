@@ -140,7 +140,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   return json({ bookings });
 }
 
-export default function DashboardRoute() {
+export default function BookingsPage() {
   const { bookings } = useLoaderData<typeof loader>();
   const fetcher = useFetcher();
   const [searchParams] = useSearchParams();
@@ -160,9 +160,10 @@ export default function DashboardRoute() {
       <h2 className="text-2xl font-bold mb-4">Your Bookings</h2>
 
       <Tabs defaultValue={status} className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="flex overflow-x-auto justify-evenly">
           {statuses.map((status) => (
             <TabsTrigger
+              className="whitespace-nowrap w-full"
               key={status}
               value={status}
               onClick={() => {
