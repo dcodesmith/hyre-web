@@ -74,9 +74,9 @@ export default function Booking() {
 
   return (
     <div className="max-w-3xl mx-auto p-6 space-y-2">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="text-2xl font-bold">Booking Details</h2>
-        <p className="font-medium">
+        <p className="font-medium text-gray-600">
           {booking.car.make} {booking.car.model} {booking.car.year} -{" "}
           {booking.car.color}
         </p>
