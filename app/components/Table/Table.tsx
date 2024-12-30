@@ -13,7 +13,6 @@ import {
   VisibilityState,
 } from "@tanstack/react-table";
 import { useState } from "react";
-import { motion } from "framer-motion";
 import {
   Table as TableUI,
   TableBody,
@@ -34,12 +33,6 @@ import { ColumnViewOptions } from "./ColumnViewOptions";
 type TableProps<T extends object> = {
   columns: ColumnDef<T>[];
   data: T[];
-};
-
-const rowVariants = {
-  hidden: { opacity: 0, y: 10 },
-  visible: { opacity: 1, y: 0 },
-  exit: { opacity: 0, y: -10 },
 };
 
 export function Table<T extends object>({ columns, data }: TableProps<T>) {
@@ -84,42 +77,39 @@ export function Table<T extends object>({ columns, data }: TableProps<T>) {
   return (
     <div className="space-y-4">
       {table.getFilteredRowModel().rows.length > 0 && (
-        <div className="flex items-center justify-between">
-          <div className="flex items-center flex-wrap gap-2">
+        <div className="flex items-center flex-wrap gap-2 justify-between">
+          <div className="flex flex-col sm:flex-row items-center sm:w-auto w-full gap-2">
             {filterableColumns.length > 0 && (
               <div className="content-center hidden sm:block">
                 <AdjustmentsVerticalIcon className="h-5 w-5" />
               </div>
             )}
-
-            <div className="flex items-center sm:w-auto w-full gap-2 sm:justify-start justify-between">
-              <div className="flex gap-2 flex-wrap">
-                {filterableColumns.map((column) => (
-                  <FacetedFilter
-                    key={column.id}
-                    column={column}
-                    title={column.id}
-                    options={Array.from(
-                      column.getFacetedUniqueValues().keys()
-                    ).map((value) => ({
-                      label: String(value),
-                      value: String(value),
-                    }))}
-                  />
-                ))}
-              </div>
-
-              {isFiltered && (
-                <Button
-                  variant="ghost"
-                  onClick={() => table.resetColumnFilters()}
-                  className="h-8 px-2 lg:px-3"
-                >
-                  <span className="hidden sm:block">Reset</span>
-                  <XCircleIcon className="ml-2 h-4 w-4" />
-                </Button>
-              )}
+            <div className="flex gap-2 flex-wrap w-full">
+              {filterableColumns.map((column) => (
+                <FacetedFilter
+                  key={column.id}
+                  column={column}
+                  title={column.id}
+                  options={Array.from(
+                    column.getFacetedUniqueValues().keys()
+                  ).map((value) => ({
+                    label: String(value),
+                    value: String(value),
+                  }))}
+                />
+              ))}
             </div>
+
+            {isFiltered && (
+              <Button
+                variant="ghost"
+                onClick={() => table.resetColumnFilters()}
+                className="h-8 px-2 lg:px-3 w-full sm:w-auto"
+              >
+                <span>Reset</span>
+                <XCircleIcon className="ml-2 h-4 w-4" />
+              </Button>
+            )}
           </div>
 
           <ColumnViewOptions table={table} />

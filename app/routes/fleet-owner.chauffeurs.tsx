@@ -188,7 +188,6 @@ export async function action({ request }: ActionFunctionArgs) {
 
 function ChauffeurForm() {
   const lastResult = useActionData<typeof action>();
-  const navigation = useNavigation();
   const isPending = useIsPending();
   const serverError = lastResult?.error;
 
@@ -204,10 +203,8 @@ function ChauffeurForm() {
     shouldRevalidate: "onInput",
   });
 
-  const isSubmitting = navigation.state === "submitting";
-
   return (
-    <Form method="post" {...getFormProps(form)} className="space-y-4">
+    <Form method="post" {...getFormProps(form)} className="space-y-4 w-full">
       {serverError && <p className="text-red-500 text-sm">{serverError}</p>}
 
       <div className="space-y-1">
@@ -262,7 +259,7 @@ function ChauffeurForm() {
 
       <input type="hidden" name="intent" value="create" />
 
-      <Button type="submit" className="w-full" disabled={isSubmitting}>
+      <Button type="submit" className="w-full" disabled={isPending}>
         {isPending ? (
           <CogIcon className="h-5 w-5 animate-spin" />
         ) : (
@@ -361,23 +358,22 @@ export default function ChauffeursPage() {
 
   return (
     <div className="container mx-auto">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Chauffeurs</h1>
+      <div className="flex justify-between items-center mb-2">
         <Sheet open={isOpen} onOpenChange={setIsOpen}>
           <SheetTrigger asChild>
-            <Button>
+            <Button type="button" className="sm:w-auto w-full ml-auto">
               <PlusCircle className="mr-2 h-4 w-4" />
               Add Chauffeur
             </Button>
           </SheetTrigger>
-          <SheetContent>
+          <SheetContent className="sm:max-w-[400px] w-full px-8">
             <SheetHeader>
               <SheetTitle>Add New Chauffeur</SheetTitle>
               <SheetDescription>
                 Fill in the details to add a new chauffeur to your fleet.
               </SheetDescription>
             </SheetHeader>
-            <div className="mt-4">
+            <div className="mt-4 w-full">
               <ChauffeurForm />
             </div>
           </SheetContent>

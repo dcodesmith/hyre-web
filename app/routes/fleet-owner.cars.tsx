@@ -216,16 +216,15 @@ export default function CarsPage() {
 
   return (
     <div className="container mx-auto">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Cars</h1>
+      <div className="flex justify-between items-center mb-2">
         <Sheet open={isOpen} onOpenChange={setIsOpen}>
           <SheetTrigger asChild>
-            <Button>
+            <Button type="button" className="sm:w-auto w-full ml-auto">
               <PlusCircle className="mr-2 h-4 w-4" />
               Add Car
             </Button>
           </SheetTrigger>
-          <SheetContent className="sm:max-w-[400px] px-8">
+          <SheetContent className="sm:max-w-[400px] w-full px-8">
             <SheetHeader>
               <SheetTitle>Add New Car</SheetTitle>
               <SheetDescription>

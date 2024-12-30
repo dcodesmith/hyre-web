@@ -17,10 +17,14 @@ export function ColumnViewOptions<TData>({
   table,
 }: ColumnViewOptionsProps<TData>) {
   return (
-    <div className="flex justify-end">
+    <div className="flex sm:w-auto sm:justify-end w-full">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="outline" size="sm" className="rounded gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="rounded gap-2 w-full h-10"
+          >
             <AdjustmentsHorizontalIcon className="h-4 w-4" />
             Toggle Columns
           </Button>

@@ -157,7 +157,7 @@ export default function BookingsPage() {
         <TabsList className="flex overflow-x-auto justify-evenly">
           {statuses.map((status) => (
             <TabsTrigger
-              className="whitespace-nowrap w-full"
+              className="whitespace-nowrap w-full gap-1 antialiased"
               key={status}
               value={status}
               onClick={() => {
@@ -165,9 +165,7 @@ export default function BookingsPage() {
               }}
             >
               {status.charAt(0) + status.slice(1).toLowerCase()}
-              <span className="ml-2 text-sm text-gray-500">
-                ({bookings[status]?.length || 0})
-              </span>
+              <span>({bookings[status]?.length || 0})</span>
             </TabsTrigger>
           ))}
         </TabsList>
