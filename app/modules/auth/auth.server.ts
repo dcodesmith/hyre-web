@@ -69,7 +69,7 @@ const totpStrategy = new TOTPStrategy(
     }
 
     return user;
-  }
+  },
 );
 
 authenticator.use(totpStrategy);
@@ -79,7 +79,7 @@ authenticator.use(totpStrategy);
  */
 export async function requireSessionUser(
   request: Request,
-  { redirectTo }: { redirectTo?: string | null } = {}
+  { redirectTo }: { redirectTo?: string | null } = {},
 ) {
   const sessionUser = await authenticator.isAuthenticated(request);
 
@@ -96,7 +96,7 @@ export async function requireSessionUser(
 
 export async function requireUser(
   request: Request,
-  { redirectTo }: { redirectTo?: string | null } = {}
+  { redirectTo }: { redirectTo?: string | null } = {},
 ) {
   const sessionUser = await authenticator.isAuthenticated(request);
 

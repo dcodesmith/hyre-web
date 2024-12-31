@@ -7,23 +7,11 @@ import { DateRange } from "react-day-picker";
 import { formatCurrency, useIsPending } from "~/lib/utils";
 import { DateRangePicker } from "./DateRangePicker";
 import { Button } from "./ui/button";
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "./ui/card";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "./ui/card";
 import { Checkbox } from "./ui/checkbox";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "./ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 
 const config = {
   public_key: "FLWPUBK_TEST-02b9b5fc6406bd4a41c3ff141cc45e93-X",
@@ -37,8 +25,7 @@ const config = {
 
 const hasTimePassed = (selectedDate: Date = new Date(), hour: number) => {
   const now = new Date();
-  const isSameDay =
-    selectedDate.toLocaleDateString() === now.toLocaleDateString();
+  const isSameDay = selectedDate.toLocaleDateString() === now.toLocaleDateString();
 
   return isSameDay && now.getHours() >= hour;
 };
@@ -92,17 +79,13 @@ export default function BookingCard({ car, isAvailable }: BookingCardProps) {
     }
 
     // If both dates are the same day, return 1
-    if (
-      dateRange.from.toLocaleDateString() === dateRange.to.toLocaleDateString()
-    ) {
+    if (dateRange.from.toLocaleDateString() === dateRange.to.toLocaleDateString()) {
       return 1;
     }
 
     // Add 1 to include both the start and end dates
     const days =
-      Math.ceil(
-        (dateRange.to.getTime() - dateRange.from.getTime()) / (1000 * 3600 * 24)
-      ) + 1;
+      Math.ceil((dateRange.to.getTime() - dateRange.from.getTime()) / (1000 * 3600 * 24)) + 1;
 
     return days;
   };
@@ -145,7 +128,7 @@ export default function BookingCard({ car, isAvailable }: BookingCardProps) {
         onClose: () => closePaymentModal(),
       });
     },
-    [handlePayment, searchParams, submit]
+    [handlePayment, searchParams, submit],
   );
 
   return (
@@ -209,18 +192,14 @@ export default function BookingCard({ car, isAvailable }: BookingCardProps) {
                     checked={sameLocation}
                     onCheckedChange={setSameLocation}
                   />
-                  <Label htmlFor="sameLocation">
-                    Drop-off location same as pickup
-                  </Label>
+                  <Label htmlFor="sameLocation">Drop-off location same as pickup</Label>
                 </div>
               </div>
 
               {!sameLocation && (
                 <>
                   <div className="space-y-1" id="dropoffFields">
-                    <Label htmlFor="dropOffStreet">
-                      Drop-off Street Address
-                    </Label>
+                    <Label htmlFor="dropOffStreet">Drop-off Street Address</Label>
                     <Input
                       id="dropOffStreet"
                       name="dropOffStreet"
@@ -230,9 +209,7 @@ export default function BookingCard({ car, isAvailable }: BookingCardProps) {
                   </div>
 
                   <div className="space-y-1">
-                    <Label htmlFor="dropOffLocality">
-                      Drop-off Locality/Area
-                    </Label>
+                    <Label htmlFor="dropOffLocality">Drop-off Locality/Area</Label>
                     <Input
                       id="dropOffLocality"
                       name="dropOffLocality"
@@ -257,12 +234,10 @@ export default function BookingCard({ car, isAvailable }: BookingCardProps) {
             <>
               <div className="w-full text-left">
                 <div className="text-sm text-gray-600">
-                  {calculateTotalDays()} days x{" "}
-                  {formatCurrency(Number(car.price))}
+                  {calculateTotalDays()} days x {formatCurrency(Number(car.price))}
                 </div>
                 <div className="text-md font-bold">
-                  Total:{" "}
-                  {formatCurrency(Number(car.price) * calculateTotalDays())}
+                  Total: {formatCurrency(Number(car.price) * calculateTotalDays())}
                 </div>
               </div>
 

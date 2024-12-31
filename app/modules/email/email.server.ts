@@ -65,19 +65,12 @@ type AuthEmailOptions = {
   intent: "registration" | "login";
 };
 
-export async function sendAuthEmail({
-  email,
-  code,
-  magicLink,
-  intent,
-}: AuthEmailOptions) {
+export async function sendAuthEmail({ email, code, magicLink, intent }: AuthEmailOptions) {
   const html = await renderAuthEmail({ code, magicLink, intent });
 
   await sendEmail({
     to: email,
-    subject: `${process.env.APP_NAME} ${
-      intent === "login" ? "Login" : "Registration"
-    } Code`,
+    subject: `${process.env.APP_NAME} ${intent === "login" ? "Login" : "Registration"} Code`,
     html,
   });
 }

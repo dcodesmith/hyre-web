@@ -5,15 +5,8 @@ import { loader as rootLoader } from "~/root";
 /**
  * Use root-loader data.
  */
-function isUser(
-  user: unknown
-): user is SerializeFrom<typeof rootLoader>["user"] {
-  return Boolean(
-    user &&
-      typeof user === "object" &&
-      "id" in user &&
-      typeof user.id === "string"
-  );
+function isUser(user: unknown): user is SerializeFrom<typeof rootLoader>["user"] {
+  return Boolean(user && typeof user === "object" && "id" in user && typeof user.id === "string");
 }
 
 export function useOptionalUser() {
@@ -43,7 +36,7 @@ export type RoleName = "user" | "fleetOwner" | "admin" | "chauffeur";
 
 export function userHasRole(
   user: Pick<ReturnType<typeof useUser>, "roles"> | null,
-  roleName: RoleName
+  roleName: RoleName,
 ) {
   if (!user) {
     return false;

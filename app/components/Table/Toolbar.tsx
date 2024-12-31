@@ -1,7 +1,4 @@
-import {
-  AdjustmentsVerticalIcon,
-  XCircleIcon,
-} from "@heroicons/react/24/outline";
+import { AdjustmentsVerticalIcon, XCircleIcon } from "@heroicons/react/24/outline";
 import { useFetcher, useSearchParams } from "@remix-run/react";
 import { Table } from "@tanstack/react-table";
 import { useState } from "react";
@@ -17,10 +14,7 @@ interface ToolbarProps<TData extends SerializedCar> {
   isAdmin?: boolean;
 }
 
-export function Toolbar({
-  table,
-  isAdmin = false,
-}: ToolbarProps<SerializedCar>) {
+export function Toolbar({ table, isAdmin = false }: ToolbarProps<SerializedCar>) {
   const fetcher = useFetcher();
   const [searchParams, setSearchParams] = useSearchParams();
   const isFiltered = table.getState().columnFilters.length > 0;
@@ -61,7 +55,7 @@ export function Toolbar({
               column={table.getColumn("make")}
               title="Make"
               options={Array.from(
-                table.getColumn("make")?.getFacetedUniqueValues().keys() ?? []
+                table.getColumn("make")?.getFacetedUniqueValues().keys() ?? [],
               ).map((value) => ({
                 label: String(value),
                 value: String(value),
@@ -74,7 +68,7 @@ export function Toolbar({
               column={table.getColumn("model")}
               title="Model"
               options={Array.from(
-                table.getColumn("model")?.getFacetedUniqueValues().keys() ?? []
+                table.getColumn("model")?.getFacetedUniqueValues().keys() ?? [],
               ).map((value) => ({
                 label: String(value),
                 value: String(value),

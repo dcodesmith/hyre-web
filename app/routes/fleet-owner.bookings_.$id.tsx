@@ -62,10 +62,9 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
   if (existingBooking) {
     return json(
       {
-        error:
-          "Chauffeur is already assigned to another booking during this time",
+        error: "Chauffeur is already assigned to another booking during this time",
       },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -141,10 +140,7 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
                             },
                             {
                               status: {
-                                notIn: [
-                                  BookingStatus.CONFIRMED,
-                                  BookingStatus.ACTIVE,
-                                ],
+                                notIn: [BookingStatus.CONFIRMED, BookingStatus.ACTIVE],
                               },
                             },
                           ],
@@ -178,8 +174,7 @@ export default function BookingDetails() {
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">Booking Details</h2>
         <p className="font-medium">
-          {booking.car.make} {booking.car.model} {booking.car.year} -{" "}
-          {booking.car.color}
+          {booking.car.make} {booking.car.model} {booking.car.year} - {booking.car.color}
         </p>
       </div>
       <div className="bg-white p-6 space-y-4 border rounded overflow-hidden shadow-md hover:shadow-lg transition-shadow">
@@ -211,9 +206,7 @@ export default function BookingDetails() {
 
           <div>
             <h3 className="text-gray-500">Total Amount</h3>
-            <p className="font-medium">
-              {formatCurrency(Number(booking.totalAmount))}
-            </p>
+            <p className="font-medium">{formatCurrency(Number(booking.totalAmount))}</p>
           </div>
 
           <div>
@@ -234,17 +227,11 @@ export default function BookingDetails() {
               ) : (
                 <fetcher.Form method="patch">
                   {fetcher.data?.error && (
-                    <div className="text-sm text-red-600 mb-2">
-                      {fetcher.data.error}
-                    </div>
+                    <div className="text-sm text-red-600 mb-2">{fetcher.data.error}</div>
                   )}
                   <Select name="chauffeurId">
                     <SelectTrigger>
-                      <SelectValue
-                        placeholder={
-                          booking.chauffeur?.name || "Select a chauffeur"
-                        }
-                      />
+                      <SelectValue placeholder={booking.chauffeur?.name || "Select a chauffeur"} />
                     </SelectTrigger>
                     <SelectContent>
                       {booking.car.owner.chauffeurs?.map((chauffeur) => (
@@ -257,9 +244,7 @@ export default function BookingDetails() {
 
                   <div className="flex items-center mt-2 gap-2">
                     <Button type="submit" disabled={fetcher.state !== "idle"}>
-                      {fetcher.state !== "idle"
-                        ? "Assigning..."
-                        : "Assign Chauffeur"}
+                      {fetcher.state !== "idle" ? "Assigning..." : "Assign Chauffeur"}
                     </Button>
                     {booking.chauffeurId && (
                       <Button

@@ -44,9 +44,7 @@ export const columns: ColumnDef<SerializedCar>[] = [
   {
     accessorKey: "price",
     header: ({ column }) => <ColumnHeader column={column} title="Price" />,
-    cell: ({ row }) => (
-      <div className="w-[150px]">{formatPrice(row.original.price)}</div>
-    ),
+    cell: ({ row }) => <div className="w-[150px]">{formatPrice(row.original.price)}</div>,
   },
   {
     accessorKey: "status",
@@ -57,10 +55,7 @@ export const columns: ColumnDef<SerializedCar>[] = [
         <div className="w-[150px]">
           <Badge
             variant="outline"
-            className={cn(
-              statusColors[row.original.status],
-              "rounded border-none"
-            )}
+            className={cn(statusColors[row.original.status], "rounded border-none")}
           >
             {row.original.status.toLowerCase()}
           </Badge>

@@ -180,11 +180,9 @@ export default function IndexPage() {
   // Initialize table state from URL search params
   const initialTableState = parseSearchParamsToTableState(searchParams);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>(
-    initialTableState.columnFilters
+    initialTableState.columnFilters,
   );
-  const [sorting, setSorting] = useState<SortingState>(
-    initialTableState.sorting
-  );
+  const [sorting, setSorting] = useState<SortingState>(initialTableState.sorting);
 
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
@@ -208,8 +206,7 @@ export default function IndexPage() {
     getFilteredRowModel: getFilteredRowModel(),
 
     onSortingChange: (updater) => {
-      const newSorting =
-        typeof updater === "function" ? updater(sorting) : updater;
+      const newSorting = typeof updater === "function" ? updater(sorting) : updater;
 
       setSorting(newSorting);
 
@@ -222,8 +219,7 @@ export default function IndexPage() {
       setSearchParams(params);
     },
     onColumnFiltersChange: (updater) => {
-      const newFilters =
-        typeof updater === "function" ? updater(columnFilters) : updater;
+      const newFilters = typeof updater === "function" ? updater(columnFilters) : updater;
 
       setColumnFilters(newFilters);
 
@@ -256,17 +252,13 @@ export default function IndexPage() {
     }
 
     // If both dates are the same day, return 1
-    if (
-      new Date(from).toLocaleDateString() === new Date(to).toLocaleDateString()
-    ) {
+    if (new Date(from).toLocaleDateString() === new Date(to).toLocaleDateString()) {
       return 1;
     }
 
     // Add 1 to include both the start and end dates
     const days =
-      Math.ceil(
-        (new Date(to).getTime() - new Date(from).getTime()) / (1000 * 3600 * 24)
-      ) + 1;
+      Math.ceil((new Date(to).getTime() - new Date(from).getTime()) / (1000 * 3600 * 24)) + 1;
 
     return days;
   };
@@ -284,16 +276,11 @@ export default function IndexPage() {
               to={`/cars/${row.original.id}?${searchParams.toString()}`}
             >
               <div className="rounded overflow-hidden hover:shadow-lg transition-shadow">
-                <Carousel
-                  images={
-                    row.original.images.length ? row.original.images : undefined
-                  }
-                />
+                <Carousel images={row.original.images.length ? row.original.images : undefined} />
 
                 <div className="p-4 space-y-1">
                   <h2 className="font-semibold">
-                    {row.original.make} {row.original.model} (
-                    {row.original.year})
+                    {row.original.make} {row.original.model} ({row.original.year})
                   </h2>
 
                   <p>
@@ -317,9 +304,7 @@ export default function IndexPage() {
                     )}
                   </p>
                   {process.env.NODE_ENV === "development" && (
-                    <span className="text-sm text-gray-500">
-                      {row.original.owner.username}
-                    </span>
+                    <span className="text-sm text-gray-500">{row.original.owner.username}</span>
                   )}
                 </div>
               </div>
@@ -331,10 +316,7 @@ export default function IndexPage() {
       )}
 
       {table.getFilteredRowModel().rows.length > PAGE_SIZE && (
-        <Pagination
-          range={[PAGE_SIZE, PAGE_SIZE * 2, PAGE_SIZE * 3]}
-          table={table}
-        />
+        <Pagination range={[PAGE_SIZE, PAGE_SIZE * 2, PAGE_SIZE * 3]} table={table} />
       )}
     </div>
   );

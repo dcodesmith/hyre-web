@@ -3,13 +3,7 @@
 // import invariant from "tiny-invariant";
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import {
-  Link,
-  useLoaderData,
-  useLocation,
-  useNavigate,
-  useSearchParams,
-} from "@remix-run/react";
+import { Link, useLoaderData, useLocation, useNavigate, useSearchParams } from "@remix-run/react";
 import {
   ColumnFiltersState,
   getCoreRowModel,
@@ -125,16 +119,11 @@ export default function IndexPage() {
               className="block"
             >
               <div className="rounded overflow-hidden hover:shadow-lg transition-shadow">
-                <Carousel
-                  images={
-                    row.original.images.length ? row.original.images : undefined
-                  }
-                />
+                <Carousel images={row.original.images.length ? row.original.images : undefined} />
 
                 <div className="p-4">
                   <h2 className="font-semibold mb-2">
-                    {row.original.make} {row.original.model} (
-                    {row.original.year})
+                    {row.original.make} {row.original.model} ({row.original.year})
                   </h2>
 
                   <p className="font-bold">
@@ -154,10 +143,7 @@ export default function IndexPage() {
       )}
 
       {table.getFilteredRowModel().rows.length > PAGE_SIZE && (
-        <Pagination
-          range={[PAGE_SIZE, PAGE_SIZE * 2, PAGE_SIZE * 3]}
-          table={table}
-        />
+        <Pagination range={[PAGE_SIZE, PAGE_SIZE * 2, PAGE_SIZE * 3]} table={table} />
       )}
     </div>
   );

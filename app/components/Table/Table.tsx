@@ -23,10 +23,7 @@ import {
 } from "~/components/ui/table";
 import { Pagination } from "./Pagination";
 import { FacetedFilter } from "./FacetedFilter";
-import {
-  AdjustmentsVerticalIcon,
-  XCircleIcon,
-} from "@heroicons/react/24/outline";
+import { AdjustmentsVerticalIcon, XCircleIcon } from "@heroicons/react/24/outline";
 import { Button } from "../ui/button";
 import { ColumnViewOptions } from "./ColumnViewOptions";
 
@@ -69,10 +66,7 @@ export function Table<T extends object>({ columns, data }: TableProps<T>) {
 
   const filterableColumns = table
     .getAllColumns()
-    .filter(
-      (column) =>
-        column.getCanFilter() && column.getFacetedUniqueValues().size > 1
-    );
+    .filter((column) => column.getCanFilter() && column.getFacetedUniqueValues().size > 1);
 
   return (
     <div className="space-y-4">
@@ -90,9 +84,7 @@ export function Table<T extends object>({ columns, data }: TableProps<T>) {
                   key={column.id}
                   column={column}
                   title={column.id}
-                  options={Array.from(
-                    column.getFacetedUniqueValues().keys()
-                  ).map((value) => ({
+                  options={Array.from(column.getFacetedUniqueValues().keys()).map((value) => ({
                     label: String(value),
                     value: String(value),
                   }))}
@@ -125,10 +117,7 @@ export function Table<T extends object>({ columns, data }: TableProps<T>) {
                   <TableHead key={header.id}>
                     {header.isPlaceholder
                       ? null
-                      : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext()
-                        )}
+                      : flexRender(header.column.columnDef.header, header.getContext())}
                   </TableHead>
                 ))}
               </TableRow>
@@ -147,16 +136,10 @@ export function Table<T extends object>({ columns, data }: TableProps<T>) {
                 //   exit="exit"
                 //   transition={{ duration: 0.3 }}
                 // >
-                <TableRow
-                  key={row.id}
-                  data-state={row.getIsSelected() && "selected"}
-                >
+                <TableRow key={row.id} data-state={row.getIsSelected() && "selected"}>
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id} className="border-b-gray-400">
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </TableCell>
                   ))}
                 </TableRow>
@@ -164,10 +147,7 @@ export function Table<T extends object>({ columns, data }: TableProps<T>) {
               ))
             ) : (
               <TableRow>
-                <TableCell
-                  colSpan={columns.length}
-                  className="h-24 text-center"
-                >
+                <TableCell colSpan={columns.length} className="h-24 text-center">
                   No results.
                 </TableCell>
               </TableRow>

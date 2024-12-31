@@ -1,9 +1,4 @@
-import {
-  ActionFunctionArgs,
-  LoaderFunctionArgs,
-  json,
-  redirect,
-} from "@remix-run/node";
+import { ActionFunctionArgs, LoaderFunctionArgs, json, redirect } from "@remix-run/node";
 import { Form, useLoaderData, useSearchParams } from "@remix-run/react";
 import { Button } from "~/components/ui/button";
 import {
@@ -111,8 +106,7 @@ export default function Verify() {
                 // ref={inputRef}
                 required
                 className={`bg-transparent ${
-                  code.errors &&
-                  "border-destructive focus-visible:ring-destructive"
+                  code.errors && "border-destructive focus-visible:ring-destructive"
                 }`}
                 {...getInputProps(code, { type: "text" })}
               />
@@ -150,11 +144,7 @@ export default function Verify() {
           <p className="text-center text-sm font-normal text-primary/60">
             Did not receive the code?
           </p>
-          <Button
-            type="submit"
-            variant="ghost"
-            className="w-full hover:bg-transparent"
-          >
+          <Button type="submit" variant="ghost" className="w-full hover:bg-transparent">
             Request New Code
           </Button>
         </Form>

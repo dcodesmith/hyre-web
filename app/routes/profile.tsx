@@ -27,10 +27,7 @@ export async function action({ request }: ActionFunctionArgs) {
 
       return json({ success: true });
     } catch (error) {
-      return json(
-        { success: false, error: "Failed to update profile" },
-        { status: 500 }
-      );
+      return json({ success: false, error: "Failed to update profile" }, { status: 500 });
     }
   }
 

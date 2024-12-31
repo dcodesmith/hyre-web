@@ -51,15 +51,13 @@ export function RandomQuoteTailwind() {
             isExiting
               ? "opacity-0 -translate-y-8 ease-in"
               : isEntering
-              ? "opacity-100 translate-y-0 ease-out"
-              : "opacity-100 translate-y-0"
+                ? "opacity-100 translate-y-0 ease-out"
+                : "opacity-100 translate-y-0"
           }
           ${isEntering ? "translate-y-0" : "translate-y-8"}
         `}
       >
-        <blockquote className="mb-2 italic">
-          &quot;{currentQuote.quote}&quot;
-        </blockquote>
+        <blockquote className="mb-2 italic">&quot;{currentQuote.quote}&quot;</blockquote>
         <cite className="text-gray-600"> - {currentQuote.author}</cite>
       </div>
     </div>

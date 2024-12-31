@@ -66,9 +66,7 @@ export async function action({ request }: ActionFunctionArgs) {
 
   try {
     return await authenticator.authenticate("TOTP", request, {
-      successRedirect: redirectTo
-        ? `/verify?redirectTo=${redirectTo}`
-        : `/verify?role=${role}`,
+      successRedirect: redirectTo ? `/verify?redirectTo=${redirectTo}` : `/verify?role=${role}`,
       failureRedirect: pathname,
       context: { intent: "login", role },
     });
@@ -94,8 +92,7 @@ export async function action({ request }: ActionFunctionArgs) {
   }
 }
 
-const errorRingClasses =
-  "border-red-500 focus-visible:ring-red-500 focus-visible:ring-2";
+const errorRingClasses = "border-red-500 focus-visible:ring-red-500 focus-visible:ring-2";
 
 const userTypeOptions = {
   user: { label: "Client", description: "Book a chauffeur-driven car" },
@@ -163,9 +160,7 @@ export default function Login() {
                           role.errors ? errorRingClasses : ""
                         }`}
                       >
-                        <span className="text-sm font-medium">
-                          {userTypeOptions[_role].label}
-                        </span>
+                        <span className="text-sm font-medium">{userTypeOptions[_role].label}</span>
                         <span className="text-xs text-muted-foreground">
                           {userTypeOptions[_role].description}
                         </span>
@@ -175,9 +170,7 @@ export default function Login() {
                 </RadioGroup>
 
                 {role.errors && (
-                  <div className="text-destructive text-sm">
-                    {role.errors.join(", ")}
-                  </div>
+                  <div className="text-destructive text-sm">{role.errors.join(", ")}</div>
                 )}
               </div>
 
@@ -185,17 +178,13 @@ export default function Login() {
                 <Input
                   defaultValue={authEmail ? authEmail : ""}
                   className={`bg-transparent ${
-                    email.errors
-                      ? "border-destructive focus-visible:ring-destructive"
-                      : ""
+                    email.errors ? "border-destructive focus-visible:ring-destructive" : ""
                   }`}
                   {...getInputProps(email, { type: "email" })}
                   placeholder="Email"
                 />
                 {email.errors && (
-                  <div className="text-destructive text-sm">
-                    {email.errors.join(", ")}
-                  </div>
+                  <div className="text-destructive text-sm">{email.errors.join(", ")}</div>
                 )}
               </div>
 
@@ -206,11 +195,7 @@ export default function Login() {
               )}
 
               <Button type="submit" className="w-full" disabled={isPending}>
-                {isPending ? (
-                  <CogIcon className="h-5 w-5 animate-spin" />
-                ) : (
-                  "Continue with Email"
-                )}
+                {isPending ? <CogIcon className="h-5 w-5 animate-spin" /> : "Continue with Email"}
               </Button>
             </div>
 

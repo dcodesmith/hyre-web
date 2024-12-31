@@ -26,15 +26,9 @@ interface URLFacetedFilterProps {
   }[];
 }
 
-export function URLFacetedFilter({
-  title,
-  paramKey,
-  options,
-}: URLFacetedFilterProps) {
+export function URLFacetedFilter({ title, paramKey, options }: URLFacetedFilterProps) {
   const [searchParams, setSearchParams] = useSearchParams();
-  const selectedValues = new Set(
-    (searchParams.get(paramKey) || "").split(",").filter(Boolean)
-  );
+  const selectedValues = new Set((searchParams.get(paramKey) || "").split(",").filter(Boolean));
 
   const onSelect = (value: string) => {
     const newSearchParams = new URLSearchParams(searchParams);
@@ -65,28 +59,18 @@ export function URLFacetedFilter({
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          size="sm"
-          className="sm:w-auto w-full rounded gap-2 h-10"
-        >
+        <Button variant="outline" size="sm" className="sm:w-auto w-full rounded gap-2 h-10">
           <ListFilterIcon className="h-4 w-4" />
           {title}
           {selectedValues?.size > 0 && (
             <>
               <Separator orientation="vertical" className="mx-2 h-4" />
-              <Badge
-                variant="secondary"
-                className="rounded-sm px-1 font-normal lg:hidden"
-              >
+              <Badge variant="secondary" className="rounded-sm px-1 font-normal lg:hidden">
                 {selectedValues.size}
               </Badge>
               <div className="hidden space-x-1 lg:flex">
                 {selectedValues.size > 2 ? (
-                  <Badge
-                    variant="secondary"
-                    className="rounded-sm px-1 font-normal"
-                  >
+                  <Badge variant="secondary" className="rounded-sm px-1 font-normal">
                     {selectedValues.size} selected
                   </Badge>
                 ) : (
@@ -120,24 +104,19 @@ export function URLFacetedFilter({
                 const isSelected = selectedValues.has(option.value);
 
                 return (
-                  <CommandItem
-                    key={option.value}
-                    onSelect={() => onSelect(option.value)}
-                  >
+                  <CommandItem key={option.value} onSelect={() => onSelect(option.value)}>
                     <div
                       className={cn(
                         "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
                         isSelected
                           ? "bg-primary text-primary-foreground"
-                          : "opacity-50 [&_svg]:invisible"
+                          : "opacity-50 [&_svg]:invisible",
                       )}
                     >
                       <CheckIcon className={cn("h-4 w-4")} />
                     </div>
 
-                    {option.icon && (
-                      <option.icon className="mr-2 h-4 w-4 text-muted-foreground" />
-                    )}
+                    {option.icon && <option.icon className="mr-2 h-4 w-4 text-muted-foreground" />}
 
                     <span>{option.label}</span>
                   </CommandItem>
@@ -149,10 +128,7 @@ export function URLFacetedFilter({
               <>
                 <CommandSeparator />
                 <CommandGroup>
-                  <CommandItem
-                    onSelect={clearFilters}
-                    className="justify-center text-center"
-                  >
+                  <CommandItem onSelect={clearFilters} className="justify-center text-center">
                     Clear filters
                   </CommandItem>
                 </CommandGroup>

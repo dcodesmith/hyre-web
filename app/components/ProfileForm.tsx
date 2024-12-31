@@ -46,29 +46,16 @@ export function ProfileForm({ onOpenChange, user }: ProfileFormProps) {
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Edit Profile</DialogTitle>
-          <DialogDescription>
-            Make changes to your profile here.
-          </DialogDescription>
+          <DialogDescription>Make changes to your profile here.</DialogDescription>
         </DialogHeader>
 
-        <fetcher.Form
-          action="/profile"
-          method="put"
-          {...getFormProps(form)}
-          className="space-y-4"
-        >
-          {fetcher.data?.error && (
-            <p className="text-sm text-red-500">{fetcher.data.error}</p>
-          )}
+        <fetcher.Form action="/profile" method="put" {...getFormProps(form)} className="space-y-4">
+          {fetcher.data?.error && <p className="text-sm text-red-500">{fetcher.data.error}</p>}
 
           <div className="space-y-1">
             <Label htmlFor={name.id}>Name</Label>
             <Input {...getInputProps(name, { type: "text" })} />
-            {name.errors && (
-              <p className="text-sm text-destructive">
-                {name.errors.join(" ")}
-              </p>
-            )}
+            {name.errors && <p className="text-sm text-destructive">{name.errors.join(" ")}</p>}
           </div>
 
           <div className="space-y-1">
@@ -87,9 +74,7 @@ export function ProfileForm({ onOpenChange, user }: ProfileFormProps) {
               }
             />
             {phoneNumber.errors && (
-              <p className="text-sm text-destructive">
-                {phoneNumber.errors.join(" ")}
-              </p>
+              <p className="text-sm text-destructive">{phoneNumber.errors.join(" ")}</p>
             )}
           </div>
 

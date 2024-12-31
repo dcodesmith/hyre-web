@@ -1,10 +1,5 @@
 import { ActionFunctionArgs, json, LoaderFunctionArgs } from "@remix-run/node";
-import {
-  Link,
-  redirect,
-  useLoaderData,
-  useSearchParams,
-} from "@remix-run/react";
+import { Link, redirect, useLoaderData, useSearchParams } from "@remix-run/react";
 import invariant from "tiny-invariant";
 import BookingCard from "~/components/BookingCard";
 import CarCarousel from "~/components/Carousel";
@@ -43,11 +38,7 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   let isAvailable = true;
 
   if (fromDate && toDate) {
-    isAvailable = await isCarAvailable(
-      carId,
-      new Date(fromDate),
-      new Date(toDate)
-    );
+    isAvailable = await isCarAvailable(carId, new Date(fromDate), new Date(toDate));
   }
 
   const car = await prisma.car.findUnique({
@@ -88,9 +79,7 @@ export default function CarDetails() {
             {car.make} {car.model}
           </h2>
 
-          <CarCarousel
-            images={car.images.length > 0 ? car.images : undefined}
-          />
+          <CarCarousel images={car.images.length > 0 ? car.images : undefined} />
         </div>
 
         <div className="order-3 lg:order-2">
@@ -103,54 +92,42 @@ export default function CarDetails() {
           <div className="mt-4 border-t border-gray-100">
             <dl className="divide-y divide-gray-100">
               <div className="px-4 py-3 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">
-                <dt className="text-sm font-medium leading-6 text-gray-900">
-                  Make & Model
-                </dt>
+                <dt className="text-sm font-medium leading-6 text-gray-900">Make & Model</dt>
                 <dd className="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
                   {car.make} {car.model} {car.year}
                 </dd>
               </div>
 
               <div className="px-4 py-3 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">
-                <dt className="text-sm font-medium leading-6 text-gray-900">
-                  Features
-                </dt>
+                <dt className="text-sm font-medium leading-6 text-gray-900">Features</dt>
                 <dd className="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
-                  Air conditioning, GPS navigation system, Bluetooth
-                  connectivity, Cruise control, Rear-view camera, USB ports
+                  Air conditioning, GPS navigation system, Bluetooth connectivity, Cruise control,
+                  Rear-view camera, USB ports
                 </dd>
               </div>
 
               <div className="px-4 py-3 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">
-                <dt className="text-sm font-medium leading-6 text-gray-900">
-                  Transmission Type
-                </dt>
+                <dt className="text-sm font-medium leading-6 text-gray-900">Transmission Type</dt>
                 <dd className="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
                   Automatic
                 </dd>
               </div>
 
               <div className="px-4 py-3 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">
-                <dt className="text-sm font-medium leading-6 text-gray-900">
-                  Fuel Type
-                </dt>
+                <dt className="text-sm font-medium leading-6 text-gray-900">Fuel Type</dt>
                 <dd className="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
                   Diesel
                 </dd>
               </div>
 
               <div className="px-4 py-3 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">
-                <dt className="text-sm font-medium leading-6 text-gray-900">
-                  Seating Capacity
-                </dt>
+                <dt className="text-sm font-medium leading-6 text-gray-900">Seating Capacity</dt>
                 <dd className="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
                   7-seater
                 </dd>
               </div>
               <div className="px-4 py-3 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">
-                <dt className="text-sm font-medium leading-6 text-gray-900">
-                  Fuel Policy
-                </dt>
+                <dt className="text-sm font-medium leading-6 text-gray-900">Fuel Policy</dt>
                 <dd className="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
                   &quot;Full to Full&quot; (return the car with a full tank)
                 </dd>

@@ -4,12 +4,7 @@ import { CogIcon } from "@heroicons/react/24/outline";
 import { BookingStatus } from "@prisma/client";
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { ActionFunctionArgs, json } from "@remix-run/node";
-import {
-  Form,
-  useActionData,
-  useLoaderData,
-  useNavigation,
-} from "@remix-run/react";
+import { Form, useActionData, useLoaderData, useNavigation } from "@remix-run/react";
 import { ColumnDef } from "@tanstack/react-table";
 import { PlusCircle } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -101,27 +96,23 @@ export async function loader({ request }: LoaderFunctionArgs) {
     },
   });
 
-  const serializedChauffeurs: SerializedChauffeur[] = chauffeurs.map(
-    (chauffeur) => ({
-      id: chauffeur.id,
-      name: chauffeur.name ?? "No name",
-      email: chauffeur.email,
-      address: chauffeur.address ?? "No address",
-      phoneNumber: chauffeur.phoneNumber ?? "No phone number",
-      status:
-        chauffeur.bookingsAsChauffeur.length > 0 ? "ON_TRIP" : "AVAILABLE",
-      assignedCar: chauffeur.bookingsAsChauffeur[0]?.car
-        ? {
-            make: chauffeur.bookingsAsChauffeur[0]?.car.make,
-            model: chauffeur.bookingsAsChauffeur[0]?.car.model,
-            registrationNumber:
-              chauffeur.bookingsAsChauffeur[0]?.car.registrationNumber,
-          }
-        : null,
-      createdAt: chauffeur.createdAt.toISOString(),
-      updatedAt: chauffeur.updatedAt.toISOString(),
-    })
-  );
+  const serializedChauffeurs: SerializedChauffeur[] = chauffeurs.map((chauffeur) => ({
+    id: chauffeur.id,
+    name: chauffeur.name ?? "No name",
+    email: chauffeur.email,
+    address: chauffeur.address ?? "No address",
+    phoneNumber: chauffeur.phoneNumber ?? "No phone number",
+    status: chauffeur.bookingsAsChauffeur.length > 0 ? "ON_TRIP" : "AVAILABLE",
+    assignedCar: chauffeur.bookingsAsChauffeur[0]?.car
+      ? {
+          make: chauffeur.bookingsAsChauffeur[0]?.car.make,
+          model: chauffeur.bookingsAsChauffeur[0]?.car.model,
+          registrationNumber: chauffeur.bookingsAsChauffeur[0]?.car.registrationNumber,
+        }
+      : null,
+    createdAt: chauffeur.createdAt.toISOString(),
+    updatedAt: chauffeur.updatedAt.toISOString(),
+  }));
 
   return json({ chauffeurs: serializedChauffeurs });
 }
@@ -181,7 +172,7 @@ export async function action({ request }: ActionFunctionArgs) {
         success: false,
         error: `Failed to ${intent} chauffeur`,
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -191,8 +182,7 @@ function ChauffeurForm() {
   const isPending = useIsPending();
   const serverError = lastResult?.error;
 
-  const errorRingClasses =
-    "border-red-500 focus-visible:ring-red-500 focus-visible:ring-2";
+  const errorRingClasses = "border-red-500 focus-visible:ring-red-500 focus-visible:ring-2";
 
   const [form, { email, name, phoneNumber, address }] = useForm({
     lastResult,
@@ -215,9 +205,7 @@ function ChauffeurForm() {
           type="email"
           className={`rounded ${email.errors ? errorRingClasses : ""}`}
         />
-        {email.errors && (
-          <p className="text-red-500 text-sm">{email.errors.join(" ")}</p>
-        )}
+        {email.errors && <p className="text-red-500 text-sm">{email.errors.join(" ")}</p>}
       </div>
 
       <div className="space-y-1">
@@ -227,9 +215,7 @@ function ChauffeurForm() {
           id={name.id}
           className={`rounded ${name.errors ? errorRingClasses : ""}`}
         />
-        {name.errors && (
-          <p className="text-red-500 text-sm">{name.errors.join(" ")}</p>
-        )}
+        {name.errors && <p className="text-red-500 text-sm">{name.errors.join(" ")}</p>}
       </div>
 
       <div className="space-y-1">
@@ -252,19 +238,13 @@ function ChauffeurForm() {
           id={address.id}
           className={`rounded ${address.errors ? errorRingClasses : ""}`}
         />
-        {address.errors && (
-          <p className="text-red-500 text-sm">{address.errors.join(" ")}</p>
-        )}
+        {address.errors && <p className="text-red-500 text-sm">{address.errors.join(" ")}</p>}
       </div>
 
       <input type="hidden" name="intent" value="create" />
 
       <Button type="submit" className="w-full" disabled={isPending}>
-        {isPending ? (
-          <CogIcon className="h-5 w-5 animate-spin" />
-        ) : (
-          "Add Chauffeur"
-        )}
+        {isPending ? <CogIcon className="h-5 w-5 animate-spin" /> : "Add Chauffeur"}
       </Button>
     </Form>
   );
@@ -289,26 +269,18 @@ export default function ChauffeursPage() {
         accessorKey: "email",
         header: ({ column }) => <ColumnHeader column={column} title="Email" />,
         enableColumnFilter: false,
-        cell: ({ row }) => (
-          <div className="w-[200px]">{row.original.email}</div>
-        ),
+        cell: ({ row }) => <div className="w-[200px]">{row.original.email}</div>,
       },
       {
         accessorKey: "phoneNumber",
         enableColumnFilter: false,
-        header: ({ column }) => (
-          <ColumnHeader column={column} title="Phone Number" />
-        ),
-        cell: ({ row }) => (
-          <div className="w-[150px]">{row.original.phoneNumber}</div>
-        ),
+        header: ({ column }) => <ColumnHeader column={column} title="Phone Number" />,
+        cell: ({ row }) => <div className="w-[150px]">{row.original.phoneNumber}</div>,
       },
       {
         accessorKey: "assignedCar",
         enableColumnFilter: false,
-        header: ({ column }) => (
-          <ColumnHeader column={column} title="Assigned Car" />
-        ),
+        header: ({ column }) => <ColumnHeader column={column} title="Assigned Car" />,
         cell: ({ row: { original } }) => (
           <div className="w-[250px]">
             {original.assignedCar
@@ -327,7 +299,7 @@ export default function ChauffeursPage() {
               variant="outline"
               className={cn(
                 statusColors[row.original.status],
-                "rounded border-none ring-1 ring-inset"
+                "rounded border-none ring-1 ring-inset",
               )}
             >
               {chauffeurStatusOptions[row.original.status]}
@@ -342,7 +314,7 @@ export default function ChauffeursPage() {
         cell: ({ row }) => <ChauffeurRowActions row={row} />,
       },
     ],
-    []
+    [],
   );
 
   useEffect(() => {

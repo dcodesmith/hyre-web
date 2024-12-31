@@ -77,7 +77,7 @@ export async function action({ request }: ActionFunctionArgs) {
         success: false,
         error: `Failed to ${intent} car`,
       } as const,
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -136,14 +136,10 @@ const carStatusOptions: Record<Status, string> = {
 export const columns: ColumnDef<SerializedCar>[] = [
   {
     accessorKey: "registrationNumber",
-    header: ({ column }) => (
-      <ColumnHeader column={column} title="Registration #" />
-    ),
+    header: ({ column }) => <ColumnHeader column={column} title="Registration #" />,
     enableColumnFilter: false,
     cell: ({ row }) => (
-      <div className="w-[150px] font-medium">
-        {row.original.registrationNumber}
-      </div>
+      <div className="w-[150px] font-medium">{row.original.registrationNumber}</div>
     ),
   },
   {
@@ -168,9 +164,7 @@ export const columns: ColumnDef<SerializedCar>[] = [
     accessorKey: "price",
     enableColumnFilter: false,
     header: ({ column }) => <ColumnHeader column={column} title="Price" />,
-    cell: ({ row }) => (
-      <div className="w-[150px]">{formatPrice(row.original.price)}</div>
-    ),
+    cell: ({ row }) => <div className="w-[150px]">{formatPrice(row.original.price)}</div>,
   },
   {
     accessorKey: "status",
@@ -180,10 +174,7 @@ export const columns: ColumnDef<SerializedCar>[] = [
       <div className="w-[150px]">
         <Badge
           variant="outline"
-          className={cn(
-            statusColors[row.original.status],
-            "rounded border-none ring-1 ring-inset"
-          )}
+          className={cn(statusColors[row.original.status], "rounded border-none ring-1 ring-inset")}
         >
           {carStatusOptions[row.original.status]}
         </Badge>
@@ -219,7 +210,7 @@ export default function CarsPage() {
       <div className="flex justify-between items-center mb-2">
         <Sheet open={isOpen} onOpenChange={setIsOpen}>
           <SheetTrigger asChild>
-            <Button type="button" className="sm:w-auto w-full ml-auto">
+            <Button className="sm:w-auto w-full ml-auto">
               <PlusCircle className="mr-2 h-4 w-4" />
               Add Car
             </Button>

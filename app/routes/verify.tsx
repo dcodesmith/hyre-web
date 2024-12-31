@@ -1,18 +1,8 @@
 import { getFormProps, getInputProps, useForm } from "@conform-to/react";
 import { getZodConstraint, parseWithZod } from "@conform-to/zod";
 import { User } from "@prisma/client";
-import {
-  ActionFunctionArgs,
-  LoaderFunctionArgs,
-  json,
-  redirect,
-} from "@remix-run/node";
-import {
-  Form,
-  useLoaderData,
-  useNavigate,
-  useSearchParams,
-} from "@remix-run/react";
+import { ActionFunctionArgs, LoaderFunctionArgs, json, redirect } from "@remix-run/node";
+import { Form, useLoaderData, useNavigate, useSearchParams } from "@remix-run/react";
 import { AuthorizationError } from "remix-auth";
 import { z } from "zod";
 import { Button } from "~/components/ui/button";
@@ -131,8 +121,7 @@ export default function Verify() {
                 placeholder="Code"
                 required
                 className={`bg-transparent ${
-                  code.errors &&
-                  "border-destructive focus-visible:ring-destructive"
+                  code.errors && "border-destructive focus-visible:ring-destructive"
                 }`}
                 {...getInputProps(code, { type: "text" })}
               />
@@ -170,11 +159,7 @@ export default function Verify() {
           <p className="text-center text-sm font-normal text-primary/60">
             Did not receive the code?
           </p>
-          <Button
-            type="submit"
-            variant="ghost"
-            className="w-full hover:bg-transparent"
-          >
+          <Button type="submit" variant="ghost" className="w-full hover:bg-transparent">
             Request New Code
           </Button>
         </Form>

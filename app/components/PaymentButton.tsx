@@ -47,7 +47,7 @@ export default function PaymentButton({
           console.log("status", status);
           fetcher.submit(
             { transactionId, status },
-            { method: "PATCH", action: `/bookings/${bookingId}` }
+            { method: "PATCH", action: `/bookings/${bookingId}` },
           );
           closePaymentModal(); // this will close the modal programmatically
           // navigate(`/dashboard`);

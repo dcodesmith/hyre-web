@@ -1,7 +1,6 @@
 export const quotes = [
   {
-    quote:
-      "Comfort is not about how much you spend, but how well you design your journey.",
+    quote: "Comfort is not about how much you spend, but how well you design your journey.",
     author: "Anonymous",
   },
   {
@@ -20,8 +19,7 @@ export const quotes = [
     author: "Anonymous",
   },
   {
-    quote:
-      "The quality of a service is remembered long after the ride is over.",
+    quote: "The quality of a service is remembered long after the ride is over.",
     author: "Adapted from Henry Royce",
   },
   {
@@ -30,18 +28,15 @@ export const quotes = [
     author: "Inspired by the essence of service",
   },
   {
-    quote:
-      "Comfort is not a luxury; it\u2019s a promise we deliver every mile of the way.",
+    quote: "Comfort is not a luxury; it\u2019s a promise we deliver every mile of the way.",
     author: "Anonymous",
   },
   {
-    quote:
-      "The journey is as important as the destination\u2014make it a smooth one.",
+    quote: "The journey is as important as the destination\u2014make it a smooth one.",
     author: "Anonymous",
   },
   {
-    quote:
-      "In the moments of stillness between destinations, comfort becomes the ultimate luxury.",
+    quote: "In the moments of stillness between destinations, comfort becomes the ultimate luxury.",
     author: "Inspired by luxury travel philosophies",
   },
 ];

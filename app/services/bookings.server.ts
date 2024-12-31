@@ -31,9 +31,7 @@ export async function confirmBooking({
   const car = await prisma.car.findUnique({ where: { id: carId } });
   if (!car) throw new Error("Car not found");
 
-  const days = Math.ceil(
-    (endDate.getTime() - startDate.getTime()) / (1000 * 3600 * 24)
-  );
+  const days = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 3600 * 24));
   const totalAmount = car.price * days;
 
   // Create booking and update car status
@@ -127,10 +125,7 @@ export async function getMonthToDateBookingsValue(fleetOwnerId: string) {
     },
   });
 
-  return bookings.reduce(
-    (sum, booking) => sum + booking.totalAmount.toNumber(),
-    0
-  );
+  return bookings.reduce((sum, booking) => sum + booking.totalAmount.toNumber(), 0);
 }
 
 export async function getUserBookings(userId: string) {
@@ -158,11 +153,7 @@ export async function getActiveBookings() {
   });
 }
 
-export async function isCarAvailableForDates(
-  carId: string,
-  from: Date,
-  to: Date
-) {
+export async function isCarAvailableForDates(carId: string, from: Date, to: Date) {
   // Find any overlapping bookings
   const overlappingBookings = await prisma.booking.findFirst({
     where: {
@@ -213,18 +204,21 @@ export async function getBooking(bookingId: string) {
 export async function getBookingsByStatus(userId: string) {
   const bookings = await getUserBookings(userId);
 
-  return bookings.reduce((acc, booking) => {
-    const status = booking.status;
-    if (!acc[status]) {
-      acc[status] = [];
-    }
-    acc[status].push(booking);
-    // Sort bookings by date/time, most recent first
-    acc[status].sort((a, b) => {
-      return new Date(a.startDate).getTime() - new Date(b.startDate).getTime();
-    });
-    return acc;
-  }, {} as Record<keyof typeof BookingStatus, typeof bookings>);
+  return bookings.reduce(
+    (acc, booking) => {
+      const status = booking.status;
+      if (!acc[status]) {
+        acc[status] = [];
+      }
+      acc[status].push(booking);
+      // Sort bookings by date/time, most recent first
+      acc[status].sort((a, b) => {
+        return new Date(a.startDate).getTime() - new Date(b.startDate).getTime();
+      });
+      return acc;
+    },
+    {} as Record<keyof typeof BookingStatus, typeof bookings>,
+  );
 }
 
 export async function updateBookingsFromConfirmedToActive() {
@@ -336,12 +330,8 @@ export async function sendBookingStartReminderEmails() {
         status: BookingStatus.CONFIRMED,
         startDate: {
           // Get bookings starting in the next hour
-          gte: new Date(
-            new Date().setMinutes(new Date().getMinutes() + 60, 0, 0)
-          ),
-          lte: new Date(
-            new Date().setMinutes(new Date().getMinutes() + 60, 59, 999)
-          ),
+          gte: new Date(new Date().setMinutes(new Date().getMinutes() + 60, 0, 0)),
+          lte: new Date(new Date().setMinutes(new Date().getMinutes() + 60, 59, 999)),
         },
         car: {
           status: Status.BOOKED,
@@ -395,12 +385,8 @@ export async function sendBookingEndReminderEmails() {
       where: {
         status: BookingStatus.ACTIVE,
         endDate: {
-          gte: new Date(
-            new Date().setMinutes(new Date().getMinutes() + 60, 0, 0)
-          ),
-          lte: new Date(
-            new Date().setMinutes(new Date().getMinutes() + 60, 59, 999)
-          ),
+          gte: new Date(new Date().setMinutes(new Date().getMinutes() + 60, 0, 0)),
+          lte: new Date(new Date().setMinutes(new Date().getMinutes() + 60, 59, 999)),
         },
         car: {
           status: Status.BOOKED,
@@ -432,11 +418,7 @@ export async function sendBookingEndReminderEmails() {
 
       // Send reminder to chauffeur if assigned
       if (booking.chauffeur?.email) {
-        const chauffeurHtml = await renderBookingReminder(
-          booking,
-          "chauffeur",
-          false
-        );
+        const chauffeurHtml = await renderBookingReminder(booking, "chauffeur", false);
         await sendEmail({
           to: "dcodesmith@gmail.com", // booking.chauffeur.email,
           subject: `Booking Reminder - You have a booking ending in 1 hour`,

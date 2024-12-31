@@ -39,11 +39,7 @@ export default function Root() {
 
       <LoginModal isOpen={isLoginOpen} onClose={() => setIsLoginOpen(false)} />
 
-      <VerifyModal
-        isOpen={isVerifyOpen}
-        onClose={() => setIsVerifyOpen(false)}
-        email={email}
-      />
+      <VerifyModal isOpen={isVerifyOpen} onClose={() => setIsVerifyOpen(false)} email={email} />
     </div>
   );
 }

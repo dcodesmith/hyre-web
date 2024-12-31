@@ -48,18 +48,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 }
 
 function numberToWords(num: number) {
-  const units = [
-    "",
-    "One",
-    "Two",
-    "Three",
-    "Four",
-    "Five",
-    "Six",
-    "Seven",
-    "Eight",
-    "Nine",
-  ];
+  const units = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine"];
   const teens = [
     "Ten",
     "Eleven",
@@ -91,8 +80,7 @@ function numberToWords(num: number) {
   function recursiveNumberToWords(n: number): string {
     if (n < 10) return units[n];
     if (n < 20) return teens[n - 10];
-    if (n < 100)
-      return tens[Math.floor(n / 10)] + (n % 10 ? " " + units[n % 10] : "");
+    if (n < 100) return tens[Math.floor(n / 10)] + (n % 10 ? " " + units[n % 10] : "");
     if (n < 1000)
       return (
         units[Math.floor(n / 100)] +
@@ -105,12 +93,7 @@ function numberToWords(num: number) {
 
     while (n > 0) {
       if (n % 1000 !== 0) {
-        result =
-          recursiveNumberToWords(n % 1000) +
-          " " +
-          scales[scaleIndex] +
-          " " +
-          result;
+        result = recursiveNumberToWords(n % 1000) + " " + scales[scaleIndex] + " " + result;
       }
       n = Math.floor(n / 1000);
       scaleIndex++;
@@ -127,7 +110,7 @@ export default function FleetOwnerDashboard() {
 
   const totalBookingsValue = bookings.reduce(
     (acc, booking) => acc + Number(booking.totalAmount),
-    0
+    0,
   );
 
   const amountInWords = numberToWords(totalBookingsValue);
@@ -195,13 +178,9 @@ export default function FleetOwnerDashboard() {
                 <div>
                   <div className="text-sm text-gray-500">Chauffeur</div>
                   {booking.chauffeur ? (
-                    <div title={booking.chauffeur.email}>
-                      {booking.chauffeur.name}
-                    </div>
+                    <div title={booking.chauffeur.email}>{booking.chauffeur.name}</div>
                   ) : booking.status === "CONFIRMED" ? (
-                    <Link
-                      to={`/fleet-owner/bookings/${booking.id}?startDate=${booking.startDate}`}
-                    >
+                    <Link to={`/fleet-owner/bookings/${booking.id}?startDate=${booking.startDate}`}>
                       Assign Chauffeur
                     </Link>
                   ) : null}

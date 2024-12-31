@@ -11,13 +11,10 @@ const s3Client = new S3Client({
 
 export async function uploadImageToS3(
   file: File,
-  { ownerId, id: carId }: Pick<Car, "ownerId" | "id">
+  { ownerId, id: carId }: Pick<Car, "ownerId" | "id">,
 ) {
   const timestamp = Date.now();
-  const safeFilename = `${timestamp}-${file.name.replace(
-    /[^a-zA-Z0-9.-]/g,
-    "_"
-  )}`;
+  const safeFilename = `${timestamp}-${file.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`;
 
   const key = `${ownerId}/${carId}-${safeFilename}`;
 

@@ -22,9 +22,7 @@ function getInitials(user: User) {
     const nameParts = user.name.trim().split(/\s+/);
 
     if (nameParts.length > 1) {
-      return (
-        nameParts[0][0] + nameParts[nameParts.length - 1][0]
-      ).toUpperCase();
+      return (nameParts[0][0] + nameParts[nameParts.length - 1][0]).toUpperCase();
     }
 
     return nameParts[0][0].toUpperCase();
@@ -66,12 +64,8 @@ export function UserNav({
               <>
                 <DropdownMenuLabel className="font-normal">
                   <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">
-                      {user.name ?? user.username}
-                    </p>
-                    <p className="text-xs leading-none text-muted-foreground">
-                      {user.email}
-                    </p>
+                    <p className="text-sm font-medium leading-none">{user.name ?? user.username}</p>
+                    <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
@@ -106,9 +100,7 @@ export function UserNav({
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-      {isProfileOpen && (
-        <ProfileForm onOpenChange={setIsProfileOpen} user={user} />
-      )}
+      {isProfileOpen && <ProfileForm onOpenChange={setIsProfileOpen} user={user} />}
     </>
   );
 }

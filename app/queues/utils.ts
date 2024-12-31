@@ -1,12 +1,11 @@
 import Bull from "bull";
 
-type MakeFieldRequired<T, K extends keyof T> = Omit<T, K> &
-  Required<Pick<T, K>>;
+type MakeFieldRequired<T, K extends keyof T> = Omit<T, K> & Required<Pick<T, K>>;
 
 export async function addUniqueJob(
   queue: Bull.Queue,
   name: string,
-  options: MakeFieldRequired<Bull.JobOptions, "jobId">
+  options: MakeFieldRequired<Bull.JobOptions, "jobId">,
 ) {
   // Check if a job with this ID already exists
   const existingJob = await queue.getJob(options.jobId);
@@ -21,7 +20,7 @@ export async function addUniqueJob(
         time: new Date().toLocaleTimeString(),
         type: "scheduled-update",
       },
-      options
+      options,
     );
   } else {
     console.log(`Job ${name} already exists in the queue`);

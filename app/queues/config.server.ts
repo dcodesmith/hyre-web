@@ -36,9 +36,7 @@ import Redis from "ioredis";
 function createRedisClient() {
   if (process.env.NODE_ENV === "production") {
     if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
-      throw new Error(
-        "Upstash Redis credentials are missing in production environment."
-      );
+      throw new Error("Upstash Redis credentials are missing in production environment.");
     }
 
     return new UpstashRedis({
@@ -70,10 +68,7 @@ console.log("Initializing Redis connection");
 console.log("Initializing Bull queue");
 
 const bullOptions = {
-  redis:
-    process.env.NODE_ENV === "production"
-      ? process.env.KV_URL
-      : process.env.REDIS_URL,
+  redis: process.env.NODE_ENV === "production" ? process.env.KV_URL : process.env.REDIS_URL,
   defaultJobOptions: {
     removeOnComplete: true,
     attempts: 3,
@@ -84,10 +79,7 @@ const bullOptions = {
   },
 };
 
-export const bookingStatusQueue = new Bull(
-  "booking-status-updates",
-  bullOptions
-);
+export const bookingStatusQueue = new Bull("booking-status-updates", bullOptions);
 
 export const bookingReminderQueue = new Bull("booking-reminder", bullOptions);
 

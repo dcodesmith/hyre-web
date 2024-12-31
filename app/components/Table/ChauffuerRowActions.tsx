@@ -17,13 +17,7 @@ import {
 } from "../ui/dropdown-menu";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "../ui/sheet";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "../ui/sheet";
 
 type EditChauffeurFormProps = {
   chauffeur: SerializedChauffeur;
@@ -57,10 +51,7 @@ interface DataTableRowActionsProps {
   row: Row<SerializedChauffeur>;
 }
 
-function EditChauffeurForm({
-  chauffeur,
-  setIsEditOpen,
-}: EditChauffeurFormProps) {
+function EditChauffeurForm({ chauffeur, setIsEditOpen }: EditChauffeurFormProps) {
   const fetcher = useFetcher<{ success: boolean; error?: string }>();
   const { toast } = useToast();
 
@@ -104,9 +95,7 @@ function EditChauffeurForm({
       {...getFormProps(form)}
       className="space-y-4"
     >
-      {fetcher.data?.error && (
-        <p className="text-sm text-red-500">{fetcher.data.error}</p>
-      )}
+      {fetcher.data?.error && <p className="text-sm text-red-500">{fetcher.data.error}</p>}
       <div className="space-y-1">
         <Label htmlFor={name.id}>Name</Label>
         <Input readOnly {...getInputProps(name, { type: "text" })} />
@@ -122,17 +111,13 @@ function EditChauffeurForm({
       <div className="space-y-1">
         <Label htmlFor={phoneNumber.id}>Phone Number</Label>
         <Input {...getInputProps(phoneNumber, { type: "tel" })} />
-        {phoneNumber.errors && (
-          <p className="text-sm text-red-500">{phoneNumber.errors}</p>
-        )}
+        {phoneNumber.errors && <p className="text-sm text-red-500">{phoneNumber.errors}</p>}
       </div>
 
       <div className="space-y-1">
         <Label htmlFor={address.id}>Address</Label>
         <Input {...getInputProps(address, { type: "text" })} />
-        {address.errors && (
-          <p className="text-sm text-red-500">{address.errors}</p>
-        )}
+        {address.errors && <p className="text-sm text-red-500">{address.errors}</p>}
       </div>
 
       <input type="hidden" name="chauffeurId" value={chauffeur.id} />
@@ -158,9 +143,7 @@ export function ChauffeurRowActions({ row }: DataTableRowActionsProps) {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem onClick={() => setIsEditOpen(true)}>
-            Edit
-          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => setIsEditOpen(true)}>Edit</DropdownMenuItem>
 
           <DropdownMenuItem>Suspend</DropdownMenuItem>
 
@@ -175,15 +158,11 @@ export function ChauffeurRowActions({ row }: DataTableRowActionsProps) {
           <SheetHeader>
             <SheetTitle>Edit Chauffeur</SheetTitle>
             <SheetDescription>
-              Make changes to chauffeur details here. Click save when
-              you&apos;re done.
+              Make changes to chauffeur details here. Click save when you&apos;re done.
             </SheetDescription>
           </SheetHeader>
           <div className="mt-4">
-            <EditChauffeurForm
-              chauffeur={row.original}
-              setIsEditOpen={setIsEditOpen}
-            />
+            <EditChauffeurForm chauffeur={row.original} setIsEditOpen={setIsEditOpen} />
           </div>
         </SheetContent>
       </Sheet>

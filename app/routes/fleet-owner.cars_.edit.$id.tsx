@@ -64,9 +64,7 @@ export async function loader({ params }: LoaderFunctionArgs) {
   return json({ car });
 }
 
-const STATUSES = Object.values(Status).filter(
-  (status) => status !== Status.BOOKED
-);
+const STATUSES = Object.values(Status).filter((status) => status !== Status.BOOKED);
 
 export default function EditCarForm() {
   const { car } = useLoaderData<typeof loader>();
@@ -140,16 +138,10 @@ export default function EditCarForm() {
             {...getInputProps(price, { type: "number" })}
             step="0.01"
             className={`w-full px-3 py-2 border rounded ${
-              price.errors
-                ? "border-destructive focus-visible:ring-destructive"
-                : ""
+              price.errors ? "border-destructive focus-visible:ring-destructive" : ""
             }`}
           />
-          {price.errors && (
-            <p className="text-red-500 text-sm mt-1">
-              {price.errors.join(" ")}
-            </p>
-          )}
+          {price.errors && <p className="text-red-500 text-sm mt-1">{price.errors.join(" ")}</p>}
         </div>
 
         <div className="mb-4">

@@ -1,16 +1,8 @@
 import { useState } from "react";
 import { json, redirect } from "@remix-run/node";
-import {
-  Form,
-  useActionData,
-  useLoaderData,
-  useNavigation,
-} from "@remix-run/react";
+import { Form, useActionData, useLoaderData, useNavigation } from "@remix-run/react";
 import type { ActionFunction, LoaderFunctionArgs } from "@remix-run/node";
-import {
-  requireAdminUser,
-  requireUserWithRole,
-} from "~/utils/permissions.server";
+import { requireAdminUser, requireUserWithRole } from "~/utils/permissions.server";
 import { z } from "zod";
 import { getFormProps, getInputProps, useForm } from "@conform-to/react";
 import { getZodConstraint, parseWithZod } from "@conform-to/zod";
@@ -122,9 +114,7 @@ export default function NewCarForm() {
             {...getInputProps(make, { type: "text" })}
             className="w-full px-3 py-2 border rounded"
           />
-          {make.errors && (
-            <p className="text-red-500 text-sm mt-1">{make.errors.join(" ")}</p>
-          )}
+          {make.errors && <p className="text-red-500 text-sm mt-1">{make.errors.join(" ")}</p>}
         </div>
 
         <div className="mb-4">
@@ -135,11 +125,7 @@ export default function NewCarForm() {
             {...getInputProps(model, { type: "text" })}
             className="w-full px-3 py-2 border rounded"
           />
-          {model.errors && (
-            <p className="text-red-500 text-sm mt-1">
-              {model.errors.join(" ")}
-            </p>
-          )}
+          {model.errors && <p className="text-red-500 text-sm mt-1">{model.errors.join(" ")}</p>}
         </div>
 
         <div className="mb-4">
@@ -150,9 +136,7 @@ export default function NewCarForm() {
             {...getInputProps(year, { type: "number" })}
             className="w-full px-3 py-2 border rounded"
           />
-          {year.errors && (
-            <p className="text-red-500 text-sm mt-1">{year.errors.join(" ")}</p>
-          )}
+          {year.errors && <p className="text-red-500 text-sm mt-1">{year.errors.join(" ")}</p>}
         </div>
 
         <div className="mb-4">
@@ -164,11 +148,7 @@ export default function NewCarForm() {
             step="0.01"
             className="w-full px-3 py-2 border rounded"
           />
-          {price.errors && (
-            <p className="text-red-500 text-sm mt-1">
-              {price.errors.join(" ")}
-            </p>
-          )}
+          {price.errors && <p className="text-red-500 text-sm mt-1">{price.errors.join(" ")}</p>}
         </div>
 
         <div className="mb-4">
@@ -187,11 +167,7 @@ export default function NewCarForm() {
               ))}
             </SelectContent>
           </Select>
-          {status.errors && (
-            <p className="text-red-500 text-sm mt-1">
-              {status.errors.join(" ")}
-            </p>
-          )}
+          {status.errors && <p className="text-red-500 text-sm mt-1">{status.errors.join(" ")}</p>}
         </div>
 
         <Button type="submit" disabled={isSubmitting}>

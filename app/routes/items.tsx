@@ -3,12 +3,7 @@
 // import invariant from "tiny-invariant";
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import {
-  Link,
-  redirect,
-  useLoaderData,
-  useSearchParams,
-} from "@remix-run/react";
+import { Link, redirect, useLoaderData, useSearchParams } from "@remix-run/react";
 import {
   ColumnFiltersState,
   getCoreRowModel,
@@ -181,11 +176,7 @@ export default function IndexPage() {
       {cars.length ? (
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-8">
           {cars.map((car) => (
-            <Link
-              key={car.id}
-              to={`/cars/${car.id}?${searchParams.toString()}`}
-              className="block"
-            >
+            <Link key={car.id} to={`/cars/${car.id}?${searchParams.toString()}`} className="block">
               <div className="rounded overflow-hidden hover:shadow-lg transition-shadow">
                 <Carousel images={car.images.length ? car.images : undefined} />
 

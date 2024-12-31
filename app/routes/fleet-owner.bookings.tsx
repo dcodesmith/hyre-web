@@ -162,35 +162,23 @@ export default function BookingsPage() {
     {
       accessorKey: "chauffeur",
       accessorFn: ({ chauffeur }) => `${chauffeur?.name}`,
-      header: ({ column }) => (
-        <ColumnHeader column={column} title="Chauffeur" />
-      ),
+      header: ({ column }) => <ColumnHeader column={column} title="Chauffeur" />,
       cell: ({ row }) => {
         const chauffeur = row.original.chauffeur;
-        return (
-          <div className="w-[130px] text-wrap">
-            {chauffeur?.name || "Not Assigned"}
-          </div>
-        );
+        return <div className="w-[130px] text-wrap">{chauffeur?.name || "Not Assigned"}</div>;
       },
     },
     {
       accessorKey: "startDate",
       enableColumnFilter: false,
-      header: ({ column }) => (
-        <ColumnHeader column={column} title="Start Date" />
-      ),
-      cell: ({ row }) => (
-        <div className="w-[185px]">{formatDate(row.original.startDate)}</div>
-      ),
+      header: ({ column }) => <ColumnHeader column={column} title="Start Date" />,
+      cell: ({ row }) => <div className="w-[185px]">{formatDate(row.original.startDate)}</div>,
     },
     {
       accessorKey: "endDate",
       enableColumnFilter: false,
       header: ({ column }) => <ColumnHeader column={column} title="End Date" />,
-      cell: ({ row }) => (
-        <div className="w-[185px]">{formatDate(row.original.endDate)}</div>
-      ),
+      cell: ({ row }) => <div className="w-[185px]">{formatDate(row.original.endDate)}</div>,
     },
     {
       accessorKey: "Booking Status",
@@ -202,7 +190,7 @@ export default function BookingsPage() {
             variant="outline"
             className={cn(
               bookingStatusColors[row.original.status],
-              "rounded border-none ring-1 ring-inset"
+              "rounded border-none ring-1 ring-inset",
             )}
           >
             {bookingStatusOptions[row.original.status]}
@@ -213,16 +201,14 @@ export default function BookingsPage() {
     {
       accessorKey: "Payment Status",
       accessorFn: ({ paymentStatus }) => paymentStatusOptions[paymentStatus],
-      header: ({ column }) => (
-        <ColumnHeader column={column} title="Payment Status" />
-      ),
+      header: ({ column }) => <ColumnHeader column={column} title="Payment Status" />,
       cell: ({ row }) => (
         <div className="w-[100px]">
           <Badge
             variant="outline"
             className={cn(
               paymentStatusColors[row.original.paymentStatus],
-              "rounded border-none ring-1 ring-inset"
+              "rounded border-none ring-1 ring-inset",
             )}
           >
             {paymentStatusOptions[row.original.paymentStatus]}
@@ -236,11 +222,8 @@ export default function BookingsPage() {
       enableHiding: false,
       cell: ({ row }) => {
         const booking = row.original;
-        const showAssignChauffeur =
-          !booking.chauffeur && booking.status === "CONFIRMED";
-        const showRefund =
-          booking.status === "CANCELLED" &&
-          booking.paymentStatus !== "REFUNDED";
+        const showAssignChauffeur = !booking.chauffeur && booking.status === "CONFIRMED";
+        const showRefund = booking.status === "CANCELLED" && booking.paymentStatus !== "REFUNDED";
 
         return (
           <DropdownMenu>
@@ -252,18 +235,14 @@ export default function BookingsPage() {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem asChild>
-                <Link
-                  to={`/fleet-owner/bookings/${booking.id}?startDate=${booking.startDate}`}
-                >
+                <Link to={`/fleet-owner/bookings/${booking.id}?startDate=${booking.startDate}`}>
                   View details
                 </Link>
               </DropdownMenuItem>
 
               {showAssignChauffeur && (
                 <DropdownMenuItem asChild>
-                  <Link
-                    to={`/fleet-owner/bookings/${booking.id}?startDate=${booking.startDate}`}
-                  >
+                  <Link to={`/fleet-owner/bookings/${booking.id}?startDate=${booking.startDate}`}>
                     Assign chauffeur
                   </Link>
                 </DropdownMenuItem>
@@ -271,9 +250,7 @@ export default function BookingsPage() {
 
               {showRefund && (
                 <DropdownMenuItem asChild>
-                  <Link to={`/fleet-owner/bookings/${booking.id}/refund`}>
-                    Process refund
-                  </Link>
+                  <Link to={`/fleet-owner/bookings/${booking.id}/refund`}>Process refund</Link>
                 </DropdownMenuItem>
               )}
             </DropdownMenuContent>

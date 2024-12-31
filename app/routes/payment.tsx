@@ -1,8 +1,4 @@
-import {
-  ActionFunctionArgs,
-  json,
-  type LoaderFunctionArgs,
-} from "@remix-run/node";
+import { ActionFunctionArgs, json, type LoaderFunctionArgs } from "@remix-run/node";
 import { redirect, useLoaderData } from "@remix-run/react";
 import invariant from "tiny-invariant";
 import { requireUser } from "~/modules/auth/auth.server";

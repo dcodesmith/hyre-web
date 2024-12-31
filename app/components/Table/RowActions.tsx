@@ -17,20 +17,8 @@ import {
 } from "../ui/dropdown-menu";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "../ui/select";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "../ui/sheet";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "../ui/sheet";
 
 const STATUSES = ["AVAILABLE", "HOLD", "IN_SERVICE"] as const;
 
@@ -69,8 +57,8 @@ const carSchema = z.object({
         {
           message:
             "Invalid Nigerian number plate format. Use formats like 'ABC-123XX', 'ABC123XX', or 'XX123XX'",
-        }
-      )
+        },
+      ),
     ),
   price: z
     .number({
@@ -105,21 +93,18 @@ function EditCarForm({ car, setIsEditOpen }: EditCarFormProps) {
     }
   }, [fetcher.data, setIsEditOpen, fetcher.state]);
 
-  const [form, { make, model, year, registrationNumber, price, status }] =
-    useForm({
-      defaultValue: car,
-      onValidate({ formData }) {
-        return parseWithZod(formData, { schema: carSchema });
-      },
-      shouldValidate: "onInput",
-      shouldRevalidate: "onInput",
-    });
+  const [form, { make, model, year, registrationNumber, price, status }] = useForm({
+    defaultValue: car,
+    onValidate({ formData }) {
+      return parseWithZod(formData, { schema: carSchema });
+    },
+    shouldValidate: "onInput",
+    shouldRevalidate: "onInput",
+  });
 
   return (
     <fetcher.Form method="post" {...getFormProps(form)} className="space-y-4">
-      {fetcher.data?.error && (
-        <p className="text-sm text-red-500">{fetcher.data.error}</p>
-      )}
+      {fetcher.data?.error && <p className="text-sm text-red-500">{fetcher.data.error}</p>}
       <div className="space-y-1">
         <Label htmlFor={make.id}>Make</Label>
         <Input readOnly {...getInputProps(make, { type: "text" })} />
@@ -137,10 +122,7 @@ function EditCarForm({ car, setIsEditOpen }: EditCarFormProps) {
 
       <div className="space-y-1">
         <Label htmlFor={registrationNumber.id}>Registration Number</Label>
-        <Input
-          readOnly
-          {...getInputProps(registrationNumber, { type: "text" })}
-        />
+        <Input readOnly {...getInputProps(registrationNumber, { type: "text" })} />
       </div>
 
       <div className="space-y-1">
@@ -149,14 +131,10 @@ function EditCarForm({ car, setIsEditOpen }: EditCarFormProps) {
           {...getInputProps(price, { type: "number" })}
           step="1000"
           className={
-            price.errors
-              ? "border-red-500 focus-visible:ring-red-500 focus-visible:ring-2"
-              : ""
+            price.errors ? "border-red-500 focus-visible:ring-red-500 focus-visible:ring-2" : ""
           }
         />
-        {price.errors && (
-          <p className="text-sm text-destructive">{price.errors.join(" ")}</p>
-        )}
+        {price.errors && <p className="text-sm text-destructive">{price.errors.join(" ")}</p>}
       </div>
 
       {car.status !== "BOOKED" && (
@@ -204,7 +182,7 @@ export function RowActions({ row }: DataTableRowActionsProps) {
         method: "DELETE",
         action: `/fleet-owner/cars/${row.original.id}?index`,
         preventScrollReset: true,
-      }
+      },
     );
 
     toast({
@@ -217,25 +195,18 @@ export function RowActions({ row }: DataTableRowActionsProps) {
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button
-            variant="ghost"
-            className="flex h-8 w-8 p-0 data-[state=open]:bg-muted rounded"
-          >
+          <Button variant="ghost" className="flex h-8 w-8 p-0 data-[state=open]:bg-muted rounded">
             <EllipsisHorizontalIcon className="h-4 w-4" />
             <span className="sr-only">Open menu</span>
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           {row.original.status !== "BOOKED" && (
-            <DropdownMenuItem onClick={() => setIsEditOpen(true)}>
-              Edit
-            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setIsEditOpen(true)}>Edit</DropdownMenuItem>
           )}
 
           <DropdownMenuItem
-            onClick={() =>
-              navigate(`/fleet-owner/cars/details/${row.original.id}`)
-            }
+            onClick={() => navigate(`/fleet-owner/cars/details/${row.original.id}`)}
           >
             Details
           </DropdownMenuItem>

@@ -6,9 +6,7 @@ import {
 import { addUniqueJob } from "./utils";
 
 export async function scheduleConfirmedToActiveUpdates() {
-  console.log(
-    "Scheduling booking status updates from confirmed to active job...."
-  );
+  console.log("Scheduling booking status updates from confirmed to active job....");
 
   try {
     // Remove existing repeat jobs to prevent duplicates
@@ -67,9 +65,7 @@ export async function scheduleConfirmedToActiveUpdates() {
 }
 
 export async function scheduleActiveToCompletedUpdates() {
-  console.log(
-    "Scheduling booking status updates from active to completed job...."
-  );
+  console.log("Scheduling booking status updates from active to completed job....");
 
   try {
     // Remove existing repeat jobs to prevent duplicates

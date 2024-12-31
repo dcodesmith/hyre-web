@@ -42,17 +42,14 @@ export function renderAuthEmail({ code, magicLink, intent }: AuthEmailOptions) {
             </Section>
           )}
           <Text className="text-sm text-gray-800">
-            This link and code will only be valid for the next 60 seconds. If
-            the link does not work, you can use the {intent} verification code
-            directly:
+            This link and code will only be valid for the next 60 seconds. If the link does not
+            work, you can use the {intent} verification code directly:
           </Text>
           <code className="text-xl font-semibold">{code}</code>
           <Hr className="my-4 border-gray-500" />
-          <Text className="text-sm text-gray-800">
-            {new Date().getFullYear()}. Lagos, Nigeria
-          </Text>
+          <Text className="text-sm text-gray-800">{new Date().getFullYear()}. Lagos, Nigeria</Text>
         </Container>
       </Body>
-    </EmailTemplate>
+    </EmailTemplate>,
   );
 }

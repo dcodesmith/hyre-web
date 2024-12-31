@@ -56,8 +56,8 @@ export const carSchema = z.object({
         {
           message:
             "Invalid Nigerian number plate format. Use formats like 'ABC-123XX', 'ABC123XX', or 'XX123XX'",
-        }
-      )
+        },
+      ),
     ),
 
   price: z
@@ -77,14 +77,12 @@ export const carSchema = z.object({
     .max(5, "You can upload up to 5 files")
     .refine(
       (files) => files.every((file) => file.size < 5 * 1024 * 1024),
-      "Each file must be less than 5MB"
+      "Each file must be less than 5MB",
     )
     .refine(
       (files) =>
-        files.every((file) =>
-          ["image/jpeg", "image/png", "image/webp"].includes(file.type)
-        ),
-      "Files must be JPEG, PNG or WebP"
+        files.every((file) => ["image/jpeg", "image/png", "image/webp"].includes(file.type)),
+      "Files must be JPEG, PNG or WebP",
     ),
 });
 
@@ -101,10 +99,7 @@ export function NewCarForm() {
 
   const lastResult = fetcher.data;
 
-  const [
-    form,
-    { make, model, year, price, status, images, registrationNumber },
-  ] = useForm({
+  const [form, { make, model, year, price, status, images, registrationNumber }] = useForm({
     lastResult: fetcher.state === "idle" ? lastResult : null,
     onValidate({ formData }) {
       for (const [key, value] of formData.entries()) {
@@ -117,8 +112,7 @@ export function NewCarForm() {
 
   const isSubmitting = fetcher.state === "submitting";
 
-  const errorRingClasses =
-    "border-red-500 focus-visible:ring-red-500 focus-visible:ring-2";
+  const errorRingClasses = "border-red-500 focus-visible:ring-red-500 focus-visible:ring-2";
 
   return (
     <fetcher.Form
@@ -127,18 +121,14 @@ export function NewCarForm() {
       encType="multipart/form-data"
       className="space-y-4"
     >
-      {fetcher.data?.error && (
-        <p className="text-red-600 text-sm">{fetcher.data?.error}</p>
-      )}
+      {fetcher.data?.error && <p className="text-red-600 text-sm">{fetcher.data?.error}</p>}
       <div className="space-y-1">
         <Label htmlFor={make.id}>Make</Label>
         <Input
           {...getInputProps(make, { type: "text" })}
           className={`rounded ${make.errors ? errorRingClasses : ""}`}
         />
-        {make.errors && (
-          <p className="text-red-500 text-sm">{make.errors.join(" ")}</p>
-        )}
+        {make.errors && <p className="text-red-500 text-sm">{make.errors.join(" ")}</p>}
       </div>
 
       <div className="space-y-1">
@@ -147,23 +137,17 @@ export function NewCarForm() {
           {...getInputProps(model, { type: "text" })}
           className={`rounded ${model.errors ? errorRingClasses : ""}`}
         />
-        {model.errors && (
-          <p className="text-red-500 text-sm">{model.errors.join(" ")}</p>
-        )}
+        {model.errors && <p className="text-red-500 text-sm">{model.errors.join(" ")}</p>}
       </div>
 
       <div className="space-y-1">
         <Label htmlFor={registrationNumber.id}>Registration Number</Label>
         <Input
           {...getInputProps(registrationNumber, { type: "text" })}
-          className={`rounded ${
-            registrationNumber.errors ? errorRingClasses : ""
-          }`}
+          className={`rounded ${registrationNumber.errors ? errorRingClasses : ""}`}
         />
         {registrationNumber.errors && (
-          <p className="text-red-500 text-sm">
-            {registrationNumber.errors.join(" ")}
-          </p>
+          <p className="text-red-500 text-sm">{registrationNumber.errors.join(" ")}</p>
         )}
       </div>
 
@@ -173,9 +157,7 @@ export function NewCarForm() {
           {...getInputProps(year, { type: "number" })}
           className={`rounded ${year.errors ? errorRingClasses : ""}`}
         />
-        {year.errors && (
-          <p className="text-red-500 text-sm">{year.errors.join(" ")}</p>
-        )}
+        {year.errors && <p className="text-red-500 text-sm">{year.errors.join(" ")}</p>}
       </div>
 
       <div className="space-y-1">
@@ -184,9 +166,7 @@ export function NewCarForm() {
           {...getInputProps(price, { type: "number", step: "1000" })}
           className={`rounded ${price.errors ? errorRingClasses : ""}`}
         />
-        {price.errors && (
-          <p className="text-red-500 text-sm">{price.errors.join(" ")}</p>
-        )}
+        {price.errors && <p className="text-red-500 text-sm">{price.errors.join(" ")}</p>}
       </div>
 
       <div className="space-y-1">
@@ -198,9 +178,7 @@ export function NewCarForm() {
           accept="image/*"
           className={`rounded ${images.errors ? errorRingClasses : ""}`}
         />
-        {images.errors && (
-          <p className="text-red-500 text-sm">{images.errors.join(" ")}</p>
-        )}
+        {images.errors && <p className="text-red-500 text-sm">{images.errors.join(" ")}</p>}
       </div>
 
       <div className="space-y-1">
@@ -220,19 +198,13 @@ export function NewCarForm() {
               ))}
           </SelectContent>
         </Select>
-        {status.errors && (
-          <p className="text-red-500 text-sm">{status.errors.join(" ")}</p>
-        )}
+        {status.errors && <p className="text-red-500 text-sm">{status.errors.join(" ")}</p>}
       </div>
 
       <input type="hidden" name="intent" value="create" />
 
       <Button className="w-full" type="submit" disabled={isSubmitting}>
-        {isSubmitting ? (
-          <CogIcon className="h-5 w-5 animate-spin" />
-        ) : (
-          "Add Car"
-        )}
+        {isSubmitting ? <CogIcon className="h-5 w-5 animate-spin" /> : "Add Car"}
       </Button>
     </fetcher.Form>
   );

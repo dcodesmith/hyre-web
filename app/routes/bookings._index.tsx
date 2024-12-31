@@ -1,8 +1,4 @@
-import {
-  ActionFunctionArgs,
-  json,
-  type LoaderFunctionArgs,
-} from "@remix-run/node";
+import { ActionFunctionArgs, json, type LoaderFunctionArgs } from "@remix-run/node";
 import {
   Link,
   redirect,
@@ -20,11 +16,7 @@ import {
   renderBookingConfirmationEmail,
   renderFleetOwnerBookingNotificationEmail,
 } from "~/modules/email/templates/booking-notification";
-import {
-  cancelBooking,
-  confirmBooking,
-  getBookingsByStatus,
-} from "~/services/bookings.server";
+import { cancelBooking, confirmBooking, getBookingsByStatus } from "~/services/bookings.server";
 import { requireUserWithRole } from "~/utils/permissions.server";
 
 export async function action({ request }: ActionFunctionArgs) {
@@ -95,9 +87,7 @@ export async function action({ request }: ActionFunctionArgs) {
     endDateTime.setMilliseconds(0);
 
     const pickupLocation = `${pickupStreet}, ${pickupLocality}`;
-    const returnLocation = sameLocation
-      ? pickupLocation
-      : `${dropOffStreet}, ${dropOffLocality}`;
+    const returnLocation = sameLocation ? pickupLocation : `${dropOffStreet}, ${dropOffLocality}`;
 
     try {
       const booking = await confirmBooking({
@@ -174,10 +164,7 @@ export default function BookingsPage() {
           <TabsContent key={status} value={status}>
             <div className="flex flex-col gap-2">
               {bookings[status]?.map((booking) => (
-                <div
-                  key={booking.id}
-                  className="border flex justify-between p-2 rounded"
-                >
+                <div key={booking.id} className="border flex justify-between p-2 rounded">
                   <div className="flex items-center gap-4">
                     <img
                       src={booking.car.images[0]}
@@ -186,31 +173,23 @@ export default function BookingsPage() {
                     />
                     <div>
                       <h3 className="text-pretty text-sm font-semibold">
-                        {booking.car.make} {booking.car.model} (
-                        {booking.car.year})
+                        {booking.car.make} {booking.car.model} ({booking.car.year})
                       </h3>
                       <div className="text-sm text-gray-600">
                         <p>
-                          {formatDate(booking.startDate)} to{" "}
-                          {formatDate(booking.endDate)}
+                          {formatDate(booking.startDate)} to {formatDate(booking.endDate)}
                         </p>
 
                         <p className="text-pretty text-sm font-semibold">
                           {formatCurrency(Number(booking.totalAmount))}
-                          <span className="inline-flex items-center px-1">
-                            .
-                          </span>
-                          <span className=" text-gray-500">
-                            {formatDate(booking.createdAt)}
-                          </span>
+                          <span className="inline-flex items-center px-1">.</span>
+                          <span className=" text-gray-500">{formatDate(booking.createdAt)}</span>
                         </p>
 
                         {booking.chauffeur ? (
                           <p>
                             Your chauffeur{" "}
-                            {["CANCELLED", "COMPLETED"].includes(booking.status)
-                              ? "was"
-                              : "is"}{" "}
+                            {["CANCELLED", "COMPLETED"].includes(booking.status) ? "was" : "is"}{" "}
                             {booking.chauffeur.name}
                           </p>
                         ) : (
@@ -239,7 +218,7 @@ export default function BookingsPage() {
                             {
                               method: "DELETE",
                               action: `/bookings/${booking.id}`,
-                            }
+                            },
                           )
                         }
                       >

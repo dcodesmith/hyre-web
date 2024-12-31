@@ -179,12 +179,8 @@ async function seed() {
 
     const cars = vehicles.map((vehicle) => ({
       ...vehicle,
-      price: [90000, 100000, 110000, 120000, 130000][
-        Math.floor(Math.random() * 5)
-      ],
-      color: ["Blue", "Silver", "Black", "White"][
-        Math.floor(Math.random() * 4)
-      ],
+      price: [90000, 100000, 110000, 120000, 130000][Math.floor(Math.random() * 5)],
+      color: ["Blue", "Silver", "Black", "White"][Math.floor(Math.random() * 4)],
       year: [2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024][
         Math.floor(Math.random() * 10)
       ],
@@ -200,16 +196,7 @@ async function seed() {
       ])} ${faker.number.int({
         min: 100,
         max: 999,
-      })} ${faker.helpers.arrayElement([
-        "AA",
-        "AB",
-        "AC",
-        "AD",
-        "AE",
-        "AF",
-        "AG",
-        "AH",
-      ])}`,
+      })} ${faker.helpers.arrayElement(["AA", "AB", "AC", "AD", "AE", "AF", "AG", "AH"])}`,
     }));
 
     const createdCars = await prisma.car.createManyAndReturn({
@@ -222,9 +209,7 @@ async function seed() {
       const basePattern = `${formattedMake}-${formattedModel}`;
       const carImages = await getCarImages(basePattern);
 
-      const imageUrls = await Promise.all(
-        carImages.map((image) => uploadImageToS3(image, car))
-      );
+      const imageUrls = await Promise.all(carImages.map((image) => uploadImageToS3(image, car)));
 
       if (imageUrls.length > 0) {
         await prisma.car.update({

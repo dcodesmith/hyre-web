@@ -32,7 +32,7 @@ const totpStrategy = new TOTPStrategy(
     }
 
     return user;
-  }
+  },
 );
 
 totpAuthenticator.use(totpStrategy);

@@ -43,16 +43,16 @@ export const loader: LoaderFunction = async ({ request }) => {
   console.log({ make, model });
   // const page = parseInt(url.searchParams.get("page") || "1", 10);
 
-  const cars = (
-    await prisma.car.findMany({ where: { status: "AVAILABLE" } })
-  ).map((car, index) => ({
-    ...car,
-    images: [
-      `https://picsum.photos/seed/${index + 1}-1/400/300`,
-      `https://picsum.photos/seed/${index + 1}-2/400/300`,
-      `https://picsum.photos/seed/${index + 1}-3/400/300`,
-    ],
-  }));
+  const cars = (await prisma.car.findMany({ where: { status: "AVAILABLE" } })).map(
+    (car, index) => ({
+      ...car,
+      images: [
+        `https://picsum.photos/seed/${index + 1}-1/400/300`,
+        `https://picsum.photos/seed/${index + 1}-2/400/300`,
+        `https://picsum.photos/seed/${index + 1}-3/400/300`,
+      ],
+    }),
+  );
 
   // Mock data for cars and filter options
   // const cars = vehicles.map((vehicle, index) => ({
@@ -86,8 +86,7 @@ export default function Index() {
   }>();
 
   const [searchParams, setSearchParams] = useSearchParams();
-  const [selectedFilters, setSelectedFilters] =
-    useState<Record<string, string[]>>(DEFAULT_FILTERS);
+  const [selectedFilters, setSelectedFilters] = useState<Record<string, string[]>>(DEFAULT_FILTERS);
 
   const [dateRange, setDateRange] = useState<DateRange>({
     from: new Date(),
@@ -102,17 +101,12 @@ export default function Index() {
     }
     return [
       ...new Set(
-        cars
-          .filter((car) => selectedFilters.makes.includes(car.make))
-          .map((car) => car.model)
+        cars.filter((car) => selectedFilters.makes.includes(car.make)).map((car) => car.model),
       ),
     ];
   }, [cars, filterOptions.models, selectedFilters.makes]);
 
-  const handleFilterChange = (
-    category: "makes" | "models" | "colors",
-    selected: string[]
-  ) => {
+  const handleFilterChange = (category: "makes" | "models" | "colors", selected: string[]) => {
     setSelectedFilters((prev) => {
       const newFilters = { ...prev, [category]: selected };
       // Reset models when makes change
@@ -127,23 +121,19 @@ export default function Index() {
   const filteredCars = useMemo(() => {
     return cars.filter(
       (car) =>
-        (selectedFilters.makes.length === 0 ||
-          selectedFilters.makes.includes(car.make)) &&
-        (selectedFilters.models.length === 0 ||
-          selectedFilters.models.includes(car.model)) &&
-        (selectedFilters.colors.length === 0 ||
-          selectedFilters.colors.includes(car.color))
+        (selectedFilters.makes.length === 0 || selectedFilters.makes.includes(car.make)) &&
+        (selectedFilters.models.length === 0 || selectedFilters.models.includes(car.model)) &&
+        (selectedFilters.colors.length === 0 || selectedFilters.colors.includes(car.color)),
     );
   }, [cars, selectedFilters]);
 
   const totalPages = Math.ceil(filteredCars.length / ITEMS_PER_PAGE);
   const paginatedCars = filteredCars.slice(
     (currentPage - 1) * ITEMS_PER_PAGE,
-    currentPage * ITEMS_PER_PAGE
+    currentPage * ITEMS_PER_PAGE,
   );
 
-  const handlePageChange = (newPage: number) =>
-    setSearchParams({ page: newPage.toString() });
+  const handlePageChange = (newPage: number) => setSearchParams({ page: newPage.toString() });
 
   const handleDateRangeChange = (dateRange: DateRange) => {
     setDateRange(dateRange);
@@ -162,18 +152,14 @@ export default function Index() {
         <MultiselectFilter
           options={filterOptions.makes}
           selectedOptions={selectedFilters.makes}
-          onChange={(selected: string[]) =>
-            handleFilterChange("makes", selected)
-          }
+          onChange={(selected: string[]) => handleFilterChange("makes", selected)}
           label="Make"
         />
 
         <MultiselectFilter
           options={filteredModels}
           selectedOptions={selectedFilters.models}
-          onChange={(selected: string[]) =>
-            handleFilterChange("models", selected)
-          }
+          onChange={(selected: string[]) => handleFilterChange("models", selected)}
           label="Model"
           disabled={selectedFilters.makes.length === 0}
         />

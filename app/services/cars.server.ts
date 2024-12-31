@@ -5,7 +5,7 @@ import { uploadImageToS3 } from "./s3.server";
 export async function isCarAvailable(
   carId: string,
   startDate: Date,
-  endDate: Date
+  endDate: Date,
 ): Promise<boolean> {
   const car = await prisma.car.findUnique({
     where: { id: carId },
@@ -52,9 +52,7 @@ export async function createCar({
     const car = await transaction.car.create({ data });
 
     try {
-      const imageUrls = await Promise.all(
-        images.map((image) => uploadImageToS3(image, car))
-      );
+      const imageUrls = await Promise.all(images.map((image) => uploadImageToS3(image, car)));
 
       // Update car with image URLs within same transaction
       return transaction.car.update({

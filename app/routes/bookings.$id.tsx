@@ -19,10 +19,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
   if (request.method === "DELETE") {
     try {
-      const booking = await cancelBooking(
-        params.id,
-        "User requested cancellation"
-      );
+      const booking = await cancelBooking(params.id, "User requested cancellation");
 
       await Promise.all([
         sendEmail({
@@ -77,8 +74,7 @@ export default function Booking() {
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="text-2xl font-bold">Booking Details</h2>
         <p className="font-medium text-gray-600">
-          {booking.car.make} {booking.car.model} {booking.car.year} -{" "}
-          {booking.car.color}
+          {booking.car.make} {booking.car.model} {booking.car.year} - {booking.car.color}
         </p>
       </div>
       <div className="bg-white p-6 space-y-4 border rounded overflow-hidden shadow-md hover:shadow-lg transition-shadow">
@@ -124,9 +120,7 @@ export default function Booking() {
 
           <div>
             <h3 className="text-gray-500">Total Amount</h3>
-            <p className="font-medium">
-              {formatCurrency(Number(booking.totalAmount))}
-            </p>
+            <p className="font-medium">{formatCurrency(Number(booking.totalAmount))}</p>
           </div>
 
           {booking.status === "CANCELLED" && (
@@ -137,9 +131,7 @@ export default function Booking() {
               </div>
               <div>
                 <h3 className="text-gray-500">Cancellation Date</h3>
-                <p className="font-medium">
-                  {formatDate(booking.cancelledAt || "")}
-                </p>
+                <p className="font-medium">{formatDate(booking.cancelledAt || "")}</p>
               </div>
             </>
           )}

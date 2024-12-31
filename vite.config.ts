@@ -5,8 +5,7 @@ import tsconfigPaths from "vite-tsconfig-paths";
 export default defineConfig({
   resolve: {
     alias: {
-      ".prisma/client/index-browser":
-        "./node_modules/@prisma/client/index-browser.js",
+      ".prisma/client/index-browser": "./node_modules/@prisma/client/index-browser.js",
     },
   },
   server: {
@@ -19,17 +18,6 @@ export default defineConfig({
         v3_relativeSplatPath: true,
         v3_throwAbortReason: true,
       },
-      // routes(defineRoutes) {
-      //   return defineRoutes((route) => {
-      //     route("/", "home/route.tsx", { index: true });
-      //     route("about", "about/route.tsx");
-      //     route("concerts", "concerts/layout.tsx", () => {
-      //       route("", "concerts/home.tsx", { index: true });
-      //       route("trending", "concerts/trending.tsx");
-      //       route(":city", "concerts/city.tsx");
-      //     });
-      //   });
-      // },
     }),
     tsconfigPaths(),
   ],

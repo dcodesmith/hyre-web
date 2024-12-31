@@ -54,9 +54,7 @@ export default function App() {
   return (
     <html lang="en" className="h-full">
       <head>
-        <title>
-          {`${ENV.APP_NAME} - Effortless, Reliable, Safe, and Exceptional Service.`}
-        </title>
+        <title>{`${ENV.APP_NAME} - Effortless, Reliable, Safe, and Exceptional Service.`}</title>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <Meta />
@@ -65,10 +63,7 @@ export default function App() {
       <body className="h-full bg-background">
         <div className="flex flex-col min-h-screen">
           <header className="p-4 flex container mx-auto justify-between items-center sticky top-0 bg-white z-20">
-            <Link
-              to="/"
-              className="text-2xl font-bold font-dancingscript text-slate-600"
-            >
+            <Link to="/" className="text-2xl font-bold font-dancingscript text-slate-600">
               {ENV.APP_NAME}
             </Link>
             <UserNav user={user} />

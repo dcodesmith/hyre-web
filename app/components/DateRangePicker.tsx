@@ -4,11 +4,7 @@ import { DateRange } from "react-day-picker";
 import { cn } from "~/lib/utils";
 import { Button } from "~/components/ui/button";
 import { Calendar } from "~/components/ui/calendar";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "~/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "~/components/ui/popover";
 
 interface DateRangePickerProps {
   date: DateRange;
@@ -16,11 +12,7 @@ interface DateRangePickerProps {
   className?: string;
 }
 
-export function DateRangePicker({
-  date,
-  onDateChange,
-  className,
-}: DateRangePickerProps) {
+export function DateRangePicker({ date, onDateChange, className }: DateRangePickerProps) {
   const disabledDays = {
     before: new Date().getHours() >= 12 ? startOfTomorrow() : startOfToday(),
   };
@@ -32,17 +24,13 @@ export function DateRangePicker({
           <Button
             id="date"
             variant={"outline"}
-            className={cn(
-              "justify-start text-left font-normal",
-              !date && "text-muted-foreground"
-            )}
+            className={cn("justify-start text-left font-normal", !date && "text-muted-foreground")}
           >
             <CalendarIcon className="mr-2 h-5 w-5" />
             {date?.from ? (
               date.to ? (
                 <>
-                  {format(date.from, "LLL dd, y")} -{" "}
-                  {format(date.to, "LLL dd, y")}
+                  {format(date.from, "LLL dd, y")} - {format(date.to, "LLL dd, y")}
                 </>
               ) : (
                 format(date.from, "LLL dd, y")

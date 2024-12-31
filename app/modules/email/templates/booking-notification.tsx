@@ -1,13 +1,5 @@
 import { Booking, BookingStatus, Car, User } from "@prisma/client";
-import {
-  Body,
-  Container,
-  Heading,
-  Hr,
-  Link,
-  Preview,
-  Text,
-} from "@react-email/components";
+import { Body, Container, Heading, Hr, Link, Preview, Text } from "@react-email/components";
 import { render } from "@react-email/render";
 import { match } from "ts-pattern";
 import { EmailTemplate } from "./EmailTemplate";
@@ -30,9 +22,7 @@ export function renderBookingTemplate(booking: BookingWithRelations) {
       status: "completed",
     }))
     .otherwise(() => {
-      throw new Error(
-        `Invalid booking status for notification: ${booking.status}`
-      );
+      throw new Error(`Invalid booking status for notification: ${booking.status}`);
     });
 
   return render(
@@ -40,17 +30,14 @@ export function renderBookingTemplate(booking: BookingWithRelations) {
       <Preview>Your booking has {title}</Preview>
       <Body className="bg-white">
         <Container className="mx-auto py-4">
-          <Heading className="text-2xl font-medium text-gray-800">
-            Your booking has {title}
-          </Heading>
+          <Heading className="text-2xl font-medium text-gray-800">Your booking has {title}</Heading>
 
           <Text className="text-base text-gray-800">
             Hello {booking.user.username || booking.user.email},
           </Text>
 
           <Text className="text-base text-gray-800 mt-4">
-            Your booking for the {booking.car.make} {booking.car.model} is now{" "}
-            {status}.
+            Your booking for the {booking.car.make} {booking.car.model} is now {status}.
           </Text>
 
           <Text className="text-base text-gray-800 mt-4">Booking Details:</Text>
@@ -58,24 +45,19 @@ export function renderBookingTemplate(booking: BookingWithRelations) {
           <Text className="text-base text-gray-800">
             • Start Date: {booking.startDate.toLocaleDateString()}
             <br />• End Date: {booking.endDate.toLocaleDateString()}
-            <br />• Car: {booking.car.make} {booking.car.model} (
-            {booking.car.year})
+            <br />• Car: {booking.car.make} {booking.car.model} ({booking.car.year})
           </Text>
 
           <Hr className="my-4 border-gray-500" />
 
-          <Text className="text-sm text-gray-800">
-            {new Date().getFullYear()}. Lagos, Nigeria
-          </Text>
+          <Text className="text-sm text-gray-800">{new Date().getFullYear()}. Lagos, Nigeria</Text>
         </Container>
       </Body>
-    </EmailTemplate>
+    </EmailTemplate>,
   );
 }
 
-export function renderFleetOwnerBookingCancellationEmail(
-  booking: BookingWithRelations
-) {
+export function renderFleetOwnerBookingCancellationEmail(booking: BookingWithRelations) {
   return render(
     <EmailTemplate>
       <Preview>A booking has been cancelled</Preview>
@@ -90,8 +72,8 @@ export function renderFleetOwnerBookingCancellationEmail(
           </Text>
 
           <Text className="text-base text-gray-800 mt-4">
-            A booking for your {booking.car.make} {booking.car.model} has been
-            cancelled by {booking.user.name || booking.user.email}.
+            A booking for your {booking.car.make} {booking.car.model} has been cancelled by{" "}
+            {booking.user.name || booking.user.email}.
           </Text>
 
           <Text className="text-base text-gray-800 mt-4">
@@ -110,26 +92,21 @@ export function renderFleetOwnerBookingCancellationEmail(
             </Text>
           )}
 
-          <Text className="text-base text-gray-800 mt-4">
-            Cancelled Booking Details:
-          </Text>
+          <Text className="text-base text-gray-800 mt-4">Cancelled Booking Details:</Text>
 
           <Text className="text-base text-gray-800">
             • Customer: {booking.user.name || booking.user.email}
             <br />• Start Date & Time: {formatDate(booking.startDate)}
             <br />• End Date & Time: {formatDate(booking.endDate)}
-            <br />• Car: {booking.car.make} {booking.car.model} (
-            {booking.car.year})
+            <br />• Car: {booking.car.make} {booking.car.model} ({booking.car.year})
           </Text>
 
           <Hr className="my-4 border-gray-500" />
 
-          <Text className="text-sm text-gray-800">
-            {new Date().getFullYear()}. Lagos, Nigeria
-          </Text>
+          <Text className="text-sm text-gray-800">{new Date().getFullYear()}. Lagos, Nigeria</Text>
         </Container>
       </Body>
-    </EmailTemplate>
+    </EmailTemplate>,
   );
 }
 
@@ -148,8 +125,8 @@ export function renderBookingCancellationEmail(booking: BookingWithRelations) {
           </Text>
 
           <Text className="text-base text-gray-800 mt-4">
-            Your booking for the {booking.car.make} {booking.car.model} has been
-            cancelled. Your payment of{" "}
+            Your booking for the {booking.car.make} {booking.car.model} has been cancelled. Your
+            payment of{" "}
             <span className="font-semibold">
               {new Intl.NumberFormat("en-NG", {
                 style: "currency",
@@ -165,25 +142,20 @@ export function renderBookingCancellationEmail(booking: BookingWithRelations) {
             </Text>
           )}
 
-          <Text className="text-base text-gray-800 mt-4">
-            Cancelled Booking Details:
-          </Text>
+          <Text className="text-base text-gray-800 mt-4">Cancelled Booking Details:</Text>
 
           <Text className="text-base text-gray-800">
             • Start Date & Time: {formatDate(booking.startDate)}
             <br />• End Date & Time: {formatDate(booking.endDate)}
-            <br />• Car: {booking.car.make} {booking.car.model} (
-            {booking.car.year})
+            <br />• Car: {booking.car.make} {booking.car.model} ({booking.car.year})
           </Text>
 
           <Hr className="my-4 border-gray-500" />
 
-          <Text className="text-sm text-gray-800">
-            {new Date().getFullYear()}. Lagos, Nigeria
-          </Text>
+          <Text className="text-sm text-gray-800">{new Date().getFullYear()}. Lagos, Nigeria</Text>
         </Container>
       </Body>
-    </EmailTemplate>
+    </EmailTemplate>,
   );
 }
 
@@ -202,8 +174,8 @@ export function renderBookingConfirmationEmail(booking: BookingWithRelations) {
           </Text>
 
           <Text className="text-base text-gray-800 mt-4">
-            Your booking for the {booking.car.make} {booking.car.model} has been
-            confirmed. Here are your booking details:
+            Your booking for the {booking.car.make} {booking.car.model} has been confirmed. Here are
+            your booking details:
           </Text>
 
           <Text className="text-base text-gray-800 mt-4">Booking Details:</Text>
@@ -211,8 +183,7 @@ export function renderBookingConfirmationEmail(booking: BookingWithRelations) {
           <Text className="text-base text-gray-800">
             • Start Date & Time: {formatDate(booking.startDate)}
             <br />• End Date & Time: {formatDate(booking.endDate)}
-            <br />• Car: {booking.car.make} {booking.car.model} (
-            {booking.car.year})
+            <br />• Car: {booking.car.make} {booking.car.model} ({booking.car.year})
             <br />• Pickup Location: {booking.pickupLocation}
             <br />• Drop-off Location: {booking.returnLocation}
             <br />• Total Amount:{" "}
@@ -223,24 +194,19 @@ export function renderBookingConfirmationEmail(booking: BookingWithRelations) {
           </Text>
 
           <Text className="text-base text-gray-800 mt-4">
-            Please be at the pickup location on time. You&apos;ll be assigned a
-            chauffeur shortly.
+            Please be at the pickup location on time. You&apos;ll be assigned a chauffeur shortly.
           </Text>
 
           <Hr className="my-4 border-gray-500" />
 
-          <Text className="text-sm text-gray-800">
-            {new Date().getFullYear()}. Lagos, Nigeria
-          </Text>
+          <Text className="text-sm text-gray-800">{new Date().getFullYear()}. Lagos, Nigeria</Text>
         </Container>
       </Body>
-    </EmailTemplate>
+    </EmailTemplate>,
   );
 }
 
-export function renderFleetOwnerBookingNotificationEmail(
-  booking: BookingWithRelations
-) {
+export function renderFleetOwnerBookingNotificationEmail(booking: BookingWithRelations) {
   return render(
     <EmailTemplate>
       <Preview>New Booking Alert - Action Required</Preview>
@@ -255,8 +221,7 @@ export function renderFleetOwnerBookingNotificationEmail(
           </Text>
 
           <Text className="text-base text-gray-800 mt-4">
-            A new booking has been made for your {booking.car.make}{" "}
-            {booking.car.model}. Please{" "}
+            A new booking has been made for your {booking.car.make} {booking.car.model}. Please{" "}
             <Link
               href={`${process.env.DOMAIN}/fleet-owner/bookings/${
                 booking.id
@@ -273,8 +238,7 @@ export function renderFleetOwnerBookingNotificationEmail(
             • Customer: {booking.user.username || booking.user.email}
             <br />• Start Date & Time: {formatDate(booking.startDate)}
             <br />• End Date & Time: {formatDate(booking.endDate)}
-            <br />• Car: {booking.car.make} {booking.car.model} (
-            {booking.car.year})
+            <br />• Car: {booking.car.make} {booking.car.model} ({booking.car.year})
             <br />• Pickup Location: {booking.pickupLocation}
             <br />• Drop-off Location: {booking.returnLocation}
             <br />• Total Amount:{" "}
@@ -286,12 +250,10 @@ export function renderFleetOwnerBookingNotificationEmail(
 
           <Hr className="my-4 border-gray-500" />
 
-          <Text className="text-sm text-gray-800">
-            {new Date().getFullYear()}. Lagos, Nigeria
-          </Text>
+          <Text className="text-sm text-gray-800">{new Date().getFullYear()}. Lagos, Nigeria</Text>
         </Container>
       </Body>
-    </EmailTemplate>
+    </EmailTemplate>,
   );
 }
 
@@ -310,14 +272,11 @@ export function renderChauffeurAssignedEmail(booking: BookingWithRelations) {
           </Text>
 
           <Text className="text-base text-gray-800 mt-4">
-            A chauffeur has been assigned to your booking for the{" "}
-            {booking.car.make} {booking.car.model}. Your chauffeur&apos;s
-            details are below.
+            A chauffeur has been assigned to your booking for the {booking.car.make}{" "}
+            {booking.car.model}. Your chauffeur&apos;s details are below.
           </Text>
 
-          <Text className="text-base text-gray-800 mt-4">
-            Chauffeur Details:
-          </Text>
+          <Text className="text-base text-gray-800 mt-4">Chauffeur Details:</Text>
 
           <Text className="text-base text-gray-800">
             • Name: {booking?.chauffeur?.name}
@@ -334,8 +293,7 @@ export function renderChauffeurAssignedEmail(booking: BookingWithRelations) {
           <Text className="text-base text-gray-800">
             • Start Date & Time: {formatDate(booking.startDate)}
             <br />• End Date & Time: {formatDate(booking.endDate)}
-            <br />• Car: {booking.car.make} {booking.car.model} (
-            {booking.car.year})
+            <br />• Car: {booking.car.make} {booking.car.model} ({booking.car.year})
             <br />• Pickup Location: {booking.pickupLocation}
             <br />• Return Location: {booking.returnLocation}
             <br />• Total Amount:{" "}
@@ -346,33 +304,30 @@ export function renderChauffeurAssignedEmail(booking: BookingWithRelations) {
           </Text>
 
           <Text className="text-base text-gray-800 mt-4">
-            Your chauffeur will contact you before the pickup time. If you have
-            any questions, please don&apos;t hesitate to reach out to us.
+            Your chauffeur will contact you before the pickup time. If you have any questions,
+            please don&apos;t hesitate to reach out to us.
           </Text>
 
           <Hr className="my-4 border-gray-500" />
 
-          <Text className="text-sm text-gray-800">
-            {new Date().getFullYear()}. Lagos, Nigeria
-          </Text>
+          <Text className="text-sm text-gray-800">{new Date().getFullYear()}. Lagos, Nigeria</Text>
         </Container>
       </Body>
-    </EmailTemplate>
+    </EmailTemplate>,
   );
 }
 
 export function renderBookingReminder(
   booking: BookingWithRelations,
   recipient: "client" | "chauffeur",
-  isStartReminder = true
+  isStartReminder = true,
 ) {
   const user = recipient === "client" ? booking.user : booking.chauffeur;
 
   return render(
     <EmailTemplate>
       <Preview>
-        This is a reminder that your booking{" "}
-        {isStartReminder ? "starts" : "ends"} in 1 hour.
+        This is a reminder that your booking {isStartReminder ? "starts" : "ends"} in 1 hour.
       </Preview>
       <Body className="bg-white text-gray-800">
         <Container className="mx-auto py-4">
@@ -410,11 +365,9 @@ export function renderBookingReminder(
 
           <Hr className="my-4 border-gray-500" />
 
-          <Text className="text-sm text-gray-800">
-            {new Date().getFullYear()}. Lagos, Nigeria
-          </Text>
+          <Text className="text-sm text-gray-800">{new Date().getFullYear()}. Lagos, Nigeria</Text>
         </Container>
       </Body>
-    </EmailTemplate>
+    </EmailTemplate>,
   );
 }

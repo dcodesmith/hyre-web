@@ -20,7 +20,7 @@ export async function requireUserWithRole(request: Request, name: RoleName) {
         requiredRole: name,
         message: `Unauthorized: required role: ${name}`,
       },
-      { status: 403 }
+      { status: 403 },
     );
   }
 

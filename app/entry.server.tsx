@@ -28,36 +28,22 @@ initEnvs();
 scheduleConfirmedToActiveUpdates()
   .then((job) => console.log(`Booking status for job ${job.name} scheduled`))
   .catch((error) =>
-    console.error(
-      "Failed to schedule booking status update from confirmed to active",
-      error
-    )
+    console.error("Failed to schedule booking status update from confirmed to active", error),
   );
 
 scheduleActiveToCompletedUpdates()
   .then((job) => console.log(`Booking status for job ${job.name} scheduled`))
   .catch((error) =>
-    console.error(
-      "Failed to schedule booking status update from active to completed",
-      error
-    )
+    console.error("Failed to schedule booking status update from active to completed", error),
   );
 
 scheduleBookingStartReminderEmails()
-  .then((job) =>
-    console.log(`Booking start reminder for job ${job.name} scheduled`)
-  )
-  .catch((error) =>
-    console.error("Failed to schedule booking start reminder emails", error)
-  );
+  .then((job) => console.log(`Booking start reminder for job ${job.name} scheduled`))
+  .catch((error) => console.error("Failed to schedule booking start reminder emails", error));
 
 scheduleBookingEndReminderEmails()
-  .then((job) =>
-    console.log(`Booking end reminder for job ${job.name} scheduled`)
-  )
-  .catch((error) =>
-    console.error("Failed to schedule booking end reminder emails", error)
-  );
+  .then((job) => console.log(`Booking end reminder for job ${job.name} scheduled`))
+  .catch((error) => console.error("Failed to schedule booking end reminder emails", error));
 
 // app.once("listening", () => {
 //   console.log("Server is running on port 3000");
@@ -69,25 +55,15 @@ export default function handleRequest(
   request: Request,
   responseStatusCode: number,
   responseHeaders: Headers,
-  remixContext: EntryContext
+  remixContext: EntryContext,
   // loadContext: AppLoadContext
 ) {
   const prohibitOutOfOrderStreaming =
     isBotRequest(request.headers.get("user-agent")) || remixContext.isSpaMode;
 
   return prohibitOutOfOrderStreaming
-    ? handleBotRequest(
-        request,
-        responseStatusCode,
-        responseHeaders,
-        remixContext
-      )
-    : handleBrowserRequest(
-        request,
-        responseStatusCode,
-        responseHeaders,
-        remixContext
-      );
+    ? handleBotRequest(request, responseStatusCode, responseHeaders, remixContext)
+    : handleBrowserRequest(request, responseStatusCode, responseHeaders, remixContext);
 }
 
 // We have some Remix apps in the wild already running with isbot@3 so we need
@@ -115,16 +91,12 @@ function handleBotRequest(
   request: Request,
   responseStatusCode: number,
   responseHeaders: Headers,
-  remixContext: EntryContext
+  remixContext: EntryContext,
 ) {
   return new Promise((resolve, reject) => {
     let shellRendered = false;
     const { pipe, abort } = renderToPipeableStream(
-      <RemixServer
-        context={remixContext}
-        url={request.url}
-        abortDelay={ABORT_DELAY}
-      />,
+      <RemixServer context={remixContext} url={request.url} abortDelay={ABORT_DELAY} />,
       {
         onAllReady() {
           shellRendered = true;
@@ -137,7 +109,7 @@ function handleBotRequest(
             new Response(stream, {
               headers: responseHeaders,
               status: responseStatusCode,
-            })
+            }),
           );
 
           pipe(body);
@@ -154,7 +126,7 @@ function handleBotRequest(
             console.error(error);
           }
         },
-      }
+      },
     );
 
     setTimeout(abort, ABORT_DELAY);
@@ -165,16 +137,12 @@ function handleBrowserRequest(
   request: Request,
   responseStatusCode: number,
   responseHeaders: Headers,
-  remixContext: EntryContext
+  remixContext: EntryContext,
 ) {
   return new Promise((resolve, reject) => {
     let shellRendered = false;
     const { pipe, abort } = renderToPipeableStream(
-      <RemixServer
-        context={remixContext}
-        url={request.url}
-        abortDelay={ABORT_DELAY}
-      />,
+      <RemixServer context={remixContext} url={request.url} abortDelay={ABORT_DELAY} />,
       {
         onShellReady() {
           shellRendered = true;
@@ -187,7 +155,7 @@ function handleBrowserRequest(
             new Response(stream, {
               headers: responseHeaders,
               status: responseStatusCode,
-            })
+            }),
           );
 
           pipe(body);
@@ -204,7 +172,7 @@ function handleBrowserRequest(
             console.error(error);
           }
         },
-      }
+      },
     );
 
     setTimeout(abort, ABORT_DELAY);

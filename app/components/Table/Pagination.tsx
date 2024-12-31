@@ -19,10 +19,7 @@ interface PaginationProps<TData> {
   range?: number[];
 }
 
-export function Pagination<TData>({
-  table,
-  range = [10, 20, 30, 40, 50],
-}: PaginationProps<TData>) {
+export function Pagination<TData>({ table, range = [10, 20, 30, 40, 50] }: PaginationProps<TData>) {
   return (
     <div className="flex items-center justify-end px-2">
       <div className="flex-1 text-sm text-muted-foreground">
@@ -55,8 +52,7 @@ export function Pagination<TData>({
         </div>
 
         <div className="flex w-[100px] items-center justify-center text-sm font-medium">
-          Page {table.getState().pagination.pageIndex + 1} of{" "}
-          {table.getPageCount()}
+          Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount()}
         </div>
 
         <div className="flex items-center space-x-2">

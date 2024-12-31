@@ -65,7 +65,7 @@ export async function action({ request }: ActionFunctionArgs) {
       {
         error: { errors: ["Failed to create new chauffeur"] },
       },
-      { status: 500 }
+      { status: 500 },
     );
     // return json({ error: "Failed to create new car" }, { status: 500 });
   }
@@ -98,17 +98,14 @@ export default function NewChauffeurForm() {
 
   const isSubmitting = navigation.state === "submitting";
 
-  const errorRingClasses =
-    "border-red-500 focus-visible:ring-red-500 focus-visible:ring-2";
+  const errorRingClasses = "border-red-500 focus-visible:ring-red-500 focus-visible:ring-2";
 
   return (
     <div className="max-w-md mx-auto mt-8">
       <h1 className="text-2xl font-bold mb-4">Add New Chauffeur</h1>
 
       {serverError?.errors && (
-        <p className="text-red-500 text-sm mt-1">
-          {serverError.errors.join(" ")}
-        </p>
+        <p className="text-red-500 text-sm mt-1">{serverError.errors.join(" ")}</p>
       )}
 
       <Form method="post" {...getFormProps(form)} encType="multipart/form-data">
@@ -120,9 +117,7 @@ export default function NewChauffeurForm() {
             type="email"
             className={`${email.errors ? errorRingClasses : ""}`}
           />
-          {email.errors && (
-            <p className="text-red-500 text-sm">{email.errors.join(" ")}</p>
-          )}
+          {email.errors && <p className="text-red-500 text-sm">{email.errors.join(" ")}</p>}
         </div>
 
         <div className="space-y-1">
@@ -133,9 +128,7 @@ export default function NewChauffeurForm() {
             type="text"
             className={`${name.errors ? errorRingClasses : ""}`}
           />
-          {name.errors && (
-            <p className="text-red-500 text-sm">{name.errors.join(" ")}</p>
-          )}
+          {name.errors && <p className="text-red-500 text-sm">{name.errors.join(" ")}</p>}
         </div>
 
         <div className="space-y-1">
@@ -147,9 +140,7 @@ export default function NewChauffeurForm() {
             className={`${phoneNumber.errors ? errorRingClasses : ""}`}
           />
           {phoneNumber.errors && (
-            <p className="text-red-500 text-sm">
-              {phoneNumber.errors.join(" ")}
-            </p>
+            <p className="text-red-500 text-sm">{phoneNumber.errors.join(" ")}</p>
           )}
         </div>
 
@@ -161,9 +152,7 @@ export default function NewChauffeurForm() {
             type="text"
             className={`${address.errors ? errorRingClasses : ""}`}
           />
-          {address.errors && (
-            <p className="text-red-500 text-sm">{address.errors.join(" ")}</p>
-          )}
+          {address.errors && <p className="text-red-500 text-sm">{address.errors.join(" ")}</p>}
         </div>
 
         <Button type="submit" disabled={isSubmitting}>
