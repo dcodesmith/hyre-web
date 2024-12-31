@@ -1,13 +1,11 @@
 import {
-  sendBookingStartReminderEmails,
   sendBookingEndReminderEmails,
+  sendBookingStartReminderEmails,
 } from "~/services/bookings.server";
 import { bookingReminderQueue } from "./config.server";
 import { addUniqueJob } from "./utils";
 
 export async function scheduleBookingStartReminderEmails() {
-  console.log("Scheduling booking start reminder emails...");
-
   try {
     // Remove existing repeat jobs to prevent duplicates
     const repeatable = await bookingReminderQueue.getRepeatableJobs();
@@ -26,15 +24,10 @@ export async function scheduleBookingStartReminderEmails() {
     });
 
     await bookingReminderQueue.process("booking-start-reminder", async (job) => {
-      console.log("Processing job:", job.id);
       await sendBookingStartReminderEmails();
     });
 
-    console.log("Scheduled job:", job.name);
-
-    bookingReminderQueue.on("completed", (job) => {
-      console.log(`Job ${job.id} completed:`);
-    });
+    bookingReminderQueue.on("completed", (job) => {});
 
     bookingReminderQueue.on("failed", (job, err) => {
       console.error(`Job ${job.id} failed:`, err);
@@ -48,8 +41,6 @@ export async function scheduleBookingStartReminderEmails() {
 }
 
 export async function scheduleBookingEndReminderEmails() {
-  console.log("Scheduling booking end reminder emails...");
-
   try {
     // Remove existing repeat jobs to prevent duplicates
     const repeatable = await bookingReminderQueue.getRepeatableJobs();
@@ -68,15 +59,10 @@ export async function scheduleBookingEndReminderEmails() {
     });
 
     await bookingReminderQueue.process("booking-end-reminder", async (job) => {
-      console.log("Processing job:", job.id);
       await sendBookingEndReminderEmails();
     });
 
-    console.log("Scheduled job:", job.name);
-
-    bookingReminderQueue.on("completed", (job) => {
-      console.log(`Job ${job.id} completed:`);
-    });
+    bookingReminderQueue.on("completed", (job) => {});
 
     bookingReminderQueue.on("failed", (job, err) => {
       console.error(`Job ${job.id} failed:`, err);

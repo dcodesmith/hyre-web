@@ -1,4 +1,5 @@
-import { useState, MouseEvent } from "react";
+import { MouseEvent, useState } from "react";
+import { Button } from "./ui/button";
 
 interface CarouselProps {
   images?: string[];
@@ -34,7 +35,7 @@ export default function Carousel({
       >
         {images.map((image, index) => (
           <img
-            key={index}
+            key={image}
             src={image}
             alt={`Car view ${index + 1}`}
             className="w-full h-64 object-cover rounded flex-shrink-0"
@@ -42,18 +43,18 @@ export default function Carousel({
         ))}
       </div>
       <div className="absolute inset-0 flex items-center justify-between px-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-        <button
+        <Button
           onClick={prevSlide}
-          className="bg-white bg-opacity-50 hover:bg-opacity-75 rounded-full h-10 w-10"
+          className="bg-white bg-opacity-50 text-black hover:bg-white hover:bg-opacity-75 rounded-full h-10 w-10"
         >
           &#8592; {/* Left arrow */}
-        </button>
-        <button
+        </Button>
+        <Button
           onClick={nextSlide}
-          className="bg-white bg-opacity-50 hover:bg-opacity-75 rounded-full h-10 w-10"
+          className="bg-white bg-opacity-50 text-black hover:bg-white hover:bg-opacity-75 rounded-full h-10 w-10"
         >
           &#8594; {/* Right arrow */}
-        </button>
+        </Button>
       </div>
     </div>
   );

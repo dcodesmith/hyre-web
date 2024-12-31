@@ -1,5 +1,5 @@
 import { useFormAction, useNavigation } from "@remix-run/react";
-import { clsx, type ClassValue } from "clsx";
+import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 
 export function cn(...inputs: ClassValue[]) {
@@ -46,7 +46,7 @@ export function formatDate(date: string | Date) {
   });
 
   function replaceWithOrdinalSuffix(day: string) {
-    const num = parseInt(day);
+    const num = Number.parseInt(day);
     const suffix = ["th", "st", "nd", "rd"][
       num % 10 > 3 || (num % 100) - (num % 10) === 10 ? 0 : num % 10
     ];

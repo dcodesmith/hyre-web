@@ -1,13 +1,11 @@
-import { bookingStatusQueue } from "./config.server";
 import {
-  updateBookingsFromConfirmedToActive,
   updateBookingsFromActiveToCompleted,
+  updateBookingsFromConfirmedToActive,
 } from "~/services/bookings.server";
+import { bookingStatusQueue } from "./config.server";
 import { addUniqueJob } from "./utils";
 
 export async function scheduleConfirmedToActiveUpdates() {
-  console.log("Scheduling booking status updates from confirmed to active job....");
-
   try {
     // Remove existing repeat jobs to prevent duplicates
     const repeatable = await bookingStatusQueue.getRepeatableJobs();
@@ -43,15 +41,10 @@ export async function scheduleConfirmedToActiveUpdates() {
     // );
 
     await bookingStatusQueue.process("confirmed-to-active", async (job) => {
-      console.log("Processing job:", job.id);
       await updateBookingsFromConfirmedToActive();
     });
 
-    console.log("Scheduled job:", job.name);
-
-    bookingStatusQueue.on("completed", (job) => {
-      console.log(`Job ${job.id} completed`);
-    });
+    bookingStatusQueue.on("completed", (job) => {});
 
     bookingStatusQueue.on("failed", (job, err) => {
       console.error(`Job ${job.id} failed:`, err);
@@ -65,8 +58,6 @@ export async function scheduleConfirmedToActiveUpdates() {
 }
 
 export async function scheduleActiveToCompletedUpdates() {
-  console.log("Scheduling booking status updates from active to completed job....");
-
   try {
     // Remove existing repeat jobs to prevent duplicates
     const repeatable = await bookingStatusQueue.getRepeatableJobs();
@@ -102,15 +93,10 @@ export async function scheduleActiveToCompletedUpdates() {
     // );
 
     await bookingStatusQueue.process("active-to-completed", async (job) => {
-      console.log("Processing job:", job.id);
       await updateBookingsFromActiveToCompleted();
     });
 
-    console.log("Scheduled job:", job.name);
-
-    bookingStatusQueue.on("completed", (job) => {
-      console.log(`Job ${job.id} completed:`);
-    });
+    bookingStatusQueue.on("completed", (job) => {});
 
     bookingStatusQueue.on("failed", (job, err) => {
       console.error(`Job ${job.id} failed:`, err);

@@ -64,8 +64,6 @@ export async function action({ request }: ActionFunctionArgs) {
     });
   } catch (error) {
     if (error instanceof AuthorizationError) {
-      console.log("error AuthorizationError", error);
-
       return json({ error: error.message }, { status: 401 });
     }
 
@@ -89,7 +87,6 @@ export default function Verify() {
   const [searchParams] = useSearchParams();
 
   const redirectTo = searchParams.get("redirectTo");
-  console.log(redirectTo);
   // const actionData = useActionData<typeof action>();
   const navigate = useNavigate();
 

@@ -1,18 +1,18 @@
-import { PassThrough } from "stream";
+import { PassThrough } from "node:stream";
 import type { EntryContext } from "@remix-run/node";
 import { createReadableStreamFromReadable } from "@remix-run/node";
 import { RemixServer } from "@remix-run/react";
 import { isbot } from "isbot";
 import { renderToPipeableStream } from "react-dom/server";
-import { initEnvs } from "./utils/env.server";
 import {
-  scheduleConfirmedToActiveUpdates,
-  scheduleActiveToCompletedUpdates,
-} from "./queues/bookingStatus.server";
-import {
-  scheduleBookingStartReminderEmails,
   scheduleBookingEndReminderEmails,
+  scheduleBookingStartReminderEmails,
 } from "./queues/bookingReminder.server";
+import {
+  scheduleActiveToCompletedUpdates,
+  scheduleConfirmedToActiveUpdates,
+} from "./queues/bookingStatus.server";
+import { initEnvs } from "./utils/env.server";
 // import express from "express";
 
 // import { serverAdapter } from "./queues/config.server";
@@ -118,6 +118,7 @@ function handleBotRequest(
           reject(error);
         },
         onError(error: unknown) {
+          // biome-ignore lint/style/noParameterAssign: <framework code>
           responseStatusCode = 500;
           // Log streaming rendering errors from inside the shell.  Don't log
           // errors encountered during initial shell rendering since they'll
@@ -164,6 +165,7 @@ function handleBrowserRequest(
           reject(error);
         },
         onError(error: unknown) {
+          // biome-ignore lint/style/noParameterAssign: <framework code>
           responseStatusCode = 500;
           // Log streaming rendering errors from inside the shell.  Don't log
           // errors encountered during initial shell rendering since they'll

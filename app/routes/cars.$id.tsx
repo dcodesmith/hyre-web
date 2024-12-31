@@ -1,4 +1,4 @@
-import { ActionFunctionArgs, json, LoaderFunctionArgs } from "@remix-run/node";
+import { ActionFunctionArgs, LoaderFunctionArgs, json } from "@remix-run/node";
 import { Link, redirect, useLoaderData, useSearchParams } from "@remix-run/react";
 import invariant from "tiny-invariant";
 import BookingCard from "~/components/BookingCard";

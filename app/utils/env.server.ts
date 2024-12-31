@@ -33,7 +33,6 @@ const schema = z.object({
 // }
 
 export function initEnvs() {
-  console.log("Initializing environment variables...");
   const parsed = schema.safeParse(process.env);
 
   if (parsed.success === false) {

@@ -1,4 +1,4 @@
-import { json, LoaderFunction } from "@remix-run/node";
+import { LoaderFunction, json } from "@remix-run/node";
 import { Outlet, useLoaderData } from "@remix-run/react";
 import invariant from "tiny-invariant";
 import CarCarousel from "~/components/Carousel";

@@ -1,4 +1,5 @@
 import { CheckIcon } from "@heroicons/react/24/outline";
+import { useSearchParams } from "@remix-run/react";
 import { ListFilterIcon } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { cn } from "~/lib/utils";
@@ -14,7 +15,6 @@ import {
 } from "../ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Separator } from "../ui/separator";
-import { useSearchParams } from "@remix-run/react";
 
 interface URLFacetedFilterProps {
   title: string;

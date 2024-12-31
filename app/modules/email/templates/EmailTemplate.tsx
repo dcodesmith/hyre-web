@@ -1,5 +1,5 @@
-import tailwindConfig from "tailwind.config";
 import { Font, Head, Html, Tailwind } from "@react-email/components";
+import tailwindConfig from "tailwind.config";
 
 export function EmailTemplate({ children }: { children: React.ReactNode }) {
   return (

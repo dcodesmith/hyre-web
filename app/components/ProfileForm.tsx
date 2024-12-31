@@ -2,6 +2,7 @@ import { getFormProps, getInputProps, useForm } from "@conform-to/react";
 import { parseWithZod } from "@conform-to/zod";
 import { Role, User } from "@prisma/client";
 import { useFetcher } from "@remix-run/react";
+import { useEffect } from "react";
 import {
   Dialog,
   DialogClose,
@@ -15,7 +16,6 @@ import { profileFormSchema } from "~/schemas/user";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
-import { useEffect } from "react";
 
 interface ProfileFormProps {
   onOpenChange: (open: boolean) => void;

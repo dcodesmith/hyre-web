@@ -1,6 +1,7 @@
 import { getFormProps, getInputProps, useForm } from "@conform-to/react";
 import { getZodConstraint, parseWithZod } from "@conform-to/zod";
-import { ActionFunctionArgs, json, LoaderFunctionArgs } from "@remix-run/node";
+import { CogIcon } from "@heroicons/react/24/outline";
+import { ActionFunctionArgs, LoaderFunctionArgs, json } from "@remix-run/node";
 import {
   Form,
   Outlet,
@@ -9,7 +10,6 @@ import {
   useNavigate,
 } from "@remix-run/react";
 import { AuthorizationError } from "remix-auth";
-import { CogIcon } from "@heroicons/react/24/outline";
 import { z } from "zod";
 import { Button } from "~/components/ui/button";
 import {
@@ -20,11 +20,11 @@ import {
   DialogTitle,
 } from "~/components/ui/dialog";
 import { Input } from "~/components/ui/input";
+import { Label } from "~/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "~/components/ui/radio-group";
 import { useIsPending } from "~/lib/utils";
 import { authenticator } from "~/modules/auth/auth.server";
 import { commitSession, getSession } from "~/modules/auth/session.server";
-import { RadioGroup, RadioGroupItem } from "~/components/ui/radio-group";
-import { Label } from "~/components/ui/label";
 
 const roles = ["user", "fleetOwner"] as const;
 
@@ -78,8 +78,6 @@ export async function action({ request }: ActionFunctionArgs) {
     //   );
     // }
     if (error instanceof AuthorizationError) {
-      console.log("error AuthorizationError", error);
-
       return json({ error: error.message }, { status: 401 });
     }
 

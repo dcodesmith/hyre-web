@@ -1,8 +1,8 @@
+import type { User } from "@prisma/client";
 import { Authenticator } from "remix-auth";
 import { TOTPStrategy } from "remix-auth-totp";
-import { sessionStorage } from "./session.server";
-import type { User } from "@prisma/client";
 import { prisma } from "../db/db.server";
+import { sessionStorage } from "./session.server";
 
 export const totpAuthenticator = new Authenticator<User>(sessionStorage);
 
@@ -17,9 +17,6 @@ const totpStrategy = new TOTPStrategy(
       if (!user) {
         throw new Error("User not found");
       }
-
-      // Here you would implement your email sending logic
-      console.log(`Sending code ${code} to ${email}`);
     },
   },
   async ({ email }) => {

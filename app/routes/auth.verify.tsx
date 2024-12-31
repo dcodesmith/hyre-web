@@ -8,7 +8,6 @@ export const action: ActionFunction = async ({ request }) => {
       failureRedirect: "/root",
     });
   } catch (error) {
-    console.log("verify action error", error);
     return json({ error: "Invalid verification code" }, { status: 400 });
   }
 };

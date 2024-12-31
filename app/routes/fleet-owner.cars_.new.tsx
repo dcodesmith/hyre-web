@@ -103,7 +103,6 @@ export function NewCarForm() {
     lastResult: fetcher.state === "idle" ? lastResult : null,
     onValidate({ formData }) {
       for (const [key, value] of formData.entries()) {
-        console.log(`${key}: ${value}`);
       }
       return parseWithZod(formData, { schema: carSchema });
     },

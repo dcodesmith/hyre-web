@@ -80,29 +80,26 @@ function numberToWords(num: number) {
   function recursiveNumberToWords(n: number): string {
     if (n < 10) return units[n];
     if (n < 20) return teens[n - 10];
-    if (n < 100) return tens[Math.floor(n / 10)] + (n % 10 ? " " + units[n % 10] : "");
+    if (n < 100) return tens[Math.floor(n / 10)] + (n % 10 ? ` ${units[n % 10]}` : "");
     if (n < 1000)
-      return (
-        units[Math.floor(n / 100)] +
-        " Hundred" +
-        (n % 100 ? " and " + recursiveNumberToWords(n % 100) : "")
-      );
+      return `${units[Math.floor(n / 100)]} Hundred${n % 100 ? ` and ${recursiveNumberToWords(n % 100)}` : ""}`;
 
     let scaleIndex = 0;
     let result = "";
+    let remaining = n;
 
-    while (n > 0) {
-      if (n % 1000 !== 0) {
-        result = recursiveNumberToWords(n % 1000) + " " + scales[scaleIndex] + " " + result;
+    while (remaining > 0) {
+      if (remaining % 1000 !== 0) {
+        result = `${recursiveNumberToWords(remaining % 1000)} ${scales[scaleIndex]} ${result}`;
       }
-      n = Math.floor(n / 1000);
+      remaining = Math.floor(remaining / 1000);
       scaleIndex++;
     }
 
     return result.trim();
   }
 
-  return recursiveNumberToWords(Math.floor(num)) + " Naira";
+  return `${recursiveNumberToWords(Math.floor(num))} Naira`;
 }
 
 export default function FleetOwnerDashboard() {

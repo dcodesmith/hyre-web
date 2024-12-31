@@ -1,6 +1,3 @@
-// "use client";
-
-// import invariant from "tiny-invariant";
 import { BookingStatus } from "@prisma/client";
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
@@ -9,17 +6,17 @@ import {
   ColumnFilter,
   ColumnFiltersState,
   ColumnSort,
+  InitialTableState,
+  PaginationState,
+  SortingState,
+  VisibilityState,
   getCoreRowModel,
   getFacetedRowModel,
   getFacetedUniqueValues,
   getFilteredRowModel,
   getPaginationRowModel,
   getSortedRowModel,
-  InitialTableState,
-  PaginationState,
-  SortingState,
   useReactTable,
-  VisibilityState,
 } from "@tanstack/react-table";
 import { useState } from "react";
 // import util from "util";
@@ -135,16 +132,16 @@ const convertTableStateToSearchParams = (tableState: InitialTableState) => {
   const params = new URLSearchParams();
   // Persist column filters
   if (tableState.columnFilters && tableState.columnFilters.length > 0) {
-    tableState.columnFilters.forEach((filter) => {
+    for (const filter of tableState.columnFilters) {
       params.set(`filter.${filter.id}`, filter.value as string);
-    });
+    }
   }
 
   // Persist sorting
   if (tableState.sorting && tableState.sorting.length > 0) {
-    tableState.sorting.forEach((sort) => {
+    for (const sort of tableState.sorting) {
       params.set(`sort.${sort.id}`, sort.desc ? "desc" : "asc");
-    });
+    }
   }
 
   return params;

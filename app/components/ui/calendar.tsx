@@ -1,10 +1,10 @@
+import { ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
 // import { ChevronLeft, ChevronRight } from "lucide-react";
 import { ClassNames, DayPicker } from "react-day-picker";
-import { ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
 
+import type { DayPickerProps } from "react-day-picker";
 import { cn } from "../../lib/utils";
 import { buttonVariants } from "../ui/button";
-import type { DayPickerProps } from "react-day-picker";
 
 type CalendarProps = DayPickerProps & {
   classNames?: ClassNames;

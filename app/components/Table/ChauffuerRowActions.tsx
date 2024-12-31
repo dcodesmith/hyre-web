@@ -54,8 +54,6 @@ interface DataTableRowActionsProps {
 function EditChauffeurForm({ chauffeur, setIsEditOpen }: EditChauffeurFormProps) {
   const fetcher = useFetcher<{ success: boolean; error?: string }>();
   const { toast } = useToast();
-
-  console.log(chauffeur);
   const [form, { name, email, phoneNumber, address }] = useForm({
     id: "edit-chauffeur",
     defaultValue: {
@@ -91,7 +89,7 @@ function EditChauffeurForm({ chauffeur, setIsEditOpen }: EditChauffeurFormProps)
   return (
     <fetcher.Form
       method="PUT"
-      action={`/fleet-owner/chauffeurs`}
+      action={"/fleet-owner/chauffeurs"}
       {...getFormProps(form)}
       className="space-y-4"
     >

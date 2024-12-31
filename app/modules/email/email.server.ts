@@ -52,10 +52,9 @@ export async function sendEmail(options: SendEmailOptions) {
     // need to look into this
     console.error(parseResult.data);
     throw new Error("Unable to send email.");
-  } else {
-    console.error(data);
-    throw new Error("Unable to send email.");
   }
+  console.error(data);
+  throw new Error("Unable to send email.");
 }
 
 type AuthEmailOptions = {

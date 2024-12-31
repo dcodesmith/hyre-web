@@ -6,16 +6,16 @@ import { json } from "@remix-run/node";
 import { Link, redirect, useLoaderData, useSearchParams } from "@remix-run/react";
 import {
   ColumnFiltersState,
+  PaginationState,
+  SortingState,
+  VisibilityState,
   getCoreRowModel,
   getFacetedRowModel,
   getFacetedUniqueValues,
   getFilteredRowModel,
   getPaginationRowModel,
   getSortedRowModel,
-  PaginationState,
-  SortingState,
   useReactTable,
-  VisibilityState,
 } from "@tanstack/react-table";
 import { useState } from "react";
 // import util from "util";
@@ -45,7 +45,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const to = url.searchParams.get("to");
   const makes = url.searchParams.getAll("make");
   const models = url.searchParams.getAll("model");
-  console.log(makes);
   const cars = await prisma.car.findMany({
     where: {
       make: {

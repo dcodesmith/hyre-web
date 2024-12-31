@@ -1,4 +1,4 @@
-import type { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
+import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { authenticator } from "~/modules/auth/auth.server";
 
 export const ROUTE_PATH = "/auth/logout" as const;

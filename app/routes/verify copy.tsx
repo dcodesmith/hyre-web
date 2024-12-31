@@ -1,5 +1,8 @@
+import { getFormProps, getInputProps, useForm } from "@conform-to/react";
+import { getZodConstraint, parseWithZod } from "@conform-to/zod";
 import { ActionFunctionArgs, LoaderFunctionArgs, json, redirect } from "@remix-run/node";
 import { Form, useLoaderData, useSearchParams } from "@remix-run/react";
+import { z } from "zod";
 import { Button } from "~/components/ui/button";
 import {
   Dialog,
@@ -11,9 +14,6 @@ import {
 import { Input } from "~/components/ui/input";
 import { authenticator } from "~/modules/auth/auth.server";
 import { commitSession, getSession } from "~/modules/auth/session.server";
-import { z } from "zod";
-import { getZodConstraint, parseWithZod } from "@conform-to/zod";
-import { getFormProps, getInputProps, useForm } from "@conform-to/react";
 
 export const VerifyLoginSchema = z.object({
   code: z
@@ -46,7 +46,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
 export async function action({ request }: ActionFunctionArgs) {
   const url = new URL(request.url);
-  console.log(url);
   const pathname = url.pathname;
 
   // const formData = await request.clone().formData();
@@ -72,7 +71,6 @@ export default function Verify() {
   const [searchParams] = useSearchParams();
 
   const redirectTo = searchParams.get("redirectTo");
-  console.log(redirectTo);
   // const actionData = useActionData<typeof action>();
   // const navigate = useNavigate();
 

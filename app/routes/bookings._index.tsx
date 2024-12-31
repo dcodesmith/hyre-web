@@ -1,4 +1,4 @@
-import { ActionFunctionArgs, json, type LoaderFunctionArgs } from "@remix-run/node";
+import { ActionFunctionArgs, type LoaderFunctionArgs, json } from "@remix-run/node";
 import {
   Link,
   redirect,
@@ -8,6 +8,7 @@ import {
   useSearchParams,
 } from "@remix-run/react";
 import invariant from "tiny-invariant";
+import { Button } from "~/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import { formatCurrency, formatDate } from "~/lib/utils";
 import { requireUser } from "~/modules/auth/auth.server";
@@ -21,7 +22,7 @@ import { requireUserWithRole } from "~/utils/permissions.server";
 
 export async function action({ request }: ActionFunctionArgs) {
   const user = await requireUser(request, {
-    redirectTo: `/auth?redirectTo=/bookings`,
+    redirectTo: "/auth?redirectTo=/bookings",
   });
 
   if (request.method === "DELETE") {
@@ -68,14 +69,14 @@ export async function action({ request }: ActionFunctionArgs) {
     const startDateTime = new Date(startDate);
 
     // Convert 12-hour format to 24-hour
-    let hour = parseInt(hours);
+    let hour = Number.parseInt(hours);
 
     if (period === "PM" && hour !== 12) {
       hour += 12;
     }
 
     startDateTime.setHours(hour);
-    startDateTime.setMinutes(parseInt(minutes));
+    startDateTime.setMinutes(Number.parseInt(minutes));
     startDateTime.setSeconds(0);
     startDateTime.setMilliseconds(0);
 
@@ -207,7 +208,7 @@ export default function BookingsPage() {
                     </Link>
 
                     {["PENDING", "CONFIRMED"].includes(booking.status) && (
-                      <button
+                      <Button
                         className="bg-red-500 text-white px-4 py-2 rounded"
                         onClick={() =>
                           fetcher.submit(
@@ -223,7 +224,7 @@ export default function BookingsPage() {
                         }
                       >
                         Cancel
-                      </button>
+                      </Button>
                     )}
                   </div>
                 </div>

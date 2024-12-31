@@ -60,9 +60,6 @@ export function RegisterForm({ onOpenChange }: RegisterFormProps) {
   });
   const isSubmitting = registerFetcher.state === "submitting";
 
-  console.log("verifyFetcher", verifyFetcher.data, verifyFetcher.state);
-  console.log("registerFetcher", registerFetcher.data, registerFetcher.state);
-
   const [codeForm, { code }] = useForm({
     // constraint: getZodConstraint(VerifyLoginSchema),
     onValidate({ formData }) {

@@ -1,15 +1,15 @@
-import { json, LoaderFunction } from "@remix-run/node";
-import { useLoaderData, Link, useSearchParams } from "@remix-run/react";
-import { useState, useMemo } from "react";
-import MultiselectFilter from "~/components/MultiselectFilter";
-import CarCarousel from "~/components/Carousel";
-import { vehicles } from "~/vehicles";
 import { AdjustmentsVerticalIcon } from "@heroicons/react/24/outline";
-import { DateRangePicker } from "~/components/DateRangePicker";
+import { LoaderFunction, json } from "@remix-run/node";
+import { Link, useLoaderData, useSearchParams } from "@remix-run/react";
 import { addDays } from "date-fns";
+import { useMemo, useState } from "react";
 import { DateRange } from "react-day-picker";
+import CarCarousel from "~/components/Carousel";
+import { DateRangePicker } from "~/components/DateRangePicker";
+import MultiselectFilter from "~/components/MultiselectFilter";
 import { Button } from "~/components/ui/button";
 import { prisma } from "~/modules/db/db.server";
+import { vehicles } from "~/vehicles";
 
 interface Car {
   id: number;
@@ -39,8 +39,6 @@ export const loader: LoaderFunction = async ({ request }) => {
   const url = new URL(request.url);
   const make = url.searchParams.get("make");
   const model = url.searchParams.get("model");
-
-  console.log({ make, model });
   // const page = parseInt(url.searchParams.get("page") || "1", 10);
 
   const cars = (await prisma.car.findMany({ where: { status: "AVAILABLE" } })).map(
@@ -93,7 +91,7 @@ export default function Index() {
     to: addDays(new Date(), 7),
   });
 
-  const currentPage = parseInt(searchParams.get("page") || "1", 10);
+  const currentPage = Number.parseInt(searchParams.get("page") || "1", 10);
 
   const filteredModels = useMemo(() => {
     if (selectedFilters.makes.length === 0) {
@@ -213,7 +211,7 @@ export default function Index() {
       {filteredCars.length > ITEMS_PER_PAGE && (
         <div className="mt-8 flex justify-center">
           {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-            <button
+            <Button
               key={page}
               onClick={() => handlePageChange(page)}
               className={`mx-1 px-3 py-1 rounded ${
@@ -223,7 +221,7 @@ export default function Index() {
               }`}
             >
               {page}
-            </button>
+            </Button>
           ))}
         </div>
       )}

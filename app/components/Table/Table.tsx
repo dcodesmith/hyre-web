@@ -1,6 +1,9 @@
+import { AdjustmentsVerticalIcon, XCircleIcon } from "@heroicons/react/24/outline";
 import {
   ColumnDef,
   ColumnFiltersState,
+  SortingState,
+  VisibilityState,
   flexRender,
   getCoreRowModel,
   getFacetedRowModel,
@@ -8,24 +11,21 @@ import {
   getFilteredRowModel,
   getPaginationRowModel,
   getSortedRowModel,
-  SortingState,
   useReactTable,
-  VisibilityState,
 } from "@tanstack/react-table";
 import { useState } from "react";
 import {
-  Table as TableUI,
   TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
+  Table as TableUI,
 } from "~/components/ui/table";
-import { Pagination } from "./Pagination";
-import { FacetedFilter } from "./FacetedFilter";
-import { AdjustmentsVerticalIcon, XCircleIcon } from "@heroicons/react/24/outline";
 import { Button } from "../ui/button";
 import { ColumnViewOptions } from "./ColumnViewOptions";
+import { FacetedFilter } from "./FacetedFilter";
+import { Pagination } from "./Pagination";
 
 type TableProps<T extends object> = {
   columns: ColumnDef<T>[];

@@ -11,8 +11,6 @@ export async function addUniqueJob(
   const existingJob = await queue.getJob(options.jobId);
 
   if (!existingJob) {
-    // Add the job if it doesn't exist
-    console.log(`Job ${name} added to the queue`);
     return await queue.add(
       name,
       {
@@ -22,8 +20,6 @@ export async function addUniqueJob(
       },
       options,
     );
-  } else {
-    console.log(`Job ${name} already exists in the queue`);
-    return existingJob;
   }
+  return existingJob;
 }

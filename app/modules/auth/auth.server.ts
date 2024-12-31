@@ -29,12 +29,8 @@ const totpStrategy = new TOTPStrategy(
       }
 
       if (process.env.NODE_ENV === "development") {
-        // Development Only: Log the TOTP code.
-        console.log("[ Dev-Only ] TOTP Code:", code);
-
         // Email is not sent for admin users.
         if (email.startsWith("admin") || email.endsWith("@fleetowner.com")) {
-          console.log("Not sending email for admin and fleet owner users.");
           return;
         }
       }
@@ -113,8 +109,6 @@ export async function requireUser(
     if (!redirectTo) {
       throw redirect("/logout");
     }
-
-    console.log({ redirectTo });
     throw redirect(redirectTo);
   }
 

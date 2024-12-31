@@ -1,15 +1,13 @@
-import { ActionFunction, json, LoaderFunctionArgs } from "@remix-run/node";
-import { totpAuthenticator } from "../modules/auth/totp.server";
-import { commitSession, getSession } from "../modules/auth/session.server";
+import { ActionFunction, LoaderFunctionArgs, json } from "@remix-run/node";
 import { authenticator } from "../modules/auth/auth.server";
+import { commitSession, getSession } from "../modules/auth/session.server";
+import { totpAuthenticator } from "../modules/auth/totp.server";
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  console.log("login loader");
   await totpAuthenticator.isAuthenticated(request, {
     successRedirect: "/",
     // failureRedirect: "/login",
   });
-  console.log("login loader end");
 
   const cookie = await getSession(request.headers.get("Cookie"));
   const authEmail = cookie.get("auth:email");
@@ -45,12 +43,9 @@ export const action: ActionFunction = async ({ request }) => {
       failureRedirect: pathname,
     });
 
-    console.log("login action success", user);
-
     return json({ success: true, email: "" });
   } catch (error) {
     if (error instanceof Response) {
-      console.log("error here", error);
       // @!@ FLOWS HERE @!@
       //   return error;
       return json({ success: true, email: "" });

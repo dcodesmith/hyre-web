@@ -43,29 +43,15 @@ function createRedisClient() {
       url: process.env.KV_REST_API_URL,
       token: process.env.KV_REST_API_TOKEN,
     });
-  } else {
-    if (!process.env.REDIS_URL) {
-      throw new Error("Redis URL is missing in development environment.");
-    }
-
-    return new Redis(process.env.REDIS_URL);
   }
+  if (!process.env.REDIS_URL) {
+    throw new Error("Redis URL is missing in development environment.");
+  }
+
+  return new Redis(process.env.REDIS_URL);
 }
 
 const redisClient = createRedisClient();
-
-console.log("Initializing Redis connection");
-
-// Create Redis connection with retry strategy
-// export const redis = new Redis(REDIS_URL, {
-//   maxRetriesPerRequest: null,
-//   retryStrategy(times) {
-//     const delay = Math.min(times * 50, 2000);
-//     return delay;
-//   },
-// });
-
-console.log("Initializing Bull queue");
 
 const bullOptions = {
   redis: process.env.NODE_ENV === "production" ? process.env.KV_URL : process.env.REDIS_URL,
@@ -94,9 +80,7 @@ export const bookingReminderQueue = new Bull("booking-reminder", bullOptions);
 // serverAdapter.setBasePath("/admin/queues");
 
 if (redisClient instanceof Redis) {
-  redisClient.on("connect", () => {
-    console.log("Redis connected");
-  });
+  redisClient.on("connect", () => {});
 
   redisClient.on("error", (error) => {
     console.error("Redis connection error:", error);
@@ -109,8 +93,6 @@ bookingStatusQueue.on("error", (error) => {
   console.error("Bull queue error:", error);
 });
 
-bookingStatusQueue.on("waiting", (jobId) => {
-  console.log("Job waiting:", jobId);
-});
+bookingStatusQueue.on("waiting", (jobId) => {});
 
 export { Bull };

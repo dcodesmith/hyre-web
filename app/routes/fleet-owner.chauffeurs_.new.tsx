@@ -78,8 +78,6 @@ export default function NewChauffeurForm() {
 
   const serverError = lastResult?.error;
 
-  console.log("serverError", serverError);
-
   const [form, { email, name, phoneNumber, address }] = useForm({
     // Sync the result of last submission
     // lastResult,

@@ -146,7 +146,6 @@ export async function action({ request }: ActionFunctionArgs) {
 
     if (intent === "edit") {
       const chauffeurId = String(formData.get("chauffeurId"));
-      console.log("edit", chauffeurId);
 
       const submission = parseWithZod(formData, {
         schema: chauffeurSchema, //.pick({ phoneNumber: true, address: true }),
@@ -155,8 +154,6 @@ export async function action({ request }: ActionFunctionArgs) {
       if (submission.status !== "success") {
         return json(submission.reply());
       }
-
-      console.log("submission", submission.value);
 
       await prisma.user.update({
         where: { id: chauffeurId, fleetOwnerId: user.id },

@@ -1,11 +1,10 @@
-import { ActionFunctionArgs, json, type LoaderFunctionArgs } from "@remix-run/node";
+import { ActionFunctionArgs, type LoaderFunctionArgs, json } from "@remix-run/node";
 import { redirect, useLoaderData } from "@remix-run/react";
 import invariant from "tiny-invariant";
 import { requireUser } from "~/modules/auth/auth.server";
 import { cancelBooking, getBooking } from "~/services/bookings.server";
 
 export async function action({ request }: ActionFunctionArgs) {
-  console.log("action");
   const formData = await request.formData();
   const bookingId = formData.get("bookingId");
   const reason = formData.get("reason");
@@ -28,7 +27,6 @@ export async function action({ request }: ActionFunctionArgs) {
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
   await requireUser(request);
-  console.log(">>", params);
   const url = new URL(request.url);
   const bookingId = url.searchParams.get("bookingId");
   invariant(bookingId, "Booking ID is required");
@@ -49,7 +47,7 @@ export default function PaymentRoute() {
   return (
     <div>
       <h2>Payment</h2>
-      <div className="grid gap-4"></div>
+      <div className="grid gap-4" />
     </div>
   );
 }

@@ -2,8 +2,8 @@ import { Booking, BookingStatus, Car, User } from "@prisma/client";
 import { Body, Container, Heading, Hr, Link, Preview, Text } from "@react-email/components";
 import { render } from "@react-email/render";
 import { match } from "ts-pattern";
-import { EmailTemplate } from "./EmailTemplate";
 import { formatDate } from "~/lib/utils";
+import { EmailTemplate } from "./EmailTemplate";
 
 type BookingWithRelations = Booking & {
   car: Car & { owner?: User };

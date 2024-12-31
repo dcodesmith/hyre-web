@@ -2,7 +2,7 @@
  * Singleton Server-Side Pattern.
  */
 export function singleton<Value>(name: string, value: () => Value): Value {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // biome-ignore lint/suspicious/noExplicitAny: <explanation>
   const globalStore = global as any;
 
   globalStore.__singletons ??= {};

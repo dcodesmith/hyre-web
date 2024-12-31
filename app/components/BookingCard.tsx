@@ -23,7 +23,7 @@ const config = {
   },
 };
 
-const hasTimePassed = (selectedDate: Date = new Date(), hour: number) => {
+const hasTimePassed = (selectedDate: Date, hour: number) => {
   const now = new Date();
   const isSameDay = selectedDate.toLocaleDateString() === now.toLocaleDateString();
 
@@ -32,7 +32,7 @@ const hasTimePassed = (selectedDate: Date = new Date(), hour: number) => {
 
 function getPickupTimes(date: Date) {
   return ["8:00 AM", "9:00 AM", "10:00 AM", "11:00 AM", "12:00 PM"]
-    .filter((time) => !hasTimePassed(date, parseInt(time.split(":")[0])))
+    .filter((time) => !hasTimePassed(date, Number.parseInt(time.split(":")[0])))
     .map((time) => ({
       label: time,
       value: time,
@@ -100,7 +100,7 @@ export default function BookingCard({ car, isAvailable }: BookingCardProps) {
     },
     customizations: {
       // TODO: window object is undefined when the page is refreshed ${window.ENV.APP_NAME}
-      title: `Booking Payment`,
+      title: "Booking Payment",
       description: "Payment for Booking",
       logo: "https://picsum.photos/seed/car-rental/800/600",
     },

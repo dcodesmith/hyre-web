@@ -1,7 +1,6 @@
 import { cssBundleHref } from "@remix-run/css-bundle";
 import type { LinksFunction, LoaderFunctionArgs } from "@remix-run/node";
 import {
-  json,
   Link,
   Links,
   // LiveReload,
@@ -9,12 +8,13 @@ import {
   Outlet,
   Scripts,
   ScrollRestoration,
+  json,
   useLoaderData,
   useRouteError,
 } from "@remix-run/react";
 import tailwindStyles from "~/tailwind.css?url";
-import { Toaster } from "./components/ui/toaster";
 import { UserNav } from "./components/UserNav";
+import { Toaster } from "./components/ui/toaster";
 import { authenticator } from "./modules/auth/auth.server";
 import { prisma } from "./modules/db/db.server";
 
@@ -82,6 +82,7 @@ export default function App() {
 
         <ScrollRestoration />
         <script
+          // biome-ignore lint/security/noDangerouslySetInnerHtml: <framework pattern>
           dangerouslySetInnerHTML={{
             __html: `window.ENV = ${JSON.stringify(ENV)}`,
           }}
@@ -94,7 +95,7 @@ export default function App() {
 
 export function ErrorBoundary() {
   const error = useRouteError();
-  console.error(error);
+
   return (
     <html lang="en">
       <head>

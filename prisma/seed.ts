@@ -1,10 +1,10 @@
+import fs from "node:fs/promises";
+import path from "node:path";
+import { faker } from "@faker-js/faker";
+import { Status } from "@prisma/client";
+import { uploadImageToS3 } from "~/services/s3.server";
 import { vehicles } from "~/vehicles";
 import { prisma } from "../app/modules/db/db.server";
-import { Status } from "@prisma/client";
-import path from "node:path";
-import fs from "node:fs/promises";
-import { uploadImageToS3 } from "~/services/s3.server";
-import { faker } from "@faker-js/faker";
 
 async function getCarImages(basePattern: string) {
   const images: File[] = [];
@@ -220,9 +220,9 @@ async function seed() {
     }
   }
 
-  console.info(`🚗 Cars have been successfully created.`);
-  console.info(`🎭 User roles and permissions have been successfully created.`);
-  console.info(`👤 Users have been successfully created.`);
+  console.info("🚗 Cars have been successfully created.");
+  console.info("🎭 User roles and permissions have been successfully created.");
+  console.info("👤 Users have been successfully created.");
 }
 
 try {

@@ -25,7 +25,7 @@ import { requireUser } from "~/modules/auth/auth.server";
 import { prisma } from "~/modules/db/db.server";
 import { createCar } from "~/services/cars.server";
 import { SerializedCar } from "~/types";
-import { carSchema, NewCarForm } from "./fleet-owner.cars_.new";
+import { NewCarForm, carSchema } from "./fleet-owner.cars_.new";
 
 export async function action({ request }: ActionFunctionArgs) {
   const user = await requireUser(request);

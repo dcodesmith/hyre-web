@@ -259,7 +259,7 @@ export async function updateBookingsFromConfirmedToActive() {
 
       await sendEmail({
         to: booking.user.email,
-        subject: `Your booking has started`,
+        subject: "Your booking has started",
         html,
       });
     }
@@ -313,7 +313,7 @@ export async function updateBookingsFromActiveToCompleted() {
 
       await sendEmail({
         to: booking.user.email,
-        subject: `Your booking has ended`,
+        subject: "Your booking has ended",
         html,
       });
     }
@@ -357,7 +357,7 @@ export async function sendBookingStartReminderEmails() {
       const clientHtml = await renderBookingReminder(booking, "client");
       await sendEmail({
         to: booking.user.email,
-        subject: `Booking Reminder - Your booking starts in 1 hour`,
+        subject: "Booking Reminder - Your booking starts in 1 hour",
         html: clientHtml,
       });
 
@@ -366,7 +366,7 @@ export async function sendBookingStartReminderEmails() {
         const chauffeurHtml = await renderBookingReminder(booking, "chauffeur");
         await sendEmail({
           to: "dcodesmith@gmail.com", // booking.chauffeur.email,
-          subject: `Booking Reminder - You have a booking starting in 1 hour`,
+          subject: "Booking Reminder - You have a booking starting in 1 hour",
           html: chauffeurHtml,
         });
       }
@@ -412,7 +412,7 @@ export async function sendBookingEndReminderEmails() {
       const clientHtml = await renderBookingReminder(booking, "client", false);
       await sendEmail({
         to: booking.user.email,
-        subject: `Booking Reminder - Your booking ends in 1 hour`,
+        subject: "Booking Reminder - Your booking ends in 1 hour",
         html: clientHtml,
       });
 
@@ -421,7 +421,7 @@ export async function sendBookingEndReminderEmails() {
         const chauffeurHtml = await renderBookingReminder(booking, "chauffeur", false);
         await sendEmail({
           to: "dcodesmith@gmail.com", // booking.chauffeur.email,
-          subject: `Booking Reminder - You have a booking ending in 1 hour`,
+          subject: "Booking Reminder - You have a booking ending in 1 hour",
           html: chauffeurHtml,
         });
       }

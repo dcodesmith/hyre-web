@@ -92,7 +92,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
     html: await renderChauffeurAssignedEmail(booking),
   });
 
-  return redirect(`/fleet-owner`);
+  return redirect("/fleet-owner");
 };
 
 export async function loader({ params, request }: LoaderFunctionArgs) {

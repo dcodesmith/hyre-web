@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { quotes } from "../quotes";
 
 export function RandomQuoteTailwind() {
@@ -15,7 +15,7 @@ export function RandomQuoteTailwind() {
     // After exit animation, update quote and start entrance
     timeoutRef.current = setTimeout(() => {
       setCurrentQuote((prevQuote) => {
-        let newIndex;
+        let newIndex: number;
         do {
           newIndex = Math.floor(Math.random() * quotes.length);
         } while (quotes[newIndex].quote === prevQuote.quote);
