@@ -92,3 +92,9 @@ export const formatCurrency = (amount: number) => {
     currency: "NGN",
   }).format(amount);
 };
+
+export function isBookingEditable(startDate: Date) {
+  const now = new Date();
+  const hoursUntilStart = (startDate.getTime() - now.getTime()) / (1000 * 60 * 60);
+  return hoursUntilStart > 12;
+}

@@ -1,14 +1,14 @@
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { Link, useLoaderData } from "@remix-run/react";
+import { useMemo, useState } from "react";
+import { Bar, BarChart, CartesianGrid, Tooltip, XAxis, YAxis } from "recharts";
+import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from "~/components/ui/chart";
+import { ToggleGroup, ToggleGroupItem } from "~/components/ui/toggle-group";
 import { prisma } from "~/modules/db/db.server";
 import { getMonthToDateBookingsValue } from "~/services/bookings.server";
 import { requireUserWithRole } from "~/utils/permissions.server";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from "~/components/ui/chart";
-import { ToggleGroup, ToggleGroupItem } from "~/components/ui/toggle-group";
-import { useMemo, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 
 // Add this type
 type TimeRange = "week" | "month" | "year";

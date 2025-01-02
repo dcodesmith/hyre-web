@@ -1,23 +1,39 @@
 import { ActionFunctionArgs, type LoaderFunctionArgs, json } from "@remix-run/node";
 import {
+  Form,
   Link,
   redirect,
+  useActionData,
   useFetcher,
   useLoaderData,
   useNavigate,
   useSearchParams,
 } from "@remix-run/react";
+import { useEffect, useState } from "react";
 import invariant from "tiny-invariant";
+import { BookingTimeSelect } from "~/components/BookingTimeSelect";
 import { Button } from "~/components/ui/button";
+import { Checkbox } from "~/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "~/components/ui/dialog";
+import { Input } from "~/components/ui/input";
+import { Label } from "~/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
-import { formatCurrency, formatDate } from "~/lib/utils";
+import { formatCurrency, formatDate, isBookingEditable } from "~/lib/utils";
 import { requireUser } from "~/modules/auth/auth.server";
+import { prisma } from "~/modules/db/db.server";
 import { sendEmail } from "~/modules/email/email.server";
 import {
   renderBookingConfirmationEmail,
   renderFleetOwnerBookingNotificationEmail,
 } from "~/modules/email/templates/booking-notification";
 import { cancelBooking, confirmBooking, getBookingsByStatus } from "~/services/bookings.server";
+import { getBooking } from "~/services/bookings.server";
 import { requireUserWithRole } from "~/utils/permissions.server";
 
 export async function action({ request }: ActionFunctionArgs) {
@@ -136,9 +152,18 @@ export default function BookingsPage() {
   const fetcher = useFetcher();
   const [searchParams] = useSearchParams();
   const status = searchParams.get("status")?.toLocaleUpperCase() ?? "ACTIVE";
-
   const navigate = useNavigate();
   const statuses = ["ACTIVE", "CONFIRMED", "COMPLETED", "CANCELLED"] as const;
+  const [showDropoffFields, setShowDropoffFields] = useState(false);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const actionData = useActionData<typeof action>();
+  const editFetcher = useFetcher();
+
+  useEffect(() => {
+    if (editFetcher.data?.success) {
+      setIsDialogOpen(false);
+    }
+  }, [editFetcher.data]);
 
   return (
     <div>
@@ -207,9 +232,126 @@ export default function BookingsPage() {
                       View
                     </Link>
 
+                    {booking.status === "CONFIRMED" &&
+                      isBookingEditable(new Date(booking.startDate)) && (
+                        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                          <DialogTrigger asChild>
+                            <Button variant="outline" size="sm" className="w-20">
+                              Edit
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="sm:max-w-[425px]">
+                            <DialogHeader>
+                              <DialogTitle>
+                                {booking.car.make} {booking.car.model} {booking.car.year}
+                              </DialogTitle>
+                            </DialogHeader>
+                            <editFetcher.Form
+                              method="PATCH"
+                              action={`/bookings/${booking.id}`}
+                              className="space-y-4"
+                            >
+                              <input type="hidden" name="bookingId" value={booking.id} />
+                              <div className="grid gap-4 py-4">
+                                <div className="space-y-2">
+                                  <label className="text-sm font-medium">Pickup Time</label>
+                                  <BookingTimeSelect
+                                    date={new Date(booking.startDate)}
+                                    defaultValue={new Date(booking.startDate).toLocaleTimeString(
+                                      "en-US",
+                                      {
+                                        hour: "numeric",
+                                        minute: "numeric",
+                                        hour12: true,
+                                      },
+                                    )}
+                                  />
+                                </div>
+
+                                <div className="space-y-2">
+                                  <label className="text-sm font-medium">
+                                    Pickup Street Address
+                                  </label>
+                                  <Input
+                                    name="pickupStreet"
+                                    defaultValue={booking.pickupLocation.split(", ")[0]}
+                                    placeholder="Enter street address"
+                                  />
+                                </div>
+
+                                <div className="space-y-2">
+                                  <label className="text-sm font-medium">
+                                    Pickup Locality/Area
+                                  </label>
+                                  <Input
+                                    name="pickupLocality"
+                                    defaultValue={booking.pickupLocation.split(", ")[1]}
+                                    placeholder="Enter locality or area"
+                                  />
+                                </div>
+
+                                <div className="space-y-1">
+                                  <div className="flex items-center space-x-2">
+                                    <Checkbox
+                                      id="sameLocation"
+                                      name="sameLocation"
+                                      defaultChecked={
+                                        booking.pickupLocation === booking.returnLocation
+                                      }
+                                      onCheckedChange={(checked) => setShowDropoffFields(!checked)}
+                                    />
+                                    <Label htmlFor="sameLocation">
+                                      Drop-off location same as pickup
+                                    </Label>
+                                  </div>
+                                </div>
+
+                                {showDropoffFields && (
+                                  <div className="dropoff-fields space-y-4" id="dropoffFields">
+                                    <div className="space-y-2">
+                                      <label className="text-sm font-medium">
+                                        Drop-off Street Address
+                                      </label>
+                                      <Input
+                                        name="dropOffStreet"
+                                        defaultValue={booking.returnLocation.split(", ")[0]}
+                                        placeholder="Enter drop-off street address"
+                                      />
+                                    </div>
+
+                                    <div className="space-y-2">
+                                      <label className="text-sm font-medium">
+                                        Drop-off Locality/Area
+                                      </label>
+                                      <Input
+                                        name="dropOffLocality"
+                                        defaultValue={booking.returnLocation.split(", ")[1]}
+                                        placeholder="Enter drop-off locality or area"
+                                      />
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+
+                              <div className="flex justify-end gap-3">
+                                <Button
+                                  variant="outline"
+                                  type="button"
+                                  onClick={() => setIsDialogOpen(false)}
+                                >
+                                  Cancel
+                                </Button>
+                                <Button type="submit">Save Changes</Button>
+                              </div>
+                            </editFetcher.Form>
+                          </DialogContent>
+                        </Dialog>
+                      )}
+
                     {["PENDING", "CONFIRMED"].includes(booking.status) && (
                       <Button
-                        className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+                        variant="destructive"
+                        className="w-20"
                         onClick={() =>
                           fetcher.submit(
                             {

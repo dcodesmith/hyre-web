@@ -5,6 +5,7 @@ import { closePaymentModal, useFlutterwave } from "flutterwave-react-v3";
 import { useCallback, useState } from "react";
 import { DateRange } from "react-day-picker";
 import { formatCurrency, useIsPending } from "~/lib/utils";
+import { BookingTimeSelect } from "./BookingTimeSelect";
 import { DateRangePicker } from "./DateRangePicker";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "./ui/card";
@@ -22,22 +23,6 @@ const config = {
     logo: "https://st2.depositphotos.com/4403291/7418/v/450/depositphotos_74189661-stock-illustration-online-shop-log.jpg",
   },
 };
-
-const hasTimePassed = (selectedDate: Date, hour: number) => {
-  const now = new Date();
-  const isSameDay = selectedDate.toLocaleDateString() === now.toLocaleDateString();
-
-  return isSameDay && now.getHours() >= hour;
-};
-
-function getPickupTimes(date: Date) {
-  return ["8:00 AM", "9:00 AM", "10:00 AM", "11:00 AM", "12:00 PM"]
-    .filter((time) => !hasTimePassed(date, Number.parseInt(time.split(":")[0])))
-    .map((time) => ({
-      label: time,
-      value: time,
-    }));
-}
 
 type BookingCardProps = {
   car: Car;
@@ -150,18 +135,10 @@ export default function BookingCard({ car, isAvailable }: BookingCardProps) {
             <div className="w-full space-y-4 my-4">
               <div className="space-y-1">
                 <Label htmlFor="pickupTime">Pickup Time</Label>
-                <Select name="pickupTime">
-                  <SelectTrigger id="pickupTime" className="w-full rounded">
-                    <SelectValue placeholder="When would you like to be picked up?" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {getPickupTimes(dateRange.from).map(({ label, value }) => (
-                      <SelectItem key={value} value={value}>
-                        {label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <BookingTimeSelect
+                  date={dateRange.from || new Date()}
+                  defaultValue={searchParams.get("pickupTime") || undefined}
+                />
               </div>
 
               <div className="space-y-1">

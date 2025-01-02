@@ -1,8 +1,23 @@
 import { ActionFunctionArgs, LoaderFunctionArgs, json } from "@remix-run/node";
-import { useLoaderData } from "@remix-run/react";
+import { Form, useActionData, useLoaderData } from "@remix-run/react";
+import { useEffect, useState } from "react";
 import invariant from "tiny-invariant";
+import { BookingTimeSelect } from "~/components/BookingTimeSelect";
+import { Button } from "~/components/ui/button";
+import { Checkbox } from "~/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "~/components/ui/dialog";
+import { Input } from "~/components/ui/input";
+import { Label } from "~/components/ui/label";
 import { formatCurrency } from "~/lib/utils";
+import { isBookingEditable } from "~/lib/utils";
 import { requireUser } from "~/modules/auth/auth.server";
+import { prisma } from "~/modules/db/db.server";
 import { sendEmail } from "~/modules/email/email.server";
 import {
   renderBookingCancellationEmail,
@@ -16,6 +31,63 @@ export async function action({ request, params }: ActionFunctionArgs) {
   });
 
   invariant(params.id, "Booking ID is required");
+
+  if (request.method === "PATCH") {
+    const formData = await request.formData();
+    const pickupTime = formData.get("pickupTime") as string;
+    const pickupStreet = formData.get("pickupStreet") as string;
+    const pickupLocality = formData.get("pickupLocality") as string;
+    const sameLocation = formData.get("sameLocation");
+    const dropOffStreet = formData.get("dropOffStreet") as string;
+    const dropOffLocality = formData.get("dropOffLocality") as string;
+
+    const currentBooking = await getBooking(params.id);
+    const startDate = new Date(currentBooking.startDate);
+
+    // Parse the time from pickupTime (e.g. "8:00 AM")
+    const [time, period] = pickupTime.split(" ");
+    const [hours, minutes] = time.split(":");
+
+    // Convert 12-hour format to 24-hour
+    let hour = Number.parseInt(hours);
+    if (period === "PM" && hour !== 12) {
+      hour += 12;
+    }
+
+    startDate.setHours(hour);
+    startDate.setMinutes(Number.parseInt(minutes));
+
+    // Calculate endDate as 12 hours after startDate
+    const endDate = new Date(startDate);
+    endDate.setHours(startDate.getHours() + 12);
+
+    if (!isBookingEditable(startDate)) {
+      return json(
+        { error: "Bookings cannot be edited within 12 hours of start time" },
+        { status: 400 },
+      );
+    }
+
+    const pickupLocation = `${pickupStreet}, ${pickupLocality}`;
+    const returnLocation = sameLocation ? pickupLocation : `${dropOffStreet}, ${dropOffLocality}`;
+
+    try {
+      const booking = await prisma.booking.update({
+        where: { id: params.id },
+        data: {
+          startDate,
+          endDate,
+          pickupLocation,
+          returnLocation,
+        },
+      });
+
+      return json({ success: true, booking });
+    } catch (error) {
+      console.error(error);
+      return json({ error: "Failed to update booking" }, { status: 500 });
+    }
+  }
 
   if (request.method === "DELETE") {
     try {
@@ -68,6 +140,17 @@ const formatDate = (date: string | Date) => {
 
 export default function Booking() {
   const { booking } = useLoaderData<typeof loader>();
+  const [showDropoffFields, setShowDropoffFields] = useState(
+    booking.pickupLocation !== booking.returnLocation,
+  );
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const actionData = useActionData<typeof action>();
+
+  useEffect(() => {
+    if (actionData?.success) {
+      setIsDialogOpen(false);
+    }
+  }, [actionData]);
 
   return (
     <div className="max-w-3xl mx-auto p-6 space-y-2">
@@ -137,6 +220,97 @@ export default function Booking() {
           )}
         </div>
       </div>
+
+      {booking.status === "CONFIRMED" && isBookingEditable(new Date(booking.startDate)) && (
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogTrigger asChild>
+            <Button variant="outline" className="w-full mt-4">
+              Edit Booking
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>
+                {booking.car.make} {booking.car.model} {booking.car.year}
+              </DialogTitle>
+            </DialogHeader>
+            <Form method="PATCH" className="space-y-4">
+              <div className="grid gap-4 py-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Pickup Time</label>
+                  <BookingTimeSelect
+                    date={new Date(booking.startDate)}
+                    defaultValue={new Date(booking.startDate).toLocaleTimeString("en-US", {
+                      hour: "numeric",
+                      minute: "numeric",
+                      hour12: true,
+                    })}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Pickup Street Address</label>
+                  <Input
+                    name="pickupStreet"
+                    defaultValue={booking.pickupLocation.split(", ")[0]}
+                    placeholder="Enter street address"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Pickup Locality/Area</label>
+                  <Input
+                    name="pickupLocality"
+                    defaultValue={booking.pickupLocation.split(", ")[1]}
+                    placeholder="Enter locality or area"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="sameLocation"
+                      name="sameLocation"
+                      defaultChecked={booking.pickupLocation === booking.returnLocation}
+                      onCheckedChange={(checked) => setShowDropoffFields(!checked)}
+                    />
+                    <Label htmlFor="sameLocation">Drop-off location same as pickup</Label>
+                  </div>
+                </div>
+
+                {showDropoffFields && (
+                  <div className="dropoff-fields space-y-4" id="dropoffFields">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Drop-off Street Address</label>
+                      <Input
+                        name="dropOffStreet"
+                        defaultValue={booking.returnLocation.split(", ")[0]}
+                        placeholder="Enter drop-off street address"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Drop-off Locality/Area</label>
+                      <Input
+                        name="dropOffLocality"
+                        defaultValue={booking.returnLocation.split(", ")[1]}
+                        placeholder="Enter drop-off locality or area"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex justify-end gap-3">
+                <Button variant="outline" type="button" onClick={() => setIsDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit">Save Changes</Button>
+              </div>
+            </Form>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }
