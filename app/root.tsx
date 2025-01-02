@@ -3,7 +3,6 @@ import type { LinksFunction, LoaderFunctionArgs } from "@remix-run/node";
 import {
   Link,
   Links,
-  // LiveReload,
   Meta,
   Outlet,
   Scripts,
@@ -15,8 +14,7 @@ import {
 import tailwindStyles from "~/tailwind.css?url";
 import { UserNav } from "./components/UserNav";
 import { Toaster } from "./components/ui/toaster";
-import { authenticator } from "./modules/auth/auth.server";
-import { prisma } from "./modules/db/db.server";
+import { requireUser } from "./modules/auth/auth.server";
 
 export const links: LinksFunction = () => [
   ...(cssBundleHref ? [{ rel: "stylesheet", href: cssBundleHref }] : []),
@@ -25,15 +23,8 @@ export const links: LinksFunction = () => [
 ];
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  const sessionUser = await authenticator.isAuthenticated(request);
-  const user = sessionUser?.id
-    ? await prisma.user.findUnique({
-        where: { id: sessionUser.id },
-        include: { roles: { select: { name: true } } },
-      })
-    : null;
+  const user = await requireUser(request);
 
-  // const locale = await i18nServer.getLocale(request)
   // const { toast, headers: toastHeaders } = await getToastSession(request)
   // const [csrfToken, csrfCookieHeader] = await csrf.commitToken();
 

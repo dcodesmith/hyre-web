@@ -117,7 +117,7 @@ export async function getMonthToDateBookingsValue(fleetOwnerId: string) {
         gte: startOfMonth,
         lt: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1),
       },
-      status: { in: ["CONFIRMED", "ACTIVE", "COMPLETED"] },
+      status: "COMPLETED",
       paymentStatus: "PAID",
     },
     select: {
