@@ -163,7 +163,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
       where: {
         status: "ACTIVE",
         car: { ownerId: fleetOwner.id },
-        startDate: {
+        endDate: {
           gte: startOfDay,
           lte: endOfDay,
         },
@@ -206,12 +206,12 @@ export async function loader({ request }: LoaderFunctionArgs) {
     prisma.booking.aggregate({
       where: {
         car: { ownerId: fleetOwner.id },
-        startDate: {
+        endDate: {
           gte: startOfDay,
           lte: endOfDay,
         },
         status: {
-          in: ["ACTIVE", "CONFIRMED"],
+          in: ["ACTIVE", "CONFIRMED", "COMPLETED"],
         },
       },
       _sum: {
@@ -333,20 +333,9 @@ function RevenueChart({
     },
   };
 
-  // Get current month and year for the date display
-  const now = new Date();
-  const currentYear = now.getFullYear();
-  const currentMonth = now.getMonth();
-
-  // Filter data based on timeRange
+  // Filter data based on timeRange only
   const filteredData = useMemo(() => {
-    // const today = new Date();
-
-    if (timeRange === "week") {
-      return data.slice(-7);
-    }
-
-    return data.slice(-30);
+    return timeRange === "week" ? data.slice(-7) : data.slice(-30);
   }, [data, timeRange]);
 
   return (
@@ -357,7 +346,7 @@ function RevenueChart({
           dataKey={timeRange === "year" ? "month" : "date"}
           tickFormatter={(value) => getOrdinal(new Date(value).getDate())}
           interval={0}
-          className="text-xs"
+          className="text-xs [&_.recharts-cartesian-axis-tick]:md:block [&_.recharts-cartesian-axis-tick]:data-[value='0']:md:hidden [&_.recharts-cartesian-axis-tick]:data-[value='0']:hidden"
           padding={{ left: 0, right: 0 }}
         />
         <YAxis
@@ -372,7 +361,7 @@ function RevenueChart({
         />
         <Tooltip
           content={({ active, payload, label }) => {
-            if (!active || !payload?.length) return null;
+            if (!active || !payload?.length || payload[0].value === 0) return null;
             const formattedDate = new Date(label).toLocaleDateString("en-NG", {
               weekday: "short",
               month: "short",
@@ -473,7 +462,7 @@ function WelcomeMessage({
           {formatBookingCount(stats.cancelledBookings, "cancelled")}.
         </p>
         <p>Your fleet is in excellent condition and fully prepared for new reservations.</p>
-        {stats.activeBookings > 0 && (
+        {(stats.activeBookings || stats.completedBookings) > 0 && (
           <p>
             With a projected revenue of{" "}
             <span className="font-bold text-green-800 italic">
@@ -569,14 +558,27 @@ export default function FleetOwnerDashboard() {
 
       <div className="rounded border bg-white p-4">
         <div className="flex justify-between items-center mb-6">
-          <h3 className="font-semibold text-gray-900">
-            {timeRange === "week"
-              ? "Week to Date"
-              : timeRange === "month"
-                ? "Month to Date"
-                : "Year to Date"}{" "}
-            Revenue Breakdown
-          </h3>
+          <div>
+            <h3 className="font-semibold text-gray-900">
+              {timeRange === "week"
+                ? "Week to Date"
+                : timeRange === "month"
+                  ? "Month to Date"
+                  : "Year to Date"}{" "}
+              Revenue Breakdown
+            </h3>
+            <p className="text-sm text-gray-600">
+              Total:{" "}
+              {new Intl.NumberFormat("en-NG", {
+                style: "currency",
+                currency: "NGN",
+              }).format(
+                dailyRevenue
+                  .slice(timeRange === "week" ? -7 : -30)
+                  .reduce((sum, day) => sum + day.revenue, 0),
+              )}
+            </p>
+          </div>
           <ToggleGroup
             type="single"
             value={timeRange}

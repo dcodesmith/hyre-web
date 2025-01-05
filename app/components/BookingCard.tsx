@@ -12,6 +12,9 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "./ui/card"
 import { Checkbox } from "./ui/checkbox";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
+import { parseWithZod } from "@conform-to/zod";
+import { getFormProps, getInputProps, useForm } from "@conform-to/react";
+import { z } from "zod";
 
 const config = {
   public_key: "FLWPUBK_TEST-02b9b5fc6406bd4a41c3ff141cc45e93-X",
@@ -28,8 +31,55 @@ type BookingCardProps = {
   isAvailable: boolean;
 };
 
+const bookingSelectedSchema = z.object({
+  carId: z.string(),
+  sameLocation: z.literal("true"),
+  pickupTime: z.string({
+    required_error: "Pickup time is required",
+  }),
+  pickupStreet: z
+    .string({
+      required_error: "Pickup street address is required",
+    })
+    .min(10, "Pickup street address must be at least 10 characters"),
+  pickupLocality: z
+    .string({
+      required_error: "Pickup locality is required",
+    })
+    .min(3, "Pickup locality must be at least 3 characters"),
+});
+
+const bookingUnselectedSchema = z.object({
+  carId: z.string(),
+  sameLocation: z.literal("false"),
+  pickupTime: z.string({
+    required_error: "Pickup time is required",
+  }),
+  pickupStreet: z
+    .string({
+      required_error: "Pickup street address is required",
+    })
+    .min(10, "Pickup street address must be at least 10 characters"),
+  pickupLocality: z
+    .string({
+      required_error: "Pickup locality is required",
+    })
+    .min(3, "Pickup locality must be at least 3 characters"),
+  dropOffStreet: z.string({
+    required_error: "Drop-off street address is required",
+  }),
+  dropOffLocality: z.string({
+    required_error: "Drop-off locality is required",
+  }),
+});
+
+const bookingSchema = z.discriminatedUnion("sameLocation", [
+  bookingSelectedSchema,
+  bookingUnselectedSchema,
+]);
+
 export default function BookingCard({ car, isAvailable }: BookingCardProps) {
-  const [sameLocation, setSameLocation] = useState<CheckedState>(true);
+  const [sameLoc, setSameLocation] = useState<CheckedState>(true);
   const [searchParams, setSearchParams] = useSearchParams();
   const fromParam = searchParams.get("from");
   const toParam = searchParams.get("to");
@@ -40,6 +90,22 @@ export default function BookingCard({ car, isAvailable }: BookingCardProps) {
     from: fromParam ? new Date(fromParam) : undefined,
     to: toParam ? new Date(toParam) : undefined,
   });
+
+  const [
+    form,
+    { pickupTime, pickupStreet, pickupLocality, sameLocation, dropOffStreet, dropOffLocality },
+  ] = useForm({
+    shouldValidate: "onSubmit",
+    shouldRevalidate: "onBlur",
+    onSubmit(event) {
+      onMakePayment(event);
+    },
+    onValidate({ formData }) {
+      return parseWithZod(formData, { schema: bookingSchema });
+    },
+  });
+
+  const errorRingClasses = "border-red-500 focus-visible:ring-red-500 focus-visible:ring-2";
 
   const onDateChange = (dateRange: DateRange) => {
     setDateRange(dateRange);
@@ -116,7 +182,7 @@ export default function BookingCard({ car, isAvailable }: BookingCardProps) {
   );
 
   return (
-    <Form onSubmit={onMakePayment}>
+    <Form {...getFormProps(form)} method="POST" className="space-y-4">
       <input type="hidden" name="carId" value={car.id} />
       <Card className="rounded sticky top-4">
         <CardHeader>
@@ -137,61 +203,84 @@ export default function BookingCard({ car, isAvailable }: BookingCardProps) {
                 <BookingTimeSelect
                   date={dateRange.from || new Date()}
                   defaultValue={searchParams.get("pickupTime") || undefined}
+                  className={pickupTime.errors ? errorRingClasses : ""}
                 />
+                {pickupTime.errors && (
+                  <p className="text-red-500 text-sm">{pickupTime.errors.join(" ")}</p>
+                )}
               </div>
 
               <div className="space-y-1">
-                <Label htmlFor="pickupStreet">Pickup Street Address</Label>
+                <Label htmlFor={pickupStreet.id}>Pickup Street Address</Label>
                 <Input
-                  id="pickupStreet"
-                  name="pickupStreet"
+                  {...getInputProps(pickupStreet, { type: "text" })}
                   placeholder="Enter street address"
-                  className="w-full rounded"
+                  className={`w-full rounded ${pickupStreet.errors ? errorRingClasses : ""}`}
                 />
+                {pickupStreet.errors && (
+                  <p className="text-red-500 text-sm">{pickupStreet.errors.join(" ")}</p>
+                )}
               </div>
 
               <div className="space-y-1">
-                <Label htmlFor="pickupLocality">Pickup Locality/Area</Label>
+                <Label htmlFor={pickupLocality.id}>Pickup Locality/Area</Label>
                 <Input
-                  id="pickupLocality"
-                  name="pickupLocality"
+                  {...getInputProps(pickupLocality, { type: "text" })}
                   placeholder="Enter locality or area"
-                  className="w-full rounded"
+                  className={`w-full rounded ${pickupLocality.errors ? errorRingClasses : ""}`}
                 />
+                {pickupLocality.errors && (
+                  <p className="text-red-500 text-sm">{pickupLocality.errors.join(" ")}</p>
+                )}
               </div>
 
               <div className="space-y-1">
                 <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="sameLocation"
-                    name="sameLocation"
-                    checked={sameLocation}
-                    onCheckedChange={setSameLocation}
+                  <input
+                    type="hidden"
+                    name={sameLocation.name}
+                    value={sameLoc ? "true" : "false"}
                   />
-                  <Label htmlFor="sameLocation">Drop-off location same as pickup</Label>
+                  <Checkbox
+                    id={sameLocation.id}
+                    checked={sameLoc}
+                    defaultChecked={true}
+                    onCheckedChange={(checked) => {
+                      setSameLocation(checked);
+                      form.update({
+                        name: sameLocation.name,
+                        value: checked ? "true" : "false",
+                      });
+                    }}
+                  />
+                  <Label htmlFor={sameLocation.id}>Drop-off location same as pickup</Label>
                 </div>
               </div>
 
-              {!sameLocation && (
+              {!sameLoc && (
                 <>
-                  <div className="space-y-1" id="dropoffFields">
-                    <Label htmlFor="dropOffStreet">Drop-off Street Address</Label>
+                  <div className="space-y-1">
+                    <Label htmlFor={dropOffStreet.id}>Drop-off Street Address</Label>
                     <Input
-                      id="dropOffStreet"
-                      name="dropOffStreet"
+                      {...getInputProps(dropOffStreet, { type: "text" })}
                       placeholder="Enter drop-off street address"
-                      className="w-full rounded"
+                      className={`w-full rounded ${dropOffStreet.errors ? errorRingClasses : ""}`}
                     />
+                    {dropOffStreet.errors && (
+                      <p className="text-red-500 text-sm">{dropOffStreet.errors.join(" ")}</p>
+                    )}
                   </div>
 
                   <div className="space-y-1">
-                    <Label htmlFor="dropOffLocality">Drop-off Locality/Area</Label>
+                    <Label htmlFor={dropOffLocality.id}>Drop-off Locality/Area</Label>
                     <Input
-                      id="dropOffLocality"
-                      name="dropOffLocality"
+                      {...getInputProps(dropOffLocality, { type: "text" })}
                       placeholder="Enter drop-off locality or area"
-                      className="w-full rounded"
+                      className={`w-full rounded ${dropOffLocality.errors ? errorRingClasses : ""}`}
                     />
+                    {dropOffLocality.errors && (
+                      <p className="text-red-500 text-sm">{dropOffLocality.errors.join(" ")}</p>
+                    )}
                   </div>
                 </>
               )}

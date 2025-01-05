@@ -102,8 +102,6 @@ export function NewCarForm() {
   const [form, { make, model, year, price, status, images, registrationNumber }] = useForm({
     lastResult: fetcher.state === "idle" ? lastResult : null,
     onValidate({ formData }) {
-      for (const [key, value] of formData.entries()) {
-      }
       return parseWithZod(formData, { schema: carSchema });
     },
     shouldValidate: "onInput",

@@ -4,6 +4,7 @@
 import { Redis as UpstashRedis } from "@upstash/redis";
 import Bull from "bull";
 import Redis from "ioredis";
+import logger from "~/lib/logger.server";
 
 // Import Redis client based on environment
 // let redisClient;
@@ -63,10 +64,14 @@ const bullOptions = {
     stalledInterval: 300000, // 5 minutes
     maxStalledCount: 0,
   },
+  limiter: {
+    // need this because resend API only allows 2 emails to be sent per second
+    max: 2, // No more than 2 jobs
+    duration: 1000, // per 1000 ms (1 second)
+  },
 };
 
 export const bookingStatusQueue = new Bull("booking-status-updates", bullOptions);
-
 export const bookingReminderQueue = new Bull("booking-reminder", bullOptions);
 
 // Setup Bull Board (monitoring UI)
@@ -80,17 +85,19 @@ export const bookingReminderQueue = new Bull("booking-reminder", bullOptions);
 // serverAdapter.setBasePath("/admin/queues");
 
 if (redisClient instanceof Redis) {
-  redisClient.on("connect", () => {});
+  redisClient.on("connect", () => {
+    logger.info("Redis connection established");
+  });
 
   redisClient.on("error", (error) => {
-    console.error("Redis connection error:", error);
+    logger.error("Redis connection error:", error);
   });
 }
 // Handle Redis connection events
 
 // Handle Bull queue events
 bookingStatusQueue.on("error", (error) => {
-  console.error("Bull queue error:", error);
+  logger.error("Bull queue error:", error);
 });
 
 bookingStatusQueue.on("waiting", (jobId) => {});

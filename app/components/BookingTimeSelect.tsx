@@ -18,12 +18,13 @@ function getPickupTimes(date: Date) {
 interface BookingTimeSelectProps {
   date: Date;
   defaultValue?: string;
+  className?: string;
 }
 
-export function BookingTimeSelect({ date, defaultValue }: BookingTimeSelectProps) {
+export function BookingTimeSelect({ date, defaultValue, className }: BookingTimeSelectProps) {
   return (
     <Select name="pickupTime" defaultValue={defaultValue}>
-      <SelectTrigger className="w-full rounded">
+      <SelectTrigger className={`w-full rounded ${className}`}>
         <SelectValue placeholder="Select pickup time" />
       </SelectTrigger>
       <SelectContent>

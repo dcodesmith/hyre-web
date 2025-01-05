@@ -13,6 +13,7 @@ import {
   scheduleConfirmedToActiveUpdates,
 } from "./queues/bookingStatus.server";
 import { initEnvs } from "./utils/env.server";
+import logger from "./lib/logger.server";
 // import express from "express";
 
 // import { serverAdapter } from "./queues/config.server";
@@ -26,24 +27,24 @@ initEnvs();
 // app.use("/admin/queues", serverAdapter.getRouter());
 
 scheduleConfirmedToActiveUpdates()
-  .then((job) => console.log(`Booking status for job ${job.name} scheduled`))
+  .then((job) => logger.info(`Booking status for job ${job.name} scheduled`))
   .catch((error) =>
-    console.error("Failed to schedule booking status update from confirmed to active", error),
+    logger.error("Failed to schedule booking status update from confirmed to active", error),
   );
 
 scheduleActiveToCompletedUpdates()
-  .then((job) => console.log(`Booking status for job ${job.name} scheduled`))
+  .then((job) => logger.info(`Booking status for job ${job.name} scheduled`))
   .catch((error) =>
-    console.error("Failed to schedule booking status update from active to completed", error),
+    logger.error("Failed to schedule booking status update from active to completed", error),
   );
 
 scheduleBookingStartReminderEmails()
-  .then((job) => console.log(`Booking start reminder for job ${job.name} scheduled`))
-  .catch((error) => console.error("Failed to schedule booking start reminder emails", error));
+  .then((job) => logger.info(`Booking start reminder for job ${job.name} scheduled`))
+  .catch((error) => logger.error("Failed to schedule booking start reminder emails", error));
 
 scheduleBookingEndReminderEmails()
-  .then((job) => console.log(`Booking end reminder for job ${job.name} scheduled`))
-  .catch((error) => console.error("Failed to schedule booking end reminder emails", error));
+  .then((job) => logger.info(`Booking end reminder for job ${job.name} scheduled`))
+  .catch((error) => logger.error("Failed to schedule booking end reminder emails", error));
 
 // app.once("listening", () => {
 //   console.log("Server is running on port 3000");

@@ -26,7 +26,7 @@ import {
 import { cancelBooking, getBooking } from "~/services/bookings.server";
 
 export async function action({ request, params }: ActionFunctionArgs) {
-  await requireUser(request, {
+  const user = await requireUser(request, {
     redirectTo: `/auth?redirectTo=/bookings/${params.id}`,
   });
 
@@ -34,14 +34,20 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
   if (request.method === "PATCH") {
     const formData = await request.formData();
-    const pickupTime = formData.get("pickupTime") as string;
-    const pickupStreet = formData.get("pickupStreet") as string;
-    const pickupLocality = formData.get("pickupLocality") as string;
-    const sameLocation = formData.get("sameLocation");
-    const dropOffStreet = formData.get("dropOffStreet") as string;
-    const dropOffLocality = formData.get("dropOffLocality") as string;
+    const pickupTime = String(formData.get("pickupTime"));
+    const pickupStreet = String(formData.get("pickupStreet"));
+    const pickupLocality = String(formData.get("pickupLocality"));
+    const sameLocation = String(formData.get("sameLocation"));
+    const dropOffStreet = String(formData.get("dropOffStreet"));
+    const dropOffLocality = String(formData.get("dropOffLocality"));
 
     const currentBooking = await getBooking(params.id);
+
+    // Verify booking belongs to user
+    if (currentBooking.userId !== user.id) {
+      return json({ error: "Unauthorized" }, { status: 403 });
+    }
+
     const startDate = new Date(currentBooking.startDate);
 
     // Parse the time from pickupTime (e.g. "8:00 AM")
@@ -69,7 +75,8 @@ export async function action({ request, params }: ActionFunctionArgs) {
     }
 
     const pickupLocation = `${pickupStreet}, ${pickupLocality}`;
-    const returnLocation = sameLocation ? pickupLocation : `${dropOffStreet}, ${dropOffLocality}`;
+    const returnLocation =
+      sameLocation === "true" ? pickupLocation : `${dropOffStreet}, ${dropOffLocality}`;
 
     try {
       const booking = await prisma.booking.update({
@@ -80,6 +87,18 @@ export async function action({ request, params }: ActionFunctionArgs) {
           pickupLocation,
           returnLocation,
         },
+        include: {
+          user: true,
+          car: true,
+          chauffeur: true,
+        },
+      });
+
+      // Optionally send email notification about booking update
+      await sendEmail({
+        to: booking.user.email,
+        subject: "Booking Updated",
+        html: `Your booking for ${booking.car.make} ${booking.car.model} has been updated.`,
       });
 
       return json({ success: true, booking });
@@ -147,7 +166,7 @@ export default function Booking() {
   const actionData = useActionData<typeof action>();
 
   useEffect(() => {
-    if (actionData?.success) {
+    if (actionData && "success" in actionData && actionData.success) {
       setIsDialogOpen(false);
     }
   }, [actionData]);

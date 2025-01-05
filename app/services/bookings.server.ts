@@ -1,10 +1,12 @@
 import { BookingStatus, PaymentStatus, Status } from "@prisma/client";
+import logger from "~/lib/logger.server";
 import { prisma } from "~/modules/db/db.server";
 import { sendEmail } from "~/modules/email/email.server";
 import {
   renderBookingReminder,
   renderBookingTemplate,
 } from "~/modules/email/templates/booking-notification";
+import { emailQueue } from "~/queues/email-throttle.server";
 
 export type CreateBookingParams = {
   startDate: Date;
@@ -195,10 +197,21 @@ export async function isCarAvailableForDates(carId: string, from: Date, to: Date
 }
 
 export async function getBooking(bookingId: string) {
-  return prisma.booking.findUnique({
-    where: { id: bookingId },
-    include: { car: true, chauffeur: true },
-  });
+  try {
+    const booking = await prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: { car: true, chauffeur: true },
+    });
+
+    if (!booking) {
+      throw new Error("Booking not found");
+    }
+
+    return booking;
+  } catch (error) {
+    logger.error("Error getting booking:", error);
+    throw error;
+  }
 }
 
 export async function getBookingsByStatus(userId: string) {
@@ -257,14 +270,18 @@ export async function updateBookingsFromConfirmedToActive() {
 
       const html = await renderBookingTemplate(booking);
 
-      await sendEmail({
-        to: booking.user.email,
-        subject: "Your booking has started",
-        html,
-      });
+      await emailQueue.add(() =>
+        sendEmail({
+          to: booking.user.email,
+          subject: "Your booking has started",
+          html,
+        }),
+      );
     }
+
+    await emailQueue.onIdle();
   } catch (error) {
-    console.error("Error updating booking statuses:", error);
+    logger.error("Error updating booking statuses:", error);
     throw error;
   }
 }
@@ -311,14 +328,17 @@ export async function updateBookingsFromActiveToCompleted() {
 
       const html = await renderBookingTemplate(booking);
 
-      await sendEmail({
-        to: booking.user.email,
-        subject: "Your booking has ended",
-        html,
-      });
+      await emailQueue.add(() =>
+        sendEmail({
+          to: booking.user.email,
+          subject: "Your booking has ended",
+          html,
+        }),
+      );
     }
+    await emailQueue.onIdle();
   } catch (error) {
-    console.error("Error updating booking statuses:", error);
+    logger.error("Error updating booking statuses:", error);
     throw error;
   }
 }
@@ -355,26 +375,32 @@ export async function sendBookingStartReminderEmails() {
     for (const booking of bookings) {
       // Send reminder to client
       const clientHtml = await renderBookingReminder(booking, "client");
-      await sendEmail({
-        to: booking.user.email,
-        subject: "Booking Reminder - Your booking starts in 1 hour",
-        html: clientHtml,
-      });
+      await emailQueue.add(() =>
+        sendEmail({
+          to: booking.user.email,
+          subject: "Booking Reminder - Your booking starts in 1 hour",
+          html: clientHtml,
+        }),
+      );
 
       // Send reminder to chauffeur if assigned
       if (booking.chauffeur?.email) {
         const chauffeurHtml = await renderBookingReminder(booking, "chauffeur");
-        await sendEmail({
-          to: "dcodesmith@gmail.com", // booking.chauffeur.email,
-          subject: "Booking Reminder - You have a booking starting in 1 hour",
-          html: chauffeurHtml,
-        });
+        await emailQueue.add(() =>
+          sendEmail({
+            to: "dcodesmith@gmail.com", // booking.chauffeur.email,
+            subject: "Booking Reminder - You have a booking starting in 1 hour",
+            html: chauffeurHtml,
+          }),
+        );
       }
     }
 
+    await emailQueue.onIdle();
+
     return `Sent reminders for ${bookings.length} bookings`;
   } catch (error) {
-    console.error("Error sending booking start reminder emails:", error);
+    logger.error("Error sending booking start reminder emails:", error);
     throw error;
   }
 }
@@ -410,26 +436,32 @@ export async function sendBookingEndReminderEmails() {
     for (const booking of bookings) {
       // Send reminder to client
       const clientHtml = await renderBookingReminder(booking, "client", false);
-      await sendEmail({
-        to: booking.user.email,
-        subject: "Booking Reminder - Your booking ends in 1 hour",
-        html: clientHtml,
-      });
+      await emailQueue.add(() =>
+        sendEmail({
+          to: booking.user.email,
+          subject: "Booking Reminder - Your booking ends in 1 hour",
+          html: clientHtml,
+        }),
+      );
 
       // Send reminder to chauffeur if assigned
       if (booking.chauffeur?.email) {
         const chauffeurHtml = await renderBookingReminder(booking, "chauffeur", false);
-        await sendEmail({
-          to: "dcodesmith@gmail.com", // booking.chauffeur.email,
-          subject: "Booking Reminder - You have a booking ending in 1 hour",
-          html: chauffeurHtml,
-        });
+        await emailQueue.add(() =>
+          sendEmail({
+            to: "dcodesmith@gmail.com", // booking.chauffeur.email,
+            subject: "Booking Reminder - You have a booking ending in 1 hour",
+            html: chauffeurHtml,
+          }),
+        );
       }
     }
 
+    await emailQueue.onIdle();
+
     return `Sent reminders for ${bookings.length} bookings`;
   } catch (error) {
-    console.error("Error sending booking end reminder emails:", error);
+    logger.error("Error sending booking end reminder emails:", error);
     throw error;
   }
 }

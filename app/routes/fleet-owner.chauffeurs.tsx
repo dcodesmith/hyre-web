@@ -74,12 +74,18 @@ export async function loader({ request }: LoaderFunctionArgs) {
         },
       },
     },
+    // TODO: if assigned to a booking that is active, then show them as on trip
+    // TODO: if assigned to a booking that starts tomorrow, then show them as assigned
+    // TODO: if not assigned to a booking, cancelled or completed, then show them as available
     include: {
       bookingsAsChauffeur: {
         where: {
           status: {
             notIn: [BookingStatus.CANCELLED, BookingStatus.COMPLETED],
           },
+          // endDate: {
+          //   lte: new Date(new Date().setHours(23, 59, 59, 999)),
+          // },
         },
         take: 1,
         include: {

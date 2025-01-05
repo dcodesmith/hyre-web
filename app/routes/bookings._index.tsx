@@ -1,9 +1,7 @@
 import { ActionFunctionArgs, type LoaderFunctionArgs, json } from "@remix-run/node";
 import {
-  Form,
   Link,
   redirect,
-  useActionData,
   useFetcher,
   useLoaderData,
   useNavigate,
@@ -33,7 +31,6 @@ import {
   renderFleetOwnerBookingNotificationEmail,
 } from "~/modules/email/templates/booking-notification";
 import { cancelBooking, confirmBooking, getBookingsByStatus } from "~/services/bookings.server";
-import { getBooking } from "~/services/bookings.server";
 import { requireUserWithRole } from "~/utils/permissions.server";
 
 export async function action({ request }: ActionFunctionArgs) {
@@ -64,6 +61,15 @@ export async function action({ request }: ActionFunctionArgs) {
 
     invariant(startDate, "From Date is required");
     invariant(endDate, "To Date is required");
+
+    // date validation, date can't be in the past
+    if (new Date(startDate) < new Date()) {
+      return json({ error: "Start date cannot be in the past" }, { status: 400 });
+    }
+
+    if (new Date(endDate) < new Date(startDate)) {
+      return json({ error: "End date cannot be before start date" }, { status: 400 });
+    }
 
     const formData = await request.formData();
 
@@ -104,7 +110,8 @@ export async function action({ request }: ActionFunctionArgs) {
     endDateTime.setMilliseconds(0);
 
     const pickupLocation = `${pickupStreet}, ${pickupLocality}`;
-    const returnLocation = sameLocation ? pickupLocation : `${dropOffStreet}, ${dropOffLocality}`;
+    const returnLocation =
+      sameLocation === "true" ? pickupLocation : `${dropOffStreet}, ${dropOffLocality}`;
 
     try {
       const booking = await confirmBooking({
@@ -156,8 +163,7 @@ export default function BookingsPage() {
   const statuses = ["ACTIVE", "CONFIRMED", "COMPLETED", "CANCELLED"] as const;
   const [showDropoffFields, setShowDropoffFields] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const actionData = useActionData<typeof action>();
-  const editFetcher = useFetcher();
+  const editFetcher = useFetcher<{ success: boolean }>();
 
   useEffect(() => {
     if (editFetcher.data?.success) {
