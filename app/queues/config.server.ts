@@ -90,6 +90,19 @@ if (redisClient instanceof Redis) {
 }
 // Handle Redis connection events
 
+bookingStatusQueue.on("ready", () => {
+  logger.info("Bull queue (booking-status-updates) is ready and connected to Redis!");
+});
+
+bookingStatusQueue
+  .isReady()
+  .then(() => {
+    logger.info("Bull queue is ready!");
+  })
+  .catch((error) => {
+    logger.error("Failed to connect Bull queue to Redis:", error);
+  });
+
 // Handle Bull queue events
 bookingStatusQueue.on("error", (error) => {
   logger.error("Bull queue error:", {
