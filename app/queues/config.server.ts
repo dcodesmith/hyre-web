@@ -140,7 +140,7 @@ bookingStatusQueue.on("error", (error) => {
   logger.error(`Bull queue error: ${errorString}`);
 
   console.error("Redis Connection Details:", {
-    url: process.env.KV_URL ? "KV_URL is set" : "KV_URL is missing",
+    url: process.env.KV_URL ? process.env.KV_URL : "KV_URL is missing",
     error: error.message,
     stack: error.stack,
   });
