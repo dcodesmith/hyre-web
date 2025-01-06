@@ -45,6 +45,7 @@ function createRedisClient() {
       token: process.env.KV_REST_API_TOKEN,
     });
   }
+
   if (!process.env.REDIS_URL) {
     throw new Error("Redis URL is missing in development environment.");
   }
@@ -141,6 +142,7 @@ bookingStatusQueue.on("error", (error) => {
 
   console.error("Redis Connection Details:", {
     url: process.env.KV_URL ? process.env.KV_URL : "KV_URL is missing",
+    env: process.env.NODE_ENV,
     error: error.message,
     stack: error.stack,
   });
