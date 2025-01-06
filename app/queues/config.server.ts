@@ -64,11 +64,6 @@ const bullOptions = {
     stalledInterval: 300000, // 5 minutes
     maxStalledCount: 0,
   },
-  limiter: {
-    // need this because resend API only allows 2 emails to be sent per second
-    max: 2, // No more than 2 jobs
-    duration: 1000, // per 1000 ms (1 second)
-  },
 };
 
 export const bookingStatusQueue = new Bull("booking-status-updates", bullOptions);
