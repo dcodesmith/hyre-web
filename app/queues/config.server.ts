@@ -91,10 +91,10 @@ if (redisClient instanceof Redis) {
 // Handle Redis connection events
 
 // Handle Bull queue events
-bookingStatusQueue.on("error", (error) => {
-  logger.error("Bull queue error:", error.message);
-});
+// bookingStatusQueue.on("error", (error) => {
+//   logger.error("Bull queue error:", error.message);
+// });
 
-bookingStatusQueue.on("waiting", (jobId) => {});
+// bookingStatusQueue.on("waiting", (jobId) => {});
 
 export { Bull };
