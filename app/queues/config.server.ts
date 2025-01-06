@@ -68,17 +68,7 @@ if (process.env.NODE_ENV === "production") {
 }
 
 const bullOptions = {
-  redis: {
-    url: process.env.NODE_ENV === "production" ? process.env.KV_URL : process.env.REDIS_URL,
-    // tls:
-    //   process.env.NODE_ENV === "production"
-    //     ? {
-    //         rejectUnauthorized: false,
-    //       }
-    //     : undefined,
-    maxRetriesPerRequest: 3,
-    // enableReadyCheck: false,
-  },
+  redis: process.env.NODE_ENV === "production" ? process.env.KV_URL : process.env.REDIS_URL,
   defaultJobOptions: {
     removeOnComplete: true,
     attempts: 3,
