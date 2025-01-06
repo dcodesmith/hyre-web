@@ -67,8 +67,30 @@ if (process.env.NODE_ENV === "production") {
     .catch((err) => console.error("Redis connection test error:", err));
 }
 
+const redisUrl =
+  process.env.NODE_ENV === "production"
+    ? process.env.KV_URL // your Upstash 'rediss://' URL
+    : process.env.REDIS_URL; // local or non-Upstash URL
+
 const bullOptions = {
-  redis: process.env.NODE_ENV === "production" ? process.env.KV_URL : process.env.REDIS_URL,
+  // redis: process.env.NODE_ENV === "production" ? process.env.KV_URL : process.env.REDIS_URL,
+
+  redis:
+    process.env.NODE_ENV === "production"
+      ? {
+          url: redisUrl,
+
+          // Upstash-friendly settings
+          maxRetriesPerRequest: null,
+          enableReadyCheck: false,
+
+          // Minimal TLS config for Upstash:
+          tls: {
+            rejectUnauthorized: false,
+          },
+        }
+      : process.env.REDIS_URL,
+
   defaultJobOptions: {
     removeOnComplete: true,
     attempts: 3,
