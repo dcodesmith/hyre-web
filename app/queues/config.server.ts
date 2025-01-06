@@ -55,7 +55,10 @@ function createRedisClient() {
 const redisClient = createRedisClient();
 
 if (process.env.NODE_ENV === "production") {
-  logger.info("Checking Upstash Redis connection...", process.env.KV_URL);
+  logger.info(
+    "Checking Upstash Redis connection...",
+    process.env.KV_URL ? process.env.KV_URL : "No KV URL",
+  );
   const redis = new Redis(process.env.KV_URL!);
   redis
     .ping()
@@ -127,6 +130,7 @@ bookingStatusQueue
 // Handle Bull queue events
 bookingStatusQueue.on("error", (error) => {
   const errorString = JSON.stringify(error, Object.getOwnPropertyNames(error));
+  logger.info("Uptash Redis URL", process.env.KV_URL ? process.env.KV_URL : "No KV URL");
   logger.error(`Bull queue error: ${errorString}`);
 });
 
