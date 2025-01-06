@@ -131,6 +131,7 @@ bookingStatusQueue
 bookingStatusQueue.on("error", (error) => {
   const errorString = JSON.stringify(error, Object.getOwnPropertyNames(error));
   logger.info(`Uptash Redis URL - ${process.env.KV_URL ? process.env.KV_URL : "No KV URL"}`);
+  logger.debug(bullOptions);
   logger.error(`Bull queue error: ${errorString}`);
 });
 
