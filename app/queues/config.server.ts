@@ -72,7 +72,7 @@ const redisUrl =
     ? process.env.KV_URL // your Upstash 'rediss://' URL
     : process.env.REDIS_URL; // local or non-Upstash URL
 
-const bullOptions = {
+const bullOptions: Bull.QueueOptions = {
   // redis: process.env.NODE_ENV === "production" ? process.env.KV_URL : process.env.REDIS_URL,
 
   redis:
@@ -101,7 +101,7 @@ const bullOptions = {
   },
 };
 
-export const bookingStatusQueue = new Bull("booking-status-updates", bullOptions);
+export const bookingStatusQueue = new Bull("booking-status-updates", redisUrl!);
 export const bookingReminderQueue = new Bull("booking-reminder", bullOptions);
 
 // Setup Bull Board (monitoring UI)
