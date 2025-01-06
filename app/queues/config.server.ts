@@ -69,14 +69,14 @@ if (process.env.NODE_ENV === "production") {
 const bullOptions = {
   redis: {
     url: process.env.NODE_ENV === "production" ? process.env.KV_URL : process.env.REDIS_URL,
-    tls:
-      process.env.NODE_ENV === "production"
-        ? {
-            rejectUnauthorized: false,
-          }
-        : undefined,
+    // tls:
+    //   process.env.NODE_ENV === "production"
+    //     ? {
+    //         rejectUnauthorized: false,
+    //       }
+    //     : undefined,
     maxRetriesPerRequest: 3,
-    enableReadyCheck: false,
+    // enableReadyCheck: false,
   },
   defaultJobOptions: {
     removeOnComplete: true,
@@ -138,6 +138,12 @@ bookingStatusQueue.on("error", (error) => {
   const errorString = JSON.stringify(error, Object.getOwnPropertyNames(error));
   logger.info(`Uptash Redis URL - ${process.env.KV_URL ? process.env.KV_URL : "No KV URL"}`);
   logger.error(`Bull queue error: ${errorString}`);
+
+  console.error("Redis Connection Details:", {
+    url: process.env.KV_URL ? "KV_URL is set" : "KV_URL is missing",
+    error: error.message,
+    stack: error.stack,
+  });
 
   setTimeout(async () => {
     try {
