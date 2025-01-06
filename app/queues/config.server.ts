@@ -117,11 +117,8 @@ bookingStatusQueue
 
 // Handle Bull queue events
 bookingStatusQueue.on("error", (error) => {
-  logger.error("Bull queue error:", {
-    ...error,
-    message: error?.message,
-    stack: error?.stack,
-  });
+  const errorString = JSON.stringify(error, Object.getOwnPropertyNames(error));
+  logger.error(`Bull queue error: ${errorString}`);
 });
 
 // bookingStatusQueue.on("waiting", (jobId) => {});
