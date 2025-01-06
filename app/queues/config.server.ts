@@ -88,6 +88,18 @@ if (redisClient instanceof Redis) {
     logger.error("Redis connection error:", error);
   });
 }
+
+if (redisClient instanceof UpstashRedis) {
+  async function checkUpstashConnection() {
+    try {
+      const pong = await redisClient.ping(); // returns "PONG" if successful
+      logger.info("Upstash Redis is working:", pong === "PONG");
+    } catch (error) {
+      logger.error("Error checking Upstash Redis connection:", error);
+    }
+  }
+  checkUpstashConnection();
+}
 // Handle Redis connection events
 
 bookingStatusQueue.on("ready", () => {
