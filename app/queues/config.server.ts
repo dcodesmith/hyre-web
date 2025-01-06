@@ -67,7 +67,17 @@ if (process.env.NODE_ENV === "production") {
 }
 
 const bullOptions = {
-  redis: process.env.NODE_ENV === "production" ? process.env.KV_URL : process.env.REDIS_URL,
+  redis: {
+    url: process.env.NODE_ENV === "production" ? process.env.KV_URL : process.env.REDIS_URL,
+    tls:
+      process.env.NODE_ENV === "production"
+        ? {
+            rejectUnauthorized: false,
+          }
+        : undefined,
+    maxRetriesPerRequest: 3,
+    enableReadyCheck: false,
+  },
   defaultJobOptions: {
     removeOnComplete: true,
     attempts: 3,
@@ -114,10 +124,6 @@ if (redisClient instanceof UpstashRedis) {
 }
 // Handle Redis connection events
 
-bookingStatusQueue.on("ready", () => {
-  logger.info("Bull queue (booking-status-updates) is ready and connected to Redis!");
-});
-
 bookingStatusQueue
   .isReady()
   .then(() => {
@@ -131,10 +137,24 @@ bookingStatusQueue
 bookingStatusQueue.on("error", (error) => {
   const errorString = JSON.stringify(error, Object.getOwnPropertyNames(error));
   logger.info(`Uptash Redis URL - ${process.env.KV_URL ? process.env.KV_URL : "No KV URL"}`);
-  logger.info(JSON.stringify(bullOptions, null, 2));
   logger.error(`Bull queue error: ${errorString}`);
+
+  setTimeout(async () => {
+    try {
+      await bookingStatusQueue.resume();
+      logger.info("Queue reconnected successfully");
+    } catch (reconnectError) {
+      logger.error(`Reconnection failed: ${reconnectError}`);
+    }
+  }, 5000);
 });
 
-// bookingStatusQueue.on("waiting", (jobId) => {});
+bookingStatusQueue.on("ready", () => {
+  logger.info("Bull queue (booking-status-updates) is ready and connected to Redis!");
+});
+
+bookingStatusQueue.on("disconnected", () => {
+  logger.warn("Queue disconnected from Redis");
+});
 
 export { Bull };
