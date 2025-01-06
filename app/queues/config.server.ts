@@ -54,9 +54,9 @@ function createRedisClient() {
 
 const redisClient = createRedisClient();
 
-if (process.env.NODE_ENV === "production" && process.env.KV_URL) {
+if (process.env.NODE_ENV === "production") {
   logger.info("Checking Upstash Redis connection...", process.env.KV_URL);
-  const redis = new Redis(process.env.KV_URL);
+  const redis = new Redis(process.env.KV_URL!);
   redis
     .ping()
     .then((res) => console.log("Ping response:", res))
