@@ -9,41 +9,47 @@ import { bullMQOptions } from "./config.server";
 export const bookingReminderQueue = new Queue("booking-reminder", bullMQOptions);
 
 // Add repeatable jobs
-await bookingReminderQueue.add(
-  "booking-start-reminder",
-  {},
-  {
-    repeat: {
-      pattern: "0 7-11 * * *", // At 7am, 8am, 9am, 10am, and 11am
+async function startBookingReminders() {
+  logger.info("Adding booking reminders to queue");
+
+  await bookingReminderQueue.add(
+    "booking-start-reminder",
+    {},
+    {
+      repeat: {
+        pattern: "0 7-11 * * *", // At 7am, 8am, 9am, 10am, and 11am
+      },
     },
-  },
-);
+  );
 
-await bookingReminderQueue.add(
-  "booking-end-reminder",
-  {},
-  {
-    repeat: {
-      pattern: "0 19-23 * * *", // On the hour between 7:00 pm and 11:00pm
+  await bookingReminderQueue.add(
+    "booking-end-reminder",
+    {},
+    {
+      repeat: {
+        pattern: "0 19-23 * * *", // On the hour between 7:00 pm and 11:00pm
+      },
     },
-  },
-);
+  );
 
-bookingReminderQueue.on("waiting", () => {
-  logger.info("BullMQ queue (booking-reminder) is ready and connected to Redis!");
-});
+  bookingReminderQueue.on("waiting", () => {
+    logger.info("BullMQ queue (booking-reminder) is ready and connected to Redis!");
+  });
 
-bookingReminderQueue.on("removed", () => {
-  logger.warn("Queue disconnected from Redis");
-});
+  bookingReminderQueue.on("removed", () => {
+    logger.warn("Queue disconnected from Redis");
+  });
+}
 
 // Worker to process jobs
 let isWorkerInitialized = false;
 
-export const startBookingReminderWorker = () => {
+export const startBookingReminderWorker = async () => {
   if (isWorkerInitialized) {
     return;
   }
+
+  await startBookingReminders();
 
   const bookingReminderWorker = new Worker(
     "booking-reminder",

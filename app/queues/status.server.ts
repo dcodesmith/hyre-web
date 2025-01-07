@@ -8,42 +8,48 @@ import { bullMQOptions } from "./config.server";
 
 export const statusUpdateQueue = new Queue("status-update", bullMQOptions);
 
-// Add repeatable jobs for status transitions
-await statusUpdateQueue.add(
-  "confirmed-to-active",
-  {},
-  {
-    repeat: {
-      pattern: "0 8-12 * * *", // At minute 0 of every hour from 8 through 12 (8am-12pm)
+async function startStatusUpdates() {
+  logger.info("Adding status updates to queue");
+
+  // Add repeatable jobs for status transitions
+  await statusUpdateQueue.add(
+    "confirmed-to-active",
+    {},
+    {
+      repeat: {
+        pattern: "0 8-12 * * *", // At minute 0 of every hour from 8 through 12 (8am-12pm)
+      },
     },
-  },
-);
+  );
 
-await statusUpdateQueue.add(
-  "active-to-completed",
-  {},
-  {
-    repeat: {
-      pattern: "0 20-23,0 * * *", // At minute 0 of every hour from 20 through 0 (8pm-12am)
+  await statusUpdateQueue.add(
+    "active-to-completed",
+    {},
+    {
+      repeat: {
+        pattern: "0 20-23,0 * * *", // At minute 0 of every hour from 20 through 0 (8pm-12am)
+      },
     },
-  },
-);
+  );
 
-statusUpdateQueue.on("waiting", () => {
-  logger.info("BullMQ queue (status-update) is ready and connected to Redis!");
-});
+  statusUpdateQueue.on("waiting", () => {
+    logger.info("BullMQ queue (status-update) is ready and connected to Redis!");
+  });
 
-statusUpdateQueue.on("removed", () => {
-  logger.warn("Queue disconnected from Redis");
-});
+  statusUpdateQueue.on("removed", () => {
+    logger.warn("Queue disconnected from Redis");
+  });
+}
 
 // Worker to process jobs
 let isWorkerInitialized = false;
 
-export const startStatusUpdateWorker = () => {
+export const startStatusUpdateWorker = async () => {
   if (isWorkerInitialized) {
     return;
   }
+
+  await startStatusUpdates();
 
   const statusUpdateWorker = new Worker(
     "status-update",
