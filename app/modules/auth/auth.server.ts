@@ -7,6 +7,7 @@ import { prisma } from "~/modules/db/db.server";
 import { sendAuthEmail } from "~/modules/email/email.server";
 import { RoleName, userHasRole } from "~/utils/misc";
 import { sessionStorage } from "./session.server";
+import logger from "~/lib/logger.server";
 
 export const authenticator = new Authenticator<User>(sessionStorage, {
   sessionErrorKey: "my-error-key",
@@ -29,6 +30,8 @@ const totpStrategy = new TOTPStrategy(
       }
 
       if (process.env.NODE_ENV === "development") {
+        logger.info(`OTP code: ${code}`);
+
         // Email is not sent for admin users.
         if (email.startsWith("admin") || email.endsWith("@fleetowner.com")) {
           return;

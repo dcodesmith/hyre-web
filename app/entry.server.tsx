@@ -14,6 +14,8 @@ import {
 } from "./queues/bookingStatus.server";
 import { initEnvs } from "./utils/env.server";
 import logger from "./lib/logger.server";
+import { startBookingReminderWorker } from "./queues/reminder.server";
+import { startStatusUpdateWorker } from "./queues/status.server";
 // import express from "express";
 
 // import { serverAdapter } from "./queues/config.server";
@@ -26,25 +28,28 @@ initEnvs();
 
 // app.use("/admin/queues", serverAdapter.getRouter());
 
-scheduleConfirmedToActiveUpdates()
-  .then((job) => logger.info(`Booking status for job ${job.name} scheduled`))
-  .catch((error) =>
-    logger.error("Failed to schedule booking status update from confirmed to active", error),
-  );
+startBookingReminderWorker();
+startStatusUpdateWorker();
 
-scheduleActiveToCompletedUpdates()
-  .then((job) => logger.info(`Booking status for job ${job.name} scheduled`))
-  .catch((error) =>
-    logger.error("Failed to schedule booking status update from active to completed", error),
-  );
+// scheduleConfirmedToActiveUpdates()
+//   .then((job) => logger.info(`Booking status for job ${job.name} scheduled`))
+//   .catch((error) =>
+//     logger.error("Failed to schedule booking status update from confirmed to active", error),
+//   );
 
-scheduleBookingStartReminderEmails()
-  .then((job) => logger.info(`Booking start reminder for job ${job.name} scheduled`))
-  .catch((error) => logger.error("Failed to schedule booking start reminder emails", error));
+// scheduleActiveToCompletedUpdates()
+//   .then((job) => logger.info(`Booking status for job ${job.name} scheduled`))
+//   .catch((error) =>
+//     logger.error("Failed to schedule booking status update from active to completed", error),
+//   );
 
-scheduleBookingEndReminderEmails()
-  .then((job) => logger.info(`Booking end reminder for job ${job.name} scheduled`))
-  .catch((error) => logger.error("Failed to schedule booking end reminder emails", error));
+// scheduleBookingStartReminderEmails()
+//   .then((job) => logger.info(`Booking start reminder for job ${job.name} scheduled`))
+//   .catch((error) => logger.error("Failed to schedule booking start reminder emails", error));
+
+// scheduleBookingEndReminderEmails()
+//   .then((job) => logger.info(`Booking end reminder for job ${job.name} scheduled`))
+//   .catch((error) => logger.error("Failed to schedule booking end reminder emails", error));
 
 // app.once("listening", () => {
 //   console.log("Server is running on port 3000");

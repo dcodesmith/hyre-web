@@ -25,14 +25,24 @@ export async function scheduleConfirmedToActiveUpdates() {
       }
     }
 
-    return addUniqueJob(bookingStatusQueue, "confirmed-to-active", {
-      repeat: {
-        cron: "*/55 7-11 * * *", // Every 55 minute between 7:00 am and 11:59 am
+    await bookingStatusQueue.add(
+      "confirmed-to-active",
+      { userId: 123 },
+      {
+        repeat: {
+          pattern: "*/55 7-11 * * *", // Every 55 minute between 7:00 am and 11:59 am
+        },
       },
-      jobId: "confirmed-to-active",
-      removeOnComplete: true,
-      removeOnFail: true,
-    });
+    );
+
+    // return addUniqueJob(bookingStatusQueue, "confirmed-to-active", {
+    //   repeat: {
+    //     cron: "*/55 7-11 * * *", // Every 55 minute between 7:00 am and 11:59 am
+    //   },
+    //   jobId: "confirmed-to-active",
+    //   removeOnComplete: true,
+    //   removeOnFail: true,
+    // });
   } catch (error) {
     logger.error("Error scheduling booking status updates from confirmed to active:", error);
     throw error;

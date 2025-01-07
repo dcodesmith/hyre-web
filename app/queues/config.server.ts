@@ -2,37 +2,9 @@
 // import { BullAdapter } from "@bull-board/api/bullAdapter";
 // import { ExpressAdapter } from "@bull-board/express";
 import { Redis as UpstashRedis } from "@upstash/redis";
-import Bull from "bull";
+import { Queue, QueueEvents, QueueOptions } from "bullmq";
 import Redis from "ioredis";
 import logger from "~/lib/logger.server";
-
-// Import Redis client based on environment
-// let redisClient;
-
-// if (process.env.NODE_ENV === "development") {
-//   // Use local Redis in development
-//   redisClient = new Redis(process.env.REDIS_URL);
-// } else {
-//   // Use Upstash KV in production
-//   if (
-//     !process.env.UPSTASH_REDIS_REST_URL ||
-//     !process.env.UPSTASH_REDIS_REST_TOKEN
-//   ) {
-//     throw new Error("Upstash Redis credentials are required in production");
-//   }
-
-//   redisClient = new UpstashRedis({
-//     url: process.env.UPSTASH_REDIS_REST_URL,
-//     token: process.env.UPSTASH_REDIS_REST_TOKEN,
-//   });
-// }
-
-// Redis connection configuration
-// const REDIS_URL = process.env.REDIS_URL;
-
-// if (!REDIS_URL) {
-//   throw new Error("REDIS_URL is required");
-// }
 
 function createRedisClient() {
   if (process.env.NODE_ENV === "production") {
@@ -71,20 +43,38 @@ if (process.env.NODE_ENV === "production" && process.env.KV_URL) {
 //   rejectUnauthorized: false,
 // },
 
-const bullOptions: Bull.QueueOptions = {
-  redis: process.env.NODE_ENV === "production" ? process.env.KV_URL : process.env.REDIS_URL,
+// rediss://default:AWTiAAIjcDE0Y2NhMzM2MWQ2N2Y0YjJkOGE4NTE3NzUzNWMyNzRiMnAxMA@pleasant-parakeet-25826.upstash.io:6379"
+export const bullMQOptions: QueueOptions = {
+  connection: {
+    url: process.env.NODE_ENV === "production" ? process.env.KV_URL : process.env.REDIS_URL,
+    tls:
+      process.env.NODE_ENV === "production"
+        ? {
+            rejectUnauthorized: false,
+          }
+        : undefined,
+  },
   defaultJobOptions: {
     removeOnComplete: true,
     attempts: 3,
   },
-  settings: {
-    stalledInterval: 300000, // 5 minutes
-    maxStalledCount: 0,
-  },
 };
 
-export const bookingStatusQueue = new Bull("booking-status-updates", bullOptions);
-export const bookingReminderQueue = new Bull("booking-reminder", bullOptions);
+// export const bookingStatusQueue = new Queue("booking-status-updates", bullMQOptions);
+// export const bookingReminderQueue = new Queue("booking-reminder", bullMQOptions);
+
+// Event listener for queue events
+const queueEvents = new QueueEvents("booking-status-updates", {
+  connection: bullMQOptions.connection,
+});
+
+queueEvents.on("completed", (event) => {
+  logger.info(`Job ${event.jobId} completed successfully`);
+});
+
+queueEvents.on("failed", (event) => {
+  logger.error(`Job ${event.jobId} failed`);
+});
 
 // Setup Bull Board (monitoring UI)
 // export const serverAdapter = new ExpressAdapter();
@@ -119,44 +109,35 @@ if (redisClient instanceof UpstashRedis) {
 }
 // Handle Redis connection events
 
-bookingStatusQueue
-  .isReady()
-  .then(() => {
-    logger.info("Bull queue is ready!");
-  })
-  .catch((error) => {
-    logger.error("Failed to connect Bull queue to Redis:", error);
-  });
+// bookingStatusQueue
+//   .isReady()
+//   .then(() => {
+//     logger.info("Bull queue is ready!");
+//   })
+//   .catch((error) => {
+//     logger.error("Failed to connect Bull queue to Redis:", error);
+//   });
 
 // Handle Bull queue events
-bookingStatusQueue.on("error", (error) => {
-  const errorString = JSON.stringify(error, Object.getOwnPropertyNames(error));
-  logger.info(`Uptash Redis URL - ${process.env.KV_URL ? process.env.KV_URL : "No KV URL"}`);
-  logger.error(`Bull queue error: ${errorString}`);
+// bookingStatusQueue.on("error", (error) => {
+// const errorString = JSON.stringify(error, Object.getOwnPropertyNames(error));
+// logger.info(`Upstash Redis URL - ${process.env.KV_URL ? process.env.KV_URL : "No KV URL"}`);
+// logger.error(`BullMQ queue error: ${errorString}`);
+// console.error("Redis Connection Details:", {
+//   url: process.env.KV_URL ? process.env.KV_URL : "KV_URL is missing",
+//   env: process.env.NODE_ENV,
+//   error: error.message,
+//   stack: error.stack,
+// });
+// });
 
-  console.error("Redis Connection Details:", {
-    url: process.env.KV_URL ? process.env.KV_URL : "KV_URL is missing",
-    env: process.env.NODE_ENV,
-    error: error.message,
-    stack: error.stack,
-  });
+// Changed to use BullMQ's connection events
+// bookingStatusQueue.on("waiting", () => {
+//   logger.info("BullMQ queue (booking-status-updates) is ready and connected to Redis!");
+// });
 
-  setTimeout(async () => {
-    try {
-      await bookingStatusQueue.resume();
-      logger.info("Queue reconnected successfully");
-    } catch (reconnectError) {
-      logger.error(`Reconnection failed: ${reconnectError}`);
-    }
-  }, 5000);
-});
+// bookingStatusQueue.on("removed", () => {
+//   logger.warn("Queue disconnected from Redis");
+// });
 
-bookingStatusQueue.on("ready", () => {
-  logger.info("Bull queue (booking-status-updates) is ready and connected to Redis!");
-});
-
-bookingStatusQueue.on("disconnected", () => {
-  logger.warn("Queue disconnected from Redis");
-});
-
-export { Bull };
+export { Queue };

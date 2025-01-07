@@ -27,7 +27,7 @@ export async function scheduleBookingStartReminderEmails() {
 
     return addUniqueJob(bookingReminderQueue, "booking-start-reminder", {
       repeat: {
-        cron: "0 7-11 * * *", // On the hour between 7:00 am and 11:00am
+        pattern: "0 7-11 * * *", // On the hour between 7:00 am and 11:00am
       },
       jobId: "booking-start-reminder",
       removeOnComplete: true,
@@ -53,7 +53,7 @@ export async function scheduleBookingEndReminderEmails() {
 
     return addUniqueJob(bookingReminderQueue, "booking-end-reminder", {
       repeat: {
-        cron: "0 19-23 * * *", // On the hour between 7:00 pm and 11:00pm
+        pattern: "0 19-23 * * *", // On the hour between 7:00 pm and 11:00pm
       },
       jobId: "booking-end-reminder",
       removeOnComplete: true,

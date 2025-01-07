@@ -1,11 +1,11 @@
-import Bull from "bull";
+import { Queue, Job, JobsOptions } from "bullmq";
 
 type MakeFieldRequired<T, K extends keyof T> = Omit<T, K> & Required<Pick<T, K>>;
 
 export async function addUniqueJob(
-  queue: Bull.Queue,
+  queue: Queue,
   name: string,
-  options: MakeFieldRequired<Bull.JobOptions, "jobId">,
+  options: MakeFieldRequired<JobsOptions, "jobId">,
 ) {
   // Check if a job with this ID already exists
   const existingJob = await queue.getJob(options.jobId);

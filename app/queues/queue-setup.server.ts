@@ -1,5 +1,5 @@
 import logger from "~/lib/logger.server";
-import { bookingReminderQueue, bookingStatusQueue } from "./config.server";
+import { bookingStatusQueue } from "./config.server";
 import {
   sendBookingEndReminderEmails,
   sendBookingStartReminderEmails,
@@ -8,37 +8,37 @@ import {
 } from "~/services/bookings.server";
 
 // Ensure we only register processors one time.
-let isBookingReminderQueueInitialized = false;
+// let isBookingReminderQueueInitialized = false;
 let isBookingStatusQueueInitialized = false;
 
-export function initializeBookingReminderQueue() {
-  if (isBookingReminderQueueInitialized) return;
-  isBookingReminderQueueInitialized = true;
+// export function initializeBookingReminderQueue() {
+//   if (isBookingReminderQueueInitialized) return;
+//   isBookingReminderQueueInitialized = true;
 
-  // Define process handlers
-  bookingReminderQueue.process("booking-start-reminder", async (job) => {
-    logger.info("Starting booking-start-reminder job");
-    await sendBookingStartReminderEmails();
-    logger.info("Completed booking-start-reminder job");
-  });
+//   // Define process handlers
+//   bookingReminderQueue.process("booking-start-reminder", async (job) => {
+//     logger.info("Starting booking-start-reminder job");
+//     await sendBookingStartReminderEmails();
+//     logger.info("Completed booking-start-reminder job");
+//   });
 
-  bookingReminderQueue.process("booking-end-reminder", async (job) => {
-    logger.info("Starting booking-end-reminder job");
-    await sendBookingEndReminderEmails();
-    logger.info("Completed booking-end-reminder job");
-  });
+//   bookingReminderQueue.process("booking-end-reminder", async (job) => {
+//     logger.info("Starting booking-end-reminder job");
+//     await sendBookingEndReminderEmails();
+//     logger.info("Completed booking-end-reminder job");
+//   });
 
-  // Global error/complete handlers
-  bookingReminderQueue.on("completed", (job) => {
-    logger.info(`Job ${job.name} completed successfully`);
-  });
+//   // Global error/complete handlers
+//   bookingReminderQueue.on("completed", (job) => {
+//     logger.info(`Job ${job.name} completed successfully`);
+//   });
 
-  bookingReminderQueue.on("failed", (job, err) => {
-    logger.error(`Job ${job.name} failed:`, err);
-  });
-}
+//   bookingReminderQueue.on("failed", (job, err) => {
+//     logger.error(`Job ${job.name} failed:`, err);
+//   });
+// }
 
-export function initializeBookingStatusQueue() {
+export async function initializeBookingStatusQueue() {
   if (isBookingStatusQueueInitialized) return;
   isBookingStatusQueueInitialized = true;
 
