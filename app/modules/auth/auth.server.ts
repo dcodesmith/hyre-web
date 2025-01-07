@@ -73,6 +73,11 @@ authenticator.use(totpStrategy);
 /**
  * Utilities.
  */
+async function getUserId(request: Request) {
+  const user = await authenticator.isAuthenticated(request);
+  return user?.id;
+}
+
 export async function requireSessionUser(
   request: Request,
   { redirectTo }: { redirectTo?: string | null } = {},
@@ -121,4 +126,26 @@ export async function requireAdmin(request: Request) {
   if (!userHasRole(user, "admin")) {
     throw redirect("/");
   }
+}
+
+/**
+ * Gets the current user from the session without redirecting
+ * Returns null if no user is logged in
+ */
+export async function getSessionUser(request: Request) {
+  const userId = await getUserId(request);
+  if (!userId) return null;
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    include: {
+      roles: {
+        select: {
+          name: true,
+        },
+      },
+    },
+  });
+
+  return user;
 }

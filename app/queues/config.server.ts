@@ -55,42 +55,24 @@ function createRedisClient() {
 
 const redisClient = createRedisClient();
 
-if (process.env.NODE_ENV === "production") {
+if (process.env.NODE_ENV === "production" && process.env.KV_URL) {
   logger.info(
     "Checking Upstash Redis connection...",
     process.env.KV_URL ? process.env.KV_URL : "No KV URL",
   );
-  const redis = new Redis(process.env.KV_URL!);
+  const redis = new Redis(process.env.KV_URL);
   redis
     .ping()
     .then((res) => console.log("Ping response:", res))
     .catch((err) => console.error("Redis connection test error:", err));
 }
 
-const redisUrl =
-  process.env.NODE_ENV === "production"
-    ? process.env.KV_URL // your Upstash 'rediss://' URL
-    : process.env.REDIS_URL; // local or non-Upstash URL
+// tls: {
+//   rejectUnauthorized: false,
+// },
 
 const bullOptions: Bull.QueueOptions = {
-  // redis: process.env.NODE_ENV === "production" ? process.env.KV_URL : process.env.REDIS_URL,
-
-  redis:
-    process.env.NODE_ENV === "production"
-      ? {
-          url: redisUrl,
-
-          // Upstash-friendly settings
-          maxRetriesPerRequest: null,
-          enableReadyCheck: false,
-
-          // Minimal TLS config for Upstash:
-          tls: {
-            rejectUnauthorized: false,
-          },
-        }
-      : process.env.REDIS_URL,
-
+  redis: process.env.NODE_ENV === "production" ? process.env.KV_URL : process.env.REDIS_URL,
   defaultJobOptions: {
     removeOnComplete: true,
     attempts: 3,
@@ -101,7 +83,7 @@ const bullOptions: Bull.QueueOptions = {
   },
 };
 
-export const bookingStatusQueue = new Bull("booking-status-updates", redisUrl!);
+export const bookingStatusQueue = new Bull("booking-status-updates", bullOptions);
 export const bookingReminderQueue = new Bull("booking-reminder", bullOptions);
 
 // Setup Bull Board (monitoring UI)

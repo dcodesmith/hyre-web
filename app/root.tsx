@@ -14,7 +14,7 @@ import {
 import tailwindStyles from "~/tailwind.css?url";
 import { UserNav } from "./components/UserNav";
 import { Toaster } from "./components/ui/toaster";
-import { requireUser } from "./modules/auth/auth.server";
+import { getSessionUser } from "./modules/auth/auth.server";
 
 export const links: LinksFunction = () => [
   ...(cssBundleHref ? [{ rel: "stylesheet", href: cssBundleHref }] : []),
@@ -23,10 +23,7 @@ export const links: LinksFunction = () => [
 ];
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  const user = await requireUser(request);
-
-  // const { toast, headers: toastHeaders } = await getToastSession(request)
-  // const [csrfToken, csrfCookieHeader] = await csrf.commitToken();
+  const user = await getSessionUser(request);
 
   const ENV = {
     APP_NAME: process.env.APP_NAME,

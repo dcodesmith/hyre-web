@@ -19,7 +19,6 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import { useState } from "react";
-// import util from "util";
 import Carousel from "~/components/Carousel";
 import { columns } from "~/components/Table/Columns";
 import { Pagination } from "~/components/Table/Pagination";
