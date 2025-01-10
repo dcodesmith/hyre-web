@@ -16,8 +16,10 @@ import { parseWithZod } from "@conform-to/zod";
 import { getFormProps, getInputProps, useForm } from "@conform-to/react";
 import { z } from "zod";
 
+// FLWPUBK_TEST-02b9b5fc6406bd4a41c3ff141cc45e93-X
+
 const config = {
-  public_key: "FLWPUBK_TEST-02b9b5fc6406bd4a41c3ff141cc45e93-X",
+  public_key: "FLWPUBK_TEST-643bc7a3d329e2cd19277bc263cca008-X",
   tx_ref: "txref-DI0NzMx13",
   currency: "NGN",
   payment_options: "card,mobilemoney,ussd",
@@ -142,7 +144,7 @@ export default function BookingCard({ car, isAvailable }: BookingCardProps) {
 
   const handlePayment = useFlutterwave({
     ...config,
-    amount: 3000,
+    amount: Number(car.price) * calculateTotalDays(),
     customer: {
       email: "dcodesmith@gmail.com",
       phone_number: "070********",

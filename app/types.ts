@@ -9,7 +9,7 @@ export type SerializedCar = Omit<Car, "createdAt" | "updatedAt"> & {
   images: string[];
 };
 
-export type ChauffeurStatus = "ON_TRIP" | "AVAILABLE";
+export type ChauffeurStatus = "ON_TRIP" | "AVAILABLE" | "ASSIGNED";
 
 export type SerializedChauffeur = {
   id: string;

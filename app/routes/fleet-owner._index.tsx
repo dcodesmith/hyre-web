@@ -4,13 +4,12 @@ import { Link, useLoaderData } from "@remix-run/react";
 import { useMemo, useState } from "react";
 import { Bar, BarChart, CartesianGrid, Tooltip, XAxis, YAxis } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from "~/components/ui/chart";
+import { ChartContainer } from "~/components/ui/chart";
 import { ToggleGroup, ToggleGroupItem } from "~/components/ui/toggle-group";
 import { prisma } from "~/modules/db/db.server";
 import { getMonthToDateBookingsValue } from "~/services/bookings.server";
 import { requireUserWithRole } from "~/utils/permissions.server";
 
-// Add this type
 type TimeRange = "week" | "month" | "year";
 
 export async function loader({ request }: LoaderFunctionArgs) {

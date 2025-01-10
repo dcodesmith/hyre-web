@@ -17,7 +17,7 @@ async function startBookingReminders() {
     {},
     {
       repeat: {
-        pattern: "0 7-11 * * *", // At 7am, 8am, 9am, 10am, and 11am
+        pattern: "0 6-11 * * *", // At 6am, 7am, 8am, 9am, 10am, and 11am
       },
     },
   );
@@ -27,7 +27,7 @@ async function startBookingReminders() {
     {},
     {
       repeat: {
-        pattern: "0 19-23 * * *", // On the hour between 7:00 pm and 11:00pm
+        pattern: "0 18-23 * * *", // On the hour between 6:00 pm and 11:00pm
       },
     },
   );

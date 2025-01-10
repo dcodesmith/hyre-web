@@ -17,7 +17,7 @@ async function startStatusUpdates() {
     {},
     {
       repeat: {
-        pattern: "0 8-12 * * *", // At minute 0 of every hour from 8 through 12 (8am-12pm)
+        pattern: "0 7-12 * * *", // At minute 0 of every hour from 7 through 12 (7am-12pm)
       },
     },
   );
@@ -27,7 +27,7 @@ async function startStatusUpdates() {
     {},
     {
       repeat: {
-        pattern: "0 20-23,0 * * *", // At minute 0 of every hour from 20 through 0 (8pm-12am)
+        pattern: "0 19-23,0 * * *", // At minute 0 of every hour from 19 through 0 (7pm-12am)
       },
     },
   );

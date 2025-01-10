@@ -26,10 +26,13 @@ import { Toolbar } from "~/components/Table/Toolbar";
 import { prisma } from "~/modules/db/db.server";
 
 import type { SerializedCar } from "~/types";
+import { requireUserWithRole } from "~/utils/permissions.server";
 
 const blockingStatuses: BookingStatus[] = ["PENDING", "CONFIRMED", "ACTIVE"];
 
 export async function loader({ request }: LoaderFunctionArgs) {
+  await requireUserWithRole(request, "user");
+
   const url = new URL(request.url);
   const from = url.searchParams.get("from");
   const to = url.searchParams.get("to");
@@ -264,17 +267,13 @@ export default function IndexPage() {
       <Toolbar table={table} />
 
       {table.getRowModel().rows.length ? (
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {table.getRowModel().rows.map((row) => (
-            <Link
-              // className="relative"
-              key={row.original.id}
-              to={`/cars/${row.original.id}?${searchParams.toString()}`}
-            >
-              <div className="rounded overflow-hidden hover:shadow-lg transition-shadow">
+            <Link key={row.original.id} to={`/cars/${row.original.id}?${searchParams.toString()}`}>
+              <div className="rounded overflow-hidden hover:shadow-lg transition-shadow space-y-2">
                 <Carousel images={row.original.images.length ? row.original.images : undefined} />
 
-                <div className="p-4 space-y-1">
+                <div className="space-y-1">
                   <h2 className="font-semibold">
                     {row.original.make} {row.original.model} ({row.original.year})
                   </h2>

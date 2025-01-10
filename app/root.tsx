@@ -7,6 +7,7 @@ import {
   Outlet,
   Scripts,
   ScrollRestoration,
+  isRouteErrorResponse,
   json,
   useLoaderData,
   useRouteError,
@@ -15,6 +16,7 @@ import tailwindStyles from "~/tailwind.css?url";
 import { UserNav } from "./components/UserNav";
 import { Toaster } from "./components/ui/toaster";
 import { getSessionUser } from "./modules/auth/auth.server";
+import Forbidden from "./components/Forbidden";
 
 export const links: LinksFunction = () => [
   ...(cssBundleHref ? [{ rel: "stylesheet", href: cssBundleHref }] : []),
@@ -84,6 +86,10 @@ export default function App() {
 export function ErrorBoundary() {
   const error = useRouteError();
 
+  if (isRouteErrorResponse(error) && error.status === 403) {
+    return <Forbidden />;
+  }
+
   return (
     <html lang="en">
       <head>
@@ -97,7 +103,10 @@ export function ErrorBoundary() {
             <Link to="/">&laquo; Back to Home</Link>
           </div>
           <div className="flex items-center justify-center">
-            <p className="text-4xl font-bold">Yawa dey o!</p>
+            <p className="text-4xl font-bold">Something went wrong!</p>
+            <p className="text-2xl font-bold">
+              {error.status} - {error.statusText}
+            </p>
           </div>
         </main>
         <Scripts />

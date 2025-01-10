@@ -55,11 +55,13 @@ const chauffeurSchema = z.object({
 const statusColors: Record<ChauffeurStatus, string> = {
   ON_TRIP: "bg-blue-50 ring-blue-600/10 text-blue-600",
   AVAILABLE: "bg-green-50 ring-green-600/10 text-green-600",
+  ASSIGNED: "bg-yellow-50 ring-yellow-600/10 text-yellow-600",
 };
 
 const chauffeurStatusOptions: Record<ChauffeurStatus, string> = {
   ON_TRIP: "On Trip",
   AVAILABLE: "Available",
+  ASSIGNED: "Assigned",
 };
 
 export async function loader({ request }: LoaderFunctionArgs) {
@@ -108,7 +110,29 @@ export async function loader({ request }: LoaderFunctionArgs) {
     email: chauffeur.email,
     address: chauffeur.address ?? "No address",
     phoneNumber: chauffeur.phoneNumber ?? "No phone number",
-    status: chauffeur.bookingsAsChauffeur.length > 0 ? "ON_TRIP" : "AVAILABLE",
+    status: (() => {
+      const [booking] = chauffeur.bookingsAsChauffeur;
+
+      if (!booking) {
+        return "AVAILABLE";
+      }
+
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      tomorrow.setHours(0, 0, 0, 0);
+
+      const bookingStart = new Date(booking.startDate);
+
+      if (booking.status === "ACTIVE") {
+        return "ON_TRIP";
+      }
+
+      if (bookingStart >= tomorrow) {
+        return "ASSIGNED";
+      }
+
+      return "AVAILABLE";
+    })(),
     assignedCar: chauffeur.bookingsAsChauffeur[0]?.car
       ? {
           make: chauffeur.bookingsAsChauffeur[0]?.car.make,
