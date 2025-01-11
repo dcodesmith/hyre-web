@@ -31,8 +31,6 @@ import { requireUserWithRole } from "~/utils/permissions.server";
 const blockingStatuses: BookingStatus[] = ["PENDING", "CONFIRMED", "ACTIVE"];
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  await requireUserWithRole(request, "user");
-
   const url = new URL(request.url);
   const from = url.searchParams.get("from");
   const to = url.searchParams.get("to");
