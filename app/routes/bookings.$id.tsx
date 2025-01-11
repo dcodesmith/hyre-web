@@ -103,7 +103,6 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
       return json({ success: true, booking });
     } catch (error) {
-      console.error(error);
       return json({ error: "Failed to update booking" }, { status: 500 });
     }
   }
@@ -111,6 +110,27 @@ export async function action({ request, params }: ActionFunctionArgs) {
   if (request.method === "DELETE") {
     try {
       const booking = await cancelBooking(params.id, "User requested cancellation");
+
+      const options = {
+        method: "POST",
+        headers: {
+          accept: "application/json",
+          Authorization: `Bearer ${process.env.FLUTTERWAVE_SECRET_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          amount: booking.totalAmount,
+          comments: "Refund from booking cancellation",
+          callbackurl: "https://webhook.site/5f9a659a-11a2-4925-89cf-8a59ea6a019a", // Implement webhook endpoint for refund
+        }),
+      };
+
+      const response = await fetch(
+        `https://api.flutterwave.com/v3/transactions/${booking.paymentId}/refund`,
+        options,
+      );
+
+      console.log(await response.json());
 
       await Promise.all([
         sendEmail({
@@ -128,7 +148,6 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
       return json({ success: true });
     } catch (error) {
-      console.error(error);
       return json({ error: "Failed to delete car" }, { status: 500 });
     }
   }
