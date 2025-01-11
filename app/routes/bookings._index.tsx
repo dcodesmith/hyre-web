@@ -34,9 +34,7 @@ import { cancelBooking, confirmBooking, getBookingsByStatus } from "~/services/b
 import { requireUserWithRole } from "~/utils/permissions.server";
 
 export async function action({ request }: ActionFunctionArgs) {
-  const user = await requireUser(request, {
-    redirectTo: "/auth?redirectTo=/bookings",
-  });
+  const user = await requireUserWithRole(request, "user");
 
   if (request.method === "DELETE") {
     const formData = await request.formData();

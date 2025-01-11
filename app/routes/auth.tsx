@@ -7,7 +7,9 @@ import {
   Outlet,
   // useActionData,
   useLoaderData,
+  useLocation,
   useNavigate,
+  useSearchParams,
 } from "@remix-run/react";
 import { AuthorizationError } from "remix-auth";
 import { z } from "zod";
@@ -66,7 +68,9 @@ export async function action({ request }: ActionFunctionArgs) {
 
   try {
     return await authenticator.authenticate("TOTP", request, {
-      successRedirect: redirectTo ? `/verify?redirectTo=${redirectTo}` : `/verify?role=${role}`,
+      successRedirect: redirectTo
+        ? `/verify?redirectTo=${encodeURIComponent(redirectTo)}`
+        : `/verify?role=${role}`,
       failureRedirect: pathname,
       context: { intent: "login", role },
     });
@@ -101,13 +105,21 @@ const userTypeOptions = {
 };
 
 export default function Login() {
-  // const actionResult = useActionData<typeof action>();
   const { authEmail, authError } = useLoaderData<typeof loader>();
   const navigate = useNavigate();
-
+  const [searchParams] = useSearchParams();
   const isPending = useIsPending();
 
+  const redirectToUrl = searchParams.get("redirectTo");
+
+  const roleFromRedirect = redirectToUrl
+    ? new URL(redirectToUrl, "http://dummy.com").searchParams.get("role")
+    : null;
+
   const [form, { email, role }] = useForm({
+    defaultValue: {
+      role: roleFromRedirect || "user",
+    },
     constraint: getZodConstraint(LoginSchema),
     onValidate({ formData }) {
       return parseWithZod(formData, { schema: LoginSchema });
@@ -141,6 +153,7 @@ export default function Login() {
                       [role.name]: value,
                     });
                   }}
+                  defaultValue={searchParams.get("role") || role.value}
                   className="grid grid-cols-2"
                   name={role.name}
                 >

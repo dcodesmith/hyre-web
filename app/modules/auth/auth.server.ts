@@ -49,9 +49,12 @@ const totpStrategy = new TOTPStrategy(
   },
   async ({ email, request }) => {
     const url = new URL(request.url);
-    const role = url.searchParams.get("role");
+    const redirectToUrl = url.searchParams.get("redirectTo");
+    const role = redirectToUrl
+      ? new URL(redirectToUrl, "http://dummy.com").searchParams.get("role")
+      : url.searchParams.get("role");
 
-    invariant(role, "Auth:Role is required");
+    invariant(role, "role is required");
 
     let user = await prisma.user.findUnique({
       where: { email },

@@ -3,7 +3,7 @@ import { Link, redirect, useLoaderData, useSearchParams } from "@remix-run/react
 import invariant from "tiny-invariant";
 import BookingCard from "~/components/BookingCard";
 import CarCarousel from "~/components/Carousel";
-import { requireUser } from "~/modules/auth/auth.server";
+import { getSessionUser, requireUser } from "~/modules/auth/auth.server";
 import { prisma } from "~/modules/db/db.server";
 import { isCarAvailable } from "~/services/cars.server";
 
@@ -14,6 +14,8 @@ export async function action({ request, params }: ActionFunctionArgs) {
 }
 
 export const loader = async ({ request, params }: LoaderFunctionArgs) => {
+  const user = await getSessionUser(request);
+
   invariant(params.id, "Car ID is required");
   const carId = params.id;
   const url = new URL(request.url);
@@ -49,13 +51,11 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
     throw redirect("/");
   }
 
-  // console.log(util.inspect(car, { depth: null, colors: true, compact: false }));
-
-  return json({ car, isAvailable });
+  return json({ car, isAvailable, user });
 };
 
 export default function CarDetails() {
-  const { car, isAvailable } = useLoaderData<typeof loader>();
+  const { car, isAvailable, user } = useLoaderData<typeof loader>();
   const [searchParams] = useSearchParams();
 
   const carWithDates = {
@@ -137,7 +137,7 @@ export default function CarDetails() {
         </div>
 
         <div className="order-2 lg:order-3">
-          <BookingCard car={carWithDates} isAvailable={isAvailable} />
+          <BookingCard car={carWithDates} isAvailable={isAvailable} user={user} />
         </div>
       </div>
     </div>

@@ -50,13 +50,17 @@ export async function loader({ request }: LoaderFunctionArgs) {
 export async function action({ request }: ActionFunctionArgs) {
   const url = new URL(request.url);
   const currentPath = url.pathname;
-  // const redirectTo = url.searchParams.get("redirectTo");
-  const role = url.searchParams.get("role");
+  const redirectTo = url.searchParams.get("redirectTo");
+  let role = url.searchParams.get("role");
+
+  if (redirectTo) {
+    role = new URL(redirectTo, "http://dummy.com").searchParams.get("role");
+  }
 
   let user: User | null = null;
 
   try {
-    const successRedirect = role === "fleetOwner" ? "/fleet-owner" : "/";
+    const successRedirect = role === "fleetOwner" ? "/fleet-owner" : redirectTo ? redirectTo : "/";
 
     user = await authenticator.authenticate("TOTP", request, {
       successRedirect,

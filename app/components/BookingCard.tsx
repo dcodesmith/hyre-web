@@ -1,6 +1,6 @@
-import { Car } from "@prisma/client";
+import { Car, User } from "@prisma/client";
 import { CheckedState } from "@radix-ui/react-checkbox";
-import { Form, useSearchParams, useSubmit } from "@remix-run/react";
+import { Form, useSearchParams, useSubmit, useNavigate } from "@remix-run/react";
 import { closePaymentModal, useFlutterwave } from "flutterwave-react-v3";
 import { useCallback, useState } from "react";
 import { DateRange } from "react-day-picker";
@@ -15,22 +15,44 @@ import { Label } from "./ui/label";
 import { parseWithZod } from "@conform-to/zod";
 import { getFormProps, getInputProps, useForm } from "@conform-to/react";
 import { z } from "zod";
+import { userHasRole, useUser } from "~/utils/misc";
 
 // FLWPUBK_TEST-02b9b5fc6406bd4a41c3ff141cc45e93-X
 
-const config = {
+type FlutterwaveConfig = {
+  public_key: string;
+  tx_ref: string;
+  amount: number;
+  currency: string;
+  payment_options: string;
+  customer: {
+    email: string;
+    phone_number: string;
+    name: string;
+  };
+  customizations: {
+    title: string;
+    description: string;
+    logo: string;
+  };
+};
+
+const config: Omit<FlutterwaveConfig, "amount" | "customer"> = {
   public_key: "FLWPUBK_TEST-643bc7a3d329e2cd19277bc263cca008-X",
   tx_ref: "txref-DI0NzMx13",
   currency: "NGN",
   payment_options: "card,mobilemoney,ussd",
   customizations: {
-    logo: "https://st2.depositphotos.com/4403291/7418/v/450/depositphotos_74189661-stock-illustration-online-shop-log.jpg",
+    title: "Booking Payment",
+    description: "Payment for Booking",
+    logo: "https://picsum.photos/seed/car-rental/800/600",
   },
 };
 
 type BookingCardProps = {
   car: Car;
   isAvailable: boolean;
+  user: User & { roles: { name: string }[] };
 };
 
 const bookingSelectedSchema = z.object({
@@ -80,7 +102,10 @@ const bookingSchema = z.discriminatedUnion("sameLocation", [
   bookingUnselectedSchema,
 ]);
 
-export default function BookingCard({ car, isAvailable }: BookingCardProps) {
+const errorRingClasses = "border-red-500 focus-visible:ring-red-500 focus-visible:ring-2";
+
+export default function BookingCard({ car, isAvailable, user }: BookingCardProps) {
+  const navigate = useNavigate();
   const [sameLoc, setSameLocation] = useState<CheckedState>(true);
   const [searchParams, setSearchParams] = useSearchParams();
   const fromParam = searchParams.get("from");
@@ -99,6 +124,12 @@ export default function BookingCard({ car, isAvailable }: BookingCardProps) {
   ] = useForm({
     shouldValidate: "onSubmit",
     shouldRevalidate: "onBlur",
+    defaultValue: {
+      pickupTime: searchParams.get("pickupTime") || undefined,
+      pickupStreet: searchParams.get("pickupStreet") || undefined,
+      pickupLocality: searchParams.get("pickupLocality") || undefined,
+      sameLocation: searchParams.get("sameLocation") || "true",
+    },
     onSubmit(event) {
       onMakePayment(event);
     },
@@ -106,8 +137,6 @@ export default function BookingCard({ car, isAvailable }: BookingCardProps) {
       return parseWithZod(formData, { schema: bookingSchema });
     },
   });
-
-  const errorRingClasses = "border-red-500 focus-visible:ring-red-500 focus-visible:ring-2";
 
   const onDateChange = (dateRange: DateRange) => {
     setDateRange(dateRange);
@@ -120,7 +149,7 @@ export default function BookingCard({ car, isAvailable }: BookingCardProps) {
       });
 
       // Use replace option to prevent adding to history stack and avoid scroll reset
-      setSearchParams(params, { replace: true });
+      // setSearchParams(params, { replace: true });
       setSearchParams(params);
     }
   };
@@ -164,6 +193,29 @@ export default function BookingCard({ car, isAvailable }: BookingCardProps) {
 
       const formData = new FormData(event.currentTarget as HTMLFormElement);
 
+      const pickupTime = String(formData.get("pickupTime"));
+      const pickupStreet = String(formData.get("pickupStreet"));
+      const pickupLocality = String(formData.get("pickupLocality"));
+      const sameLocation = String(formData.get("sameLocation"));
+
+      if (sameLocation === "true") {
+        searchParams.set("dropOffStreet", pickupStreet);
+        searchParams.set("dropOffLocality", pickupLocality);
+      }
+
+      searchParams.set("role", "user");
+      searchParams.set("pickupTime", pickupTime);
+      searchParams.set("pickupStreet", pickupStreet);
+      searchParams.set("pickupLocality", pickupLocality);
+      searchParams.set("sameLocation", sameLocation);
+
+      const searchString = searchParams.toString();
+
+      if (!user) {
+        const redirectTo = `/cars/${car.id}${searchString ? `?${searchString}` : ""}`;
+        return navigate(`/auth?redirectTo=${encodeURIComponent(redirectTo)}`);
+      }
+
       handlePayment({
         callback: ({ transaction_id: transactionId, status }) => {
           formData.set("paymentId", String(transactionId));
@@ -173,6 +225,7 @@ export default function BookingCard({ car, isAvailable }: BookingCardProps) {
             method: "POST",
             action: `/bookings?${searchParams.toString()}`,
           });
+
           setTimeout(() => {
             closePaymentModal();
           }, 1500);
@@ -180,7 +233,7 @@ export default function BookingCard({ car, isAvailable }: BookingCardProps) {
         onClose: () => closePaymentModal(),
       });
     },
-    [handlePayment, searchParams, submit],
+    [handlePayment, searchParams, submit, navigate, user, car],
   );
 
   return (
@@ -308,9 +361,11 @@ export default function BookingCard({ car, isAvailable }: BookingCardProps) {
                 </div>
               </div>
 
-              <Button type="submit" className="rounded">
-                {isPending ? "Submitting..." : "Book Now"}
-              </Button>
+              {(!user || user.roles.some((role) => role.name === "user")) && (
+                <Button type="submit" className="rounded">
+                  {isPending ? "Submitting..." : "Book Now"}
+                </Button>
+              )}
             </>
           )}
         </CardFooter>
