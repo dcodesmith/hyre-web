@@ -174,10 +174,10 @@ export default function BookingsPage() {
       <h2 className="text-2xl font-bold mb-4">Your Bookings</h2>
 
       <Tabs defaultValue={status} className="w-full">
-        <TabsList className="flex overflow-x-auto justify-evenly">
+        <TabsList className="flex overflow-x-auto bg-white justify-start space-x-4 p-0">
           {statuses.map((status) => (
             <TabsTrigger
-              className="whitespace-nowrap w-full gap-1 antialiased"
+              className="whitespace-nowrap gap-1 antialiased rounded-full border data-[state=active]:border-primary data-[state=active]:border-1"
               key={status}
               value={status}
               onClick={() => {
@@ -194,7 +194,7 @@ export default function BookingsPage() {
           <TabsContent key={status} value={status}>
             <div className="flex flex-col gap-2">
               {bookings[status]?.map((booking) => (
-                <div key={booking.id} className="border flex justify-between p-2 rounded">
+                <div key={booking.id} className="flex justify-between p-2">
                   <div className="flex items-center gap-4">
                     <img
                       src={booking.car.images[0]}
