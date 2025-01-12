@@ -15,7 +15,6 @@ import { Label } from "./ui/label";
 import { parseWithZod } from "@conform-to/zod";
 import { getFormProps, getInputProps, useForm } from "@conform-to/react";
 import { z } from "zod";
-import { userHasRole, useUser } from "~/utils/misc";
 
 // FLWPUBK_TEST-02b9b5fc6406bd4a41c3ff141cc45e93-X
 
@@ -290,12 +289,8 @@ export default function BookingCard({ car, isAvailable, user }: BookingCardProps
               </div>
 
               <div className="space-y-1">
+                <input type="hidden" name={sameLocation.name} value={sameLoc ? "true" : "false"} />
                 <div className="flex items-center space-x-2">
-                  <input
-                    type="hidden"
-                    name={sameLocation.name}
-                    value={sameLoc ? "true" : "false"}
-                  />
                   <Checkbox
                     id={sameLocation.id}
                     checked={sameLoc}
@@ -351,22 +346,42 @@ export default function BookingCard({ car, isAvailable, user }: BookingCardProps
           )}
 
           {dateRange.from && dateRange.to && isAvailable && (
-            <>
-              <div className="w-full text-left">
-                <div className="text-sm text-gray-600">
-                  {calculateTotalDays()} days x {formatCurrency(Number(car.price))}
-                </div>
-                <div className="text-md font-bold">
-                  Total: {formatCurrency(Number(car.price) * calculateTotalDays())}
-                </div>
+            <div className="flex flex-col w-full space-y-4">
+              <div className="w-full">
+                <dl className="space-y-2">
+                  <div className="flex justify-between">
+                    <dt className="text-sm text-gray-600">
+                      {formatCurrency(Number(car.price))} x {calculateTotalDays()} days
+                    </dt>
+                    <dd className="text-sm text-gray-600">
+                      {formatCurrency(Number(car.price) * calculateTotalDays())}
+                    </dd>
+                  </div>
+
+                  <div className="flex justify-between mb-4">
+                    <dt className="text-sm text-gray-600">VAT (7.5%)</dt>
+                    <dd className="text-sm text-gray-600">
+                      {formatCurrency(Number(car.price) * calculateTotalDays() * 0.075)}
+                    </dd>
+                  </div>
+
+                  <hr className="border-t border-gray-200" />
+
+                  <div className="flex justify-between mt-4">
+                    <dt className="text-md font-bold">Total</dt>
+                    <dd className="text-md font-bold">
+                      {formatCurrency(Number(car.price) * calculateTotalDays() * 1.075)}
+                    </dd>
+                  </div>
+                </dl>
               </div>
 
               {(!user || user.roles.some((role) => role.name === "user")) && (
-                <Button type="submit" className="rounded">
+                <Button type="submit" className="rounded mr-auto w-full">
                   {isPending ? "Submitting..." : "Book Now"}
                 </Button>
               )}
-            </>
+            </div>
           )}
         </CardFooter>
       </Card>
