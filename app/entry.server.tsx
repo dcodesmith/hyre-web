@@ -4,6 +4,7 @@ import { createReadableStreamFromReadable } from "@remix-run/node";
 import { RemixServer } from "@remix-run/react";
 import { isbot } from "isbot";
 import { renderToPipeableStream } from "react-dom/server";
+import logger from "./lib/logger.server";
 import {
   scheduleBookingEndReminderEmails,
   scheduleBookingStartReminderEmails,
@@ -12,10 +13,9 @@ import {
   scheduleActiveToCompletedUpdates,
   scheduleConfirmedToActiveUpdates,
 } from "./queues/bookingStatus.server";
-import { initEnvs } from "./utils/env.server";
-import logger from "./lib/logger.server";
 import { startBookingReminderWorker } from "./queues/reminder.server";
 import { startStatusUpdateWorker } from "./queues/status.server";
+import { initEnvs } from "./utils/env.server";
 // import express from "express";
 
 // import { serverAdapter } from "./queues/config.server";

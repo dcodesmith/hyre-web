@@ -3,11 +3,11 @@ import { redirect } from "@remix-run/node";
 import { Authenticator } from "remix-auth";
 import { TOTPStrategy } from "remix-auth-totp";
 import invariant from "tiny-invariant";
+import logger from "~/lib/logger.server";
 import { prisma } from "~/modules/db/db.server";
 import { sendAuthEmail } from "~/modules/email/email.server";
 import { RoleName, userHasRole } from "~/utils/misc";
 import { sessionStorage } from "./session.server";
-import logger from "~/lib/logger.server";
 
 export const authenticator = new Authenticator<User>(sessionStorage, {
   sessionErrorKey: "my-error-key",

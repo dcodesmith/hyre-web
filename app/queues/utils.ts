@@ -1,4 +1,4 @@
-import { Queue, Job, JobsOptions } from "bullmq";
+import { Job, JobsOptions, Queue } from "bullmq";
 
 type MakeFieldRequired<T, K extends keyof T> = Omit<T, K> & Required<Pick<T, K>>;
 

@@ -1,7 +1,7 @@
-import { bookingReminderQueue } from "./config.server";
-import { addUniqueJob } from "./utils";
-import { initializeBookingReminderQueue } from "./queue-setup.server";
 import logger from "~/lib/logger.server";
+import { bookingReminderQueue } from "./config.server";
+import { initializeBookingReminderQueue } from "./queue-setup.server";
+import { addUniqueJob } from "./utils";
 
 let isInitialized = false;
 

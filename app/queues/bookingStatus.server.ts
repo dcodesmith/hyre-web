@@ -1,7 +1,7 @@
-import { bookingStatusQueue } from "./config.server";
-import { addUniqueJob } from "./utils";
-import { initializeBookingStatusQueue } from "./queue-setup.server";
 import logger from "~/lib/logger.server";
+import { bookingStatusQueue } from "./config.server";
+import { initializeBookingStatusQueue } from "./queue-setup.server";
+import { addUniqueJob } from "./utils";
 
 let isInitialized = false;
 

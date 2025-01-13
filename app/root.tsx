@@ -13,10 +13,10 @@ import {
   useRouteError,
 } from "@remix-run/react";
 import tailwindStyles from "~/tailwind.css?url";
+import Forbidden from "./components/Forbidden";
 import { UserNav } from "./components/UserNav";
 import { Toaster } from "./components/ui/toaster";
 import { getSessionUser } from "./modules/auth/auth.server";
-import Forbidden from "./components/Forbidden";
 
 export const links: LinksFunction = () => [
   ...(cssBundleHref ? [{ rel: "stylesheet", href: cssBundleHref }] : []),

@@ -1,9 +1,12 @@
+import { getFormProps, getInputProps, useForm } from "@conform-to/react";
+import { parseWithZod } from "@conform-to/zod";
 import { Car, User } from "@prisma/client";
 import { CheckedState } from "@radix-ui/react-checkbox";
-import { Form, useSearchParams, useSubmit, useNavigate } from "@remix-run/react";
+import { Form, useNavigate, useSearchParams, useSubmit } from "@remix-run/react";
 import { closePaymentModal, useFlutterwave } from "flutterwave-react-v3";
 import { useCallback, useState } from "react";
 import { DateRange } from "react-day-picker";
+import { z } from "zod";
 import { formatCurrency, useIsPending } from "~/lib/utils";
 import { BookingTimeSelect } from "./BookingTimeSelect";
 import { DateRangePicker } from "./DateRangePicker";
@@ -12,9 +15,6 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "./ui/card"
 import { Checkbox } from "./ui/checkbox";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
-import { parseWithZod } from "@conform-to/zod";
-import { getFormProps, getInputProps, useForm } from "@conform-to/react";
-import { z } from "zod";
 
 // FLWPUBK_TEST-02b9b5fc6406bd4a41c3ff141cc45e93-X
 

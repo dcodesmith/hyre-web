@@ -1,11 +1,11 @@
 import logger from "~/lib/logger.server";
-import { bookingStatusQueue } from "./config.server";
 import {
   sendBookingEndReminderEmails,
   sendBookingStartReminderEmails,
   updateBookingsFromActiveToCompleted,
   updateBookingsFromConfirmedToActive,
 } from "~/services/bookings.server";
+import { bookingStatusQueue } from "./config.server";
 
 // Ensure we only register processors one time.
 // let isBookingReminderQueueInitialized = false;
