@@ -225,8 +225,6 @@ export default function IndexPage() {
         sorting,
       });
 
-      //setSearchParams(params);
-
       setSearchParams((prev) => {
         const existingParams = new URLSearchParams(prev);
         const newParams = new URLSearchParams(params);
@@ -268,7 +266,7 @@ export default function IndexPage() {
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {table.getRowModel().rows.map((row) => (
             <Link key={row.original.id} to={`/cars/${row.original.id}?${searchParams.toString()}`}>
-              <div className="rounded overflow-hidden hover:shadow-lg transition-shadow space-y-2">
+              <div className="rounded overflow-hidden space-y-2">
                 <Carousel images={row.original.images.length ? row.original.images : undefined} />
 
                 <div className="space-y-1">

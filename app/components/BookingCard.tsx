@@ -70,6 +70,7 @@ const bookingSelectedSchema = z.object({
       required_error: "Pickup locality is required",
     })
     .min(3, "Pickup locality must be at least 3 characters"),
+  email: z.string().email("Invalid email address").optional(),
 });
 
 const bookingUnselectedSchema = z.object({
@@ -94,6 +95,7 @@ const bookingUnselectedSchema = z.object({
   dropOffLocality: z.string({
     required_error: "Drop-off locality is required",
   }),
+  email: z.string().email("Invalid email address").optional(),
 });
 
 const bookingSchema = z.discriminatedUnion("sameLocation", [
@@ -106,6 +108,7 @@ const errorRingClasses = "border-red-500 focus-visible:ring-red-500 focus-visibl
 export default function BookingCard({ car, isAvailable, user }: BookingCardProps) {
   const navigate = useNavigate();
   const [sameLoc, setSameLocation] = useState<CheckedState>(true);
+  const [isGuestBooking, setIsGuestBooking] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
   const fromParam = searchParams.get("from");
   const toParam = searchParams.get("to");
@@ -119,7 +122,15 @@ export default function BookingCard({ car, isAvailable, user }: BookingCardProps
 
   const [
     form,
-    { pickupTime, pickupStreet, pickupLocality, sameLocation, dropOffStreet, dropOffLocality },
+    {
+      pickupTime,
+      pickupStreet,
+      pickupLocality,
+      sameLocation,
+      dropOffStreet,
+      dropOffLocality,
+      email,
+    },
   ] = useForm({
     shouldValidate: "onSubmit",
     shouldRevalidate: "onBlur",
@@ -133,7 +144,29 @@ export default function BookingCard({ car, isAvailable, user }: BookingCardProps
       onMakePayment(event);
     },
     onValidate({ formData }) {
-      return parseWithZod(formData, { schema: bookingSchema });
+      // Create a custom schema based on isGuestBooking
+      const schema = z.discriminatedUnion("sameLocation", [
+        isGuestBooking
+          ? bookingSelectedSchema.extend({
+              email: z
+                .string({
+                  required_error: "Email is required for guest booking",
+                })
+                .email("Invalid email address"),
+            })
+          : bookingSelectedSchema,
+        isGuestBooking
+          ? bookingUnselectedSchema.extend({
+              email: z
+                .string({
+                  required_error: "Email is required for guest booking",
+                })
+                .email("Invalid email address"),
+            })
+          : bookingUnselectedSchema,
+      ]);
+
+      return parseWithZod(formData, { schema });
     },
   });
 
@@ -172,9 +205,9 @@ export default function BookingCard({ car, isAvailable, user }: BookingCardProps
 
   const handlePayment = useFlutterwave({
     ...config,
-    amount: Number(car.price) * calculateTotalDays(),
+    amount: Number(car.price) * calculateTotalDays() * 1.075,
     customer: {
-      email: "dcodesmith@gmail.com",
+      email: email.value || "dcodesmith@gmail.com",
       phone_number: "070********",
       name: "Afees Adedamola Kolawole",
     },
@@ -187,10 +220,14 @@ export default function BookingCard({ car, isAvailable, user }: BookingCardProps
   });
 
   const onMakePayment = useCallback(
-    async (event: React.FormEvent) => {
+    async (event: React.FormEvent<HTMLFormElement>) => {
       event.preventDefault();
 
-      const formData = new FormData(event.currentTarget as HTMLFormElement);
+      const formElement = event.currentTarget as HTMLFormElement;
+      const bookingType = formElement.getAttribute("data-booking-type");
+      const isGuestBooking = bookingType === "guest";
+
+      const formData = new FormData(formElement);
 
       const pickupTime = String(formData.get("pickupTime"));
       const pickupStreet = String(formData.get("pickupStreet"));
@@ -210,7 +247,8 @@ export default function BookingCard({ car, isAvailable, user }: BookingCardProps
 
       const searchString = searchParams.toString();
 
-      if (!user) {
+      // Only redirect to auth if not booking as guest
+      if (!isGuestBooking && !user) {
         const redirectTo = `/cars/${car.id}${searchString ? `?${searchString}` : ""}`;
         return navigate(`/auth?redirectTo=${encodeURIComponent(redirectTo)}`);
       }
@@ -240,10 +278,17 @@ export default function BookingCard({ car, isAvailable, user }: BookingCardProps
       <input type="hidden" name="carId" value={car.id} />
       <Card className="rounded sticky top-4">
         <CardHeader>
-          <CardTitle className="text-lg">
-            {dateRange.from && dateRange.to
-              ? formatCurrency(Number(car.price))
-              : "Select dates to check availability"}
+          <CardTitle>
+            <span className="text-lg">
+              {dateRange.from && dateRange.to ? (
+                <>
+                  {formatCurrency(Number(car.price))}
+                  <span className="text-sm text-gray-500"> per day</span>
+                </>
+              ) : (
+                "Select dates to check availability"
+              )}
+            </span>
           </CardTitle>
         </CardHeader>
 
@@ -334,6 +379,17 @@ export default function BookingCard({ car, isAvailable, user }: BookingCardProps
                   </div>
                 </>
               )}
+
+              <div className="space-y-1">
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="guestBooking"
+                    checked={isGuestBooking}
+                    onCheckedChange={(checked) => setIsGuestBooking(!!checked)}
+                  />
+                  <Label htmlFor="guestBooking">Book as guest</Label>
+                </div>
+              </div>
             </div>
           )}
         </CardContent>
@@ -377,9 +433,49 @@ export default function BookingCard({ car, isAvailable, user }: BookingCardProps
               </div>
 
               {(!user || user.roles.some((role) => role.name === "user")) && (
-                <Button type="submit" className="rounded mr-auto w-full">
-                  {isPending ? "Submitting..." : "Book Now"}
-                </Button>
+                <div className="space-y-4">
+                  {isGuestBooking && (
+                    <div className="space-y-1">
+                      <Label htmlFor={email.id}>Email</Label>
+                      <Input
+                        {...getInputProps(email, { type: "email" })}
+                        placeholder="Enter your email"
+                        className={`w-full rounded ${email.errors ? errorRingClasses : ""}`}
+                      />
+                      {email.errors && (
+                        <p className="text-red-500 text-sm">{email.errors.join(" ")}</p>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="flex">
+                    {isGuestBooking ? (
+                      <Button
+                        type="submit"
+                        className="rounded w-full"
+                        form={form.id}
+                        onClick={() => {
+                          const formElement = document.getElementById(form.id) as HTMLFormElement;
+                          formElement.setAttribute("data-booking-type", "guest");
+                        }}
+                      >
+                        Book Now as Guest
+                      </Button>
+                    ) : (
+                      <Button
+                        type="submit"
+                        className="rounded w-full"
+                        form={form.id}
+                        onClick={() => {
+                          const formElement = document.getElementById(form.id) as HTMLFormElement;
+                          formElement.setAttribute("data-booking-type", "auth");
+                        }}
+                      >
+                        Sign in to book
+                      </Button>
+                    )}
+                  </div>
+                </div>
               )}
             </div>
           )}
