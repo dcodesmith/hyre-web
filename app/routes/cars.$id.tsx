@@ -73,70 +73,70 @@ export default function CarDetails() {
         &larr; Back to search results
       </Link>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-6">
-        <div className="col-span-1 lg:col-span-2">
-          <h2 className="text-2xl sm:text-3xl font-bold mb-4">
-            {car.make} {car.model}
-          </h2>
+      <h2 className="text-2xl sm:text-3xl font-bold mb-4">
+        {car.make} {car.model}
+      </h2>
 
+      <div className="grid grid-cols-1 lg:grid-cols-[70%,30%] gap-4 p-4">
+        <div className="flex flex-col gap-4">
           <CarCarousel images={car.images.length > 0 ? car.images : undefined} />
+
+          <div>
+            <div className="px-0">
+              <h3 className="text-base font-semibold leading-7 text-gray-900">
+                Car information and features
+              </h3>
+            </div>
+
+            <div className="mt-4 border-t border-gray-100">
+              <dl className="divide-y divide-gray-100">
+                <div className="px-4 py-3 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">
+                  <dt className="text-sm font-medium leading-6 text-gray-900">Make & Model</dt>
+                  <dd className="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
+                    {car.make} {car.model} {car.year}
+                  </dd>
+                </div>
+
+                <div className="px-4 py-3 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">
+                  <dt className="text-sm font-medium leading-6 text-gray-900">Features</dt>
+                  <dd className="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
+                    Air conditioning, GPS navigation system, Bluetooth connectivity, Cruise control,
+                    Rear-view camera, USB ports
+                  </dd>
+                </div>
+
+                <div className="px-4 py-3 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">
+                  <dt className="text-sm font-medium leading-6 text-gray-900">Transmission Type</dt>
+                  <dd className="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
+                    Automatic
+                  </dd>
+                </div>
+
+                <div className="px-4 py-3 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">
+                  <dt className="text-sm font-medium leading-6 text-gray-900">Fuel Type</dt>
+                  <dd className="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
+                    Diesel
+                  </dd>
+                </div>
+
+                <div className="px-4 py-3 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">
+                  <dt className="text-sm font-medium leading-6 text-gray-900">Seating Capacity</dt>
+                  <dd className="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
+                    7-seater
+                  </dd>
+                </div>
+                <div className="px-4 py-3 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">
+                  <dt className="text-sm font-medium leading-6 text-gray-900">Fuel Policy</dt>
+                  <dd className="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
+                    &quot;Full to Full&quot; (return the car with a full tank)
+                  </dd>
+                </div>
+              </dl>
+            </div>
+          </div>
         </div>
 
-        <div className="order-3 lg:order-2">
-          <div className="px-0">
-            <h3 className="text-base font-semibold leading-7 text-gray-900">
-              Car information and features
-            </h3>
-          </div>
-
-          <div className="mt-4 border-t border-gray-100">
-            <dl className="divide-y divide-gray-100">
-              <div className="px-4 py-3 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">
-                <dt className="text-sm font-medium leading-6 text-gray-900">Make & Model</dt>
-                <dd className="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
-                  {car.make} {car.model} {car.year}
-                </dd>
-              </div>
-
-              <div className="px-4 py-3 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">
-                <dt className="text-sm font-medium leading-6 text-gray-900">Features</dt>
-                <dd className="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
-                  Air conditioning, GPS navigation system, Bluetooth connectivity, Cruise control,
-                  Rear-view camera, USB ports
-                </dd>
-              </div>
-
-              <div className="px-4 py-3 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">
-                <dt className="text-sm font-medium leading-6 text-gray-900">Transmission Type</dt>
-                <dd className="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
-                  Automatic
-                </dd>
-              </div>
-
-              <div className="px-4 py-3 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">
-                <dt className="text-sm font-medium leading-6 text-gray-900">Fuel Type</dt>
-                <dd className="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
-                  Diesel
-                </dd>
-              </div>
-
-              <div className="px-4 py-3 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">
-                <dt className="text-sm font-medium leading-6 text-gray-900">Seating Capacity</dt>
-                <dd className="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
-                  7-seater
-                </dd>
-              </div>
-              <div className="px-4 py-3 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">
-                <dt className="text-sm font-medium leading-6 text-gray-900">Fuel Policy</dt>
-                <dd className="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
-                  &quot;Full to Full&quot; (return the car with a full tank)
-                </dd>
-              </div>
-            </dl>
-          </div>
-        </div>
-
-        <div className="order-2 lg:order-3">
+        <div className="lg:sticky lg:top-4">
           <BookingCard car={carWithDates} isAvailable={isAvailable} user={user} />
         </div>
       </div>

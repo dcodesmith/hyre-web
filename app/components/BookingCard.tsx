@@ -7,7 +7,7 @@ import { closePaymentModal, useFlutterwave } from "flutterwave-react-v3";
 import { useCallback, useState } from "react";
 import { DateRange } from "react-day-picker";
 import { z } from "zod";
-import { formatCurrency, useIsPending } from "~/lib/utils";
+import { formatCurrency } from "~/lib/utils";
 import { BookingTimeSelect } from "./BookingTimeSelect";
 import { DateRangePicker } from "./DateRangePicker";
 import { Button } from "./ui/button";
@@ -98,22 +98,111 @@ const bookingUnselectedSchema = z.object({
   email: z.string().email("Invalid email address").optional(),
 });
 
-const bookingSchema = z.discriminatedUnion("sameLocation", [
-  bookingSelectedSchema,
-  bookingUnselectedSchema,
-]);
+const emailSchema = z
+  .string({
+    required_error: "Email is required for guest booking",
+  })
+  .email("Invalid email address");
+
+const getBookingSchema = (isGuestBooking: boolean) => {
+  const baseSchemas = {
+    selected: bookingSelectedSchema,
+    unselected: bookingUnselectedSchema,
+  };
+
+  if (!isGuestBooking) {
+    return z.discriminatedUnion("sameLocation", [baseSchemas.selected, baseSchemas.unselected]);
+  }
+
+  return z.discriminatedUnion("sameLocation", [
+    baseSchemas.selected.extend({ email: emailSchema }),
+    baseSchemas.unselected.extend({ email: emailSchema }),
+  ]);
+};
 
 const errorRingClasses = "border-red-500 focus-visible:ring-red-500 focus-visible:ring-2";
 
-export default function BookingCard({ car, isAvailable, user }: BookingCardProps) {
+function useBookingPayment({
+  car,
+  dateRange,
+  email,
+  searchParams,
+  user,
+}: {
+  car: Car;
+  dateRange: DateRange;
+  email: string;
+  searchParams: string;
+  user: User;
+}) {
+  const submit = useSubmit();
   const navigate = useNavigate();
+
+  const handlePayment = useFlutterwave({
+    ...config,
+    amount: Number(car.price) * calculateTotalDays(dateRange) * 1.075,
+    customer: {
+      email: email || "dcodesmith@gmail.com",
+      phone_number: "070********",
+      name: "Afees Adedamola Kolawole",
+    },
+    customizations: config.customizations,
+  });
+
+  return useCallback(
+    async (event: React.FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
+
+      const formElement = event.currentTarget;
+      const formData = new FormData(formElement);
+      const isGuestBooking = formElement.getAttribute("data-booking-type") === "guest";
+
+      if (!isGuestBooking && !user) {
+        const redirectTo = `/cars/${car.id}${searchParams ? `?${searchParams}` : ""}`;
+        return navigate(`/auth?redirectTo=${encodeURIComponent(redirectTo)}`);
+      }
+
+      handlePayment({
+        callback: ({ transaction_id: transactionId, status }) => {
+          formData.set("paymentId", String(transactionId));
+          formData.set("status", status);
+          submit(formData, {
+            method: "POST",
+            action: `/bookings?${searchParams}`,
+          });
+          setTimeout(() => closePaymentModal(), 1500);
+        },
+        onClose: () => closePaymentModal(),
+      });
+    },
+    [handlePayment, searchParams, submit, navigate, user, car],
+  );
+}
+
+const calculateTotalDays = (dateRange: DateRange) => {
+  if (!dateRange.from || !dateRange.to) {
+    return 0;
+  }
+
+  // If both dates are the same day, return 1
+  if (dateRange.from.toLocaleDateString() === dateRange.to.toLocaleDateString()) {
+    return 1;
+  }
+
+  // Add 1 to include both the start and end dates
+  const days =
+    Math.ceil((dateRange.to.getTime() - dateRange.from.getTime()) / (1000 * 3600 * 24)) + 1;
+
+  return days;
+};
+
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: <explanation>
+export default function BookingCard({ car, isAvailable, user }: BookingCardProps) {
   const [sameLoc, setSameLocation] = useState<CheckedState>(true);
   const [isGuestBooking, setIsGuestBooking] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
   const fromParam = searchParams.get("from");
   const toParam = searchParams.get("to");
-  const isPending = useIsPending();
-  const submit = useSubmit();
 
   const [dateRange, setDateRange] = useState<DateRange>({
     from: fromParam ? new Date(fromParam) : undefined,
@@ -144,28 +233,7 @@ export default function BookingCard({ car, isAvailable, user }: BookingCardProps
       onMakePayment(event);
     },
     onValidate({ formData }) {
-      // Create a custom schema based on isGuestBooking
-      const schema = z.discriminatedUnion("sameLocation", [
-        isGuestBooking
-          ? bookingSelectedSchema.extend({
-              email: z
-                .string({
-                  required_error: "Email is required for guest booking",
-                })
-                .email("Invalid email address"),
-            })
-          : bookingSelectedSchema,
-        isGuestBooking
-          ? bookingUnselectedSchema.extend({
-              email: z
-                .string({
-                  required_error: "Email is required for guest booking",
-                })
-                .email("Invalid email address"),
-            })
-          : bookingUnselectedSchema,
-      ]);
-
+      const schema = getBookingSchema(isGuestBooking);
       return parseWithZod(formData, { schema });
     },
   });
@@ -186,95 +254,19 @@ export default function BookingCard({ car, isAvailable, user }: BookingCardProps
     }
   };
 
-  const calculateTotalDays = () => {
-    if (!dateRange.from || !dateRange.to) {
-      return 0;
-    }
-
-    // If both dates are the same day, return 1
-    if (dateRange.from.toLocaleDateString() === dateRange.to.toLocaleDateString()) {
-      return 1;
-    }
-
-    // Add 1 to include both the start and end dates
-    const days =
-      Math.ceil((dateRange.to.getTime() - dateRange.from.getTime()) / (1000 * 3600 * 24)) + 1;
-
-    return days;
-  };
-
-  const handlePayment = useFlutterwave({
-    ...config,
-    amount: Number(car.price) * calculateTotalDays() * 1.075,
-    customer: {
-      email: email.value || "dcodesmith@gmail.com",
-      phone_number: "070********",
-      name: "Afees Adedamola Kolawole",
-    },
-    customizations: {
-      // TODO: window object is undefined when the page is refreshed ${window.ENV.APP_NAME}
-      title: "Booking Payment",
-      description: "Payment for Booking",
-      logo: "https://picsum.photos/seed/car-rental/800/600",
-    },
+  const onMakePayment = useBookingPayment({
+    car,
+    dateRange,
+    email: email.value || "dcodesmith@gmail.com",
+    searchParams: searchParams.toString(),
+    user,
   });
 
-  const onMakePayment = useCallback(
-    async (event: React.FormEvent<HTMLFormElement>) => {
-      event.preventDefault();
-
-      const formElement = event.currentTarget as HTMLFormElement;
-      const bookingType = formElement.getAttribute("data-booking-type");
-      const isGuestBooking = bookingType === "guest";
-
-      const formData = new FormData(formElement);
-
-      const pickupTime = String(formData.get("pickupTime"));
-      const pickupStreet = String(formData.get("pickupStreet"));
-      const pickupLocality = String(formData.get("pickupLocality"));
-      const sameLocation = String(formData.get("sameLocation"));
-
-      if (sameLocation === "true") {
-        searchParams.set("dropOffStreet", pickupStreet);
-        searchParams.set("dropOffLocality", pickupLocality);
-      }
-
-      searchParams.set("role", "user");
-      searchParams.set("pickupTime", pickupTime);
-      searchParams.set("pickupStreet", pickupStreet);
-      searchParams.set("pickupLocality", pickupLocality);
-      searchParams.set("sameLocation", sameLocation);
-
-      const searchString = searchParams.toString();
-
-      // Only redirect to auth if not booking as guest
-      if (!isGuestBooking && !user) {
-        const redirectTo = `/cars/${car.id}${searchString ? `?${searchString}` : ""}`;
-        return navigate(`/auth?redirectTo=${encodeURIComponent(redirectTo)}`);
-      }
-
-      handlePayment({
-        callback: ({ transaction_id: transactionId, status }) => {
-          formData.set("paymentId", String(transactionId));
-          formData.set("status", status);
-
-          submit(formData, {
-            method: "POST",
-            action: `/bookings?${searchParams.toString()}`,
-          });
-
-          setTimeout(() => {
-            closePaymentModal();
-          }, 1500);
-        },
-        onClose: () => closePaymentModal(),
-      });
-    },
-    [handlePayment, searchParams, submit, navigate, user, car],
-  );
+  const totalDays = calculateTotalDays(dateRange);
+  const carIsAvailableToBook = dateRange.from && dateRange.to && isAvailable;
 
   return (
-    <Form {...getFormProps(form)} method="POST" className="space-y-4">
+    <Form {...getFormProps(form)} method="POST">
       <input type="hidden" name="carId" value={car.id} />
       <Card className="rounded sticky top-4">
         <CardHeader>
@@ -295,7 +287,7 @@ export default function BookingCard({ car, isAvailable, user }: BookingCardProps
         <CardContent>
           <DateRangePicker date={dateRange} onDateChange={onDateChange} />
 
-          {dateRange.from && dateRange.to && isAvailable && (
+          {carIsAvailableToBook && (
             <div className="w-full space-y-4 my-4">
               <div className="space-y-1">
                 <Label htmlFor="pickupTime">Pickup Time</Label>
@@ -401,23 +393,23 @@ export default function BookingCard({ car, isAvailable, user }: BookingCardProps
             </div>
           )}
 
-          {dateRange.from && dateRange.to && isAvailable && (
+          {carIsAvailableToBook && (
             <div className="flex flex-col w-full space-y-4">
               <div className="w-full">
                 <dl className="space-y-2">
                   <div className="flex justify-between">
                     <dt className="text-sm text-gray-600">
-                      {formatCurrency(Number(car.price))} x {calculateTotalDays()} days
+                      {formatCurrency(Number(car.price))} x {totalDays} days
                     </dt>
                     <dd className="text-sm text-gray-600">
-                      {formatCurrency(Number(car.price) * calculateTotalDays())}
+                      {formatCurrency(Number(car.price) * totalDays)}
                     </dd>
                   </div>
 
                   <div className="flex justify-between mb-4">
                     <dt className="text-sm text-gray-600">VAT (7.5%)</dt>
                     <dd className="text-sm text-gray-600">
-                      {formatCurrency(Number(car.price) * calculateTotalDays() * 0.075)}
+                      {formatCurrency(Number(car.price) * totalDays * 0.075)}
                     </dd>
                   </div>
 
@@ -426,7 +418,7 @@ export default function BookingCard({ car, isAvailable, user }: BookingCardProps
                   <div className="flex justify-between mt-4">
                     <dt className="text-md font-bold">Total</dt>
                     <dd className="text-md font-bold">
-                      {formatCurrency(Number(car.price) * calculateTotalDays() * 1.075)}
+                      {formatCurrency(Number(car.price) * totalDays * 1.075)}
                     </dd>
                   </div>
                 </dl>
