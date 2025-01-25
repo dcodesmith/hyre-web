@@ -38,7 +38,7 @@ export default function Carousel({
             key={image}
             src={image}
             alt={`Car view ${index + 1}`}
-            className="w-full h-64 object-cover rounded flex-shrink-0"
+            className="w-full h-80 object-cover flex-shrink-0"
           />
         ))}
       </div>

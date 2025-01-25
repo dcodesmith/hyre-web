@@ -17,6 +17,7 @@ import Forbidden from "./components/Forbidden";
 import { UserNav } from "./components/UserNav";
 import { Toaster } from "./components/ui/toaster";
 import { getSessionUser } from "./modules/auth/auth.server";
+import { Button } from "./components/ui/button";
 
 export const links: LinksFunction = () => [
   ...(cssBundleHref ? [{ rel: "stylesheet", href: cssBundleHref }] : []),
@@ -52,14 +53,18 @@ export default function App() {
       </head>
       <body className="h-full bg-background">
         <div className="flex flex-col min-h-screen">
-          <header className="p-4 flex container mx-auto justify-between items-center sticky top-0 bg-white z-20">
+          <header className="p-4 flex container mx-auto justify-between items-center z-10">
             <Link to="/" className="text-2xl font-bold font-dancingscript text-slate-600">
               {ENV.APP_NAME}
             </Link>
-            <UserNav user={user} />
+            <div className="flex items-center gap-2 mr-2">
+              <Button variant="outline">Become a fleet owner</Button>
+
+              <UserNav user={user} />
+            </div>
           </header>
 
-          <main className="flex-grow container mx-auto px-4 pb-4 text-sm">
+          <main className="flex-grow container mx-auto px-4 pb-4 text-sm -mt-16">
             <Outlet />
           </main>
 

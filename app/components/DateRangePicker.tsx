@@ -1,5 +1,7 @@
 import { CalendarIcon } from "@heroicons/react/24/outline";
 import { addDays, format, startOfToday, startOfTomorrow } from "date-fns";
+import { ChevronsDownUp, ChevronsUpDown } from "lucide-react";
+import { useState } from "react";
 import { DateRange } from "react-day-picker";
 import { Button } from "~/components/ui/button";
 import { Calendar } from "~/components/ui/calendar";
@@ -13,20 +15,26 @@ interface DateRangePickerProps {
 }
 
 export function DateRangePicker({ date, onDateChange, className }: DateRangePickerProps) {
+  const [isOpen, setIsOpen] = useState(false);
+
   const disabledDays = {
     before: new Date().getHours() >= 12 ? startOfTomorrow() : startOfToday(),
   };
 
   return (
     <div className={cn("grid gap-2 w-full", className)}>
-      <Popover>
+      <Popover open={isOpen} onOpenChange={setIsOpen}>
         <PopoverTrigger asChild>
           <Button
             id="date"
             variant={"outline"}
-            className={cn("justify-start text-left font-normal", !date && "text-muted-foreground")}
+            onClick={() => setIsOpen(!isOpen)}
+            className={cn(
+              "justify-start text-left font-normal px-3",
+              !date && "text-muted-foreground",
+            )}
           >
-            <CalendarIcon className="mr-2 h-5 w-5" />
+            {/* <CalendarIcon className="mr-2 h-5 w-5" /> */}
             {date?.from ? (
               date.to ? (
                 <>
@@ -37,6 +45,11 @@ export function DateRangePicker({ date, onDateChange, className }: DateRangePick
               )
             ) : (
               <span>Pick a date</span>
+            )}
+            {isOpen ? (
+              <ChevronsDownUp className="h-4 w-4 ml-auto" />
+            ) : (
+              <ChevronsUpDown className="h-4 w-4 ml-auto" />
             )}
           </Button>
         </PopoverTrigger>

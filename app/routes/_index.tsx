@@ -18,15 +18,16 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { useState } from "react";
+import { LocateFixed, ShieldCheck } from "lucide-react";
+import { useRef, useState } from "react";
 import Carousel from "~/components/Carousel";
 import { columns } from "~/components/Table/Columns";
 import { Pagination } from "~/components/Table/Pagination";
 import { Toolbar } from "~/components/Table/Toolbar";
+import { Button } from "~/components/ui/button";
 import { prisma } from "~/modules/db/db.server";
 
 import type { SerializedCar } from "~/types";
-import { requireUserWithRole } from "~/utils/permissions.server";
 
 const blockingStatuses: BookingStatus[] = ["PENDING", "CONFIRMED", "ACTIVE"];
 
@@ -173,7 +174,7 @@ export default function IndexPage() {
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const from = searchParams.get("from");
   const to = searchParams.get("to");
-
+  const carsRef = useRef<HTMLDivElement>(null);
   // Initialize table state from URL search params
   const initialTableState = parseSearchParamsToTableState(searchParams);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>(
@@ -259,14 +260,58 @@ export default function IndexPage() {
   };
 
   return (
-    <div className="max-w-8xl mx-auto space-y-4">
-      <Toolbar table={table} />
+    <div className="max-w-8xl mx-auto space-y-2">
+      <div className="grid grid-cols-1 lg:grid-cols-3 md:grid-cols-2 gap-2">
+        <div className="flex flex-col col-span-1">
+          {/* <nav className="gap-2 flex flex-col pt-4 pl-4">
+            <Link to="/" className="text-2xl font-bold font-dancingscript text-slate-600">
+              {ENV.APP_NAME}
+            </Link>
+          </nav> */}
+          <div className="mx-auto gap-2 flex py-20 flex-col mt-12">
+            <div className="w-64 text-3xl font-semibold">
+              Comfort. Safety. Professional. Every Ride.
+            </div>
+            <Toolbar table={table} />
+            <Button
+              className="w-64"
+              onClick={() => carsRef.current?.scrollIntoView({ behavior: "smooth" })}
+            >
+              Book now
+            </Button>
+            <div className="flex flex-col mt-4 gap-2">
+              <div className="flex justify-item gap-2">
+                <ShieldCheck className="h-4 w-4" />
+                <span>Vetter chauffeurs</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <LocateFixed className="h-4 w-4" />
+                <span>Real-time Location tracking</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="h-4 w-4" />
+                <span>Secure online booking</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="relative lg:col-span-2 md:col-span-1 hidden md:block">
+          {/* <div className="absolute right-4 top-4">
+            <Button variant="outline">Become a fleet owner</Button>
+          </div> */}
+          <img src="/public/hero.png" alt="Hero" className="md:h-[648px] w-full object-cover" />
+        </div>
+      </div>
 
       {table.getRowModel().rows.length ? (
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        <div
+          ref={carsRef}
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-2 gap-y-6"
+        >
           {table.getRowModel().rows.map((row) => (
             <Link key={row.original.id} to={`/cars/${row.original.id}?${searchParams.toString()}`}>
-              <div className="rounded overflow-hidden space-y-2">
+              <div className="overflow-hidden space-y-2">
                 <Carousel images={row.original.images.length ? row.original.images : undefined} />
 
                 <div className="space-y-1">

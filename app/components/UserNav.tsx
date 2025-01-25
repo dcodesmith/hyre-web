@@ -47,13 +47,13 @@ export function UserNav({
           <DropdownMenuTrigger asChild>
             <Button
               variant="ghost"
-              className="relative h-8 w-8 rounded-full border flex items-center justify-center capitalize italic"
+              className="relative h-8 w-8 rounded-full border flex items-center justify-center capitalize italic md:hover:bg-black md:hover:text-white"
             >
               {user ? (
                 getInitials(user)
               ) : (
                 <span className="block">
-                  <UserIcon className="h-5 w-5 stroke-slate-800" />
+                  <UserIcon className="h-5 w-5 md:stroke-white" />
                 </span>
               )}
             </Button>

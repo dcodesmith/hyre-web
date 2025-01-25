@@ -43,75 +43,65 @@ export function Toolbar({ table, isAdmin = false }: ToolbarProps<SerializedCar>)
   };
 
   return (
-    <div className="flex items-center justify-center sticky top-16 sm:h-16 h-28 z-10 bg-white">
-      <div className="flex items-center flex-wrap gap-2">
-        <div className="content-center hidden sm:block">
+    // sticky top-16 sm:h-16 h-28 z-10 bg-white
+    <div className="flex flex-col items-center justify-center gap-2 mt-4 mb-2">
+      {/* <div className="flex items-center flex-wrap gap-2"> */}
+      {/* <div className="content-center hidden sm:block">
           <AdjustmentsVerticalIcon className="h-5 w-5" />
-        </div>
+        </div> */}
 
-        <div className="flex items-center sm:w-auto w-full gap-2 sm:justify-start justify-between">
-          {table.getColumn("make") && (
-            <FacetedFilter
-              column={table.getColumn("make")}
-              title="Make"
-              options={Array.from(
-                table.getColumn("make")?.getFacetedUniqueValues().keys() ?? [],
-              ).map((value) => ({
+      {/* <div className="flex items-center sm:w-auto w-full gap-2 sm:justify-start justify-between"> */}
+      {table.getColumn("make") && (
+        <div className="w-64">
+          <FacetedFilter
+            column={table.getColumn("make")}
+            title="Select make"
+            options={Array.from(table.getColumn("make")?.getFacetedUniqueValues().keys() ?? []).map(
+              (value) => ({
                 label: String(value),
                 value: String(value),
-              }))}
-            />
-          )}
-
-          {table.getColumn("model") && (
-            <FacetedFilter
-              column={table.getColumn("model")}
-              title="Model"
-              options={Array.from(
-                table.getColumn("model")?.getFacetedUniqueValues().keys() ?? [],
-              ).map((value) => ({
-                label: String(value),
-                value: String(value),
-              }))}
-            />
-          )}
-
-          {/* {isAdmin && table.getColumn("status") && (
-            <FacetedFilter
-              column={table.getColumn("status")}
-              title="Status"
-              options={statuses.map((status) => ({
-                label: status,
-                value: status,
-              }))}
-            />
-          )} */}
-
-          {isFiltered && (
-            <Button
-              variant="ghost"
-              onClick={() => {
-                handleDateRangeChange({ from: undefined, to: undefined });
-                table.resetColumnFilters();
-                setSearchParams("");
-              }}
-              className="h-8 px-2 lg:px-3"
-            >
-              <span className="hidden sm:block">Reset</span>
-              <XCircleIcon className="ml-2 h-4 w-4" />
-            </Button>
-          )}
-        </div>
-
-        {!isAdmin && (
-          <DateRangePicker
-            className="sm:w-[277px]"
-            date={dateRange}
-            onDateChange={handleDateRangeChange}
+              }),
+            )}
           />
-        )}
-      </div>
-      {isAdmin && <ColumnViewOptions table={table} />}
+        </div>
+      )}
+
+      {table.getColumn("model") && (
+        <div className="w-64">
+          <FacetedFilter
+            column={table.getColumn("model")}
+            title="Select model"
+            options={Array.from(
+              table.getColumn("model")?.getFacetedUniqueValues().keys() ?? [],
+            ).map((value) => ({
+              label: String(value),
+              value: String(value),
+            }))}
+          />
+        </div>
+      )}
+
+      {isFiltered && (
+        <Button
+          variant="ghost"
+          onClick={() => {
+            handleDateRangeChange({ from: undefined, to: undefined });
+            table.resetColumnFilters();
+            setSearchParams("");
+          }}
+          className="h-8 px-2 lg:px-3"
+        >
+          <span className="hidden sm:block">Reset</span>
+          <XCircleIcon className="ml-2 h-4 w-4" />
+        </Button>
+      )}
+      {/* </div> */}
+
+      {!isAdmin && (
+        <DateRangePicker className="w-64" date={dateRange} onDateChange={handleDateRangeChange} />
+      )}
+      {/* </div> */}
+      {/* {isAdmin && <ColumnViewOptions table={table} />} */}
     </div>
   );
 }

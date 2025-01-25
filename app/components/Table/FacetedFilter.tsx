@@ -1,7 +1,13 @@
 import { Column } from "@tanstack/react-table";
 
 import { CheckIcon } from "@heroicons/react/24/outline";
-import { ListFilterIcon } from "lucide-react";
+import {
+  ChevronDownIcon,
+  ChevronsDownUp,
+  ChevronsUpDown,
+  ChevronUpIcon,
+  ListFilterIcon,
+} from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { cn } from "~/lib/utils";
 import { Badge } from "../ui/badge";
@@ -16,6 +22,7 @@ import {
 } from "../ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Separator } from "../ui/separator";
+import { useState } from "react";
 
 interface FacetedFilterProps<TData, TValue> {
   column?: Column<TData, TValue>;
@@ -35,6 +42,7 @@ export function FacetedFilter<TData, TValue>({
   if (!column) return null;
   const facets = column?.getFacetedUniqueValues();
   const selectedValues = new Set(column?.getFilterValue() as string[]);
+  const [isOpen, setIsOpen] = useState(false);
 
   const onSelect = (value: string) => {
     if (selectedValues.has(value)) {
@@ -54,14 +62,14 @@ export function FacetedFilter<TData, TValue>({
   };
 
   return (
-    <Popover>
+    <Popover open={isOpen} onOpenChange={setIsOpen}>
       <PopoverTrigger asChild>
         <Button
+          onClick={() => setIsOpen(!isOpen)}
           variant="outline"
           size="sm"
-          className="sm:w-auto w-full rounded gap-2 h-10 capitalize"
+          className="w-full rounded gap-2 h-10 justify-start"
         >
-          <ListFilterIcon className="h-4 w-4" />
           {title}
           {selectedValues?.size > 0 && (
             <>
@@ -90,10 +98,15 @@ export function FacetedFilter<TData, TValue>({
               </div>
             </>
           )}
+          {isOpen ? (
+            <ChevronsDownUp className="h-4 w-4 ml-auto" />
+          ) : (
+            <ChevronsUpDown className="h-4 w-4 ml-auto" />
+          )}
         </Button>
       </PopoverTrigger>
 
-      <PopoverContent className="w-[200px] p-0" align="start">
+      <PopoverContent className="w-64 p-0" align="start">
         <Command>
           <CommandInput className="capitalize" placeholder={title} />
 
