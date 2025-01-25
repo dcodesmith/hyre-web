@@ -259,6 +259,8 @@ export default function IndexPage() {
     return days;
   };
 
+  const baseUrl = process.env.NODE_ENV === "production" ? "https://hyre-neon.vercel.app/" : "";
+
   return (
     <div className="max-w-8xl mx-auto space-y-2">
       <div className="grid grid-cols-1 lg:grid-cols-3 md:grid-cols-2 gap-2">
@@ -300,7 +302,11 @@ export default function IndexPage() {
           {/* <div className="absolute right-4 top-4">
             <Button variant="outline">Become a fleet owner</Button>
           </div> */}
-          <img src="/public/hero.png" alt="Hero" className="md:h-[648px] w-full object-cover" />
+          <img
+            src={`${baseUrl}/images/hero.png`}
+            alt="Hero"
+            className="md:h-[648px] w-full object-cover"
+          />
         </div>
       </div>
 
