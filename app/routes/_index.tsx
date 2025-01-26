@@ -279,11 +279,11 @@ export default function IndexPage() {
             <div className="flex flex-col mt-4 gap-2">
               <div className="flex justify-item gap-2">
                 <ShieldCheck className="h-4 w-4" />
-                <span>Vetter chauffeurs</span>
+                <span>Vetted chauffeurs</span>
               </div>
               <div className="flex items-center gap-2">
                 <LocateFixed className="h-4 w-4" />
-                <span>Real-time Location tracking</span>
+                <span>Real-time location tracking</span>
               </div>
               <div className="flex items-center gap-2">
                 <ShieldCheck className="h-4 w-4" />
