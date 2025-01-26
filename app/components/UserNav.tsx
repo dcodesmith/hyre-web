@@ -47,7 +47,7 @@ export function UserNav({
           <DropdownMenuTrigger asChild>
             <Button
               variant="ghost"
-              className="relative h-8 w-8 rounded-full border flex items-center justify-center capitalize italic md:hover:bg-black md:hover:text-white"
+              className="relative h-8 w-8 rounded-full border flex items-center justify-center capitalize italic md:hover:bg-transparent md:hover:text-white"
             >
               {user ? (
                 getInitials(user)

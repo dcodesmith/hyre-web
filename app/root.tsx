@@ -54,12 +54,11 @@ export default function App() {
       <body className="h-full bg-background">
         <div className="flex flex-col min-h-screen">
           <header className="p-4 flex container mx-auto justify-between items-center z-10">
-            <Link to="/" className="text-2xl font-bold font-dancingscript text-slate-600">
+            <Link to="/" className="text-2xl md:text-3xl font-bold font-dancingscript">
               {ENV.APP_NAME}
             </Link>
             <div className="flex items-center gap-2 mr-2">
               <Button variant="outline">Become a fleet owner</Button>
-
               <UserNav user={user} />
             </div>
           </header>

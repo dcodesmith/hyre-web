@@ -265,12 +265,7 @@ export default function IndexPage() {
     <div className="max-w-8xl mx-auto space-y-2 -mt-16">
       <div className="grid grid-cols-1 lg:grid-cols-3 md:grid-cols-2 gap-2">
         <div className="flex flex-col col-span-1">
-          {/* <nav className="gap-2 flex flex-col pt-4 pl-4">
-            <Link to="/" className="text-2xl font-bold font-dancingscript text-slate-600">
-              {ENV.APP_NAME}
-            </Link>
-          </nav> */}
-          <div className="mx-auto gap-2 flex py-20 flex-col mt-12">
+          <div className="mx-auto gap-2 flex py-12 md:py-20 flex-col mt-12">
             <div className="w-64 text-3xl font-semibold">
               Comfort. Safety. Professional. Every Ride.
             </div>
@@ -299,9 +294,6 @@ export default function IndexPage() {
         </div>
 
         <div className="relative lg:col-span-2 md:col-span-1 hidden md:block">
-          {/* <div className="absolute right-4 top-4">
-            <Button variant="outline">Become a fleet owner</Button>
-          </div> */}
           <img
             src={`${baseUrl}/images/hero.png`}
             alt="Hero"
