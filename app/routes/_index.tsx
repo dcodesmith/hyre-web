@@ -262,7 +262,7 @@ export default function IndexPage() {
   const baseUrl = process.env.NODE_ENV === "production" ? "https://hyre-neon.vercel.app/" : "";
 
   return (
-    <div className="max-w-8xl mx-auto space-y-2">
+    <div className="max-w-8xl mx-auto space-y-2 -mt-16">
       <div className="grid grid-cols-1 lg:grid-cols-3 md:grid-cols-2 gap-2">
         <div className="flex flex-col col-span-1">
           {/* <nav className="gap-2 flex flex-col pt-4 pl-4">

@@ -64,7 +64,7 @@ export default function App() {
             </div>
           </header>
 
-          <main className="flex-grow container mx-auto px-4 pb-4 text-sm -mt-16">
+          <main className="flex-grow container mx-auto px-4 pb-4 text-sm">
             <Outlet />
           </main>
 

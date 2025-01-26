@@ -77,7 +77,7 @@ export default function CarDetails() {
         {car.make} {car.model}
       </h2>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[70%,30%] gap-4 p-4">
+      <div className="grid grid-cols-1 lg:grid-cols-[65%,35%] gap-4">
         <div className="flex flex-col gap-4">
           <CarCarousel images={car.images.length > 0 ? car.images : undefined} />
 

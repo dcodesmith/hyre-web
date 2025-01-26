@@ -21,16 +21,16 @@ interface PaginationProps<TData> {
 
 export function Pagination<TData>({ table, range = [10, 20, 30, 40, 50] }: PaginationProps<TData>) {
   return (
-    <div className="flex items-center justify-end px-2">
-      <div className="flex-1 text-sm text-muted-foreground">
-        {/* {table.getFilteredSelectedRowModel().rows.length} of{" "}
-        {table.getFilteredRowModel().rows.length} row(s) selected. */}
+    <div className="flex items-center justify-end p-6">
+      {/* <div className="flex-1 text-sm text-muted-foreground">
+        {table.getFilteredSelectedRowModel().rows.length} of{" "}
+        {table.getFilteredRowModel().rows.length} row(s) selected.
         {table.getFilteredRowModel().rows.length}
-      </div>
+      </div> */}
 
-      <div className="flex items-center space-x-6 lg:space-x-8">
+      <div className="flex items-center justify-evenly space-x-2 lg:space-x-8">
         <div className="flex items-center space-x-2">
-          <p className="text-sm font-medium">Rows per page</p>
+          <p>Rows per page</p>
           <Select
             value={`${table.getState().pagination.pageSize}`}
             onValueChange={(value) => {
@@ -51,11 +51,11 @@ export function Pagination<TData>({ table, range = [10, 20, 30, 40, 50] }: Pagin
           </Select>
         </div>
 
-        <div className="flex w-[100px] items-center justify-center text-sm font-medium">
+        <div className="flex items-center justify-center text-sm font-medium">
           Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount()}
         </div>
 
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center">
           <Button
             variant="outline"
             className="hidden h-8 w-8 p-0 lg:flex rounded"
