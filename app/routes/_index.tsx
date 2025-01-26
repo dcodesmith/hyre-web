@@ -312,12 +312,12 @@ export default function IndexPage() {
               <div className="overflow-hidden space-y-2">
                 <Carousel images={row.original.images.length ? row.original.images : undefined} />
 
-                <div className="space-y-1">
-                  <h2 className="font-semibold">
+                <div className="space-y-1 font-semibold">
+                  <h2>
                     {row.original.make} {row.original.model} ({row.original.year})
                   </h2>
 
-                  <p>
+                  <div>
                     {!from || !to ? (
                       <>
                         {new Intl.NumberFormat("en-NG", {
@@ -336,7 +336,7 @@ export default function IndexPage() {
                         </span>
                       </>
                     )}
-                  </p>
+                  </div>
                   {process.env.NODE_ENV === "development" && (
                     <span className="text-sm text-gray-500">{row.original.owner.username}</span>
                   )}
