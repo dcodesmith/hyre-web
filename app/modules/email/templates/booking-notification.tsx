@@ -1,5 +1,14 @@
 import { Booking, BookingStatus, Car, User } from "@prisma/client";
-import { Body, Container, Heading, Hr, Link, Preview, Text } from "@react-email/components";
+import {
+  Body,
+  Container,
+  Heading,
+  Hr,
+  Link,
+  Preview,
+  Section,
+  Text,
+} from "@react-email/components";
 import { render } from "@react-email/render";
 import { match } from "ts-pattern";
 import { formatDate } from "~/lib/utils";
@@ -7,7 +16,7 @@ import { EmailTemplate } from "./EmailTemplate";
 
 type BookingWithRelations = Booking & {
   car: Car & { owner?: User };
-  user: User;
+  user: User | null;
   chauffeur?: User | null;
 };
 
@@ -33,19 +42,24 @@ export function renderBookingTemplate(booking: BookingWithRelations) {
           <Heading className="text-2xl font-medium text-gray-800">Your booking has {title}</Heading>
 
           <Text className="text-base text-gray-800">
-            Hello {booking.user.username || booking.user.email},
+            Hello {booking.user?.username || booking.guestUser?.name || booking.guestUser?.email},
           </Text>
 
           <Text className="text-base text-gray-800 mt-4">
-            Your booking for the {booking.car.make} {booking.car.model} is now {status}.
+            Your booking for the{" "}
+            <span className="font-semibold">
+              {booking.car.make} {booking.car.model} ({booking.car.year})
+            </span>{" "}
+            is now {status}.
           </Text>
 
           <Text className="text-base text-gray-800 mt-4">Booking Details:</Text>
 
           <Text className="text-base text-gray-800">
-            • Start Date: {booking.startDate.toLocaleDateString()}
-            <br />• End Date: {booking.endDate.toLocaleDateString()}
-            <br />• Car: {booking.car.make} {booking.car.model} ({booking.car.year})
+            <ul className="list-none p-0">
+              <li className="m-0">Start Date: {booking.startDate.toLocaleDateString()}</li>
+              <li className="m-0">End Date: {booking.endDate.toLocaleDateString()}</li>
+            </ul>
           </Text>
 
           <Hr className="my-4 border-gray-500" />
@@ -72,8 +86,12 @@ export function renderFleetOwnerBookingCancellationEmail(booking: BookingWithRel
           </Text>
 
           <Text className="text-base text-gray-800 mt-4">
-            A booking for your {booking.car.make} {booking.car.model} has been cancelled by{" "}
-            {booking.user.name || booking.user.email}.
+            The booking for your{" "}
+            <span className="font-semibold">
+              {booking.car.make} {booking.car.model} ({booking.car.year})
+            </span>{" "}
+            has been cancelled by{" "}
+            {booking.user?.name || booking.guestUser?.name || booking.guestUser?.email}.
           </Text>
 
           <Text className="text-base text-gray-800 mt-4">
@@ -95,10 +113,14 @@ export function renderFleetOwnerBookingCancellationEmail(booking: BookingWithRel
           <Text className="text-base text-gray-800 mt-4">Cancelled Booking Details:</Text>
 
           <Text className="text-base text-gray-800">
-            • Customer: {booking.user.name || booking.user.email}
-            <br />• Start Date & Time: {formatDate(booking.startDate)}
-            <br />• End Date & Time: {formatDate(booking.endDate)}
-            <br />• Car: {booking.car.make} {booking.car.model} ({booking.car.year})
+            <ul className="list-none p-0">
+              <li className="m-0">
+                Customer:{" "}
+                {booking.user?.name || booking.guestUser?.name || booking.guestUser?.email}
+              </li>
+              <li className="m-0">Start Date & Time: {formatDate(booking.startDate)}</li>
+              <li className="m-0">End Date & Time: {formatDate(booking.endDate)}</li>
+            </ul>
           </Text>
 
           <Hr className="my-4 border-gray-500" />
@@ -121,12 +143,15 @@ export function renderBookingCancellationEmail(booking: BookingWithRelations) {
           </Heading>
 
           <Text className="text-base text-gray-800">
-            Hello {booking.user.username || booking.user.email},
+            Hello {booking.user?.username || booking.guestUser?.name || booking.guestUser?.email},
           </Text>
 
           <Text className="text-base text-gray-800 mt-4">
-            Your booking for the {booking.car.make} {booking.car.model} has been cancelled. Your
-            payment of{" "}
+            Your booking for the{" "}
+            <span className="font-semibold">
+              {booking.car.make} {booking.car.model} ({booking.car.year})
+            </span>{" "}
+            has been cancelled. Your payment of{" "}
             <span className="font-semibold">
               {new Intl.NumberFormat("en-NG", {
                 style: "currency",
@@ -145,9 +170,10 @@ export function renderBookingCancellationEmail(booking: BookingWithRelations) {
           <Text className="text-base text-gray-800 mt-4">Cancelled Booking Details:</Text>
 
           <Text className="text-base text-gray-800">
-            • Start Date & Time: {formatDate(booking.startDate)}
-            <br />• End Date & Time: {formatDate(booking.endDate)}
-            <br />• Car: {booking.car.make} {booking.car.model} ({booking.car.year})
+            <ul className="list-none p-0">
+              <li className="m-0">Start Date & Time: {formatDate(booking.startDate)}</li>
+              <li className="m-0">End Date & Time: {formatDate(booking.endDate)}</li>
+            </ul>
           </Text>
 
           <Hr className="my-4 border-gray-500" />
@@ -170,28 +196,37 @@ export function renderBookingConfirmationEmail(booking: BookingWithRelations) {
           </Heading>
 
           <Text className="text-base text-gray-800">
-            Hello {booking.user.username || booking.user.email},
+            Hello {booking.user?.username || booking.guestUser?.name || booking.guestUser?.email},
           </Text>
 
           <Text className="text-base text-gray-800 mt-4">
-            Your booking for the {booking.car.make} {booking.car.model} has been confirmed. Here are
-            your booking details:
+            Your booking for the{" "}
+            <span className="font-semibold">
+              {booking.car.make} {booking.car.model} ({booking.car.year})
+            </span>{" "}
+            has been confirmed.
           </Text>
 
-          <Text className="text-base text-gray-800 mt-4">Booking Details:</Text>
-
-          <Text className="text-base text-gray-800">
-            • Start Date & Time: {formatDate(booking.startDate)}
-            <br />• End Date & Time: {formatDate(booking.endDate)}
-            <br />• Car: {booking.car.make} {booking.car.model} ({booking.car.year})
-            <br />• Pickup Location: {booking.pickupLocation}
-            <br />• Drop-off Location: {booking.returnLocation}
-            <br />• Total Amount:{" "}
-            {new Intl.NumberFormat("en-NG", {
-              style: "currency",
-              currency: "NGN",
-            }).format(Number(booking.totalAmount))}
-          </Text>
+          <Section className="border-t border-gray-300">
+            <Text className="text-base text-gray-800 font-semibold mt-4">
+              Here are your booking details:
+            </Text>
+            <Text className="text-base text-gray-800">
+              <ul className="list-none p-0">
+                <li className="m-0">Start Date & Time: {formatDate(booking.startDate)}</li>
+                <li className="m-0">End Date & Time: {formatDate(booking.endDate)}</li>
+                <li className="m-0">Pickup Location: {booking.pickupLocation}</li>
+                <li className="m-0">Drop-off Location: {booking.returnLocation}</li>
+                <li className="m-0 font-semibold">
+                  Total Amount:{" "}
+                  {new Intl.NumberFormat("en-NG", {
+                    style: "currency",
+                    currency: "NGN",
+                  }).format(Number(booking.totalAmount))}
+                </li>
+              </ul>
+            </Text>
+          </Section>
 
           <Text className="text-base text-gray-800 mt-4">
             Please be at the pickup location on time. You&apos;ll be assigned a chauffeur shortly.
@@ -232,20 +267,34 @@ export function renderFleetOwnerBookingNotificationEmail(booking: BookingWithRel
             for this booking as soon as possible.
           </Text>
 
-          <Text className="text-base text-gray-800 mt-4">Booking Details:</Text>
+          <Section className="mt-4 border-t border-gray-300 pt-4">
+            <Text className="text-base text-gray-800 font-semibold">Booking Details:</Text>
+            <Text className="text-base text-gray-800">
+              <ul className="list-none p-0">
+                <li className="m-0">
+                  Customer:{" "}
+                  {booking.user?.username || booking.guestUser?.name || booking.guestUser?.email}
+                </li>
+                <li className="m-0">Start Date & Time: {formatDate(booking.startDate)}</li>
+                <li className="m-0">End Date & Time: {formatDate(booking.endDate)}</li>
+                <li className="m-0">
+                  Car: {booking.car.make} {booking.car.model} ({booking.car.year})
+                </li>
+                <li className="m-0">Pickup Location: {booking.pickupLocation}</li>
+                <li className="m-0">Drop-off Location: {booking.returnLocation}</li>
+                <li className="m-0">
+                  Total Amount:{" "}
+                  {new Intl.NumberFormat("en-NG", {
+                    style: "currency",
+                    currency: "NGN",
+                  }).format(Number(booking.totalAmount))}
+                </li>
+              </ul>
+            </Text>
+          </Section>
 
-          <Text className="text-base text-gray-800">
-            • Customer: {booking.user.username || booking.user.email}
-            <br />• Start Date & Time: {formatDate(booking.startDate)}
-            <br />• End Date & Time: {formatDate(booking.endDate)}
-            <br />• Car: {booking.car.make} {booking.car.model} ({booking.car.year})
-            <br />• Pickup Location: {booking.pickupLocation}
-            <br />• Drop-off Location: {booking.returnLocation}
-            <br />• Total Amount:{" "}
-            {new Intl.NumberFormat("en-NG", {
-              style: "currency",
-              currency: "NGN",
-            }).format(Number(booking.totalAmount))}
+          <Text className="text-gray-600 mt-6">
+            If you have any questions, feel free to contact us.
           </Text>
 
           <Hr className="my-4 border-gray-500" />
@@ -268,7 +317,7 @@ export function renderChauffeurAssignedEmail(booking: BookingWithRelations) {
           </Heading>
 
           <Text className="text-base text-gray-800">
-            Hello {booking.user.username || booking.user.email},
+            Hello {booking.user?.username || booking.guestUser?.name || booking.guestUser?.email},
           </Text>
 
           <Text className="text-base text-gray-800 mt-4">
@@ -279,28 +328,29 @@ export function renderChauffeurAssignedEmail(booking: BookingWithRelations) {
           <Text className="text-base text-gray-800 mt-4">Chauffeur Details:</Text>
 
           <Text className="text-base text-gray-800">
-            • Name: {booking?.chauffeur?.name}
-            <br />• Email: {booking?.chauffeur?.email}
-            {booking?.chauffeur?.phoneNumber && (
-              <>
-                <br />• Phone: {booking?.chauffeur?.phoneNumber}
-              </>
-            )}
+            <ul className="list-none p-0">
+              <li className="m-0">Name: {booking?.chauffeur?.name}</li>
+              <li className="m-0">Email: {booking?.chauffeur?.email}</li>
+              <li className="m-0">Phone: {booking?.chauffeur?.phoneNumber}</li>
+            </ul>
           </Text>
 
           <Text className="text-base text-gray-800 mt-4">Booking Details:</Text>
 
           <Text className="text-base text-gray-800">
-            • Start Date & Time: {formatDate(booking.startDate)}
-            <br />• End Date & Time: {formatDate(booking.endDate)}
-            <br />• Car: {booking.car.make} {booking.car.model} ({booking.car.year})
-            <br />• Pickup Location: {booking.pickupLocation}
-            <br />• Return Location: {booking.returnLocation}
-            <br />• Total Amount:{" "}
-            {new Intl.NumberFormat("en-NG", {
-              style: "currency",
-              currency: "NGN",
-            }).format(Number(booking.totalAmount))}
+            <ul className="list-none p-0">
+              <li className="m-0">Start Date & Time: {formatDate(booking.startDate)}</li>
+              <li className="m-0">End Date & Time: {formatDate(booking.endDate)}</li>
+              <li className="m-0">Pickup Location: {booking.pickupLocation}</li>
+              <li className="m-0">Return Location: {booking.returnLocation}</li>
+              <li className="m-0">
+                Total Amount:{" "}
+                {new Intl.NumberFormat("en-NG", {
+                  style: "currency",
+                  currency: "NGN",
+                }).format(Number(booking.totalAmount))}
+              </li>
+            </ul>
           </Text>
 
           <Text className="text-base text-gray-800 mt-4">
@@ -322,7 +372,8 @@ export function renderBookingReminder(
   recipient: "client" | "chauffeur",
   isStartReminder = true,
 ) {
-  const user = recipient === "client" ? booking.user : booking.chauffeur;
+  const user =
+    recipient === "client" ? (booking.user ?? booking.guestUser?.name) : booking.chauffeur;
 
   return render(
     <EmailTemplate>
@@ -355,7 +406,7 @@ export function renderBookingReminder(
           )}
           {recipient === "chauffeur" && (
             <Text>
-              Your client {booking.user.name} will{" "}
+              Your client {booking.user?.name || booking.guestUser?.name} will{" "}
               {isStartReminder
                 ? "meet you at the pickup location"
                 : "drop you off at the drop-off location"}

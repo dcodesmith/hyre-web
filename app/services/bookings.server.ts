@@ -1,4 +1,4 @@
-import { BookingStatus, PaymentStatus, Status } from "@prisma/client";
+import { BookingStatus, PaymentStatus, Status, User } from "@prisma/client";
 import logger from "~/lib/logger.server";
 import { prisma } from "~/modules/db/db.server";
 import { sendEmail } from "~/modules/email/email.server";
@@ -12,7 +12,7 @@ export type CreateBookingParams = {
   startDate: Date;
   endDate: Date;
   carId: string;
-  userId: string;
+  user: User | { email: string; name: string };
   pickupLocation: string;
   returnLocation: string;
   specialRequests?: string;
@@ -23,7 +23,7 @@ export async function confirmBooking({
   startDate,
   endDate,
   carId,
-  userId,
+  user,
   pickupLocation,
   returnLocation,
   specialRequests,
@@ -44,7 +44,9 @@ export async function confirmBooking({
         startDate,
         endDate,
         carId,
-        userId,
+        ...("id" in user
+          ? { userId: user.id }
+          : { guestUser: { email: user.email, name: user.name } }),
         pickupLocation,
         returnLocation,
         specialRequests,
@@ -130,9 +132,9 @@ export async function getMonthToDateBookingsValue(fleetOwnerId: string) {
   return bookings.reduce((sum, booking) => sum + booking.totalAmount.toNumber(), 0);
 }
 
-export async function getUserBookings(userId: string) {
+export async function getUserBookings(email: string, isGuest = false) {
   return prisma.booking.findMany({
-    where: { userId },
+    where: isGuest ? { guestUser: { equals: { email } } } : { user: { email: email } },
     include: {
       car: true,
       chauffeur: true,
@@ -214,8 +216,8 @@ export async function getBooking(bookingId: string) {
   }
 }
 
-export async function getBookingsByStatus(userId: string) {
-  const bookings = await getUserBookings(userId);
+export async function getBookingsByStatus(userId: string, isGuest = false) {
+  const bookings = await getUserBookings(userId, isGuest);
 
   return bookings.reduce(
     (acc, booking) => {
@@ -272,7 +274,7 @@ export async function updateBookingsFromConfirmedToActive() {
 
       await emailQueue.add(() =>
         sendEmail({
-          to: booking.user.email,
+          to: booking.user?.email ?? booking.guestUser?.email,
           subject: "Your booking has started",
           html,
         }),
@@ -330,7 +332,7 @@ export async function updateBookingsFromActiveToCompleted() {
 
       await emailQueue.add(() =>
         sendEmail({
-          to: booking.user.email,
+          to: booking.user?.email ?? booking.guestUser?.email,
           subject: "Your booking has ended",
           html,
         }),
@@ -377,7 +379,7 @@ export async function sendBookingStartReminderEmails() {
       const clientHtml = await renderBookingReminder(booking, "client");
       await emailQueue.add(() =>
         sendEmail({
-          to: booking.user.email,
+          to: booking.user?.email ?? booking.guestUser?.email,
           subject: "Booking Reminder - Your booking starts in 1 hour",
           html: clientHtml,
         }),
@@ -388,7 +390,7 @@ export async function sendBookingStartReminderEmails() {
         const chauffeurHtml = await renderBookingReminder(booking, "chauffeur");
         await emailQueue.add(() =>
           sendEmail({
-            to: "dcodesmith@gmail.com", // booking.chauffeur.email,
+            to: booking.chauffeur?.email,
             subject: "Booking Reminder - You have a booking starting in 1 hour",
             html: chauffeurHtml,
           }),
@@ -438,7 +440,7 @@ export async function sendBookingEndReminderEmails() {
       const clientHtml = await renderBookingReminder(booking, "client", false);
       await emailQueue.add(() =>
         sendEmail({
-          to: booking.user.email,
+          to: booking.user?.email ?? booking.guestUser?.email,
           subject: "Booking Reminder - Your booking ends in 1 hour",
           html: clientHtml,
         }),
@@ -449,7 +451,7 @@ export async function sendBookingEndReminderEmails() {
         const chauffeurHtml = await renderBookingReminder(booking, "chauffeur", false);
         await emailQueue.add(() =>
           sendEmail({
-            to: "dcodesmith@gmail.com", // booking.chauffeur.email,
+            to: booking.chauffeur?.email,
             subject: "Booking Reminder - You have a booking ending in 1 hour",
             html: chauffeurHtml,
           }),

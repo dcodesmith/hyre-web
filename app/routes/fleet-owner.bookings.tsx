@@ -148,13 +148,13 @@ export default function BookingsPage() {
     },
     {
       accessorKey: "customer",
-      accessorFn: ({ user }) => `${user.name || user.email || user.username}`,
+      accessorFn: ({ user }) => `${user?.name || user?.email || user?.username}`,
       header: ({ column }) => <ColumnHeader column={column} title="Customer" />,
       cell: ({ row }) => {
-        const user = row.original.user;
+        const { user, guestUser } = row.original;
         return (
           <div className="w-[150px]">
-            {user.name || user.email || user.username || "Unknown User"}
+            {user?.name || user?.email || user?.username || guestUser?.email}
           </div>
         );
       },

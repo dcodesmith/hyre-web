@@ -1,3 +1,4 @@
+import { User } from "@prisma/client";
 import { ActionFunctionArgs, type LoaderFunctionArgs, json } from "@remix-run/node";
 import {
   Link,
@@ -22,8 +23,9 @@ import {
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
+import logger from "~/lib/logger.server";
 import { formatCurrency, formatDate, isBookingEditable } from "~/lib/utils";
-import { requireUser } from "~/modules/auth/auth.server";
+import { getSessionUser } from "~/modules/auth/auth.server";
 import { prisma } from "~/modules/db/db.server";
 import { sendEmail } from "~/modules/email/email.server";
 import {
@@ -34,10 +36,23 @@ import { cancelBooking, confirmBooking, getBookingsByStatus } from "~/services/b
 import { requireUserWithRole } from "~/utils/permissions.server";
 
 export async function action({ request }: ActionFunctionArgs) {
-  const user = await requireUserWithRole(request, "user");
+  const formData = await request.formData();
+
+  const guestEmail = String(formData.get("email"));
+  const guestName = String(formData.get("name"));
+
+  // Get either guest user or authenticated user
+  let user: User | null | { email: string; name: string } = null;
+  if (guestEmail) {
+    user = { email: guestEmail, name: guestName };
+  } else {
+    user = await requireUserWithRole(request, "user");
+  }
+
+  // const user = await requireUserWithRole(request, "user");
 
   if (request.method === "DELETE") {
-    const formData = await request.formData();
+    // const formData = await request.formData();
     const bookingId = String(formData.get("bookingId"));
     const reason = String(formData.get("reason"));
 
@@ -69,19 +84,26 @@ export async function action({ request }: ActionFunctionArgs) {
       return json({ error: "End date cannot be before start date" }, { status: 400 });
     }
 
-    const formData = await request.formData();
-
-    // TODO:for security reasons, we need to do another validation to check that booking is still available
-    // because the user might have changed the dates in the form
-
-    const pickupStreet = String(formData.get("pickupStreet"));
-    const pickupLocality = String(formData.get("pickupLocality"));
+    const pickupAddress = String(formData.get("pickupAddress"));
     const sameLocation = formData.get("sameLocation");
     const pickupTime = String(formData.get("pickupTime"));
-    const dropOffStreet = String(formData.get("dropOffStreet"));
-    const dropOffLocality = String(formData.get("dropOffLocality"));
+    const dropOffAddress = String(formData.get("dropOffAddress"));
     const carId = String(formData.get("carId"));
     const paymentId = String(formData.get("paymentId"));
+
+    // Check if guest email exists as a user
+    if (guestEmail) {
+      const existingUser = await prisma.user.findUnique({
+        where: { email: guestEmail },
+      });
+
+      if (existingUser) {
+        return json(
+          { error: "This email is registered to an existing user. Please login to continue." },
+          { status: 400 },
+        );
+      }
+    }
 
     // Parse the time from pickupTime (e.g. "8:00 AM") and set it on startDate
     const [time, period] = pickupTime.split(" ");
@@ -107,29 +129,44 @@ export async function action({ request }: ActionFunctionArgs) {
     endDateTime.setSeconds(0);
     endDateTime.setMilliseconds(0);
 
-    const pickupLocation = `${pickupStreet}, ${pickupLocality}`;
-    const returnLocation =
-      sameLocation === "true" ? pickupLocation : `${dropOffStreet}, ${dropOffLocality}`;
+    const pickupLocation = pickupAddress;
+    const returnLocation = sameLocation === "true" ? pickupAddress : dropOffAddress;
+
+    logger.info("Confirming booking", {
+      startDate: startDateTime,
+      endDate: endDateTime,
+      carId,
+      user,
+      pickupLocation,
+      returnLocation,
+      paymentId,
+    });
 
     try {
       const booking = await confirmBooking({
         startDate: startDateTime,
         endDate: endDateTime,
         carId,
-        userId: user.id,
+        user,
         pickupLocation,
         returnLocation,
         paymentId,
       });
 
+      logger.info("Confirmed booking for", {
+        bookingId: booking.id,
+        userEmail: booking.user?.email,
+        guestUser: booking.guestUser,
+      });
+
       await Promise.all([
         sendEmail({
-          to: booking.user.email,
+          to: user.email,
           subject: "Booking confirmed",
           html: await renderBookingConfirmationEmail(booking),
         }),
         sendEmail({
-          to: "dcodesmith@gmail.com", // booking.car.owner.email,
+          to: booking.car.owner.email,
           subject: "New booking alert",
           html: await renderFleetOwnerBookingNotificationEmail(booking),
         }),
@@ -141,15 +178,30 @@ export async function action({ request }: ActionFunctionArgs) {
     }
   }
 
+  if (request.method === "GET") {
+    const bookings = await getBookingsByStatus(user?.email);
+    return json({ bookings });
+  }
+
   return json({ error: "Invalid request method" }, { status: 405 });
 }
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  const user = await requireUserWithRole(request, "user");
+  const url = new URL(request.url);
+  const guestEmail = url.searchParams.get("email");
+  const user = await getSessionUser(request);
 
-  const bookings = await getBookingsByStatus(user.id);
+  const email = guestEmail || user?.email;
 
-  return json({ bookings });
+  logger.info(email);
+
+  if (!email) {
+    return json({ bookings: {} });
+  }
+
+  const bookings = await getBookingsByStatus(email, Boolean(guestEmail));
+
+  return json({ bookings } as const);
 }
 
 export default function BookingsPage() {
@@ -169,6 +221,27 @@ export default function BookingsPage() {
     }
   }, [editFetcher.data]);
 
+  // Add check for guest email in search params
+  const guestEmail = searchParams.get("email");
+
+  // If no bookings and no guest email, show guest email form
+  if (!Object.keys(bookings).length && !guestEmail) {
+    return (
+      <div className="max-w-md mx-auto mt-8">
+        <h2 className="text-2xl font-bold mb-4">Find Your Bookings</h2>
+        <form method="get" action="/bookings?status=confirmed" className="space-y-4">
+          <div>
+            <Label htmlFor="guestEmail">Enter your email address</Label>
+            <Input id="email" name="email" type="email" placeholder="your@email.com" required />
+          </div>
+          <Button type="submit" className="w-full">
+            Find Bookings
+          </Button>
+        </form>
+      </div>
+    );
+  }
+
   return (
     <div>
       <h2 className="text-2xl font-bold mb-4">Your Bookings</h2>
@@ -181,7 +254,9 @@ export default function BookingsPage() {
               key={status}
               value={status}
               onClick={() => {
-                navigate(`/bookings?status=${status.toLocaleLowerCase()}`);
+                const newSearchParams = new URLSearchParams(searchParams);
+                newSearchParams.set("status", status.toLowerCase());
+                navigate(`/bookings?${newSearchParams.toString()}`);
               }}
             >
               {status.charAt(0) + status.slice(1).toLowerCase()}
@@ -277,7 +352,7 @@ export default function BookingsPage() {
                                     Pickup Street Address
                                   </label>
                                   <Input
-                                    name="pickupStreet"
+                                    name="pickupAddress"
                                     defaultValue={booking.pickupLocation.split(", ")[0]}
                                     placeholder="Enter street address"
                                   />
@@ -317,7 +392,7 @@ export default function BookingsPage() {
                                         Drop-off Street Address
                                       </label>
                                       <Input
-                                        name="dropOffStreet"
+                                        name="dropOffAddress"
                                         defaultValue={booking.returnLocation.split(", ")[0]}
                                         placeholder="Enter drop-off street address"
                                       />

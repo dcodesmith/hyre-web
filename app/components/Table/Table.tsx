@@ -72,13 +72,13 @@ export function Table<T extends object>({ columns, data }: TableProps<T>) {
     <div className="space-y-4">
       {table.getFilteredRowModel().rows.length > 0 && (
         <div className="flex items-center flex-wrap gap-2 justify-between">
-          <div className="flex flex-col sm:flex-row items-center sm:w-auto w-full gap-2">
+          <div className="flex flex-row sm:flex-row items-center sm:w-auto w-full gap-2">
             {filterableColumns.length > 0 && (
               <div className="content-center hidden sm:block">
                 <AdjustmentsVerticalIcon className="h-5 w-5" />
               </div>
             )}
-            <div className="flex gap-2 flex-wrap w-full">
+            <div className="flex gap-2 w-full">
               {filterableColumns.map((column) => (
                 <FacetedFilter
                   key={column.id}

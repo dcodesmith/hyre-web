@@ -24,6 +24,7 @@ import {
   renderFleetOwnerBookingCancellationEmail,
 } from "~/modules/email/templates/booking-notification";
 import { cancelBooking, getBooking } from "~/services/bookings.server";
+import { AutocompleteAddress } from "~/components/AutocompleteAddress";
 
 export async function action({ request, params }: ActionFunctionArgs) {
   const user = await requireUser(request, {
@@ -35,11 +36,9 @@ export async function action({ request, params }: ActionFunctionArgs) {
   if (request.method === "PATCH") {
     const formData = await request.formData();
     const pickupTime = String(formData.get("pickupTime"));
-    const pickupStreet = String(formData.get("pickupStreet"));
-    const pickupLocality = String(formData.get("pickupLocality"));
+    const pickupAddress = String(formData.get("pickupAddress"));
     const sameLocation = String(formData.get("sameLocation"));
-    const dropOffStreet = String(formData.get("dropOffStreet"));
-    const dropOffLocality = String(formData.get("dropOffLocality"));
+    const dropOffAddress = String(formData.get("dropOffAddress"));
 
     const currentBooking = await getBooking(params.id);
 
@@ -74,18 +73,14 @@ export async function action({ request, params }: ActionFunctionArgs) {
       );
     }
 
-    const pickupLocation = `${pickupStreet}, ${pickupLocality}`;
-    const returnLocation =
-      sameLocation === "true" ? pickupLocation : `${dropOffStreet}, ${dropOffLocality}`;
-
     try {
       const booking = await prisma.booking.update({
         where: { id: params.id },
         data: {
           startDate,
           endDate,
-          pickupLocation,
-          returnLocation,
+          pickupLocation: pickupAddress,
+          returnLocation: sameLocation === "true" ? pickupAddress : dropOffAddress,
         },
         include: {
           user: true,
@@ -96,7 +91,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
       // Optionally send email notification about booking update
       await sendEmail({
-        to: booking.user.email,
+        to: booking.user?.email ?? booking.guestUser?.email,
         subject: "Booking Updated",
         html: `Your booking for ${booking.car.make} ${booking.car.model} has been updated.`,
       });
@@ -130,17 +125,15 @@ export async function action({ request, params }: ActionFunctionArgs) {
         options,
       );
 
-      console.log(await response.json());
-
       await Promise.all([
         sendEmail({
-          to: booking.user.email,
+          to: booking.user?.email ?? booking.guestUser?.email,
           subject: "Booking cancelled",
           html: await renderBookingCancellationEmail(booking),
         }),
 
         await sendEmail({
-          to: booking.user.email,
+          to: booking.user?.email ?? booking?.guestUser?.email,
           subject: "Booking cancelled",
           html: await renderFleetOwnerBookingCancellationEmail(booking),
         }),
@@ -275,7 +268,7 @@ export default function Booking() {
             <Form method="PATCH" className="space-y-4">
               <div className="grid gap-4 py-4">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Pickup Time</label>
+                  <Label htmlFor="pickupTime">Pickup Time</Label>
                   <BookingTimeSelect
                     date={new Date(booking.startDate)}
                     defaultValue={new Date(booking.startDate).toLocaleTimeString("en-US", {
@@ -287,20 +280,17 @@ export default function Booking() {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Pickup Street Address</label>
-                  <Input
-                    name="pickupStreet"
-                    defaultValue={booking.pickupLocation.split(", ")[0]}
-                    placeholder="Enter street address"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Pickup Locality/Area</label>
-                  <Input
-                    name="pickupLocality"
-                    defaultValue={booking.pickupLocation.split(", ")[1]}
-                    placeholder="Enter locality or area"
+                  <Label htmlFor="pickupAddress">Pickup Address</Label>
+                  <AutocompleteAddress
+                    inputProps={{
+                      name: "pickupAddress",
+                      id: "pickupAddress",
+                      defaultValue: booking.pickupLocation,
+                      placeholder: "Enter pickup address",
+                    }}
+                    onSelect={(place) => {
+                      // Handle place selection if needed
+                    }}
                   />
                 </div>
 
@@ -317,24 +307,19 @@ export default function Booking() {
                 </div>
 
                 {showDropoffFields && (
-                  <div className="dropoff-fields space-y-4" id="dropoffFields">
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Drop-off Street Address</label>
-                      <Input
-                        name="dropOffStreet"
-                        defaultValue={booking.returnLocation.split(", ")[0]}
-                        placeholder="Enter drop-off street address"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Drop-off Locality/Area</label>
-                      <Input
-                        name="dropOffLocality"
-                        defaultValue={booking.returnLocation.split(", ")[1]}
-                        placeholder="Enter drop-off locality or area"
-                      />
-                    </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="dropOffAddress">Drop-off Address</Label>
+                    <AutocompleteAddress
+                      inputProps={{
+                        name: "dropOffAddress",
+                        id: "dropOffAddress",
+                        defaultValue: booking.returnLocation,
+                        placeholder: "Enter drop-off address",
+                      }}
+                      onSelect={(place) => {
+                        // Handle place selection if needed
+                      }}
+                    />
                   </div>
                 )}
               </div>

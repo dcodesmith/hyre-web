@@ -15,8 +15,10 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "./ui/card"
 import { Checkbox } from "./ui/checkbox";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
+import { AutocompleteAddress } from "./AutocompleteAddress";
 
 // FLWPUBK_TEST-02b9b5fc6406bd4a41c3ff141cc45e93-X
+// Public Key FLWPUBK_TEST-643bc7a3d329e2cd19277bc263cca008-X
 
 type FlutterwaveConfig = {
   public_key: string;
@@ -37,7 +39,7 @@ type FlutterwaveConfig = {
 };
 
 const config: Omit<FlutterwaveConfig, "amount" | "customer"> = {
-  public_key: "FLWPUBK_TEST-643bc7a3d329e2cd19277bc263cca008-X",
+  public_key: "FLWPUBK_TEST-02b9b5fc6406bd4a41c3ff141cc45e93-X",
   tx_ref: "txref-DI0NzMx13",
   currency: "NGN",
   payment_options: "card,mobilemoney,ussd",
@@ -60,17 +62,11 @@ const bookingSelectedSchema = z.object({
   pickupTime: z.string({
     required_error: "Pickup time is required",
   }),
-  pickupStreet: z
-    .string({
-      required_error: "Pickup street address is required",
-    })
-    .min(10, "Pickup street address must be at least 10 characters"),
-  pickupLocality: z
-    .string({
-      required_error: "Pickup locality is required",
-    })
-    .min(3, "Pickup locality must be at least 3 characters"),
+  pickupAddress: z.string({
+    required_error: "Pickup address is required",
+  }),
   email: z.string().email("Invalid email address").optional(),
+  name: z.string().min(2, "Name must be at least 2 characters").optional(),
 });
 
 const bookingUnselectedSchema = z.object({
@@ -79,23 +75,14 @@ const bookingUnselectedSchema = z.object({
   pickupTime: z.string({
     required_error: "Pickup time is required",
   }),
-  pickupStreet: z
-    .string({
-      required_error: "Pickup street address is required",
-    })
-    .min(10, "Pickup street address must be at least 10 characters"),
-  pickupLocality: z
-    .string({
-      required_error: "Pickup locality is required",
-    })
-    .min(3, "Pickup locality must be at least 3 characters"),
-  dropOffStreet: z.string({
-    required_error: "Drop-off street address is required",
+  pickupAddress: z.string({
+    required_error: "Pickup address is required",
   }),
-  dropOffLocality: z.string({
-    required_error: "Drop-off locality is required",
+  dropOffAddress: z.string({
+    required_error: "Drop-off address is required",
   }),
   email: z.string().email("Invalid email address").optional(),
+  name: z.string().min(2, "Name must be at least 2 characters").optional(),
 });
 
 const emailSchema = z
@@ -103,6 +90,12 @@ const emailSchema = z
     required_error: "Email is required for guest booking",
   })
   .email("Invalid email address");
+
+const nameSchema = z
+  .string({
+    required_error: "Name is required for guest booking",
+  })
+  .min(2, "Name must be at least 2 characters");
 
 const getBookingSchema = (isGuestBooking: boolean) => {
   const baseSchemas = {
@@ -115,8 +108,14 @@ const getBookingSchema = (isGuestBooking: boolean) => {
   }
 
   return z.discriminatedUnion("sameLocation", [
-    baseSchemas.selected.extend({ email: emailSchema }),
-    baseSchemas.unselected.extend({ email: emailSchema }),
+    baseSchemas.selected.extend({
+      email: emailSchema,
+      name: nameSchema,
+    }),
+    baseSchemas.unselected.extend({
+      email: emailSchema,
+      name: nameSchema,
+    }),
   ]);
 };
 
@@ -124,14 +123,16 @@ const errorRingClasses = "border-red-500 focus-visible:ring-red-500 focus-visibl
 
 function useBookingPayment({
   car,
-  dateRange,
+  totalCost,
   email,
+  name,
   searchParams,
   user,
 }: {
   car: Car;
-  dateRange: DateRange;
+  totalCost: number;
   email: string;
+  name: string;
   searchParams: string;
   user: User;
 }) {
@@ -140,11 +141,11 @@ function useBookingPayment({
 
   const handlePayment = useFlutterwave({
     ...config,
-    amount: Number(car.price) * calculateTotalDays(dateRange) * 1.075,
+    amount: process.env.NODE_ENV === "development" ? 3000 : totalCost,
     customer: {
-      email: email || "dcodesmith@gmail.com",
+      email,
       phone_number: "070********",
-      name: "Afees Adedamola Kolawole",
+      name,
     },
     customizations: config.customizations,
   });
@@ -156,6 +157,8 @@ function useBookingPayment({
       const formElement = event.currentTarget;
       const formData = new FormData(formElement);
       const isGuestBooking = formElement.getAttribute("data-booking-type") === "guest";
+
+      formData.set("bookingType", isGuestBooking ? "guest" : "auth");
 
       if (!isGuestBooking && !user) {
         const redirectTo = `/cars/${car.id}${searchParams ? `?${searchParams}` : ""}`;
@@ -196,43 +199,39 @@ const calculateTotalDays = (dateRange: DateRange) => {
   return days;
 };
 
+// Add security detail cost constant
+const SECURITY_DETAIL_COST = 30000;
+
 // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: <explanation>
 export default function BookingCard({ car, isAvailable, user }: BookingCardProps) {
+  const navigate = useNavigate();
   const [sameLoc, setSameLocation] = useState<CheckedState>(true);
-  const [isGuestBooking, setIsGuestBooking] = useState(false);
+  const [includeSecurityDetail, setIncludeSecurityDetail] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
   const fromParam = searchParams.get("from");
   const toParam = searchParams.get("to");
+
+  const [, setSelectedPlace] = useState<google.maps.places.PlaceResult | null>(null);
 
   const [dateRange, setDateRange] = useState<DateRange>({
     from: fromParam ? new Date(fromParam) : undefined,
     to: toParam ? new Date(toParam) : undefined,
   });
 
-  const [
-    form,
-    {
-      pickupTime,
-      pickupStreet,
-      pickupLocality,
-      sameLocation,
-      dropOffStreet,
-      dropOffLocality,
-      email,
-    },
-  ] = useForm({
+  const [form, { pickupTime, pickupAddress, dropOffAddress, sameLocation, email, name }] = useForm({
     shouldValidate: "onSubmit",
     shouldRevalidate: "onBlur",
     defaultValue: {
       pickupTime: searchParams.get("pickupTime") || undefined,
-      pickupStreet: searchParams.get("pickupStreet") || undefined,
-      pickupLocality: searchParams.get("pickupLocality") || undefined,
+      pickupAddress: searchParams.get("pickupAddress") || undefined,
+      dropOffAddress: searchParams.get("dropOffAddress") || undefined,
       sameLocation: searchParams.get("sameLocation") || "true",
     },
     onSubmit(event) {
       onMakePayment(event);
     },
-    onValidate({ formData }) {
+    onValidate({ formData, form }) {
+      const isGuestBooking = form.getAttribute("data-booking-type") === "guest";
       const schema = getBookingSchema(isGuestBooking);
       return parseWithZod(formData, { schema });
     },
@@ -254,19 +253,27 @@ export default function BookingCard({ car, isAvailable, user }: BookingCardProps
     }
   };
 
+  const totalDays = calculateTotalDays(dateRange);
+  const totalCost =
+    (Number(car.price) * totalDays +
+      (includeSecurityDetail ? SECURITY_DETAIL_COST * totalDays : 0)) *
+    1.075;
+
   const onMakePayment = useBookingPayment({
     car,
-    dateRange,
-    email: email.value || "dcodesmith@gmail.com",
+    totalCost,
+    email: email.value ?? "",
+    name: name.value ?? "",
     searchParams: searchParams.toString(),
     user,
   });
 
-  const totalDays = calculateTotalDays(dateRange);
   const carIsAvailableToBook = dateRange.from && dateRange.to && isAvailable;
 
+  const handleSelect = (place: google.maps.places.PlaceResult) => setSelectedPlace(place);
+
   return (
-    <Form {...getFormProps(form)} method="POST">
+    <Form {...getFormProps(form)} method="POST" autoComplete="off">
       <input type="hidden" name="carId" value={car.id} />
       <Card className="rounded sticky top-4">
         <CardHeader>
@@ -302,26 +309,15 @@ export default function BookingCard({ car, isAvailable, user }: BookingCardProps
               </div>
 
               <div className="space-y-1">
-                <Label htmlFor={pickupStreet.id}>Pickup Street Address</Label>
-                <Input
-                  {...getInputProps(pickupStreet, { type: "text" })}
-                  placeholder="Enter street address"
-                  className={`w-full rounded ${pickupStreet.errors ? errorRingClasses : ""}`}
-                />
-                {pickupStreet.errors && (
-                  <p className="text-red-500 text-sm">{pickupStreet.errors.join(" ")}</p>
-                )}
-              </div>
+                <Label htmlFor={pickupAddress.id}>Pickup Address</Label>
 
-              <div className="space-y-1">
-                <Label htmlFor={pickupLocality.id}>Pickup Locality/Area</Label>
-                <Input
-                  {...getInputProps(pickupLocality, { type: "text" })}
-                  placeholder="Enter locality or area"
-                  className={`w-full rounded ${pickupLocality.errors ? errorRingClasses : ""}`}
+                <AutocompleteAddress
+                  onSelect={handleSelect}
+                  inputProps={getInputProps(pickupAddress, { type: "text" })}
+                  className={`${pickupAddress.errors ? errorRingClasses : ""}`}
                 />
-                {pickupLocality.errors && (
-                  <p className="text-red-500 text-sm">{pickupLocality.errors.join(" ")}</p>
+                {pickupAddress.errors && (
+                  <p className="text-red-500 text-sm">{pickupAddress.errors.join(" ")}</p>
                 )}
               </div>
 
@@ -345,41 +341,27 @@ export default function BookingCard({ car, isAvailable, user }: BookingCardProps
               </div>
 
               {!sameLoc && (
-                <>
-                  <div className="space-y-1">
-                    <Label htmlFor={dropOffStreet.id}>Drop-off Street Address</Label>
-                    <Input
-                      {...getInputProps(dropOffStreet, { type: "text" })}
-                      placeholder="Enter drop-off street address"
-                      className={`w-full rounded ${dropOffStreet.errors ? errorRingClasses : ""}`}
-                    />
-                    {dropOffStreet.errors && (
-                      <p className="text-red-500 text-sm">{dropOffStreet.errors.join(" ")}</p>
-                    )}
-                  </div>
-
-                  <div className="space-y-1">
-                    <Label htmlFor={dropOffLocality.id}>Drop-off Locality/Area</Label>
-                    <Input
-                      {...getInputProps(dropOffLocality, { type: "text" })}
-                      placeholder="Enter drop-off locality or area"
-                      className={`w-full rounded ${dropOffLocality.errors ? errorRingClasses : ""}`}
-                    />
-                    {dropOffLocality.errors && (
-                      <p className="text-red-500 text-sm">{dropOffLocality.errors.join(" ")}</p>
-                    )}
-                  </div>
-                </>
+                <div className="space-y-1">
+                  <Label htmlFor={dropOffAddress.id}>Drop-off Address</Label>
+                  <AutocompleteAddress
+                    onSelect={handleSelect}
+                    inputProps={getInputProps(dropOffAddress, { type: "text" })}
+                    className={`${dropOffAddress.errors ? errorRingClasses : ""}`}
+                  />
+                  {dropOffAddress.errors && (
+                    <p className="text-red-500 text-sm">{dropOffAddress.errors.join(" ")}</p>
+                  )}
+                </div>
               )}
 
               <div className="space-y-1">
                 <div className="flex items-center space-x-2">
                   <Checkbox
-                    id="guestBooking"
-                    checked={isGuestBooking}
-                    onCheckedChange={(checked) => setIsGuestBooking(!!checked)}
+                    id="includeSecurityDetail"
+                    checked={includeSecurityDetail}
+                    onCheckedChange={(checked) => setIncludeSecurityDetail(!!checked)}
                   />
-                  <Label htmlFor="guestBooking">Book as guest</Label>
+                  <Label htmlFor="includeSecurityDetail">Add security detail</Label>
                 </div>
               </div>
             </div>
@@ -406,10 +388,25 @@ export default function BookingCard({ car, isAvailable, user }: BookingCardProps
                     </dd>
                   </div>
 
+                  {includeSecurityDetail && (
+                    <div className="flex justify-between">
+                      <dt className="text-sm text-gray-600">
+                        {formatCurrency(SECURITY_DETAIL_COST)} x {totalDays} days
+                      </dt>
+                      <dd className="text-sm text-gray-600">
+                        {formatCurrency(SECURITY_DETAIL_COST * totalDays)}
+                      </dd>
+                    </div>
+                  )}
+
                   <div className="flex justify-between mb-4">
-                    <dt className="text-sm text-gray-600">VAT (7.5%)</dt>
+                    <dt className="text-sm text-gray-600">VAT @ 7.5%</dt>
                     <dd className="text-sm text-gray-600">
-                      {formatCurrency(Number(car.price) * totalDays * 0.075)}
+                      {formatCurrency(
+                        (Number(car.price) * totalDays +
+                          (includeSecurityDetail ? SECURITY_DETAIL_COST * totalDays : 0)) *
+                          0.075,
+                      )}
                     </dd>
                   </div>
 
@@ -417,42 +414,77 @@ export default function BookingCard({ car, isAvailable, user }: BookingCardProps
 
                   <div className="flex justify-between mt-4">
                     <dt className="text-md font-bold">Total</dt>
-                    <dd className="text-md font-bold">
-                      {formatCurrency(Number(car.price) * totalDays * 1.075)}
-                    </dd>
+                    <dd className="text-md font-bold">{formatCurrency(totalCost)}</dd>
                   </div>
                 </dl>
               </div>
 
               {(!user || user.roles.some((role) => role.name === "user")) && (
                 <div className="space-y-4">
-                  {isGuestBooking && (
-                    <div className="space-y-1">
-                      <Label htmlFor={email.id}>Email</Label>
-                      <Input
-                        {...getInputProps(email, { type: "email" })}
-                        placeholder="Enter your email"
-                        className={`w-full rounded ${email.errors ? errorRingClasses : ""}`}
-                      />
-                      {email.errors && (
-                        <p className="text-red-500 text-sm">{email.errors.join(" ")}</p>
-                      )}
-                    </div>
+                  {!user && (
+                    <>
+                      <div className="space-y-1">
+                        <Label htmlFor={name.id}>Name</Label>
+                        <Input
+                          {...getInputProps(name, { type: "text" })}
+                          placeholder="Enter your full name"
+                          className={`w-full rounded ${name.errors ? errorRingClasses : ""}`}
+                        />
+                        {name.errors && (
+                          <p className="text-red-500 text-sm">{name.errors.join(" ")}</p>
+                        )}
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor={email.id}>Email</Label>
+                        <Input
+                          {...getInputProps(email, { type: "email" })}
+                          placeholder="Enter your email"
+                          className={`w-full rounded ${email.errors ? errorRingClasses : ""}`}
+                        />
+                        {email.errors && (
+                          <p className="text-red-500 text-sm">{email.errors.join(" ")}</p>
+                        )}
+                      </div>
+                    </>
                   )}
 
-                  <div className="flex">
-                    {isGuestBooking ? (
-                      <Button
-                        type="submit"
-                        className="rounded w-full"
-                        form={form.id}
-                        onClick={() => {
-                          const formElement = document.getElementById(form.id) as HTMLFormElement;
-                          formElement.setAttribute("data-booking-type", "guest");
-                        }}
-                      >
-                        Book Now as Guest
-                      </Button>
+                  <div className="flex flex-col space-y-2">
+                    {!user ? (
+                      <>
+                        <Button
+                          type="submit"
+                          className="rounded w-full"
+                          form={form.id}
+                          onClick={() => {
+                            const formElement = document.getElementById(form.id) as HTMLFormElement;
+                            formElement.setAttribute("data-booking-type", "guest");
+                          }}
+                        >
+                          Book Now as Guest
+                        </Button>
+                        <div className="flex items-center">
+                          <span>Have an account?</span>
+                          <Button
+                            type="button"
+                            className="underline"
+                            form={form.id}
+                            variant="link"
+                            onClick={() => {
+                              searchParams.append("role", "user");
+                              const redirectTo = `/cars/${car.id}${
+                                searchParams ? `?${searchParams}` : ""
+                              }`;
+                              return navigate(`/auth?redirectTo=${encodeURIComponent(redirectTo)}`);
+                              // const formElement = document.getElementById(
+                              //   form.id,
+                              // ) as HTMLFormElement;
+                              // formElement.setAttribute("data-booking-type", "auth");
+                            }}
+                          >
+                            Sign in to book
+                          </Button>
+                        </div>
+                      </>
                     ) : (
                       <Button
                         type="submit"
@@ -463,7 +495,7 @@ export default function BookingCard({ car, isAvailable, user }: BookingCardProps
                           formElement.setAttribute("data-booking-type", "auth");
                         }}
                       >
-                        Sign in to book
+                        Book Now
                       </Button>
                     )}
                   </div>

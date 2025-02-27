@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { renderAuthEmail } from "./templates/auth-email";
+import logger from "~/lib/logger.server";
 
 const ResendErrorSchema = z.union([
   z.object({
@@ -27,7 +28,7 @@ export type SendEmailOptions = {
 
 export async function sendEmail(options: SendEmailOptions) {
   // For development mode, Resend will only accept emails from this domain.
-  const from = "hello@resend.dev";
+  const from = "Damola from Chauffeurly <damola@dcodesmith.com>"; //"hello@resend.dev";
   const email = { from, ...options };
 
   const response = await fetch("https://api.resend.com/emails", {
@@ -43,6 +44,12 @@ export async function sendEmail(options: SendEmailOptions) {
   const parsedData = ResendSuccessSchema.safeParse(data);
 
   if (response.ok && parsedData.success) {
+    logger.info({
+      message: "Email sent successfully",
+      to: options.to,
+      subject: options.subject,
+      id: parsedData.data.id,
+    });
     return { status: "success", data: parsedData } as const;
   }
 

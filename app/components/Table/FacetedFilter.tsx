@@ -1,13 +1,7 @@
-import { Column } from "@tanstack/react-table";
-
 import { CheckIcon } from "@heroicons/react/24/outline";
-import {
-  ChevronDownIcon,
-  ChevronsDownUp,
-  ChevronsUpDown,
-  ChevronUpIcon,
-  ListFilterIcon,
-} from "lucide-react";
+import { Column } from "@tanstack/react-table";
+import { ChevronsDownUp, ChevronsUpDown } from "lucide-react";
+import { useState } from "react";
 import { Button } from "~/components/ui/button";
 import { cn } from "~/lib/utils";
 import { Badge } from "../ui/badge";
@@ -22,7 +16,6 @@ import {
 } from "../ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Separator } from "../ui/separator";
-import { useState } from "react";
 
 interface FacetedFilterProps<TData, TValue> {
   column?: Column<TData, TValue>;
@@ -68,7 +61,7 @@ export function FacetedFilter<TData, TValue>({
           onClick={() => setIsOpen(!isOpen)}
           variant="outline"
           size="sm"
-          className="w-full rounded gap-2 h-10 justify-start"
+          className="w-full rounded gap-2 h-10 justify-start capitalize"
         >
           {title}
           {selectedValues?.size > 0 && (

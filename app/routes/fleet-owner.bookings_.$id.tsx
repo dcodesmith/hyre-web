@@ -12,6 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "~/components/ui/select";
+import logger from "~/lib/logger.server";
 import { formatCurrency } from "~/lib/utils";
 import { prisma } from "~/modules/db/db.server";
 import { sendEmail } from "~/modules/email/email.server";
@@ -82,12 +83,20 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
     },
   });
 
-  if (booking === null || booking.user === null || booking.chauffeur === null) {
+  if (booking === null) {
     return json({ error: "User or chauffeur not found" }, { status: 404 });
   }
 
+  const to = booking.user?.email ?? booking.guestUser?.email;
+
+  if (!to) {
+    return json({ error: "User or guest user not found" }, { status: 404 });
+  }
+
+  logger.info(`Sending email to ${to}`);
+
   await sendEmail({
-    to: booking.user.email,
+    to,
     subject: "A chauffeur has been assigned to your booking",
     html: await renderChauffeurAssignedEmail(booking),
   });

@@ -114,8 +114,10 @@ model Booking {
   car   Car    @relation(fields: [carId], references: [id])
 
   // Customer information
-  userId String
-  user   User   @relation(fields: [userId], references: [id], name: "BookingCustomer")
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], name: "BookingCustomer")
+
+  guestUser Json? // Details of guest users, e.g., { "name": "John Doe", "email": "john@example.com" }
 
   // Optional fields
   pickupLocation  String

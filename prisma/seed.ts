@@ -116,11 +116,11 @@ async function seed() {
   const fleetOwners = [
     {
       name: "Cool FleetOwner",
-      email: "cool@fleetowner.com",
+      email: "cool.fleetowner@dcodesmith.com",
     },
     {
       name: "Nerdy FleetOwner",
-      email: "nerdy@fleetowner.com",
+      email: "nerdy.fleetowner@dcodesmith.com",
     },
   ];
 
