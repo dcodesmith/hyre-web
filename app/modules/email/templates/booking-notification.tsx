@@ -37,15 +37,15 @@ export function renderBookingTemplate(booking: BookingWithRelations) {
   return render(
     <EmailTemplate>
       <Preview>Your booking has {title}</Preview>
-      <Body className="bg-white">
+      <Body className="bg-white text-gray-800 text-sm">
         <Container className="mx-auto py-4">
-          <Heading className="text-2xl font-medium text-gray-800">Your booking has {title}</Heading>
+          <Heading className="text-2xl font-medium">Your booking has {title}</Heading>
 
-          <Text className="text-base text-gray-800">
+          <Text>
             Hello {booking.user?.username || booking.guestUser?.name || booking.guestUser?.email},
           </Text>
 
-          <Text className="text-base text-gray-800 mt-4">
+          <Text className="mt-4">
             Your booking for the{" "}
             <span className="font-semibold">
               {booking.car.make} {booking.car.model} ({booking.car.year})
@@ -53,9 +53,9 @@ export function renderBookingTemplate(booking: BookingWithRelations) {
             is now {status}.
           </Text>
 
-          <Text className="text-base text-gray-800 mt-4">Booking Details:</Text>
+          <Text className="mt-4">Booking Details:</Text>
 
-          <Text className="text-base text-gray-800">
+          <Text>
             <ul className="list-none p-0">
               <li className="m-0">Start Date: {booking.startDate.toLocaleDateString()}</li>
               <li className="m-0">End Date: {booking.endDate.toLocaleDateString()}</li>
@@ -64,7 +64,7 @@ export function renderBookingTemplate(booking: BookingWithRelations) {
 
           <Hr className="my-4 border-gray-500" />
 
-          <Text className="text-sm text-gray-800">{new Date().getFullYear()}. Lagos, Nigeria</Text>
+          <Text>{new Date().getFullYear()}. Lagos, Nigeria</Text>
         </Container>
       </Body>
     </EmailTemplate>,
@@ -75,17 +75,13 @@ export function renderFleetOwnerBookingCancellationEmail(booking: BookingWithRel
   return render(
     <EmailTemplate>
       <Preview>A booking has been cancelled</Preview>
-      <Body className="bg-white">
+      <Body className="bg-white text-gray-800 text-sm">
         <Container className="mx-auto py-4">
-          <Heading className="text-2xl font-medium text-gray-800">
-            A booking has been cancelled
-          </Heading>
+          <Heading className="text-2xl font-medium">A booking has been cancelled</Heading>
 
-          <Text className="text-base text-gray-800">
-            Hello {booking.car.owner?.username || booking.car.owner?.email},
-          </Text>
+          <Text>Hello {booking.car.owner?.username || booking.car.owner?.email},</Text>
 
-          <Text className="text-base text-gray-800 mt-4">
+          <Text className="mt-4">
             The booking for your{" "}
             <span className="font-semibold">
               {booking.car.make} {booking.car.model} ({booking.car.year})
@@ -94,7 +90,7 @@ export function renderFleetOwnerBookingCancellationEmail(booking: BookingWithRel
             {booking.user?.name || booking.guestUser?.name || booking.guestUser?.email}.
           </Text>
 
-          <Text className="text-base text-gray-800 mt-4">
+          <Text className="mt-4">
             The booking amount was{" "}
             <span className="font-semibold">
               {new Intl.NumberFormat("en-NG", {
@@ -105,14 +101,12 @@ export function renderFleetOwnerBookingCancellationEmail(booking: BookingWithRel
           </Text>
 
           {booking.cancellationReason && (
-            <Text className="text-base text-gray-800 mt-4">
-              Reason for cancellation: {booking.cancellationReason}
-            </Text>
+            <Text className="mt-4">Reason for cancellation: {booking.cancellationReason}</Text>
           )}
 
-          <Text className="text-base text-gray-800 mt-4">Cancelled Booking Details:</Text>
+          <Text className="mt-4">Cancelled Booking Details:</Text>
 
-          <Text className="text-base text-gray-800">
+          <Text>
             <ul className="list-none p-0">
               <li className="m-0">
                 Customer:{" "}
@@ -125,7 +119,7 @@ export function renderFleetOwnerBookingCancellationEmail(booking: BookingWithRel
 
           <Hr className="my-4 border-gray-500" />
 
-          <Text className="text-sm text-gray-800">{new Date().getFullYear()}. Lagos, Nigeria</Text>
+          <Text>{new Date().getFullYear()}. Lagos, Nigeria</Text>
         </Container>
       </Body>
     </EmailTemplate>,
@@ -136,17 +130,15 @@ export function renderBookingCancellationEmail(booking: BookingWithRelations) {
   return render(
     <EmailTemplate>
       <Preview>Your booking has been cancelled</Preview>
-      <Body className="bg-white">
+      <Body className="bg-white text-gray-800 text-sm">
         <Container className="mx-auto py-4">
-          <Heading className="text-2xl font-medium text-gray-800">
-            Your booking has been cancelled
-          </Heading>
+          <Heading className="text-2xl font-medium">Your booking has been cancelled</Heading>
 
-          <Text className="text-base text-gray-800">
+          <Text>
             Hello {booking.user?.username || booking.guestUser?.name || booking.guestUser?.email},
           </Text>
 
-          <Text className="text-base text-gray-800 mt-4">
+          <Text className="mt-4">
             Your booking for the{" "}
             <span className="font-semibold">
               {booking.car.make} {booking.car.model} ({booking.car.year})
@@ -162,14 +154,12 @@ export function renderBookingCancellationEmail(booking: BookingWithRelations) {
           </Text>
 
           {booking.cancellationReason && (
-            <Text className="text-base text-gray-800 mt-4">
-              Reason for cancellation: {booking.cancellationReason}
-            </Text>
+            <Text className="mt-4">Reason for cancellation: {booking.cancellationReason}</Text>
           )}
 
-          <Text className="text-base text-gray-800 mt-4">Cancelled Booking Details:</Text>
+          <Text className="mt-4">Cancelled Booking Details:</Text>
 
-          <Text className="text-base text-gray-800">
+          <Text>
             <ul className="list-none p-0">
               <li className="m-0">Start Date & Time: {formatDate(booking.startDate)}</li>
               <li className="m-0">End Date & Time: {formatDate(booking.endDate)}</li>
@@ -178,7 +168,7 @@ export function renderBookingCancellationEmail(booking: BookingWithRelations) {
 
           <Hr className="my-4 border-gray-500" />
 
-          <Text className="text-sm text-gray-800">{new Date().getFullYear()}. Lagos, Nigeria</Text>
+          <Text>{new Date().getFullYear()}. Lagos, Nigeria</Text>
         </Container>
       </Body>
     </EmailTemplate>,
@@ -189,17 +179,15 @@ export function renderBookingConfirmationEmail(booking: BookingWithRelations) {
   return render(
     <EmailTemplate>
       <Preview>Your booking has been confirmed</Preview>
-      <Body className="bg-white">
+      <Body className="bg-white text-gray-800 text-sm">
         <Container className="mx-auto py-4">
-          <Heading className="text-2xl font-medium text-gray-800">
-            Your booking has been confirmed
-          </Heading>
+          <Heading className="text-2xl font-medium">Your booking has been confirmed</Heading>
 
-          <Text className="text-base text-gray-800">
+          <Text>
             Hello {booking.user?.username || booking.guestUser?.name || booking.guestUser?.email},
           </Text>
 
-          <Text className="text-base text-gray-800 mt-4">
+          <Text className="mt-4">
             Your booking for the{" "}
             <span className="font-semibold">
               {booking.car.make} {booking.car.model} ({booking.car.year})
@@ -208,10 +196,8 @@ export function renderBookingConfirmationEmail(booking: BookingWithRelations) {
           </Text>
 
           <Section className="border-t border-gray-300">
-            <Text className="text-base text-gray-800 font-semibold mt-4">
-              Here are your booking details:
-            </Text>
-            <Text className="text-base text-gray-800">
+            <Text className="font-semibold mt-4">Here are your booking details:</Text>
+            <Text>
               <ul className="list-none p-0">
                 <li className="m-0">Start Date & Time: {formatDate(booking.startDate)}</li>
                 <li className="m-0">End Date & Time: {formatDate(booking.endDate)}</li>
@@ -228,13 +214,13 @@ export function renderBookingConfirmationEmail(booking: BookingWithRelations) {
             </Text>
           </Section>
 
-          <Text className="text-base text-gray-800 mt-4">
+          <Text className="mt-4">
             Please be at the pickup location on time. You&apos;ll be assigned a chauffeur shortly.
           </Text>
 
           <Hr className="my-4 border-gray-500" />
 
-          <Text className="text-sm text-gray-800">{new Date().getFullYear()}. Lagos, Nigeria</Text>
+          <Text>{new Date().getFullYear()}. Lagos, Nigeria</Text>
         </Container>
       </Body>
     </EmailTemplate>,
@@ -245,17 +231,13 @@ export function renderFleetOwnerBookingNotificationEmail(booking: BookingWithRel
   return render(
     <EmailTemplate>
       <Preview>New Booking Alert - Action Required</Preview>
-      <Body className="bg-white">
+      <Body className="bg-white text-gray-800 text-sm">
         <Container className="mx-auto py-4">
-          <Heading className="text-2xl font-medium text-gray-800">
-            New Booking Alert - Action Required
-          </Heading>
+          <Heading className="text-2xl font-medium">New Booking Alert - Action Required</Heading>
 
-          <Text className="text-base text-gray-800">
-            Hello {booking.car.owner?.username || booking.car.owner?.email},
-          </Text>
+          <Text>Hello {booking.car.owner?.username || booking.car.owner?.email},</Text>
 
-          <Text className="text-base text-gray-800 mt-4">
+          <Text className="mt-4">
             A new booking has been made for your {booking.car.make} {booking.car.model}. Please{" "}
             <Link
               href={`${process.env.DOMAIN}/fleet-owner/bookings/${
@@ -268,8 +250,8 @@ export function renderFleetOwnerBookingNotificationEmail(booking: BookingWithRel
           </Text>
 
           <Section className="mt-4 border-t border-gray-300 pt-4">
-            <Text className="text-base text-gray-800 font-semibold">Booking Details:</Text>
-            <Text className="text-base text-gray-800">
+            <Text className="font-semibold">Booking Details:</Text>
+            <Text>
               <ul className="list-none p-0">
                 <li className="m-0">
                   Customer:{" "}
@@ -293,13 +275,11 @@ export function renderFleetOwnerBookingNotificationEmail(booking: BookingWithRel
             </Text>
           </Section>
 
-          <Text className="text-gray-600 mt-6">
-            If you have any questions, feel free to contact us.
-          </Text>
+          <Text className="mt-4">If you have any questions, feel free to contact us.</Text>
 
           <Hr className="my-4 border-gray-500" />
 
-          <Text className="text-sm text-gray-800">{new Date().getFullYear()}. Lagos, Nigeria</Text>
+          <Text>{new Date().getFullYear()}. Lagos, Nigeria</Text>
         </Container>
       </Body>
     </EmailTemplate>,
@@ -310,24 +290,24 @@ export function renderChauffeurAssignedEmail(booking: BookingWithRelations) {
   return render(
     <EmailTemplate>
       <Preview>A chauffeur has been assigned to your booking</Preview>
-      <Body className="bg-white">
+      <Body className="bg-white text-gray-800 text-sm">
         <Container className="mx-auto py-4">
-          <Heading className="text-2xl font-medium text-gray-800">
+          <Heading className="text-2xl font-medium">
             A chauffeur has been assigned to your booking
           </Heading>
 
-          <Text className="text-base text-gray-800">
+          <Text>
             Hello {booking.user?.username || booking.guestUser?.name || booking.guestUser?.email},
           </Text>
 
-          <Text className="text-base text-gray-800 mt-4">
+          <Text className="mt-4">
             A chauffeur has been assigned to your booking for the {booking.car.make}{" "}
             {booking.car.model}. Your chauffeur&apos;s details are below.
           </Text>
 
-          <Text className="text-base text-gray-800 mt-4">Chauffeur Details:</Text>
+          <Text className="mt-4">Chauffeur Details:</Text>
 
-          <Text className="text-base text-gray-800">
+          <Text>
             <ul className="list-none p-0">
               <li className="m-0">Name: {booking?.chauffeur?.name}</li>
               <li className="m-0">Email: {booking?.chauffeur?.email}</li>
@@ -335,9 +315,9 @@ export function renderChauffeurAssignedEmail(booking: BookingWithRelations) {
             </ul>
           </Text>
 
-          <Text className="text-base text-gray-800 mt-4">Booking Details:</Text>
+          <Text className="mt-4">Booking Details:</Text>
 
-          <Text className="text-base text-gray-800">
+          <Text>
             <ul className="list-none p-0">
               <li className="m-0">Start Date & Time: {formatDate(booking.startDate)}</li>
               <li className="m-0">End Date & Time: {formatDate(booking.endDate)}</li>
@@ -353,14 +333,14 @@ export function renderChauffeurAssignedEmail(booking: BookingWithRelations) {
             </ul>
           </Text>
 
-          <Text className="text-base text-gray-800 mt-4">
+          <Text className="mt-4">
             Your chauffeur will contact you before the pickup time. If you have any questions,
             please don&apos;t hesitate to reach out to us.
           </Text>
 
           <Hr className="my-4 border-gray-500" />
 
-          <Text className="text-sm text-gray-800">{new Date().getFullYear()}. Lagos, Nigeria</Text>
+          <Text>{new Date().getFullYear()}. Lagos, Nigeria</Text>
         </Container>
       </Body>
     </EmailTemplate>,
@@ -380,7 +360,7 @@ export function renderBookingReminder(
       <Preview>
         This is a reminder that your booking {isStartReminder ? "starts" : "ends"} in 1 hour.
       </Preview>
-      <Body className="bg-white text-gray-800">
+      <Body className="bg-white text-gray-800 text-sm">
         <Container className="mx-auto py-4">
           <Text>Hello {user?.name},</Text>
 
@@ -416,7 +396,7 @@ export function renderBookingReminder(
 
           <Hr className="my-4 border-gray-500" />
 
-          <Text className="text-sm text-gray-800">{new Date().getFullYear()}. Lagos, Nigeria</Text>
+          <Text>{new Date().getFullYear()}. Lagos, Nigeria</Text>
         </Container>
       </Body>
     </EmailTemplate>,
