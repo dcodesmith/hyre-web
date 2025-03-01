@@ -3,6 +3,7 @@ import { MapPin } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { cn } from "~/lib/utils";
 import { Input } from "./ui/input";
+import useGoogleMapsServices from "~/hooks/useGoogleMapsServices";
 
 const GOOGLE_API_KEY = "AIzaSyC4wP-v71ZBOKNUXx8hOxmuYKdxY2gh0XM";
 const GOOGLE_MAPS_SCRIPT_URL = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_API_KEY}&libraries=places`;
@@ -22,38 +23,9 @@ export function AutocompleteAddress({
 }: AutocompleteProps) {
   const [query, setQuery] = useState<string>("");
   const [suggestions, setSuggestions] = useState<google.maps.places.AutocompletePrediction[]>([]);
-  const [loading, setLoading] = useState<boolean>(false);
   const [open, setOpen] = useState<boolean>(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const autocompleteServiceRef = useRef<google.maps.places.AutocompleteService | null>(null);
-  const placesServiceRef = useRef<google.maps.places.PlacesService | null>(null);
-
-  useEffect(() => {
-    const loadGoogleMapsScript = () => {
-      if (window.google?.maps) {
-        initializeServices();
-        return;
-      }
-
-      const script = document.createElement("script");
-      script.src = GOOGLE_MAPS_SCRIPT_URL;
-      script.async = true;
-      script.defer = true;
-      script.onload = initializeServices;
-      document.body.appendChild(script);
-    };
-
-    const initializeServices = () => {
-      if (!window.google || !window.google.maps) return;
-
-      autocompleteServiceRef.current = new window.google.maps.places.AutocompleteService();
-      placesServiceRef.current = new window.google.maps.places.PlacesService(
-        document.createElement("div"),
-      );
-    };
-
-    loadGoogleMapsScript();
-  }, []);
+  const { autocompleteServiceRef, placesServiceRef } = useGoogleMapsServices();
 
   const fetchSuggestions = (input: string) => {
     if (!autocompleteServiceRef.current) return;

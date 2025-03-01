@@ -2,12 +2,12 @@ import { getFormProps, getInputProps, useForm } from "@conform-to/react";
 import { parseWithZod } from "@conform-to/zod";
 import { Car, User } from "@prisma/client";
 import { CheckedState } from "@radix-ui/react-checkbox";
-import { Form, useNavigate, useSearchParams, useSubmit } from "@remix-run/react";
-import { closePaymentModal, useFlutterwave } from "flutterwave-react-v3";
-import { useCallback, useState } from "react";
+import { Form, useNavigate, useSearchParams } from "@remix-run/react";
 import { DateRange } from "react-day-picker";
 import { z } from "zod";
+import { useBookingPayment } from "~/hooks/usePayment";
 import { formatCurrency } from "~/lib/utils";
+import { AutocompleteAddress } from "./AutocompleteAddress";
 import { BookingTimeSelect } from "./BookingTimeSelect";
 import { DateRangePicker } from "./DateRangePicker";
 import { Button } from "./ui/button";
@@ -15,40 +15,10 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "./ui/card"
 import { Checkbox } from "./ui/checkbox";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
-import { AutocompleteAddress } from "./AutocompleteAddress";
+import { useState } from "react";
 
 // FLWPUBK_TEST-02b9b5fc6406bd4a41c3ff141cc45e93-X
 // Public Key FLWPUBK_TEST-643bc7a3d329e2cd19277bc263cca008-X
-
-type FlutterwaveConfig = {
-  public_key: string;
-  tx_ref: string;
-  amount: number;
-  currency: string;
-  payment_options: string;
-  customer: {
-    email: string;
-    phone_number: string;
-    name: string;
-  };
-  customizations: {
-    title: string;
-    description: string;
-    logo: string;
-  };
-};
-
-const config: Omit<FlutterwaveConfig, "amount" | "customer"> = {
-  public_key: "FLWPUBK_TEST-02b9b5fc6406bd4a41c3ff141cc45e93-X",
-  tx_ref: "txref-DI0NzMx13",
-  currency: "NGN",
-  payment_options: "card,mobilemoney,ussd",
-  customizations: {
-    title: "Booking Payment",
-    description: "Payment for Booking",
-    logo: "https://picsum.photos/seed/car-rental/800/600",
-  },
-};
 
 type BookingCardProps = {
   car: Car;
@@ -65,8 +35,9 @@ const bookingSelectedSchema = z.object({
   pickupAddress: z.string({
     required_error: "Pickup address is required",
   }),
-  email: z.string().email("Invalid email address").optional(),
-  name: z.string().min(2, "Name must be at least 2 characters").optional(),
+  email: z.string().email("Invalid email address"),
+  name: z.string().min(2, "Name must be at least 2 characters"),
+  phone: z.string().min(10, "Phone number must be at least 10 digits"),
 });
 
 const bookingUnselectedSchema = z.object({
@@ -81,8 +52,9 @@ const bookingUnselectedSchema = z.object({
   dropOffAddress: z.string({
     required_error: "Drop-off address is required",
   }),
-  email: z.string().email("Invalid email address").optional(),
-  name: z.string().min(2, "Name must be at least 2 characters").optional(),
+  email: z.string().email("Invalid email address"),
+  name: z.string().min(2, "Name must be at least 2 characters"),
+  phone: z.string().min(10, "Phone number must be at least 10 digits"),
 });
 
 const emailSchema = z
@@ -96,6 +68,12 @@ const nameSchema = z
     required_error: "Name is required for guest booking",
   })
   .min(2, "Name must be at least 2 characters");
+
+const phoneSchema = z
+  .string({
+    required_error: "Phone number is required for guest booking",
+  })
+  .min(10, "Phone number must be at least 10 digits");
 
 const getBookingSchema = (isGuestBooking: boolean) => {
   const baseSchemas = {
@@ -111,76 +89,17 @@ const getBookingSchema = (isGuestBooking: boolean) => {
     baseSchemas.selected.extend({
       email: emailSchema,
       name: nameSchema,
+      phone: phoneSchema,
     }),
     baseSchemas.unselected.extend({
       email: emailSchema,
       name: nameSchema,
+      phone: phoneSchema,
     }),
   ]);
 };
 
 const errorRingClasses = "border-red-500 focus-visible:ring-red-500 focus-visible:ring-2";
-
-function useBookingPayment({
-  car,
-  totalCost,
-  email,
-  name,
-  searchParams,
-  user,
-}: {
-  car: Car;
-  totalCost: number;
-  email: string;
-  name: string;
-  searchParams: string;
-  user: User;
-}) {
-  const submit = useSubmit();
-  const navigate = useNavigate();
-
-  const handlePayment = useFlutterwave({
-    ...config,
-    amount: process.env.NODE_ENV === "development" ? 3000 : totalCost,
-    customer: {
-      email,
-      phone_number: "070********",
-      name,
-    },
-    customizations: config.customizations,
-  });
-
-  return useCallback(
-    async (event: React.FormEvent<HTMLFormElement>) => {
-      event.preventDefault();
-
-      const formElement = event.currentTarget;
-      const formData = new FormData(formElement);
-      const isGuestBooking = formElement.getAttribute("data-booking-type") === "guest";
-
-      formData.set("bookingType", isGuestBooking ? "guest" : "auth");
-
-      if (!isGuestBooking && !user) {
-        const redirectTo = `/cars/${car.id}${searchParams ? `?${searchParams}` : ""}`;
-        return navigate(`/auth?redirectTo=${encodeURIComponent(redirectTo)}`);
-      }
-
-      handlePayment({
-        callback: ({ transaction_id: transactionId, status }) => {
-          formData.set("paymentId", String(transactionId));
-          formData.set("status", status);
-          submit(formData, {
-            method: "POST",
-            action: `/bookings?${searchParams}`,
-          });
-          setTimeout(() => closePaymentModal(), 1500);
-        },
-        onClose: () => closePaymentModal(),
-      });
-    },
-    [handlePayment, searchParams, submit, navigate, user, car],
-  );
-}
 
 const calculateTotalDays = (dateRange: DateRange) => {
   if (!dateRange.from || !dateRange.to) {
@@ -218,24 +137,47 @@ export default function BookingCard({ car, isAvailable, user }: BookingCardProps
     to: toParam ? new Date(toParam) : undefined,
   });
 
-  const [form, { pickupTime, pickupAddress, dropOffAddress, sameLocation, email, name }] = useForm({
-    shouldValidate: "onSubmit",
-    shouldRevalidate: "onBlur",
-    defaultValue: {
-      pickupTime: searchParams.get("pickupTime") || undefined,
-      pickupAddress: searchParams.get("pickupAddress") || undefined,
-      dropOffAddress: searchParams.get("dropOffAddress") || undefined,
-      sameLocation: searchParams.get("sameLocation") || "true",
+  const [form, { pickupTime, pickupAddress, dropOffAddress, sameLocation, email, name, phone }] =
+    useForm({
+      shouldValidate: "onSubmit",
+      shouldRevalidate: "onBlur",
+      defaultValue: {
+        pickupTime: searchParams.get("pickupTime") || undefined,
+        pickupAddress: searchParams.get("pickupAddress") || undefined,
+        dropOffAddress: searchParams.get("dropOffAddress") || undefined,
+        sameLocation: searchParams.get("sameLocation") || "true",
+      },
+      onSubmit(event) {
+        onMakePayment(event);
+      },
+      onValidate({ formData, form }) {
+        const isGuestBooking = form.getAttribute("data-booking-type") === "guest";
+        const schema = getBookingSchema(isGuestBooking);
+        return parseWithZod(formData, { schema });
+      },
+    });
+
+  const totalDays = calculateTotalDays(dateRange);
+  const totalCost =
+    (Number(car.price) * totalDays +
+      (includeSecurityDetail ? SECURITY_DETAIL_COST * totalDays : 0)) *
+    1.075;
+
+  const onMakePayment = useBookingPayment({
+    car,
+    totalCost,
+    customer: {
+      email: email.value ?? "",
+      name: name.value ?? "",
+      phone_number: phone.value ?? "",
     },
-    onSubmit(event) {
-      onMakePayment(event);
-    },
-    onValidate({ formData, form }) {
-      const isGuestBooking = form.getAttribute("data-booking-type") === "guest";
-      const schema = getBookingSchema(isGuestBooking);
-      return parseWithZod(formData, { schema });
-    },
+    searchParams: searchParams.toString(),
+    user,
   });
+
+  const carIsAvailableToBook = dateRange.from && dateRange.to && isAvailable;
+
+  const handleSelect = (place: google.maps.places.PlaceResult) => setSelectedPlace(place);
 
   const onDateChange = (dateRange: DateRange) => {
     setDateRange(dateRange);
@@ -252,25 +194,6 @@ export default function BookingCard({ car, isAvailable, user }: BookingCardProps
       setSearchParams(params);
     }
   };
-
-  const totalDays = calculateTotalDays(dateRange);
-  const totalCost =
-    (Number(car.price) * totalDays +
-      (includeSecurityDetail ? SECURITY_DETAIL_COST * totalDays : 0)) *
-    1.075;
-
-  const onMakePayment = useBookingPayment({
-    car,
-    totalCost,
-    email: email.value ?? "",
-    name: name.value ?? "",
-    searchParams: searchParams.toString(),
-    user,
-  });
-
-  const carIsAvailableToBook = dateRange.from && dateRange.to && isAvailable;
-
-  const handleSelect = (place: google.maps.places.PlaceResult) => setSelectedPlace(place);
 
   return (
     <Form {...getFormProps(form)} method="POST" autoComplete="off">
@@ -443,6 +366,17 @@ export default function BookingCard({ car, isAvailable, user }: BookingCardProps
                         />
                         {email.errors && (
                           <p className="text-red-500 text-sm">{email.errors.join(" ")}</p>
+                        )}
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor={phone.id}>Phone Number</Label>
+                        <Input
+                          {...getInputProps(phone, { type: "tel" })}
+                          placeholder="Enter your phone number"
+                          className={`w-full rounded ${phone.errors ? errorRingClasses : ""}`}
+                        />
+                        {phone.errors && (
+                          <p className="text-red-500 text-sm">{phone.errors.join(" ")}</p>
                         )}
                       </div>
                     </>

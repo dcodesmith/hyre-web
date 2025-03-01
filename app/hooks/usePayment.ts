@@ -1,39 +1,89 @@
-// "use client";
+import { Car, User } from "@prisma/client";
+import { useNavigate, useSubmit } from "@remix-run/react";
+import { closePaymentModal, useFlutterwave } from "flutterwave-react-v3";
+import { useCallback } from "react";
 
-import { useFlutterwave } from "flutterwave-react-v3";
-import { FlutterwaveConfig } from "flutterwave-react-v3/dist/types";
+type FlutterwaveConfig = {
+  public_key: string;
+  tx_ref: string;
+  amount: number;
+  currency: string;
+  payment_options: string;
+  customer: {
+    email: string;
+    phone_number: string;
+    name: string;
+  };
+  customizations: {
+    title: string;
+    description: string;
+    logo: string;
+  };
+};
 
-const config = {
+const config: Omit<FlutterwaveConfig, "amount" | "customer"> = {
   public_key: "FLWPUBK_TEST-02b9b5fc6406bd4a41c3ff141cc45e93-X",
   tx_ref: "txref-DI0NzMx13",
   currency: "NGN",
   payment_options: "card,mobilemoney,ussd",
   customizations: {
-    logo: "https://st2.depositphotos.com/4403291/7418/v/450/depositphotos_74189661-stock-illustration-online-shop-log.jpg",
+    title: "Booking Payment",
+    description: "Payment for Booking",
+    logo: "https://picsum.photos/seed/car-rental/800/600",
   },
 };
 
-export function usePayment({
-  amount,
+export function useBookingPayment({
+  car,
+  totalCost,
   customer,
-  customizations,
+  searchParams,
+  user,
 }: {
-  bookingId: string;
-  amount: FlutterwaveConfig["amount"];
+  car: Car;
+  totalCost: number;
   customer: FlutterwaveConfig["customer"];
-  customizations: FlutterwaveConfig["customizations"];
+  searchParams: string;
+  user: User;
 }) {
-  // const fetcher = useFetcher<{ success: boolean; booking: Booking }>({
-  //   key: "make-booking",
-  // });
+  const submit = useSubmit();
+  const navigate = useNavigate();
+
   const handlePayment = useFlutterwave({
     ...config,
-    amount,
+    amount: process.env.NODE_ENV === "development" ? 3000 : totalCost,
     customer,
-    customizations: { ...config.customizations, ...customizations },
+    customizations: config.customizations,
   });
 
-  return {
-    handlePayment,
-  };
+  return useCallback(
+    async (event: React.FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
+
+      const formElement = event.currentTarget;
+      const formData = new FormData(formElement);
+      const isGuestBooking = formElement.getAttribute("data-booking-type") === "guest";
+
+      formData.set("bookingType", isGuestBooking ? "guest" : "auth");
+
+      if (!isGuestBooking && !user) {
+        const redirectTo = `/cars/${car.id}${searchParams ? `?${searchParams}` : ""}`;
+        return navigate(`/auth?redirectTo=${encodeURIComponent(redirectTo)}`);
+      }
+
+      handlePayment({
+        callback: ({ transaction_id: transactionId, status }) => {
+          formData.set("paymentId", String(transactionId));
+          formData.set("status", status);
+          submit(formData, {
+            method: "POST",
+            action: `/bookings?${searchParams}`,
+          });
+          setTimeout(() => closePaymentModal(), 1500);
+        },
+        onClose: () => closePaymentModal(),
+      });
+    },
+    [handlePayment, searchParams, submit, navigate, user, car],
+  );
 }
