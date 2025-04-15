@@ -1,8 +1,8 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { faker } from "@faker-js/faker";
-import { Status } from "@prisma/client";
-import { uploadImageToS3 } from "~/services/s3.server";
+import { DocumentStatus, DocumentType, Status } from "@prisma/client";
+import { uploadFileToS3 } from "~/services/s3.server";
 import { vehicles } from "~/vehicles";
 import { prisma } from "../app/modules/db/db.server";
 
@@ -31,9 +31,25 @@ async function getCarImages(basePattern: string) {
   return images;
 }
 
+async function getDocument(fileName: string) {
+  try {
+    const documentDir = path.join(process.cwd(), "public", "documents");
+    const filePath = path.join(documentDir, fileName);
+    const buffer = await fs.readFile(filePath);
+    const extname = path.extname(fileName).slice(1);
+    const mimeType = extname === "pdf" ? "application/pdf" : `image/${extname}`;
+    return new File([buffer], fileName, { type: mimeType });
+  } catch (error) {
+    console.warn(`Error loading document ${fileName}:`, error);
+  }
+}
+
 async function seed() {
   // Clear database in a single transaction
   await prisma.$transaction(async (transaction) => {
+    // Delete in correct order to handle foreign key constraints
+    await transaction.vehicleImage.deleteMany();
+    await transaction.documentApproval.deleteMany();
     await transaction.car.deleteMany();
     await transaction.user.deleteMany();
     await transaction.permission.deleteMany();
@@ -106,7 +122,7 @@ async function seed() {
   await prisma.user.create({
     select: { id: true },
     data: {
-      email: "admin@admin.com",
+      email: "admin@dcodesmith.com",
       username: "admin",
       name: "Oga Agba",
       roles: { connect: [{ name: "admin" }, { name: "user" }] },
@@ -150,7 +166,10 @@ async function seed() {
       const firstName = faker.person.firstName();
       const lastName = faker.person.lastName();
 
-      await prisma.user.create({
+      const ninFile = await getDocument("nin.png");
+      const drivingLicenseFile = await getDocument("drivers_licence.png");
+
+      const createdChauffeur = await prisma.user.create({
         select: { id: true },
         data: {
           email: faker.internet.email({
@@ -175,9 +194,37 @@ async function seed() {
           fleetOwnerId: createdFleetOwner.id,
         },
       });
+
+      // Create document approvals directly
+      await prisma.documentApproval.createMany({
+        data: [
+          {
+            documentType: DocumentType.NIN,
+            documentUrl: ninFile
+              ? await uploadFileToS3(
+                  ninFile,
+                  `${createdFleetOwner.id}/${createdChauffeur.id}-${ninFile.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`,
+                )
+              : "",
+            status: DocumentStatus.PENDING,
+            chauffeurId: createdChauffeur.id,
+          },
+          {
+            documentType: DocumentType.DRIVERS_LICENSE,
+            documentUrl: drivingLicenseFile
+              ? await uploadFileToS3(
+                  drivingLicenseFile,
+                  `${createdFleetOwner.id}/${createdChauffeur.id}-${drivingLicenseFile.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`,
+                )
+              : "",
+            status: DocumentStatus.PENDING,
+            chauffeurId: createdChauffeur.id,
+          },
+        ],
+      });
     }
 
-    const cars = vehicles.map((vehicle) => ({
+    const data = vehicles.map((vehicle) => ({
       ...vehicle,
       price: [90000, 100000, 110000, 120000, 130000][Math.floor(Math.random() * 5)],
       color: ["Blue", "Silver", "Black", "White"][Math.floor(Math.random() * 4)],
@@ -200,7 +247,7 @@ async function seed() {
     }));
 
     const createdCars = await prisma.car.createManyAndReturn({
-      data: cars,
+      data,
     });
 
     for (const car of createdCars) {
@@ -209,14 +256,62 @@ async function seed() {
       const basePattern = `${formattedMake}-${formattedModel}`;
       const carImages = await getCarImages(basePattern);
 
-      const imageUrls = await Promise.all(carImages.map((image) => uploadImageToS3(image, car)));
+      const timestamp = Date.now();
 
-      if (imageUrls.length > 0) {
-        await prisma.car.update({
-          where: { id: car.id },
-          data: { images: imageUrls, status: Status.AVAILABLE },
+      const imagesUrl = await Promise.all(
+        carImages.map((image) => {
+          const safeFilename = `${timestamp}-${image.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`;
+          const key = `${car.ownerId}/${car.id}-${safeFilename}`;
+
+          return uploadFileToS3(image, key);
+        }),
+      );
+
+      // Create vehicle images
+      if (imagesUrl.length > 0) {
+        await prisma.vehicleImage.createMany({
+          data: imagesUrl.map((url) => ({
+            url,
+            carId: car.id,
+          })),
         });
       }
+
+      const motCertificateFile = await getDocument("MOT.pdf");
+      const insuranceCertificateFile = await getDocument("insurance.pdf");
+      const motCertificateUrl = await uploadFileToS3(
+        motCertificateFile!,
+        `${car.ownerId}/${car.id}-${timestamp}-${motCertificateFile?.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`,
+      );
+      const insuranceCertificateUrl = await uploadFileToS3(
+        insuranceCertificateFile!,
+        `${car.ownerId}/${car.id}-${timestamp}-${insuranceCertificateFile?.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`,
+      );
+
+      // Create document approvals for MOT and Insurance
+      await prisma.documentApproval.createMany({
+        data: [
+          {
+            documentType: DocumentType.MOT_CERTIFICATE,
+            documentUrl: motCertificateUrl,
+            carId: car.id,
+            status: DocumentStatus.PENDING,
+          },
+          {
+            documentType: DocumentType.INSURANCE_CERTIFICATE,
+            documentUrl: insuranceCertificateUrl,
+            carId: car.id,
+            status: DocumentStatus.PENDING,
+          },
+        ],
+      });
+
+      await prisma.car.update({
+        where: { id: car.id },
+        data: {
+          status: Status.AVAILABLE,
+        },
+      });
     }
   }
 

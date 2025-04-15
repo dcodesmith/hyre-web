@@ -1,6 +1,6 @@
-import { Prisma } from "@prisma/client";
+import { Car, Prisma, DocumentStatus, DocumentType, Status } from "@prisma/client";
 import { prisma } from "~/modules/db/db.server";
-import { uploadImageToS3 } from "./s3.server";
+import { uploadFileToS3 } from "./s3.server";
 
 export async function isCarAvailable(
   carId: string,
@@ -44,29 +44,68 @@ export async function isCarAvailable(
   return car.bookings.length === 0;
 }
 
+const getKey = (car: Car, file: File) => {
+  const timestamp = Date.now();
+  const safeFilename = `${timestamp}-${file.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`;
+  return `${car.ownerId}/${car.id}-${safeFilename}`;
+};
+
 export async function createCar({
   images,
+  motCertificate,
+  insuranceCertificate,
   ...data
-}: Omit<Prisma.CarCreateInput, "images"> & { images: File[] }) {
-  return prisma.$transaction(async (transaction) => {
-    const car = await transaction.car.create({ data });
+}: Omit<Prisma.CarCreateInput, "images" | "motCertificateUrl" | "insuranceCertificateUrl"> & {
+  images: File[];
+  motCertificate: File;
+  insuranceCertificate: File;
+}) {
+  // Step 1: Create the car record (a quick DB operation)
+  const car = await prisma.car.create({ data });
 
-    try {
-      const imageUrls = await Promise.all(images.map((image) => uploadImageToS3(image, car)));
+  try {
+    // Step 2: Perform file uploads concurrently
+    const [imageUrls, motCertificateUrl, insuranceCertificateUrl] = await Promise.all([
+      Promise.all(images.map((image) => uploadFileToS3(image, getKey(car, image)))),
+      uploadFileToS3(motCertificate, getKey(car, motCertificate)),
+      uploadFileToS3(insuranceCertificate, getKey(car, insuranceCertificate)),
+    ]);
 
-      // Update car with image URLs within same transaction
-      return transaction.car.update({
-        where: { id: car.id },
-        data: { images: imageUrls },
-      });
-    } catch (error) {
-      // Transaction will automatically rollback if error occurs
-      // Delete car if image upload fails
-      await transaction.car.delete({
-        where: { id: car.id },
-      });
+    // Step 3: Create document approvals
+    await prisma.documentApproval.createMany({
+      data: [
+        ...imageUrls.map((url) => ({
+          documentType: DocumentType.VEHICLE_IMAGES,
+          documentUrl: url,
+          carId: car.id,
+          status: DocumentStatus.PENDING,
+        })),
+        {
+          documentType: DocumentType.MOT_CERTIFICATE,
+          documentUrl: motCertificateUrl,
+          carId: car.id,
+          status: DocumentStatus.PENDING,
+        },
+        {
+          documentType: DocumentType.INSURANCE_CERTIFICATE,
+          documentUrl: insuranceCertificateUrl,
+          carId: car.id,
+          status: DocumentStatus.PENDING,
+        },
+      ],
+    });
 
-      throw new Error("Failed to upload images", { cause: error });
-    }
-  });
+    // Update car status to available
+    await prisma.car.update({
+      where: { id: car.id },
+      data: {
+        status: Status.AVAILABLE,
+      },
+    });
+
+    return car;
+  } catch (error) {
+    await prisma.car.delete({ where: { id: car.id } });
+    throw new Error("Failed to upload images", { cause: error });
+  }
 }

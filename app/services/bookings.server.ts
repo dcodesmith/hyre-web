@@ -1,4 +1,11 @@
-import { BookingStatus, PaymentStatus, Status, User } from "@prisma/client";
+import {
+  BookingStatus,
+  CarApprovalStatus,
+  FleetOwnerStatus,
+  PaymentStatus,
+  Status,
+  User,
+} from "@prisma/client";
 import logger from "~/lib/logger.server";
 import { prisma } from "~/modules/db/db.server";
 import { sendEmail } from "~/modules/email/email.server";
@@ -12,7 +19,7 @@ export type CreateBookingParams = {
   startDate: Date;
   endDate: Date;
   carId: string;
-  user: User | { email: string; name: string };
+  user: User | { email: string; name: string; phoneNumber: string };
   pickupLocation: string;
   returnLocation: string;
   specialRequests?: string;
@@ -46,7 +53,7 @@ export async function confirmBooking({
         carId,
         ...("id" in user
           ? { userId: user.id }
-          : { guestUser: { email: user.email, name: user.name } }),
+          : { guestUser: { email: user.email, name: user.name, phoneNumber: user.phoneNumber } }),
         pickupLocation,
         returnLocation,
         specialRequests,
@@ -379,7 +386,7 @@ export async function sendBookingStartReminderEmails() {
       const clientHtml = await renderBookingReminder(booking, "client");
       await emailQueue.add(() =>
         sendEmail({
-          to: booking.user?.email ?? booking.guestUser?.email,
+          to: booking.user?.email ?? (booking.guestUser as any)?.email,
           subject: "Booking Reminder - Your booking starts in 1 hour",
           html: clientHtml,
         }),
@@ -390,7 +397,7 @@ export async function sendBookingStartReminderEmails() {
         const chauffeurHtml = await renderBookingReminder(booking, "chauffeur");
         await emailQueue.add(() =>
           sendEmail({
-            to: booking.chauffeur?.email,
+            to: booking.chauffeur.email,
             subject: "Booking Reminder - You have a booking starting in 1 hour",
             html: chauffeurHtml,
           }),
@@ -466,4 +473,43 @@ export async function sendBookingEndReminderEmails() {
     logger.error("Error sending booking end reminder emails:", error);
     throw error;
   }
+}
+
+export async function getAvailableCars(params: {
+  startDate: Date;
+  endDate: Date;
+  // ... other params
+}) {
+  return prisma.car.findMany({
+    where: {
+      AND: [
+        // ... existing date/booking filters ...
+        {
+          status: Status.AVAILABLE,
+          approvalStatus: CarApprovalStatus.APPROVED,
+          owner: {
+            fleetOwnerStatus: FleetOwnerStatus.APPROVED,
+          },
+        },
+      ],
+    },
+    include: {
+      owner: true,
+      bookings: true,
+    },
+  });
+}
+
+export async function updateCarApprovalStatus(carId: string, status: CarApprovalStatus) {
+  return prisma.car.update({
+    where: { id: carId },
+    data: { approvalStatus: status },
+  });
+}
+
+export async function updateFleetOwnerStatus(userId: string, status: FleetOwnerStatus) {
+  return prisma.user.update({
+    where: { id: userId },
+    data: { fleetOwnerStatus: status },
+  });
 }

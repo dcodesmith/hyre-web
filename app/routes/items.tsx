@@ -177,7 +177,7 @@ export default function IndexPage() {
           {cars.map((car) => (
             <Link key={car.id} to={`/cars/${car.id}?${searchParams.toString()}`} className="block">
               <div className="rounded overflow-hidden hover:shadow-lg transition-shadow">
-                <Carousel images={car.images.length ? car.images : undefined} />
+                <Carousel images={car.imagesUrl.length ? car.imagesUrl : undefined} />
 
                 <div className="p-4">
                   <h2 className="font-semibold mb-2">

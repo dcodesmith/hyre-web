@@ -19,6 +19,8 @@ model Car {
   registrationNumber String
   price              Int
   status             Status
+  approvalStatus     CarApprovalStatus @default(PENDING)
+  approvalNotes      String?           // Notes about approval status, e.g. rejection reasons
 
   ownerId String
   owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
@@ -26,7 +28,9 @@ model Car {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   bookings  Booking[]
-  images    String[] // Array of S3 image URLs
+
+  documents DocumentApproval[] @relation("CarDocuments")
+  images    VehicleImage[]
 
   @@index([ownerId])
   @@index([ownerId, updatedAt])
@@ -39,6 +43,12 @@ enum Status {
   IN_SERVICE
 }
 
+enum UserRole {
+  USER
+  FLEET_OWNER
+  ADMIN
+}
+
 model User {
   id          String  @id @default(cuid())
   email       String  @unique
@@ -49,7 +59,6 @@ model User {
   city        String?
 
   roles Role[]
-
   // Relations for fleet owners & chauffeur
   fleetOwnerId String? // Nullable because not all users are chauffeur
   fleetOwner   User?   @relation("FleetOwnerChauffeurs", fields: [fleetOwnerId], references: [id])
@@ -65,6 +74,16 @@ model User {
   bookingsAsChauffeur Booking[] @relation("BookingChauffeur") // Bookings where the user is the assigned chauffeur
 
   cars Car[]
+
+  fleetOwnerStatus FleetOwnerStatus? @default(PROCESSING)
+
+  chauffeurApprovalStatus ChauffeurApprovalStatus? @default(PENDING) // Only applicable for chauffeurs
+
+  documents        DocumentApproval[] @relation("ChauffeurDocuments")
+  approvedDocuments DocumentApproval[] @relation("ApprovedBy")
+  approvedVehicleImages VehicleImage[] @relation("ApprovedVehicleImages")
+
+  // role UserRole @default(USER)
 }
 
 model Role {
@@ -117,7 +136,7 @@ model Booking {
   userId String?
   user   User?   @relation(fields: [userId], references: [id], name: "BookingCustomer")
 
-  guestUser Json? // Details of guest users, e.g., { "name": "John Doe", "email": "john@example.com" }
+  guestUser Json? // Details of guest users, e.g., { "name": "John Doe", "email": "john@example.com", "phoneNumber": "070********" }
 
   // Optional fields
   pickupLocation  String
@@ -152,6 +171,86 @@ enum PaymentStatus {
   PAID
   REFUNDED
   PARTIALLY_REFUNDED
+}
+
+enum CarApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum FleetOwnerStatus {
+  PROCESSING
+  APPROVED
+  ON_HOLD
+  ARCHIVED
+}
+
+enum ChauffeurApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum DocumentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum DocumentType {
+  NIN
+  DRIVERS_LICENSE
+  MOT_CERTIFICATE
+  INSURANCE_CERTIFICATE
+  VEHICLE_IMAGES
+}
+
+model DocumentApproval {
+  id          String         @id @default(cuid())
+  documentType DocumentType
+  status      DocumentStatus @default(PENDING)
+  documentUrl String
+  notes       String?       // For admin notes/rejection reasons
+  
+  // Approval tracking
+  approvedBy  User?    @relation("ApprovedBy", fields: [approvedById], references: [id])
+  approvedById String?
+  approvedAt   DateTime?
+  
+  // Document ownership
+  chauffeur   User?    @relation("ChauffeurDocuments", fields: [chauffeurId], references: [id])
+  chauffeurId String?
+  car         Car?     @relation("CarDocuments", fields: [carId], references: [id])
+  carId       String?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([documentType, chauffeurId])
+  @@unique([documentType, carId])
+  @@index([status])
+  @@index([documentType])
+}
+
+model VehicleImage {
+  id          String         @id @default(cuid())
+  url         String
+  status      DocumentStatus @default(PENDING)
+  notes       String?        // For admin notes/rejection reasons
+  
+  // Approval tracking
+  approvedBy  User?    @relation("ApprovedVehicleImages", fields: [approvedById], references: [id])
+  approvedById String?
+  approvedAt   DateTime?
+  
+  carId       String
+  car         Car      @relation(fields: [carId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([carId])
+  @@index([status])
 }
 
 // generator seed {

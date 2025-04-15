@@ -1,4 +1,4 @@
-import { getFormProps, useForm } from "@conform-to/react";
+import { getFormProps, getInputProps, useForm } from "@conform-to/react";
 import { parseWithZod } from "@conform-to/zod";
 import { CogIcon } from "@heroicons/react/24/outline";
 import { BookingStatus } from "@prisma/client";
@@ -30,6 +30,7 @@ import { requireUser } from "~/modules/auth/auth.server";
 import { prisma } from "~/modules/db/db.server";
 import { createUser } from "~/services/users.server";
 import type { ChauffeurStatus, SerializedChauffeur } from "~/types";
+import { CheckCircleIcon, CheckBadgeIcon } from "@heroicons/react/24/outline";
 
 const chauffeurSchema = z.object({
   email: z
@@ -50,6 +51,14 @@ const chauffeurSchema = z.object({
   address: z.string({
     required_error: "Address is required.",
   }),
+  ninFile: z
+    .instanceof(File, { message: "Please select a file" })
+    .refine(({ size }) => size < 5 * 1024 * 1024, "File must be less than 5MB")
+    .refine(({ type }) => ["image/jpeg", "image/png"].includes(type), "File must be a JPEG or PNG"),
+  drivingLicenceFile: z
+    .instanceof(File, { message: "Please select a file" })
+    .refine(({ size }) => size < 5 * 1024 * 1024, "File must be less than 5MB")
+    .refine(({ type }) => ["image/jpeg", "image/png"].includes(type), "File must be a JPEG or PNG"),
 });
 
 const statusColors: Record<ChauffeurStatus, string> = {
@@ -142,6 +151,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
       : null,
     createdAt: chauffeur.createdAt.toISOString(),
     updatedAt: chauffeur.updatedAt.toISOString(),
+    approvalStatus: chauffeur.chauffeurApprovalStatus ?? "PENDING",
   }));
 
   return json({ chauffeurs: serializedChauffeurs });
@@ -211,7 +221,7 @@ function ChauffeurForm() {
 
   const errorRingClasses = "border-red-500 focus-visible:ring-red-500 focus-visible:ring-2";
 
-  const [form, { email, name, phoneNumber, address }] = useForm({
+  const [form, { email, name, phoneNumber, address, ninFile, drivingLicenceFile }] = useForm({
     lastResult,
     onValidate({ formData }) {
       return parseWithZod(formData, { schema: chauffeurSchema });
@@ -221,7 +231,12 @@ function ChauffeurForm() {
   });
 
   return (
-    <Form method="post" {...getFormProps(form)} className="space-y-4 w-full">
+    <Form
+      method="post"
+      {...getFormProps(form)}
+      encType="multipart/form-data"
+      className="space-y-4 w-full"
+    >
       {serverError && <p className="text-red-500 text-sm">{serverError}</p>}
 
       <div className="space-y-1">
@@ -268,6 +283,30 @@ function ChauffeurForm() {
         {address.errors && <p className="text-red-500 text-sm">{address.errors.join(" ")}</p>}
       </div>
 
+      <div className="space-y-1">
+        <Label htmlFor={ninFile.id}>NIN Slip</Label>
+        <Input
+          {...getInputProps(ninFile, { type: "file" })}
+          id={ninFile.id}
+          accept="image/*"
+          className={`rounded ${ninFile.errors ? errorRingClasses : ""}`}
+        />
+        {ninFile.errors && <p className="text-red-500 text-sm">{ninFile.errors.join(" ")}</p>}
+      </div>
+
+      <div className="space-y-1">
+        <Label htmlFor={drivingLicenceFile.id}>Drivers Licence</Label>
+        <Input
+          {...getInputProps(drivingLicenceFile, { type: "file" })}
+          id={drivingLicenceFile.id}
+          accept="image/*"
+          className={`rounded ${drivingLicenceFile.errors ? errorRingClasses : ""}`}
+        />
+        {drivingLicenceFile.errors && (
+          <p className="text-red-500 text-sm">{drivingLicenceFile.errors.join(" ")}</p>
+        )}
+      </div>
+
       <input type="hidden" name="intent" value="create" />
 
       <Button type="submit" className="w-full" disabled={isPending}>
@@ -290,7 +329,14 @@ export default function ChauffeursPage() {
         accessorKey: "name",
         header: ({ column }) => <ColumnHeader column={column} title="Name" />,
         enableColumnFilter: false,
-        cell: ({ row }) => <div className="w-[150px]">{row.original.name}</div>,
+        cell: ({ row }) => (
+          <div className="w-[150px] flex items-center gap-2">
+            {row.original.name}
+            {row.original.approvalStatus === "APPROVED" && (
+              <CheckBadgeIcon className="h-5 w-5 text-green-500" title="Verified Chauffeur" />
+            )}
+          </div>
+        ),
       },
       {
         accessorKey: "email",
@@ -335,6 +381,29 @@ export default function ChauffeursPage() {
         ),
       },
       {
+        accessorKey: "approvalStatus",
+        header: ({ column }) => <ColumnHeader column={column} title="Approval Status" />,
+        cell: ({ row }) => (
+          <div className="w-[150px]">
+            <Badge
+              variant="outline"
+              className={cn(
+                row.original.approvalStatus === "PENDING" &&
+                  "bg-yellow-50 text-yellow-600 ring-yellow-600/10",
+                row.original.approvalStatus === "APPROVED" &&
+                  "bg-green-50 text-green-600 ring-green-600/10",
+                row.original.approvalStatus === "REJECTED" &&
+                  "bg-red-50 text-red-600 ring-red-600/10",
+                "rounded border-none ring-1 ring-inset",
+              )}
+            >
+              {row.original.approvalStatus.charAt(0) +
+                row.original.approvalStatus.slice(1).toLowerCase()}
+            </Badge>
+          </div>
+        ),
+      },
+      {
         id: "actions",
         header: () => null,
         enableHiding: false,
@@ -365,7 +434,10 @@ export default function ChauffeursPage() {
               Add Chauffeur
             </Button>
           </SheetTrigger>
-          <SheetContent className="sm:max-w-[400px] w-full px-8">
+          <SheetContent
+            className="sm:max-w-[400px] w-full px-8"
+            onInteractOutside={(e) => e.preventDefault()}
+          >
             <SheetHeader>
               <SheetTitle>Add New Chauffeur</SheetTitle>
               <SheetDescription>

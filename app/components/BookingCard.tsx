@@ -198,7 +198,7 @@ export default function BookingCard({ car, isAvailable, user }: BookingCardProps
   return (
     <Form {...getFormProps(form)} method="POST" autoComplete="off">
       <input type="hidden" name="carId" value={car.id} />
-      <Card className="rounded sticky top-4">
+      <Card className="rounded sticky top-4 shadow-xl inset-shadow-sm">
         <CardHeader>
           <CardTitle>
             <span className="text-lg">
@@ -332,12 +332,29 @@ export default function BookingCard({ car, isAvailable, user }: BookingCardProps
                       )}
                     </dd>
                   </div>
+                  <div className="flex justify-between">
+                    <dt className="text-sm text-gray-600">Platform Service Fee</dt>
+                    <dd className="text-sm text-gray-600">
+                      {formatCurrency(
+                        (Number(car.price) * totalDays +
+                          (includeSecurityDetail ? SECURITY_DETAIL_COST * totalDays : 0)) *
+                          0.15,
+                      )}
+                    </dd>
+                  </div>
 
                   <hr className="border-t border-gray-200" />
 
                   <div className="flex justify-between mt-4">
                     <dt className="text-md font-bold">Total</dt>
-                    <dd className="text-md font-bold">{formatCurrency(totalCost)}</dd>
+                    <dd className="text-md font-bold">
+                      {formatCurrency(
+                        totalCost +
+                          (Number(car.price) * totalDays +
+                            (includeSecurityDetail ? SECURITY_DETAIL_COST * totalDays : 0)) *
+                            0.15,
+                      )}
+                    </dd>
                   </div>
                 </dl>
               </div>

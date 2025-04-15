@@ -1,39 +1,33 @@
-import { LoaderFunction, json } from "@remix-run/node";
+import { LoaderFunction, LoaderFunctionArgs, json } from "@remix-run/node";
 import { Outlet, useLoaderData } from "@remix-run/react";
 import invariant from "tiny-invariant";
 import CarCarousel from "~/components/Carousel";
 import { prisma } from "~/modules/db/db.server";
 
-interface Car {
-  id: number;
-  make: string;
-  model: string;
-  price: number;
-  color: string;
-  images: string[];
-}
-
-export const loader: LoaderFunction = async ({ params }) => {
+export const loader = async ({ params }: LoaderFunctionArgs) => {
   invariant(params.id, "id is required");
   const carId = params.id;
 
   const car = await prisma.car.findUnique({
     where: { id: carId },
+    include: {
+      images: true,
+    },
   });
 
   return json({ car });
 };
 
 export default function CarDetails() {
-  const { car } = useLoaderData<{ car: Car }>();
+  const { car } = useLoaderData<typeof loader>();
 
   return (
     <div className="max-w-4xl mx-auto">
       <h2 className="text-3xl font-bold mb-4">
-        {car.make} {car.model}
+        {car?.make} {car?.model}
       </h2>
 
-      <CarCarousel images={car.images} />
+      <CarCarousel images={car?.images.map((image) => image.url) ?? []} />
 
       <div className="mt-6">
         <div className="px-4 sm:px-0">
@@ -46,7 +40,7 @@ export default function CarDetails() {
             <div className="px-4 py-3 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">
               <dt className="text-sm font-medium leading-6 text-gray-900">Make & Model</dt>
               <dd className="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
-                {car.make} {car.model}
+                {car?.make} {car?.model}
               </dd>
             </div>
             <div className="px-4 py-3 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">
@@ -55,7 +49,7 @@ export default function CarDetails() {
                 {new Intl.NumberFormat("en-NG", {
                   style: "currency",
                   currency: "NGN",
-                }).format(car.price)}
+                }).format(car?.price ?? 0)}
               </dd>
             </div>
             <div className="px-4 py-3 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">

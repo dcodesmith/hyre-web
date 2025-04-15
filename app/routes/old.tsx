@@ -1,5 +1,5 @@
 import { AdjustmentsVerticalIcon } from "@heroicons/react/24/outline";
-import { LoaderFunction, json } from "@remix-run/node";
+import { LoaderFunction, LoaderFunctionArgs, json } from "@remix-run/node";
 import { Link, useLoaderData, useSearchParams } from "@remix-run/react";
 import { addDays } from "date-fns";
 import { useMemo, useState } from "react";
@@ -35,7 +35,7 @@ const ITEMS_PER_PAGE = 9;
 const carMakes = [...new Set(vehicles.map(({ make }) => make))];
 const carModels = [...new Set(vehicles.map(({ model }) => model))];
 
-export const loader: LoaderFunction = async ({ request }) => {
+export const loader = async ({ request }: LoaderFunctionArgs) => {
   const url = new URL(request.url);
   const make = url.searchParams.get("make");
   const model = url.searchParams.get("model");
@@ -68,7 +68,7 @@ export const loader: LoaderFunction = async ({ request }) => {
     colors: ["Red", "Blue", "Green", "Black", "White"],
   };
 
-  return json({ cars, filterOptions });
+  return json({ cars, filterOptions } as const);
 };
 
 const DEFAULT_FILTERS = {
@@ -78,10 +78,7 @@ const DEFAULT_FILTERS = {
 };
 
 export default function Index() {
-  const { cars, filterOptions } = useLoaderData<{
-    cars: Car[];
-    filterOptions: FilterOptions;
-  }>();
+  const { cars, filterOptions } = useLoaderData<typeof loader>();
 
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedFilters, setSelectedFilters] = useState<Record<string, string[]>>(DEFAULT_FILTERS);
@@ -190,7 +187,7 @@ export default function Index() {
         {paginatedCars.map((car) => (
           <Link key={car.id} to={`/cars/${car.id}`} className="block">
             <div className="border rounded overflow-hidden shadow-md hover:shadow-lg transition-shadow">
-              <CarCarousel images={car.images} />
+              <CarCarousel images={car.imagesUrl} />
               <div className="p-4">
                 <h2 className="font-semibold mb-2">
                   {car.make} {car.model}

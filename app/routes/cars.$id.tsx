@@ -45,6 +45,9 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
 
   const car = await prisma.car.findUnique({
     where: { id: carId },
+    include: {
+      images: { select: { url: true } },
+    },
   });
 
   if (!car) {
@@ -79,7 +82,9 @@ export default function CarDetails() {
 
       <div className="grid grid-cols-1 lg:grid-cols-[65%,35%] gap-4">
         <div className="flex flex-col gap-4">
-          <CarCarousel images={car.images.length > 0 ? car.images : undefined} />
+          <CarCarousel
+            images={car.images.length > 0 ? car.images.map(({ url }) => url) : undefined}
+          />
 
           <div>
             <div className="px-0">

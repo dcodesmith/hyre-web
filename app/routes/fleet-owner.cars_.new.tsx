@@ -46,9 +46,7 @@ export const carSchema = z.object({
       z.string().refine(
         (val) => {
           const plate = val.replace(/\s+/g, "");
-
           const stateFormat = /^[A-Z]{3}[-]?\d{3}[A-Z]{2}$/;
-
           const federalFormat = /^[A-Z]{2}\d{3}[A-Z]{2}$/;
 
           return stateFormat.test(plate) || federalFormat.test(plate);
@@ -70,8 +68,29 @@ export const carSchema = z.object({
     required_error: "Status is required.",
   }),
 
+  // images: z.preprocess(
+  //   (files) => {
+  //     // If the input is a FileList, convert it to an array
+  //     console.log("files", files);
+  //     if (files instanceof FileList) return Array.from(files);
+  //     return files;
+  //   },
+  //   z
+  //     .array(z.instanceof(File, { message: "File is required" }))
+  //     .min(1, "At least one file is required")
+  //     .max(5, "You can upload up to 5 files")
+  //     .refine(
+  //       (files) => files.every((file) => file.size < 5 * 1024 * 1024),
+  //       "Each file must be less than 5MB",
+  //     )
+  //     .refine(
+  //       (files) =>
+  //         files.every((file) => ["image/jpeg", "image/png", "image/webp"].includes(file.type)),
+  //       "Files must be JPEG, PNG or WebP",
+  //     ),
+  // ),
   images: z
-    .instanceof(File)
+    .instanceof(File, { message: "Pictures are required" })
     .array()
     .min(1, "At least one file is required")
     .max(5, "You can upload up to 5 files")
@@ -84,6 +103,16 @@ export const carSchema = z.object({
         files.every((file) => ["image/jpeg", "image/png", "image/webp"].includes(file.type)),
       "Files must be JPEG, PNG or WebP",
     ),
+
+  motCertificate: z
+    .instanceof(File, { message: "MOT certificate is required" })
+    .refine((file) => file.size < 5 * 1024 * 1024, "File must be less than 5MB")
+    .refine((file) => file.type === "application/pdf", "File must be a PDF"),
+
+  insuranceCertificate: z
+    .instanceof(File, { message: "Insurance certificate is required" })
+    .refine((file) => file.size < 5 * 1024 * 1024, "File must be less than 5MB")
+    .refine((file) => file.type === "application/pdf", "File must be a PDF"),
 });
 
 const statusMap: Record<Exclude<Status, "BOOKED">, string> = {
@@ -99,7 +128,20 @@ export function NewCarForm() {
 
   const lastResult = fetcher.data;
 
-  const [form, { make, model, year, price, status, images, registrationNumber }] = useForm({
+  const [
+    form,
+    {
+      make,
+      model,
+      year,
+      price,
+      status,
+      images,
+      registrationNumber,
+      motCertificate,
+      insuranceCertificate,
+    },
+  ] = useForm({
     lastResult: fetcher.state === "idle" ? lastResult : null,
     onValidate({ formData }) {
       return parseWithZod(formData, { schema: carSchema });
@@ -167,9 +209,37 @@ export function NewCarForm() {
       </div>
 
       <div className="space-y-1">
-        <Label htmlFor={images.id}>Picture</Label>
+        <Label htmlFor={motCertificate.id}>MOT Certificate (PDF)</Label>
         <Input
           type="file"
+          id={motCertificate.id}
+          name={motCertificate.name}
+          accept=".pdf"
+          className={`rounded ${motCertificate.errors ? errorRingClasses : ""}`}
+        />
+        {motCertificate.errors && (
+          <p className="text-red-500 text-sm">{motCertificate.errors.join(" ")}</p>
+        )}
+      </div>
+
+      <div className="space-y-1">
+        <Label htmlFor={insuranceCertificate.id}>Insurance Certificate (PDF)</Label>
+        <Input
+          type="file"
+          id={insuranceCertificate.id}
+          name={insuranceCertificate.name}
+          accept=".pdf"
+          className={`rounded ${insuranceCertificate.errors ? errorRingClasses : ""}`}
+        />
+        {insuranceCertificate.errors && (
+          <p className="text-red-500 text-sm">{insuranceCertificate.errors.join(" ")}</p>
+        )}
+      </div>
+
+      <div className="space-y-1">
+        <Label htmlFor={images.id}>Pictures</Label>
+        <Input
+          {...getInputProps(images, { type: "file" })}
           multiple
           id={images.id}
           accept="image/*"

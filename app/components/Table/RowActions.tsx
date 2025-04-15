@@ -19,6 +19,7 @@ import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "../ui/sheet";
+import { Car } from "@prisma/client";
 
 const STATUSES = ["AVAILABLE", "HOLD", "IN_SERVICE"] as const;
 
@@ -75,7 +76,7 @@ const statusMap: Record<(typeof STATUSES)[number], string> = {
 };
 
 interface EditCarFormProps {
-  car: SerializedCar;
+  car: Car;
   setIsEditOpen: Dispatch<SetStateAction<boolean>>;
 }
 
@@ -166,7 +167,7 @@ function EditCarForm({ car, setIsEditOpen }: EditCarFormProps) {
 }
 
 interface DataTableRowActionsProps {
-  row: Row<SerializedCar>;
+  row: Row<Car>;
 }
 
 export function RowActions({ row }: DataTableRowActionsProps) {

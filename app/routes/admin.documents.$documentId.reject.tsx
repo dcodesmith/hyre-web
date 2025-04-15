@@ -1,0 +1,54 @@
+import { json, type ActionFunctionArgs, redirect } from "@remix-run/node";
+import { prisma } from "~/modules/db/db.server";
+import { requireUserWithRole } from "~/modules/auth/auth.server";
+import { DocumentStatus, CarApprovalStatus } from "@prisma/client";
+
+export async function action({ request, params }: ActionFunctionArgs) {
+  const user = await requireUserWithRole(request, "admin");
+  const documentId = params.documentId;
+
+  if (!documentId) {
+    throw new Error("Document ID is required");
+  }
+
+  const formData = await request.formData();
+  const notes = formData.get("notes") as string;
+
+  const document = await prisma.documentApproval.update({
+    where: { id: documentId },
+    data: {
+      status: DocumentStatus.REJECTED,
+      approvedById: user.id,
+      approvedAt: new Date(),
+      notes,
+    },
+    include: {
+      car: true,
+      chauffeur: true,
+    },
+  });
+
+  // If this is a car document, update the car's approval status to PENDING with action note
+  if (document.car) {
+    await prisma.car.update({
+      where: { id: document.car.id },
+      data: {
+        approvalStatus: CarApprovalStatus.PENDING,
+        approvalNotes:
+          "Action required! Some of your documents/images were rejected. Please check the rejection notes and re-upload them.",
+      },
+    });
+  }
+
+  // If this is a chauffeur document, update the chauffeur's approval status
+  if (document.chauffeur) {
+    await prisma.user.update({
+      where: { id: document.chauffeur.id },
+      data: {
+        chauffeurApprovalStatus: "REJECTED",
+      },
+    });
+  }
+
+  return redirect("/admin/documents");
+}

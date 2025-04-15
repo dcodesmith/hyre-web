@@ -1,10 +1,10 @@
 import { parseWithZod } from "@conform-to/zod";
-import { Status } from "@prisma/client";
+import { Car, Status } from "@prisma/client";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { useFetcher, useLoaderData } from "@remix-run/react";
 import { ColumnDef } from "@tanstack/react-table";
-import { PlusCircle } from "lucide-react";
+import { PlusCircle, CheckCircle2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { ColumnHeader } from "~/components/Table/ColumnHeader";
 import { RowActions } from "~/components/Table/RowActions";
@@ -24,8 +24,9 @@ import { cn } from "~/lib/utils";
 import { requireUser } from "~/modules/auth/auth.server";
 import { prisma } from "~/modules/db/db.server";
 import { createCar } from "~/services/cars.server";
-import { SerializedCar } from "~/types";
 import { NewCarForm, carSchema } from "./fleet-owner.cars_.new";
+
+type ActionResponse = { success: boolean; error?: string | null } | undefined;
 
 export async function action({ request }: ActionFunctionArgs) {
   const user = await requireUser(request);
@@ -56,7 +57,7 @@ export async function action({ request }: ActionFunctionArgs) {
       const carId = String(formData.get("carId"));
 
       const submission = parseWithZod(formData, {
-        schema: carSchema.omit({ images: true }),
+        schema: carSchema.omit({ images: true, motCertificate: true, insuranceCertificate: true }),
       });
 
       if (submission.status !== "success") {
@@ -98,17 +99,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     },
   });
 
-  const serializedCars = cars.map((car) => ({
-    ...car,
-    createdAt: car.createdAt.toISOString(),
-    updatedAt: car.updatedAt.toISOString(),
-    images: car.images || [],
-    owner: {
-      username: car.owner.username,
-    },
-  }));
-
-  return json({ cars: serializedCars });
+  return json({ cars });
 }
 
 const formatPrice = (price: number) => {
@@ -133,13 +124,18 @@ const carStatusOptions: Record<Status, string> = {
   IN_SERVICE: "In Service",
 };
 
-export const columns: ColumnDef<SerializedCar>[] = [
+export const columns: ColumnDef<Car>[] = [
   {
     accessorKey: "registrationNumber",
     header: ({ column }) => <ColumnHeader column={column} title="Registration #" />,
     enableColumnFilter: false,
     cell: ({ row }) => (
-      <div className="w-[150px] font-medium">{row.original.registrationNumber}</div>
+      <div className="w-[150px] font-medium flex items-center gap-2">
+        {row.original.registrationNumber}
+        {row.original.approvalStatus === "APPROVED" && (
+          <CheckCircle2 className="h-4 w-4 text-green-500" />
+        )}
+      </div>
     ),
   },
   {
@@ -191,7 +187,7 @@ export const columns: ColumnDef<SerializedCar>[] = [
 export default function CarsPage() {
   const { cars } = useLoaderData<typeof loader>();
   const [isOpen, setIsOpen] = useState(false);
-  const fetcher = useFetcher<typeof action>({ key: "new-car" });
+  const fetcher = useFetcher<ActionResponse>({ key: "new-car" });
   const { toast } = useToast();
 
   useEffect(() => {

@@ -33,7 +33,11 @@ const totpStrategy = new TOTPStrategy(
         logger.info(`OTP code: ${code}`);
 
         // Email is not sent for admin users.
-        if (email.startsWith("admin") || email.endsWith("@fleetowner.com")) {
+        if (
+          email.startsWith("admin") ||
+          email.startsWith("cool.fleetowner") ||
+          email.startsWith("nerdy.fleetowner")
+        ) {
           return;
         }
       }
@@ -126,12 +130,21 @@ export async function requireUser(
   return user;
 }
 
-export async function requireAdmin(request: Request) {
-  const user = await requireUser(request);
+/**
+ * Require admin user and redirect to admin login if not authenticated
+ */
+export async function requireAdminWithRedirect(request: Request) {
+  const user = await requireUser(request, {
+    redirectTo: `/admin/login?${new URLSearchParams({
+      redirectTo: new URL(request.url).pathname,
+    })}`,
+  });
 
   if (!userHasRole(user, "admin")) {
-    throw redirect("/");
+    throw redirect("/admin/login");
   }
+
+  return user;
 }
 
 /**
@@ -152,6 +165,17 @@ export async function getSessionUser(request: Request) {
       },
     },
   });
+
+  return user;
+}
+
+export async function requireUserWithRole(request: Request, role: string) {
+  const user = await requireUser(request);
+
+  const hasRole = user.roles.some((userRole) => userRole.name === role);
+  if (!hasRole) {
+    throw new Response("Unauthorized", { status: 403 });
+  }
 
   return user;
 }

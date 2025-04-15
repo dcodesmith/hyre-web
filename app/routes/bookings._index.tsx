@@ -1,4 +1,4 @@
-import { User } from "@prisma/client";
+import { User, Booking, BookingStatus, Car } from "@prisma/client";
 import { ActionFunctionArgs, type LoaderFunctionArgs, json } from "@remix-run/node";
 import {
   Link,
@@ -32,24 +32,36 @@ import {
   renderBookingConfirmationEmail,
   renderFleetOwnerBookingNotificationEmail,
 } from "~/modules/email/templates/booking-notification";
-import { cancelBooking, confirmBooking, getBookingsByStatus } from "~/services/bookings.server";
+import {
+  cancelBooking,
+  confirmBooking,
+  getBookingsByStatus,
+  getAvailableCars,
+} from "~/services/bookings.server";
 import { requireUserWithRole } from "~/utils/permissions.server";
+
+type BookingWithRelations = Booking & {
+  car: Car & { owner: User };
+  chauffeur?: User | null;
+};
+
+type GroupedBookings = {
+  [K in BookingStatus]?: BookingWithRelations[];
+};
 
 export async function action({ request }: ActionFunctionArgs) {
   const formData = await request.formData();
 
   const guestEmail = String(formData.get("email"));
   const guestName = String(formData.get("name"));
-
+  const guestPhoneNumber = String(formData.get("phoneNumber"));
   // Get either guest user or authenticated user
-  let user: User | null | { email: string; name: string } = null;
+  let user: User | null | { email: string; name: string; phoneNumber: string } = null;
   if (guestEmail) {
-    user = { email: guestEmail, name: guestName };
+    user = { email: guestEmail, name: guestName, phoneNumber: guestPhoneNumber };
   } else {
     user = await requireUserWithRole(request, "user");
   }
-
-  // const user = await requireUserWithRole(request, "user");
 
   if (request.method === "DELETE") {
     // const formData = await request.formData();
@@ -201,11 +213,19 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
   const bookings = await getBookingsByStatus(email, Boolean(guestEmail));
 
-  return json({ bookings } as const);
+  const availableCars = await getAvailableCars({
+    startDate: new Date(url.searchParams.get("from") || ""),
+    endDate: new Date(url.searchParams.get("to") || ""),
+  });
+
+  return json({
+    bookings,
+    cars: availableCars,
+  });
 }
 
 export default function BookingsPage() {
-  const { bookings } = useLoaderData<typeof loader>();
+  const { bookings } = useLoaderData<{ bookings: GroupedBookings }>();
   const fetcher = useFetcher();
   const [searchParams] = useSearchParams();
   const status = searchParams.get("status")?.toLocaleUpperCase() ?? "ACTIVE";
@@ -268,11 +288,11 @@ export default function BookingsPage() {
         {statuses.map((status) => (
           <TabsContent key={status} value={status}>
             <div className="flex flex-col gap-2">
-              {bookings[status]?.map((booking) => (
+              {bookings[status as BookingStatus]?.map((booking: BookingWithRelations) => (
                 <div key={booking.id} className="flex justify-between p-2">
                   <div className="flex items-center gap-4">
                     <img
-                      src={booking.car.images[0]}
+                      src={booking.car.imagesUrl[0]}
                       alt={`${booking.car.make} ${booking.car.model}`}
                       className="w-10 h-10 rounded-full object-cover"
                     />
@@ -450,7 +470,8 @@ export default function BookingsPage() {
                   </div>
                 </div>
               ))}
-              {(!bookings[status] || bookings[status].length === 0) && (
+              {(!bookings[status as BookingStatus] ||
+                bookings[status as BookingStatus].length === 0) && (
                 <div className="text-center py-8 text-gray-500">
                   No {status.toLowerCase()} bookings found
                 </div>

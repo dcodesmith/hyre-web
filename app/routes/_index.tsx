@@ -87,39 +87,45 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
   const cars = await prisma.car.findMany({
     where: {
-      ownerId: {
-        notIn: ownerIdsToExclude,
-      },
-      // make: {
-      //   mode: "insensitive",
-      //   in: makes.length > 0 ? makes : undefined,
-      // },
-      OR: [
+      AND: [
         {
-          status: "AVAILABLE",
-        },
-        {
-          status: "BOOKED",
-          bookings: {
-            none: {
-              status: { in: ["PENDING", "CONFIRMED", "ACTIVE"] },
-              OR: [
-                {
-                  startDate: {
-                    lte: to ? new Date(`${to}T23:59:59Z`) : undefined,
-                  },
-                  endDate: {
-                    gte: from ? new Date(`${from}T00:00:00Z`) : undefined,
-                  },
-                },
-              ],
-            },
+          ownerId: {
+            notIn: ownerIdsToExclude,
           },
+          // Only show approved cars from approved fleet owners
+          approvalStatus: "APPROVED",
+          owner: {
+            fleetOwnerStatus: "APPROVED",
+          },
+          OR: [
+            {
+              status: "AVAILABLE",
+            },
+            {
+              status: "BOOKED",
+              bookings: {
+                none: {
+                  status: { in: ["PENDING", "CONFIRMED", "ACTIVE"] },
+                  OR: [
+                    {
+                      startDate: {
+                        lte: to ? new Date(`${to}T23:59:59Z`) : undefined,
+                      },
+                      endDate: {
+                        gte: from ? new Date(`${from}T00:00:00Z`) : undefined,
+                      },
+                    },
+                  ],
+                },
+              },
+            },
+          ],
         },
       ],
     },
     include: {
       owner: { select: { username: true } },
+      images: { select: { url: true } },
     },
   });
 
@@ -310,7 +316,13 @@ export default function IndexPage() {
           {table.getRowModel().rows.map((row) => (
             <Link key={row.original.id} to={`/cars/${row.original.id}?${searchParams.toString()}`}>
               <div className="overflow-hidden space-y-2">
-                <Carousel images={row.original.images.length ? row.original.images : undefined} />
+                <Carousel
+                  images={
+                    row.original.images.length
+                      ? row.original.images.map(({ url }) => url)
+                      : undefined
+                  }
+                />
 
                 <div className="space-y-1 font-semibold">
                   <h2>

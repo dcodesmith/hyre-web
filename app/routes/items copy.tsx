@@ -118,7 +118,9 @@ export default function IndexPage() {
               className="block"
             >
               <div className="rounded overflow-hidden hover:shadow-lg transition-shadow">
-                <Carousel images={row.original.images.length ? row.original.images : undefined} />
+                <Carousel
+                  images={row.original.imagesUrl.length ? row.original.imagesUrl : undefined}
+                />
 
                 <div className="p-4">
                   <h2 className="font-semibold mb-2">

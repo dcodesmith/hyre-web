@@ -1,5 +1,4 @@
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
-import { Car } from "@prisma/client";
 
 const s3Client = new S3Client({
   region: process.env.AWS_REGION,
@@ -9,15 +8,7 @@ const s3Client = new S3Client({
   },
 });
 
-export async function uploadImageToS3(
-  file: File,
-  { ownerId, id: carId }: Pick<Car, "ownerId" | "id">,
-) {
-  const timestamp = Date.now();
-  const safeFilename = `${timestamp}-${file.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`;
-
-  const key = `${ownerId}/${carId}-${safeFilename}`;
-
+export async function uploadFileToS3(file: File, key: string) {
   const arrayBuffer = await file.arrayBuffer();
   const buffer = Buffer.from(arrayBuffer);
 

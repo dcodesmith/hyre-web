@@ -30,10 +30,11 @@ import { Pagination } from "./Pagination";
 type TableProps<T extends object> = {
   columns: ColumnDef<T>[];
   data: T[];
+  initialSorting?: SortingState;
 };
 
-export function Table<T extends object>({ columns, data }: TableProps<T>) {
-  const [sorting, setSorting] = useState<SortingState>([]);
+export function Table<T extends object>({ columns, data, initialSorting = [] }: TableProps<T>) {
+  const [sorting, setSorting] = useState<SortingState>(initialSorting);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [pagination, setPagination] = useState({
@@ -124,18 +125,9 @@ export function Table<T extends object>({ columns, data }: TableProps<T>) {
             ))}
           </TableHeader>
 
-          {/* <motion.tbody> */}
           <TableBody>
             {table.getRowModel().rows?.length ? (
               table.getRowModel().rows.map((row) => (
-                // <motion.div
-                //   key={row.id}
-                //   variants={rowVariants}
-                //   initial="hidden"
-                //   animate="visible"
-                //   exit="exit"
-                //   transition={{ duration: 0.3 }}
-                // >
                 <TableRow key={row.id} data-state={row.getIsSelected() && "selected"}>
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id} className="border-b-gray-400">
@@ -143,7 +135,6 @@ export function Table<T extends object>({ columns, data }: TableProps<T>) {
                     </TableCell>
                   ))}
                 </TableRow>
-                // </motion.div>
               ))
             ) : (
               <TableRow>
@@ -153,7 +144,6 @@ export function Table<T extends object>({ columns, data }: TableProps<T>) {
               </TableRow>
             )}
           </TableBody>
-          {/* </motion.tbody> */}
         </TableUI>
       </div>
 

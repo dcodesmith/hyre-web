@@ -18,20 +18,33 @@ const chauffeurSchema = z.object({
       required_error: "Email is required.",
     })
     .min(1),
-
   name: z
     .string({
       required_error: "Name is required.",
     })
     .min(1),
-
   phoneNumber: z
     .string({
       required_error: "Phone is required.",
     })
-    .min(1),
-
-  address: z.string().optional(),
+    .min(11, "Phone number must be at least 11 digits"),
+  address: z.string({
+    required_error: "Address is required.",
+  }),
+  ninFile: z
+    .instanceof(File, { message: "Please select a file" })
+    .refine((file) => file.size < 5 * 1024 * 1024, "File must be less than 5MB")
+    .refine(
+      (file) => ["image/jpeg", "image/png"].includes(file.type),
+      "File must be a JPEG or PNG",
+    ),
+  drivingLicenceFile: z
+    .instanceof(File, { message: "Please select a file" })
+    .refine((file) => file.size < 5 * 1024 * 1024, "File must be less than 5MB")
+    .refine(
+      (file) => ["image/jpeg", "image/png"].includes(file.type),
+      "File must be a JPEG or PNG",
+    ),
 });
 
 export async function action({ request }: ActionFunctionArgs) {
@@ -45,14 +58,9 @@ export async function action({ request }: ActionFunctionArgs) {
     return json(submission.reply());
   }
 
-  const { email, name, phoneNumber, address } = submission.value;
-
   try {
     await createUser({
-      email,
-      name,
-      phoneNumber,
-      address,
+      ...submission.value,
       roles: { connect: [{ name: "chauffeur" }] },
       fleetOwner: { connect: { id: user.id } },
     });

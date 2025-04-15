@@ -28,7 +28,7 @@ export type SendEmailOptions = {
 
 export async function sendEmail(options: SendEmailOptions) {
   // For development mode, Resend will only accept emails from this domain.
-  const from = "Damola from Chauffeurly <damola@dcodesmith.com>"; //"hello@resend.dev";
+  const from = `Damola from ${process.env.APP_NAME} <no-reply@dcodesmith.com>`; //"hello@resend.dev";
   const email = { from, ...options };
 
   const response = await fetch("https://api.resend.com/emails", {
