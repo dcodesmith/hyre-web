@@ -60,7 +60,7 @@ export async function createCar({
   motCertificate: File;
   insuranceCertificate: File;
 }) {
-  // Step 1: Create the car record (a quick DB operation)
+  // Step 1: Create the car record
   const car = await prisma.car.create({ data });
 
   try {
@@ -71,15 +71,18 @@ export async function createCar({
       uploadFileToS3(insuranceCertificate, getKey(car, insuranceCertificate)),
     ]);
 
-    // Step 3: Create document approvals
+    // Step 3: Create vehicle images
+    await prisma.vehicleImage.createMany({
+      data: imageUrls.map((url) => ({
+        url,
+        carId: car.id,
+        status: DocumentStatus.PENDING,
+      })),
+    });
+
+    // Step 4: Create document approvals for certificates
     await prisma.documentApproval.createMany({
       data: [
-        ...imageUrls.map((url) => ({
-          documentType: DocumentType.VEHICLE_IMAGES,
-          documentUrl: url,
-          carId: car.id,
-          status: DocumentStatus.PENDING,
-        })),
         {
           documentType: DocumentType.MOT_CERTIFICATE,
           documentUrl: motCertificateUrl,

@@ -57,6 +57,7 @@ model User {
   phoneNumber String?
   address     String?
   city        String?
+  hasOnboarded Boolean @default(false)
 
   roles Role[]
   // Relations for fleet owners & chauffeur
@@ -79,7 +80,7 @@ model User {
 
   chauffeurApprovalStatus ChauffeurApprovalStatus? @default(PENDING) // Only applicable for chauffeurs
 
-  documents        DocumentApproval[] @relation("ChauffeurDocuments")
+  documents        DocumentApproval[] @relation("UserDocuments")
   approvedDocuments DocumentApproval[] @relation("ApprovedBy")
   approvedVehicleImages VehicleImage[] @relation("ApprovedVehicleImages")
 
@@ -204,6 +205,7 @@ enum DocumentType {
   MOT_CERTIFICATE
   INSURANCE_CERTIFICATE
   VEHICLE_IMAGES
+  CERTIFICATE_OF_INCORPORATION
 }
 
 model DocumentApproval {
@@ -219,15 +221,15 @@ model DocumentApproval {
   approvedAt   DateTime?
   
   // Document ownership
-  chauffeur   User?    @relation("ChauffeurDocuments", fields: [chauffeurId], references: [id])
-  chauffeurId String?
+  user   User?    @relation("UserDocuments", fields: [userId], references: [id])
+  userId String?
   car         Car?     @relation("CarDocuments", fields: [carId], references: [id])
   carId       String?
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  @@unique([documentType, chauffeurId])
+  @@unique([documentType, userId])
   @@unique([documentType, carId])
   @@index([status])
   @@index([documentType])

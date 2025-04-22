@@ -20,7 +20,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
     },
     include: {
       car: true,
-      chauffeur: true,
+      user: true,
     },
   });
 
@@ -53,17 +53,17 @@ export async function action({ request, params }: ActionFunctionArgs) {
   }
 
   // If this is a chauffeur document, update the chauffeur's approval status if all required documents are approved
-  if (document.chauffeur) {
+  if (document.userId) {
     const chauffeurDocuments = await prisma.documentApproval.findMany({
       where: {
-        chauffeurId: document.chauffeur.id,
+        userId: document.userId,
         status: DocumentStatus.PENDING,
       },
     });
 
     if (chauffeurDocuments.length === 0) {
       await prisma.user.update({
-        where: { id: document.chauffeur.id },
+        where: { id: document.userId },
         data: {
           chauffeurApprovalStatus: "APPROVED",
         },

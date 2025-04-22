@@ -40,7 +40,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
             },
           },
         },
-        chauffeur: {
+        user: {
           select: {
             id: true,
             name: true,
@@ -84,6 +84,7 @@ const documentTypeMap: Record<DocumentType, string> = {
   [DocumentType.NIN]: "National Identification Number (NIN)",
   [DocumentType.DRIVERS_LICENSE]: "Driver's License",
   [DocumentType.VEHICLE_IMAGES]: "Vehicle Images",
+  [DocumentType.CERTIFICATE_OF_INCORPORATION]: "Certificate of Incorporation",
 };
 
 export default function AdminDocumentsPage() {

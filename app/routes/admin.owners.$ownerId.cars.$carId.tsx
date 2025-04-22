@@ -1,14 +1,28 @@
 import { json, type LoaderFunctionArgs, type ActionFunctionArgs } from "@remix-run/node";
-import { useLoaderData, useSubmit } from "@remix-run/react";
+import { useLoaderData, useSubmit, useNavigate } from "@remix-run/react";
 import { prisma } from "~/modules/db/db.server"; // Update the import path
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { CarApprovalStatus, DocumentApproval, DocumentStatus, DocumentType } from "@prisma/client";
 import { requireAdminWithRedirect } from "~/modules/auth/auth.server";
 import { useState } from "react";
-import { Dialog, DialogContent, DialogTitle } from "~/components/ui/dialog";
-import { FileText } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogFooter,
+  DialogHeader,
+  DialogDescription,
+} from "~/components/ui/dialog";
+import { CheckCircle2, FileText, Loader2 } from "lucide-react";
 import { SerializedCar } from "~/types";
+import { Worker, Viewer } from "@react-pdf-viewer/core";
+import { defaultLayoutPlugin } from "@react-pdf-viewer/default-layout";
+import { Textarea } from "~/components/ui/textarea";
+
+// Import styles
+import "@react-pdf-viewer/core/lib/styles/index.css";
+import "@react-pdf-viewer/default-layout/lib/styles/index.css";
 
 export async function loader({ params }: LoaderFunctionArgs) {
   const car = await prisma.car.findUnique({
@@ -53,7 +67,18 @@ export async function action({ request, params }: ActionFunctionArgs) {
 export default function CarDetails() {
   const { car } = useLoaderData<typeof loader>();
   const submit = useSubmit();
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [selectedImage, setSelectedImage] = useState<{ url: string; id: string } | null>(null);
+  const [selectedPdf, setSelectedPdf] = useState<{ url: string; title: string } | null>(null);
+  const defaultLayoutPluginInstance = defaultLayoutPlugin();
+  const [rejectionModal, setRejectionModal] = useState<{
+    open: boolean;
+    type: "document" | "image";
+    id: string;
+  } | null>(null);
+  const [rejectionReason, setRejectionReason] = useState("");
+  const navigate = useNavigate();
+  const [isApproving, setIsApproving] = useState<string | null>(null);
+  const [isRejecting, setIsRejecting] = useState<string | null>(null);
 
   const handleApprove = () => {
     if (window.confirm("Are you sure you want to approve this car?")) {
@@ -106,60 +131,275 @@ export default function CarDetails() {
             <div
               key={image.url}
               className="relative aspect-square cursor-pointer hover:opacity-90 transition-opacity"
-              onClick={() => setSelectedImage(image.url)}
+              onClick={() => setSelectedImage({ url: image.url, id: image.id })}
             >
               <img
                 src={image.url}
                 alt={`${car.make} ${car.model} - ${index + 1}`}
                 className="object-cover w-full h-full"
               />
+              <div
+                className={`absolute top-2 right-2 px-2 py-1 rounded-full text-xs font-medium ${
+                  image.status === "APPROVED"
+                    ? "bg-green-100 text-green-800"
+                    : image.status === "REJECTED"
+                      ? "bg-red-100 text-red-800"
+                      : "bg-yellow-100 text-yellow-800"
+                }`}
+              >
+                {image.status}
+              </div>
             </div>
           ))}
         </div>
 
-        <h2 className="text-lg font-medium mt-8 mb-4">Certificates</h2>
+        <h2 className="text-lg font-medium mt-8 mb-4">
+          Certificates{" "}
+          <span className="text-sm text-gray-500">
+            (Click each certificate to review and approve or reject)
+          </span>
+        </h2>
         <ul className="space-y-2">
           {motCertificate && (
             <li className="flex items-center">
               <FileText className="w-4 h-4 mr-2" />
-              <a
-                href={motCertificate.documentUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block w-48 hover:opacity-90 transition-opacity"
+              <Button
+                variant="ghost"
+                onClick={() =>
+                  setSelectedPdf({
+                    url: `/api/proxy-pdf/${motCertificate.id}`,
+                    title: "MOT Certificate",
+                  })
+                }
+                className="hover:bg-transparent p-0 h-auto"
               >
                 MOT Certificate
-              </a>
+                {motCertificate.status === "APPROVED" && (
+                  <CheckCircle2 className="w-4 h-4 text-green-600 ml-2" />
+                )}
+              </Button>
             </li>
           )}
 
           {insuranceCertificate && (
             <li className="flex items-center">
               <FileText className="w-4 h-4 mr-2" />
-              <a
-                href={insuranceCertificate.documentUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block w-48 hover:opacity-90 transition-opacity"
+              <Button
+                variant="ghost"
+                onClick={() =>
+                  setSelectedPdf({
+                    url: `/api/proxy-pdf/${insuranceCertificate.id}`,
+                    title: "Insurance Certificate",
+                  })
+                }
+                className="hover:bg-transparent p-0 h-auto"
               >
                 Insurance Certificate
-              </a>
+                {insuranceCertificate.status === "APPROVED" && (
+                  <CheckCircle2 className="w-4 h-4 text-green-600 ml-2" />
+                )}
+              </Button>
             </li>
           )}
         </ul>
 
         <Dialog open={!!selectedImage} onOpenChange={() => setSelectedImage(null)}>
-          <DialogContent className="max-w-[90vw] w-fit h-fit max-h-[90vh] p-0 flex items-center justify-center border-none bg-transparent shadow-none">
-            <DialogTitle>Full Size</DialogTitle>
+          <DialogContent className="max-w-[90vw] w-fit h-fit max-h-[90vh] p-0 flex flex-col items-center justify-center border bg-white">
+            <DialogTitle className="p-4">Vehicle Image</DialogTitle>
             {selectedImage && (
-              <div className="relative w-full h-full flex items-center justify-center">
-                <img
-                  src={selectedImage}
-                  alt="Full size"
-                  className="max-w-full max-h-[85vh] object-contain"
+              <>
+                <div className="relative w-full h-full flex items-center justify-center p-4">
+                  <img
+                    src={selectedImage.url}
+                    alt="Full size"
+                    className="max-w-full max-h-[70vh] object-contain"
+                  />
+                </div>
+                <DialogFooter className="w-full p-4 border-t bg-white">
+                  <Button variant="outline" onClick={() => setSelectedImage(null)}>
+                    Close
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    disabled={isRejecting === selectedImage.id}
+                    onClick={() => {
+                      setSelectedImage(null);
+                      setRejectionModal({
+                        open: true,
+                        type: "document",
+                        id: selectedImage.id,
+                      });
+                      setRejectionReason("");
+                    }}
+                  >
+                    Reject
+                  </Button>
+                  <Button
+                    disabled={isApproving === selectedImage.id}
+                    onClick={async () => {
+                      setIsApproving(selectedImage.id);
+                      try {
+                        const response = await fetch(
+                          `/admin/vehicle-images/${selectedImage.id}/approve`,
+                          {
+                            method: "POST",
+                          },
+                        );
+                        if (response.ok) {
+                          setSelectedImage(null);
+                          navigate(".", { replace: true });
+                        }
+                      } catch (error) {
+                        console.error("Error approving image:", error);
+                      } finally {
+                        setIsApproving(null);
+                      }
+                    }}
+                    className="bg-green-600 hover:bg-green-700 text-white"
+                  >
+                    {isApproving === selectedImage.id ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : null}
+                    Approve
+                  </Button>
+                </DialogFooter>
+              </>
+            )}
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={!!selectedPdf} onOpenChange={() => setSelectedPdf(null)}>
+          <DialogContent className="max-w-[90vw] h-[90vh] overflow-hidden flex flex-col">
+            <DialogTitle className="mb-0">{selectedPdf?.title || "Document Viewer"}</DialogTitle>
+            {selectedPdf && (
+              <>
+                <div className="flex-1 w-full h-[calc(86vh-8rem)] mt-2">
+                  <Worker workerUrl="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js">
+                    <div className="h-full">
+                      <Viewer
+                        fileUrl={selectedPdf.url}
+                        plugins={[defaultLayoutPluginInstance]}
+                        defaultScale={1}
+                      />
+                    </div>
+                  </Worker>
+                </div>
+                <DialogFooter className="mt-4 pb-4">
+                  <Button variant="outline" onClick={() => setSelectedPdf(null)}>
+                    Close
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    onClick={() => {
+                      const documentId = selectedPdf.url.split("/").pop();
+                      setSelectedPdf(null);
+                      setRejectionModal({
+                        open: true,
+                        type: "document",
+                        id: documentId!,
+                      });
+                      setRejectionReason("");
+                    }}
+                  >
+                    Reject
+                  </Button>
+                  <Button
+                    onClick={async () => {
+                      const documentId = selectedPdf.url.split("/").pop();
+                      try {
+                        const response = await fetch(`/admin/documents/${documentId}/approve`, {
+                          method: "POST",
+                        });
+                        if (response.ok) {
+                          setSelectedPdf(null);
+                          navigate(".", { replace: true });
+                        }
+                      } catch (error) {
+                        console.error("Error approving document:", error);
+                      }
+                    }}
+                    className="bg-green-600 hover:bg-green-700 text-white"
+                  >
+                    Approve
+                  </Button>
+                </DialogFooter>
+              </>
+            )}
+          </DialogContent>
+        </Dialog>
+
+        <Dialog
+          open={rejectionModal?.open}
+          onOpenChange={(open) => !open && setRejectionModal(null)}
+        >
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>
+                Reject {rejectionModal?.type === "document" ? "Document" : "Vehicle Image"}
+              </DialogTitle>
+              <DialogDescription>
+                Please provide a reason for rejection. This will be sent to the user.
+              </DialogDescription>
+            </DialogHeader>
+
+            <form
+              method="post"
+              action={
+                rejectionModal?.type === "document"
+                  ? `/admin/documents/${rejectionModal?.id}/reject`
+                  : `/admin/vehicle-images/${rejectionModal?.id}/reject`
+              }
+              onSubmit={async (e) => {
+                e.preventDefault();
+                if (rejectionModal?.id) {
+                  setIsRejecting(rejectionModal.id);
+                  try {
+                    const formData = new FormData(e.currentTarget);
+                    const response = await fetch(e.currentTarget.action, {
+                      method: "POST",
+                      body: formData,
+                    });
+                    if (response.ok) {
+                      setRejectionModal(null);
+                      setRejectionReason("");
+                      navigate(".", { replace: true });
+                    }
+                  } catch (error) {
+                    console.error("Error rejecting item:", error);
+                  } finally {
+                    setIsRejecting(null);
+                  }
+                }
+              }}
+            >
+              <div className="py-4">
+                <Textarea
+                  name="notes"
+                  value={rejectionReason}
+                  onChange={(e) => setRejectionReason(e.target.value)}
+                  placeholder="Enter rejection reason..."
+                  className="min-h-[100px]"
+                  required
                 />
               </div>
-            )}
+
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setRejectionModal(null)}
+                  disabled={!!isRejecting}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" variant="destructive" disabled={!!isRejecting}>
+                  {isRejecting === rejectionModal?.id ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : null}
+                  Reject
+                </Button>
+              </DialogFooter>
+            </form>
           </DialogContent>
         </Dialog>
       </div>

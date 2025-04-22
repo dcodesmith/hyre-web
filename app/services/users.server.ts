@@ -28,13 +28,13 @@ export async function createUser({
         {
           documentType: DocumentType.NIN,
           documentUrl: ninUrl,
-          chauffeurId: user.id,
+          userId: user.id,
           status: DocumentStatus.PENDING,
         },
         {
           documentType: DocumentType.DRIVERS_LICENSE,
           documentUrl: drivingLicenceUrl,
-          chauffeurId: user.id,
+          userId: user.id,
           status: DocumentStatus.PENDING,
         },
       ],
@@ -42,7 +42,7 @@ export async function createUser({
   } catch (error) {
     // Delete document approvals first
     await prisma.documentApproval.deleteMany({
-      where: { chauffeurId: user.id },
+      where: { userId: user.id },
     });
 
     // Then delete the user

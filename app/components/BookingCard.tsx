@@ -205,7 +205,7 @@ export default function BookingCard({ car, isAvailable, user }: BookingCardProps
               {dateRange.from && dateRange.to ? (
                 <>
                   {formatCurrency(Number(car.price))}
-                  <span className="text-sm text-gray-500"> per day</span>
+                  <span className="text-sm text-gray-500"> per day (12 hours)</span>
                 </>
               ) : (
                 "Select dates to check availability"

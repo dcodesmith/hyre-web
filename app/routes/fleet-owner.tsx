@@ -2,6 +2,7 @@ import type { LoaderFunctionArgs } from "@remix-run/node";
 import { Link, Outlet, useLocation } from "@remix-run/react";
 import { ScrollArea, ScrollBar } from "~/components/ui/scroll-area";
 import { requireUserWithRole } from "~/utils/permissions.server";
+import { redirect } from "@remix-run/node";
 
 interface NavLinkProps {
   to: string;
@@ -33,8 +34,18 @@ const navLinks = [
   { to: "/fleet-owner/bookings", label: "Bookings" },
 ] as const;
 
+export function shouldRevalidate() {
+  return true;
+}
+
 export async function loader({ request }: LoaderFunctionArgs) {
-  await requireUserWithRole(request, "fleetOwner");
+  const user = await requireUserWithRole(request, "fleetOwner");
+
+  const url = new URL(request.url);
+  // Don't redirect if we're already on the onboarding page
+  if (!user.hasOnboarded && !url.pathname.endsWith("/onboarding")) {
+    return redirect("/fleet-owner/onboarding");
+  }
 
   return null;
 }
