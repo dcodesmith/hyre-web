@@ -207,7 +207,7 @@ async function seed() {
                 )
               : "",
             status: DocumentStatus.PENDING,
-            chauffeurId: createdChauffeur.id,
+            userId: createdChauffeur.id,
           },
           {
             documentType: DocumentType.DRIVERS_LICENSE,
@@ -218,7 +218,7 @@ async function seed() {
                 )
               : "",
             status: DocumentStatus.PENDING,
-            chauffeurId: createdChauffeur.id,
+            userId: createdChauffeur.id,
           },
         ],
       });
