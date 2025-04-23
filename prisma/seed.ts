@@ -2,10 +2,10 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { faker } from "@faker-js/faker";
 import { DocumentStatus, DocumentType, Status } from "@prisma/client";
-import { uploadFileToS3 } from "~/services/s3.server";
-import { vehicles } from "~/vehicles";
+import { uploadFileToS3 } from "../app/services/s3.server";
+import { vehicles } from "../app/vehicles";
 import { prisma } from "../app/modules/db/db.server";
-import logger from "~/lib/logger.server";
+import logger from "../app/lib/logger.server";
 
 async function getCarImages(basePattern: string) {
   const images: File[] = [];
