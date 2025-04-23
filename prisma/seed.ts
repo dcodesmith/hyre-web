@@ -317,9 +317,6 @@ export async function seed() {
           images: true,
         },
       });
-
-      logger.info(`${response.id} has been successfully updated.`);
-      logger.info(response);
     }
   }
 

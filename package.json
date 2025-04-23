@@ -10,10 +10,10 @@
 		"format": "biome format .",
 		"start": "remix-serve ./build/server/index.js",
 		"typecheck": "tsc",
-		"postinstall": "npx prisma generate && tsx migrate-deploy-seed.ts"
+		"postinstall": "npx prisma generate && ts-node migrate-deploy-seed.ts"
 	},
 	"prisma": {
-		"seed": "tsx prisma/seed.ts"
+		"seed": "ts-node prisma/seed.ts"
 	},
 	"dependencies": {
 		"@aws-sdk/client-s3": "^3.693.0",
@@ -106,7 +106,7 @@
 		"tailwindcss": "^3.4.13",
 		"ts-node": "^10.9.2",
 		"tsx": "^4.19.1",
-		"typescript": "^5.6.3",
+		"typescript": "^5.7.2",
 		"vite": "^5.4.11",
 		"vite-tsconfig-paths": "^4.2.1"
 	},
