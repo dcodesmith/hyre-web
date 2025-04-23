@@ -10,10 +10,10 @@
 		"format": "biome format .",
 		"start": "remix-serve ./build/server/index.js",
 		"typecheck": "tsc",
-		"postinstall": "npx prisma generate && ts-node migrate-deploy-seed.ts"
+		"postinstall": "npx prisma generate && npx ts-node migrate-deploy-seed.ts"
 	},
 	"prisma": {
-		"seed": "ts-node prisma/seed.ts"
+		"seed": "npx ts-node prisma/seed.ts"
 	},
 	"dependencies": {
 		"@aws-sdk/client-s3": "^3.693.0",
