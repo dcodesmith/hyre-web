@@ -1,0 +1,9 @@
+{
+  "rewrites": [{ "source": "/api/(.*)", "destination": "/api/$1" }],
+  "functions": {
+    "api/seed.ts": {
+      "memory": 1024,
+      "maxDuration": 300
+    }
+  }
+}
