@@ -86,6 +86,9 @@ export default function CarDetails() {
     }
   };
 
+  // biome-ignore lint/suspicious/noConsoleLog: <explanation>
+  console.log(car);
+
   const approvalStatusColorMap: Record<CarApprovalStatus, string> = {
     PENDING: "text-yellow-600 border-yellow-600",
     APPROVED: "text-green-600 border-green-600",

@@ -190,7 +190,7 @@ export default function OwnerDetails() {
         <div>
           <h1 className="text-2xl font-bold mb-2">{owner.name}'s Fleet</h1>
 
-          <p className="text-gray-600 flex items-center gap-2">
+          <div className="text-gray-600 flex items-center gap-2">
             {owner.email}
 
             {owner.fleetOwnerStatus && (
@@ -198,7 +198,7 @@ export default function OwnerDetails() {
                 {fleetOwnerStatusOptions[owner.fleetOwnerStatus]}
               </Badge>
             )}
-          </p>
+          </div>
         </div>
 
         {owner.cars.some((car) => car.approvalStatus === "APPROVED") ? (
