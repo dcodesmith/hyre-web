@@ -31,7 +31,7 @@ const runMigrationsAndSeed = async () => {
     console.log("Seed Output:", seedOutput);
     // }
   } catch (error: any) {
-    console.error(`Error running migrations or seed script: ${error.message}`);
+    console.error(`Error running migrations or seed script: ${error.toString()}`);
     process.exit(1);
   }
 };
