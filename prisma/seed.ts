@@ -5,6 +5,7 @@ import { DocumentStatus, DocumentType, Status } from "@prisma/client";
 import { uploadFileToS3 } from "~/services/s3.server";
 import { vehicles } from "~/vehicles";
 import { prisma } from "../app/modules/db/db.server";
+import logger from "~/lib/logger.server";
 
 async function getCarImages(basePattern: string) {
   const images: File[] = [];
@@ -44,7 +45,7 @@ async function getDocument(fileName: string) {
   }
 }
 
-async function seed() {
+export async function seed() {
   // Clear database in a single transaction
   await prisma.$transaction(async (transaction) => {
     // Delete in correct order to handle foreign key constraints
@@ -306,24 +307,31 @@ async function seed() {
         ],
       });
 
-      await prisma.car.update({
+      const response = await prisma.car.update({
         where: { id: car.id },
         data: {
           status: Status.AVAILABLE,
         },
+        include: {
+          documents: true,
+          images: true,
+        },
       });
+
+      logger.info(`${response.id} has been successfully updated.`);
+      logger.info(response);
     }
   }
 
-  console.info("🚗 Cars have been successfully created.");
-  console.info("🎭 User roles and permissions have been successfully created.");
-  console.info("👤 Users have been successfully created.");
+  logger.info("🚗 Cars have been successfully created.");
+  logger.info("🎭 User roles and permissions have been successfully created.");
+  logger.info("👤 Users have been successfully created.");
 }
 
 try {
   await seed();
 } catch (error) {
-  console.error(error);
+  logger.error(error);
   process.exit(1);
 } finally {
   await prisma.$disconnect();
