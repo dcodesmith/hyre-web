@@ -49,6 +49,7 @@ export async function seed() {
   // Clear database in a single transaction
   await prisma.$transaction(async (transaction) => {
     // Delete in correct order to handle foreign key constraints
+    await transaction.booking.deleteMany();
     await transaction.vehicleImage.deleteMany();
     await transaction.documentApproval.deleteMany();
     await transaction.car.deleteMany();
