@@ -140,10 +140,26 @@ export async function getMonthToDateBookingsValue(fleetOwnerId: string) {
 }
 
 export async function getUserBookings(email: string, isGuest = false) {
+  const where = isGuest
+    ? {
+        // JSON “path” filter: look inside the JSON at key "email"
+        guestUser: {
+          path: ["email"],
+          // equals only the string value at that path
+          equals: email,
+        },
+      }
+    : {
+        // regular relation filter
+        user: {
+          email: email,
+        },
+      };
+
   return prisma.booking.findMany({
-    where: isGuest ? { guestUser: { equals: { email } } } : { user: { email: email } },
+    where,
     include: {
-      car: true,
+      car: { include: { images: true } },
       chauffeur: true,
     },
     orderBy: { createdAt: "desc" },

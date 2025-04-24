@@ -292,7 +292,7 @@ export default function BookingsPage() {
                 <div key={booking.id} className="flex justify-between p-2">
                   <div className="flex items-center gap-4">
                     <img
-                      src={booking.car.imagesUrl[0]}
+                      src={booking.car.images[0].url}
                       alt={`${booking.car.make} ${booking.car.model}`}
                       className="w-10 h-10 rounded-full object-cover"
                     />
