@@ -279,7 +279,7 @@ export async function seed() {
         });
       }
 
-      const motCertificateFile = await getDocument("MOT.pdf");
+      const motCertificateFile = await getDocument("mot.pdf");
       const insuranceCertificateFile = await getDocument("insurance.pdf");
       const motCertificateUrl = await uploadFileToS3(
         motCertificateFile!,
