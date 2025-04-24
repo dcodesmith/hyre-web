@@ -328,7 +328,7 @@ export async function seed() {
 try {
   await seed();
 } catch (error) {
-  logger.error(error);
+  console.error("Detailed seed error:", error);
   process.exit(1);
 } finally {
   await prisma.$disconnect();
