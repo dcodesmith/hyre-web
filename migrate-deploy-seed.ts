@@ -5,6 +5,7 @@ const execPromise = (command: string): Promise<string> => {
   return new Promise((resolve, reject) => {
     exec(command, (error, stdout, stderr) => {
       if (error) {
+        console.error(`Error running command: ${stderr}`);
         reject(new Error(stderr));
       } else {
         resolve(stdout);
