@@ -352,8 +352,7 @@ export function renderBookingReminder(
   recipient: "client" | "chauffeur",
   isStartReminder = true,
 ) {
-  const user =
-    recipient === "client" ? (booking.user ?? booking.guestUser?.name) : booking.chauffeur;
+  const user = recipient === "client" ? (booking.user ?? booking.guestUser) : booking.chauffeur;
 
   return render(
     <EmailTemplate>

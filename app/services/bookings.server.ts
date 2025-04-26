@@ -402,7 +402,7 @@ export async function sendBookingStartReminderEmails() {
       const clientHtml = await renderBookingReminder(booking, "client");
       await emailQueue.add(() =>
         sendEmail({
-          to: booking.user?.email ?? (booking.guestUser as any)?.email,
+          to: booking.user?.email ?? booking.guestUser?.email,
           subject: "Booking Reminder - Your booking starts in 1 hour",
           html: clientHtml,
         }),

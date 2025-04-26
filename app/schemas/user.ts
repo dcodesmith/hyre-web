@@ -5,7 +5,6 @@ export const profileFormSchema = z.object({
   email: z.string().email("Invalid email address"),
   phoneNumber: z.string().regex(/^\d{11}$/, "Phone number must be exactly 11 digits"),
   address: z.string().min(1, "Address is required"),
-  city: z.string().min(1, "City is required"),
 });
 
 export type ProfileFormValues = z.infer<typeof profileFormSchema>;

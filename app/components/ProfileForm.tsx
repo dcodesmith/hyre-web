@@ -83,11 +83,6 @@ export function ProfileForm({ onOpenChange, user }: ProfileFormProps) {
             <Input {...getInputProps(address, { type: "text" })} />
           </div>
 
-          <div className="space-y-1">
-            <Label htmlFor={city.id}>City</Label>
-            <Input {...getInputProps(city, { type: "text" })} />
-          </div>
-
           <input type="hidden" name="intent" value="update" />
 
           <DialogFooter className="flex justify-end gap-2">

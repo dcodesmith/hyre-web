@@ -1,4 +1,4 @@
-import { User, Booking, BookingStatus, Car } from "@prisma/client";
+import { User, Booking, BookingStatus, Car, VehicleImage } from "@prisma/client";
 import { ActionFunctionArgs, type LoaderFunctionArgs, json } from "@remix-run/node";
 import {
   Link,
@@ -39,9 +39,10 @@ import {
   getAvailableCars,
 } from "~/services/bookings.server";
 import { requireUserWithRole } from "~/utils/permissions.server";
+import { AutocompleteAddress } from "~/components/AutocompleteAddress";
 
 type BookingWithRelations = Booking & {
-  car: Car & { owner: User };
+  car: Car & { owner: User; images: VehicleImage[] };
   chauffeur?: User | null;
 };
 
@@ -288,7 +289,7 @@ export default function BookingsPage() {
         {statuses.map((status) => (
           <TabsContent key={status} value={status}>
             <div className="flex flex-col gap-2">
-              {bookings[status as BookingStatus]?.map((booking: BookingWithRelations) => (
+              {bookings[status as BookingStatus]?.map((booking) => (
                 <div key={booking.id} className="flex justify-between p-2">
                   <div className="flex items-center gap-4">
                     <img
@@ -368,24 +369,17 @@ export default function BookingsPage() {
                                 </div>
 
                                 <div className="space-y-2">
-                                  <label className="text-sm font-medium">
-                                    Pickup Street Address
-                                  </label>
-                                  <Input
-                                    name="pickupAddress"
-                                    defaultValue={booking.pickupLocation.split(", ")[0]}
-                                    placeholder="Enter street address"
-                                  />
-                                </div>
-
-                                <div className="space-y-2">
-                                  <label className="text-sm font-medium">
-                                    Pickup Locality/Area
-                                  </label>
-                                  <Input
-                                    name="pickupLocality"
-                                    defaultValue={booking.pickupLocation.split(", ")[1]}
-                                    placeholder="Enter locality or area"
+                                  <label className="text-sm font-medium">Pickup Address</label>
+                                  <AutocompleteAddress
+                                    inputProps={{
+                                      name: "pickupAddress",
+                                      id: "pickupAddress",
+                                      defaultValue: booking.pickupLocation,
+                                      placeholder: "Enter pickup address",
+                                    }}
+                                    onSelect={(place) => {
+                                      // Handle place selection if needed
+                                    }}
                                   />
                                 </div>
 
@@ -406,28 +400,19 @@ export default function BookingsPage() {
                                 </div>
 
                                 {showDropoffFields && (
-                                  <div className="dropoff-fields space-y-4" id="dropoffFields">
-                                    <div className="space-y-2">
-                                      <label className="text-sm font-medium">
-                                        Drop-off Street Address
-                                      </label>
-                                      <Input
-                                        name="dropOffAddress"
-                                        defaultValue={booking.returnLocation.split(", ")[0]}
-                                        placeholder="Enter drop-off street address"
-                                      />
-                                    </div>
-
-                                    <div className="space-y-2">
-                                      <label className="text-sm font-medium">
-                                        Drop-off Locality/Area
-                                      </label>
-                                      <Input
-                                        name="dropOffLocality"
-                                        defaultValue={booking.returnLocation.split(", ")[1]}
-                                        placeholder="Enter drop-off locality or area"
-                                      />
-                                    </div>
+                                  <div className="space-y-2">
+                                    <label className="text-sm font-medium">Drop-off Address</label>
+                                    <AutocompleteAddress
+                                      inputProps={{
+                                        name: "dropOffAddress",
+                                        id: "dropOffAddress",
+                                        defaultValue: booking.returnLocation,
+                                        placeholder: "Enter drop-off address",
+                                      }}
+                                      onSelect={(place) => {
+                                        // Handle place selection if needed
+                                      }}
+                                    />
                                   </div>
                                 )}
                               </div>
@@ -471,7 +456,7 @@ export default function BookingsPage() {
                 </div>
               ))}
               {(!bookings[status as BookingStatus] ||
-                bookings[status as BookingStatus].length === 0) && (
+                bookings[status as BookingStatus]?.length === 0) && (
                 <div className="text-center py-8 text-gray-500">
                   No {status.toLowerCase()} bookings found
                 </div>
