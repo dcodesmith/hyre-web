@@ -1,3 +1,4 @@
+import { Decimal } from "@prisma/client/runtime/library";
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { Link, useLoaderData } from "@remix-run/react";
@@ -6,6 +7,7 @@ import { Bar, BarChart, CartesianGrid, Tooltip, XAxis, YAxis } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { ChartContainer } from "~/components/ui/chart";
 import { ToggleGroup, ToggleGroupItem } from "~/components/ui/toggle-group";
+import { formatDate } from "~/lib/utils";
 import { prisma } from "~/modules/db/db.server";
 import { getMonthToDateBookingsValue } from "~/services/bookings.server";
 import { requireUserWithRole } from "~/utils/permissions.server";
@@ -137,23 +139,258 @@ export async function loader({ request }: LoaderFunctionArgs) {
     },
   });
 
-  const dailyRevenue = Array.from({ length: 29 }, (_, index) => {
-    const date = new Date(last30Days);
-    date.setDate(last30Days.getDate() + index);
+  const dailyRevenue = await Promise.all(
+    Array.from({ length: 30 }, async (_, index) => {
+      const date = new Date(last30Days);
+      date.setDate(last30Days.getDate() + index);
 
-    const day = date.getDate().toString();
+      // const day = date.getDate().toString();
 
-    const dayBookings = monthlyBookings.filter(
-      (booking) => new Date(booking.startDate).getDate().toString() === day,
-    );
+      // const dayBookings = monthlyBookings.filter(
+      //   (booking) => new Date(booking.startDate).getDate().toString() === day,
+      // );
 
-    const revenue = dayBookings.reduce((sum, booking) => sum + Number(booking.totalAmount), 0);
+      // const revenue = dayBookings.reduce((sum, booking) => sum + Number(booking.totalAmount), 0);
 
-    return { date, revenue };
-  });
+      const revenue = await getTodaysRevenueWithExtensions(fleetOwner.id, date);
+      return { date, revenue };
+    }),
+  );
+
+  console.log("dailyRevenue", dailyRevenue);
 
   const startOfDay = new Date(today.setHours(0, 0, 0, 0));
   const endOfDay = new Date(today.setHours(23, 59, 59, 999));
+
+  /**
+   * Calculates the number of calendar days a booking spans, considering partial days as full days.
+   * Uses UTC dates for calculation to ensure consistency.
+   * @param startDate The start date of the booking.
+   * @param endDate The end date of the booking.
+   * @returns The number of calendar days spanned. Returns 0 if endDate is effectively before startDate.
+   */
+  function countCalendarDaysSpanned(startDate: Date, endDate: Date): number {
+    const start = new Date(startDate); // Ensure working with Date objects
+    const end = new Date(endDate); // Ensure working with Date objects
+
+    const startDayUtc = new Date(
+      Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate()),
+    );
+    const endDayUtc = new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth(), end.getUTCDate()));
+
+    if (endDayUtc < startDayUtc) {
+      return 0;
+    }
+
+    let count = 0;
+    const currentDate = new Date(startDayUtc);
+    while (currentDate.getTime() <= endDayUtc.getTime()) {
+      count++;
+      currentDate.setUTCDate(currentDate.getUTCDate() + 1);
+    }
+    return count;
+  }
+
+  /**
+   * Calculates the prorated revenue for the current day ("today") from relevant bookings.
+   * "Today" is determined by the system's current date and time when the function is called.
+   * @param fleetOwnerIdInput Optional. If provided, revenue is calculated only for this fleet owner.
+   * @returns A Promise resolving to a Decimal representing today's total prorated revenue.
+   */
+  // async function getTodaysProratedRevenue(
+  //   fleetOwnerIdInput?: string,
+  //   today: Date = new Date(),
+  // ): Promise<Decimal> {
+  //   // Determine "today" based on the current system time
+  //   const now = today; // This is May 11, 2025, based on the current context.
+
+  //   // Extract UTC date components to define "today" consistently
+  //   const year = now.getUTCFullYear();
+  //   const month = now.getUTCMonth(); // JavaScript months are 0-indexed (e.g., 4 for May)
+  //   const day = now.getUTCDate();
+
+  //   // Define the start and end of "today" in UTC
+  //   const startOfToday = new Date(Date.UTC(year, month, day, 0, 0, 0, 0));
+  //   const endOfToday = new Date(Date.UTC(year, month, day, 23, 59, 59, 999));
+
+  //   const whereClause: any = {
+  //     status: {
+  //       in: ["ACTIVE", "CONFIRMED", "COMPLETED"],
+  //     },
+  //     startDate: {
+  //       lte: endOfToday,
+  //     },
+  //     endDate: {
+  //       gte: startOfToday,
+  //     },
+  //     totalAmount: {
+  //       gt: 0,
+  //     },
+  //   };
+
+  //   if (fleetOwnerIdInput) {
+  //     whereClause.car = { ownerId: fleetOwnerIdInput };
+  //   }
+
+  //   const relevantBookings = await prisma.booking.findMany({
+  //     where: whereClause,
+  //     select: {
+  //       id: true,
+  //       startDate: true,
+  //       endDate: true,
+  //       totalAmount: true,
+  //     },
+  //   });
+
+  //   let totalTodaysRevenue = new Decimal(0);
+
+  //   for (const booking of relevantBookings) {
+  //     const bookingStartDate = new Date(booking.startDate);
+  //     const bookingEndDate = new Date(booking.endDate);
+  //     const bookingTotalAmount = new Decimal(booking.totalAmount.toString());
+  //     if (bookingEndDate < bookingStartDate) {
+  //       console.warn(`Booking ${booking.id} has an end date before its start date. Skipping.`);
+  //       continue;
+  //     }
+
+  //     const numBookingDays = countCalendarDaysSpanned(bookingStartDate, bookingEndDate);
+
+  //     if (numBookingDays <= 0) {
+  //       console.warn(
+  //         `Booking ${booking.id} resulted in ${numBookingDays} booking days. ` +
+  //           `Dates: ${bookingStartDate.toISOString()} to ${bookingEndDate.toISOString()}. Skipping proration.`,
+  //       );
+  //       continue;
+  //     }
+
+  //     const averageDailyRevenue = bookingTotalAmount.div(new Decimal(numBookingDays));
+
+  //     console.log("bookingTotalAmount", numBookingDays, averageDailyRevenue, bookingTotalAmount);
+
+  //     totalTodaysRevenue = totalTodaysRevenue.add(averageDailyRevenue);
+  //   }
+
+  //   return totalTodaysRevenue;
+  // }
+
+  // const allRevenueToday = await getTodaysProratedRevenue();
+
+  // console.log("allRevenueToday", allRevenueToday);
+
+  /**
+   * Calculates the prorated revenue for the current day ("today"),
+   * factoring in both base booking amounts and any paid extension amounts for today.
+   * "Today" is determined by the system's current date and time (e.g., May 11, 2025).
+   * @param fleetOwnerIdInput Optional. If provided, revenue is calculated only for this fleet owner.
+   * @returns A Promise resolving to a Decimal representing today's total prorated revenue.
+   */
+  async function getTodaysRevenueWithExtensions(
+    fleetOwnerIdInput?: string,
+    today: Date = new Date(),
+  ): Promise<Decimal> {
+    const now = today; // Current system time. For this context: Sunday, May 11, 2025.
+
+    // Define "today" using UTC components for consistency
+    const year = now.getUTCFullYear();
+    const month = now.getUTCMonth(); // 0-indexed (e.g., 4 for May)
+    const day = now.getUTCDate();
+
+    const startOfToday = new Date(Date.UTC(year, month, day, 0, 0, 0, 0));
+    const endOfToday = new Date(Date.UTC(year, month, day, 23, 59, 59, 999));
+
+    let totalRevenueForToday = new Decimal(0);
+
+    // --- 1. Calculate revenue from base bookings prorated for today ---
+    const bookingWhereClause: any = {
+      status: {
+        // Consider bookings that are confirmed, active, or completed for revenue from the main booking amount
+        in: ["ACTIVE", "CONFIRMED", "COMPLETED"],
+      },
+      startDate: { lte: endOfToday }, // Booking overlaps with today
+      endDate: { gte: startOfToday },
+      chauffeurId: { not: null }, // Ensure the booking has a chauffeur assigned
+      totalAmount: { gt: 0 }, // Consider only bookings with a positive amount
+    };
+
+    if (fleetOwnerIdInput) {
+      bookingWhereClause.car = { ownerId: fleetOwnerIdInput };
+    }
+
+    const relevantBookings = await prisma.booking.findMany({
+      where: bookingWhereClause,
+      select: {
+        id: true,
+        startDate: true,
+        endDate: true,
+        totalAmount: true, // Prisma.Decimal
+      },
+    });
+
+    for (const booking of relevantBookings) {
+      const bookingStartDate = new Date(booking.startDate);
+      const bookingEndDate = new Date(booking.endDate);
+      const bookingTotalAmount = new Decimal(booking.totalAmount.toString());
+
+      if (bookingEndDate < bookingStartDate) {
+        console.warn(
+          `Booking ${booking.id} has end date before start. Skipping for base proration.`,
+        );
+        continue;
+      }
+
+      const numBookingDays = countCalendarDaysSpanned(bookingStartDate, bookingEndDate);
+
+      if (numBookingDays <= 0) {
+        // This should ideally not happen if booking dates are valid & countCalendarDaysSpanned is correct
+        console.warn(
+          `Booking ${booking.id} resulted in ${numBookingDays} booking days. ` +
+            `Dates: ${bookingStartDate.toISOString()} to ${bookingEndDate.toISOString()}. Skipping for base proration.`,
+        );
+        continue;
+      }
+
+      const averageDailyRevenueFromBooking = bookingTotalAmount.div(new Decimal(numBookingDays));
+      totalRevenueForToday = totalRevenueForToday.add(averageDailyRevenueFromBooking);
+    }
+
+    // --- 2. Add revenue from PAID extensions specifically for today ---
+    const extensionWhereClause: any = {
+      // The Extension.day field should identify the calendar day the extension applies to.
+      day: {
+        gte: startOfToday,
+        lte: endOfToday,
+      },
+      paymentStatus: "PAID", // Filter by PAID payment status for extensions
+      totalAmount: { gt: 0 }, // Consider only extensions with a positive amount
+    };
+
+    if (fleetOwnerIdInput) {
+      // Filter extensions based on the owner of the car in the parent booking
+      extensionWhereClause.booking = {
+        car: { ownerId: fleetOwnerIdInput },
+      };
+    }
+
+    const relevantExtensions = await prisma.extension.findMany({
+      where: extensionWhereClause,
+      select: {
+        totalAmount: true, // Prisma.Decimal
+        bookingId: true, // For logging or more complex logic if needed
+      },
+    });
+
+    for (const extension of relevantExtensions) {
+      // console.log("extension", extension.bookingId, extension.totalAmount);
+      const extensionAmount = new Decimal(extension.totalAmount.toString());
+      totalRevenueForToday = totalRevenueForToday.add(extensionAmount);
+    }
+
+    return totalRevenueForToday;
+  }
+
+  const ownerRevenueToday = await getTodaysRevenueWithExtensions(fleetOwner.id);
+
+  // console.log("ownerRevenueToday", ownerRevenueToday);
 
   // Get today's stats
   const todayStats = await prisma.$transaction([
@@ -162,7 +399,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
       where: {
         status: "ACTIVE",
         car: { ownerId: fleetOwner.id },
-        endDate: {
+        startDate: {
           gte: startOfDay,
           lte: endOfDay,
         },
@@ -224,7 +461,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     todayCompletedBookings,
     todayCancelledBookings,
     todayConfirmedBookings,
-    todayRevenue,
+    // todayRevenue,
   ] = todayStats;
 
   return json({
@@ -248,7 +485,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
       completedBookings: todayCompletedBookings,
       cancelledBookings: todayCancelledBookings,
       confirmedBookings: todayConfirmedBookings,
-      projectedRevenue: todayRevenue._sum.totalAmount || 0,
+      projectedRevenue: ownerRevenueToday,
     },
   });
 }
@@ -418,7 +655,6 @@ function WelcomeMessage({
     year: "numeric",
   });
 
-  // Insert the ordinal day
   const day = new Date().getDate();
   const dateWithOrdinal = formattedDate.replace(/\b\d+\b/, getOrdinal(day));
 
@@ -451,7 +687,7 @@ function WelcomeMessage({
 
   return (
     <div className="text-sm text-gray-700 mb-6">
-      Welcome {name},
+      Welcome {name.trim()},
       <div className="my-4">
         <p>
           For today <span className="font-bold">{dateWithOrdinal}</span> you have{" "}
@@ -464,7 +700,7 @@ function WelcomeMessage({
         {(stats.activeBookings || stats.completedBookings) > 0 && (
           <p>
             With a projected revenue of{" "}
-            <span className="font-bold text-green-800 italic">
+            <span className="font-bold text-green-800 italic underline">
               {new Intl.NumberFormat("en-NG", {
                 style: "currency",
                 currency: "NGN",
@@ -490,7 +726,7 @@ export default function FleetOwnerDashboard() {
     dailyRevenue,
     chauffeurs,
   } = useLoaderData<typeof loader>();
-  const [timeRange, setTimeRange] = useState<TimeRange>("month");
+  const [timeRange, setTimeRange] = useState<TimeRange>("week");
 
   const totalBookingsValue = bookings.reduce(
     (acc, booking) => acc + Number(booking.totalAmount),
@@ -500,7 +736,7 @@ export default function FleetOwnerDashboard() {
   const amountInWords = numberToWords(totalBookingsValue);
 
   return (
-    <div className="space-y-6 p-4">
+    <div className="space-y-6 sm:p-4">
       <WelcomeMessage name={fleetOwnerName} stats={todayStats} />
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -574,7 +810,7 @@ export default function FleetOwnerDashboard() {
               }).format(
                 dailyRevenue
                   .slice(timeRange === "week" ? -7 : -30)
-                  .reduce((sum, day) => sum + day.revenue, 0),
+                  .reduce((sum, day) => sum + Number(day.revenue), 0),
               )}
             </p>
           </div>
@@ -588,10 +824,10 @@ export default function FleetOwnerDashboard() {
             <ToggleGroupItem title="Week to Date" value="week">
               WTD
             </ToggleGroupItem>
-            <ToggleGroupItem title="Month to Date" value="month">
+            <ToggleGroupItem title="Month to Date" value="month" className="hidden sm:block">
               MTD
             </ToggleGroupItem>
-            <ToggleGroupItem title="Year to Date" disabled value="year">
+            <ToggleGroupItem title="Year to Date" disabled value="year" className="hidden sm:block">
               YTD
             </ToggleGroupItem>
           </ToggleGroup>
@@ -639,12 +875,12 @@ export default function FleetOwnerDashboard() {
 
                 <div>
                   <div className="text-sm text-gray-500">Start Date</div>
-                  <div>{new Date(booking.startDate).toLocaleString()}</div>
+                  <div>{formatDate(booking.startDate)}</div>
                 </div>
 
                 <div>
                   <div className="text-sm text-gray-500">End Date</div>
-                  <div>{new Date(booking.endDate).toLocaleString()}</div>
+                  <div>{formatDate(booking.endDate)}</div>
                 </div>
 
                 <div>

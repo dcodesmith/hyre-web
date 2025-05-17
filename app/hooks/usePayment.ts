@@ -33,21 +33,14 @@ const config: Omit<FlutterwaveConfig, "amount" | "customer"> = {
   },
 };
 
-export function useBookingPayment({
-  car,
+export const usePayment = ({
   totalCost,
   customer,
-  searchParams,
-  user,
 }: {
-  car: Car;
   totalCost: number;
   customer: FlutterwaveConfig["customer"];
-  searchParams: string;
-  user: User;
-}) {
+}) => {
   const submit = useSubmit();
-  const navigate = useNavigate();
 
   const handlePayment = useFlutterwave({
     ...config,
@@ -57,33 +50,24 @@ export function useBookingPayment({
   });
 
   return useCallback(
-    async (event: React.FormEvent<HTMLFormElement>) => {
-      event.preventDefault();
-
-      const formElement = event.currentTarget;
-      const formData = new FormData(formElement);
-      const isGuestBooking = formElement.getAttribute("data-booking-type") === "guest";
-
-      formData.set("bookingType", isGuestBooking ? "guest" : "auth");
-
-      if (!isGuestBooking && !user) {
-        const redirectTo = `/cars/${car.id}${searchParams ? `?${searchParams}` : ""}`;
-        return navigate(`/auth?redirectTo=${encodeURIComponent(redirectTo)}`);
-      }
-
+    async (formData: FormData, action: string) => {
       handlePayment({
         callback: ({ transaction_id: transactionId, status }) => {
           formData.set("paymentId", String(transactionId));
           formData.set("status", status);
-          submit(formData, {
-            method: "POST",
-            action: `/bookings?${searchParams}`,
-          });
+
+          console.log(action);
+          for (const [key, value] of formData.entries()) {
+            console.log(`${key}: ${value}`);
+          }
+
+          submit(formData, { method: "POST", action });
+
           setTimeout(() => closePaymentModal(), 1500);
         },
         onClose: () => closePaymentModal(),
       });
     },
-    [handlePayment, searchParams, submit, navigate, user, car],
+    [handlePayment, submit],
   );
-}
+};

@@ -1,6 +1,7 @@
 import { AdjustmentsVerticalIcon, XCircleIcon } from "@heroicons/react/24/outline";
 import { useFetcher, useSearchParams } from "@remix-run/react";
 import { Table } from "@tanstack/react-table";
+import { format } from "date-fns";
 import { useState } from "react";
 import { DateRange } from "react-day-picker";
 import { Button } from "~/components/ui/button";
@@ -23,8 +24,8 @@ export function Toolbar({ table, isAdmin = false }: ToolbarProps<SerializedCar>)
   const to = searchParams.get("to");
 
   const [dateRange, setDateRange] = useState<DateRange>({
-    from: from ? new Date(from) : undefined,
-    to: to ? new Date(to) : undefined,
+    from: from ? new Date(`${from}T00:00:00`) : undefined,
+    to: to ? new Date(`${to}T00:00:00`) : undefined,
   });
 
   const handleDateRangeChange = (dateRange: DateRange) => {
@@ -33,8 +34,8 @@ export function Toolbar({ table, isAdmin = false }: ToolbarProps<SerializedCar>)
     // if (dateRange.from && dateRange.to) {
     const params = new URLSearchParams({
       ...Object.fromEntries(searchParams),
-      from: dateRange.from ? dateRange.from.toISOString().split("T")[0] : "",
-      to: dateRange.to ? dateRange.to.toISOString().split("T")[0] : "",
+      from: dateRange.from ? format(dateRange.from, "yyyy-MM-dd") : "",
+      to: dateRange.to ? format(dateRange.to, "yyyy-MM-dd") : "",
     });
 
     setSearchParams(params);

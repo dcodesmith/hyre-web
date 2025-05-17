@@ -14,6 +14,11 @@ export function singleton<Value>(name: string, value: () => Value): Value {
 // add google map types
 declare global {
   interface Window {
-    google: any;
+    google: {
+      maps: {
+        // importLibrary: (library: string) => any;
+        places: any;
+      };
+    };
   }
 }

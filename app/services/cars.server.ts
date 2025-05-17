@@ -1,4 +1,4 @@
-import { Car, Prisma, DocumentStatus, DocumentType, Status } from "@prisma/client";
+import { Car, Prisma, DocumentStatus, DocumentType, Status, BookingType } from "@prisma/client";
 import { prisma } from "~/modules/db/db.server";
 import { uploadFileToS3 } from "./s3.server";
 
@@ -12,22 +12,27 @@ export async function isCarAvailable(
     include: {
       bookings: {
         where: {
-          //   Only check active bookings
+          // Only check active or confirmed bookings
           status: {
             in: ["CONFIRMED", "ACTIVE"],
           },
-          // Check for any date overlap
+          // Check for any date overlap or if it ends 3hrs before a night booking starts
           OR: [
             // New booking starts during an existing booking
             {
-              // startDate: { lte: endDate },
-              // endDate: { gte: startDate },
-
               startDate: {
                 lte: new Date(endDate.setHours(23, 59, 59, 999)),
               },
               endDate: {
                 gte: new Date(startDate.setHours(0, 0, 0, 0)),
+              },
+            },
+            // New night booking starts 3 hours after an existing booking ends
+            {
+              type: BookingType.NIGHT,
+              endDate: {
+                gte: new Date(startDate.setHours(20, 0, 0, 0)),
+                lt: new Date(startDate.setHours(23, 0, 0, 0)),
               },
             },
           ],

@@ -68,6 +68,20 @@ export const carSchema = z.object({
     required_error: "Status is required.",
   }),
 
+  hourlyRate: z
+    .number({
+      required_error: "Hourly rate is required.",
+    })
+    .int()
+    .positive("Hourly rate must be positive"),
+
+  nightRate: z
+    .number({
+      required_error: "Nightly rate is required.",
+    })
+    .int()
+    .positive("Nightly rate must be positive"),
+
   // images: z.preprocess(
   //   (files) => {
   //     // If the input is a FileList, convert it to an array
@@ -137,9 +151,11 @@ export function NewCarForm() {
       price,
       status,
       images,
+      hourlyRate,
       registrationNumber,
       motCertificate,
       insuranceCertificate,
+      nightRate,
     },
   ] = useForm({
     lastResult: fetcher.state === "idle" ? lastResult : null,
@@ -161,7 +177,7 @@ export function NewCarForm() {
       className="space-y-4"
     >
       {fetcher.data?.error && <p className="text-red-600 text-sm">{fetcher.data?.error}</p>}
-      <div className="space-y-1">
+      <div className="space-y-0.5">
         <Label htmlFor={make.id}>Make</Label>
         <Input
           {...getInputProps(make, { type: "text" })}
@@ -170,7 +186,7 @@ export function NewCarForm() {
         {make.errors && <p className="text-red-500 text-sm">{make.errors.join(" ")}</p>}
       </div>
 
-      <div className="space-y-1">
+      <div className="space-y-0.5">
         <Label htmlFor={model.id}>Model</Label>
         <Input
           {...getInputProps(model, { type: "text" })}
@@ -179,7 +195,7 @@ export function NewCarForm() {
         {model.errors && <p className="text-red-500 text-sm">{model.errors.join(" ")}</p>}
       </div>
 
-      <div className="space-y-1">
+      <div className="space-y-0.5">
         <Label htmlFor={registrationNumber.id}>Registration Number</Label>
         <Input
           {...getInputProps(registrationNumber, { type: "text" })}
@@ -190,7 +206,7 @@ export function NewCarForm() {
         )}
       </div>
 
-      <div className="space-y-1">
+      <div className="space-y-0.5">
         <Label htmlFor={year.id}>Year</Label>
         <Input
           {...getInputProps(year, { type: "number" })}
@@ -199,8 +215,8 @@ export function NewCarForm() {
         {year.errors && <p className="text-red-500 text-sm">{year.errors.join(" ")}</p>}
       </div>
 
-      <div className="space-y-1">
-        <Label htmlFor={price.id}>Price</Label>
+      <div className="space-y-0.5">
+        <Label htmlFor={price.id}>Daily Rate</Label>
         <Input
           {...getInputProps(price, { type: "number", step: "1000" })}
           className={`rounded ${price.errors ? errorRingClasses : ""}`}
@@ -208,7 +224,25 @@ export function NewCarForm() {
         {price.errors && <p className="text-red-500 text-sm">{price.errors.join(" ")}</p>}
       </div>
 
-      <div className="space-y-1">
+      <div className="space-y-0.5">
+        <Label htmlFor={hourlyRate.id}>Hourly Rate</Label>
+        <Input
+          {...getInputProps(hourlyRate, { type: "number", step: "1000" })}
+          className={`rounded ${hourlyRate.errors ? errorRingClasses : ""}`}
+        />
+        {hourlyRate.errors && <p className="text-red-500 text-sm">{hourlyRate.errors.join(" ")}</p>}
+      </div>
+
+      <div className="space-y-0.5">
+        <Label htmlFor={nightRate.id}>Nightly Rate</Label>
+        <Input
+          {...getInputProps(nightRate, { type: "number", step: "1000" })}
+          className={`rounded ${nightRate.errors ? errorRingClasses : ""}`}
+        />
+        {nightRate.errors && <p className="text-red-500 text-sm">{nightRate.errors.join(" ")}</p>}
+      </div>
+
+      <div className="space-y-0.5">
         <Label htmlFor={motCertificate.id}>MOT Certificate (PDF)</Label>
         <Input
           type="file"
@@ -222,7 +256,7 @@ export function NewCarForm() {
         )}
       </div>
 
-      <div className="space-y-1">
+      <div className="space-y-0.5">
         <Label htmlFor={insuranceCertificate.id}>Insurance Certificate (PDF)</Label>
         <Input
           type="file"
@@ -236,7 +270,7 @@ export function NewCarForm() {
         )}
       </div>
 
-      <div className="space-y-1">
+      <div className="space-y-0.5">
         <Label htmlFor={images.id}>Pictures</Label>
         <Input
           {...getInputProps(images, { type: "file" })}
@@ -248,7 +282,7 @@ export function NewCarForm() {
         {images.errors && <p className="text-red-500 text-sm">{images.errors.join(" ")}</p>}
       </div>
 
-      <div className="space-y-1">
+      <div className="space-y-0.5">
         <label className="text-sm">Status</label>
 
         <Select name="status">

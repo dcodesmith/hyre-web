@@ -5,14 +5,14 @@ import { RemixServer } from "@remix-run/react";
 import { isbot } from "isbot";
 import { renderToPipeableStream } from "react-dom/server";
 import logger from "./lib/logger.server";
-import {
-  scheduleBookingEndReminderEmails,
-  scheduleBookingStartReminderEmails,
-} from "./queues/bookingReminder.server";
-import {
-  scheduleActiveToCompletedUpdates,
-  scheduleConfirmedToActiveUpdates,
-} from "./queues/bookingStatus.server";
+// import {
+//   scheduleBookingEndReminderEmails,
+//   scheduleBookingStartReminderEmails,
+// } from "./queues/bookingReminder.server";
+// import {
+//   scheduleActiveToCompletedUpdates,
+//   scheduleConfirmedToActiveUpdates,
+// } from "./queues/bookingStatus.server";
 import { startBookingReminderWorker } from "./queues/reminder.server";
 import { startStatusUpdateWorker } from "./queues/status.server";
 import { initEnvs } from "./utils/env.server";

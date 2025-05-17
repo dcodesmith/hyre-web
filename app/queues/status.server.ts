@@ -17,7 +17,8 @@ async function startStatusUpdates() {
     {},
     {
       repeat: {
-        pattern: "0 7-12 * * *", // At minute 0 of every hour from 7 through 12 (7am-12pm)
+        // At minute 0 of every hour 7–12 and at 23:00
+        pattern: "0 7-12,23 * * *",
       },
     },
   );
@@ -27,7 +28,8 @@ async function startStatusUpdates() {
     {},
     {
       repeat: {
-        pattern: "0 19-23,0 * * *", // At minute 0 of every hour from 19 through 0 (7pm-12am)
+        // At minute 0 of 19:00–23:00, 00:00, and now 05:00 every day
+        pattern: "0 0,5,19-23 * * *",
       },
     },
   );
@@ -71,7 +73,7 @@ export const startStatusUpdateWorker = async () => {
   );
 
   statusUpdateWorker.on("error", (err) => {
-    logger.error("Worker encountered an error:", err);
+    logger.error(`Worker encountered an error: ${err.message}`);
   });
 
   statusUpdateWorker.on("completed", (job) => {
@@ -79,7 +81,7 @@ export const startStatusUpdateWorker = async () => {
   });
 
   statusUpdateWorker.on("failed", (job, err) => {
-    logger.error(`Job ${job?.name} failed:`, err);
+    logger.error(`Job ${job?.name} failed: ${err.message}`);
   });
 
   isWorkerInitialized = true;

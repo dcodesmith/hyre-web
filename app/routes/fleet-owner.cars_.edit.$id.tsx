@@ -25,6 +25,11 @@ const carSchema = z.object({
     })
     .positive("Price must be positive"),
   status: z.nativeEnum(Status).refine((status) => status !== Status.BOOKED),
+  hourlyRate: z
+    .number({
+      required_error: "Hourly rate is required.",
+    })
+    .positive("Hourly rate must be positive"),
 });
 
 export async function action({ request, params }: ActionFunctionArgs) {
@@ -35,12 +40,12 @@ export async function action({ request, params }: ActionFunctionArgs) {
     return json(submission.reply());
   }
 
-  const { price, status } = submission.value;
+  const { price, status, hourlyRate } = submission.value;
 
   try {
     await prisma.car.update({
       where: { id: params.id },
-      data: { price, status },
+      data: { price, status, hourlyRate },
     });
 
     return redirect("/fleet-owner/cars");
@@ -154,7 +159,7 @@ export default function EditCarForm() {
             </SelectTrigger>
             <SelectContent>
               {STATUSES.map((status) => (
-                <SelectItem key={status} value={status}>
+                <SelectItem key={status} value={status} defaultValue={car.status}>
                   {status}
                 </SelectItem>
               ))}

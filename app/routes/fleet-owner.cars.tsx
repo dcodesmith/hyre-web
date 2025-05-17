@@ -154,13 +154,25 @@ export const columns: ColumnDef<Car>[] = [
     accessorKey: "year",
     enableColumnFilter: false,
     header: ({ column }) => <ColumnHeader column={column} title="Year" />,
-    cell: ({ row }) => <div className="w-[150px]">{row.original.year}</div>,
+    cell: ({ row }) => <div className="w-[100px]">{row.original.year}</div>,
   },
   {
     accessorKey: "price",
     enableColumnFilter: false,
-    header: ({ column }) => <ColumnHeader column={column} title="Price" />,
+    header: ({ column }) => <ColumnHeader column={column} title="Daily Rate" />,
     cell: ({ row }) => <div className="w-[150px]">{formatPrice(row.original.price)}</div>,
+  },
+  {
+    accessorKey: "hourlyRate",
+    enableColumnFilter: false,
+    header: ({ column }) => <ColumnHeader column={column} title="Hourly Rate" />,
+    cell: ({ row }) => <div className="w-[150px]">{formatPrice(row.original.hourlyRate)}</div>,
+  },
+  {
+    accessorKey: "nightRate",
+    enableColumnFilter: false,
+    header: ({ column }) => <ColumnHeader column={column} title="Nightly Rate" />,
+    cell: ({ row }) => <div className="w-[150px]">{formatPrice(row.original.nightRate)}</div>,
   },
   {
     accessorKey: "status",
@@ -211,7 +223,7 @@ export default function CarsPage() {
               Add Car
             </Button>
           </SheetTrigger>
-          <SheetContent className="sm:max-w-[400px] w-full px-8">
+          <SheetContent className="sm:max-w-[400px] w-full px-8 overflow-y-auto">
             <SheetHeader>
               <SheetTitle>Add New Car</SheetTitle>
               <SheetDescription>

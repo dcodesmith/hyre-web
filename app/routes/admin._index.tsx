@@ -20,6 +20,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
           name: "fleetOwner",
         },
       },
+      hasOnboarded: true,
     },
     select: {
       id: true,

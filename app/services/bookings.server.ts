@@ -1,17 +1,29 @@
 import {
   BookingStatus,
+  BookingType,
   CarApprovalStatus,
   FleetOwnerStatus,
   PaymentStatus,
   Status,
   User,
 } from "@prisma/client";
+import {
+  addMinutes,
+  endOfDay,
+  getHours,
+  getMilliseconds,
+  getMinutes,
+  getSeconds,
+  isWithinInterval,
+  set,
+  startOfDay,
+} from "date-fns";
 import logger from "~/lib/logger.server";
 import { prisma } from "~/modules/db/db.server";
 import { sendEmail } from "~/modules/email/email.server";
 import {
-  renderBookingReminder,
-  renderBookingTemplate,
+  renderBookingReminderEmail,
+  renderBookingStatusUpdateEmail,
 } from "~/modules/email/templates/booking-notification";
 import { emailQueue } from "~/queues/email-throttle.server";
 
@@ -24,6 +36,7 @@ export type CreateBookingParams = {
   returnLocation: string;
   specialRequests?: string;
   paymentId: string;
+  type: BookingType;
 };
 
 export async function confirmBooking({
@@ -35,6 +48,7 @@ export async function confirmBooking({
   returnLocation,
   specialRequests,
   paymentId,
+  type,
 }: CreateBookingParams) {
   // Calculate total amount based on days and car price
   const car = await prisma.car.findUnique({ where: { id: carId } });
@@ -51,6 +65,7 @@ export async function confirmBooking({
         startDate,
         endDate,
         carId,
+        type,
         ...("id" in user
           ? { userId: user.id }
           : { guestUser: { email: user.email, name: user.name, phoneNumber: user.phoneNumber } }),
@@ -96,7 +111,8 @@ export async function cancelBooking(bookingId: string, reason: string) {
       },
       include: {
         user: true,
-        car: true,
+        car: { include: { owner: true } },
+        extensions: true,
       },
     });
 
@@ -225,7 +241,7 @@ export async function getBooking(bookingId: string) {
   try {
     const booking = await prisma.booking.findUnique({
       where: { id: bookingId },
-      include: { car: true, chauffeur: true },
+      include: { car: { include: { owner: true } }, chauffeur: true },
     });
 
     if (!booking) {
@@ -280,6 +296,7 @@ export async function updateBookingsFromConfirmedToActive() {
       include: {
         car: true,
         user: true,
+        extensions: true,
       },
     });
 
@@ -293,7 +310,7 @@ export async function updateBookingsFromConfirmedToActive() {
         data: { status: BookingStatus.ACTIVE },
       });
 
-      const html = await renderBookingTemplate(booking);
+      const html = await renderBookingStatusUpdateEmail(booking);
 
       await emailQueue.add(() =>
         sendEmail({
@@ -306,7 +323,7 @@ export async function updateBookingsFromConfirmedToActive() {
 
     await emailQueue.onIdle();
   } catch (error) {
-    logger.error("Error updating booking statuses:", error);
+    logger.error(`Error updating booking statuses: ${error}`);
     throw error;
   }
 }
@@ -332,6 +349,7 @@ export async function updateBookingsFromActiveToCompleted() {
       include: {
         car: true,
         user: true,
+        extensions: true,
       },
     });
 
@@ -351,7 +369,7 @@ export async function updateBookingsFromActiveToCompleted() {
         data: { status: Status.AVAILABLE },
       });
 
-      const html = await renderBookingTemplate(booking);
+      const html = await renderBookingStatusUpdateEmail(booking);
 
       await emailQueue.add(() =>
         sendEmail({
@@ -363,20 +381,30 @@ export async function updateBookingsFromActiveToCompleted() {
     }
     await emailQueue.onIdle();
   } catch (error) {
-    logger.error("Error updating booking statuses:", error);
+    logger.error(`Error updating booking statuses: ${error}`);
     throw error;
   }
 }
 
 export async function sendBookingStartReminderEmails() {
   try {
-    const bookings = await prisma.booking.findMany({
+    const now = new Date(); // Current time
+
+    // Define start and end of today using date-fns for clarity
+    const startOfToday = startOfDay(now);
+    const endOfToday = endOfDay(now);
+
+    // Fetch bookings that are active today
+    const activeBookingsToday = await prisma.booking.findMany({
       where: {
         status: BookingStatus.CONFIRMED,
+        // Prisma requires Date objects or compatible date strings.
+        // startOfDay/endOfDay return Date objects.
         startDate: {
-          // Get bookings starting in the next hour
-          gte: new Date(new Date().setMinutes(new Date().getMinutes() + 60, 0, 0)),
-          lte: new Date(new Date().setMinutes(new Date().getMinutes() + 60, 59, 999)),
+          lte: endOfToday, // Booking must have started on or before the end of today
+        },
+        endDate: {
+          gte: startOfToday, // Booking must end on or after the start of today
         },
         car: {
           status: Status.BOOKED,
@@ -390,16 +418,55 @@ export async function sendBookingStartReminderEmails() {
         },
         user: true,
         chauffeur: true,
+        extensions: true,
       },
     });
 
-    if (bookings.length === 0) {
-      return "No reminders to send";
+    if (activeBookingsToday.length === 0) {
+      return "No active bookings today, so no reminders to send";
     }
 
-    for (const booking of bookings) {
+    // Calculate the time 60 minutes from now using date-fns
+    const timeIn60Minutes = addMinutes(now, 60);
+
+    // Determine the 1-minute reminder window using date-fns
+    // Corresponds to [now + 60 mins]:00.000 to [now + 60 mins]:59.999
+    const reminderWindowGTE = set(timeIn60Minutes, { seconds: 0, milliseconds: 0 });
+    const reminderWindowLTE = set(timeIn60Minutes, { seconds: 59, milliseconds: 999 });
+    const reminderInterval = { start: reminderWindowGTE, end: reminderWindowLTE };
+
+    const bookingsToSendReminders = [];
+
+    for (const booking of activeBookingsToday) {
+      // Ensure booking.startDate is a valid Date object for date-fns functions
+      // Prisma typically returns Date objects, but parsing might be necessary
+      // if it returns strings. new Date() handles common formats.
+      const bookingStartDateOriginal = new Date(booking.startDate);
+
+      // Calculate the booking's effective start time for *today*
+      // using date-fns: start of today + original start time components
+      const effectiveBookingStartOnCurrentDate = set(startOfDay(now), {
+        // Base is start of today
+        hours: getHours(bookingStartDateOriginal),
+        minutes: getMinutes(bookingStartDateOriginal),
+        seconds: getSeconds(bookingStartDateOriginal),
+        milliseconds: getMilliseconds(bookingStartDateOriginal),
+      });
+
+      // Check if this effective start time falls within the reminder window using date-fns
+      if (isWithinInterval(effectiveBookingStartOnCurrentDate, reminderInterval)) {
+        bookingsToSendReminders.push(booking);
+      }
+    }
+
+    if (bookingsToSendReminders.length === 0) {
+      return "No reminders to send for the current reminder window";
+    }
+
+    // --- Email Sending Logic (remains the same) ---
+    for (const booking of bookingsToSendReminders) {
       // Send reminder to client
-      const clientHtml = await renderBookingReminder(booking, "client");
+      const clientHtml = await renderBookingReminderEmail(booking, "client");
       await emailQueue.add(() =>
         sendEmail({
           to: booking.user?.email ?? booking.guestUser?.email,
@@ -410,10 +477,10 @@ export async function sendBookingStartReminderEmails() {
 
       // Send reminder to chauffeur if assigned
       if (booking.chauffeur?.email) {
-        const chauffeurHtml = await renderBookingReminder(booking, "chauffeur");
+        const chauffeurHtml = await renderBookingReminderEmail(booking, "chauffeur");
         await emailQueue.add(() =>
           sendEmail({
-            to: booking.chauffeur.email,
+            to: booking.chauffeur?.email,
             subject: "Booking Reminder - You have a booking starting in 1 hour",
             html: chauffeurHtml,
           }),
@@ -423,22 +490,37 @@ export async function sendBookingStartReminderEmails() {
 
     await emailQueue.onIdle();
 
-    return `Sent reminders for ${bookings.length} bookings`;
-  } catch (error) {
-    logger.error("Error sending booking start reminder emails:", error);
+    return `Sent reminders for ${bookingsToSendReminders.length} bookings`;
+  } catch (error: unknown) {
+    logger.error(
+      `Error sending booking start reminder emails: ${error instanceof Error ? error.message : "Unknown error"}`,
+    );
     throw error;
   }
 }
 
 export async function sendBookingEndReminderEmails() {
   try {
-    const bookings = await prisma.booking.findMany({
+    const now = new Date(); // Current time
+
+    // --- Calculate Reminder Window ---
+    // Determine the time 60 minutes from now using date-fns
+    const timeIn60Minutes = addMinutes(now, 60);
+
+    // Define the 1-minute reminder window for the endDate using date-fns
+    // This targets bookings ending exactly within that specific minute, 1 hour from now.
+    // e.g., If now is 10:15:30, window is [11:15:00.000, 11:15:59.999]
+    const reminderWindowGTE = set(timeIn60Minutes, { seconds: 0, milliseconds: 0 });
+    const reminderWindowLTE = set(timeIn60Minutes, { seconds: 59, milliseconds: 999 });
+    // --- End Calculate Reminder Window ---
+
+    // --- Fetch Bookings ---
+    // Step 1: Fetch bookings that are active and whose car is booked.
+    // We remove the direct endDate filter from the Prisma query itself,
+    // as the effective endDate depends on whether a relevant extension exists.
+    const potentiallyEndingBookings = await prisma.booking.findMany({
       where: {
         status: BookingStatus.ACTIVE,
-        endDate: {
-          gte: new Date(new Date().setMinutes(new Date().getMinutes() + 60, 0, 0)),
-          lte: new Date(new Date().setMinutes(new Date().getMinutes() + 60, 59, 999)),
-        },
         car: {
           status: Status.BOOKED,
         },
@@ -451,30 +533,73 @@ export async function sendBookingEndReminderEmails() {
         },
         user: true,
         chauffeur: true,
+        extensions: {
+          // Include paid extensions, as these are likely the active/confirmed ones
+          where: {
+            paymentStatus: PaymentStatus.PAID,
+          },
+        },
       },
     });
 
-    if (bookings.length === 0) {
-      return "No reminders to send";
+    // Step 2: Filter in JavaScript to determine the true effective endDate and check against the reminder window.
+    const bookingsEndingSoon = potentiallyEndingBookings.filter((booking) => {
+      const reminderGTE_Date = new Date(reminderWindowGTE); // Ensure Date objects for comparison
+      const reminderLTE_Date = new Date(reminderWindowLTE);
+
+      // Default to booking's original endDate. This handles cases where no extensions exist,
+      // or no relevant extension for the last day is found.
+      let effectiveEndDate = new Date(booking.endDate);
+
+      // Check if there are any paid extensions for this booking.
+      if (booking.extensions?.length) {
+        // Determine the start of the day of the booking's original endDate.
+        // Extensions are typically keyed by the start of the day they apply to.
+        const bookingOriginalEndDay = startOfDay(new Date(booking.endDate));
+
+        // Find if there's a paid extension specifically for that day.
+        const lastDayExtension = booking.extensions.find((ext) => {
+          const extensionDay = startOfDay(new Date(ext.day)); // ext.day should be start of day
+          return extensionDay.getTime() === bookingOriginalEndDay.getTime();
+        });
+
+        // If a relevant extension for the last day is found, use its endDate.
+        if (lastDayExtension?.endDate) {
+          effectiveEndDate = new Date(lastDayExtension.endDate);
+        }
+      }
+
+      // Check if this effectiveEndDate falls within the reminder window.
+      return effectiveEndDate >= reminderGTE_Date && effectiveEndDate <= reminderLTE_Date;
+    });
+
+    if (bookingsEndingSoon.length === 0) {
+      return "No booking end reminders to send for the current window";
     }
 
-    for (const booking of bookings) {
+    // --- Send Emails ---
+    for (const booking of bookingsEndingSoon) {
       // Send reminder to client
-      const clientHtml = await renderBookingReminder(booking, "client", false);
-      await emailQueue.add(() =>
-        sendEmail({
-          to: booking.user?.email ?? booking.guestUser?.email,
-          subject: "Booking Reminder - Your booking ends in 1 hour",
-          html: clientHtml,
-        }),
-      );
+      // The 'false' argument likely indicates to renderBookingReminderEmail this is an 'end' reminder
+      const clientHtml = await renderBookingReminderEmail(booking, "client", false);
+      const clientEmail = booking.user?.email ?? (booking.guestUser as { email?: string })?.email;
+      if (clientEmail) {
+        await emailQueue.add(() =>
+          sendEmail({
+            to: clientEmail,
+            subject: "Booking Reminder - Your booking ends in 1 hour",
+            html: clientHtml,
+          }),
+        );
+      }
 
       // Send reminder to chauffeur if assigned
       if (booking.chauffeur?.email) {
-        const chauffeurHtml = await renderBookingReminder(booking, "chauffeur", false);
+        const chauffeurHtml = await renderBookingReminderEmail(booking, "chauffeur", false);
+        const chauffeurEmail = booking.chauffeur.email; // Assign to variable
         await emailQueue.add(() =>
           sendEmail({
-            to: booking.chauffeur?.email,
+            to: chauffeurEmail,
             subject: "Booking Reminder - You have a booking ending in 1 hour",
             html: chauffeurHtml,
           }),
@@ -483,10 +608,13 @@ export async function sendBookingEndReminderEmails() {
     }
 
     await emailQueue.onIdle();
+    // --- End Send Emails ---
 
-    return `Sent reminders for ${bookings.length} bookings`;
-  } catch (error) {
-    logger.error("Error sending booking end reminder emails:", error);
+    return `Sent booking end reminders for ${bookingsEndingSoon.length} bookings`;
+  } catch (error: unknown) {
+    logger.error(
+      `Error sending booking end reminder emails: ${error instanceof Error ? error.message : "Unknown error"}`,
+    );
     throw error;
   }
 }

@@ -17,7 +17,8 @@ async function startBookingReminders() {
     {},
     {
       repeat: {
-        pattern: "0 6-11 * * *", // At 6am, 7am, 8am, 9am, 10am, and 11am
+        // At minute 0 of 6–11 and 22 (10pm) every day
+        pattern: "0 6-11,22 * * *",
       },
     },
   );
@@ -27,7 +28,8 @@ async function startBookingReminders() {
     {},
     {
       repeat: {
-        pattern: "0 18-23 * * *", // On the hour between 6:00 pm and 11:00pm
+        // At 04:00, then on the hour 18–23 every day
+        pattern: "0 4,18-23 * * *",
       },
     },
   );
@@ -68,7 +70,7 @@ export const startBookingReminderWorker = async () => {
   );
 
   bookingReminderWorker.on("error", (err) => {
-    logger.error("Worker encountered an error:", err);
+    logger.error(`Worker encountered an error: ${err.message}`);
   });
 
   bookingReminderWorker.on("completed", (job) => {
@@ -76,7 +78,7 @@ export const startBookingReminderWorker = async () => {
   });
 
   bookingReminderWorker.on("failed", (job, err) => {
-    logger.error(`Job ${job?.name} failed:`, err);
+    logger.error(`Job ${job?.name} failed: ${err.message}`);
   });
 
   isWorkerInitialized = true;

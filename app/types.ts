@@ -1,4 +1,11 @@
-import type { Car, ChauffeurApprovalStatus, DocumentApproval } from "@prisma/client";
+import type {
+  Car,
+  ChauffeurApprovalStatus,
+  DocumentApproval,
+  User,
+  Extension,
+  Booking,
+} from "@prisma/client";
 
 export type SerializedCar = Omit<Car, "createdAt" | "updatedAt"> & {
   createdAt: string;
@@ -32,4 +39,12 @@ export type SerializedChauffeur = {
   createdAt: string;
   updatedAt: string;
   approvalStatus: ChauffeurApprovalStatus;
+};
+// Consistent BookingWithRelations type
+export type BookingWithRelations = Booking & {
+  car: Car & { owner?: User };
+  user: User | null;
+  // guestUser?: { name?: string | null; email?: string | null; phoneNumber?: string | null };
+  chauffeur?: User | null;
+  extensions: Extension[];
 };

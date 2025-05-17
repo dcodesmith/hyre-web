@@ -1,12 +1,12 @@
 import { getFormProps, getInputProps, useForm } from "@conform-to/react";
 import { parseWithZod } from "@conform-to/zod";
 import { EllipsisHorizontalIcon } from "@heroicons/react/24/outline";
+import { Car } from "@prisma/client";
 import { useFetcher, useNavigate } from "@remix-run/react";
 import { Row } from "@tanstack/react-table";
 import { Dispatch, SetStateAction, useEffect, useState } from "react";
 import { z } from "zod";
 import { useToast } from "~/hooks/use-toast";
-import { SerializedCar } from "~/types";
 import { Button } from "../ui/button";
 import {
   DropdownMenu,
@@ -19,7 +19,6 @@ import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "../ui/sheet";
-import { Car } from "@prisma/client";
 
 const STATUSES = ["AVAILABLE", "HOLD", "IN_SERVICE"] as const;
 
@@ -67,6 +66,18 @@ const carSchema = z.object({
     })
     .positive("Price must be positive"),
   status: z.enum(STATUSES),
+
+  hourlyRate: z
+    .number({
+      required_error: "Hourly rate is required.",
+    })
+    .positive("Hourly rate must be positive"),
+
+  nightRate: z
+    .number({
+      required_error: "Nightly rate is required.",
+    })
+    .positive("Nightly rate must be positive"),
 });
 
 const statusMap: Record<(typeof STATUSES)[number], string> = {
@@ -94,14 +105,15 @@ function EditCarForm({ car, setIsEditOpen }: EditCarFormProps) {
     }
   }, [fetcher.data, setIsEditOpen, fetcher.state]);
 
-  const [form, { make, model, year, registrationNumber, price, status }] = useForm({
-    defaultValue: car,
-    onValidate({ formData }) {
-      return parseWithZod(formData, { schema: carSchema });
-    },
-    shouldValidate: "onInput",
-    shouldRevalidate: "onInput",
-  });
+  const [form, { make, model, year, registrationNumber, price, status, hourlyRate, nightRate }] =
+    useForm({
+      defaultValue: car,
+      onValidate({ formData }) {
+        return parseWithZod(formData, { schema: carSchema });
+      },
+      shouldValidate: "onInput",
+      shouldRevalidate: "onInput",
+    });
 
   return (
     <fetcher.Form method="post" {...getFormProps(form)} className="space-y-4">
@@ -138,16 +150,49 @@ function EditCarForm({ car, setIsEditOpen }: EditCarFormProps) {
         {price.errors && <p className="text-sm text-destructive">{price.errors.join(" ")}</p>}
       </div>
 
+      <div className="space-y-1">
+        <Label htmlFor="hourlyRate">Hourly Rate</Label>
+        <Input
+          {...getInputProps(hourlyRate, { type: "number" })}
+          step="500"
+          className={
+            hourlyRate.errors
+              ? "border-red-500 focus-visible:ring-red-500 focus-visible:ring-2"
+              : ""
+          }
+        />
+        {hourlyRate.errors && (
+          <p className="text-sm text-destructive">{hourlyRate.errors.join(" ")}</p>
+        )}
+      </div>
+
+      <div className="space-y-1">
+        <Label htmlFor="nightRate">Nightly Rate</Label>
+        <Input
+          {...getInputProps(nightRate, { type: "number" })}
+          step="500"
+          className={
+            nightRate.errors ? "border-red-500 focus-visible:ring-red-500 focus-visible:ring-2" : ""
+          }
+        />
+        {nightRate.errors && (
+          <p className="text-sm text-destructive">{nightRate.errors.join(" ")}</p>
+        )}
+      </div>
+
       {car.status !== "BOOKED" && (
         <div className="space-y-1">
           <Label htmlFor={status.id}>Status</Label>
-          <Select name="status">
+          <Select
+            {...getInputProps(status, { type: "text" })}
+            defaultValue={status.value ?? car.status}
+          >
             <SelectTrigger>
               <SelectValue placeholder={statusMap[car.status]} />
             </SelectTrigger>
             <SelectContent>
               {STATUSES.map((status) => (
-                <SelectItem key={status} value={status}>
+                <SelectItem key={status} value={status} defaultValue={car.status}>
                   {statusMap[status]}
                 </SelectItem>
               ))}

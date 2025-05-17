@@ -22,6 +22,7 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
 
   const fromDate = url.searchParams.get("from");
   const toDate = url.searchParams.get("to");
+  const bookingType = url.searchParams.get("bookingType");
 
   // If no fromDate is provided and current time is after 12pm,
   // set default fromDate to tomorrow

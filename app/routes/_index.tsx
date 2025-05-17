@@ -36,6 +36,67 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const from = url.searchParams.get("from");
   const to = url.searchParams.get("to");
 
+  async function getFleetOwnersWithAllChauffeursBusy(specificDateInput?: Date) {
+    if (!specificDateInput) {
+      return [];
+    }
+
+    // Use UTC methods to get the year, month, and day from the input Date object.
+    // This ensures that we correctly define the day in UTC, regardless of the
+    // local timezone of the server or the time component of the input Date.
+    const year = specificDateInput.getUTCFullYear();
+    const month = specificDateInput.getUTCMonth(); // JavaScript months are 0-indexed (0 for January, 11 for December)
+    const day = specificDateInput.getUTCDate();
+
+    // Create Date objects for the very start and very end of that day in UTC.
+    const startDateAtTargetDate = new Date(Date.UTC(year, month, day, 0, 0, 0, 0));
+    const endDateAtTargetDate = new Date(Date.UTC(year, month, day, 23, 59, 59, 999));
+
+    const busyFleetOwners = await prisma.user.findMany({
+      where: {
+        // Condition 1: The user must be a fleet owner, meaning they have at least one chauffeur.
+        chauffeurs: {
+          some: {}, // Ensures this user has at least one chauffeur.
+        },
+        // Condition 2: ALL of this fleet owner's chauffeurs must be busy on the specificDate.
+        AND: [
+          {
+            chauffeurs: {
+              every: {
+                // A chauffeur is considered busy if they have at least one booking meeting the criteria.
+                bookingsAsChauffeur: {
+                  some: {
+                    status: {
+                      in: [BookingStatus.CONFIRMED, BookingStatus.ACTIVE],
+                    },
+                    // Check for overlap with the specific date (entire day in UTC)
+                    AND: [
+                      // {
+                      //   startDate: {
+                      //     lte: endDateAtTargetDate, // Booking starts on or before the end of the target day (UTC)
+                      //   },
+                      // },
+                      {
+                        endDate: {
+                          gte: startDateAtTargetDate, // Booking ends on or after the start of the target day (UTC)
+                        },
+                      },
+                    ],
+                  },
+                },
+              },
+            },
+          },
+        ],
+      },
+      select: {
+        id: true, // We only need the IDs of the fleet owners
+      },
+    });
+
+    return busyFleetOwners.map((owner) => owner.id);
+  }
+
   const ownersWithAllChauffeursBusy = await prisma.user.findMany({
     where: {
       AND: [
@@ -84,18 +145,21 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
   // Collect the IDs of these owners
   const ownerIdsToExclude = ownersWithAllChauffeursBusy.map((o) => o.id);
+  const idsToExclude = await getFleetOwnersWithAllChauffeursBusy(from ? new Date(from) : undefined);
+
+  console.log({ ownerIdsToExclude, idsToExclude });
 
   const cars = await prisma.car.findMany({
     where: {
       AND: [
         {
           ownerId: {
-            notIn: ownerIdsToExclude,
+            notIn: idsToExclude,
           },
-          // Only show approved cars from approved fleet owners
           approvalStatus: "APPROVED",
           owner: {
             fleetOwnerStatus: "APPROVED",
+            hasOnboarded: true,
           },
           OR: [
             {
@@ -332,10 +396,16 @@ export default function IndexPage() {
                   <div>
                     {!from || !to ? (
                       <>
+                        Day:{" "}
                         {new Intl.NumberFormat("en-NG", {
                           style: "currency",
                           currency: "NGN",
-                        }).format(row.original.price)}
+                        }).format(row.original.price)}{" "}
+                        | Night:{" "}
+                        {new Intl.NumberFormat("en-NG", {
+                          style: "currency",
+                          currency: "NGN",
+                        }).format(row.original.nightRate)}
                       </>
                     ) : (
                       <>

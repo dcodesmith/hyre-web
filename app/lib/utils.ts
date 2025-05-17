@@ -1,6 +1,9 @@
+import { Booking, Extension } from "@prisma/client";
 import { useFormAction, useNavigation } from "@remix-run/react";
 import { type ClassValue, clsx } from "clsx";
+import { isToday } from "date-fns";
 import { twMerge } from "tailwind-merge";
+import { BookingWithRelations } from "~/types";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -90,13 +93,21 @@ export const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat("en-NG", {
     style: "currency",
     currency: "NGN",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
+    // minimumFractionDigits: 0,
+    // maximumFractionDigits: 0,
   }).format(amount);
 };
 
 export function isBookingEditable(startDate: Date) {
   const now = new Date();
   const hoursUntilStart = (startDate.getTime() - now.getTime()) / (1000 * 60 * 60);
-  return hoursUntilStart > 12;
+  return hoursUntilStart > 6;
+}
+
+export function isBookingExtendable(booking: BookingWithRelations) {
+  return (
+    booking.status === "ACTIVE" &&
+    booking.type === "DAY" &&
+    booking.extensions.every((extension) => isToday(extension.endDate))
+  );
 }

@@ -49,6 +49,7 @@ export async function seed() {
   // Clear database in a single transaction
   await prisma.$transaction(async (transaction) => {
     // Delete in correct order to handle foreign key constraints
+    await transaction.extension.deleteMany();
     await transaction.booking.deleteMany();
     await transaction.vehicleImage.deleteMany();
     await transaction.documentApproval.deleteMany();
@@ -152,6 +153,19 @@ export async function seed() {
     },
   });
 
+  const predefinedEmails = [
+    "calm.chauffeur@dcodesmith.com",
+    "happy.chauffeur@dcodesmith.com",
+    "jolly.chauffeur@dcodesmith.com",
+    "moody.chauffeur@dcodesmith.com",
+    "stern.chauffeur@dcodesmith.com",
+    "jovial.chauffeur@dcodesmith.com",
+    "fun.chauffeur@dcodesmith.com",
+    "hungry.chauffeur@dcodesmith.com",
+    "stable.chauffeur@dcodesmith.com",
+    "funky.chauffeur@dcodesmith.com",
+  ];
+
   for (const fleetOwner of fleetOwners) {
     const createdFleetOwner = await prisma.user.create({
       select: { id: true },
@@ -174,10 +188,7 @@ export async function seed() {
       const createdChauffeur = await prisma.user.create({
         select: { id: true },
         data: {
-          email: faker.internet.email({
-            firstName: firstName.toLowerCase(),
-            lastName: lastName.toLowerCase(),
-          }),
+          email: predefinedEmails[i % predefinedEmails.length],
           username: faker.internet.displayName(),
           name: `${firstName} ${lastName}`,
           phoneNumber: faker.helpers.arrayElement([
@@ -233,6 +244,8 @@ export async function seed() {
       year: [2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024][
         Math.floor(Math.random() * 10)
       ],
+      hourlyRate: Math.floor(Math.random() * 6) * 1000 + 10000,
+      nightRate: Math.floor(Math.random() * 3) * 10000 + 100000,
       status: Object.values(Status)[Math.floor(Math.random() * 4)] as Status,
       ownerId: createdFleetOwner.id,
       registrationNumber: `${faker.helpers.arrayElement([
