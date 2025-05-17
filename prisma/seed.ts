@@ -153,7 +153,7 @@ export async function seed() {
     },
   });
 
-  const predefinedEmails = [
+  const chauffeurEmails = [
     "calm.chauffeur@dcodesmith.com",
     "happy.chauffeur@dcodesmith.com",
     "jolly.chauffeur@dcodesmith.com",
@@ -165,6 +165,8 @@ export async function seed() {
     "stable.chauffeur@dcodesmith.com",
     "funky.chauffeur@dcodesmith.com",
   ];
+
+  let index = -1;
 
   for (const fleetOwner of fleetOwners) {
     const createdFleetOwner = await prisma.user.create({
@@ -179,6 +181,7 @@ export async function seed() {
 
     // Create 5 chauffeurs for each fleet owner
     for (let i = 0; i < 5; i++) {
+      index++;
       const firstName = faker.person.firstName();
       const lastName = faker.person.lastName();
 
@@ -188,7 +191,7 @@ export async function seed() {
       const createdChauffeur = await prisma.user.create({
         select: { id: true },
         data: {
-          email: predefinedEmails[i % predefinedEmails.length],
+          email: chauffeurEmails[index],
           username: faker.internet.displayName(),
           name: `${firstName} ${lastName}`,
           phoneNumber: faker.helpers.arrayElement([
