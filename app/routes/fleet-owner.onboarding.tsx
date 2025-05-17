@@ -3,7 +3,7 @@ import { parseWithZod } from "@conform-to/zod";
 import { CogIcon } from "@heroicons/react/24/outline";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json, redirect } from "@remix-run/node";
-import { Form, useActionData } from "@remix-run/react";
+import { Form, useActionData, useLoaderData } from "@remix-run/react";
 import { z } from "zod";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
@@ -120,6 +120,7 @@ const roleOptions = {
 export default function FleetOwnerOnboarding() {
   const isPending = useIsPending();
   const lastResult = useActionData<typeof action>();
+  const { user } = useLoaderData<typeof loader>();
   const [isIndependentDriver, setIsIndependentDriver] = useState(false);
 
   const [
@@ -137,6 +138,11 @@ export default function FleetOwnerOnboarding() {
     lastResult,
     onValidate({ formData }) {
       return parseWithZod(formData, { schema: onboardingSchema });
+    },
+    defaultValue: {
+      name: user.name,
+      phoneNumber: user.phoneNumber,
+      address: user.address || "",
     },
     shouldValidate: "onInput",
     shouldRevalidate: "onInput",
@@ -224,6 +230,7 @@ export default function FleetOwnerOnboarding() {
         <div className="space-y-1">
           <Label htmlFor={address.id}>{isIndependentDriver ? "Address" : "Business Address"}</Label>
           <AutocompleteAddress
+            id="address"
             inputProps={{
               name: address.name,
               id: address.id,
