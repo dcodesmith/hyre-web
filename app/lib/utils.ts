@@ -108,6 +108,6 @@ export function isBookingExtendable(booking: BookingWithRelations) {
   return (
     booking.status === "ACTIVE" &&
     booking.type === "DAY" &&
-    booking.extensions.every((extension) => isToday(extension.endDate))
+    booking.extensions?.some((extension) => isToday(extension.endDate))
   );
 }
