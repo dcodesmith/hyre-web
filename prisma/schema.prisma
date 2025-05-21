@@ -139,6 +139,7 @@ model Booking {
   totalAmount   Decimal       @db.Decimal(10, 2)
   paymentStatus PaymentStatus @default(UNPAID)
   paymentId     String? // Reference to external payment provider
+  paymentIntent String? // Payment Intent ID for pending payments
 
   // Car information
   carId String
@@ -171,6 +172,7 @@ model Booking {
   @@index([status])
   @@index([chauffeurId])
   @@index([paymentStatus])
+  @@index([paymentIntent])
 }
 
 model Extension {
@@ -189,10 +191,13 @@ model Extension {
   totalAmount   Decimal       @db.Decimal(10, 2)
   paymentStatus PaymentStatus @default(UNPAID)
   paymentId     String? // Reference to external payment provider
+  paymentIntent String? // Payment Intent ID for pending payments
+  status        String        @default("PENDING") // PENDING, ACTIVE, CANCELLED
 
   @@index([paymentStatus])
   @@index([bookingId])
   @@index([day])
+  @@index([status])
   @@unique([bookingId, day]) // Ensure only one extension per day per booking
 }
 

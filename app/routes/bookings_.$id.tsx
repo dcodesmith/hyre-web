@@ -15,7 +15,12 @@ import {
   DialogTrigger,
 } from "~/components/ui/dialog";
 import { Label } from "~/components/ui/label";
-import { formatCurrency, isBookingEditable, isBookingExtendable } from "~/lib/utils";
+import {
+  formatCurrency,
+  isBookingEditable,
+  isBookingExtendable,
+  getMaxHoursExtendable,
+} from "~/lib/utils";
 import { getSessionUser, requireUser } from "~/modules/auth/auth.server";
 import { prisma } from "~/modules/db/db.server";
 import { sendEmail } from "~/modules/email/email.server";
@@ -26,6 +31,7 @@ import {
 import { cancelBooking, getBooking } from "~/services/bookings.server";
 import { AutocompleteAddress } from "~/components/AutocompleteAddress";
 import { format } from "date-fns";
+import logger from "~/lib/logger.server";
 
 export async function action({ request, params }: ActionFunctionArgs) {
   invariant(params.id, "Booking ID is required");
@@ -255,7 +261,11 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     include: {
       car: true,
       user: true,
-      extensions: true,
+      extensions: {
+        where: {
+          paymentStatus: "PAID",
+        },
+      },
       chauffeur: true,
     },
   });
@@ -278,6 +288,8 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   } else {
     throw new Response("Unauthorized: Access denied.", { status: 401 });
   }
+
+  logger.info(`booking: ${JSON.stringify(booking)}`);
 
   return json({ booking });
 }
@@ -302,7 +314,6 @@ export default function BookingDetails() {
   const actionData = useActionData<typeof action>();
   const [searchParams] = useSearchParams();
   const guestEmail = searchParams.get("email");
-  const now = new Date();
 
   useEffect(() => {
     if (actionData && "success" in actionData && actionData.success) {
@@ -319,14 +330,23 @@ export default function BookingDetails() {
         </p>
       </div>
       <div className="bg-white p-6 space-y-4 border rounded overflow-hidden shadow-md hover:shadow-lg transition-shadow">
+        <div
+          className="p-4 mb-4 text-sm border-l-4 border-blue-500 text-blue-700 bg-blue-100"
+          role="alert"
+        >
+          {booking.type === "DAY"
+            ? "Each booking day is for a 12-hour duration ending 12 hours after the start time unless extended."
+            : "Each night booking is for a 6-hour duration starting at 11pm."}
+        </div>
+
         <div className="sm:grid sm:grid-cols-2 gap-4 flex flex-col">
           <div>
-            <h3 className="text-gray-500">Pickup Date</h3>
+            <h3 className="text-gray-500">Start Date</h3>
             <p className="font-medium">{formatDate(booking.startDate)}</p>
           </div>
 
           <div>
-            <h3 className="text-gray-500">Return Date</h3>
+            <h3 className="text-gray-500">End Date</h3>
             <p className="font-medium">{formatDate(booking.endDate)}</p>
           </div>
 
@@ -378,12 +398,12 @@ export default function BookingDetails() {
           )}
 
           {booking.extensions && booking.extensions.length > 0 && (
-            <div className="col-span-2 bg-gray-100 p-4 rounded-md">
+            <div className="col-span-2 flex flex-col gap-2">
               {booking.extensions.map((extension) => (
-                <p key={extension.id} className="font-medium">
-                  Your booking for {format(extension.day, "PPPP")} has been extended for{" "}
-                  {extension.hours} hours to {format(extension.endDate, "p")} from{" "}
-                  {format(booking.endDate, "p")}
+                <p key={extension.id} className="font-medium p-4 border-l-4 bg-gray-100">
+                  Your booking for {format(extension.day, "PPPP")} has been extended by{" "}
+                  {extension.hours} {extension.hours === 1 ? "hour" : "hours"} from{" "}
+                  {format(booking.endDate, "p")} to {format(extension.endDate, "p")}
                 </p>
               ))}
             </div>
@@ -391,13 +411,13 @@ export default function BookingDetails() {
         </div>
       </div>
 
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-2 items-center">
         {isBookingExtendable(booking) && (
           <Link
             to={`/bookings/${booking.id}/extend${guestEmail ? `?email=${guestEmail}` : ""}`}
-            className="w-full  p-2 border rounded text-center"
+            className="w-fit p-2 border rounded text-center"
           >
-            Extend Booking
+            Extend Booking for up to {getMaxHoursExtendable(booking)} hours
           </Link>
         )}
 

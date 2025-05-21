@@ -12,6 +12,7 @@ export async function isCarAvailable(
     include: {
       bookings: {
         where: {
+          paymentStatus: "PAID",
           // Only check active or confirmed bookings
           status: {
             in: ["CONFIRMED", "ACTIVE"],

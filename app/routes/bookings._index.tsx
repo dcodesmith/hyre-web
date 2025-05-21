@@ -8,6 +8,7 @@ import {
   useNavigate,
   useSearchParams,
 } from "@remix-run/react";
+import crypto from "node:crypto";
 import { useEffect, useState } from "react";
 import invariant from "tiny-invariant";
 import { AutocompleteAddress } from "~/components/AutocompleteAddress";
@@ -29,12 +30,12 @@ import logger from "~/lib/logger.server";
 import { formatCurrency, formatDate, isBookingEditable, isBookingExtendable } from "~/lib/utils";
 import { getSessionUser } from "~/modules/auth/auth.server";
 import { prisma } from "~/modules/db/db.server";
-import { sendEmail } from "~/modules/email/email.server";
 import {
-  renderBookingConfirmationEmail,
-  renderFleetOwnerBookingNotificationEmail,
-} from "~/modules/email/templates/booking-notification";
-import { cancelBooking, confirmBooking, getBookingsByStatus } from "~/services/bookings.server";
+  cancelBooking,
+  createPendingBooking,
+  getBookingsByStatus,
+} from "~/services/bookings.server";
+import { createPaymentIntent } from "~/services/payment.server";
 
 type BookingWithRelations = Booking & {
   car: Car & { owner: User; images: VehicleImage[] };
@@ -99,7 +100,6 @@ export async function action({ request }: ActionFunctionArgs) {
     const pickupTime = String(formData.get("pickupTime"));
     const dropOffAddress = String(formData.get("dropOffAddress"));
     const carId = String(formData.get("carId"));
-    const paymentId = String(formData.get("paymentId"));
     const bookingType = String(formData.get("bookingType"));
 
     // Check if guest email exists as a user
@@ -158,58 +158,72 @@ export async function action({ request }: ActionFunctionArgs) {
     const pickupLocation = pickupAddress;
     const returnLocation = sameLocation === "true" ? pickupAddress : dropOffAddress;
 
-    logger.info(
-      `Confirming booking ${JSON.stringify(
-        {
-          startDate: startDateTime,
-          endDate: endDateTime,
-          carId,
-          user,
-          pickupLocation,
-          returnLocation,
-          paymentId,
-          type: bookingType,
-        },
-        null,
-        2,
-      )}`,
-    );
-
     if (!user) {
       return json({ error: "User not found" }, { status: 400 });
     }
 
+    // Calculate the total cost for creating payment intent
+    const car = await prisma.car.findUnique({ where: { id: carId } });
+    if (!car) {
+      return json({ error: "Car not found" }, { status: 404 });
+    }
+
+    const days = Math.ceil((endDateTime.getTime() - startDateTime.getTime()) / (1000 * 3600 * 24));
+    const baseTotal = car.price * days;
+    const vat = baseTotal * 0.075; // Use your actual VAT calculation logic/rate
+    const platformFee = baseTotal * 0.15; // Platform fee of 15%
+    const totalCost = baseTotal + vat + platformFee;
+
     try {
-      const booking = await confirmBooking({
+      // New flow: Create pending booking and redirect to Flutterwave checkout
+      // Generate idempotency key for this booking attempt
+      const idempotencyKey = crypto.randomUUID();
+
+      // Create payment intent
+      const { paymentIntentId, checkoutUrl } = await createPaymentIntent({
+        amount: process.env.NODE_ENV === "development" ? 3000 : totalCost,
+        customer: {
+          email: user.email,
+          name: user.name || "Customer",
+          phone_number: user.phoneNumber || "",
+        },
+        metadata: {
+          transactionType: "booking_creation",
+          carId,
+          startDate: startDateTime.toISOString(),
+          endDate: endDateTime.toISOString(),
+          bookingType,
+        },
+        idempotencyKey,
+        callbackUrl: `${process.env.APP_URL || "http://localhost:5173"}/bookings/payment-status?transactionType=booking_creation`,
+      });
+
+      // Create pending booking
+      const booking = await createPendingBooking({
         startDate: startDateTime,
         endDate: endDateTime,
         carId,
         user,
         pickupLocation,
         returnLocation,
-        paymentId,
+        paymentIntent: paymentIntentId,
         type: bookingType as BookingType,
       });
 
-      await Promise.all([
-        sendEmail({
-          to: user.email,
-          subject: "Booking confirmed",
-          html: await renderBookingConfirmationEmail(booking),
-        }),
-        sendEmail({
-          to: booking.car.owner.email,
-          subject: "New booking alert",
-          html: await renderFleetOwnerBookingNotificationEmail(booking),
-        }),
-      ]);
+      logger.info(`Created pending booking ${booking.id} with payment intent ${paymentIntentId}`);
 
-      if (guestEmail) {
-        return redirect(`/bookings/${booking.id}?email=${encodeURIComponent(String(guestEmail))}`);
-      }
-      return redirect(`/bookings/${booking.id}`);
+      // Redirect to Flutterwave checkout
+      return redirect(checkoutUrl);
     } catch (error) {
-      return json({ error }, { status: 400 });
+      logger.error("Error creating booking or payment intent:", error);
+      return json(
+        {
+          errors: {
+            general: error instanceof Error ? error.message : "An unexpected error occurred",
+          },
+        },
+        { status: 500 },
+      );
     }
   }
 
@@ -255,7 +269,6 @@ export default function BookingsPage() {
   const [showDropoffFields, setShowDropoffFields] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const editFetcher = useFetcher<{ success: boolean }>();
-  const now = new Date();
 
   useEffect(() => {
     if (editFetcher.data?.success) {
@@ -353,16 +366,14 @@ export default function BookingsPage() {
                       View
                     </Link>
 
-                    {booking.status === "ACTIVE" &&
-                      booking.type === "DAY" &&
-                      isBookingExtendable(booking) && (
-                        <Link
-                          to={`/bookings/${booking.id}/extend${guestEmail ? `?email=${guestEmail}` : ""}`}
-                          className="text-green-500 hover:text-green-700"
-                        >
-                          Extend
-                        </Link>
-                      )}
+                    {isBookingExtendable(booking) && (
+                      <Link
+                        to={`/bookings/${booking.id}/extend${guestEmail ? `?email=${guestEmail}` : ""}`}
+                        className="text-green-500 hover:text-green-700"
+                      >
+                        Extend
+                      </Link>
+                    )}
 
                     {booking.status === "CONFIRMED" &&
                       isBookingEditable(new Date(booking.startDate)) && (

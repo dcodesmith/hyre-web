@@ -15,7 +15,7 @@ import {
 } from "date-fns";
 import type { User } from "@prisma/client";
 import { type ActionFunctionArgs, type LoaderFunctionArgs, json, redirect } from "@remix-run/node";
-import { Form, useActionData, useLoaderData } from "@remix-run/react";
+import { Form, useActionData, useLoaderData, useSubmit } from "@remix-run/react";
 import { useState } from "react";
 import invariant from "tiny-invariant";
 import { Button } from "~/components/ui/button";
@@ -36,6 +36,8 @@ import logger from "~/lib/logger.server";
 import { emailQueue } from "~/queues/email-throttle.server";
 import { sendEmail } from "~/modules/email/email.server";
 import { bookingExtensionConfirmationEmail } from "~/modules/email/templates/booking-notification";
+import { createPaymentIntent } from "~/services/payment.server";
+import crypto from "node:crypto";
 
 export async function loader({ params, request }: LoaderFunctionArgs) {
   invariant(params.id, "Booking ID route parameter is required");
@@ -107,7 +109,7 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
   }
 
   const existingExtensionToday = await prisma.extension.findUnique({
-    where: { bookingId_day: { bookingId: booking.id, day: today } },
+    where: { bookingId_day: { bookingId: booking.id, day: today }, paymentStatus: "PAID" },
     select: { id: true, endDate: true },
   });
 
@@ -150,6 +152,7 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
       carId: booking.carId,
       startDate: { gt: currentEndTimeToday },
       status: { in: ["CONFIRMED", "ACTIVE"] },
+      // paymentStatus: "PAID",
     },
     orderBy: { startDate: "asc" },
   });
@@ -257,9 +260,8 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
 
 // --- ACTION ---
 /**
- * Handles the form submission to create an extension after payment confirmation.
- * Validates the request, creates the Extension record, and updates the Booking record.
- * Prevents duplicate extensions for the same day using the unique constraint.
+ * Handles the form submission to create an extension with pending payment.
+ * Creates a pending extension and redirects to Flutterwave checkout.
  */
 export async function action({ request, params }: ActionFunctionArgs) {
   invariant(params.id, "Booking ID route parameter is required");
@@ -267,24 +269,19 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
   const formData = await request.formData();
   const hours = Number(formData.get("hours"));
-  const paymentId = String(formData.get("paymentId"));
 
   // --- Input Validation ---
-  if (!paymentId) {
-    logger.error("Missing paymentId.");
-    return json({ error: "Payment information is missing" }, { status: 400 });
-  }
   if (!hours || hours < 1 || !Number.isInteger(hours)) {
     logger.error(`Invalid hours value: ${hours}`);
     return json({ error: "Please select a valid number of hours." }, { status: 400 });
   }
-  logger.info(`Inputs - Hours: ${hours}, PaymentID: ${paymentId}`);
+  logger.debug(`Inputs - Hours: ${hours}`);
 
   // --- Recalculate Booking State & Validate Request ---
   const now = new Date();
   const today = startOfDay(now);
 
-  let booking = await prisma.booking.findUnique({
+  const booking = await prisma.booking.findUnique({
     where: { id: params.id },
     include: { car: true, user: true, extensions: true },
   });
@@ -402,93 +399,108 @@ export async function action({ request, params }: ActionFunctionArgs) {
   );
   logger.info(`Calculated cost for this transaction: ${costForThisExtension}`);
 
-  // --- Perform Database Updates (Upsert Extension, Update Booking) ---
+  // Generate a unique idempotency key for this extension attempt
+  const idempotencyKey = crypto.randomUUID();
+
+  // Set up customer info for payment
+  const customerEmail = booking.user?.email ?? (booking.guestUser as any)?.email;
+  const customerName = booking.user?.name ?? (booking.guestUser as any)?.name;
+  const customerPhone = booking.user?.phoneNumber ?? (booking.guestUser as any)?.phoneNumber;
+
+  const customer = {
+    email: customerEmail,
+    name: customerName,
+    phone_number: customerPhone,
+  };
+
+  // Calculate total amount with VAT
+  const totalWithVat = costForThisExtension * 1.075; // 7.5% VAT
+
   try {
-    if (existingExtensionForToday) {
-      logger.info(
-        `Updating existing extension ${existingExtensionForToday.id} for booking ${booking.id}`,
+    // Create payment intent
+    const { paymentIntentId, checkoutUrl } = await createPaymentIntent({
+      amount: totalWithVat,
+      customer,
+      metadata: {
+        transactionType: "booking_extension",
+        bookingId: booking.id,
+        extensionDay: today.toISOString(),
+        hours,
+        carId: booking.carId,
+      },
+      idempotencyKey,
+      callbackUrl: `${process.env.APP_URL || "http://localhost:5173"}/bookings/payment-status?transactionType=booking_extension`,
+    });
+
+    logger.debug(booking.id, today.toString());
+    // --- Perform Database Updates (Create/Update Pending Extension) ---
+    try {
+      // First, try to find any existing extension for today (including PENDING ones)
+      const existingExtension = await prisma.extension.findUnique({
+        where: { bookingId_day: { bookingId: booking.id, day: today } },
+      });
+
+      if (existingExtension) {
+        logger.debug(
+          `[Update] hours: ${hours}. existingExtension.hours: ${existingExtension.hours}`,
+        );
+        logger.info(
+          `Updating existing extension ${existingExtension.id} for booking ${booking.id} to PENDING status`,
+        );
+        await prisma.extension.update({
+          where: { id: existingExtension.id },
+          data: {
+            hours: { increment: hours },
+            totalAmount: { increment: costForThisExtension },
+            endDate: newProposedEndDateForDay,
+            paymentIntent: paymentIntentId,
+            status: "PENDING",
+            paymentStatus: "UNPAID",
+          },
+        });
+      } else {
+        logger.info(`Creating new PENDING extension for booking ${booking.id}`);
+        logger.debug(`[Create] hours: ${hours}`);
+        await prisma.extension.create({
+          data: {
+            bookingId: booking.id,
+            day: today,
+            startDate: new Date(),
+            hours,
+            endDate: newProposedEndDateForDay,
+            originalEndDate: booking.endDate,
+            paymentId: paymentIntentId,
+            totalAmount: costForThisExtension,
+            paymentIntent: paymentIntentId,
+            status: "PENDING",
+            paymentStatus: "UNPAID",
+          },
+        });
+      }
+
+      logger.info(`Successfully created/updated extension with payment intent ${paymentIntentId}`);
+    } catch (dbError: unknown) {
+      logger.error(
+        `Database operation failed: ${dbError instanceof Error ? dbError.message : String(dbError)}`,
       );
-    } else {
-      logger.info(`Creating new extension for booking ${booking.id}`);
+      return json({ error: "Failed to initialize extension. Please try again." }, { status: 500 });
     }
 
-    // 1. Upsert Extension Record
-    await upsertExtension({
-      extensionId: existingExtensionForToday?.id,
-      bookingId: booking.id,
-      hours: hours,
-      day: today,
-      originalEndDate: booking.endDate,
-      paymentId,
-      totalAmount: costForThisExtension,
-      endDate: newProposedEndDateForDay,
-    });
-
-    if (existingExtensionForToday) {
-      logger.info(`Successfully updated extension ${existingExtensionForToday.id}`);
-    } else {
-      logger.info(`Successfully created new extension for booking ${booking.id}`);
-    }
-
-    // 2. Conditionally Update the main Booking record
-    const bookingUpdateData: { totalAmount: { increment: number }; endDate?: Date } = {
-      totalAmount: { increment: costForThisExtension }, // Always increment cost
-    };
-
-    if (!isMultiDay) {
-      // Only update the main booking's final endDate if it's a single-day booking
-      bookingUpdateData.endDate = newProposedEndDateForDay;
-      logger.info("Single-day booking: Updated booking final endDate.");
-    } else {
-      logger.info("Multi-day booking: Main booking endDate remains unchanged by this extension.");
-    }
-
-    booking = await prisma.booking.update({
-      where: { id: booking.id },
-      data: bookingUpdateData,
-      include: { car: true, user: true, extensions: true },
-    });
-    logger.info(`Successfully updated booking ${booking.id}.`);
-  } catch (e: unknown) {
+    // Redirect to Flutterwave checkout
+    logger.info(`Redirecting to Flutterwave checkout: ${checkoutUrl}`);
+    return redirect(checkoutUrl);
+  } catch (paymentError: unknown) {
     logger.error(
-      `Database operation failed during extension for booking ${booking.id}: ${e instanceof Error ? e.message : "Unknown error"}`,
+      `Payment intent creation failed: ${paymentError instanceof Error ? paymentError.message : String(paymentError)}`,
     );
-    // More generic error now, as P2002 should be pre-empted by the if/else logic
-    return json(
-      { error: "Failed to save extension details. Please contact support." },
-      { status: 500 },
-    );
+    return json({ error: "Failed to initialize payment. Please try again." }, { status: 500 });
   }
-
-  // --- Redirect User ---
-  let redirectUrl = `/bookings/${booking.id}`;
-  // Fix for linter: Property 'email' does not exist on type 'string | number | boolean | JsonObject | JsonArray'.
-  const guestUserData = booking.guestUser as { email?: string; [key: string]: any } | null;
-  const guestUserEmail =
-    guestUserData && typeof guestUserData.email === "string" ? guestUserData.email : undefined;
-
-  if (guestUserEmail) redirectUrl += `?email=${encodeURIComponent(guestUserEmail)}`;
-
-  const extensionConfirmationHtml = await bookingExtensionConfirmationEmail(booking);
-
-  logger.info(JSON.stringify(booking, null, 2));
-
-  await emailQueue.add(() =>
-    sendEmail({
-      to: booking.user?.email ?? guestUserEmail,
-      subject: "Booking Extension Confirmation",
-      html: extensionConfirmationHtml,
-    }),
-  );
-  logger.info(`Sent booking extension confirmation email for booking ${booking.id}.`);
-
-  logger.info(`Extension successful for booking ${booking.id}. Redirecting to ${redirectUrl}`);
-  return redirect(redirectUrl);
 }
 
 export default function ExtendBookingPage() {
   const { booking, maxHours } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
+  const submit = useSubmit();
   // Initialize state correctly, ensuring hours doesn't exceed maxHours if maxHours is less than 1 initially
   const [hours, setHours] = useState(maxHours >= 1 ? 1 : 0);
 
@@ -500,27 +512,15 @@ export default function ExtendBookingPage() {
 
   const user = booking.user; // User details from loader
 
-  // Memoize payment handler options if necessary, especially if user object changes reference
-  const handlePayment = usePayment({
-    totalCost: totalWithVat,
-    customer: {
-      email: user?.email || "",
-      phone_number: user?.phoneNumber || "",
-      name: user?.name || "",
-    },
-  });
-
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (hours <= 0) return; // Don't submit if 0 hours
     const formData = new FormData(event.currentTarget);
-    // Ensure 'hours' value from state is correctly represented in formData if needed by handlePayment
-    // formData.set('hours', hours.toString()); // Usually handled by the input's name attribute
-    await handlePayment(formData, `/bookings/${booking.id}/extend`); // Pass the action URL
+    submit(formData, { method: "POST", action: `/bookings/${booking.id}/extend` });
   };
 
   return (
-    <div className="max-w-md mx-auto mt-8 bg-white p-6 rounded border overflow-hidden shadow-md hover:shadow-lg transition-shadow">
+    <div className="max-w-md mx-auto mt-8 p-6 rounded border overflow-hidden shadow-md hover:shadow-lg transition-shadow">
       {/* Page Title */}
       <h1 className="font-semibold text-base mb-4">
         {" "}

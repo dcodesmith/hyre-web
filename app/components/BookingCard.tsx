@@ -1,11 +1,10 @@
 import { parseWithZod } from "@conform-to/zod";
 import type { Car, User } from "@prisma/client";
-import { Form, useNavigate, useSearchParams } from "@remix-run/react";
+import { Form, useNavigate, useSearchParams, useSubmit } from "@remix-run/react";
 import { DateRange } from "react-day-picker";
 import { z } from "zod";
 import React, { useState, useMemo, useCallback } from "react";
 import { format, isAfter, startOfDay, eachDayOfInterval, parseISO } from "date-fns";
-import { usePayment } from "~/hooks/usePayment";
 import { formatCurrency } from "~/lib/utils";
 import { AutocompleteAddress } from "./AutocompleteAddress";
 import { BookingTimeSelect } from "./BookingTimeSelect";
@@ -194,6 +193,7 @@ function GuestInfoFields({ nameField, emailField, phoneNumberField }: GuestInfoF
 // --- Main Component ---
 export default function BookingCard({ car, isAvailable = false, user }: BookingCardProps) {
   const navigate = useNavigate();
+  const submit = useSubmit();
   const [searchParams, setSearchParams] = useSearchParams();
   const [bookingType, setBookingType] = useState<BookingType>(
     (searchParams.get("bookingType") as BookingType | null) || DAY_BOOKING_TYPE,
@@ -335,7 +335,7 @@ export default function BookingCard({ car, isAvailable = false, user }: BookingC
         return navigate(`/auth?redirectTo=${encodeURIComponent(redirectTo)}`);
       }
 
-      onMakePayment(formData, `/bookings?${searchParams.toString()}`);
+      submit(formData, { method: "POST", action: `/bookings?${searchParams.toString()}` });
     },
   });
 
@@ -347,11 +347,6 @@ export default function BookingCard({ car, isAvailable = false, user }: BookingC
     }),
     [user, fields.email.value, fields.name.value, fields.phoneNumber.value],
   );
-
-  const onMakePayment = usePayment({
-    totalCost: finalTotalCost,
-    customer: paymentCustomer,
-  });
 
   const handleDateChange = useCallback(
     (range: DateRange) => {

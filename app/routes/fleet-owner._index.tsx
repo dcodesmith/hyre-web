@@ -7,6 +7,7 @@ import { Bar, BarChart, CartesianGrid, Tooltip, XAxis, YAxis } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { ChartContainer } from "~/components/ui/chart";
 import { ToggleGroup, ToggleGroupItem } from "~/components/ui/toggle-group";
+import logger from "~/lib/logger.server";
 import { formatDate } from "~/lib/utils";
 import { prisma } from "~/modules/db/db.server";
 import { getMonthToDateBookingsValue } from "~/services/bookings.server";
@@ -157,7 +158,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     }),
   );
 
-  console.log("dailyRevenue", dailyRevenue);
+  logger.info(`dailyRevenue: ${JSON.stringify(dailyRevenue, null, 2)}`);
 
   const startOfDay = new Date(today.setHours(0, 0, 0, 0));
   const endOfDay = new Date(today.setHours(23, 59, 59, 999));

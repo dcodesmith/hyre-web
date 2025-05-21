@@ -4,6 +4,7 @@ import {
   CarApprovalStatus,
   FleetOwnerStatus,
   PaymentStatus,
+  Prisma,
   Status,
   User,
 } from "@prisma/client";
@@ -35,9 +36,121 @@ export type CreateBookingParams = {
   pickupLocation: string;
   returnLocation: string;
   specialRequests?: string;
-  paymentId: string;
+  paymentId?: string;
+  paymentIntent?: string;
   type: BookingType;
+  status?: BookingStatus;
+  paymentStatus?: PaymentStatus;
 };
+
+// Create a pending booking with payment intent
+export async function createPendingBooking({
+  startDate,
+  endDate,
+  carId,
+  user,
+  pickupLocation,
+  returnLocation,
+  specialRequests,
+  paymentIntent,
+  type,
+}: Omit<CreateBookingParams, "paymentId" | "status" | "paymentStatus"> & {
+  paymentIntent: string;
+}) {
+  // Calculate total amount based on days and car price
+  const car = await prisma.car.findUnique({ where: { id: carId } });
+  if (!car) throw new Error("Car not found");
+
+  const days = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 3600 * 24));
+  const totalAmount = car.price * days;
+
+  // Create booking but don't update car status yet since payment is still pending
+  const booking = await prisma.booking.create({
+    data: {
+      startDate,
+      endDate,
+      carId,
+      type,
+      ...("id" in user
+        ? { userId: user.id }
+        : { guestUser: { email: user.email, name: user.name, phoneNumber: user.phoneNumber } }),
+      pickupLocation,
+      returnLocation,
+      specialRequests,
+      totalAmount,
+      paymentIntent,
+      status: BookingStatus.PENDING,
+      paymentStatus: PaymentStatus.UNPAID,
+    },
+    include: {
+      car: { include: { owner: true } },
+      user: true,
+    },
+  });
+
+  return booking;
+}
+
+// Find a booking by its payment intent
+export async function findBookingByPaymentIntent(paymentIntent: string) {
+  return prisma.booking.findFirst({
+    where: { paymentIntent },
+    include: {
+      car: { include: { owner: true, images: true } },
+      user: true,
+    },
+  });
+}
+
+// Activate a booking after successful payment
+export async function activateBooking(bookingId: string, paymentId: string) {
+  return prisma.$transaction(async (transaction) => {
+    // Update the booking
+    const booking = await transaction.booking.update({
+      where: { id: bookingId },
+      data: {
+        status: BookingStatus.CONFIRMED,
+        paymentStatus: PaymentStatus.PAID,
+        paymentId,
+      },
+      include: {
+        car: { include: { owner: true } },
+        user: true,
+        extensions: true,
+      },
+    });
+
+    // Update car status to BOOKED
+    await transaction.car.update({
+      where: { id: booking.carId },
+      data: { status: Status.BOOKED },
+    });
+
+    return booking;
+  });
+}
+
+// Clean up abandoned pending bookings
+export async function cleanupPendingBookings(olderThan: Date) {
+  // Get all pending bookings that are older than the specified date
+  const pendingBookings = await prisma.booking.findMany({
+    where: {
+      status: BookingStatus.PENDING,
+      paymentStatus: PaymentStatus.UNPAID,
+      createdAt: { lt: olderThan },
+    },
+    select: { id: true },
+  });
+
+  // Cancel all found bookings
+  const results = await Promise.all(
+    pendingBookings.map((booking) =>
+      cancelBooking(booking.id, "Payment not completed in the allotted time"),
+    ),
+  );
+
+  return { count: results.length };
+}
 
 export async function confirmBooking({
   startDate,
@@ -49,6 +162,8 @@ export async function confirmBooking({
   specialRequests,
   paymentId,
   type,
+  status = BookingStatus.CONFIRMED,
+  paymentStatus = PaymentStatus.PAID,
 }: CreateBookingParams) {
   // Calculate total amount based on days and car price
   const car = await prisma.car.findUnique({ where: { id: carId } });
@@ -74,8 +189,8 @@ export async function confirmBooking({
         specialRequests,
         totalAmount,
         paymentId,
-        status: "CONFIRMED",
-        paymentStatus: "PAID",
+        status,
+        paymentStatus,
       },
       include: {
         car: { include: { owner: true } },
@@ -86,7 +201,6 @@ export async function confirmBooking({
     // Update car status to BOOKED
     await transaction.car.update({
       where: { id: carId },
-      // TODO: perhaps we should use a different status when boxing is yet to be confirmed
       data: { status: "BOOKED" },
     });
 
@@ -156,27 +270,23 @@ export async function getMonthToDateBookingsValue(fleetOwnerId: string) {
 }
 
 export async function getUserBookings(email: string, isGuest = false) {
-  const where = isGuest
-    ? {
-        // JSON “path” filter: look inside the JSON at key "email"
-        guestUser: {
-          path: ["email"],
-          // equals only the string value at that path
-          equals: email,
-        },
-      }
-    : {
-        // regular relation filter
-        user: {
-          email: email,
-        },
-      };
+  const where: Prisma.BookingWhereInput = {
+    paymentStatus: PaymentStatus.PAID,
+    ...(isGuest
+      ? {
+          guestUser: { path: ["email"], equals: email },
+        }
+      : {
+          user: { email },
+        }),
+  };
 
   return prisma.booking.findMany({
     where,
     include: {
       car: { include: { images: true } },
       chauffeur: true,
+      extensions: true,
     },
     orderBy: { createdAt: "desc" },
   });
@@ -281,6 +391,7 @@ export async function updateBookingsFromConfirmedToActive() {
     const bookingsToUpdate = await prisma.booking.findMany({
       where: {
         status: BookingStatus.CONFIRMED,
+        paymentStatus: PaymentStatus.PAID,
         chauffeurId: { not: null },
         // startDate: new Date(), will this work
         startDate: {
@@ -334,6 +445,7 @@ export async function updateBookingsFromActiveToCompleted() {
     const bookingsToUpdate = await prisma.booking.findMany({
       where: {
         status: BookingStatus.ACTIVE,
+        paymentStatus: PaymentStatus.PAID,
         // startDate: new Date(), will this work
         endDate: {
           gte: new Date(new Date().setMinutes(0, 0, 0)),
@@ -398,6 +510,7 @@ export async function sendBookingStartReminderEmails() {
     const activeBookingsToday = await prisma.booking.findMany({
       where: {
         status: BookingStatus.CONFIRMED,
+        paymentStatus: PaymentStatus.PAID,
         // Prisma requires Date objects or compatible date strings.
         // startOfDay/endOfDay return Date objects.
         startDate: {
@@ -521,6 +634,7 @@ export async function sendBookingEndReminderEmails() {
     const potentiallyEndingBookings = await prisma.booking.findMany({
       where: {
         status: BookingStatus.ACTIVE,
+        paymentStatus: PaymentStatus.PAID,
         car: {
           status: Status.BOOKED,
         },

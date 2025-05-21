@@ -7,7 +7,9 @@ interface UpsertExtension {
   totalAmount: number;
   endDate: Date;
   originalEndDate: Date;
-  paymentId: string;
+  paymentId?: string;
+  paymentIntent?: string;
+  status?: string;
   day: Date; // The specific day being extended
   extensionId?: string;
 }
@@ -19,8 +21,10 @@ export async function upsertExtension({
   endDate,
   originalEndDate,
   paymentId,
+  paymentIntent,
   hours,
   day,
+  status = "PENDING",
   extensionId = "",
 }: UpsertExtension) {
   return prisma.extension.upsert({
@@ -34,32 +38,79 @@ export async function upsertExtension({
       totalAmount,
       hours,
       paymentId,
-      paymentStatus: PaymentStatus.PAID,
+      paymentIntent,
+      status,
+      paymentStatus: paymentId ? PaymentStatus.PAID : PaymentStatus.UNPAID,
     },
     update: {
       hours: { increment: hours },
       totalAmount: { increment: totalAmount },
       endDate,
       paymentId,
+      paymentIntent,
+      status,
+      paymentStatus: paymentId ? PaymentStatus.PAID : PaymentStatus.UNPAID,
     },
   });
 }
 
-// export async function updateExtensionPayment(
-//   extensionId: string,
-//   paymentId: string,
-//   status: PaymentStatus,
-// ) {
-//   return prisma.extension.update({
-//     where: { id: extensionId },
-//     data: {
-//       paymentStatus: status,
-//       paymentId,
-//       paidAt: status === PaymentStatus.PAID ? new Date() : null,
-//       status: status === PaymentStatus.PAID ? "approved" : "pending",
-//     },
-//   });
-// }
+// Create a pending extension with payment intent
+export async function createPendingExtension({
+  bookingId,
+  hours,
+  totalAmount,
+  endDate,
+  originalEndDate,
+  paymentIntent,
+  day,
+}: Omit<UpsertExtension, "paymentId" | "status" | "extensionId"> & { paymentIntent: string }) {
+  return prisma.extension.create({
+    data: {
+      bookingId,
+      day,
+      startDate: new Date(),
+      endDate,
+      originalEndDate,
+      totalAmount,
+      hours,
+      paymentIntent,
+      status: "PENDING",
+      paymentStatus: PaymentStatus.UNPAID,
+    },
+  });
+}
+
+// Activate an extension after payment is confirmed
+export async function activateExtension(extensionId: string, paymentId: string) {
+  return prisma.extension.update({
+    where: { id: extensionId },
+    data: {
+      paymentId,
+      status: "ACTIVE",
+      paymentStatus: PaymentStatus.PAID,
+    },
+  });
+}
+
+// Find an extension by payment intent
+export async function findExtensionByPaymentIntent(paymentIntent: string) {
+  return prisma.extension.findFirst({
+    where: { paymentIntent },
+    include: { booking: { include: { car: true, user: true } } },
+  });
+}
+
+// Find a pending extension
+export async function findPendingExtension(bookingId: string, day: Date) {
+  return prisma.extension.findFirst({
+    where: {
+      bookingId,
+      day,
+      status: "PENDING",
+    },
+    include: { booking: { include: { car: true, user: true } } },
+  });
+}
 
 export async function getExtension(extensionId: string) {
   return prisma.extension.findUnique({
@@ -85,4 +136,17 @@ export async function hasExtensionForDay(bookingId: string, day: Date) {
     },
   });
   return extension !== null;
+}
+
+// Clean up abandoned pending extensions
+export async function cleanupPendingExtensions(olderThan: Date) {
+  return prisma.extension.updateMany({
+    where: {
+      status: "PENDING",
+      createdAt: { lt: olderThan },
+    },
+    data: {
+      status: "CANCELLED",
+    },
+  });
 }
