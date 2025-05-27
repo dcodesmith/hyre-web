@@ -10,8 +10,10 @@ import { ToggleGroup, ToggleGroupItem } from "~/components/ui/toggle-group";
 import logger from "~/lib/logger.server";
 import { formatDate } from "~/lib/utils";
 import { prisma } from "~/modules/db/db.server";
+import { Prisma, BookingStatus, PaymentStatus } from "@prisma/client";
 import { getMonthToDateBookingsValue } from "~/services/bookings.server";
 import { requireUserWithRole } from "~/utils/permissions.server";
+import { startOfDay, endOfDay, subDays } from "date-fns";
 
 type TimeRange = "week" | "month" | "year";
 
@@ -103,7 +105,13 @@ export async function loader({ request }: LoaderFunctionArgs) {
       where: {
         fleetOwnerId: fleetOwner.id,
         roles: { some: { name: "chauffeur" } },
-        bookingsAsChauffeur: { none: { status: "ACTIVE" } },
+        bookingsAsChauffeur: {
+          none: {
+            status: {
+              in: ["ACTIVE", "CONFIRMED"],
+            },
+          },
+        },
       },
     }),
   ]);
@@ -140,258 +148,94 @@ export async function loader({ request }: LoaderFunctionArgs) {
     },
   });
 
-  const dailyRevenue = await Promise.all(
+  // const oni = startOfDay(new Date()); // Today at 00:00:00
+
+  const todayUtcYear = today.getUTCFullYear(); // Native Date method
+  const todayUtcMonth = today.getUTCMonth(); // Native Date method (0-indexed)
+  const todayUtcDay = today.getUTCDate(); // Native Date method
+
+  // Construct start and end of "today" in UTC
+  const startOfToday = new Date(Date.UTC(todayUtcYear, todayUtcMonth, todayUtcDay, 0, 0, 0, 0));
+  const endOfToday = new Date(Date.UTC(todayUtcYear, todayUtcMonth, todayUtcDay, 23, 59, 59, 999));
+
+  const dailyRev = await Promise.all(
     Array.from({ length: 30 }, async (_, index) => {
-      const date = new Date(last30Days);
-      date.setDate(last30Days.getDate() + index);
+      const date = subDays(startOfToday, index); // Use subDays for clear subtraction
 
-      // const day = date.getDate().toString();
-
-      // const dayBookings = monthlyBookings.filter(
-      //   (booking) => new Date(booking.startDate).getDate().toString() === day,
-      // );
-
-      // const revenue = dayBookings.reduce((sum, booking) => sum + Number(booking.totalAmount), 0);
-
-      const revenue = await getTodaysRevenueWithExtensions(fleetOwner.id, date);
+      const revenue = await getTodaysLegsTotalPrice(fleetOwner.id, date);
       return { date, revenue };
     }),
   );
 
-  logger.info(`dailyRevenue: ${JSON.stringify(dailyRevenue, null, 2)}`);
+  // TODO
+  // const legs = await prisma.bookingLeg.findMany({
+  //   where: { legDate: { gte: subDays(startOfToday, 29), lte: endOfToday } },
+  //   select: { legDate: true, totalDailyPrice: true },
+  // });
 
-  const startOfDay = new Date(today.setHours(0, 0, 0, 0));
-  const endOfDay = new Date(today.setHours(23, 59, 59, 999));
+  // const revenueByDay = Array.from({ length: 30 }, (_, i) => {
+  //   const date = subDays(startOfToday, i);
+  //   const key = date.toISOString().slice(0, 10); // YYYY-MM-DD
+  //   const daySum = legs
+  //     .filter((l) => l.legDate.toISOString().startsWith(key))
+  //     .reduce((acc, l) => acc.add(l.totalDailyPrice), new Decimal(0));
+  //   return { date, revenue: daySum };
+  // }).reverse();
 
-  /**
-   * Calculates the number of calendar days a booking spans, considering partial days as full days.
-   * Uses UTC dates for calculation to ensure consistency.
-   * @param startDate The start date of the booking.
-   * @param endDate The end date of the booking.
-   * @returns The number of calendar days spanned. Returns 0 if endDate is effectively before startDate.
-   */
-  function countCalendarDaysSpanned(startDate: Date, endDate: Date): number {
-    const start = new Date(startDate); // Ensure working with Date objects
-    const end = new Date(endDate); // Ensure working with Date objects
+  const dailyRevenue = dailyRev.slice().reverse();
 
-    const startDayUtc = new Date(
-      Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate()),
-    );
-    const endDayUtc = new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth(), end.getUTCDate()));
+  logger.info(`Daily revenue: ${JSON.stringify(dailyRevenue, null, 2)}`);
+  // logger.info(`Revenue by day: ${JSON.stringify(revenueByDay, null, 2)}`);
 
-    if (endDayUtc < startDayUtc) {
-      return 0;
-    }
-
-    let count = 0;
-    const currentDate = new Date(startDayUtc);
-    while (currentDate.getTime() <= endDayUtc.getTime()) {
-      count++;
-      currentDate.setUTCDate(currentDate.getUTCDate() + 1);
-    }
-    return count;
-  }
-
-  /**
-   * Calculates the prorated revenue for the current day ("today") from relevant bookings.
-   * "Today" is determined by the system's current date and time when the function is called.
-   * @param fleetOwnerIdInput Optional. If provided, revenue is calculated only for this fleet owner.
-   * @returns A Promise resolving to a Decimal representing today's total prorated revenue.
-   */
-  // async function getTodaysProratedRevenue(
-  //   fleetOwnerIdInput?: string,
-  //   today: Date = new Date(),
-  // ): Promise<Decimal> {
-  //   // Determine "today" based on the current system time
-  //   const now = today; // This is May 11, 2025, based on the current context.
-
-  //   // Extract UTC date components to define "today" consistently
-  //   const year = now.getUTCFullYear();
-  //   const month = now.getUTCMonth(); // JavaScript months are 0-indexed (e.g., 4 for May)
-  //   const day = now.getUTCDate();
-
-  //   // Define the start and end of "today" in UTC
-  //   const startOfToday = new Date(Date.UTC(year, month, day, 0, 0, 0, 0));
-  //   const endOfToday = new Date(Date.UTC(year, month, day, 23, 59, 59, 999));
-
-  //   const whereClause: any = {
-  //     status: {
-  //       in: ["ACTIVE", "CONFIRMED", "COMPLETED"],
-  //     },
-  //     startDate: {
-  //       lte: endOfToday,
-  //     },
-  //     endDate: {
-  //       gte: startOfToday,
-  //     },
-  //     totalAmount: {
-  //       gt: 0,
-  //     },
-  //   };
-
-  //   if (fleetOwnerIdInput) {
-  //     whereClause.car = { ownerId: fleetOwnerIdInput };
-  //   }
-
-  //   const relevantBookings = await prisma.booking.findMany({
-  //     where: whereClause,
-  //     select: {
-  //       id: true,
-  //       startDate: true,
-  //       endDate: true,
-  //       totalAmount: true,
-  //     },
-  //   });
-
-  //   let totalTodaysRevenue = new Decimal(0);
-
-  //   for (const booking of relevantBookings) {
-  //     const bookingStartDate = new Date(booking.startDate);
-  //     const bookingEndDate = new Date(booking.endDate);
-  //     const bookingTotalAmount = new Decimal(booking.totalAmount.toString());
-  //     if (bookingEndDate < bookingStartDate) {
-  //       console.warn(`Booking ${booking.id} has an end date before its start date. Skipping.`);
-  //       continue;
-  //     }
-
-  //     const numBookingDays = countCalendarDaysSpanned(bookingStartDate, bookingEndDate);
-
-  //     if (numBookingDays <= 0) {
-  //       console.warn(
-  //         `Booking ${booking.id} resulted in ${numBookingDays} booking days. ` +
-  //           `Dates: ${bookingStartDate.toISOString()} to ${bookingEndDate.toISOString()}. Skipping proration.`,
-  //       );
-  //       continue;
-  //     }
-
-  //     const averageDailyRevenue = bookingTotalAmount.div(new Decimal(numBookingDays));
-
-  //     console.log("bookingTotalAmount", numBookingDays, averageDailyRevenue, bookingTotalAmount);
-
-  //     totalTodaysRevenue = totalTodaysRevenue.add(averageDailyRevenue);
-  //   }
-
-  //   return totalTodaysRevenue;
-  // }
-
-  // const allRevenueToday = await getTodaysProratedRevenue();
-
-  // console.log("allRevenueToday", allRevenueToday);
-
-  /**
-   * Calculates the prorated revenue for the current day ("today"),
-   * factoring in both base booking amounts and any paid extension amounts for today.
-   * "Today" is determined by the system's current date and time (e.g., May 11, 2025).
-   * @param fleetOwnerIdInput Optional. If provided, revenue is calculated only for this fleet owner.
-   * @returns A Promise resolving to a Decimal representing today's total prorated revenue.
-   */
-  async function getTodaysRevenueWithExtensions(
+  async function getTodaysLegsTotalPrice(
     fleetOwnerIdInput?: string,
-    today: Date = new Date(),
+    dateInput: Date = new Date(),
   ): Promise<Decimal> {
-    const now = today; // Current system time. For this context: Sunday, May 11, 2025.
+    const todayUtcYear = dateInput.getUTCFullYear(); // Native Date method
+    const todayUtcMonth = dateInput.getUTCMonth(); // Native Date method (0-indexed)
+    const todayUtcDay = dateInput.getUTCDate(); // Native Date method
 
-    // Define "today" using UTC components for consistency
-    const year = now.getUTCFullYear();
-    const month = now.getUTCMonth(); // 0-indexed (e.g., 4 for May)
-    const day = now.getUTCDate();
+    // Construct start and end of "today" in UTC
+    const start = new Date(Date.UTC(todayUtcYear, todayUtcMonth, todayUtcDay, 0, 0, 0, 0));
+    const end = new Date(Date.UTC(todayUtcYear, todayUtcMonth, todayUtcDay, 23, 59, 59, 999));
 
-    const startOfToday = new Date(Date.UTC(year, month, day, 0, 0, 0, 0));
-    const endOfToday = new Date(Date.UTC(year, month, day, 23, 59, 59, 999));
+    let totalLegsPriceForToday = new Decimal(0);
 
-    let totalRevenueForToday = new Decimal(0);
-
-    // --- 1. Calculate revenue from base bookings prorated for today ---
-    const bookingWhereClause: any = {
-      status: {
-        // Consider bookings that are confirmed, active, or completed for revenue from the main booking amount
-        in: ["ACTIVE", "CONFIRMED", "COMPLETED"],
-      },
-      startDate: { lte: endOfToday }, // Booking overlaps with today
-      endDate: { gte: startOfToday },
-      chauffeurId: { not: null }, // Ensure the booking has a chauffeur assigned
-      totalAmount: { gt: 0 }, // Consider only bookings with a positive amount
+    const bookingWhereClause: Prisma.BookingWhereInput = {
+      status: BookingStatus.ACTIVE,
+      paymentStatus: PaymentStatus.PAID,
+      chauffeurId: { not: null },
     };
 
     if (fleetOwnerIdInput) {
-      bookingWhereClause.car = { ownerId: fleetOwnerIdInput };
-    }
-
-    const relevantBookings = await prisma.booking.findMany({
-      where: bookingWhereClause,
-      select: {
-        id: true,
-        startDate: true,
-        endDate: true,
-        totalAmount: true, // Prisma.Decimal
-      },
-    });
-
-    for (const booking of relevantBookings) {
-      const bookingStartDate = new Date(booking.startDate);
-      const bookingEndDate = new Date(booking.endDate);
-      const bookingTotalAmount = new Decimal(booking.totalAmount.toString());
-
-      if (bookingEndDate < bookingStartDate) {
-        console.warn(
-          `Booking ${booking.id} has end date before start. Skipping for base proration.`,
-        );
-        continue;
-      }
-
-      const numBookingDays = countCalendarDaysSpanned(bookingStartDate, bookingEndDate);
-
-      if (numBookingDays <= 0) {
-        // This should ideally not happen if booking dates are valid & countCalendarDaysSpanned is correct
-        console.warn(
-          `Booking ${booking.id} resulted in ${numBookingDays} booking days. ` +
-            `Dates: ${bookingStartDate.toISOString()} to ${bookingEndDate.toISOString()}. Skipping for base proration.`,
-        );
-        continue;
-      }
-
-      const averageDailyRevenueFromBooking = bookingTotalAmount.div(new Decimal(numBookingDays));
-      totalRevenueForToday = totalRevenueForToday.add(averageDailyRevenueFromBooking);
-    }
-
-    // --- 2. Add revenue from PAID extensions specifically for today ---
-    const extensionWhereClause: any = {
-      // The Extension.day field should identify the calendar day the extension applies to.
-      day: {
-        gte: startOfToday,
-        lte: endOfToday,
-      },
-      paymentStatus: "PAID", // Filter by PAID payment status for extensions
-      totalAmount: { gt: 0 }, // Consider only extensions with a positive amount
-    };
-
-    if (fleetOwnerIdInput) {
-      // Filter extensions based on the owner of the car in the parent booking
-      extensionWhereClause.booking = {
-        car: { ownerId: fleetOwnerIdInput },
+      bookingWhereClause.car = {
+        ownerId: fleetOwnerIdInput,
       };
     }
 
-    const relevantExtensions = await prisma.extension.findMany({
-      where: extensionWhereClause,
+    const bookingLegWhereClause: Prisma.BookingLegWhereInput = {
+      legDate: { gte: start, lte: end },
+      booking: bookingWhereClause,
+      totalDailyPrice: { gt: 0 },
+    };
+
+    const relevantBookingLegs = await prisma.bookingLeg.findMany({
+      where: bookingLegWhereClause,
       select: {
-        totalAmount: true, // Prisma.Decimal
-        bookingId: true, // For logging or more complex logic if needed
+        totalDailyPrice: true,
+        extensions: true,
       },
     });
 
-    for (const extension of relevantExtensions) {
-      // console.log("extension", extension.bookingId, extension.totalAmount);
-      const extensionAmount = new Decimal(extension.totalAmount.toString());
-      totalRevenueForToday = totalRevenueForToday.add(extensionAmount);
+    for (const leg of relevantBookingLegs) {
+      const legPrice = new Decimal(leg.totalDailyPrice.toString());
+      totalLegsPriceForToday = totalLegsPriceForToday.add(legPrice);
     }
 
-    return totalRevenueForToday;
+    return totalLegsPriceForToday;
   }
 
-  const ownerRevenueToday = await getTodaysRevenueWithExtensions(fleetOwner.id);
-
-  // console.log("ownerRevenueToday", ownerRevenueToday);
+  const ownerRevenueToday = await getTodaysLegsTotalPrice(fleetOwner.id);
 
   // Get today's stats
   const todayStats = await prisma.$transaction([
@@ -401,8 +245,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
         status: "ACTIVE",
         car: { ownerId: fleetOwner.id },
         startDate: {
-          gte: startOfDay,
-          lte: endOfDay,
+          gte: startOfToday,
+          lte: endOfToday,
         },
       },
     }),
@@ -412,8 +256,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
         status: "COMPLETED",
         car: { ownerId: fleetOwner.id },
         startDate: {
-          gte: startOfDay,
-          lte: endOfDay,
+          gte: startOfToday,
+          lte: endOfToday,
         },
       },
     }),
@@ -423,8 +267,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
         status: "CANCELLED",
         car: { ownerId: fleetOwner.id },
         startDate: {
-          gte: startOfDay,
-          lte: endOfDay,
+          gte: startOfToday,
+          lte: endOfToday,
         },
       },
     }),
@@ -434,8 +278,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
         status: "CONFIRMED",
         car: { ownerId: fleetOwner.id },
         startDate: {
-          gte: startOfDay,
-          lte: endOfDay,
+          gte: startOfToday,
+          lte: endOfToday,
         },
       },
     }),
@@ -444,8 +288,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
       where: {
         car: { ownerId: fleetOwner.id },
         endDate: {
-          gte: startOfDay,
-          lte: endOfDay,
+          gte: startOfToday,
+          lte: endOfToday,
         },
         status: {
           in: ["ACTIVE", "CONFIRMED", "COMPLETED"],
@@ -738,7 +582,10 @@ export default function FleetOwnerDashboard() {
 
   return (
     <div className="space-y-6 sm:p-4">
-      <WelcomeMessage name={fleetOwnerName} stats={todayStats} />
+      <WelcomeMessage
+        name={fleetOwnerName || "Fleet Owner"}
+        stats={{ ...todayStats, projectedRevenue: Number(todayStats.projectedRevenue) }}
+      />
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <StatsCard
@@ -834,7 +681,11 @@ export default function FleetOwnerDashboard() {
           </ToggleGroup>
         </div>
         <RevenueChart
-          data={dailyRevenue.map((item) => ({ ...item, date: new Date(item.date) }))}
+          data={dailyRevenue.map((item) => ({
+            ...item,
+            date: new Date(item.date),
+            revenue: Number(item.revenue),
+          }))}
           timeRange={timeRange}
         />
       </div>

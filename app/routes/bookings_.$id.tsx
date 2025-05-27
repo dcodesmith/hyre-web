@@ -1,8 +1,10 @@
+import type { Prisma, User } from "@prisma/client";
 import { ActionFunctionArgs, LoaderFunctionArgs, json } from "@remix-run/node";
-import { Form, useActionData, useLoaderData, Link, useSearchParams } from "@remix-run/react";
+import { Form, Link, useActionData, useLoaderData, useSearchParams } from "@remix-run/react";
+import { format, isToday } from "date-fns";
 import { useEffect, useState } from "react";
 import invariant from "tiny-invariant";
-import type { User, Booking as PrismaBooking, Prisma } from "@prisma/client";
+import { AutocompleteAddress } from "~/components/AutocompleteAddress";
 import { BookingTimeSelect } from "~/components/BookingTimeSelect";
 import { Button } from "~/components/ui/button";
 import { Checkbox } from "~/components/ui/checkbox";
@@ -15,23 +17,16 @@ import {
   DialogTrigger,
 } from "~/components/ui/dialog";
 import { Label } from "~/components/ui/label";
-import {
-  formatCurrency,
-  isBookingEditable,
-  isBookingExtendable,
-  getMaxHoursExtendable,
-} from "~/lib/utils";
+import logger from "~/lib/logger.server";
+import { formatCurrency, getLegExtendableDuration, isBookingEditable } from "~/lib/utils";
 import { getSessionUser, requireUser } from "~/modules/auth/auth.server";
 import { prisma } from "~/modules/db/db.server";
 import { sendEmail } from "~/modules/email/email.server";
 import {
-  renderUserBookingCancellationEmail,
   renderFleetOwnerBookingCancellationEmail,
+  renderUserBookingCancellationEmail,
 } from "~/modules/email/templates/booking-notification";
 import { cancelBooking, getBooking } from "~/services/bookings.server";
-import { AutocompleteAddress } from "~/components/AutocompleteAddress";
-import { format } from "date-fns";
-import logger from "~/lib/logger.server";
 
 export async function action({ request, params }: ActionFunctionArgs) {
   invariant(params.id, "Booking ID is required");
@@ -252,6 +247,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   const bookingId = params.id;
 
   let sessionUserFromLoader: User | null = null;
+
   if (!guestEmail) {
     sessionUserFromLoader = await getSessionUser(request);
   }
@@ -261,16 +257,19 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     include: {
       car: true,
       user: true,
-      extensions: {
-        where: {
-          paymentStatus: "PAID",
+      chauffeur: true,
+      legs: {
+        orderBy: { legDate: "asc" },
+        include: {
+          extensions: {
+            where: { status: "ACTIVE", paymentStatus: "PAID" },
+          },
         },
       },
-      chauffeur: true,
     },
   });
 
-  if (!booking || !booking.car) {
+  if (!booking) {
     throw new Response("Booking not found", { status: 404 });
   }
 
@@ -310,6 +309,7 @@ export default function BookingDetails() {
   const [showDropoffFields, setShowDropoffFields] = useState(
     booking.pickupLocation !== booking.returnLocation,
   );
+
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const actionData = useActionData<typeof action>();
   const [searchParams] = useSearchParams();
@@ -397,34 +397,46 @@ export default function BookingDetails() {
             </>
           )}
 
-          {booking.extensions && booking.extensions.length > 0 && (
-            <div className="col-span-2 flex flex-col gap-2">
-              {booking.extensions.map((extension) => (
-                <p key={extension.id} className="font-medium p-4 border-l-4 bg-gray-100">
-                  Your booking for {format(extension.day, "PPPP")} has been extended by{" "}
-                  {extension.hours} {extension.hours === 1 ? "hour" : "hours"} from{" "}
-                  {format(booking.endDate, "p")} to {format(extension.endDate, "p")}
+          {booking.legs.map((leg) => {
+            const extendedDuration = leg.extensions.reduce(
+              (acc, { extendedDurationHours }) => acc + extendedDurationHours,
+              0,
+            );
+
+            if (leg.extensions.length === 0) {
+              return null;
+            }
+
+            return (
+              <div key={leg.id} className={"col-span-2 flex flex-col gap-2"}>
+                <p
+                  className={`font-medium p-4 border-l-4 ${isToday(leg.legDate) ? "bg-green-100 border-green-500" : "bg-gray-100 line-through border-gray-500"}`}
+                >
+                  Your trip for {format(leg.legDate, "EEE, do LLL Y")}{" "}
+                  {isToday(leg.legDate) ? "has been" : "was"} extended by {extendedDuration}{" "}
+                  {extendedDuration === 1 ? "hour" : "hours"} from {format(booking.endDate, "p")} to{" "}
+                  {format(leg.legEndTime, "p")}
                 </p>
-              ))}
-            </div>
-          )}
+              </div>
+            );
+          })}
         </div>
       </div>
 
-      <div className="flex flex-col gap-2 items-center">
-        {isBookingExtendable(booking) && (
+      <div className="flex sm:flex-row flex-col gap-2 items-center justify-center">
+        {getLegExtendableDuration(booking) > 0 && (
           <Link
             to={`/bookings/${booking.id}/extend${guestEmail ? `?email=${guestEmail}` : ""}`}
-            className="w-fit p-2 border rounded text-center"
+            className="p-2 border rounded text-center sm:w-auto w-full"
           >
-            Extend Booking for up to {getMaxHoursExtendable(booking)} hours
+            Extend Booking for up to {getLegExtendableDuration(booking)} hours
           </Link>
         )}
 
         {booking.status === "CONFIRMED" && isBookingEditable(new Date(booking.startDate)) && (
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
-              <Button variant="outline" className="w-full">
+              <Button variant="outline" className="items-center sm:w-auto w-full">
                 Edit Booking
               </Button>
             </DialogTrigger>
@@ -439,7 +451,7 @@ export default function BookingDetails() {
                     : "Edit the pickup time and pickup address"}
                 </DialogDescription>
               </DialogHeader>
-              <Form method="PATCH" className="space-y-4">
+              <Form method="PATCH" className="space-y-4" key={booking.id}>
                 <div className="grid gap-4 py-4">
                   {booking.type === "DAY" && (
                     <div className="space-y-2">
@@ -511,6 +523,12 @@ export default function BookingDetails() {
               </Form>
             </DialogContent>
           </Dialog>
+        )}
+
+        {booking.status === "CONFIRMED" && isBookingEditable(new Date(booking.startDate)) && (
+          <Button variant="destructive" className="sm:w-auto w-full">
+            Cancel Booking
+          </Button>
         )}
       </div>
     </div>

@@ -12,6 +12,7 @@ import {
   getMilliseconds,
   differenceInHours,
   parseISO,
+  endOfDay,
 } from "date-fns";
 import type { User } from "@prisma/client";
 import { type ActionFunctionArgs, type LoaderFunctionArgs, json, redirect } from "@remix-run/node";
@@ -27,17 +28,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "~/components/ui/select";
-import { usePayment } from "~/hooks/usePayment";
-import { formatCurrency } from "~/lib/utils";
+import { formatCurrency, getCustomerDetails } from "~/lib/utils";
 import { requireUserWithRole } from "~/modules/auth/auth.server";
 import { prisma } from "~/modules/db/db.server";
-import { upsertExtension } from "~/services/extensions.server";
 import logger from "~/lib/logger.server";
 import { emailQueue } from "~/queues/email-throttle.server";
 import { sendEmail } from "~/modules/email/email.server";
 import { bookingExtensionConfirmationEmail } from "~/modules/email/templates/booking-notification";
 import { createPaymentIntent } from "~/services/payment.server";
 import crypto from "node:crypto";
+import { Prisma } from "@prisma/client";
+import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
+import { Calendar, Car, Clock, CreditCard } from "lucide-react";
+import { Separator } from "~/components/ui/separator";
+import { Badge } from "~/components/ui/badge";
 
 export async function loader({ params, request }: LoaderFunctionArgs) {
   invariant(params.id, "Booking ID route parameter is required");
@@ -48,17 +52,23 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
   const now = new Date();
   const today = startOfDay(now); // Midnight today
 
-  const booking = await prisma.booking.findUnique({
+  const bookingData = await prisma.booking.findUnique({
     where: { id: params.id, status: "ACTIVE" },
-    include: { car: true, user: true, extensions: true },
+    include: { car: true, user: true, legs: { include: { extensions: true } } },
   });
 
-  if (!booking) {
+  if (!bookingData) {
     throw new Response("Booking not found", { status: 404 });
   }
 
-  const bookingStartDate = parseISO(booking.startDate.toISOString());
-  const bookingEndDate = parseISO(booking.endDate.toISOString());
+  const booking = {
+    ...bookingData,
+    startDate: new Date(bookingData.startDate),
+    endDate: new Date(bookingData.endDate),
+  };
+
+  const overallBookingStartDate = booking.startDate;
+  const overallBookingEndDate = booking.endDate;
 
   // --- User Authentication & Authorization ---
   let user: { email: string; name?: string; phoneNumber?: string } | null | User = null;
@@ -82,187 +92,122 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
     throw new Response("Authentication required or invalid permissions", { status: 401 });
   }
 
-  if (now < bookingStartDate || now >= bookingEndDate) {
+  if (now < overallBookingStartDate || now >= overallBookingEndDate) {
     logger.warn(
-      `Current time ${now.toISOString()} is outside booking period ${bookingStartDate.toISOString()} - ${bookingEndDate.toISOString()}.`,
+      `Current time ${now.toISOString()} is outside overall booking period ${overallBookingStartDate.toISOString()} - ${overallBookingEndDate.toISOString()}.`,
     );
-
     throw new Response("Booking is not within its scheduled start and end dates.", { status: 400 });
   }
-
   logger.info(`Booking ${booking.id} is ACTIVE and within overall time frame.`);
 
-  // --- Calculate Current State for Today, considering existing extensions ---
-  const isMultiDay = !isSameDay(bookingStartDate, bookingEndDate);
+  // --- Calculate Current State for Today, based on Today's Leg and its Extensions ---
+  const todaysLeg = booking.legs.find((leg) =>
+    isSameDay(parseISO(leg.legDate.toISOString()), today),
+  );
 
-  let effectiveOriginalEndTimeToday: Date;
-
-  if (isSameDay(today, bookingEndDate)) {
-    effectiveOriginalEndTimeToday = bookingEndDate;
-  } else {
-    effectiveOriginalEndTimeToday = set(today, {
-      hours: getHours(bookingEndDate),
-      minutes: getMinutes(bookingEndDate),
-      seconds: getSeconds(bookingEndDate),
-      milliseconds: getMilliseconds(bookingEndDate),
-    });
+  if (!todaysLeg) {
+    logger.error(`Loader: No active leg found for booking ${booking.id} on ${today.toISOString()}`);
+    throw new Response("No active booking segment found for today.", { status: 400 });
   }
+  logger.info(`Loader: Today's leg ID: ${todaysLeg.id}, Date: ${todaysLeg.legDate}`);
 
-  const existingExtensionToday = await prisma.extension.findUnique({
-    where: { bookingId_day: { bookingId: booking.id, day: today }, paymentStatus: "PAID" },
-    select: { id: true, endDate: true },
-  });
+  const todaysLegOriginalEndTime = parseISO(todaysLeg.legEndTime.toISOString());
+
+  const latestConfirmedExtensionForTodaysLeg = todaysLeg.extensions
+    .filter(
+      (ext) =>
+        ext.status === "ACTIVE" &&
+        ext.paymentStatus === "PAID" &&
+        ext.extensionEndTime &&
+        isSameDay(parseISO(ext.extensionEndTime.toISOString()), today),
+    )
+    .sort(
+      (a, b) =>
+        parseISO(b.extensionEndTime!.toISOString()).getTime() -
+        parseISO(a.extensionEndTime!.toISOString()).getTime(),
+    )[0];
 
   let currentEndTimeToday: Date;
-  if (existingExtensionToday?.endDate) {
-    currentEndTimeToday = new Date(existingExtensionToday.endDate);
+  if (latestConfirmedExtensionForTodaysLeg?.extensionEndTime) {
+    currentEndTimeToday = parseISO(
+      latestConfirmedExtensionForTodaysLeg.extensionEndTime.toISOString(),
+    );
     logger.info(
-      `Existing extension (ID: ${existingExtensionToday.id}) found for today. Current end time is now ${currentEndTimeToday.toISOString()}.`,
+      `Loader: Confirmed extension (ID: ${latestConfirmedExtensionForTodaysLeg.id}) found for today's leg. Current end time for today is ${currentEndTimeToday.toISOString()}.`,
     );
   } else {
-    currentEndTimeToday = effectiveOriginalEndTimeToday;
+    currentEndTimeToday = todaysLegOriginalEndTime;
     logger.info(
-      `No existing extension for today, or endDate missing on existing. Current end time is original: ${currentEndTimeToday.toISOString()}.`,
+      `Loader: No confirmed extension for today's leg. Current end time for today is leg's original end time: ${currentEndTimeToday.toISOString()}.`,
     );
   }
-  // Since no extension exists yet for today, current end time IS the original end time
-  // const currentEndTimeToday = effectiveOriginalEndTimeToday; // Old logic replaced by above
-  logger.info(
-    `Calculated current end time for today (after considering extensions): ${currentEndTimeToday.toISOString()}`,
-  );
 
   if (now >= currentEndTimeToday) {
     logger.warn(
-      `Current time ${now.toISOString()} is past today's effective end time ${currentEndTimeToday.toISOString()}.`,
+      `Loader: Current time ${now.toISOString()} is past today's effective end time ${currentEndTimeToday.toISOString()}. Booking ID: ${booking.id}`,
     );
-    // Custom message if an extension already existed
-    const message = existingExtensionToday
+    const message = latestConfirmedExtensionForTodaysLeg
       ? "The extended time for today has already ended. Cannot extend further."
       : "The active time for today has already ended. Cannot extend.";
-
     throw new Response(message, { status: 400 });
   }
+  logger.info(
+    `Loader: Booking ${booking.id} is eligible for extension consideration today. Current end: ${currentEndTimeToday.toISOString()}`,
+  );
 
   // --- Calculate Max Extension Limit for Today (maxEndToday) ---
-  let maxEndToday: Date;
-
-  const nextSeparateBooking = await prisma.booking.findFirst({
-    where: {
-      id: { not: booking.id },
-      carId: booking.carId,
-      startDate: { gt: currentEndTimeToday },
-      status: { in: ["CONFIRMED", "ACTIVE"] },
-      // paymentStatus: "PAID",
-    },
-    orderBy: { startDate: "asc" },
-  });
-
-  const nextBookingStartTime = nextSeparateBooking ? new Date(nextSeparateBooking.startDate) : null;
   const hardLimit = startOfDay(addDays(today, 1)); // Midnight next day
+  logger.info(`Loader: Hard limit for extension (midnight next day): ${hardLimit.toISOString()}`);
 
-  logger.info(`Hard limit for extension: ${hardLimit.toISOString()}`);
-
-  if (nextBookingStartTime) {
-    logger.info(`Next separate booking starts: ${nextBookingStartTime.toISOString()}`);
-  }
-
-  // *** SCOPE FIX: Declare effectiveStartTimeNextDay with wider scope ***
-  let effectiveStartTimeNextDay: Date | null = null;
-  let nextSegmentStart: Date; // Will hold the actual start constraint for next segment
-
-  if (!isMultiDay || isSameDay(today, bookingEndDate)) {
-    // Case 1: Single-Day or Last Day
-    const potentialLimits = [hardLimit];
-    if (nextBookingStartTime) potentialLimits.push(nextBookingStartTime);
-    maxEndToday = min(potentialLimits);
-    logger.info(
-      `Type: Single/Last Day. Max end determined by: ${maxEndToday === hardLimit ? "Hard Limit" : "Next Booking"}`,
-    );
-    nextSegmentStart = bookingEndDate; // Set for consistency, though not used as limit here
-  } else {
-    // Case 2: Multi-Day Intermediate Day
-    const startOfNextBookingDay = addDays(today, 1);
-    // Fix time zone issue by ensuring consistent parsing
-    effectiveStartTimeNextDay = set(startOfNextBookingDay, {
-      hours: getHours(bookingStartDate),
-      minutes: getMinutes(bookingStartDate),
-      seconds: 0,
-      milliseconds: 0,
-    });
-    // Calculate the actual start of the next segment (could be final end date)
-    nextSegmentStart = min([effectiveStartTimeNextDay, bookingEndDate]);
-    logger.info(`Next segment of this booking starts: ${nextSegmentStart.toISOString()}`);
-
-    // Use nextSegmentStart as the limit from this booking
-    const potentialLimits = [nextSegmentStart, hardLimit];
-    if (nextBookingStartTime) potentialLimits.push(nextBookingStartTime);
-    maxEndToday = min(potentialLimits);
-    logger.info(
-      `Type: Multi-Day Intermediate. Max end determined by earliest of: Next Segment (${nextSegmentStart.toISOString()}), Hard Limit (${hardLimit.toISOString()}), Next Booking (${nextBookingStartTime?.toISOString() ?? "N/A"})`,
-    );
-  }
-  logger.info(`Calculated max end time for today: ${maxEndToday.toISOString()}`);
+  // Max end for today is now strictly midnight.
+  const maxEndToday = hardLimit;
+  logger.info(
+    `Loader: Max end for today for booking ${booking.id} is set to midnight: ${maxEndToday.toISOString()}`,
+  );
 
   // --- Calculate max hours ---
-  // Use differenceInHours for cleaner calculation of full hours
   const maxHours = differenceInHours(maxEndToday, currentEndTimeToday);
-  // Ensure maxHours is not negative if calculation resulted in past time somehow
   const validMaxHours = maxHours > 0 ? maxHours : 0;
-  logger.info(`Calculated max extension hours: ${validMaxHours}`);
+  logger.info(
+    `Loader: Calculated max extension hours for booking ${booking.id}: ${validMaxHours} (MaxEnd: ${maxEndToday.toISOString()}, CurrentEnd: ${currentEndTimeToday.toISOString()})`,
+  );
 
-  // Check uses the result (validMaxHours)
   if (validMaxHours < 1) {
-    // let reason = "The maximum extension limit for today has been reached."; // Old base
     let reasonDetail = "";
-    // --- FIX: Check against nextSegmentStart and add null check for effectiveStartTimeNextDay ---
-    // Determine the most restrictive limit that defined maxEndToday
-    if (nextBookingStartTime && maxEndToday.getTime() === nextBookingStartTime.getTime()) {
-      reasonDetail = `Another booking starts at ${format(nextBookingStartTime, "p")}.`;
-    } else if (
-      isMultiDay &&
-      !isSameDay(today, bookingEndDate) &&
-      effectiveStartTimeNextDay && // Ensure this is defined for multi-day intermediate
-      maxEndToday.getTime() === nextSegmentStart.getTime()
-    ) {
-      reasonDetail = `The next segment of your booking starts at ${format(nextSegmentStart, "p")}.`;
-    } else if (maxEndToday.getTime() === hardLimit.getTime()) {
-      reasonDetail = "The daily extension limit (midnight) has been reached.";
-    } else if (maxEndToday < currentEndTimeToday) {
-      reasonDetail = "The calculated extension window is in the past.";
+    // Since maxEndToday is now always hardLimit (midnight)
+    if (currentEndTimeToday >= hardLimit) {
+      reasonDetail = "The current end time for today is already at or past midnight.";
     } else {
-      // This covers cases where currentEndTimeToday is too close to maxEndToday for a full hour,
-      // or maxEndToday is slightly ahead but not enough.
-      reasonDetail = "The remaining time is less than a full hour.";
+      // This implies currentEndTimeToday is close to midnight.
+      reasonDetail =
+        "The daily extension limit (midnight) is too close to allow a full one-hour extension, or has been reached.";
     }
 
-    const baseMessage = existingExtensionToday
+    const baseMessage = latestConfirmedExtensionForTodaysLeg
       ? "No further extension is possible today."
       : "Extension is not possible today.";
     const fullMessage = `${baseMessage} ${reasonDetail}`;
 
     logger.warn(
-      `Max hours < 1. Current end: ${currentEndTimeToday.toISOString()}, Max end: ${maxEndToday.toISOString()}. Reason: ${fullMessage}`,
+      `Loader: Max hours < 1 for booking ${booking.id}. Current end: ${currentEndTimeToday.toISOString()}, Max end: ${maxEndToday.toISOString()}. Reason: ${fullMessage}`,
     );
     throw new Response(fullMessage, { status: 400 });
   }
 
   // --- Return Data ---
-  logger.info(`Loader finished successfully. Max hours: ${maxHours}`);
+  logger.info(
+    `Loader finished successfully for booking ${booking.id}. Max hours: ${validMaxHours}`,
+  );
   return json({
     booking: {
       ...booking,
-      currentEndDateDisplay: format(currentEndTimeToday, "PPPp"),
+      currentEndDateDisplay: format(currentEndTimeToday, "LLL do p"),
       user,
     },
     maxHours: validMaxHours,
   });
 }
 
-// --- ACTION ---
-/**
- * Handles the form submission to create an extension with pending payment.
- * Creates a pending extension and redirects to Flutterwave checkout.
- */
 export async function action({ request, params }: ActionFunctionArgs) {
   invariant(params.id, "Booking ID route parameter is required");
   logger.info(`Starting action for booking ID: ${params.id}`);
@@ -270,229 +215,107 @@ export async function action({ request, params }: ActionFunctionArgs) {
   const formData = await request.formData();
   const hours = Number(formData.get("hours"));
 
-  // --- Input Validation ---
   if (!hours || hours < 1 || !Number.isInteger(hours)) {
     logger.error(`Invalid hours value: ${hours}`);
     return json({ error: "Please select a valid number of hours." }, { status: 400 });
   }
-  logger.debug(`Inputs - Hours: ${hours}`);
 
-  // --- Recalculate Booking State & Validate Request ---
   const now = new Date();
-  const today = startOfDay(now);
-
-  const booking = await prisma.booking.findUnique({
-    where: { id: params.id },
-    include: { car: true, user: true, extensions: true },
-  });
-
-  if (!booking || !booking.startDate || !booking.endDate || !booking.car) {
-    // Ensure car is loaded
-    logger.error(`Booking not found or invalid (or car missing): ${params.id}`);
-    return json({ error: "Booking not found or invalid" }, { status: 404 });
-  }
-
-  // Re-check authorization if needed (assuming loader handled initial auth)
-  // ...
-
-  // --- Determine Current End Time for Today (accounting for existing extensions) ---
-  const bookingStartDate = parseISO(booking.startDate.toISOString());
-  const bookingEndDate = parseISO(booking.endDate.toISOString());
-
-  let effectiveOriginalEndTimeToday: Date;
-  if (isSameDay(today, bookingEndDate)) {
-    effectiveOriginalEndTimeToday = bookingEndDate;
-  } else {
-    effectiveOriginalEndTimeToday = set(today, {
-      hours: getHours(bookingEndDate),
-      minutes: getMinutes(bookingEndDate),
-      seconds: getSeconds(bookingEndDate),
-      milliseconds: getMilliseconds(bookingEndDate),
-    });
-  }
-
-  const existingExtensionForToday = await prisma.extension.findUnique({
-    where: { bookingId_day: { bookingId: booking.id, day: today } },
-    select: { id: true, endDate: true, hours: true }, // Select necessary fields
-  });
-
-  const currentEndTimeTodayForActionBase = existingExtensionForToday?.endDate
-    ? parseISO(existingExtensionForToday.endDate.toISOString()) // Ensure it's a Date object and consistent parsing
-    : effectiveOriginalEndTimeToday;
-
-  // --- Re-check Eligibility (status and time) ---
-  if (booking.status !== "ACTIVE" || now >= currentEndTimeTodayForActionBase) {
-    logger.warn(
-      `Eligibility check failed (action): Status ${booking.status}, Now ${now.toISOString()}, Today's Effective End ${currentEndTimeTodayForActionBase.toISOString()}`,
-    );
-    const message =
-      now >= currentEndTimeTodayForActionBase
-        ? "The allowed time for extension today has already passed."
-        : "Booking is no longer eligible for extension.";
-    return json({ error: message }, { status: 400 });
-  }
-  logger.info(
-    `Booking ${booking.id} is eligible. Current effective end for today: ${currentEndTimeTodayForActionBase.toISOString()}`,
-  );
-
-  // --- Recalculate maxHours for validation (based on currentEndTimeTodayForActionBase) ---
-  const isMultiDay = !isSameDay(bookingStartDate, bookingEndDate);
-  const nextSeparateBooking = await prisma.booking.findFirst({
-    where: {
-      id: { not: booking.id },
-      carId: booking.carId,
-      startDate: { gt: currentEndTimeTodayForActionBase }, // Use the true current end time
-      status: { in: ["CONFIRMED", "ACTIVE"] },
-    },
-    orderBy: { startDate: "asc" },
-  });
-  const nextBookingStartTime = nextSeparateBooking
-    ? parseISO(nextSeparateBooking.startDate.toISOString())
-    : null;
-  const hardLimit = startOfDay(addDays(today, 1));
-  let maxEndToday: Date;
-  let effectiveStartTimeNextDay: Date | null = null;
-  let nextSegmentStart: Date;
-
-  if (!isMultiDay || isSameDay(today, bookingEndDate)) {
-    const potentialLimits = [hardLimit];
-    if (nextBookingStartTime) potentialLimits.push(nextBookingStartTime);
-    maxEndToday = min(potentialLimits);
-    nextSegmentStart = bookingEndDate;
-  } else {
-    const startOfNextBookingDay = addDays(today, 1);
-    effectiveStartTimeNextDay = set(startOfNextBookingDay, {
-      hours: getHours(bookingStartDate), // Uses original booking START time for next day's segment start
-      minutes: getMinutes(bookingStartDate),
-      seconds: 0,
-      milliseconds: 0,
-    });
-    nextSegmentStart = min([effectiveStartTimeNextDay, bookingEndDate]);
-    const potentialLimits = [nextSegmentStart, hardLimit];
-    if (nextBookingStartTime) potentialLimits.push(nextBookingStartTime);
-    maxEndToday = min(potentialLimits);
-  }
-  // Use differenceInHours for cleaner calculation of full hours
-  const maxHoursRecalculated = differenceInHours(maxEndToday, currentEndTimeTodayForActionBase);
-  const validMaxHoursRecalculated = maxHoursRecalculated > 0 ? maxHoursRecalculated : 0;
-
-  logger.info(
-    `Recalculated maxHours for validation (action): ${validMaxHoursRecalculated}. Max end today: ${maxEndToday.toISOString()}`,
-  );
-
-  // --- Final Validation: Submitted hours vs recalculated max ---
-  if (hours > validMaxHoursRecalculated) {
-    logger.warn(`Submitted hours (${hours}) exceeds max allowed (${validMaxHoursRecalculated}).`);
-    return json(
-      {
-        error: `Cannot extend by ${hours} hours. Maximum currently available is ${validMaxHoursRecalculated} hour(s). Please refresh or try again.`,
-      },
-      { status: 400 },
-    );
-  }
-
-  // --- Calculate New End Date for Extension and Cost for THIS transaction ---
-  const newProposedEndDateForDay = addHours(currentEndTimeTodayForActionBase, hours);
-  const costForThisExtension = booking.car.hourlyRate * hours;
-  logger.info(
-    `Calculated new proposed end date for today's extension: ${newProposedEndDateForDay.toISOString()}`,
-  );
-  logger.info(`Calculated cost for this transaction: ${costForThisExtension}`);
-
-  // Generate a unique idempotency key for this extension attempt
-  const idempotencyKey = crypto.randomUUID();
-
-  // Set up customer info for payment
-  const customerEmail = booking.user?.email ?? (booking.guestUser as any)?.email;
-  const customerName = booking.user?.name ?? (booking.guestUser as any)?.name;
-  const customerPhone = booking.user?.phoneNumber ?? (booking.guestUser as any)?.phoneNumber;
-
-  const customer = {
-    email: customerEmail,
-    name: customerName,
-    phone_number: customerPhone,
-  };
-
-  // Calculate total amount with VAT
-  const totalWithVat = costForThisExtension * 1.075; // 7.5% VAT
 
   try {
-    // Create payment intent
-    const { paymentIntentId, checkoutUrl } = await createPaymentIntent({
+    const booking = await prisma.booking.findUnique({
+      where: { id: params.id },
+      include: {
+        car: true,
+        user: true,
+        legs: {
+          where: {
+            legDate: {
+              gte: startOfDay(now),
+              lte: endOfDay(now),
+            },
+          },
+          include: { extensions: true },
+        },
+      },
+    });
+
+    if (!booking || !booking.car) {
+      logger.error(`Booking not found: ${params.id}`);
+      return json({ error: "Booking not found" }, { status: 404 });
+    }
+
+    const todaysLeg = booking.legs[0];
+    const todaysLegsEndTime = todaysLeg.legEndTime;
+    const maxEndTodayInAction = startOfDay(addDays(now, 1));
+    const maxExtensionHours = differenceInHours(maxEndTodayInAction, todaysLegsEndTime);
+
+    logger.info(
+      `Recalculated maxHours for validation (action): ${maxExtensionHours}. Max end today (midnight): ${maxEndTodayInAction.toISOString()}`,
+    );
+
+    if (hours > maxExtensionHours) {
+      logger.error(`Submitted hours (${hours}) exceeds max allowed (${maxExtensionHours}).`);
+      return json(
+        {
+          error: `Cannot extend by ${hours} hours. Maximum currently available is ${maxExtensionHours} hour(s). Please refresh or try again.`,
+        },
+        { status: 400 },
+      );
+    }
+
+    const newEndDateTimeForLeg = addHours(todaysLegsEndTime, hours);
+    const costForThisExtension = booking.car.hourlyRate * hours;
+    const totalWithVat = costForThisExtension * 1.075;
+
+    logger.info(
+      `Calculated new proposed end date for today's extension: ${newEndDateTimeForLeg.toISOString()}`,
+    );
+    logger.info(
+      `Calculated cost for this transaction: ${costForThisExtension}, Total with VAT: ${totalWithVat}`,
+    );
+
+    logger.info(`No PENDING extension. Creating new one for leg ${todaysLeg.id}.`);
+
+    const { checkoutUrl, paymentIntentId } = await createPaymentIntent({
       amount: totalWithVat,
-      customer,
+      customer: getCustomerDetails(booking),
       metadata: {
         transactionType: "booking_extension",
-        bookingId: booking.id,
-        extensionDay: today.toISOString(),
-        hours,
-        carId: booking.carId,
+        // bookingId: booking.id,
+        // extensionDay: today.toISOString(),
+        // hours: actualHoursForPaymentIntentMetadata, // Total hours for this PENDING operation
+        // carId: booking.carId,
+        // ...(operationType === "update" && { existingExtensionId: extensionDataForDb.id }),
       },
-      idempotencyKey,
+      idempotencyKey: crypto.randomUUID(), // Always new idempotency key for new/updated PI
       callbackUrl: `${process.env.APP_URL || "http://localhost:5173"}/bookings/payment-status?transactionType=booking_extension`,
     });
 
-    logger.debug(booking.id, today.toString());
-    // --- Perform Database Updates (Create/Update Pending Extension) ---
-    try {
-      // First, try to find any existing extension for today (including PENDING ones)
-      const existingExtension = await prisma.extension.findUnique({
-        where: { bookingId_day: { bookingId: booking.id, day: today } },
-      });
+    logger.debug(`Payment intent created: ${paymentIntentId}`);
 
-      if (existingExtension) {
-        logger.debug(
-          `[Update] hours: ${hours}. existingExtension.hours: ${existingExtension.hours}`,
-        );
-        logger.info(
-          `Updating existing extension ${existingExtension.id} for booking ${booking.id} to PENDING status`,
-        );
-        await prisma.extension.update({
-          where: { id: existingExtension.id },
-          data: {
-            hours: { increment: hours },
-            totalAmount: { increment: costForThisExtension },
-            endDate: newProposedEndDateForDay,
-            paymentIntent: paymentIntentId,
-            status: "PENDING",
-            paymentStatus: "UNPAID",
-          },
-        });
-      } else {
-        logger.info(`Creating new PENDING extension for booking ${booking.id}`);
-        logger.debug(`[Create] hours: ${hours}`);
-        await prisma.extension.create({
-          data: {
-            bookingId: booking.id,
-            day: today,
-            startDate: new Date(),
-            hours,
-            endDate: newProposedEndDateForDay,
-            originalEndDate: booking.endDate,
-            paymentId: paymentIntentId,
-            totalAmount: costForThisExtension,
-            paymentIntent: paymentIntentId,
-            status: "PENDING",
-            paymentStatus: "UNPAID",
-          },
-        });
-      }
+    const createClause: Prisma.ExtensionCreateInput = {
+      eventType: "HOURLY_ADDITION",
+      extensionStartTime: todaysLeg.legEndTime,
+      extendedDurationHours: hours,
+      extensionEndTime: newEndDateTimeForLeg,
+      totalAmount: totalWithVat,
+      bookingLeg: { connect: { id: todaysLeg.id } },
+      paymentIntent: paymentIntentId,
+    };
 
-      logger.info(`Successfully created/updated extension with payment intent ${paymentIntentId}`);
-    } catch (dbError: unknown) {
-      logger.error(
-        `Database operation failed: ${dbError instanceof Error ? dbError.message : String(dbError)}`,
-      );
-      return json({ error: "Failed to initialize extension. Please try again." }, { status: 500 });
-    }
+    const extension = await prisma.extension.create({ data: createClause });
 
-    // Redirect to Flutterwave checkout
+    logger.debug(`Extension created: ${JSON.stringify(extension, null, 2)}`);
+
     logger.info(`Redirecting to Flutterwave checkout: ${checkoutUrl}`);
+
     return redirect(checkoutUrl);
-  } catch (paymentError: unknown) {
+  } catch (error) {
     logger.error(
-      `Payment intent creation failed: ${paymentError instanceof Error ? paymentError.message : String(paymentError)}`,
+      `Payment intent creation failed: ${error instanceof Error ? error.message : String(error)}`,
     );
+
     return json({ error: "Failed to initialize payment. Please try again." }, { status: 500 });
   }
 }
@@ -510,8 +333,6 @@ export default function ExtendBookingPage() {
   const vat = total * 0.075; // Use your actual VAT calculation logic/rate
   const totalWithVat = total + vat;
 
-  const user = booking.user; // User details from loader
-
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (hours <= 0) return; // Don't submit if 0 hours
@@ -520,98 +341,116 @@ export default function ExtendBookingPage() {
   };
 
   return (
-    <div className="max-w-md mx-auto mt-8 p-6 rounded border overflow-hidden shadow-md hover:shadow-lg transition-shadow">
-      {/* Page Title */}
-      <h1 className="font-semibold text-base mb-4">
-        {" "}
-        Extend Booking for {booking.car.make} {booking.car.model} ({booking.car.year}){" "}
-      </h1>
-
-      {/* Booking Info Section */}
-      <div className="mb-4 space-y-1 text-sm">
-        <p>
-          <span className="font-semibold text-gray-700">Current End Time for Today:</span>{" "}
-          <span className="text-gray-900">{booking.currentEndDateDisplay}</span>
-        </p>
-        <p>
-          <span className="font-semibold text-gray-700">Hourly Rate:</span>{" "}
-          <span className="text-gray-900">{formatCurrency(hourlyRate)}</span>
-        </p>
-        <p>
-          <span className="font-semibold text-gray-700">Max. Extension Available Today:</span>{" "}
-          <span className="text-gray-900">
-            {maxHours} hour{maxHours === 1 ? "" : "s"}
-          </span>
-        </p>
-      </div>
-
-      {/* Conditional Rendering: Show form only if maxHours > 0 */}
-      {maxHours > 0 ? (
-        <Form method="post" onSubmit={handleSubmit} className="space-y-4">
-          {/* Hours Selection Dropdown */}
-          <div>
-            <Label htmlFor="hours" className="block mb-1 text-sm font-medium text-gray-700">
-              How many hours to extend?
-            </Label>
-            <Select
-              name="hours"
-              value={hours.toString()}
-              onValueChange={(value) => setHours(Number(value))}
-            >
-              <SelectTrigger className="w-24">
-                <SelectValue placeholder="Hours" />
-              </SelectTrigger>
-              <SelectContent>
-                {Array.from({ length: maxHours }, (_, i) => i + 1).map((hour) => (
-                  <SelectItem key={hour} value={hour.toString()}>
-                    {" "}
-                    {hour} hour{hour === 1 ? "" : "s"}{" "}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Cost Breakdown Section */}
-          <div className="border-t pt-4">
-            <h2 className="text-sm font-semibold mb-2 text-gray-800">Extension Cost</h2>
-            <dl className="space-y-1 text-sm">
-              <div className="flex justify-between">
-                <dt className="text-gray-600">
-                  Subtotal ({hours}hr{hours === 1 ? "" : "s"})
-                </dt>
-                <dd className="text-gray-900">{formatCurrency(total)}</dd>
-              </div>
-              <div className="flex justify-between">
-                <dt className="text-gray-600">VAT (7.5%)</dt>
-                <dd className="text-gray-900">{formatCurrency(vat)}</dd>
-              </div>
-              <div className="flex justify-between font-semibold mt-2 pt-2 border-t border-dashed">
-                <dt className="text-gray-900">Total Amount</dt>
-                <dd className="text-gray-900">{formatCurrency(totalWithVat)}</dd>
-              </div>
-            </dl>
-          </div>
-
-          {/* Error Display Area */}
-          {actionData?.error && (
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded text-sm">
-              {" "}
-              {actionData.error}{" "}
+    <div className="w-full max-w-md mx-auto p-3 sm:p-4">
+      <Card className="w-full rounded">
+        <CardHeader className="space-y-3 sm:space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-primary/10 rounded">
+              <Car className="h-5 w-5 text-primary" />
             </div>
-          )}
+            <div>
+              <CardTitle className="text-base sm:text-lg font-bold">Extend Trip</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                {booking.car.make} {booking.car.model} ({booking.car.year})
+              </p>
+            </div>
+          </div>
+        </CardHeader>
 
-          {/* Submit Button */}
-          <Button type="submit" className="w-full" disabled={hours <= 0}>
-            Extend and Pay {formatCurrency(totalWithVat)}{" "}
-          </Button>
-        </Form>
-      ) : (
-        // Message shown when maxHours is 0 or less
-        <div className="text-center text-gray-600 py-4 border-t mt-4">
-          No further extension is available for today based on the current schedule.{" "}
-        </div>
-      )}
+        <CardContent className="space-y-4 sm:space-y-6">
+          {/* Current Booking Info */}
+          <div className="space-y-2 sm:space-y-3">
+            <div className="flex items-center gap-2 text-sm">
+              <Calendar className="h-4 w-4 text-muted-foreground" />
+              <span className="text-muted-foreground">Current End Time:</span>
+              <span className="font-semibold">{booking.currentEndDateDisplay}</span>
+            </div>
+
+            <div className="flex items-center gap-2 text-sm">
+              <Clock className="h-4 w-4 text-muted-foreground" />
+              <span className="text-muted-foreground">Hourly Rate:</span>
+              <span className="font-semibold">{formatCurrency(hourlyRate)}</span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Badge variant="secondary" className="text-xs font-bold rounded bg-neutral-200">
+                Max {maxHours} hour{maxHours === 1 ? "" : "s"} available
+              </Badge>
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* Extension Selection */}
+          <Form method="post" onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
+            <div className="space-y-2 sm:space-y-3">
+              <label htmlFor="hours" className="text-sm font-medium">
+                How many hours would you like to extend by?
+              </label>
+              <Select
+                name="hours"
+                value={hours.toString()}
+                onValueChange={(value) => setHours(Number(value))}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Hours" />
+                </SelectTrigger>
+                <SelectContent>
+                  {Array.from({ length: maxHours }, (_, i) => i + 1).map((hour) => (
+                    <SelectItem key={hour} value={hour.toString()}>
+                      {hour} hour{hour > 1 ? "s" : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <Separator />
+
+            {/* Cost Breakdown */}
+            <div className="space-y-3 sm:space-y-4">
+              <h3 className="font-medium flex items-center gap-2">
+                <CreditCard className="h-4 w-4" />
+                <span className="font-bold">Extension Cost</span>
+              </h3>
+
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">
+                    Subtotal ({hours}hr{hours > 1 ? "s" : ""})
+                  </span>
+                  <span className="font-medium">{formatCurrency(total)}</span>
+                </div>
+
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">VAT (7.5%)</span>
+                  <span className="font-medium">{formatCurrency(vat)}</span>
+                </div>
+
+                <Separator />
+
+                <div className="flex justify-between text-sm font-bold">
+                  <span>Total Amount</span>
+                  <span>{formatCurrency(totalWithVat)}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Error Display Area */}
+            {actionData?.error && (
+              <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded text-sm">
+                {" "}
+                {actionData.error}{" "}
+              </div>
+            )}
+
+            {/* Action Button */}
+            <Button className="w-full text-sm font-medium">
+              Extend and Pay {formatCurrency(totalWithVat)}
+            </Button>
+          </Form>
+        </CardContent>
+      </Card>
     </div>
   );
 }

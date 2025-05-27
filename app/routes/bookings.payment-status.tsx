@@ -1,26 +1,32 @@
+import type { Booking, Prisma } from "@prisma/client";
 import type { LoaderFunctionArgs, SerializeFrom } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { Link, useLoaderData, useFetcher } from "@remix-run/react";
+import { Link, useFetcher, useLoaderData } from "@remix-run/react";
 import { useEffect, useState } from "react";
+import { Button } from "~/components/ui/button";
+import logger from "~/lib/logger.server";
+import { formatCurrency } from "~/lib/utils";
 import { findBookingByPaymentIntent } from "~/services/bookings.server";
 import { findExtensionByPaymentIntent } from "~/services/extensions.server";
-import logger from "~/lib/logger.server";
-import { Button } from "~/components/ui/button";
-import type {
-  PaymentStatus as PrismaPaymentStatus,
-  BookingStatus as PrismaBookingStatus,
-  Booking,
-  Extension,
-} from "@prisma/client";
-import { formatCurrency } from "~/lib/utils";
 
 interface LoaderBookingData extends Omit<Booking, "totalAmount"> {
   totalAmount: number | null;
 }
 
-interface LoaderExtensionData extends Omit<Extension, "totalAmount"> {
-  totalAmount: number | null;
-}
+type ExtensionWithDetails = Prisma.ExtensionGetPayload<{
+  include: {
+    bookingLeg: {
+      include: {
+        booking: {
+          include: {
+            car: true;
+            user: true;
+          };
+        };
+      };
+    };
+  };
+}>;
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const url = new URL(request.url);
@@ -38,7 +44,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
   let initialError: string | null = null;
   let bookingData: LoaderBookingData | null = null;
-  let extensionData: LoaderExtensionData | null = null;
+  let extensionData: ExtensionWithDetails | null = null;
 
   if (!txRef) {
     initialError = "Transaction reference (tx_ref) is missing from the URL.";
@@ -77,12 +83,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
   }
 
   if (transactionType === "booking_extension") {
-    const extension = await findExtensionByPaymentIntent(txRef);
-    if (extension) {
-      extensionData = {
-        ...extension,
-        totalAmount: extension.totalAmount ? Number(extension.totalAmount) : null,
-      };
+    extensionData = await findExtensionByPaymentIntent(txRef);
+    if (extensionData) {
       logger.info(`[PaymentStatus Loader] Extension Data: ${JSON.stringify(extensionData)}`);
     } else {
       logger.warn(`[PaymentStatus Loader] Extension with tx_ref ${txRef} not found in DB yet.`);
@@ -122,8 +124,8 @@ const MAX_POLLING_ATTEMPTS = 20; // Approx 1 minute if 3s interval
 const POLLING_INTERVAL = 3000; // 3 seconds
 
 export default function BookingPaymentStatusPage() {
-  const initialLoaderData = useLoaderData<LoaderData>();
-  const fetcher = useFetcher<LoaderData>();
+  const initialLoaderData = useLoaderData<typeof loader>();
+  const fetcher = useFetcher<typeof loader>();
 
   const currentData = fetcher.data || initialLoaderData;
   const {
@@ -206,12 +208,15 @@ export default function BookingPaymentStatusPage() {
   ) {
     const isBooking = transactionType === "booking_creation";
     const successfulData = isBooking ? currentBookingData : currentExtensionData;
-    const bookingIdForLink = isBooking ? currentBookingData?.id : currentExtensionData?.bookingId;
+    const bookingIdForLink = isBooking
+      ? currentBookingData?.id
+      : currentExtensionData?.bookingLeg.booking.id;
     const amount = successfulData?.totalAmount;
     const paymentIdToDisplay = successfulData?.paymentId || flutterwaveTransactionId;
 
     const guestEmail =
-      currentBookingData?.guestUser?.email || currentExtensionData?.booking?.guestUser?.email;
+      currentBookingData?.guestUser?.email ||
+      currentExtensionData?.bookingLeg.booking.guestUser?.email;
 
     return (
       <div className="max-w-lg mx-auto mt-8 p-6 bg-green-50 border border-green-200 rounded-lg text-center">
@@ -222,7 +227,7 @@ export default function BookingPaymentStatusPage() {
         <div className="text-left space-y-2 mb-6 bg-white p-4 rounded-md border border-green-200">
           {amount !== null && amount !== undefined && (
             <p>
-              <strong>Amount Paid:</strong> {formatCurrency(amount)}
+              <strong>Amount Paid:</strong> {formatCurrency(Number(amount))}
             </p>
           )}
           {paymentIdToDisplay && (
@@ -254,7 +259,7 @@ export default function BookingPaymentStatusPage() {
     const bookingIdForLink =
       transactionType === "booking_creation"
         ? currentBookingData?.id
-        : currentExtensionData?.bookingId;
+        : currentExtensionData?.bookingLeg.booking.id;
 
     let linkTarget = "/";
     let linkText = "Return to Home";
@@ -285,7 +290,7 @@ export default function BookingPaymentStatusPage() {
     const bookingIdForLink =
       transactionType === "booking_creation"
         ? currentBookingData?.id
-        : currentExtensionData?.bookingId;
+        : currentExtensionData?.bookingLeg.booking.id;
     let linkTarget = "/";
     let linkText = "Return to Home";
     if (bookingIdForLink) {
@@ -349,7 +354,7 @@ export default function BookingPaymentStatusPage() {
     const bookingIdForLink =
       transactionType === "booking_creation"
         ? currentBookingData?.id
-        : currentExtensionData?.bookingId;
+        : currentExtensionData?.bookingLeg.booking.id;
     let linkTarget = "/";
     let linkText = "Return to Home";
 

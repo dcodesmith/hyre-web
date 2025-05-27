@@ -153,37 +153,40 @@ export async function loader({ request }: LoaderFunctionArgs) {
     where: {
       AND: [
         {
+          // Your existing conditions for owner, approvalStatus, etc. should remain
           ownerId: {
-            notIn: idsToExclude,
+            notIn: idsToExclude, // Assuming idsToExclude is defined
           },
           approvalStatus: "APPROVED",
           owner: {
             fleetOwnerStatus: "APPROVED",
             hasOnboarded: true,
           },
-          OR: [
-            {
-              status: "AVAILABLE",
-            },
-            {
-              status: "BOOKED",
-              bookings: {
-                none: {
-                  status: { in: ["PENDING", "CONFIRMED", "ACTIVE"] },
-                  OR: [
-                    {
-                      startDate: {
-                        lte: to ? new Date(`${to}T23:59:59Z`) : undefined,
-                      },
-                      endDate: {
-                        gte: from ? new Date(`${from}T00:00:00Z`) : undefined,
-                      },
+        },
+        {
+          // New condition to exclude cars with conflicting bookings
+          NOT: {
+            bookings: {
+              some: {
+                status: { in: ["CONFIRMED", "ACTIVE"] }, // Booked and paid for
+                // Overlap condition:
+                // A booking conflicts if:
+                // its start is before the search range's end AND its end is after the search range's start
+                AND: [
+                  {
+                    startDate: {
+                      lt: to ? new Date(`${to}T23:59:59.999Z`) : undefined, // Booking starts before the end of the search 'to' date
                     },
-                  ],
-                },
+                  },
+                  {
+                    endDate: {
+                      gt: from ? new Date(`${from}T00:00:00.000Z`) : undefined, // Booking ends after the start of the search 'from' date
+                    },
+                  },
+                ],
               },
             },
-          ],
+          },
         },
       ],
     },

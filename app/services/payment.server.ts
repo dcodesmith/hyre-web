@@ -35,6 +35,7 @@ export async function createPaymentIntent({
     logger.error(`FLUTTERWAVE_PUBLIC_KEY: ${FLUTTERWAVE_PUBLIC_KEY}`);
     logger.error(`FLUTTERWAVE_WEBHOOK_SECRET: ${FLUTTERWAVE_WEBHOOK_SECRET}`);
     logger.error("Missing Flutterwave API keys");
+
     throw new Error("Payment service configuration error");
   }
 

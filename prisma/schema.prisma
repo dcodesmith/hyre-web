@@ -17,8 +17,8 @@ model Car {
   year               Int
   color              String
   registrationNumber String
-  price              Int              // Regular daytime price
-  nightRate          Int              // Nighttime rate (11pm - 5am)
+  price              Int // Regular daytime price
+  nightRate          Int // Nighttime rate (11pm - 5am)
   status             Status
   approvalStatus     CarApprovalStatus @default(PENDING)
   approvalNotes      String? // Notes about approval status, e.g. rejection reasons
@@ -74,7 +74,6 @@ model User {
   bookings Booking[] @relation("BookingCustomer")
 
   // Relations
-  // bookingsAsCustomer Booking[] @relation("BookingCustomer") // Bookings where the user is the customer
   bookingsAsChauffeur Booking[] @relation("BookingChauffeur") // Bookings where the user is the assigned chauffeur
 
   cars Car[]
@@ -86,8 +85,6 @@ model User {
   documents             DocumentApproval[] @relation("UserDocuments")
   approvedDocuments     DocumentApproval[] @relation("ApprovedBy")
   approvedVehicleImages VehicleImage[]     @relation("ApprovedVehicleImages")
-
-  // role UserRole @default(USER)
 }
 
 model Role {
@@ -103,7 +100,7 @@ model Role {
 
 model Permission {
   id          String @id @default(cuid())
-  entity      String // E.g. user, admin, fleetOwner, chauffeur 
+  entity      String // E.g. user, admin, fleetOwner, chauffeur
   action      String // E.g. create, read, update, delete
   access      String // E.g. own or any
   description String @default("")
@@ -132,14 +129,14 @@ model Booking {
   type BookingType @default(DAY)
 
   // Temporal data
-  startDate DateTime
-  endDate   DateTime
+  startDate DateTime // Overall start date of the booking
+  endDate   DateTime // Overall end date of the booking
 
   // Payment information
-  totalAmount   Decimal       @db.Decimal(10, 2)
+  totalAmount   Decimal       @db.Decimal(10, 2) // Overall total amount for the booking
   paymentStatus PaymentStatus @default(UNPAID)
-  paymentId     String? // Reference to external payment provider
-  paymentIntent String? // Payment Intent ID for pending payments
+  paymentId     String? // Reference to external payment provider for the main booking
+  paymentIntent String? // Payment Intent ID for pending payments for the main booking
 
   // Car information
   carId String
@@ -164,8 +161,8 @@ model Booking {
   cancelledAt        DateTime?
   cancellationReason String?
 
-  // Extensions
-  extensions Extension[] @relation("BookingExtension")
+  // Booking Legs representing each day of the booking
+  legs BookingLeg[]
 
   @@index([carId])
   @@index([userId])
@@ -175,30 +172,61 @@ model Booking {
   @@index([paymentIntent])
 }
 
+// Represents each individual day within a booking period
+model BookingLeg {
+  id              String    @id @default(cuid())
+  bookingId       String
+  booking         Booking   @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  legDate         DateTime  @db.Date // The calendar date this leg primarily covers
+
+  // New Explicit Time Fields
+  legStartTime    DateTime  // The actual start DateTime for service on this leg
+  legEndTime      DateTime  // The actual end DateTime for service on this leg (before further hour-by-hour extensions)
+
+  totalDailyPrice Decimal   @db.Decimal(10, 2)
+  notes           String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  extensions      Extension[] // Extensions can still modify the legEndTime further
+
+  @@unique([bookingId, legDate])
+  @@index([bookingId])
+  @@index([legDate])
+}
+
+enum ExtensionEventType {
+  HOURLY_ADDITION // Modifying an existing BookingLeg by adding hours
+  NEW_DAY_ADDITION // Represents the service/cost for a newly added full day BookingLeg
+}
+
+// Represents a specific extension event, either adding hours to an existing leg
+// or defining the service and cost for a newly added leg (a full day).
 model Extension {
-  id        String   @id @default(cuid())
-  booking     Booking   @relation(fields: [bookingId], references: [id], name: "BookingExtension")
-  bookingId String
-  day       DateTime  // The specific day being extended
-  startDate DateTime
-  endDate   DateTime
-  originalEndDate DateTime
-  hours     Int
+  id        String             @id @default(cuid())
+  eventType ExtensionEventType
+
+  bookingLegId String // The BookingLeg this extension pertains to
+  bookingLeg   BookingLeg @relation(fields: [bookingLegId], references: [id])
+
+  // Defines the specific service period this Extension record covers ON THE bookingLeg
+  extensionStartTime    DateTime // For HOURLY: actual start of extra hours. For NEW_DAY: start of service on the new leg's date.
+  extensionEndTime      DateTime // For HOURLY: actual end of extra hours. For NEW_DAY: end of service on the new leg's date.
+  extendedDurationHours Int // Duration of this specific extension period in hours
+
+  // Financials for THIS specific extension event/period
+  totalAmount   Decimal       @db.Decimal(10, 2)
+  paymentStatus PaymentStatus @default(UNPAID)
+  paymentId     String? // Reference to external payment provider for this extension
+  paymentIntent String? // Payment Intent ID for this extension's payment
+  status        String        @default("PENDING") // e.g., PENDING, CONFIRMED, CANCELLED (for this specific extension)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // Payment information
-  totalAmount   Decimal       @db.Decimal(10, 2)
-  paymentStatus PaymentStatus @default(UNPAID)
-  paymentId     String? // Reference to external payment provider
-  paymentIntent String? // Payment Intent ID for pending payments
-  status        String        @default("PENDING") // PENDING, ACTIVE, CANCELLED
-
+  @@index([bookingLegId])
   @@index([paymentStatus])
-  @@index([bookingId])
-  @@index([day])
+  @@index([eventType])
   @@index([status])
-  @@unique([bookingId, day]) // Ensure only one extension per day per booking
 }
 
 enum BookingStatus {
@@ -297,7 +325,6 @@ model VehicleImage {
   @@index([carId])
   @@index([status])
 }
-
 
 // generator seed {
 //   provider = "tsx prisma/seed.ts"

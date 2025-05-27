@@ -14,6 +14,10 @@ const schema = z.object({
   FLUTTERWAVE_PUBLIC_KEY: z.string(),
   FLUTTERWAVE_ENCRYPTION_KEY: z.string().optional(),
   FLUTTERWAVE_WEBHOOK_SECRET: z.string().optional(),
+  TWILIO_ACCOUNT_SID: z.string(),
+  TWILIO_AUTH_TOKEN: z.string(),
+  TWILIO_SECRET: z.string(),
+
   REDIS_URL: z
     .string()
     .transform((value) => {

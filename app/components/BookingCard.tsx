@@ -339,15 +339,6 @@ export default function BookingCard({ car, isAvailable = false, user }: BookingC
     },
   });
 
-  const paymentCustomer = useMemo(
-    () => ({
-      email: !user ? (fields.email.value ?? "") : user?.email || "",
-      name: !user ? (fields.name.value ?? "") : user?.name || "",
-      phone_number: !user ? (fields.phoneNumber.value ?? "") : user?.phoneNumber || "",
-    }),
-    [user, fields.email.value, fields.name.value, fields.phoneNumber.value],
-  );
-
   const handleDateChange = useCallback(
     (range: DateRange) => {
       const normalizedRange = {
@@ -431,7 +422,7 @@ export default function BookingCard({ car, isAvailable = false, user }: BookingC
     const nights = totalDays;
     const daysArr = eachDayOfInterval({ start: dateRange.from, end: dateRange.to });
     const daysStr = daysArr.map((d) => `${format(d, "MMM")} ${getOrdinal(d.getDate())}`).join(", ");
-    return `All over night bookings start at 11pm and end at 5am. Booking for ${nights} night${nights > 1 ? "s" : ""} (${daysStr}).`;
+    return `All overnight bookings start at 11pm and end at 5am. Booking for ${nights} night${nights > 1 ? "s" : ""} (${daysStr}).`;
   }, [bookingType, dateRange.from, dateRange.to, totalDays]);
 
   return (

@@ -1,4 +1,11 @@
-import { Booking, Extension, BookingStatus, PaymentStatus, BookingType } from "@prisma/client";
+import {
+  Booking,
+  Extension,
+  BookingStatus,
+  PaymentStatus,
+  BookingType,
+  Prisma,
+} from "@prisma/client";
 import { useFormAction, useNavigation } from "@remix-run/react";
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
@@ -16,7 +23,10 @@ import {
   getMilliseconds,
   parseISO,
   differenceInHours,
+  isEqual,
+  addDays,
 } from "date-fns";
+import logger from "./logger.server";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -113,121 +123,140 @@ export const formatCurrency = (amount: number) => {
 
 export function isBookingEditable(bookingStartDate: Date): boolean {
   const now = new Date();
-  const bookingStart = new Date(bookingStartDate);
-  return isAfter(bookingStart, now) && bookingStart.getTime() - now.getTime() > 24 * 60 * 60 * 1000;
+
+  return (
+    isAfter(bookingStartDate, now) &&
+    bookingStartDate.getTime() - now.getTime() > 12 * 60 * 60 * 1000
+  );
 }
 
-export function isBookingExtendable(booking: BookingWithRelations): boolean {
-  if (booking.status !== "ACTIVE" || booking.paymentStatus !== "PAID" || booking.type !== "DAY") {
-    return false;
-  }
+// --- Type Definitions (Assuming BookingLeg now has legStartTime and legEndTime) ---
+type BookingWithDetailedLegs = Prisma.BookingGetPayload<{
+  include: {
+    legs: {
+      include: {
+        extensions: true;
+      };
+    };
+  };
+}>;
 
-  const now = new Date();
-  const today = startOfDay(now);
-  const midnightToday = endOfDay(today);
+type LegWithDetails = BookingWithDetailedLegs["legs"][number];
 
-  const overallBookingStartDate = parseISO(booking.startDate as unknown as string);
-  const overallBookingEndDate = parseISO(booking.endDate as unknown as string);
+// --- 1. Updated `getEffectiveLegEndTime` (No date-fns-tz) ---
+/**
+ * Calculates the effective end time for a specific booking leg.
+ * IMPORTANT: Relies on the system's local timezone for date comparisons like isSameDay
+ * and for the interpretation of endOfDay if no extensions dictate the time.
+ * @param leg The BookingLeg object (must include legEndTime and extensions).
+ * @returns The effective end time as a Date object.
+ */
+function getEffectiveLegEndTime(leg: LegWithDetails): Date {
+  let effectiveEndTime = new Date(leg.legEndTime); // Base end time from the leg itself
+  const activeExtensionStatuses = ["CONFIRMED", "ACTIVE"];
 
-  if (
-    isBefore(today, startOfDay(overallBookingStartDate)) ||
-    isAfter(today, startOfDay(overallBookingEndDate))
-  ) {
-    return false;
-  }
-
-  if (!isBefore(now, overallBookingEndDate)) {
-    return false;
-  }
-
-  let currentEffectiveEndTimeForToday: Date;
-
-  const activeExtensionForToday = booking.extensions?.find(
-    (ext) =>
-      ext.day &&
-      isSameDay(parseISO(ext.day as unknown as string), today) &&
-      ext.status === "ACTIVE" &&
-      ext.paymentStatus === "PAID",
+  const activeExtensions = leg.extensions.filter((ext) =>
+    activeExtensionStatuses.includes(ext.status),
   );
 
-  if (activeExtensionForToday?.endDate) {
-    currentEffectiveEndTimeForToday = parseISO(
-      activeExtensionForToday.endDate as unknown as string,
-    );
-  } else {
-    currentEffectiveEndTimeForToday = set(today, {
-      hours: getHours(overallBookingEndDate),
-      minutes: getMinutes(overallBookingEndDate),
-      seconds: getSeconds(overallBookingEndDate),
-      milliseconds: getMilliseconds(overallBookingEndDate),
-    });
-  }
+  if (activeExtensions.length > 0) {
+    const latestExtensionEndTime = activeExtensions.reduce((latestDate, currentExt) => {
+      const currentEndTime = new Date(currentExt.extensionEndTime);
+      return currentEndTime > latestDate ? currentEndTime : latestDate;
+    }, new Date(0));
 
-  if (!isBefore(now, currentEffectiveEndTimeForToday)) {
-    return false;
-  }
-
-  if (!isBefore(currentEffectiveEndTimeForToday, midnightToday)) {
-    return false;
-  }
-
-  return true;
-}
-
-// implement a function to return a boooking for today thats extendable and the max hours it can be extended to
-export function getMaxHoursExtendable(booking: BookingWithRelations) {
-  const now = new Date();
-  const today = startOfDay(now);
-  const midnightToday = endOfDay(today);
-
-  const overallBookingStartDate = parseISO(booking.startDate as unknown as string);
-  const overallBookingEndDate = parseISO(booking.endDate as unknown as string);
-
-  // Check if today is within the booking period
-  if (
-    isBefore(today, startOfDay(overallBookingStartDate)) ||
-    isAfter(today, startOfDay(overallBookingEndDate))
-  ) {
-    return 0;
-  }
-
-  // For multi-day bookings, we need to determine the effective end time for today
-  let currentEffectiveEndTimeForToday: Date;
-
-  // Check if there's an active extension for today
-  const activeExtensionForToday = booking.extensions?.find(
-    (ext) =>
-      ext.day &&
-      isSameDay(parseISO(ext.day as unknown as string), today) &&
-      ext.status === "ACTIVE" &&
-      ext.paymentStatus === "PAID",
-  );
-
-  if (activeExtensionForToday?.endDate) {
-    // If there's an active extension, use its end date
-    currentEffectiveEndTimeForToday = parseISO(
-      activeExtensionForToday.endDate as unknown as string,
-    );
-  } else {
-    // If today is the last day of the booking, use the booking's end time
-    if (isSameDay(today, startOfDay(overallBookingEndDate))) {
-      currentEffectiveEndTimeForToday = overallBookingEndDate;
-    } else {
-      // For any other day in a multi-day booking, use midnight as the effective end time
-      currentEffectiveEndTimeForToday = midnightToday;
+    if (latestExtensionEndTime.getTime() > effectiveEndTime.getTime()) {
+      effectiveEndTime = latestExtensionEndTime;
     }
   }
+  // If leg.legEndTime was already, for example, endOfDay for an intermediate leg,
+  // or the specific booking.endDate time for the last leg, this logic is now simpler
+  // as that information is directly on the leg.
+  return effectiveEndTime;
+}
 
-  // Check if the current time is already past the effective end time for today
-  if (!isBefore(now, currentEffectiveEndTimeForToday)) {
+// --- 3. Updated `getLegExtendableDuration` (No date-fns-tz) ---
+/**
+ * Calculates how many *full* hours the current day's booking leg can be extended.
+ * **WARNING: Uses the system's local timezone for "today" and "midnight".**
+ * **This will ONLY work correctly for London time if the server's timezone is 'Europe/London'.**
+ * The maximum extension time is midnight (local time).
+ *
+ * @param booking - The booking object.
+ * @returns number - The available extension duration in *full* hours, or 0.
+ */
+export function getLegExtendableDuration(booking: BookingWithDetailedLegs): number {
+  if (booking.status !== "ACTIVE" || booking.paymentStatus !== "PAID" || booking.type !== "DAY") {
     return 0;
   }
 
-  // Get the hour of the end time in UTC
-  const endHour = currentEffectiveEndTimeForToday.getUTCHours();
+  const now = new Date(); // parseISO("2025-05-23T18:37:44+01:00"); // 6:37:44 PM BST
 
-  // Calculate hours until 23:00 UTC (23 - endHour)
-  const hoursUntilElevenPM = 23 - endHour;
+  // --- Calculations based on local system timezone ---
+  const today = startOfDay(now);
+  const midnightToday = startOfDay(addDays(today, 1));
 
-  return hoursUntilElevenPM;
+  const todaysLeg = booking.legs.find((leg) => isSameDay(new Date(leg.legDate), now));
+
+  console.log("todaysLeg", booking.legs);
+
+  if (!todaysLeg) {
+    return 0;
+  }
+
+  const effectiveEndTime = getEffectiveLegEndTime(todaysLeg);
+
+  if (!isBefore(now, effectiveEndTime)) {
+    return 0;
+  }
+
+  if (!isBefore(effectiveEndTime, midnightToday)) {
+    return 0;
+  }
+
+  const durationInHours = differenceInHours(midnightToday, effectiveEndTime);
+
+  return Math.max(0, durationInHours);
+}
+
+// Define an interface for the expected structure of guestUser JSON
+interface GuestUserDetails {
+  name?: string | null;
+  email?: string | null;
+  phoneNumber?: string | null;
+  // Add any other fields you expect in the guestUser JSON
+}
+
+// Assuming 'booking' is an object that matches the Prisma Booking model structure,
+// potentially with 'user' included. For guestUser, it would be Prisma.JsonValue.
+// Example: const booking: Booking & { user: User | null; guestUser: Prisma.JsonValue | null } = yourBookingData;
+
+export function getCustomerDetails(
+  booking: Prisma.BookingGetPayload<{
+    include: { user: true; guestUser: true };
+  }>,
+): { email: string; name: string; phone_number: string } {
+  let email = "";
+  let name = "";
+  let phone_number = "";
+
+  if (booking.user) {
+    email = booking.user.email;
+    name = booking.user.name ?? "";
+    phone_number = booking.user.phoneNumber ?? "";
+  } else if (
+    booking.guestUser &&
+    typeof booking.guestUser === "object" &&
+    booking.guestUser !== null
+  ) {
+    // Type assertion is needed here because guestUser is Prisma.JsonValue
+    // We assert it to an object matching our GuestUserDetails interface
+    const guestDetails = booking.guestUser as GuestUserDetails;
+
+    email = guestDetails.email ?? "";
+    name = guestDetails.name ?? "";
+    phone_number = guestDetails.phoneNumber ?? "";
+  }
+
+  return { email, name, phone_number };
 }

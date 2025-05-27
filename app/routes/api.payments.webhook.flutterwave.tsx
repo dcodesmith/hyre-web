@@ -2,6 +2,7 @@ import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json, redirect } from "@remix-run/node";
 import { isSameDay } from "date-fns";
 import logger from "~/lib/logger.server";
+import { getCustomerDetails } from "~/lib/utils";
 import { prisma } from "~/modules/db/db.server";
 import { sendEmail } from "~/modules/email/email.server";
 import {
@@ -31,9 +32,9 @@ export async function action({ request }: ActionFunctionArgs) {
   try {
     payload = await request.json(); // Use original request here as clone was for sig
     logger.info(`[Unified Webhook] Parsed payload: ${JSON.stringify(payload, null, 2)}`);
-  } catch (e: unknown) {
-    const error = e as Error;
-    logger.error(`[Unified Webhook] Error parsing JSON payload: ${error.message}`);
+  } catch (error: unknown) {
+    const e = error as Error;
+    logger.error(`[Unified Webhook] Error parsing JSON payload: ${e.message}`);
     return json({ error: "Invalid JSON payload" }, { status: 400 });
   }
 
@@ -96,7 +97,6 @@ export async function action({ request }: ActionFunctionArgs) {
     `[Unified Webhook] Transaction ${currentTransactionId} successfully verified with Flutterwave API.`,
   );
 
-  // --- Transaction Type Specific Logic ---
   try {
     if (transactionType === "booking_creation") {
       logger.info(`[Unified Webhook] Processing booking_creation for ${currentPaymentIntent}`);
@@ -113,13 +113,12 @@ export async function action({ request }: ActionFunctionArgs) {
       const booking = await activateBooking(pendingBooking.id, currentTransactionId);
       logger.info(`[Unified Webhook] Activated booking ${booking.id}`);
 
-      const userEmail =
-        booking.user?.email ?? (booking.guestUser as { email: string } | null)?.email;
+      const { email } = getCustomerDetails(booking);
 
-      if (userEmail) {
+      if (email) {
         const html = await renderBookingConfirmationEmail(booking);
-        emailQueue.add(() => sendEmail({ to: userEmail, subject: "Booking Confirmed", html }));
-        logger.info(`[Unified Webhook] Booking confirmation email queued for ${userEmail}`);
+        emailQueue.add(() => sendEmail({ to: email, subject: "Booking Confirmed", html }));
+        logger.info(`[Unified Webhook] Booking confirmation email queued for ${email}`);
       }
 
       if (booking.car.owner.email) {
@@ -149,41 +148,45 @@ export async function action({ request }: ActionFunctionArgs) {
         return json({ error: "Extension not found" }, { status: 404 });
       }
 
+      const { booking } = pendingExtension.bookingLeg;
+
       logger.info(
-        `[Unified Webhook] Found pending extension ${pendingExtension.id} for booking ${pendingExtension.bookingId}`,
+        `[Unified Webhook] Found pending extension ${pendingExtension.id} for booking ${booking.id}`,
       );
+      logger.debug(`Found Pending extension: ${JSON.stringify(pendingExtension, null, 2)}`);
+      logger.debug(`Current transaction ID: ${currentTransactionId}`);
 
       await activateExtension(pendingExtension.id, String(currentTransactionId));
+
       logger.info(`[Unified Webhook] Activated extension ${pendingExtension.id}`);
 
-      const updatedBookingForEmail = await prisma.booking.findUnique({
-        where: { id: pendingExtension.bookingId },
-        include: { user: true, car: { include: { owner: true } }, extensions: true },
-      });
+      // const updatedBookingForEmail = await prisma.booking.findUnique({
+      //   where: { id: pendingExtension.bookingLeg.booking.id },
+      //   include: { user: true, car: { include: { owner: true } } },
+      // });
 
-      if (updatedBookingForEmail) {
-        const recipientEmail =
-          updatedBookingForEmail.user?.email ??
-          (updatedBookingForEmail.guestUser as { email: string } | null)?.email;
-        logger.info(`[Unified Webhook] Recipient email: ${recipientEmail}`);
+      // if (booking) {
+      const { email } = getCustomerDetails(booking);
 
-        if (recipientEmail) {
-          logger.info(
-            `[Unified Webhook] Sending extension confirmation email to ${recipientEmail}`,
-          );
-          const html = await bookingExtensionConfirmationEmail(updatedBookingForEmail);
-          emailQueue.add(() =>
-            sendEmail({ to: recipientEmail, subject: "Booking Extension Confirmed", html }),
-          );
-          logger.info(
-            `[Unified Webhook] Extension confirmation email queued for ${recipientEmail}`,
-          );
-        }
-      } else {
-        logger.error(
-          `[Unified Webhook] Could not refetch booking ${pendingExtension.bookingId} for extension email.`,
+      logger.info(`[Unified Webhook] Recipient email: ${email}`);
+
+      if (email) {
+        logger.info(`[Unified Webhook] Sending extension confirmation email to ${email}`);
+
+        const html = await bookingExtensionConfirmationEmail(booking);
+
+        emailQueue.add(() =>
+          sendEmail({ to: email, subject: "Booking Extension Confirmed", html }),
         );
+
+        logger.info(`[Unified Webhook] Extension confirmation email queued for ${email}`);
       }
+      // } else {
+      //   logger.error(
+      //     `[Unified Webhook] Could not refetch booking ${pendingExtension.bookingId} for extension email.`,
+      //   );
+      // }
+
       logger.info(
         `[Unified Webhook] Booking extension for ${currentPaymentIntent} processed successfully.`,
       );

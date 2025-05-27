@@ -10,14 +10,20 @@ import {
 } from "@prisma/client";
 import {
   addMinutes,
+  differenceInHours,
+  eachDayOfInterval,
   endOfDay,
   getHours,
   getMilliseconds,
   getMinutes,
   getSeconds,
+  isSameDay,
+  isValid,
   isWithinInterval,
   set,
+  setHours,
   startOfDay,
+  subMilliseconds,
 } from "date-fns";
 import logger from "~/lib/logger.server";
 import { prisma } from "~/modules/db/db.server";
@@ -57,35 +63,84 @@ export async function createPendingBooking({
 }: Omit<CreateBookingParams, "paymentId" | "status" | "paymentStatus"> & {
   paymentIntent: string;
 }) {
-  // Calculate total amount based on days and car price
   const car = await prisma.car.findUnique({ where: { id: carId } });
   if (!car) throw new Error("Car not found");
 
-  const days = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 3600 * 24));
-  const totalAmount = car.price * days;
+  const booking = await prisma.$transaction(async (transaction) => {
+    let effectiveEndDateForLegGeneration = endDate;
 
-  // Create booking but don't update car status yet since payment is still pending
-  const booking = await prisma.booking.create({
-    data: {
-      startDate,
-      endDate,
-      carId,
-      type,
-      ...("id" in user
-        ? { userId: user.id }
-        : { guestUser: { email: user.email, name: user.name, phoneNumber: user.phoneNumber } }),
-      pickupLocation,
-      returnLocation,
-      specialRequests,
-      totalAmount,
-      paymentIntent,
-      status: BookingStatus.PENDING,
-      paymentStatus: PaymentStatus.UNPAID,
-    },
-    include: {
-      car: { include: { owner: true } },
-      user: true,
-    },
+    // If the endDate is exactly at midnight (00:00:00.000),
+    // subtract a tiny amount to ensure it falls on the previous calendar day
+    // for the purpose of leg generation.
+    if (
+      endDate.getHours() === 0 &&
+      endDate.getMinutes() === 0 &&
+      endDate.getSeconds() === 0 &&
+      endDate.getMilliseconds() === 0
+    ) {
+      effectiveEndDateForLegGeneration = subMilliseconds(endDate, 1);
+    }
+
+    // First, calculate all leg prices to determine the totalAmount for the Booking
+    const bookingDates = eachDayOfInterval({
+      start: startDate,
+      end: effectiveEndDateForLegGeneration,
+    });
+    const legPrices: number[] = [];
+    const startHours = startDate.getHours();
+    const endHours = endDate.getHours();
+
+    logger.debug(`From createPendingBooking: startHours: ${startHours}, endHours: ${endHours}`);
+    logger.debug(`From createPendingBooking: bookingDates: ${bookingDates}`);
+
+    // Temporary booking object shape for price calculation
+    const tempBookingDataForPricing = { startDate, endDate, type };
+
+    for (const legDate of bookingDates) {
+      const dailyPrice = calculateBookingLegPrice(car, tempBookingDataForPricing, legDate);
+      legPrices.push(dailyPrice);
+    }
+
+    const totalAmount = legPrices.reduce((sum, price) => sum + price, 0);
+
+    const query = {
+      data: {
+        startDate,
+        endDate,
+        carId,
+        type,
+        ...("id" in user
+          ? { userId: user.id }
+          : { guestUser: { email: user.email, name: user.name, phoneNumber: user.phoneNumber } }),
+        pickupLocation,
+        returnLocation,
+        specialRequests,
+        totalAmount,
+        paymentIntent,
+        status: BookingStatus.PENDING,
+        paymentStatus: PaymentStatus.UNPAID,
+        legs: {
+          create: bookingDates.map((legDate, index) => ({
+            legDate: setHours(legDate, 1), // Ensure legDate is set to the start of the day
+            legStartTime: setHours(legDate, startHours),
+            legEndTime: setHours(legDate, endHours),
+            totalDailyPrice: legPrices[index],
+          })),
+        },
+      },
+      include: {
+        car: { include: { owner: true } },
+        user: true,
+        legs: true,
+      },
+    };
+
+    logger.debug(`From createPendingBooking: query: ${JSON.stringify(query, null, 2)}`);
+
+    const newBooking = await transaction.booking.create(query);
+
+    logger.debug(`From createPendingBooking: newBooking: ${JSON.stringify(newBooking, null, 2)}`);
+    return newBooking;
   });
 
   return booking;
@@ -116,7 +171,6 @@ export async function activateBooking(bookingId: string, paymentId: string) {
       include: {
         car: { include: { owner: true } },
         user: true,
-        extensions: true,
       },
     });
 
@@ -152,6 +206,104 @@ export async function cleanupPendingBookings(olderThan: Date) {
   return { count: results.length };
 }
 
+// Calculate the price for a single booking leg
+function calculateBookingLegPrice(
+  car: { price: number; nightRate: number; hourlyRate: number },
+  booking: { startDate: Date; endDate: Date; type: BookingType },
+  legDate: Date,
+): number {
+  const { price: dayRate, nightRate, hourlyRate } = car;
+  const { startDate, endDate, type } = booking;
+
+  // Ensure rates are positive, default to 0 if not
+  const validDayRate = Math.max(0, dayRate);
+  const validNightRate = Math.max(0, nightRate);
+  const validHourlyRate = Math.max(0, hourlyRate);
+
+  // Minimum chargeable unit, e.g., 1 hour.
+  // This could also be a global constant or configurable.
+  const MINIMUM_CHARGEABLE_HOURS = 1;
+
+  if (type === BookingType.NIGHT) {
+    // For NIGHT bookings, charge the flat nightRate for any leg.
+    // This assumes a night booking covers a period that falls on this legDate.
+    return validNightRate;
+  }
+
+  // BookingType.DAY calculations
+  const bookingStartDateTime = startDate;
+  const bookingEndDateTime = endDate;
+
+  const legStartDateTime = startOfDay(legDate);
+  const legEndDateTime = endOfDay(legDate);
+
+  const isFirstLeg = isSameDay(legDate, bookingStartDateTime);
+  const isLastLeg = isSameDay(legDate, bookingEndDateTime);
+
+  // Determine the actual service start and end times for *this specific leg*
+  const actualServiceStartTimeOnLeg = isFirstLeg ? bookingStartDateTime : legStartDateTime;
+  const actualServiceEndTimeOnLeg = isLastLeg ? bookingEndDateTime : legEndDateTime;
+
+  // Calculate duration of service on this leg in hours
+  let durationHours = differenceInHours(actualServiceEndTimeOnLeg, actualServiceStartTimeOnLeg);
+
+  // Ensure a minimum duration for calculation if there's any overlap
+  if (durationHours <= 0 && actualServiceEndTimeOnLeg > actualServiceStartTimeOnLeg) {
+    durationHours = MINIMUM_CHARGEABLE_HOURS; // if less than 1 hr but there is service, charge for 1hr.
+  } else if (durationHours < 0) {
+    durationHours = 0; // Should not happen if dates are logical
+  }
+
+  // Ensure duration does not exceed 24 hours for a single leg calculation
+  durationHours = Math.min(durationHours, 24);
+
+  // Handle cases based on leg position and booking duration
+
+  // Case 1: Single-day DAY booking (first leg and last leg are the same)
+  if (isFirstLeg && isLastLeg) {
+    if (validHourlyRate > 0) {
+      // If hourly rate is defined, calculate cost based on hours, up to the daily rate.
+      // Apply a minimum charge equivalent to MINIMUM_CHARGEABLE_HOURS.
+      const hourlyCost = Math.max(durationHours, MINIMUM_CHARGEABLE_HOURS) * validHourlyRate;
+      return Math.min(hourlyCost, validDayRate);
+    }
+    // If no hourly rate, or if it's a full day anyway, charge the full day rate.
+    return validDayRate;
+  }
+
+  // Case 2: Multi-day DAY booking - First leg (partial day)
+  if (isFirstLeg) {
+    if (validHourlyRate > 0) {
+      // Calculate cost based on actual hours on this first day.
+      // Example: Booking starts at 2 PM. legDate is for this first day.
+      // durationHours would be from 2 PM to midnight (approx 10 hours).
+      // Apply a minimum charge.
+      const hourlyCost = Math.max(durationHours, MINIMUM_CHARGEABLE_HOURS) * validHourlyRate;
+      return Math.min(hourlyCost, validDayRate); // Cap at the full dayRate
+    }
+    // If no hourly rate, charge full day rate for the first partial day.
+    return validDayRate;
+  }
+
+  // Case 3: Multi-day DAY booking - Last leg (partial day)
+  if (isLastLeg) {
+    if (validHourlyRate > 0) {
+      // Calculate cost based on actual hours on this last day.
+      // Example: Booking ends at 10 AM. legDate is for this last day.
+      // durationHours would be from midnight to 10 AM (approx 10 hours).
+      // Apply a minimum charge.
+      const hourlyCost = Math.max(durationHours, MINIMUM_CHARGEABLE_HOURS) * validHourlyRate;
+      return Math.min(hourlyCost, validDayRate); // Cap at the full dayRate
+    }
+    // If no hourly rate, charge full day rate for the last partial day.
+    return validDayRate;
+  }
+
+  // Case 4: Full intermediate day in a multi-day DAY booking
+  // This leg is neither the first nor the last, so it's a full 24-hour period within the booking.
+  return validDayRate;
+}
+
 export async function confirmBooking({
   startDate,
   endDate,
@@ -169,13 +321,40 @@ export async function confirmBooking({
   const car = await prisma.car.findUnique({ where: { id: carId } });
   if (!car) throw new Error("Car not found");
 
-  const days = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 3600 * 24));
-  const totalAmount = car.price * days;
+  // This totalAmount might need to be re-evaluated or simply taken from the pending booking
+  // For now, let's assume it's correctly set during pending booking or payment confirmation updates it.
+  // Or, if the pending booking's totalAmount (sum of legs) is the source of truth,
+  // we might not need to recalculate it here at all if it's passed through.
+  // The original calculation is kept for now but commented out as it might be redundant.
+  // const days = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 3600 * 24));
+  // const totalAmount = car.price * days;
 
-  // Create booking and update car status
+  // Create booking and update car status - This function might be deprecated or changed
+  // if createPendingBooking now handles legs and activateBooking handles confirmation.
+  // For now, removing leg creation from here.
   const booking = await prisma.$transaction(async (transaction) => {
-    // Create the booking
-    const booking = await transaction.booking.create({
+    // If this function is still used to create a *new* confirmed booking (not from pending),
+    // it would need its own leg creation logic.
+    // However, the typical flow is pending -> confirmed.
+
+    // Let's assume this function might be used to directly create a confirmed booking
+    // or update a pending one. If updating, we'd fetch the pending booking first.
+    // For simplicity, and aligning with the idea that legs are created with pending,
+    // this simplified version just creates the booking record.
+    // The totalAmount here should ideally come from a reliable source (e.g. payment service or pre-calculated pending booking)
+
+    // Fetch the pending booking to get its already calculated totalAmount (sum of legs)
+    // This is a conceptual step; in reality, payment confirmation might pass this or the bookingId
+    const pendingBooking = await transaction.booking.findFirst({
+      where: { paymentIntent: paymentId }, // Assuming paymentId might be a paymentIntent here for lookup
+      // or we'd need another way to link to the pending booking.
+      // This part is a bit speculative without knowing the exact flow.
+      select: { totalAmount: true },
+    });
+
+    const bookingTotalAmount = pendingBooking?.totalAmount ?? 0; // Fallback, ideally always found
+
+    const newBooking = await transaction.booking.create({
       data: {
         startDate,
         endDate,
@@ -187,7 +366,7 @@ export async function confirmBooking({
         pickupLocation,
         returnLocation,
         specialRequests,
-        totalAmount,
+        totalAmount: bookingTotalAmount, // Use amount from pending/payment
         paymentId,
         status,
         paymentStatus,
@@ -195,8 +374,13 @@ export async function confirmBooking({
       include: {
         car: { include: { owner: true } },
         user: true,
+        // Legs should have been created with the pending booking.
+        // If we need them here, we'd include them.
       },
     });
+
+    // If booking legs were NOT created in pending, they would be created here.
+    // But we've moved that logic.
 
     // Update car status to BOOKED
     await transaction.car.update({
@@ -204,7 +388,7 @@ export async function confirmBooking({
       data: { status: "BOOKED" },
     });
 
-    return booking;
+    return newBooking;
   });
 
   return booking;
@@ -226,7 +410,6 @@ export async function cancelBooking(bookingId: string, reason: string) {
       include: {
         user: true,
         car: { include: { owner: true } },
-        extensions: true,
       },
     });
 
@@ -286,7 +469,7 @@ export async function getUserBookings(email: string, isGuest = false) {
     include: {
       car: { include: { images: true } },
       chauffeur: true,
-      extensions: true,
+      legs: { include: { extensions: true } },
     },
     orderBy: { createdAt: "desc" },
   });
@@ -387,13 +570,22 @@ export async function getBookingsByStatus(userId: string, isGuest = false) {
 
 export async function updateBookingsFromConfirmedToActive() {
   try {
+    const today = new Date();
+
+    const todayUtcYear = today.getUTCFullYear(); // Native Date method
+    const todayUtcMonth = today.getUTCMonth(); // Native Date method (0-indexed)
+    const todayUtcDay = today.getUTCDate(); // Native Date method
+
+    // Construct start and end of "today" in UTC
+    const start = new Date(Date.UTC(todayUtcYear, todayUtcMonth, todayUtcDay, 0, 0, 0, 0));
+    const end = new Date(Date.UTC(todayUtcYear, todayUtcMonth, todayUtcDay, 23, 59, 59, 999));
+
     // Find all confirmed bookings where start date is today
     const bookingsToUpdate = await prisma.booking.findMany({
       where: {
         status: BookingStatus.CONFIRMED,
         paymentStatus: PaymentStatus.PAID,
         chauffeurId: { not: null },
-        // startDate: new Date(), will this work
         startDate: {
           gte: new Date(new Date().setMinutes(0, 0, 0)),
           lte: new Date(new Date().setMinutes(59, 59, 999)),
@@ -407,11 +599,12 @@ export async function updateBookingsFromConfirmedToActive() {
       include: {
         car: true,
         user: true,
-        extensions: true,
+        legs: { include: { extensions: true } },
       },
     });
 
     if (bookingsToUpdate.length === 0) {
+      logger.info("No bookings to update from confirmed to active");
       return "No bookings to update";
     }
 
@@ -422,10 +615,11 @@ export async function updateBookingsFromConfirmedToActive() {
       });
 
       const html = await renderBookingStatusUpdateEmail(booking);
+      const guestUserEmail = (booking.guestUser as { email?: string })?.email;
 
       await emailQueue.add(() =>
         sendEmail({
-          to: booking.user?.email ?? booking.guestUser?.email,
+          to: booking.user?.email ?? guestUserEmail!,
           subject: "Your booking has started",
           html,
         }),
@@ -434,7 +628,9 @@ export async function updateBookingsFromConfirmedToActive() {
 
     await emailQueue.onIdle();
   } catch (error) {
-    logger.error(`Error updating booking statuses: ${error}`);
+    logger.error(
+      `Error updating booking statuses: ${error instanceof Error ? error.message : "Unknown error"}`,
+    );
     throw error;
   }
 }
@@ -461,7 +657,7 @@ export async function updateBookingsFromActiveToCompleted() {
       include: {
         car: true,
         user: true,
-        extensions: true,
+        legs: { include: { extensions: true } },
       },
     });
 
@@ -482,10 +678,11 @@ export async function updateBookingsFromActiveToCompleted() {
       });
 
       const html = await renderBookingStatusUpdateEmail(booking);
+      const guestUserEmail = (booking.guestUser as { email?: string })?.email;
 
       await emailQueue.add(() =>
         sendEmail({
-          to: booking.user?.email ?? booking.guestUser?.email,
+          to: booking.user?.email ?? guestUserEmail!,
           subject: "Your booking has ended",
           html,
         }),
@@ -500,114 +697,141 @@ export async function updateBookingsFromActiveToCompleted() {
 
 export async function sendBookingStartReminderEmails() {
   try {
-    const now = new Date(); // Current time
-
-    // Define start and end of today using date-fns for clarity
+    const now = new Date();
     const startOfToday = startOfDay(now);
     const endOfToday = endOfDay(now);
 
-    // Fetch bookings that are active today
-    const activeBookingsToday = await prisma.booking.findMany({
+    // Define the reminder window: for services starting approximately 60 minutes from now.
+    // This window covers one minute, e.g., if now is 10:00, window is 11:00:00 to 11:00:59.
+    const reminderTargetTime = addMinutes(now, 60);
+    const reminderWindowStart = set(reminderTargetTime, { seconds: 0, milliseconds: 0 });
+    const reminderWindowEnd = set(reminderTargetTime, { seconds: 59, milliseconds: 999 });
+    const reminderInterval = { start: reminderWindowStart, end: reminderWindowEnd };
+
+    logger.info(
+      `Checking for booking legs starting today. Reminder window: ${reminderWindowStart.toISOString()} - ${reminderWindowEnd.toISOString()}`,
+    );
+
+    // 1. Fetch BookingLegs for today whose parent booking meets criteria.
+    const relevantLegs = await prisma.bookingLeg.findMany({
       where: {
-        status: BookingStatus.CONFIRMED,
-        paymentStatus: PaymentStatus.PAID,
-        // Prisma requires Date objects or compatible date strings.
-        // startOfDay/endOfDay return Date objects.
-        startDate: {
-          lte: endOfToday, // Booking must have started on or before the end of today
+        legDate: {
+          gte: startOfToday,
+          lte: endOfToday,
         },
-        endDate: {
-          gte: startOfToday, // Booking must end on or after the start of today
-        },
-        car: {
-          status: Status.BOOKED,
+        booking: {
+          status: BookingStatus.CONFIRMED,
+          paymentStatus: PaymentStatus.PAID,
+          car: { status: Status.BOOKED },
         },
       },
       include: {
-        car: {
+        booking: {
           include: {
-            owner: true,
+            user: true,
+            chauffeur: true,
+            car: { include: { owner: true } },
           },
         },
-        user: true,
-        chauffeur: true,
-        extensions: true,
       },
     });
 
-    if (activeBookingsToday.length === 0) {
-      return "No active bookings today, so no reminders to send";
+    if (relevantLegs.length === 0) {
+      logger.info(
+        "No booking legs found for today matching initial criteria. No reminders to send.",
+      );
+      return "No relevant booking legs today, so no reminders to send.";
     }
 
-    // Calculate the time 60 minutes from now using date-fns
-    const timeIn60Minutes = addMinutes(now, 60);
+    const bookingsToReceiveReminders = [];
 
-    // Determine the 1-minute reminder window using date-fns
-    // Corresponds to [now + 60 mins]:00.000 to [now + 60 mins]:59.999
-    const reminderWindowGTE = set(timeIn60Minutes, { seconds: 0, milliseconds: 0 });
-    const reminderWindowLTE = set(timeIn60Minutes, { seconds: 59, milliseconds: 999 });
-    const reminderInterval = { start: reminderWindowGTE, end: reminderWindowLTE };
+    for (const leg of relevantLegs) {
+      const parentBooking = leg.booking;
+      const originalBookingStartDate = new Date(parentBooking.startDate);
 
-    const bookingsToSendReminders = [];
-
-    for (const booking of activeBookingsToday) {
-      // Ensure booking.startDate is a valid Date object for date-fns functions
-      // Prisma typically returns Date objects, but parsing might be necessary
-      // if it returns strings. new Date() handles common formats.
-      const bookingStartDateOriginal = new Date(booking.startDate);
-
-      // Calculate the booking's effective start time for *today*
-      // using date-fns: start of today + original start time components
-      const effectiveBookingStartOnCurrentDate = set(startOfDay(now), {
-        // Base is start of today
-        hours: getHours(bookingStartDateOriginal),
-        minutes: getMinutes(bookingStartDateOriginal),
-        seconds: getSeconds(bookingStartDateOriginal),
-        milliseconds: getMilliseconds(bookingStartDateOriginal),
+      const effectiveStartTimeForLeg = set(new Date(leg.legDate), {
+        hours: getHours(originalBookingStartDate),
+        minutes: getMinutes(originalBookingStartDate),
+        seconds: getSeconds(originalBookingStartDate),
+        milliseconds: getMilliseconds(originalBookingStartDate),
       });
 
-      // Check if this effective start time falls within the reminder window using date-fns
-      if (isWithinInterval(effectiveBookingStartOnCurrentDate, reminderInterval)) {
-        bookingsToSendReminders.push(booking);
+      // 2. Check if this leg's effective start time falls within the reminder window
+      if (isWithinInterval(effectiveStartTimeForLeg, reminderInterval)) {
+        bookingsToReceiveReminders.push(parentBooking);
       }
     }
 
-    if (bookingsToSendReminders.length === 0) {
-      return "No reminders to send for the current reminder window";
+    if (bookingsToReceiveReminders.length === 0) {
+      logger.info("No bookings have legs starting in the current reminder window.");
+      return "No reminders to send for the current reminder window.";
     }
 
-    // --- Email Sending Logic (remains the same) ---
-    for (const booking of bookingsToSendReminders) {
-      // Send reminder to client
-      const clientHtml = await renderBookingReminderEmail(booking, "client");
-      await emailQueue.add(() =>
-        sendEmail({
-          to: booking.user?.email ?? booking.guestUser?.email,
-          subject: "Booking Reminder - Your booking starts in 1 hour",
-          html: clientHtml,
-        }),
-      );
+    // Deduplicate parent bookings. Since each leg is for a unique day of a booking (due to @@unique([bookingId, legDate])),
+    // this primarily ensures that if multiple distinct bookings happen to have legs starting at the exact same time,
+    // they are all processed. If the same booking object was somehow added multiple times, it'd be deduplicated.
+    const uniqueBookingsForEmail = Array.from(
+      new Map(bookingsToReceiveReminders.map((b) => [b.id, b])).values(),
+    );
 
-      // Send reminder to chauffeur if assigned
-      if (booking.chauffeur?.email) {
-        const chauffeurHtml = await renderBookingReminderEmail(booking, "chauffeur");
-        await emailQueue.add(() =>
+    logger.info(
+      `Preparing to send reminders for ${uniqueBookingsForEmail.length} unique bookings.`,
+    );
+
+    // 3. Send emails for the filtered bookings
+    for (const booking of uniqueBookingsForEmail) {
+      const clientUser = booking.user;
+      const guestInfo = booking.guestUser as { email?: string } | null; // guestUser is JSON
+
+      let targetClientEmail = clientUser?.email;
+
+      if (!targetClientEmail && guestInfo?.email) {
+        targetClientEmail = guestInfo.email;
+      }
+
+      if (targetClientEmail) {
+        logger.info(
+          `Simulating: render and queue client email for booking ${booking.id} to ${targetClientEmail}`,
+        );
+        const clientHtml = await renderBookingReminderEmail(booking, "client");
+        await emailQueue.add(async () =>
           sendEmail({
-            to: booking.chauffeur?.email,
-            subject: "Booking Reminder - You have a booking starting in 1 hour",
+            to: targetClientEmail,
+            subject: "Booking Reminder - Your service starts in approximately 1 hour",
+            html: clientHtml,
+          }),
+        );
+      } else {
+        logger.warn(`No client email (user or guest) found for booking ${booking.id}.`);
+      }
+
+      const chauffeurEmail = booking.chauffeur?.email;
+
+      if (chauffeurEmail) {
+        logger.info(
+          `Simulating: render and queue chauffeur email for booking ${booking.id} to ${chauffeurEmail}`,
+        );
+        const chauffeurHtml = await renderBookingReminderEmail(booking, "chauffeur");
+        await emailQueue.add(async () =>
+          sendEmail({
+            to: chauffeurEmail,
+            subject: "Booking Reminder - You have a service starting in approximately 1 hour",
             html: chauffeurHtml,
           }),
         );
       }
     }
 
-    await emailQueue.onIdle();
+    // await emailQueue.onIdle(); // Wait for all emails in the queue to be processed
+    logger.info("Simulating: email queue processing complete.");
 
-    return `Sent reminders for ${bookingsToSendReminders.length} bookings`;
+    return `Processed reminders for ${uniqueBookingsForEmail.length} bookings. (Email sending simulated)`;
   } catch (error: unknown) {
-    logger.error(
-      `Error sending booking start reminder emails: ${error instanceof Error ? error.message : "Unknown error"}`,
-    );
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error(`Error in sendBookingStartReminderEmails: ${errorMessage}`, {
+      errorDetails: error,
+    });
+    // Re-throw the error so the caller (e.g., a job scheduler) knows the task failed.
     throw error;
   }
 }
@@ -616,105 +840,181 @@ export async function sendBookingEndReminderEmails() {
   try {
     const now = new Date(); // Current time
 
-    // --- Calculate Reminder Window ---
-    // Determine the time 60 minutes from now using date-fns
-    const timeIn60Minutes = addMinutes(now, 60);
+    // Define UTC day boundaries for querying legDate using date-fns for component extraction
+    // const todayUtcYear = getUTCFullYear(now);
+    // const todayUtcMonth = getUTCMonth(now); // 0-indexed
+    // const todayUtcDay = getUTCDate(now);
+    // const startOfTodayUTC = new Date(
+    //   Date.UTC(todayUtcYear, todayUtcMonth, todayUtcDay, 0, 0, 0, 0),
+    // );
+    // const endOfTodayUTC = new Date(
+    //   Date.UTC(todayUtcYear, todayUtcMonth, todayUtcDay, 23, 59, 59, 999),
+    // );
 
-    // Define the 1-minute reminder window for the endDate using date-fns
-    // This targets bookings ending exactly within that specific minute, 1 hour from now.
-    // e.g., If now is 10:15:30, window is [11:15:00.000, 11:15:59.999]
-    const reminderWindowGTE = set(timeIn60Minutes, { seconds: 0, milliseconds: 0 });
-    const reminderWindowLTE = set(timeIn60Minutes, { seconds: 59, milliseconds: 999 });
-    // --- End Calculate Reminder Window ---
+    // (now is a new Date())
+    const todayUtcYear = now.getUTCFullYear(); // Native Date method
+    const todayUtcMonth = now.getUTCMonth(); // Native Date method (0-indexed)
+    const todayUtcDay = now.getUTCDate(); // Native Date method
 
-    // --- Fetch Bookings ---
-    // Step 1: Fetch bookings that are active and whose car is booked.
-    // We remove the direct endDate filter from the Prisma query itself,
-    // as the effective endDate depends on whether a relevant extension exists.
-    const potentiallyEndingBookings = await prisma.booking.findMany({
+    // Construct start and end of "today" in UTC
+    const startOfTodayUTC = new Date(
+      Date.UTC(todayUtcYear, todayUtcMonth, todayUtcDay, 0, 0, 0, 0),
+    );
+    const endOfTodayUTC = new Date(
+      Date.UTC(todayUtcYear, todayUtcMonth, todayUtcDay, 23, 59, 59, 999),
+    );
+
+    // Define the reminder window (local time) using date-fns
+    const reminderTargetTime = addMinutes(now, 60);
+    const reminderWindowStart = set(reminderTargetTime, { seconds: 0, milliseconds: 0 });
+    const reminderWindowEnd = set(reminderTargetTime, { seconds: 59, milliseconds: 999 });
+    const reminderInterval = { start: reminderWindowStart, end: reminderWindowEnd };
+
+    logger.info(
+      `Checking for booking legs ending today. Reminder window (local): ${reminderWindowStart.toISOString()} - ${reminderWindowEnd.toISOString()}`,
+    );
+
+    const legsEndingToday = await prisma.bookingLeg.findMany({
       where: {
-        status: BookingStatus.ACTIVE,
-        paymentStatus: PaymentStatus.PAID,
-        car: {
-          status: Status.BOOKED,
+        legDate: {
+          gte: startOfTodayUTC,
+          lte: endOfTodayUTC,
+        },
+        booking: {
+          status: BookingStatus.ACTIVE,
+          paymentStatus: PaymentStatus.PAID,
+          car: {
+            status: Status.BOOKED,
+          },
         },
       },
       include: {
-        car: {
-          include: {
-            owner: true,
-          },
-        },
-        user: true,
-        chauffeur: true,
         extensions: {
-          // Include paid extensions, as these are likely the active/confirmed ones
           where: {
             paymentStatus: PaymentStatus.PAID,
+            status: "ACTIVE",
+          },
+          orderBy: { extensionEndTime: "desc" },
+        },
+        booking: {
+          select: {
+            id: true,
+            endDate: true,
           },
         },
       },
     });
 
-    // Step 2: Filter in JavaScript to determine the true effective endDate and check against the reminder window.
-    const bookingsEndingSoon = potentiallyEndingBookings.filter((booking) => {
-      const reminderGTE_Date = new Date(reminderWindowGTE); // Ensure Date objects for comparison
-      const reminderLTE_Date = new Date(reminderWindowLTE);
-
-      // Default to booking's original endDate. This handles cases where no extensions exist,
-      // or no relevant extension for the last day is found.
-      let effectiveEndDate = new Date(booking.endDate);
-
-      // Check if there are any paid extensions for this booking.
-      if (booking.extensions?.length) {
-        // Determine the start of the day of the booking's original endDate.
-        // Extensions are typically keyed by the start of the day they apply to.
-        const bookingOriginalEndDay = startOfDay(new Date(booking.endDate));
-
-        // Find if there's a paid extension specifically for that day.
-        const lastDayExtension = booking.extensions.find((ext) => {
-          const extensionDay = startOfDay(new Date(ext.day)); // ext.day should be start of day
-          return extensionDay.getTime() === bookingOriginalEndDay.getTime();
-        });
-
-        // If a relevant extension for the last day is found, use its endDate.
-        if (lastDayExtension?.endDate) {
-          effectiveEndDate = new Date(lastDayExtension.endDate);
-        }
-      }
-
-      // Check if this effectiveEndDate falls within the reminder window.
-      return effectiveEndDate >= reminderGTE_Date && effectiveEndDate <= reminderLTE_Date;
-    });
-
-    if (bookingsEndingSoon.length === 0) {
-      return "No booking end reminders to send for the current window";
+    if (legsEndingToday.length === 0) {
+      logger.info(
+        "No booking legs found for today meeting initial criteria. No end reminders to send.",
+      );
+      return "No relevant booking legs today, so no end reminders to send.";
     }
 
-    // --- Send Emails ---
-    for (const booking of bookingsEndingSoon) {
-      // Send reminder to client
-      // The 'false' argument likely indicates to renderBookingReminderEmail this is an 'end' reminder
-      const clientHtml = await renderBookingReminderEmail(booking, "client", false);
-      const clientEmail = booking.user?.email ?? (booking.guestUser as { email?: string })?.email;
-      if (clientEmail) {
-        await emailQueue.add(() =>
+    const bookingIdsForReminders = new Set<string>();
+
+    for (const leg of legsEndingToday) {
+      let effectiveEndTimeForLeg: Date;
+      const latestActivePaidExtension = leg.extensions?.[0];
+
+      if (latestActivePaidExtension?.extensionEndTime) {
+        // extensionEndTime from Prisma is already a Date object
+        effectiveEndTimeForLeg = latestActivePaidExtension.extensionEndTime;
+      } else {
+        // parentBooking.endDate and leg.legDate from Prisma are already Date objects
+        const parentBookingEndDate = leg.booking.endDate;
+        effectiveEndTimeForLeg = set(leg.legDate, {
+          // Base date is the leg's actual date object
+          hours: getHours(parentBookingEndDate),
+          minutes: getMinutes(parentBookingEndDate),
+          seconds: getSeconds(parentBookingEndDate),
+          milliseconds: getMilliseconds(parentBookingEndDate),
+        });
+      }
+
+      // Use date-fns isValid for checking date validity
+      if (!isValid(effectiveEndTimeForLeg)) {
+        logger.warn(
+          `Could not determine valid effective end time for leg ${leg.id} of booking ${leg.booking.id}.`,
+        );
+        continue;
+      }
+
+      if (isWithinInterval(effectiveEndTimeForLeg, reminderInterval)) {
+        bookingIdsForReminders.add(leg.booking.id);
+      }
+    }
+
+    if (bookingIdsForReminders.size === 0) {
+      logger.info("No bookings have legs ending in the current reminder window.");
+      return "No end-of-booking reminders to send for the current reminder window.";
+    }
+
+    const uniqueBookingIds = Array.from(bookingIdsForReminders);
+    const bookingsToSendEmailFor = await prisma.booking.findMany({
+      where: {
+        id: { in: uniqueBookingIds },
+      },
+      include: {
+        user: true,
+        chauffeur: true,
+        car: { include: { owner: true } },
+        legs: {
+          orderBy: { legDate: "asc" },
+          include: {
+            extensions: {
+              where: { paymentStatus: PaymentStatus.PAID, status: "ACTIVE" },
+              orderBy: { createdAt: "desc" },
+            },
+          },
+        },
+      },
+    });
+
+    logger.info(
+      `Preparing to send end reminders for ${bookingsToSendEmailFor.length} unique bookings.`,
+    );
+
+    for (const booking of bookingsToSendEmailFor) {
+      const clientUser = booking.user;
+      const guestInfo = booking.guestUser as { email?: string } | null;
+
+      let targetClientEmail: string | undefined = undefined;
+      if (clientUser?.email) {
+        targetClientEmail = clientUser.email;
+      } else if (guestInfo?.email) {
+        targetClientEmail = guestInfo.email;
+      }
+
+      if (targetClientEmail) {
+        logger.info(
+          `Queuing client end reminder for booking ${booking.id} to ${targetClientEmail}`,
+        );
+        const clientHtml = await renderBookingReminderEmail(booking, "client", false);
+        await emailQueue.add(async () =>
           sendEmail({
-            to: clientEmail,
-            subject: "Booking Reminder - Your booking ends in 1 hour",
+            to: targetClientEmail,
+            subject: "Booking Reminder - Your service ends in approximately 1 hour",
             html: clientHtml,
           }),
         );
+      } else {
+        logger.warn(`No client email found for booking ${booking.id} for end reminder.`);
       }
 
-      // Send reminder to chauffeur if assigned
-      if (booking.chauffeur?.email) {
+      const chauffeurEmail = booking.chauffeur?.email;
+
+      if (chauffeurEmail) {
+        logger.info(
+          `Queuing chauffeur end reminder for booking ${booking.id} to ${chauffeurEmail}`,
+        );
         const chauffeurHtml = await renderBookingReminderEmail(booking, "chauffeur", false);
-        const chauffeurEmail = booking.chauffeur.email; // Assign to variable
-        await emailQueue.add(() =>
+        await emailQueue.add(async () =>
           sendEmail({
             to: chauffeurEmail,
-            subject: "Booking Reminder - You have a booking ending in 1 hour",
+            subject:
+              "Booking Reminder - Your assigned booking for today ends in approximately 1 hour",
             html: chauffeurHtml,
           }),
         );
@@ -722,13 +1022,12 @@ export async function sendBookingEndReminderEmails() {
     }
 
     await emailQueue.onIdle();
-    // --- End Send Emails ---
+    logger.info("Simulating: email queue processing complete for end reminders.");
 
-    return `Sent booking end reminders for ${bookingsEndingSoon.length} bookings`;
+    return `Processed end reminders for ${bookingsToSendEmailFor.length} bookings.`;
   } catch (error: unknown) {
-    logger.error(
-      `Error sending booking end reminder emails: ${error instanceof Error ? error.message : "Unknown error"}`,
-    );
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error(`Error in sendBookingEndReminderEmails: ${errorMessage}`, { errorDetails: error });
     throw error;
   }
 }
