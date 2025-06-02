@@ -240,7 +240,6 @@ export async function action({ request }: ActionFunctionArgs) {
 export async function loader({ request }: LoaderFunctionArgs) {
   const url = new URL(request.url);
   const guestEmail = url.searchParams.get("email");
-  // const user = await getSessionUser(request);
 
   // Get either guest user or authenticated user
   let user: User | null | { email: string; name?: string; phoneNumber?: string } = null;

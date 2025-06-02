@@ -11,6 +11,7 @@ export default defineConfig({
   },
   server: {
     host: true,
+    allowedHosts: ["regular-terrier-helping.ngrok-free.app"],
   },
   plugins: [
     remix({

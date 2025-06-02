@@ -2,15 +2,7 @@ import { getFormProps, getInputProps, useForm } from "@conform-to/react";
 import { getZodConstraint, parseWithZod } from "@conform-to/zod";
 import { CogIcon } from "@heroicons/react/24/outline";
 import { ActionFunctionArgs, LoaderFunctionArgs, json } from "@remix-run/node";
-import {
-  Form,
-  Outlet,
-  // useActionData,
-  useLoaderData,
-  useLocation,
-  useNavigate,
-  useSearchParams,
-} from "@remix-run/react";
+import { Form, Outlet, useLoaderData, useNavigate, useSearchParams } from "@remix-run/react";
 import { AuthorizationError } from "remix-auth";
 import { z } from "zod";
 import { Button } from "~/components/ui/button";
@@ -45,7 +37,6 @@ export const LoginSchema = z.object({
 export async function loader({ request }: LoaderFunctionArgs) {
   await authenticator.isAuthenticated(request, {
     successRedirect: "/",
-    // failureRedirect: "/login",
   });
 
   const cookie = await getSession(request.headers.get("Cookie"));

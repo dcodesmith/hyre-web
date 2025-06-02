@@ -12,7 +12,11 @@ export async function activateExtension(extensionId: string, paymentId: string) 
         status: "ACTIVE",
         paymentStatus: PaymentStatus.PAID,
       },
-      include: { bookingLeg: true },
+      include: {
+        bookingLeg: {
+          include: { booking: { include: { car: { include: { owner: true } }, user: true } } },
+        },
+      },
     });
 
     await transaction.bookingLeg.update({

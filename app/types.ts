@@ -1,4 +1,11 @@
-import type { Booking, Car, ChauffeurApprovalStatus, DocumentApproval, User } from "@prisma/client";
+import type {
+  // Booking,
+  Car,
+  ChauffeurApprovalStatus,
+  DocumentApproval,
+  Prisma,
+  User,
+} from "@prisma/client";
 
 export type SerializedCar = Omit<Car, "createdAt" | "updatedAt"> & {
   createdAt: string;
@@ -33,10 +40,30 @@ export type SerializedChauffeur = {
   updatedAt: string;
   approvalStatus: ChauffeurApprovalStatus;
 };
-// Consistent BookingWithRelations type
-export type BookingWithRelations = Booking & {
-  car: Car & { owner?: User };
-  user: User | null;
-  // guestUser?: { name?: string | null; email?: string | null; phoneNumber?: string | null };
-  chauffeur?: User | null;
-};
+
+export type BookingWithRelations = Prisma.BookingGetPayload<{
+  include: {
+    chauffeur: true;
+    user: true;
+    guestUser: true;
+    car: { include: { owner: true } };
+    legs: {
+      include: {
+        extensions: true;
+      };
+    };
+  };
+}>;
+
+export type Extension = Prisma.ExtensionGetPayload<{
+  include: { bookingLeg: { include: { booking: { include: { car: true; user: true } } } } };
+}>;
+
+export type BookingLegWithRelations = Prisma.BookingLegGetPayload<{
+  include: {
+    extensions: true;
+    booking: {
+      include: { car: true; user: true; chauffeur: true; guestUser: true; legs: true };
+    };
+  };
+}>;

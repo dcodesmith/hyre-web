@@ -12,105 +12,73 @@ import {
   SelectTrigger,
   SelectValue,
 } from "~/components/ui/select";
-import logger from "~/lib/logger.server";
-import { formatCurrency } from "~/lib/utils";
+import { formatCurrency, getCustomerDetails, normaliseBookingDetails } from "~/lib/utils";
 import { prisma } from "~/modules/db/db.server";
 import { sendEmail } from "~/modules/email/email.server";
 import { renderChauffeurAssignedEmail } from "~/modules/email/templates/booking-notification";
-
-const formatDate = (date: string | Date) => {
-  return new Date(date).toLocaleDateString("en-US", {
-    weekday: "long",
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-};
+import { format } from "date-fns";
+import logger from "~/lib/logger.server";
+import { sendMessage, Template } from "~/modules/messaging/messaging.server";
 
 export const action = async ({ request, params }: ActionFunctionArgs) => {
-  if (request.method !== "PATCH") {
-    return json({ error: "Method not allowed" }, { status: 405 });
+  try {
+    if (request.method !== "PATCH") {
+      return json({ error: "Method not allowed" }, { status: 405 });
+    }
+
+    invariant(params.id, "Booking ID is required");
+
+    const formData = await request.formData();
+    const chauffeurId = String(formData.get("chauffeurId"));
+
+    const booking = await prisma.booking.update({
+      where: { id: params.id },
+      data: { chauffeurId },
+      include: {
+        car: { include: { owner: true } },
+        legs: { include: { extensions: true } },
+        user: true,
+        chauffeur: true,
+      },
+    });
+
+    if (!booking) {
+      return json({ error: "Booking not found" }, { status: 404 });
+    }
+
+    const { email } = getCustomerDetails(booking);
+    const bookingDetails = normaliseBookingDetails(booking);
+
+    await sendMessage({
+      templateKey: Template.ChauffeurAssigned,
+      variables: {
+        "1": bookingDetails.customerName,
+        "2": bookingDetails.carName,
+        "3": bookingDetails.chauffeurName,
+        "4": bookingDetails.chauffeurPhoneNumber,
+        "5": bookingDetails.startDate,
+        "6": bookingDetails.endDate,
+        "7": bookingDetails.pickupLocation,
+        "8": bookingDetails.returnLocation,
+        "9": bookingDetails.totalAmount,
+      },
+    });
+
+    await sendEmail({
+      to: email,
+      subject: "A chauffeur has been assigned to your booking",
+      html: await renderChauffeurAssignedEmail(bookingDetails),
+    });
+
+    return redirect("/fleet-owner");
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred";
+    logger.error(errorMessage);
+    return json({ error: errorMessage }, { status: 500 });
   }
-
-  invariant(params.id, "id is required");
-
-  const url = new URL(request.url);
-  const startDate = url.searchParams.get("startDate");
-
-  const formData = await request.formData();
-  const chauffeurId = String(formData.get("chauffeurId"));
-
-  invariant(startDate, "startDate is required");
-
-  // Check if chauffeur is already assigned to another booking
-  const existingBooking = await prisma.booking.findFirst({
-    where: {
-      chauffeurId,
-      status: {
-        in: [BookingStatus.CONFIRMED, BookingStatus.ACTIVE], // Only check active and confirmed bookings
-      },
-      startDate: {
-        lte: new Date(startDate), // Booking starts before or on this date
-      },
-      endDate: {
-        gte: new Date(startDate), // Booking ends after or on this date
-      },
-    },
-  });
-
-  if (existingBooking) {
-    return json(
-      {
-        error: "Chauffeur is already assigned to another booking during this time",
-      },
-      { status: 400 },
-    );
-  }
-
-  const booking = await prisma.booking.update({
-    where: { id: params.id },
-    data: { chauffeurId },
-    include: {
-      car: {
-        include: {
-          owner: true,
-        },
-      },
-      user: true,
-      chauffeur: true,
-    },
-  });
-
-  if (booking === null) {
-    return json({ error: "User or chauffeur not found" }, { status: 404 });
-  }
-
-  const to = booking.user?.email ?? booking.guestUser?.email;
-
-  if (!to) {
-    return json({ error: "User or guest user not found" }, { status: 404 });
-  }
-
-  logger.info(`Sending email to ${to}`);
-
-  await sendEmail({
-    to,
-    subject: "A chauffeur has been assigned to your booking",
-    html: await renderChauffeurAssignedEmail(booking),
-  });
-
-  return redirect("/fleet-owner");
 };
 
-export async function loader({ params, request }: LoaderFunctionArgs) {
-  const url = new URL(request.url);
-  const startDate = url.searchParams.get("startDate");
-
-  invariant(params.id, "id is required");
-  invariant(startDate, "startDate is required");
-
+export async function loader({ params }: LoaderFunctionArgs) {
   const booking = await prisma.booking.findUnique({
     where: {
       id: params.id,
@@ -142,11 +110,6 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
                       bookingsAsChauffeur: {
                         every: {
                           OR: [
-                            {
-                              endDate: {
-                                lte: new Date(startDate), // All assigned bookings have ended
-                              },
-                            },
                             {
                               status: {
                                 notIn: [BookingStatus.CONFIRMED, BookingStatus.ACTIVE],
@@ -190,12 +153,12 @@ export default function BookingDetails() {
         <div className="grid grid-cols-2 gap-4">
           <div>
             <h3 className="text-gray-500">Pickup Date</h3>
-            <p className="font-medium">{formatDate(booking.startDate)}</p>
+            <p className="font-medium">{format(booking.startDate, "PPPp")}</p>
           </div>
 
           <div>
             <h3 className="text-gray-500">Return Date</h3>
-            <p className="font-medium">{formatDate(booking.endDate)}</p>
+            <p className="font-medium">{format(booking.endDate, "PPPp")}</p>
           </div>
 
           <div>
@@ -243,7 +206,7 @@ export default function BookingDetails() {
                       <SelectValue placeholder={booking.chauffeur?.name || "Select a chauffeur"} />
                     </SelectTrigger>
                     <SelectContent>
-                      {booking.car.owner.chauffeurs?.map((chauffeur) => (
+                      {booking.car.owner.chauffeurs.map((chauffeur) => (
                         <SelectItem key={chauffeur.id} value={chauffeur.id}>
                           {chauffeur.name}
                         </SelectItem>

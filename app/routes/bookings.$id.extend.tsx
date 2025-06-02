@@ -1,26 +1,23 @@
-import {
-  isSameDay,
-  startOfDay,
-  getHours,
-  getMinutes,
-  set,
-  addDays,
-  addHours,
-  min,
-  format,
-  getSeconds,
-  getMilliseconds,
-  differenceInHours,
-  parseISO,
-  endOfDay,
-} from "date-fns";
-import type { User } from "@prisma/client";
+import type { Prisma, User } from "@prisma/client";
 import { type ActionFunctionArgs, type LoaderFunctionArgs, json, redirect } from "@remix-run/node";
 import { Form, useActionData, useLoaderData, useSubmit } from "@remix-run/react";
+import {
+  addDays,
+  addHours,
+  differenceInHours,
+  endOfDay,
+  format,
+  isSameDay,
+  parseISO,
+  startOfDay,
+} from "date-fns";
+import { Calendar, Car, Clock, CreditCard } from "lucide-react";
+import crypto from "node:crypto";
 import { useState } from "react";
 import invariant from "tiny-invariant";
+import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
-import { Label } from "~/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -28,20 +25,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "~/components/ui/select";
+import { Separator } from "~/components/ui/separator";
+import logger from "~/lib/logger.server";
 import { formatCurrency, getCustomerDetails } from "~/lib/utils";
 import { requireUserWithRole } from "~/modules/auth/auth.server";
 import { prisma } from "~/modules/db/db.server";
-import logger from "~/lib/logger.server";
-import { emailQueue } from "~/queues/email-throttle.server";
-import { sendEmail } from "~/modules/email/email.server";
-import { bookingExtensionConfirmationEmail } from "~/modules/email/templates/booking-notification";
 import { createPaymentIntent } from "~/services/payment.server";
-import crypto from "node:crypto";
-import { Prisma } from "@prisma/client";
-import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
-import { Calendar, Car, Clock, CreditCard } from "lucide-react";
-import { Separator } from "~/components/ui/separator";
-import { Badge } from "~/components/ui/badge";
 
 export async function loader({ params, request }: LoaderFunctionArgs) {
   invariant(params.id, "Booking ID route parameter is required");
@@ -98,6 +87,7 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
     );
     throw new Response("Booking is not within its scheduled start and end dates.", { status: 400 });
   }
+
   logger.info(`Booking ${booking.id} is ACTIVE and within overall time frame.`);
 
   // --- Calculate Current State for Today, based on Today's Leg and its Extensions ---
@@ -109,6 +99,7 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
     logger.error(`Loader: No active leg found for booking ${booking.id} on ${today.toISOString()}`);
     throw new Response("No active booking segment found for today.", { status: 400 });
   }
+
   logger.info(`Loader: Today's leg ID: ${todaysLeg.id}, Date: ${todaysLeg.legDate}`);
 
   const todaysLegOriginalEndTime = parseISO(todaysLeg.legEndTime.toISOString());

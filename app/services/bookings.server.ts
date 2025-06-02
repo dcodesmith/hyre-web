@@ -9,6 +9,8 @@ import {
   User,
 } from "@prisma/client";
 import {
+  addDays,
+  addHours,
   addMinutes,
   differenceInHours,
   eachDayOfInterval,
@@ -20,11 +22,13 @@ import {
   isSameDay,
   isValid,
   isWithinInterval,
+  parseISO,
   set,
   setHours,
   startOfDay,
   subMilliseconds,
 } from "date-fns";
+import { BookingWithRelations } from "~/types";
 import logger from "~/lib/logger.server";
 import { prisma } from "~/modules/db/db.server";
 import { sendEmail } from "~/modules/email/email.server";
@@ -33,6 +37,12 @@ import {
   renderBookingStatusUpdateEmail,
 } from "~/modules/email/templates/booking-notification";
 import { emailQueue } from "~/queues/email-throttle.server";
+import {
+  getCustomerDetails,
+  normaliseBookingLegDetails,
+  normaliseBookingDetails,
+} from "~/lib/utils";
+import { sendMessage, Template } from "~/modules/messaging/messaging.server";
 
 export type CreateBookingParams = {
   startDate: Date;
@@ -151,14 +161,17 @@ export async function findBookingByPaymentIntent(paymentIntent: string) {
   return prisma.booking.findFirst({
     where: { paymentIntent },
     include: {
-      car: { include: { owner: true, images: true } },
+      car: { include: { owner: true } },
       user: true,
     },
   });
 }
 
 // Activate a booking after successful payment
-export async function activateBooking(bookingId: string, paymentId: string) {
+export async function activateBooking(
+  bookingId: string,
+  paymentId: string,
+): Promise<BookingWithRelations> {
   return prisma.$transaction(async (transaction) => {
     // Update the booking
     const booking = await transaction.booking.update({
@@ -171,6 +184,8 @@ export async function activateBooking(bookingId: string, paymentId: string) {
       include: {
         car: { include: { owner: true } },
         user: true,
+        chauffeur: true,
+        legs: { include: { extensions: true } },
       },
     });
 
@@ -409,6 +424,8 @@ export async function cancelBooking(bookingId: string, reason: string) {
       },
       include: {
         user: true,
+        chauffeur: true,
+        legs: { include: { extensions: true } },
         car: { include: { owner: true } },
       },
     });
@@ -597,8 +614,9 @@ export async function updateBookingsFromConfirmedToActive() {
         },
       },
       include: {
-        car: true,
+        car: { include: { owner: true } },
         user: true,
+        chauffeur: true,
         legs: { include: { extensions: true } },
       },
     });
@@ -614,16 +632,32 @@ export async function updateBookingsFromConfirmedToActive() {
         data: { status: BookingStatus.ACTIVE },
       });
 
-      const html = await renderBookingStatusUpdateEmail(booking);
-      const guestUserEmail = (booking.guestUser as { email?: string })?.email;
+      const { email } = getCustomerDetails(booking);
+      const bookingDetails = normaliseBookingDetails(booking);
+      const html = await renderBookingStatusUpdateEmail(bookingDetails);
 
-      await emailQueue.add(() =>
-        sendEmail({
-          to: booking.user?.email ?? guestUserEmail!,
+      await emailQueue.add(async () => {
+        await sendMessage({
+          variables: {
+            "1": bookingDetails.customerName,
+            "2": bookingDetails.carName,
+            "3": bookingDetails.title,
+            "4": bookingDetails.status,
+            "5": bookingDetails.startDate,
+            "6": bookingDetails.endDate,
+            "7": bookingDetails.pickupLocation,
+            "8": bookingDetails.returnLocation,
+            "9": bookingDetails.totalAmount,
+          },
+          templateKey: Template.BookingStatusUpdate,
+        });
+
+        await sendEmail({
+          to: email,
           subject: "Your booking has started",
           html,
-        }),
-      );
+        });
+      });
     }
 
     await emailQueue.onIdle();
@@ -655,8 +689,9 @@ export async function updateBookingsFromActiveToCompleted() {
         },
       },
       include: {
-        car: true,
+        car: { include: { owner: true } },
         user: true,
+        chauffeur: true,
         legs: { include: { extensions: true } },
       },
     });
@@ -677,16 +712,32 @@ export async function updateBookingsFromActiveToCompleted() {
         data: { status: Status.AVAILABLE },
       });
 
-      const html = await renderBookingStatusUpdateEmail(booking);
-      const guestUserEmail = (booking.guestUser as { email?: string })?.email;
+      const { email } = getCustomerDetails(booking);
+      const bookingDetails = normaliseBookingDetails(booking);
+      const html = await renderBookingStatusUpdateEmail(bookingDetails);
 
-      await emailQueue.add(() =>
-        sendEmail({
-          to: booking.user?.email ?? guestUserEmail!,
+      await emailQueue.add(async () => {
+        await sendMessage({
+          variables: {
+            "1": bookingDetails.customerName,
+            "2": bookingDetails.carName,
+            "3": bookingDetails.title,
+            "4": bookingDetails.status,
+            "5": bookingDetails.startDate,
+            "6": bookingDetails.endDate,
+            "7": bookingDetails.pickupLocation,
+            "8": bookingDetails.returnLocation,
+            "9": bookingDetails.totalAmount,
+          },
+          templateKey: Template.BookingStatusUpdate,
+        });
+
+        await sendEmail({
+          to: email,
           subject: "Your booking has ended",
           html,
-        }),
-      );
+        });
+      });
     }
     await emailQueue.onIdle();
   } catch (error) {
@@ -697,31 +748,51 @@ export async function updateBookingsFromActiveToCompleted() {
 
 export async function sendBookingStartReminderEmails() {
   try {
+    // const now = new Date("2025-06-01T07:00:00+01:00"); // Saturday, May 31, 2025 3:39:03 PM BST
+
     const now = new Date();
+    logger.info(`now: ${now.toISOString()}, new Date(): ${new Date().toISOString()}`);
+
+    // const now = addHours(new Date(), 18.75);
+    // const startOfToday = startOfDay(now);
+    // const endOfToday = endOfDay(now);
+
     const startOfToday = startOfDay(now);
     const endOfToday = endOfDay(now);
 
     // Define the reminder window: for services starting approximately 60 minutes from now.
     // This window covers one minute, e.g., if now is 10:00, window is 11:00:00 to 11:00:59.
-    const reminderTargetTime = addMinutes(now, 60);
-    const reminderWindowStart = set(reminderTargetTime, { seconds: 0, milliseconds: 0 });
-    const reminderWindowEnd = set(reminderTargetTime, { seconds: 59, milliseconds: 999 });
-    const reminderInterval = { start: reminderWindowStart, end: reminderWindowEnd };
+    // const reminderTargetTime = addMinutes(now, 60);
+    // const reminderWindowStart = set(reminderTargetTime, { seconds: 0, milliseconds: 0 });
+    // const reminderWindowEnd = set(reminderTargetTime, { seconds: 59, milliseconds: 999 });
+    // const reminderInterval = { start: reminderWindowStart, end: reminderWindowEnd };
+
+    // logger.info(
+    //   `Checking for booking legs starting today. Reminder window: ${reminderWindowStart.toISOString()} - ${reminderWindowEnd.toISOString()}`,
+    // );
 
     logger.info(
-      `Checking for booking legs starting today. Reminder window: ${reminderWindowStart.toISOString()} - ${reminderWindowEnd.toISOString()}`,
+      `Checking for booking legs starting today. startOfToday: ${startOfToday.toISOString()}, endOfToday: ${endOfToday.toISOString()}`,
     );
 
+    const oneHourFromNow = addHours(now, 1);
+    const windowEndTime = subMilliseconds(oneHourFromNow, 1);
+
     // 1. Fetch BookingLegs for today whose parent booking meets criteria.
-    const relevantLegs = await prisma.bookingLeg.findMany({
+    const legs = await prisma.bookingLeg.findMany({
       where: {
         legDate: {
           gte: startOfToday,
           lte: endOfToday,
         },
+        legStartTime: {
+          gte: now, // Leg start time is at or after the current moment
+          lte: windowEndTime, // Leg start time is at or before one hour from now
+        },
         booking: {
           status: BookingStatus.CONFIRMED,
           paymentStatus: PaymentStatus.PAID,
+          chauffeur: { isNot: null },
           car: { status: Status.BOOKED },
         },
       },
@@ -730,108 +801,91 @@ export async function sendBookingStartReminderEmails() {
           include: {
             user: true,
             chauffeur: true,
+            legs: { include: { extensions: true } },
             car: { include: { owner: true } },
           },
         },
       },
     });
 
-    if (relevantLegs.length === 0) {
+    if (legs.length === 0) {
       logger.info(
-        "No booking legs found for today matching initial criteria. No reminders to send.",
+        "No booking legs found for today matching initial criteria. No start reminders to send.",
       );
-      return "No relevant booking legs today, so no reminders to send.";
+      return "No relevant booking legs today, so no start reminders to send.";
     }
 
-    const bookingsToReceiveReminders = [];
+    for (const leg of legs) {
+      logger.info(`Processing leg ${leg.id} legStartTime: ${leg.legStartTime}`);
 
-    for (const leg of relevantLegs) {
-      const parentBooking = leg.booking;
-      const originalBookingStartDate = new Date(parentBooking.startDate);
+      const { email } = getCustomerDetails(leg.booking);
+      const bookingLegDetails = normaliseBookingLegDetails(leg);
 
-      const effectiveStartTimeForLeg = set(new Date(leg.legDate), {
-        hours: getHours(originalBookingStartDate),
-        minutes: getMinutes(originalBookingStartDate),
-        seconds: getSeconds(originalBookingStartDate),
-        milliseconds: getMilliseconds(originalBookingStartDate),
+      await emailQueue.add(async () => {
+        await sendMessage({
+          variables: {
+            "1": bookingLegDetails.customerName,
+            "2": bookingLegDetails.carName,
+            "3": bookingLegDetails.legStartTime,
+            "4": bookingLegDetails.legEndTime,
+            "5": bookingLegDetails.pickupLocation,
+            "6": bookingLegDetails.returnLocation,
+            "7": bookingLegDetails.chauffeurName,
+          },
+          templateKey: Template.ClientBookingLegStartReminder,
+        });
+
+        await sendEmail({
+          to: email,
+          subject: "Booking Reminder - Your service starts in approximately 1 hour",
+          html: await renderBookingReminderEmail(bookingLegDetails, "client"),
+        });
+      });
+
+      const chauffeurEmail = leg?.booking?.chauffeur?.email;
+
+      if (chauffeurEmail) {
+        await emailQueue.add(async () => {
+          await sendEmail({
+            to: chauffeurEmail,
+            subject: "Booking Reminder - You have a service starting in approximately 1 hour",
+            html: await renderBookingReminderEmail(bookingLegDetails, "chauffeur"),
+          });
+        });
+      }
+
+      await emailQueue.add(async () => {
+        await sendMessage({
+          variables: {
+            "1": bookingLegDetails.chauffeurName,
+            "2": bookingLegDetails.carName,
+            "3": bookingLegDetails.legStartTime,
+            "4": bookingLegDetails.legEndTime,
+            "5": bookingLegDetails.pickupLocation,
+            "6": bookingLegDetails.returnLocation,
+            "7": bookingLegDetails.customerName,
+          },
+          templateKey: Template.ChauffeurBookingLegStartReminder,
+        });
       });
 
       // 2. Check if this leg's effective start time falls within the reminder window
-      if (isWithinInterval(effectiveStartTimeForLeg, reminderInterval)) {
-        bookingsToReceiveReminders.push(parentBooking);
-      }
+      // if (isWithinInterval(effectiveStartTimeForLeg, reminderInterval)) {
+      //   bookingsToReceiveReminders.push(parentBooking);
+      // }
     }
 
-    if (bookingsToReceiveReminders.length === 0) {
-      logger.info("No bookings have legs starting in the current reminder window.");
-      return "No reminders to send for the current reminder window.";
-    }
+    await emailQueue.onIdle();
 
-    // Deduplicate parent bookings. Since each leg is for a unique day of a booking (due to @@unique([bookingId, legDate])),
-    // this primarily ensures that if multiple distinct bookings happen to have legs starting at the exact same time,
-    // they are all processed. If the same booking object was somehow added multiple times, it'd be deduplicated.
-    const uniqueBookingsForEmail = Array.from(
-      new Map(bookingsToReceiveReminders.map((b) => [b.id, b])).values(),
-    );
+    logger.info("Email queue processing complete.");
 
-    logger.info(
-      `Preparing to send reminders for ${uniqueBookingsForEmail.length} unique bookings.`,
-    );
-
-    // 3. Send emails for the filtered bookings
-    for (const booking of uniqueBookingsForEmail) {
-      const clientUser = booking.user;
-      const guestInfo = booking.guestUser as { email?: string } | null; // guestUser is JSON
-
-      let targetClientEmail = clientUser?.email;
-
-      if (!targetClientEmail && guestInfo?.email) {
-        targetClientEmail = guestInfo.email;
-      }
-
-      if (targetClientEmail) {
-        logger.info(
-          `Simulating: render and queue client email for booking ${booking.id} to ${targetClientEmail}`,
-        );
-        const clientHtml = await renderBookingReminderEmail(booking, "client");
-        await emailQueue.add(async () =>
-          sendEmail({
-            to: targetClientEmail,
-            subject: "Booking Reminder - Your service starts in approximately 1 hour",
-            html: clientHtml,
-          }),
-        );
-      } else {
-        logger.warn(`No client email (user or guest) found for booking ${booking.id}.`);
-      }
-
-      const chauffeurEmail = booking.chauffeur?.email;
-
-      if (chauffeurEmail) {
-        logger.info(
-          `Simulating: render and queue chauffeur email for booking ${booking.id} to ${chauffeurEmail}`,
-        );
-        const chauffeurHtml = await renderBookingReminderEmail(booking, "chauffeur");
-        await emailQueue.add(async () =>
-          sendEmail({
-            to: chauffeurEmail,
-            subject: "Booking Reminder - You have a service starting in approximately 1 hour",
-            html: chauffeurHtml,
-          }),
-        );
-      }
-    }
-
-    // await emailQueue.onIdle(); // Wait for all emails in the queue to be processed
-    logger.info("Simulating: email queue processing complete.");
-
-    return `Processed reminders for ${uniqueBookingsForEmail.length} bookings. (Email sending simulated)`;
+    return `Processed reminders for ${legs.length} legs.`;
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logger.error(`Error in sendBookingStartReminderEmails: ${errorMessage}`, {
       errorDetails: error,
     });
-    // Re-throw the error so the caller (e.g., a job scheduler) knows the task failed.
+
     throw error;
   }
 }
@@ -977,30 +1031,31 @@ export async function sendBookingEndReminderEmails() {
     );
 
     for (const booking of bookingsToSendEmailFor) {
-      const clientUser = booking.user;
-      const guestInfo = booking.guestUser as { email?: string } | null;
+      const bookingDetails = normaliseBookingDetails(booking);
+      const { email } = getCustomerDetails(booking);
 
-      let targetClientEmail: string | undefined = undefined;
-      if (clientUser?.email) {
-        targetClientEmail = clientUser.email;
-      } else if (guestInfo?.email) {
-        targetClientEmail = guestInfo.email;
-      }
+      if (email) {
+        logger.info(`Queuing client end reminder for booking ${booking.id} to ${email}`);
+        const clientHtml = await renderBookingReminderEmail(bookingDetails, "client", false);
+        await emailQueue.add(async () => {
+          await sendMessage({
+            templateKey: Template.ClientBookingLegEndReminder,
+            variables: {
+              "1": bookingDetails.customerName,
+              "2": bookingDetails.carName,
+              "3": bookingDetails.chauffeurName,
+              "4": bookingDetails.chauffeurPhoneNumber,
+              "5": bookingDetails.startDate,
+              "6": bookingDetails.endDate,
+            },
+          });
 
-      if (targetClientEmail) {
-        logger.info(
-          `Queuing client end reminder for booking ${booking.id} to ${targetClientEmail}`,
-        );
-        const clientHtml = await renderBookingReminderEmail(booking, "client", false);
-        await emailQueue.add(async () =>
-          sendEmail({
-            to: targetClientEmail,
+          await sendEmail({
+            to: email,
             subject: "Booking Reminder - Your service ends in approximately 1 hour",
             html: clientHtml,
-          }),
-        );
-      } else {
-        logger.warn(`No client email found for booking ${booking.id} for end reminder.`);
+          });
+        });
       }
 
       const chauffeurEmail = booking.chauffeur?.email;
@@ -1009,7 +1064,7 @@ export async function sendBookingEndReminderEmails() {
         logger.info(
           `Queuing chauffeur end reminder for booking ${booking.id} to ${chauffeurEmail}`,
         );
-        const chauffeurHtml = await renderBookingReminderEmail(booking, "chauffeur", false);
+        const chauffeurHtml = await renderBookingReminderEmail(bookingDetails, "chauffeur", false);
         await emailQueue.add(async () =>
           sendEmail({
             to: chauffeurEmail,
@@ -1030,31 +1085,6 @@ export async function sendBookingEndReminderEmails() {
     logger.error(`Error in sendBookingEndReminderEmails: ${errorMessage}`, { errorDetails: error });
     throw error;
   }
-}
-
-export async function getAvailableCars(params: {
-  startDate: Date;
-  endDate: Date;
-  // ... other params
-}) {
-  return prisma.car.findMany({
-    where: {
-      AND: [
-        // ... existing date/booking filters ...
-        {
-          status: Status.AVAILABLE,
-          approvalStatus: CarApprovalStatus.APPROVED,
-          owner: {
-            fleetOwnerStatus: FleetOwnerStatus.APPROVED,
-          },
-        },
-      ],
-    },
-    include: {
-      owner: true,
-      bookings: true,
-    },
-  });
 }
 
 export async function updateCarApprovalStatus(carId: string, status: CarApprovalStatus) {

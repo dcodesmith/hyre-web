@@ -1,32 +1,18 @@
-import {
-  Booking,
-  Extension,
-  BookingStatus,
-  PaymentStatus,
-  BookingType,
-  Prisma,
-} from "@prisma/client";
+import { BookingStatus, Prisma } from "@prisma/client";
 import { useFormAction, useNavigation } from "@remix-run/react";
 import { type ClassValue, clsx } from "clsx";
-import { twMerge } from "tailwind-merge";
-import { BookingWithRelations } from "~/types";
 import {
+  addDays,
+  differenceInHours,
+  format,
+  isAfter,
+  isBefore,
   isSameDay,
   startOfDay,
-  endOfDay,
-  set,
-  isBefore,
-  isAfter,
-  getHours,
-  getMinutes,
-  getSeconds,
-  getMilliseconds,
-  parseISO,
-  differenceInHours,
-  isEqual,
-  addDays,
 } from "date-fns";
-import logger from "./logger.server";
+import { twMerge } from "tailwind-merge";
+import { match } from "ts-pattern";
+import { BookingLegWithRelations, BookingWithRelations, Extension } from "~/types";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -51,12 +37,6 @@ export function useIsPending({
     navigation.formMethod === formMethod
   );
 }
-
-export const getOrdinalSuffix = (n: number) => {
-  const s = ["th", "st", "nd", "rd"];
-  const v = n % 100;
-  return s[(v - 20) % 10] || s[v] || s[0];
-};
 
 export function formatDate(date: string | Date) {
   const formatter = new Intl.DateTimeFormat("en-GB", {
@@ -198,8 +178,6 @@ export function getLegExtendableDuration(booking: BookingWithDetailedLegs): numb
 
   const todaysLeg = booking.legs.find((leg) => isSameDay(new Date(leg.legDate), now));
 
-  console.log("todaysLeg", booking.legs);
-
   if (!todaysLeg) {
     return 0;
   }
@@ -259,4 +237,143 @@ export function getCustomerDetails(
   }
 
   return { email, name, phone_number };
+}
+
+// Helper to generate a user-friendly name or email
+export function getUserDisplayName(
+  booking: BookingWithRelations,
+  target: "user" | "owner" | "chauffeur" = "user",
+): string {
+  if (target === "user") {
+    return (
+      booking.user?.name ||
+      booking.user?.username ||
+      booking.user?.email ||
+      booking.guestUser?.name ||
+      booking.guestUser?.email ||
+      "Customer"
+    );
+  }
+
+  if (target === "owner") {
+    return (
+      booking.car.owner?.name ||
+      booking.car.owner?.username ||
+      booking.car.owner?.email ||
+      "Fleet Owner"
+    );
+  }
+
+  if (target === "chauffeur" && booking.chauffeur) {
+    return booking.chauffeur.name || booking.chauffeur.email || "Chauffeur";
+  }
+
+  return "User";
+}
+
+export type NormalisedBookingDetails = {
+  id: string;
+  customerName: string;
+  ownerName: string;
+  chauffeurName: string;
+  chauffeurPhoneNumber: string;
+  carName: string;
+  pickupLocation: string;
+  returnLocation: string;
+  startDate: string;
+  endDate: string;
+  totalAmount: string;
+  title: string;
+  status: string;
+  cancellationReason: string;
+};
+
+export type NormalisedExtensionDetails = {
+  customerName: string;
+  carName: string;
+  legDate: string;
+  extensionHours: number;
+  from: string;
+  to: string;
+};
+
+export type NormalisedBookingLegDetails = {
+  bookingId: string;
+  customerName: string;
+  chauffeurName: string;
+  legDate: string;
+  legStartTime: string;
+  legEndTime: string;
+  chauffeurPhoneNumber: string;
+  carName: string;
+  pickupLocation: string;
+  returnLocation: string;
+};
+
+export function normaliseBookingDetails(booking: BookingWithRelations): NormalisedBookingDetails {
+  const customerName = getUserDisplayName(booking, "user");
+  const ownerName = getUserDisplayName(booking, "owner");
+  const chauffeurName = getUserDisplayName(booking, "chauffeur");
+  const carName = `${booking.car.make} ${booking.car.model} (${booking.car.year})`;
+
+  const { title, status } = match(booking.status)
+    .with(BookingStatus.CONFIRMED, () => ({ title: "started", status: "active" }))
+    .with(BookingStatus.ACTIVE, () => ({ title: "ended", status: "completed" }))
+    .otherwise(() => ({
+      title: `status is ${booking.status.toLowerCase()}`,
+      status: booking.status.toLowerCase(),
+    }));
+
+  return {
+    id: booking.id,
+    ownerName,
+    customerName,
+    chauffeurName,
+    chauffeurPhoneNumber: booking.chauffeur?.phoneNumber ?? "",
+    carName,
+    title,
+    status,
+    cancellationReason: booking.cancellationReason ?? "No reason provided",
+    pickupLocation: booking.pickupLocation,
+    returnLocation: booking.returnLocation,
+    startDate: formatDate(booking.startDate),
+    endDate: formatDate(booking.endDate),
+    totalAmount: formatCurrency(Number(booking.totalAmount.toFixed(2))),
+  };
+}
+
+export function normaliseExtensionDetails(extension: Extension): NormalisedExtensionDetails {
+  const { booking } = extension.bookingLeg;
+  const customerName = getUserDisplayName(booking as BookingWithRelations, "user");
+
+  return {
+    customerName,
+    carName: `${booking.car.make} ${booking.car.model} (${booking.car.year})`,
+    legDate: format(extension.bookingLeg.legDate, "PPPP"),
+    extensionHours: extension.extendedDurationHours,
+    from: format(extension.bookingLeg.legEndTime, "p"),
+    to: format(extension.extensionEndTime, "p"),
+  };
+}
+
+export function normaliseBookingLegDetails(
+  bookingLeg: BookingLegWithRelations,
+): NormalisedBookingLegDetails {
+  const { booking } = bookingLeg;
+  const customerName = getUserDisplayName(booking as BookingWithRelations, "user");
+  const chauffeurName = getUserDisplayName(booking as BookingWithRelations, "chauffeur");
+  const carName = `${booking.car.make} ${booking.car.model} (${booking.car.year})`;
+
+  return {
+    bookingId: booking.id,
+    customerName,
+    chauffeurName,
+    legDate: format(bookingLeg.legDate, "PPPP"),
+    legStartTime: format(bookingLeg.legStartTime, "p"),
+    legEndTime: format(bookingLeg.legEndTime, "p"),
+    chauffeurPhoneNumber: booking.chauffeur?.phoneNumber ?? "",
+    pickupLocation: booking.pickupLocation,
+    returnLocation: booking.returnLocation,
+    carName,
+  };
 }
