@@ -18,7 +18,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { LocateFixed, ShieldCheck } from "lucide-react";
+import { LocateFixed, ShieldCheck, Star } from "lucide-react";
 import { useRef, useState } from "react";
 import Carousel from "~/components/Carousel";
 import { columns } from "~/components/Table/Columns";
@@ -146,8 +146,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
   // Collect the IDs of these owners
   const ownerIdsToExclude = ownersWithAllChauffeursBusy.map((o) => o.id);
   const idsToExclude = await getFleetOwnersWithAllChauffeursBusy(from ? new Date(from) : undefined);
-
-  console.log({ ownerIdsToExclude, idsToExclude });
 
   const cars = await prisma.car.findMany({
     where: {
@@ -391,24 +389,41 @@ export default function IndexPage() {
                   }
                 />
 
-                <div className="space-y-1 font-semibold">
-                  <h2>
-                    {row.original.make} {row.original.model} ({row.original.year})
-                  </h2>
+                <div className="space-y-1 font-semibold flex flex-col">
+                  <div className="flex justify-between">
+                    <h2 className="text-base">
+                      {row.original.make} {row.original.model} ({row.original.year})
+                    </h2>
+                    <div className="flex items-center gap-1">
+                      <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
+
+                      <span className="font-medium">
+                        {(4.0 + (Number.parseInt(row.original.id.slice(-2), 16) % 10) / 10).toFixed(
+                          1,
+                        )}
+                      </span>
+                      <span>
+                        ({50 + (Number.parseInt(row.original.id.slice(-3), 16) % 950)} reviews)
+                      </span>
+                    </div>
+                  </div>
 
                   <div>
                     {!from || !to ? (
                       <>
-                        Day:{" "}
+                        {/* Day:{" "} */}
+                        <span className="font-bold text-base">
+                          {new Intl.NumberFormat("en-NG", {
+                            style: "currency",
+                            currency: "NGN",
+                          }).format(row.original.dayRate)}
+                        </span>
+
+                        {/* | Night:{" "}
                         {new Intl.NumberFormat("en-NG", {
                           style: "currency",
                           currency: "NGN",
-                        }).format(row.original.price)}{" "}
-                        | Night:{" "}
-                        {new Intl.NumberFormat("en-NG", {
-                          style: "currency",
-                          currency: "NGN",
-                        }).format(row.original.nightRate)}
+                        }).format(row.original.nightRate)} */}
                       </>
                     ) : (
                       <>
@@ -417,14 +432,11 @@ export default function IndexPage() {
                           {new Intl.NumberFormat("en-NG", {
                             style: "currency",
                             currency: "NGN",
-                          }).format(row.original.price * calculateTotalDays())}
+                          }).format(row.original.dayRate * calculateTotalDays())}
                         </span>
                       </>
                     )}
                   </div>
-                  {process.env.NODE_ENV === "development" && (
-                    <span className="text-sm text-gray-500">{row.original.owner.username}</span>
-                  )}
                 </div>
               </div>
             </Link>

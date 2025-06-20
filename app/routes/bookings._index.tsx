@@ -21,6 +21,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -36,6 +37,7 @@ import {
   cancelBooking,
   createPendingBooking,
   getBookingsByStatus,
+  calculateBookingCost,
 } from "~/services/bookings.server";
 import { createPaymentIntent } from "~/services/payment.server";
 
@@ -102,6 +104,7 @@ export async function action({ request }: ActionFunctionArgs) {
     const dropOffAddress = String(formData.get("dropOffAddress"));
     const carId = String(formData.get("carId"));
     const bookingType = String(formData.get("bookingType"));
+    const includeSecurityDetail = formData.get("includeSecurityDetail") === "true";
 
     // Check if guest email exists as a user
     if (guestEmail) {
@@ -169,11 +172,23 @@ export async function action({ request }: ActionFunctionArgs) {
       return json({ error: "Car not found" }, { status: 404 });
     }
 
-    const days = Math.ceil((endDateTime.getTime() - startDateTime.getTime()) / (1000 * 3600 * 24));
-    const baseTotal = car.price * days;
-    const vat = baseTotal * 0.075; // Use your actual VAT calculation logic/rate
-    const platformFee = baseTotal * 0.15; // Platform fee of 15%
-    const totalCost = baseTotal + vat + platformFee;
+    const clientTotalAmount = formData.get("totalAmount");
+
+    const { totalAmount: totalCost } = await calculateBookingCost({
+      car,
+      startDate: startDateTime,
+      endDate: endDateTime,
+      type: bookingType as BookingType,
+      includeSecurityDetail,
+    });
+
+    if (clientTotalAmount && Number(clientTotalAmount) !== totalCost.toNumber()) {
+      logger.error(
+        `Client total amount ${clientTotalAmount} does not match server-calculated amount ${totalCost}. Trusting server amount.`,
+      );
+      // Optional: uncomment the line below to block the transaction if prices mismatch
+      return json({ error: "Price mismatch. Please try again." }, { status: 400 });
+    }
 
     try {
       // Generate idempotency key for this booking attempt
@@ -181,7 +196,7 @@ export async function action({ request }: ActionFunctionArgs) {
 
       // Create payment intent
       const { paymentIntentId, checkoutUrl } = await createPaymentIntent({
-        amount: process.env.NODE_ENV === "development" ? 3000 : totalCost,
+        amount: totalCost.toNumber(),
         customer: {
           email: user.email,
           name: user.name || "Customer",
@@ -195,10 +210,9 @@ export async function action({ request }: ActionFunctionArgs) {
           bookingType,
         },
         idempotencyKey,
-        callbackUrl: `${process.env.APP_URL || "http://localhost:5173"}/bookings/payment-status?transactionType=booking_creation`,
+        callbackUrl: `${process.env.APP_URL || url.origin}/bookings/payment-status?transactionType=booking_creation`,
       });
 
-      // Create pending booking
       const booking = await createPendingBooking({
         startDate: startDateTime,
         endDate: endDateTime,
@@ -208,11 +222,11 @@ export async function action({ request }: ActionFunctionArgs) {
         returnLocation,
         paymentIntent: paymentIntentId,
         type: bookingType as BookingType,
+        includeSecurityDetail,
       });
 
       logger.info(`Created pending booking ${booking.id} with payment intent ${paymentIntentId}`);
 
-      // Redirect to Flutterwave checkout
       return redirect(checkoutUrl);
     } catch (error) {
       logger.error(
@@ -241,16 +255,13 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const url = new URL(request.url);
   const guestEmail = url.searchParams.get("email");
 
-  // Get either guest user or authenticated user
   let user: User | null | { email: string; name?: string; phoneNumber?: string } = null;
+
   if (guestEmail) {
     user = { email: guestEmail };
   } else {
     user = await getSessionUser(request);
   }
-
-  logger.info(`Guest email: ${guestEmail}`);
-  logger.info(`User: ${JSON.stringify(user)}`);
 
   const email = guestEmail || user?.email;
 
@@ -260,8 +271,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
   }
 
   const bookings = await getBookingsByStatus(email, Boolean(guestEmail));
-
-  logger.info(`Bookings: ${JSON.stringify(bookings)} ${email} ${Boolean(guestEmail)}`);
 
   return json({ bookings, user });
 }
@@ -275,6 +284,7 @@ export default function BookingsPage() {
   const statuses = ["ACTIVE", "CONFIRMED", "COMPLETED", "CANCELLED"] as const;
   const [showDropoffFields, setShowDropoffFields] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [bookingToCancel, setBookingToCancel] = useState<BookingWithRelations | null>(null);
   const editFetcher = useFetcher<{ success: boolean }>();
 
   useEffect(() => {
@@ -283,10 +293,14 @@ export default function BookingsPage() {
     }
   }, [editFetcher.data]);
 
-  // Add check for guest email in search params
+  useEffect(() => {
+    if (fetcher.state === "idle" && fetcher.data) {
+      setBookingToCancel(null);
+    }
+  }, [fetcher.state, fetcher.data]);
+
   const guestEmail = searchParams.get("email");
 
-  // If no bookings and no guest email, show guest email form
   if (!Object.keys(bookings).length && !guestEmail && !user) {
     return (
       <div className="max-w-md mx-auto mt-8">
@@ -335,203 +349,203 @@ export default function BookingsPage() {
               value={status}
             >
               <div className="flex flex-col">
-                {bookings[status as BookingStatus]?.map((booking) => (
-                  <Fragment key={booking.id}>
-                    <div
-                      key={booking.id}
-                      className="sm:flex-row flex-col flex justify-between px-2 py-4 border-b last:border-0"
-                    >
-                      <Link
-                        to={`/bookings/${booking.id}${guestEmail ? `?email=${guestEmail}` : ""}`}
-                        className="flex items-center gap-4 w-full"
+                {bookings[status as BookingStatus]?.map((booking) => {
+                  const isThisBookingBeingCancelled =
+                    fetcher.state !== "idle" && fetcher.formData?.get("bookingId") === booking.id;
+                  return (
+                    <Fragment key={booking.id}>
+                      <div
+                        key={booking.id}
+                        className="sm:flex-row flex-col flex justify-between px-2 py-4 border-b last:border-0"
                       >
-                        <img
-                          src={booking.car.images[0].url}
-                          alt={`${booking.car.make} ${booking.car.model}`}
-                          className="w-10 h-10 rounded-full object-cover"
-                        />
-                        <div className="space-y-1">
-                          <h3 className="text-pretty text-sm font-semibold">
-                            {booking.car.make} {booking.car.model} ({booking.car.year})
-                          </h3>
-                          <div className="text-sm text-pretty text-gray-600 space-y-1">
-                            <p className="sm:block hidden">
-                              {format(booking.startDate, "PPPp")} to{" "}
-                              {format(booking.endDate, "PPPp")}
-                            </p>
-
-                            <p className="sm:hidden block">{format(booking.startDate, "PPPp")}</p>
-                            <p className="sm:hidden block">{format(booking.endDate, "PPPp")}</p>
-
-                            <p className="text-pretty text-sm font-semibold">
-                              {formatCurrency(Number(booking.totalAmount))}
-                              {/* <span className="inline-flex items-center px-1">.</span>
-                            <span className=" text-gray-500">{formatDate(booking.createdAt)}</span> */}
-                            </p>
-
-                            {/* {booking.chauffeur ? (
-                              <p>
-                                Your chauffeur{" "}
-                                {["CANCELLED", "COMPLETED"].includes(booking.status) ? "was" : "is"}{" "}
-                                {booking.chauffeur.name}
+                        <Link
+                          to={`/bookings/${booking.id}${guestEmail ? `?email=${guestEmail}` : ""}`}
+                          className={`flex items-center gap-4 w-full ${isThisBookingBeingCancelled ? "pointer-events-none" : ""}`}
+                        >
+                          <img
+                            src={booking.car.images[0].url}
+                            alt={`${booking.car.make} ${booking.car.model}`}
+                            className="w-10 h-10 rounded-full object-cover"
+                          />
+                          <div className="space-y-1">
+                            <h3 className="text-pretty text-sm font-semibold">
+                              {booking.car.make} {booking.car.model} ({booking.car.year})
+                            </h3>
+                            <div className="text-sm text-pretty text-gray-600 space-y-1">
+                              <p className="sm:block hidden">
+                                {format(booking.startDate, "PPPp")} to{" "}
+                                {format(booking.endDate, "PPPp")}
                               </p>
-                            ) : (
-                              <p>Chauffeur not assigned yet</p>
-                            )} */}
+
+                              <p className="sm:hidden block">{format(booking.startDate, "PPPp")}</p>
+                              <p className="sm:hidden block">{format(booking.endDate, "PPPp")}</p>
+
+                              <p className="text-pretty text-sm font-semibold">
+                                {formatCurrency(Number(booking.totalAmount))}
+                                {/* <span className="inline-flex items-center px-1">.</span>
+                              <span className=" text-gray-500">{formatDate(booking.createdAt)}</span> */}
+                              </p>
+
+                              {/* {booking.chauffeur ? (
+                                <p>
+                                  Your chauffeur{" "}
+                                  {["CANCELLED", "COMPLETED"].includes(booking.status) ? "was" : "is"}{" "}
+                                  {booking.chauffeur.name}
+                                </p>
+                              ) : (
+                                <p>Chauffeur not assigned yet</p>
+                              )} */}
+                            </div>
                           </div>
-                        </div>
-                      </Link>
+                        </Link>
 
-                      <div className="flex sm:flex-row flex-col gap-2 sm:mt-0 mt-2 items-center justify-center">
-                        {getLegExtendableDuration(booking) > 0 && (
-                          <Link
-                            to={`/bookings/${booking.id}/extend${guestEmail ? `?email=${guestEmail}` : ""}`}
-                            className="bg-green-700 hover:bg-green-800 p-2 border text-white rounded text-center sm:w-auto w-full transition duration-300 ease-in-out"
-                          >
-                            Extend
-                          </Link>
-                        )}
+                        <div className="flex sm:flex-row flex-col gap-2 sm:mt-0 mt-2 items-center justify-center">
+                          {getLegExtendableDuration(booking) > 0 && (
+                            <Link
+                              to={`/bookings/${booking.id}/extend${guestEmail ? `?email=${guestEmail}` : ""}`}
+                              className="bg-green-700 hover:bg-green-800 p-2 border text-white rounded text-center sm:w-auto w-full transition duration-300 ease-in-out"
+                            >
+                              Extend
+                            </Link>
+                          )}
 
-                        {booking.status === "CONFIRMED" &&
-                          isBookingEditable(new Date(booking.startDate)) && (
-                            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                              <DialogTrigger asChild>
-                                <Button variant="outline" className="sm:w-auto w-full bg-gray-100">
-                                  Edit Booking
-                                </Button>
-                              </DialogTrigger>
-                              <DialogContent className="sm:max-w-[425px]">
-                                <DialogHeader>
-                                  <DialogTitle>
-                                    {booking.car.make} {booking.car.model} {booking.car.year}
-                                  </DialogTitle>
-                                  <DialogDescription>
-                                    {booking.type === "DAY"
-                                      ? "Edit the pickup time, pickup address, and drop-off address"
-                                      : "Edit the pickup time and pickup address"}
-                                  </DialogDescription>
-                                </DialogHeader>
-                                <editFetcher.Form
-                                  method="PATCH"
-                                  action={`/bookings/${booking.id}`}
-                                  className="space-y-4"
-                                  key={booking.id}
-                                >
-                                  <input type="hidden" name="bookingId" value={booking.id} />
-                                  <div className="grid gap-4 py-4">
-                                    {booking.type === "DAY" && (
-                                      <div className="space-y-2">
-                                        <label className="text-sm font-medium">Pickup Time</label>
-                                        <BookingTimeSelect
-                                          date={new Date(booking.startDate)}
-                                          defaultValue={new Date(
-                                            booking.startDate,
-                                          ).toLocaleTimeString("en-US", {
-                                            hour: "numeric",
-                                            minute: "numeric",
-                                            hour12: true,
-                                          })}
-                                        />
-                                      </div>
-                                    )}
+                          {booking.status === "CONFIRMED" &&
+                            isBookingEditable(new Date(booking.startDate)) && (
+                              <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                                <DialogTrigger asChild>
+                                  <Button
+                                    variant="outline"
+                                    className="sm:w-auto w-full bg-gray-100"
+                                    disabled={isThisBookingBeingCancelled}
+                                  >
+                                    Modify Booking
+                                  </Button>
+                                </DialogTrigger>
+                                <DialogContent className="sm:max-w-[425px]">
+                                  <DialogHeader>
+                                    <DialogTitle>
+                                      {booking.car.make} {booking.car.model} {booking.car.year}
+                                    </DialogTitle>
+                                    <DialogDescription>
+                                      {booking.type === "DAY"
+                                        ? "Edit the pickup time, pickup address, and drop-off address"
+                                        : "Edit the pickup time and pickup address"}
+                                    </DialogDescription>
+                                  </DialogHeader>
+                                  <editFetcher.Form
+                                    method="PATCH"
+                                    action={`/bookings/${booking.id}`}
+                                    className="space-y-4"
+                                    key={booking.id}
+                                  >
+                                    <input type="hidden" name="bookingId" value={booking.id} />
+                                    <div className="grid gap-4 py-4">
+                                      {booking.type === "DAY" && (
+                                        <div className="space-y-2">
+                                          <label className="text-sm font-medium">Pickup Time</label>
+                                          <BookingTimeSelect
+                                            date={new Date(booking.startDate)}
+                                            defaultValue={new Date(
+                                              booking.startDate,
+                                            ).toLocaleTimeString("en-US", {
+                                              hour: "numeric",
+                                              minute: "numeric",
+                                              hour12: true,
+                                            })}
+                                          />
+                                        </div>
+                                      )}
 
-                                    <div className="space-y-2">
-                                      <label className="text-sm font-medium">Pickup Address</label>
-                                      <AutocompleteAddress
-                                        id="pickupAddress"
-                                        inputProps={{
-                                          name: "pickupAddress",
-                                          // value: booking.pickupLocation,
-                                          placeholder: "Enter pickup address",
-                                        }}
-                                        onSelect={(place) => {
-                                          // Handle place selection if needed
-                                        }}
-                                      />
-                                    </div>
-
-                                    <div className="space-y-1">
-                                      <div className="flex items-center space-x-2">
-                                        <Checkbox
-                                          id="sameLocation"
-                                          name="sameLocation"
-                                          defaultChecked={
-                                            booking.pickupLocation === booking.returnLocation
-                                          }
-                                          onCheckedChange={(checked) =>
-                                            setShowDropoffFields(!checked)
-                                          }
-                                        />
-                                        <Label htmlFor="sameLocation">
-                                          Drop-off location same as pickup
-                                        </Label>
-                                      </div>
-                                    </div>
-
-                                    {showDropoffFields && (
                                       <div className="space-y-2">
                                         <label className="text-sm font-medium">
-                                          Drop-off Address
+                                          Pickup Address
                                         </label>
                                         <AutocompleteAddress
-                                          id="dropOffAddress"
+                                          id="pickupAddress"
                                           inputProps={{
-                                            name: "dropOffAddress",
-                                            // value: booking.returnLocation,
-                                            placeholder: "Enter drop-off address",
+                                            name: "pickupAddress",
+                                            // value: booking.pickupLocation,
+                                            placeholder: "Enter pickup address",
                                           }}
                                           onSelect={(place) => {
                                             // Handle place selection if needed
                                           }}
                                         />
                                       </div>
-                                    )}
-                                  </div>
 
-                                  <div className="flex justify-end gap-3">
-                                    <Button
-                                      variant="outline"
-                                      type="button"
-                                      onClick={() => setIsDialogOpen(false)}
-                                    >
-                                      Cancel
-                                    </Button>
-                                    <Button type="submit">Save Changes</Button>
-                                  </div>
-                                </editFetcher.Form>
-                              </DialogContent>
-                            </Dialog>
-                          )}
+                                      <div className="space-y-1">
+                                        <div className="flex items-center space-x-2">
+                                          <Checkbox
+                                            id="sameLocation"
+                                            name="sameLocation"
+                                            defaultChecked={
+                                              booking.pickupLocation === booking.returnLocation
+                                            }
+                                            onCheckedChange={(checked) =>
+                                              setShowDropoffFields(!checked)
+                                            }
+                                          />
+                                          <Label htmlFor="sameLocation">
+                                            Drop-off location same as pickup
+                                          </Label>
+                                        </div>
+                                      </div>
 
-                        {["PENDING", "CONFIRMED"].includes(booking.status) &&
-                          isBookingEditable(new Date(booking.startDate)) && (
-                            <Button
-                              variant="destructive"
-                              className="sm:w-auto w-full"
-                              onClick={() =>
-                                fetcher.submit(
-                                  {
-                                    bookingId: booking.id,
-                                    reason: "User requested cancellation",
-                                  },
-                                  {
-                                    method: "DELETE",
-                                    action: `/bookings/${booking.id}`,
-                                  },
-                                )
-                              }
-                            >
-                              Cancel Booking
-                            </Button>
-                          )}
+                                      {showDropoffFields && (
+                                        <div className="space-y-2">
+                                          <label className="text-sm font-medium">
+                                            Drop-off Address
+                                          </label>
+                                          <AutocompleteAddress
+                                            id="dropOffAddress"
+                                            inputProps={{
+                                              name: "dropOffAddress",
+                                              // value: booking.returnLocation,
+                                              placeholder: "Enter drop-off address",
+                                            }}
+                                            onSelect={(place) => {
+                                              // Handle place selection if needed
+                                            }}
+                                          />
+                                        </div>
+                                      )}
+                                    </div>
 
-                        <ChevronRight className="w-4 h-4 text-gray-500 sm:block hidden" />
+                                    <div className="flex justify-end gap-3">
+                                      <Button
+                                        variant="outline"
+                                        type="button"
+                                        onClick={() => setIsDialogOpen(false)}
+                                      >
+                                        Cancel
+                                      </Button>
+                                      <Button type="submit">Save Changes</Button>
+                                    </div>
+                                  </editFetcher.Form>
+                                </DialogContent>
+                              </Dialog>
+                            )}
+
+                          {["PENDING", "CONFIRMED"].includes(booking.status) &&
+                            isBookingEditable(new Date(booking.startDate)) && (
+                              <Button
+                                variant="destructive"
+                                className="sm:w-auto w-full"
+                                onClick={() => setBookingToCancel(booking)}
+                                disabled={isThisBookingBeingCancelled}
+                              >
+                                {isThisBookingBeingCancelled ? "Cancelling..." : "Cancel Booking"}
+                              </Button>
+                            )}
+
+                          <ChevronRight className="w-4 h-4 text-gray-500 sm:block hidden" />
+                        </div>
                       </div>
-                    </div>
 
-                    {/* <hr className="my-2 border-t border-gray-300" key={booking.id} /> */}
-                  </Fragment>
-                ))}
+                      {/* <hr className="my-2 border-t border-gray-300" key={booking.id} /> */}
+                    </Fragment>
+                  );
+                })}
                 {(!bookings[status as BookingStatus] ||
                   bookings[status as BookingStatus]?.length === 0) && (
                   <div className="text-center py-8 text-gray-500">
@@ -542,6 +556,55 @@ export default function BookingsPage() {
             </TabsContent>
           ))}
         </Tabs>
+
+        {bookingToCancel && (
+          <Dialog
+            open={!!bookingToCancel}
+            onOpenChange={(isOpen) => {
+              if (!isOpen) {
+                setBookingToCancel(null);
+              }
+            }}
+          >
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle className="text-center font-semibold">
+                  Are you sure you want to cancel?
+                </DialogTitle>
+                <DialogDescription className="text-center pt-2 text-sm">
+                  This action cannot be undone. This will permanently cancel your booking for the{" "}
+                  <span className="font-medium">
+                    {bookingToCancel.car.make} {bookingToCancel.car.model}
+                  </span>
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter className="flex flex-row justify-end gap-2 sm:justify-end">
+                <Button variant="outline" type="button" onClick={() => setBookingToCancel(null)}>
+                  No
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={() => {
+                    if (!bookingToCancel) return;
+                    fetcher.submit(
+                      {
+                        bookingId: bookingToCancel.id,
+                        reason: "User requested cancellation",
+                      },
+                      {
+                        method: "DELETE",
+                        action: `/bookings/${bookingToCancel.id}`,
+                      },
+                    );
+                    setBookingToCancel(null);
+                  }}
+                >
+                  Yes, Cancel Booking
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
     </div>
   );

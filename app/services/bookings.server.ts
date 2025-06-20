@@ -8,6 +8,7 @@ import {
   Status,
   User,
 } from "@prisma/client";
+import { Decimal } from "decimal.js";
 import {
   addDays,
   addHours,
@@ -43,6 +44,9 @@ import {
   normaliseBookingDetails,
 } from "~/lib/utils";
 import { sendMessage, Template } from "~/modules/messaging/messaging.server";
+import { initiatePayout } from "./payment.server";
+
+export const SECURITY_DETAIL_COST = 30000;
 
 export type CreateBookingParams = {
   startDate: Date;
@@ -57,7 +61,176 @@ export type CreateBookingParams = {
   type: BookingType;
   status?: BookingStatus;
   paymentStatus?: PaymentStatus;
+  includeSecurityDetail?: boolean;
 };
+
+export async function calculateBookingCost({
+  car,
+  startDate,
+  endDate,
+  type,
+  includeSecurityDetail,
+  prismaInstance = prisma,
+}: {
+  car: { dayRate: number; nightRate: number; hourlyRate: number; id: string };
+  startDate: Date;
+  endDate: Date;
+  type: BookingType;
+  includeSecurityDetail?: boolean;
+  prismaInstance?: Prisma.TransactionClient | typeof prisma;
+}) {
+  let effectiveEndDateForLegGeneration = endDate;
+
+  // If the endDate is exactly at midnight (00:00:00.000),
+  // subtract a tiny amount to ensure it falls on the previous calendar day
+  // for the purpose of leg generation.
+  if (
+    endDate.getHours() === 0 &&
+    endDate.getMinutes() === 0 &&
+    endDate.getSeconds() === 0 &&
+    endDate.getMilliseconds() === 0
+  ) {
+    effectiveEndDateForLegGeneration = subMilliseconds(endDate, 1);
+  }
+
+  // First, calculate all leg prices to determine the totalAmount for the Booking
+  const bookingDates = eachDayOfInterval({
+    start: startDate,
+    end: effectiveEndDateForLegGeneration,
+  });
+  const legPrices: number[] = [];
+  const startHours = startDate.getHours();
+  const endHours = endDate.getHours();
+
+  logger.debug(`From createPendingBooking: startHours: ${startHours}, endHours: ${endHours}`);
+  logger.debug(`From createPendingBooking: bookingDates: ${bookingDates}`);
+
+  // Temporary booking object shape for price calculation
+  const tempBookingDataForPricing = { startDate, endDate, type };
+
+  for (const legDate of bookingDates) {
+    const dailyPrice = calculateBookingLegPrice(car, tempBookingDataForPricing, legDate);
+    legPrices.push(dailyPrice);
+  }
+
+  // Calculate the net total (sum of all leg prices)
+  const netTotal = legPrices
+    .map((legPrice) => new Decimal(legPrice))
+    .reduce((sum, legPrice) => sum.plus(legPrice), new Decimal(0));
+  logger.debug(`Net Total (sum of leg prices): ${netTotal.toString()}`);
+
+  const securityDetailCost = includeSecurityDetail
+    ? new Decimal(SECURITY_DETAIL_COST).mul(bookingDates.length)
+    : new Decimal(0);
+
+  const netTotalWithSecurity = netTotal.plus(securityDetailCost);
+
+  // Get current platform fee rates
+  const platformFeeRates = await prismaInstance.platformFeeRate.findFirst({
+    where: {
+      feeType: "PLATFORM_SERVICE_FEE",
+      effectiveSince: { lte: new Date() },
+      OR: [{ effectiveUntil: { gt: new Date() } }, { effectiveUntil: null }],
+    },
+  });
+
+  if (!platformFeeRates) {
+    throw new Error("No active platform service fee rate found");
+  }
+
+  // Get fleet owner commission rate
+  const fleetOwnerCommissionRate = await prismaInstance.platformFeeRate.findFirst({
+    where: {
+      feeType: "FLEET_OWNER_COMMISSION",
+      effectiveSince: { lte: new Date() },
+      OR: [{ effectiveUntil: { gt: new Date() } }, { effectiveUntil: null }],
+    },
+  });
+
+  if (!fleetOwnerCommissionRate) {
+    throw new Error("No active fleet owner commission rate found");
+  }
+
+  // Get current VAT rate
+  const vatRate = await prismaInstance.taxRate.findFirst({
+    where: {
+      effectiveSince: { lte: new Date() },
+      OR: [{ effectiveUntil: { gt: new Date() } }, { effectiveUntil: null }],
+    },
+  });
+
+  if (!vatRate) {
+    throw new Error("No active VAT rate found");
+  }
+
+  // Calculate platform service fee
+  const platformCustomerServiceFeeRatePercent = new Decimal(
+    platformFeeRates.ratePercent.toString(),
+  );
+  logger.debug(`Platform Service Fee Rate: ${platformCustomerServiceFeeRatePercent.toString()}%`);
+  const platformCustomerServiceFeeAmount = netTotalWithSecurity
+    .mul(platformCustomerServiceFeeRatePercent)
+    .div(100);
+  logger.debug(`Platform Service Fee Amount: ${platformCustomerServiceFeeAmount.toString()}`);
+
+  // Calculate subtotal before VAT
+  const subtotalBeforeVat = netTotalWithSecurity.plus(platformCustomerServiceFeeAmount);
+  logger.debug(`Subtotal Before VAT: ${subtotalBeforeVat.toString()}`);
+
+  // Calculate VAT
+  const vatRatePercent = new Decimal(vatRate.ratePercent.toString());
+  logger.debug(`VAT Rate: ${vatRatePercent.toString()}%`);
+  const vatAmount = subtotalBeforeVat.mul(vatRatePercent).div(100);
+  logger.debug(`VAT Amount: ${vatAmount.toString()}`);
+
+  // Calculate total amount (gross)
+  const totalAmount = subtotalBeforeVat.plus(vatAmount);
+  logger.debug(`Total Amount (Gross): ${totalAmount.toString()}`);
+
+  // Calculate fleet owner commission and payout
+  const platformFleetOwnerCommissionRatePercent = new Decimal(
+    fleetOwnerCommissionRate.ratePercent.toString(),
+  );
+  logger.debug(
+    `Fleet Owner Commission Rate: ${platformFleetOwnerCommissionRatePercent.toString()}%`,
+  );
+  const platformFleetOwnerCommissionAmount = netTotal
+    .mul(platformFleetOwnerCommissionRatePercent)
+    .div(100);
+  logger.debug(`Fleet Owner Commission Amount: ${platformFleetOwnerCommissionAmount.toString()}`);
+  const fleetOwnerPayoutAmountNet = netTotal.minus(platformFleetOwnerCommissionAmount);
+  logger.debug(`Fleet Owner Payout Amount (Net): ${fleetOwnerPayoutAmountNet.toString()}`);
+
+  // Log the complete breakdown
+  logger.debug(`Complete Calculation Breakdown:
+      Net Total: ${netTotal.toString()}
+      Security Detail Cost: ${securityDetailCost.toString()}
+      Net Total with Security: ${netTotalWithSecurity.toString()}
+      Platform Service Fee (${platformCustomerServiceFeeRatePercent.toString()}%): ${platformCustomerServiceFeeAmount.toString()}
+      Subtotal Before VAT: ${subtotalBeforeVat.toString()}
+      VAT (${vatRatePercent.toString()}%): ${vatAmount.toString()}
+      Total Amount (Gross): ${totalAmount.toString()}
+      Fleet Owner Commission (${platformFleetOwnerCommissionRatePercent.toString()}%): ${platformFleetOwnerCommissionAmount.toString()}
+      Fleet Owner Payout (Net): ${fleetOwnerPayoutAmountNet.toString()}
+    `);
+
+  return {
+    totalAmount,
+    netTotal,
+    platformCustomerServiceFeeRatePercent,
+    platformCustomerServiceFeeAmount,
+    subtotalBeforeVat,
+    vatRatePercent,
+    vatAmount,
+    platformFleetOwnerCommissionRatePercent,
+    platformFleetOwnerCommissionAmount,
+    fleetOwnerPayoutAmountNet,
+    bookingDates,
+    startHours,
+    endHours,
+    legPrices,
+  };
+}
 
 // Create a pending booking with payment intent
 export async function createPendingBooking({
@@ -70,6 +243,7 @@ export async function createPendingBooking({
   specialRequests,
   paymentIntent,
   type,
+  includeSecurityDetail,
 }: Omit<CreateBookingParams, "paymentId" | "status" | "paymentStatus"> & {
   paymentIntent: string;
 }) {
@@ -77,41 +251,29 @@ export async function createPendingBooking({
   if (!car) throw new Error("Car not found");
 
   const booking = await prisma.$transaction(async (transaction) => {
-    let effectiveEndDateForLegGeneration = endDate;
-
-    // If the endDate is exactly at midnight (00:00:00.000),
-    // subtract a tiny amount to ensure it falls on the previous calendar day
-    // for the purpose of leg generation.
-    if (
-      endDate.getHours() === 0 &&
-      endDate.getMinutes() === 0 &&
-      endDate.getSeconds() === 0 &&
-      endDate.getMilliseconds() === 0
-    ) {
-      effectiveEndDateForLegGeneration = subMilliseconds(endDate, 1);
-    }
-
-    // First, calculate all leg prices to determine the totalAmount for the Booking
-    const bookingDates = eachDayOfInterval({
-      start: startDate,
-      end: effectiveEndDateForLegGeneration,
+    const {
+      totalAmount,
+      netTotal,
+      platformCustomerServiceFeeRatePercent,
+      platformCustomerServiceFeeAmount,
+      subtotalBeforeVat,
+      vatRatePercent,
+      vatAmount,
+      platformFleetOwnerCommissionRatePercent,
+      platformFleetOwnerCommissionAmount,
+      fleetOwnerPayoutAmountNet,
+      bookingDates,
+      startHours,
+      endHours,
+      legPrices,
+    } = await calculateBookingCost({
+      car,
+      startDate,
+      endDate,
+      type,
+      includeSecurityDetail,
+      prismaInstance: transaction,
     });
-    const legPrices: number[] = [];
-    const startHours = startDate.getHours();
-    const endHours = endDate.getHours();
-
-    logger.debug(`From createPendingBooking: startHours: ${startHours}, endHours: ${endHours}`);
-    logger.debug(`From createPendingBooking: bookingDates: ${bookingDates}`);
-
-    // Temporary booking object shape for price calculation
-    const tempBookingDataForPricing = { startDate, endDate, type };
-
-    for (const legDate of bookingDates) {
-      const dailyPrice = calculateBookingLegPrice(car, tempBookingDataForPricing, legDate);
-      legPrices.push(dailyPrice);
-    }
-
-    const totalAmount = legPrices.reduce((sum, price) => sum + price, 0);
 
     const query = {
       data: {
@@ -129,23 +291,50 @@ export async function createPendingBooking({
         paymentIntent,
         status: BookingStatus.PENDING,
         paymentStatus: PaymentStatus.UNPAID,
+
+        netTotal,
+        platformCustomerServiceFeeRatePercent,
+        platformCustomerServiceFeeAmount,
+        subtotalBeforeVat,
+        vatRatePercent,
+        vatAmount,
+        platformFleetOwnerCommissionRatePercent,
+        platformFleetOwnerCommissionAmount,
+        fleetOwnerPayoutAmountNet,
         legs: {
-          create: bookingDates.map((legDate, index) => ({
-            legDate: setHours(legDate, 1), // Ensure legDate is set to the start of the day
-            legStartTime: setHours(legDate, startHours),
-            legEndTime: setHours(legDate, endHours),
-            totalDailyPrice: legPrices[index],
-          })),
+          create: bookingDates.map((legDate, index) => {
+            // Calculate the net value for this leg (base price before fees)
+            const itemsNetValueForLeg = fleetOwnerPayoutAmountNet
+              .div(bookingDates.length)
+              .toDecimalPlaces(2);
+
+            // Calculate fleet owner earning for this leg
+            const fleetOwnerEarningForLeg = fleetOwnerPayoutAmountNet
+              .div(bookingDates.length)
+              .toDecimalPlaces(2);
+
+            return {
+              legDate: setHours(legDate, 1), // Ensure legDate is set to the start of the day
+              legStartTime: setHours(legDate, startHours),
+              legEndTime:
+                endHours < startHours
+                  ? setHours(addDays(legDate, 1), endHours) // If end time is less than start time, it's on the next day
+                  : setHours(legDate, endHours),
+              totalDailyPrice: legPrices[index],
+              itemsNetValueForLeg,
+              // platformCommissionRateOnLeg: platformFleetOwnerCommissionRatePercent, // ?
+              // platformCommissionAmountOnLeg, // ?
+              fleetOwnerEarningForLeg,
+            };
+          }),
         },
       },
       include: {
-        car: { include: { owner: true } },
-        user: true,
         legs: true,
+        car: { include: { owner: true, images: true } },
+        user: true,
       },
     };
-
-    logger.debug(`From createPendingBooking: query: ${JSON.stringify(query, null, 2)}`);
 
     const newBooking = await transaction.booking.create(query);
 
@@ -223,11 +412,11 @@ export async function cleanupPendingBookings(olderThan: Date) {
 
 // Calculate the price for a single booking leg
 function calculateBookingLegPrice(
-  car: { price: number; nightRate: number; hourlyRate: number },
+  car: { dayRate: number; nightRate: number; hourlyRate: number },
   booking: { startDate: Date; endDate: Date; type: BookingType },
   legDate: Date,
 ): number {
-  const { price: dayRate, nightRate, hourlyRate } = car;
+  const { dayRate, nightRate, hourlyRate } = car;
   const { startDate, endDate, type } = booking;
 
   // Ensure rates are positive, default to 0 if not
@@ -342,7 +531,7 @@ export async function confirmBooking({
   // we might not need to recalculate it here at all if it's passed through.
   // The original calculation is kept for now but commented out as it might be redundant.
   // const days = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 3600 * 24));
-  // const totalAmount = car.price * days;
+  // const totalAmount = car.dayRate * days;
 
   // Create booking and update car status - This function might be deprecated or changed
   // if createPendingBooking now handles legs and activateBooking handles confirmation.
@@ -471,7 +660,9 @@ export async function getMonthToDateBookingsValue(fleetOwnerId: string) {
 
 export async function getUserBookings(email: string, isGuest = false) {
   const where: Prisma.BookingWhereInput = {
-    paymentStatus: PaymentStatus.PAID,
+    paymentStatus: {
+      in: [PaymentStatus.PAID, PaymentStatus.PARTIALLY_REFUNDED, PaymentStatus.REFUNDED],
+    },
     ...(isGuest
       ? {
           guestUser: { path: ["email"], equals: email },
@@ -701,11 +892,35 @@ export async function updateBookingsFromActiveToCompleted() {
     }
 
     for (const booking of bookingsToUpdate) {
-      await prisma.booking.update({
+      const updatedBooking = await prisma.booking.update({
         where: { id: booking.id },
         data: { status: BookingStatus.COMPLETED },
+        include: {
+          car: { include: { owner: { include: { bankDetails: true } } } },
+          user: true,
+          chauffeur: true,
+          legs: { include: { extensions: true } },
+        },
       });
 
+      // ADDED: Initiate payout to fleet owner
+      try {
+        // We use the freshly updated booking object which has all the required relations
+        await initiatePayout(updatedBooking);
+      } catch (payoutError) {
+        logger.error(
+          `Error initiating payout for booking ${booking.id}: ${
+            payoutError instanceof Error ? payoutError.message : "Unknown error"
+          }`,
+        );
+        // Track payout failure for manual processing
+        await prisma.booking.update({
+          where: { id: booking.id },
+          data: {
+            overallPayoutStatus: "FAILED",
+          },
+        });
+      }
       // Free up the car
       await prisma.car.update({
         where: { id: booking.carId },
@@ -801,7 +1016,7 @@ export async function sendBookingStartReminderEmails() {
           include: {
             user: true,
             chauffeur: true,
-            legs: { include: { extensions: true } },
+            // legs: { include: { extensions: true } },
             car: { include: { owner: true } },
           },
         },

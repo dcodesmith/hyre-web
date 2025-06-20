@@ -58,7 +58,7 @@ export const carSchema = z.object({
       ),
     ),
 
-  price: z
+  dayRate: z
     .number({
       required_error: "Price is required.",
     })
@@ -148,7 +148,7 @@ export function NewCarForm() {
       make,
       model,
       year,
-      price,
+      dayRate,
       status,
       images,
       hourlyRate,
@@ -216,12 +216,12 @@ export function NewCarForm() {
       </div>
 
       <div className="space-y-0.5">
-        <Label htmlFor={price.id}>Daily Rate</Label>
+        <Label htmlFor={dayRate.id}>Daily Rate</Label>
         <Input
-          {...getInputProps(price, { type: "number", step: "1000" })}
-          className={`rounded ${price.errors ? errorRingClasses : ""}`}
+          {...getInputProps(dayRate, { type: "number", step: "1000" })}
+          className={`rounded ${dayRate.errors ? errorRingClasses : ""}`}
         />
-        {price.errors && <p className="text-red-500 text-sm">{price.errors.join(" ")}</p>}
+        {dayRate.errors && <p className="text-red-500 text-sm">{dayRate.errors.join(" ")}</p>}
       </div>
 
       <div className="space-y-0.5">

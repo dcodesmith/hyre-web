@@ -63,7 +63,12 @@ export type BookingLegWithRelations = Prisma.BookingLegGetPayload<{
   include: {
     extensions: true;
     booking: {
-      include: { car: true; user: true; chauffeur: true; guestUser: true; legs: true };
+      include: {
+        car: { include: { owner: true } };
+        user: true;
+        chauffeur: true;
+        legs: true;
+      };
     };
   };
 }>;

@@ -1,10 +1,12 @@
+import { type FieldMetadata, getFormProps, getInputProps, useForm } from "@conform-to/react";
 import { parseWithZod } from "@conform-to/zod";
 import type { Car, User } from "@prisma/client";
-import { Form, useNavigate, useSearchParams, useSubmit } from "@remix-run/react";
+import { Form, useNavigate, useSearchParams, useSubmit, useFetcher } from "@remix-run/react";
+import { eachDayOfInterval, format, isAfter, parseISO, startOfDay } from "date-fns";
+import { CreditCard } from "lucide-react";
+import { useCallback, useMemo, useState } from "react";
 import { DateRange } from "react-day-picker";
 import { z } from "zod";
-import React, { useState, useMemo, useCallback } from "react";
-import { format, isAfter, startOfDay, eachDayOfInterval, parseISO } from "date-fns";
 import { formatCurrency } from "~/lib/utils";
 import { AutocompleteAddress } from "./AutocompleteAddress";
 import { BookingTimeSelect } from "./BookingTimeSelect";
@@ -15,17 +17,16 @@ import { Checkbox } from "./ui/checkbox";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
-import { type FieldMetadata, getFormProps, useForm, getInputProps } from "@conform-to/react";
 
 const SECURITY_DETAIL_COST = 30000;
-const VAT_RATE = 0.075;
-const PLATFORM_FEE_RATE = 0.15;
 const ERROR_RING_CLASSES = "border-red-500 focus-visible:ring-red-500 focus-visible:ring-2";
 
 type BookingCardProps = {
   car: Car;
   isAvailable: boolean;
   user: (User & { roles: { name: string }[]; phoneNumber?: string | null }) | null;
+  vatRate: number;
+  platformServiceFeeRate: number;
 };
 
 const DAY_BOOKING_TYPE = "DAY" as const;
@@ -190,8 +191,13 @@ function GuestInfoFields({ nameField, emailField, phoneNumberField }: GuestInfoF
   );
 }
 
-// --- Main Component ---
-export default function BookingCard({ car, isAvailable = false, user }: BookingCardProps) {
+export default function BookingCard({
+  car,
+  isAvailable = false,
+  user,
+  vatRate,
+  platformServiceFeeRate,
+}: BookingCardProps) {
   const navigate = useNavigate();
   const submit = useSubmit();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -233,24 +239,25 @@ export default function BookingCard({ car, isAvailable = false, user }: BookingC
       fromDate = undefined;
       toDate = undefined;
     }
+
     if (fromDate && toDate && isAfter(fromDate, toDate)) {
       console.warn("'from' date is after 'to' date, resetting range.");
       return { from: undefined, to: undefined };
     }
+
     return { from: fromDate, to: toDate };
   }, [searchParams]);
 
   const [dateRange, setDateRange] = useState<DateRange>(initialDateRange);
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
 
   const totalDays = useMemo(
     () => calculateTotalDays(dateRange.from, dateRange.to),
     [dateRange.from, dateRange.to],
   );
 
-  const currentCarPrice = useMemo(
-    () => (bookingType === NIGHT_BOOKING_TYPE ? Number(car.nightRate) : Number(car.price)),
-    [bookingType, car.nightRate, car.price],
-  );
+  const currentCarPrice =
+    bookingType === NIGHT_BOOKING_TYPE ? Number(car.nightRate) : Number(car.dayRate);
 
   const baseTotal = useMemo(() => currentCarPrice * totalDays, [currentCarPrice, totalDays]);
   const securityDetailTotalCost = useMemo(
@@ -263,11 +270,16 @@ export default function BookingCard({ car, isAvailable = false, user }: BookingC
     [baseTotal, securityDetailTotalCost],
   );
 
-  const vat = useMemo(() => subtotal * VAT_RATE, [subtotal]);
+  const platformFee = useMemo(
+    () => subtotal * (platformServiceFeeRate / 100),
+    [subtotal, platformServiceFeeRate],
+  );
 
-  const platformFee = useMemo(() => subtotal * PLATFORM_FEE_RATE, [subtotal]);
+  const subtotalBeforeVat = useMemo(() => subtotal + platformFee, [subtotal, platformFee]);
 
-  const finalTotalCost = useMemo(() => subtotal + vat + platformFee, [subtotal, vat, platformFee]);
+  const vat = useMemo(() => subtotalBeforeVat * (vatRate / 100), [subtotalBeforeVat, vatRate]);
+
+  const finalTotalCost = useMemo(() => subtotalBeforeVat + vat, [subtotalBeforeVat, vat]);
 
   const carIsAvailableToBook = useMemo(
     () => !!dateRange.from && !!dateRange.to && totalDays > 0 && isAvailable,
@@ -279,6 +291,7 @@ export default function BookingCard({ car, isAvailable = false, user }: BookingC
     shouldValidate: "onSubmit",
     shouldRevalidate: "onInput",
     defaultValue: {
+      carId: car.id,
       pickupTime:
         bookingType === NIGHT_BOOKING_TYPE
           ? "11:00 PM"
@@ -355,7 +368,7 @@ export default function BookingCard({ car, isAvailable = false, user }: BookingC
         const resetParams = new URLSearchParams(searchParams);
         resetParams.set("from", format(normalizedRange.from, "yyyy-MM-dd"));
         resetParams.delete("to");
-        setSearchParams(resetParams, { replace: true });
+        setSearchParams(resetParams, { replace: true, preventScrollReset: true });
       } else {
         setDateRange(normalizedRange);
         const newSearchParams = new URLSearchParams(searchParams);
@@ -372,7 +385,7 @@ export default function BookingCard({ car, isAvailable = false, user }: BookingC
           newSearchParams.delete("to");
         }
 
-        setSearchParams(newSearchParams, { replace: true });
+        setSearchParams(newSearchParams, { replace: true, preventScrollReset: true });
       }
     },
     [searchParams, setSearchParams],
@@ -380,7 +393,6 @@ export default function BookingCard({ car, isAvailable = false, user }: BookingC
 
   const handleSameLocationChange = useCallback(
     (checked: boolean) => {
-      /* ... same location change logic with braces ... */
       setSameLocationChecked(checked);
       const newSearchParams = new URLSearchParams(searchParams);
       newSearchParams.set("sameLocation", checked ? "true" : "false");
@@ -389,7 +401,7 @@ export default function BookingCard({ car, isAvailable = false, user }: BookingC
         newSearchParams.delete("dropOffAddress");
       }
 
-      setSearchParams(newSearchParams, { replace: true });
+      setSearchParams(newSearchParams, { replace: true, preventScrollReset: true });
     },
     [searchParams, setSearchParams],
   );
@@ -404,7 +416,7 @@ export default function BookingCard({ car, isAvailable = false, user }: BookingC
         newSearchParams.delete("pickupTime");
       }
 
-      setSearchParams(newSearchParams, { replace: true });
+      setSearchParams(newSearchParams, { replace: true, preventScrollReset: true });
     },
     [searchParams, setSearchParams],
   );
@@ -428,6 +440,8 @@ export default function BookingCard({ car, isAvailable = false, user }: BookingC
   return (
     <Form {...getFormProps(form)} method="POST" autoComplete="off">
       <input type="hidden" name="carId" value={car.id} />
+      <input type="hidden" name="totalAmount" value={finalTotalCost} />
+      <input type="hidden" name="includeSecurityDetail" value={String(includeSecurityDetail)} />
 
       <Card className="rounded sticky top-4 shadow-xl inset-shadow-sm">
         <CardHeader>
@@ -467,9 +481,6 @@ export default function BookingCard({ car, isAvailable = false, user }: BookingC
                 </Label>
               ))}
             </RadioGroup>
-            {/* <input
-              {...getInputProps(fields.bookingTypeOption, { type: "hidden", value: bookingType })}
-            /> */}
           </div>
 
           <div className="space-y-1">
@@ -480,6 +491,7 @@ export default function BookingCard({ car, isAvailable = false, user }: BookingC
               isNightBooking={bookingType === NIGHT_BOOKING_TYPE}
               date={dateRange}
               onDateChange={handleDateChange}
+              onOpenChange={setIsDatePickerOpen}
             />
           </div>
 
@@ -523,7 +535,6 @@ export default function BookingCard({ car, isAvailable = false, user }: BookingC
                 <AutocompleteAddress
                   id={fields.pickupAddress.id}
                   onSelect={(address) => {
-                    // handlePlaceSelect(fields.pickupAddress.name!, address);
                     form.update({ name: fields.pickupAddress.name!, value: address });
                   }}
                   inputProps={getInputProps(fields.pickupAddress, {
@@ -564,7 +575,6 @@ export default function BookingCard({ car, isAvailable = false, user }: BookingC
                   <AutocompleteAddress
                     id={fields.dropOffAddress.id}
                     onSelect={(address) => {
-                      // handlePlaceSelect(fields.dropOffAddress.name!, address);
                       form.update({ name: fields.dropOffAddress.name!, value: address });
                     }}
                     inputProps={getInputProps(fields.dropOffAddress, {
@@ -595,7 +605,10 @@ export default function BookingCard({ car, isAvailable = false, user }: BookingC
         {carIsAvailableToBook && (
           <CardFooter className="flex flex-col items-stretch space-y-4 bg-gray-50 p-4 border-t">
             <div className="w-full">
-              <h3 className="text-md font-semibold mb-2">Booking Summary</h3>
+              <h3 className="text-base flex items-center space-x-2 gap-2 font-semibold mb-2">
+                <CreditCard className="h-5 w-5 text-blue-600" />
+                Cost Breakdown
+              </h3>
               <dl className="space-y-1.5 text-sm">
                 <div className="flex justify-between">
                   <dt className="text-gray-600">
@@ -617,12 +630,14 @@ export default function BookingCard({ car, isAvailable = false, user }: BookingC
                   </div>
                 )}
                 <div className="flex justify-between">
-                  <dt className="text-gray-600">VAT ({VAT_RATE * 100}%)</dt>
-                  <dd className="text-gray-800">{formatCurrency(vat)}</dd>
+                  <dt className="text-gray-600">
+                    Platform Fee ({platformServiceFeeRate.toFixed(1)}%)
+                  </dt>
+                  <dd className="text-gray-800">{formatCurrency(platformFee)}</dd>
                 </div>
                 <div className="flex justify-between">
-                  <dt className="text-gray-600">Platform Fee ({PLATFORM_FEE_RATE * 100}%)</dt>
-                  <dd className="text-gray-800">{formatCurrency(platformFee)}</dd>
+                  <dt className="text-gray-600">VAT ({vatRate.toFixed(1)}%)</dt>
+                  <dd className="text-gray-800">{formatCurrency(vat)}</dd>
                 </div>
                 <hr className="border-t border-gray-200 my-2" />
                 <div className="flex justify-between text-base font-semibold">
@@ -646,13 +661,7 @@ export default function BookingCard({ car, isAvailable = false, user }: BookingC
               <div className="flex flex-col space-y-2">
                 {!user ? (
                   <>
-                    <Button
-                      type="submit"
-                      className="rounded w-full"
-                      name="intent"
-                      value="guest"
-                      disabled={!carIsAvailableToBook}
-                    >
+                    <Button type="submit" className="rounded w-full" name="intent" value="guest">
                       Book Now as Guest
                     </Button>
                     <div className="flex items-center justify-center text-sm pt-1">

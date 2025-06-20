@@ -70,6 +70,13 @@ export function AutocompleteAddress({
         input,
         sessionToken, // Include session token
         includedRegionCodes: [countryRestriction],
+        // lagos state bounds
+        locationRestriction: {
+          north: 6.695,
+          south: 6.4,
+          east: 4.06,
+          west: 2.72,
+        },
       };
 
       try {

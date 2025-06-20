@@ -21,6 +21,8 @@ const schema = z.object({
   TWILIO_SECRET: z.string(),
   TWILIO_WHATSAPP_RECIPIENT_NUMBER: z.string().optional(),
 
+  NGROK_DOMAIN: z.string().optional(),
+
   REDIS_URL: z
     .string()
     .transform((value) => {

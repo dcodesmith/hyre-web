@@ -1,6 +1,7 @@
 import { prisma } from "~/modules/db/db.server";
 import { PaymentStatus } from "@prisma/client";
 import logger from "~/lib/logger.server";
+import Decimal from "decimal.js";
 
 // Activate an extension after payment is confirmed
 export async function activateExtension(extensionId: string, paymentId: string) {
@@ -67,4 +68,120 @@ export async function cleanupPendingExtensions(olderThan: Date) {
       status: "CANCELLED",
     },
   });
+}
+
+// Calculate extension financials
+export async function calculateExtensionFinancials(
+  rate: number,
+  hours: number,
+  platformCustomerServiceFeeRatePercent: Decimal,
+  platformFleetOwnerCommissionRatePercent: Decimal,
+  vatRatePercent: Decimal,
+) {
+  // Calculate net total (base price for the extension)
+  const netTotal = new Decimal(rate).mul(hours);
+  logger.debug(`Net Total (base price): ${netTotal.toString()}`);
+
+  // Calculate platform service fee
+  // const platformCustomerServiceFeeRatePercent = platformFeeRate;
+  logger.debug(`Platform Service Fee Rate: ${platformCustomerServiceFeeRatePercent.toString()}%`);
+
+  const platformCustomerServiceFeeAmount = netTotal
+    .mul(platformCustomerServiceFeeRatePercent)
+    .div(100);
+  logger.debug(`Platform Service Fee Amount: ${platformCustomerServiceFeeAmount.toString()}`);
+
+  // Calculate subtotal before VAT
+  const subtotalBeforeVat = netTotal.plus(platformCustomerServiceFeeAmount);
+  logger.debug(`Subtotal Before VAT: ${subtotalBeforeVat.toString()}`);
+
+  // Calculate VAT
+  logger.debug(`VAT Rate: ${vatRatePercent.toString()}%`);
+  const vatAmount = subtotalBeforeVat.mul(vatRatePercent).div(100);
+  logger.debug(`VAT Amount: ${vatAmount.toString()}`);
+
+  // Calculate total amount (gross)
+  const totalAmount = subtotalBeforeVat.plus(vatAmount);
+  logger.debug(`Total Amount (Gross): ${totalAmount.toString()}`);
+
+  // Calculate fleet owner commission and payout
+  logger.debug(
+    `Fleet Owner Commission Rate: ${platformFleetOwnerCommissionRatePercent.toString()}%`,
+  );
+  const platformFleetOwnerCommissionAmount = netTotal
+    .mul(platformFleetOwnerCommissionRatePercent)
+    .div(100);
+  logger.debug(`Fleet Owner Commission Amount: ${platformFleetOwnerCommissionAmount.toString()}`);
+  const fleetOwnerPayoutAmountNet = netTotal.minus(platformFleetOwnerCommissionAmount);
+  logger.debug(`Fleet Owner Payout Amount (Net): ${fleetOwnerPayoutAmountNet.toString()}`);
+
+  // Log the complete breakdown
+  logger.debug(`Complete Extension Calculation Breakdown:
+    Net Total: ${netTotal.toString()}
+    Platform Service Fee (${platformCustomerServiceFeeRatePercent.toString()}%): ${platformCustomerServiceFeeAmount.toString()}
+    Subtotal Before VAT: ${subtotalBeforeVat.toString()}
+    VAT (${vatRatePercent.toString()}%): ${vatAmount.toString()}
+    Total Amount (Gross): ${totalAmount.toString()}
+    Fleet Owner Commission (${platformFleetOwnerCommissionRatePercent.toString()}%): ${platformFleetOwnerCommissionAmount.toString()}
+    Fleet Owner Payout (Net): ${fleetOwnerPayoutAmountNet.toString()}
+  `);
+
+  return {
+    netTotal,
+    platformCustomerServiceFeeRatePercent,
+    platformCustomerServiceFeeAmount,
+    subtotalBeforeVat,
+    vatRatePercent,
+    vatAmount,
+    platformFleetOwnerCommissionRatePercent,
+    platformFleetOwnerCommissionAmount,
+    fleetOwnerPayoutAmountNet,
+    totalAmount,
+  };
+}
+
+export async function getRates() {
+  // Get current platform fee rates
+  const platformFeeRate = await prisma.platformFeeRate.findFirst({
+    where: {
+      feeType: "PLATFORM_SERVICE_FEE",
+      effectiveSince: { lte: new Date() },
+      OR: [{ effectiveUntil: { gt: new Date() } }, { effectiveUntil: null }],
+    },
+  });
+
+  if (!platformFeeRate) {
+    throw new Error("No active platform service fee rate found");
+  }
+
+  // Get fleet owner commission rate
+  const fleetOwnerCommissionRate = await prisma.platformFeeRate.findFirst({
+    where: {
+      feeType: "FLEET_OWNER_COMMISSION",
+      effectiveSince: { lte: new Date() },
+      OR: [{ effectiveUntil: { gt: new Date() } }, { effectiveUntil: null }],
+    },
+  });
+
+  if (!fleetOwnerCommissionRate) {
+    throw new Error("No active fleet owner commission rate found");
+  }
+
+  // Get current VAT rate
+  const vatRate = await prisma.taxRate.findFirst({
+    where: {
+      effectiveSince: { lte: new Date() },
+      OR: [{ effectiveUntil: { gt: new Date() } }, { effectiveUntil: null }],
+    },
+  });
+
+  if (!vatRate) {
+    throw new Error("No active VAT rate found");
+  }
+
+  return {
+    platformCustomerServiceFeeRatePercent: platformFeeRate.ratePercent,
+    platformFleetOwnerCommissionRatePercent: fleetOwnerCommissionRate.ratePercent,
+    vatRatePercent: vatRate.ratePercent,
+  };
 }

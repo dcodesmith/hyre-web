@@ -1,4 +1,5 @@
 import { CheckIcon } from "@heroicons/react/24/outline";
+import { useSearchParams } from "@remix-run/react";
 import { Column } from "@tanstack/react-table";
 import { ChevronsDownUp, ChevronsUpDown } from "lucide-react";
 import { useState } from "react";
@@ -33,6 +34,7 @@ export function FacetedFilter<TData, TValue>({
   options,
 }: FacetedFilterProps<TData, TValue>) {
   if (!column) return null;
+  const [searchParams, setSearchParams] = useSearchParams();
   const facets = column?.getFacetedUniqueValues();
   const selectedValues = new Set(column?.getFilterValue() as string[]);
   const [isOpen, setIsOpen] = useState(false);
@@ -49,9 +51,12 @@ export function FacetedFilter<TData, TValue>({
     // Only set filter if we have values, otherwise clear it
     if (filterValues.length) {
       column?.setFilterValue(filterValues);
+      searchParams.set(`filter.${column.id}`, filterValues.join(","));
     } else {
       column?.setFilterValue(undefined);
+      searchParams.delete(`filter.${column.id}`);
     }
+    setSearchParams(searchParams);
   };
 
   return (
@@ -147,7 +152,11 @@ export function FacetedFilter<TData, TValue>({
 
                 <CommandGroup>
                   <CommandItem
-                    onSelect={() => column?.setFilterValue(undefined)}
+                    onSelect={() => {
+                      column?.setFilterValue(undefined);
+                      searchParams.delete(`filter.${column.id}`);
+                      setSearchParams(searchParams);
+                    }}
                     className="justify-center text-center"
                   >
                     Clear filters

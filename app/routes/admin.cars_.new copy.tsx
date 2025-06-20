@@ -61,7 +61,7 @@ export const action: ActionFunction = async ({ request }) => {
         make: submission.value.make,
         model: submission.value.model,
         year: submission.value.year,
-        price: submission.value.price,
+        price: submission.value.dayRate,
         color: "red",
         status: submission.value.status,
       },

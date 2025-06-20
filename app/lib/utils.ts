@@ -241,7 +241,7 @@ export function getCustomerDetails(
 
 // Helper to generate a user-friendly name or email
 export function getUserDisplayName(
-  booking: BookingWithRelations,
+  booking: Omit<BookingWithRelations, "legs">,
   target: "user" | "owner" | "chauffeur" = "user",
 ): string {
   if (target === "user") {
@@ -360,8 +360,8 @@ export function normaliseBookingLegDetails(
   bookingLeg: BookingLegWithRelations,
 ): NormalisedBookingLegDetails {
   const { booking } = bookingLeg;
-  const customerName = getUserDisplayName(booking as BookingWithRelations, "user");
-  const chauffeurName = getUserDisplayName(booking as BookingWithRelations, "chauffeur");
+  const customerName = getUserDisplayName(booking, "user");
+  const chauffeurName = getUserDisplayName(booking, "chauffeur");
   const carName = `${booking.car.make} ${booking.car.model} (${booking.car.year})`;
 
   return {

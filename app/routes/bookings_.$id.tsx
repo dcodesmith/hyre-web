@@ -1,8 +1,9 @@
-import type { BookingLeg, Prisma, User as PrismaUser } from "@prisma/client";
+import type { Prisma, User as PrismaUser } from "@prisma/client";
+import { Decimal } from "@prisma/client/runtime/library";
 import { ActionFunctionArgs, LoaderFunctionArgs, json } from "@remix-run/node";
 import { Form, Link, useActionData, useLoaderData, useSearchParams } from "@remix-run/react";
 import { format, isToday } from "date-fns";
-import { AlertCircle, Calendar, CheckCircle, Clock, CreditCard, MapPin, User } from "lucide-react";
+import { Calendar, CheckCircle, CreditCard, MapPin, User } from "lucide-react";
 import { useEffect, useState } from "react";
 import invariant from "tiny-invariant";
 import { AutocompleteAddress } from "~/components/AutocompleteAddress";
@@ -38,9 +39,10 @@ import {
   renderFleetOwnerBookingCancellationEmail,
   renderUserBookingCancellationEmail,
 } from "~/modules/email/templates/booking-notification";
-import { sendMessage, Template } from "~/modules/messaging/messaging.server";
+import { Template, sendMessage } from "~/modules/messaging/messaging.server";
 import { emailQueue } from "~/queues/email-throttle.server";
 import { cancelBooking, getBooking } from "~/services/bookings.server";
+import { refundPayment, verifyRefund } from "~/services/payment.server";
 import { BookingLegWithRelations, BookingWithRelations } from "~/types";
 
 export async function action({ request, params }: ActionFunctionArgs) {
@@ -197,28 +199,25 @@ export async function action({ request, params }: ActionFunctionArgs) {
         return json({ error: "Booking not found or already cancelled" }, { status: 404 });
       }
 
-      let refundSuccessful = false;
-      if (booking.paymentId && booking.totalAmount.gt(0)) {
-        const options = {
-          method: "POST",
-          headers: {
-            accept: "application/json",
-            Authorization: `Bearer ${process.env.FLUTTERWAVE_SECRET_KEY}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            amount: booking.totalAmount.toNumber(),
-            comments: "Refund from booking cancellation by user",
-          }),
-        };
+      logger.info(`Booking paymentId: ${booking.paymentId}`);
 
-        const refundResponse = await fetch(
-          `https://api.flutterwave.com/v3/transactions/${booking.paymentId}/refund`,
-          options,
+      if (booking.paymentId && booking.totalAmount.gt(0)) {
+        const callbackurl = `${process.env.APP_URL || process.env.NGROK_DOMAIN}/api/payments/webhook/flutterwave`;
+
+        const refund = await refundPayment(
+          booking.paymentId,
+          booking.totalAmount.toNumber(),
+          callbackurl,
         );
 
-        if (refundResponse.ok) {
-          refundSuccessful = true;
+        if (refund.success && refund.refundId) {
+          logger.info(
+            `Refund successful for Booking ${booking.id}. Refund ID: ${refund.refundId}.`,
+          );
+        } else {
+          logger.error(
+            `Failed to initiate refund for booking ${booking.id}: ${refund.error}. MANUAL REFUND REQUIRED.`,
+          );
         }
       }
 
@@ -277,7 +276,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
       await emailQueue.onIdle();
       return json({
         success: true,
-        message: `Booking cancelled ${refundSuccessful ? "and refund initiated" : "successfully (refund not applicable or failed)"}.`,
+        message: "Booking cancelled successfully.",
       });
     } catch (error) {
       return json({ error: "Failed to cancel booking. Please try again." }, { status: 500 });
@@ -287,6 +286,65 @@ export async function action({ request, params }: ActionFunctionArgs) {
   return json({ error: "Method not allowed" }, { status: 405 });
 }
 
+function createPaymentSummary(booking: BookingWithRelations) {
+  // Use schema field names for clarity; map them from your original `netTotal` if different.
+  // Example: const baseBookingNetTotal = new Decimal(booking.netTotal ?? 0);
+  const baseBookingNetTotal = new Decimal(booking.netTotal ?? 0);
+  const baseBookingServiceFee = new Decimal(booking.platformCustomerServiceFeeAmount ?? 0);
+  const baseBookingVat = new Decimal(booking.vatAmount ?? 0);
+
+  // Step 1: Sum up the net total and duration from all active extensions.
+  // Using flatMap + reduce is more direct than nested reduce calls.
+  const extensionSummary = booking.legs
+    .flatMap((leg) => leg.extensions) // Get all extensions into a single array
+    // .filter(ext => ext.status !== 'CANCELLED') // Optional: Exclude cancelled extensions
+    .reduce(
+      (acc, ext) => {
+        // Use `itemsNetTotal` from the extension schema.
+        acc.netTotal = acc.netTotal.plus(ext.netTotal ?? 0);
+        acc.totalHours += ext.extendedDurationHours ?? 0;
+        return acc;
+      },
+      { netTotal: new Decimal(0), totalHours: 0 },
+    );
+
+  // If there are no extensions, return the base booking's summary.
+  if (extensionSummary.totalHours === 0) {
+    return {
+      netTotal: baseBookingNetTotal,
+      platformCustomerServiceFeeAmount: baseBookingServiceFee,
+      extensionNetTotal: new Decimal(0),
+      totalExtendedHours: new Decimal(0),
+      vatAmount: baseBookingVat,
+      totalAmount: new Decimal(booking.totalAmount ?? 0),
+    };
+  }
+
+  // Step 2: Calculate the service fee and VAT for the *extensions only*.
+  const feeRatePercent = new Decimal(booking.platformCustomerServiceFeeRatePercent ?? 0).div(100);
+  const vatRatePercent = new Decimal(booking.vatRatePercent ?? 0).div(100);
+
+  const extensionServiceFee = extensionSummary.netTotal.mul(feeRatePercent);
+  const extensionSubtotalBeforeVat = extensionSummary.netTotal.plus(extensionServiceFee);
+  const extensionVat = extensionSubtotalBeforeVat.mul(vatRatePercent);
+
+  // Step 3: Calculate the final grand totals by ADDING the base and extension components.
+  const finalServiceFee = baseBookingServiceFee.plus(extensionServiceFee);
+  const finalVat = baseBookingVat.plus(extensionVat);
+  const finalNetTotal = baseBookingNetTotal.plus(extensionSummary.netTotal);
+  const finalGrossTotal = finalNetTotal.plus(finalServiceFee).plus(finalVat);
+
+  // Step 4: Return the final summary object, matching your original structure.
+  return {
+    netTotal: baseBookingNetTotal,
+    platformCustomerServiceFeeAmount: finalServiceFee,
+    extensionNetTotal: extensionSummary.netTotal,
+    totalExtendedHours: new Decimal(extensionSummary.totalHours),
+    vatAmount: finalVat,
+    totalAmount: finalGrossTotal,
+  };
+}
+
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const url = new URL(request.url);
   const guestEmail = url.searchParams.get("email");
@@ -294,7 +352,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   invariant(params.id, "Booking ID is required");
   const bookingId = params.id;
 
-  let sessionUserFromLoader: User | null = null;
+  let sessionUserFromLoader: PrismaUser | null = null;
 
   if (!guestEmail) {
     sessionUserFromLoader = await getSessionUser(request);
@@ -303,7 +361,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   const booking = await prisma.booking.findUnique({
     where: { id: bookingId },
     include: {
-      car: true,
+      car: { include: { owner: true } },
       user: true,
       chauffeur: true,
       legs: {
@@ -333,13 +391,49 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
       throw new Response("Unauthorized: Booking does not belong to this user.", { status: 403 });
     }
   } else {
+    logger.error("Unauthorized: Access denied. No session user found.");
     throw new Response("Unauthorized: Access denied.", { status: 401 });
   }
 
   logger.info(`booking: ${JSON.stringify(booking, null, 2)}`);
 
-  return json({ booking });
+  const paymentSummary = createPaymentSummary(booking);
+  const extendableDuration = getLegExtendableDuration(booking);
+
+  return json({ booking, paymentSummary, extendableDuration });
 }
+
+const TimePointRow = ({
+  label,
+  timeText,
+  labelColorClassWhenStarted,
+  isLegStarted,
+}: {
+  label: string;
+  timeText: string;
+  labelColorClassWhenStarted: string;
+  isLegStarted: boolean;
+}) => (
+  <div>
+    <div className="flex items-center gap-2 mb-1">
+      <span
+        className={`text-sm font-medium ${
+          isLegStarted ? labelColorClassWhenStarted : "text-slate-400"
+        }`}
+      >
+        {label}
+      </span>
+      <Badge
+        variant="outline"
+        className={`text-sm font-semibold rounded-sm ${
+          isLegStarted ? "" : "border-slate-200 text-slate-400"
+        }`}
+      >
+        {timeText}
+      </Badge>
+    </div>
+  </div>
+);
 
 const BookingLegTimeline = ({
   leg,
@@ -348,105 +442,116 @@ const BookingLegTimeline = ({
 }: { leg: BookingLegWithRelations; index: number; booking: BookingWithRelations }) => {
   const legDate = new Date(leg.legDate);
   const legEndTime = new Date(leg.legEndTime);
+  const legStartTime = new Date(leg.legStartTime);
+  const bookingEndDateObject = new Date(booking.endDate);
+  const now = new Date();
+
+  // --- Status Flags ---
+  // Defines if the leg is active right now, on today's date
+  const isLegStarted = isToday(legDate) && now >= legStartTime && now < legEndTime;
+  // Defines if the leg's scheduled end time has passed
+  const isLegCompleted = now >= legEndTime;
+  // Logic for "Upcoming" status assigned to a variable:
+  // A leg is "Upcoming" for the badge if it's not 'isLegStarted' and not 'isLegCompleted'.
+  const isLegUpcoming = !isLegStarted && !isLegCompleted;
+
+  // --- Extended Duration ---
   const extendedDuration = leg.extensions.reduce(
     (acc, { extendedDurationHours }) => acc + extendedDurationHours,
     0,
   );
 
+  const statusBadge = (() => {
+    if (booking.status === "CANCELLED") {
+      return { text: "Cancelled", styleClass: "bg-red-50 text-red-700 border-red-200" };
+    }
+
+    if (isLegStarted) {
+      return { text: "Active", styleClass: "bg-blue-50 text-blue-700 border-blue-200" };
+    }
+
+    if (isLegCompleted) {
+      return { text: "Completed", styleClass: "bg-green-50 text-green-700 border-green-200" };
+    }
+
+    if (isLegUpcoming) {
+      return { text: "Upcoming", styleClass: "bg-slate-50 text-slate-700 border-slate-200" };
+    }
+
+    console.error("BookingLegTimeline: Unreachable status condition for badge determination.");
+    return { text: "Error", styleClass: "bg-red-50 text-red-700 border-red-200" };
+  })();
+
+  const returnTimeText =
+    extendedDuration > 0
+      ? `${format(legEndTime, "h:mm a")} (Extended)`
+      : format(bookingEndDateObject, "h:mm a");
+
   return (
     <div key={leg.id} className="space-y-3">
       <div className="flex items-center gap-2">
         <h4
-          className={`text-sm font-semibold ${isToday(legDate) ? "text-slate-700" : "text-slate-400"}`}
+          className={`text-sm font-semibold ${isLegStarted ? "text-slate-700" : "text-slate-400"}`}
         >
           Day {index + 1} - {format(legDate, "EEEE, MMMM do, yyyy")}
         </h4>
-        <Badge
-          variant="outline"
-          className={`text-xs rounded-sm ${
-            isToday(legDate)
-              ? "bg-blue-50 text-blue-700 border-blue-200"
-              : legDate < new Date()
-                ? "bg-green-50 text-green-700 border-green-200"
-                : "bg-slate-50 text-slate-700 border-slate-200"
-          }`}
-        >
-          {isToday(legDate) ? "Active" : legDate < new Date() ? "Completed" : "Upcoming"}
+        <Badge variant="outline" className={`text-xs rounded-sm ${statusBadge.styleClass}`}>
+          {statusBadge.text}
         </Badge>
       </div>
 
       <div className="flex items-start gap-4">
         <div className="flex flex-col mt-1 items-center">
           <div
-            className={`w-3 h-3 rounded-full ${isToday(legDate) ? "bg-green-500" : "bg-slate-300"}`}
+            className={`w-3 h-3 rounded-full ${isLegStarted ? "bg-green-500" : "bg-slate-300"}`}
           />
-          <div className={`w-px h-8 ${isToday(legDate) ? "bg-slate-200" : "bg-slate-100"}`} />
-          <div
-            className={`w-3 h-3 rounded-full ${isToday(legDate) ? "bg-red-500" : "bg-slate-300"}`}
-          />
+          <div className={`w-px h-8 ${isLegStarted ? "bg-slate-200" : "bg-slate-100"}`} />
+          <div className={`w-3 h-3 rounded-full ${isLegStarted ? "bg-red-500" : "bg-slate-300"}`} />
         </div>
+
         <div className="flex-1 space-y-3">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span
-                className={`text-sm font-medium ${isToday(legDate) ? "text-green-600" : "text-slate-400"}`}
-              >
-                Pickup
-              </span>
-              <Badge
-                variant="outline"
-                className={`text-sm font-semibold rounded-sm ${isToday(legDate) ? "" : "border-slate-200 text-slate-400"}`}
-              >
-                {format(new Date(booking.startDate), "h:mm a")}
-              </Badge>
-            </div>
-          </div>
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span
-                className={`text-sm font-medium ${isToday(legDate) ? "text-red-600" : "text-slate-400"}`}
-              >
-                Return
-              </span>
-              <Badge
-                variant="outline"
-                className={`text-sm font-semibold rounded-sm ${isToday(legDate) ? "" : "border-slate-200 text-slate-400"}`}
-              >
-                {extendedDuration > 0
-                  ? `${format(legEndTime, "h:mm a")} (Extended)`
-                  : format(new Date(booking.endDate), "h:mm a")}
-              </Badge>
-            </div>
-          </div>
+          <TimePointRow
+            label="Pickup"
+            timeText={format(legStartTime, "h:mm a")}
+            labelColorClassWhenStarted="text-green-600"
+            isLegStarted={isLegStarted}
+          />
+          <TimePointRow
+            label="Return"
+            timeText={returnTimeText}
+            labelColorClassWhenStarted="text-red-600"
+            isLegStarted={isLegStarted}
+          />
         </div>
       </div>
 
       {extendedDuration > 0 ? (
         <Alert
-          className={`${isToday(legDate) ? "border-amber-200 bg-amber-50" : "border-slate-200 bg-slate-100"} rounded-sm`}
+          className={`${
+            isLegStarted ? "border-amber-200 bg-amber-50" : "border-slate-200 bg-slate-100"
+          } rounded-sm`}
         >
           <AlertDescription
-            className={`text-sm ${isToday(legDate) ? "text-amber-800" : "text-slate-600 line-through"}`}
+            className={`text-sm ${isLegStarted ? "text-amber-800" : "text-slate-600 line-through"}`}
           >
             Your drop-off time
-            {isToday(legDate) ? " has been" : " was"} extended by {extendedDuration}{" "}
-            {extendedDuration === 1 ? "hour" : "hours"} from{" "}
-            {format(new Date(booking.endDate), "p")} to {format(legEndTime, "p")}
+            {isLegStarted ? " has been" : " was"} extended by {extendedDuration}{" "}
+            {extendedDuration === 1 ? "hour" : "hours"} from {format(bookingEndDateObject, "p")} to{" "}
+            {format(legEndTime, "p")}
           </AlertDescription>
         </Alert>
       ) : (
-        <p className={`text-sm ${isToday(legDate) ? "text-slate-600" : "text-slate-400"}`}>
+        <p className={`text-sm ${isLegStarted ? "text-slate-600" : "text-slate-400"}`}>
           Standard 12-hour service
         </p>
       )}
-
       {index < booking.legs.length - 1 && <Separator />}
     </div>
   );
 };
 
 export default function BookingDetails() {
-  const { booking } = useLoaderData<typeof loader>();
+  const { booking, paymentSummary, extendableDuration } = useLoaderData<typeof loader>();
   const [showDropoffFields, setShowDropoffFields] = useState(
     booking.pickupLocation !== booking.returnLocation,
   );
@@ -454,7 +559,6 @@ export default function BookingDetails() {
   const actionData = useActionData<typeof action>();
   const [searchParams] = useSearchParams();
   const guestEmail = searchParams.get("email");
-  const extendableDuration = getLegExtendableDuration(booking);
 
   useEffect(() => {
     if (actionData && "success" in actionData && actionData.success) {
@@ -463,26 +567,41 @@ export default function BookingDetails() {
   }, [actionData]);
 
   return (
-    <div className="min-h-screen  p-4 md:p-6">
-      <div className="max-w-4xl mx-auto space-y-6">
+    <div className="min-h-screen p-4 md:p-6">
+      <div className="max-w-4xl mx-auto space-y-4">
+        <div className="flex items-center gap-2">
+          <Link to="/bookings" className="text-sm flex hover:underline">
+            &larr; Back to Bookings
+          </Link>
+        </div>
+
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div>
-            <h1 className="text-base font-bold text-slate-900">Booking Details</h1>
-            <p className="text-sm text-slate-600 mt-1">
-              {booking.car.make} {booking.car.model} {booking.car.year} - {booking.car.color}
-            </p>
-          </div>
+          {/* <h1 className="text-lg font-bold text-slate-900">Booking Details</h1> */}
+          <p className="text-base font-bold">
+            {booking.car.make} {booking.car.model} {booking.car.year} - {booking.car.color}
+          </p>
+
           <div className="flex flex-wrap items-center gap-2">
             <Badge
               variant="outline"
-              className="text-sm bg-green-100 text-green-800 border-green-200 rounded-sm capitalize"
+              className={`text-sm rounded-sm capitalize ${
+                booking.status === "CANCELLED"
+                  ? "bg-red-100 text-red-800 border-red-200"
+                  : "bg-green-100 text-green-800 border-green-200"
+              }`}
             >
               <CheckCircle className="w-3 h-3 mr-1" />
               {booking.status.toLowerCase()}
             </Badge>
             <Badge
               variant="outline"
-              className="text-sm bg-blue-100 text-blue-800 border-blue-200 rounded-sm capitalize"
+              className={`text-sm rounded-sm capitalize ${
+                booking.paymentStatus === "REFUNDED"
+                  ? "bg-blue-100 text-blue-800 border-blue-200"
+                  : booking.paymentStatus === "PAID"
+                    ? "bg-green-100 text-green-800 border-green-200"
+                    : "bg-yellow-100 text-yellow-800 border-yellow-200"
+              }`}
             >
               <CreditCard className="w-3 h-3 mr-1" />
               {booking.paymentStatus.toLowerCase()}
@@ -490,7 +609,7 @@ export default function BookingDetails() {
           </div>
         </div>
 
-        <Alert className="border-blue-200 bg-blue-50 rounded-sm">
+        <Alert className="border-blue-200 bg-blue-50 rounded">
           <AlertDescription className="text-sm text-blue-800">
             {booking.type === "DAY"
               ? "Each booking day is for a 12-hour duration ending 12 hours after the start time unless extended."
@@ -511,7 +630,12 @@ export default function BookingDetails() {
                 <div className="space-y-6">
                   {booking.legs.map((leg, index) => {
                     return (
-                      <BookingLegTimeline key={leg.id} leg={leg} index={index} booking={booking} />
+                      <BookingLegTimeline
+                        key={leg.id}
+                        leg={leg as unknown as BookingLegWithRelations}
+                        index={index}
+                        booking={booking as unknown as BookingWithRelations}
+                      />
                     );
                   })}
                 </div>
@@ -591,58 +715,43 @@ export default function BookingDetails() {
               </CardHeader>
               <CardContent className="p-4 pt-0">
                 <div className="space-y-3">
-                  <div className="flex justify-between">
-                    <span className="text-sm text-slate-600">
-                      Base Rate ({booking.type === "DAY" ? "12 hours" : "6 hours"})
+                  <div className="flex justify-between text-sm">
+                    <span className=" text-slate-600">
+                      Net Total ({booking.legs.length} {booking.legs.length === 1 ? "day" : "days"})
                     </span>
-                    <span className="text-sm font-medium">
-                      {formatCurrency(Number(booking.totalAmount))}
+                    <span className=" font-medium">
+                      {formatCurrency(Number(paymentSummary.netTotal))}
                     </span>
                   </div>
-                  {booking.legs.some((leg) => leg.extensions.length > 0) && (
+                  {Number(paymentSummary.extensionNetTotal) > 0 && (
                     <div className="flex justify-between">
                       <span className="text-sm text-slate-600">
-                        Extension (
-                        {booking.legs.reduce(
-                          (acc, leg) =>
-                            acc +
-                            leg.extensions.reduce((sum, ext) => sum + ext.extendedDurationHours, 0),
-                          0,
-                        )}{" "}
-                        hours)
+                        Extension ({paymentSummary.totalExtendedHours.toString()} hours)
                       </span>
                       <span className="text-sm font-medium">
-                        {formatCurrency(
-                          booking.legs.reduce(
-                            (acc, leg) =>
-                              acc +
-                              leg.extensions.reduce((sum, ext) => sum + Number(ext.totalAmount), 0),
-                            0,
-                          ),
-                        )}
+                        {formatCurrency(Number(paymentSummary.extensionNetTotal))}
                       </span>
                     </div>
                   )}
                   <div className="flex justify-between">
-                    <span className="text-sm text-slate-600">Service Fee</span>
+                    <span className="text-sm text-slate-600">
+                      Platform Fee ({booking.platformCustomerServiceFeeRatePercent}%)
+                    </span>
                     <span className="text-sm font-medium">
-                      {formatCurrency(Number(booking.totalAmount) * 0.15)}
+                      {formatCurrency(Number(paymentSummary.platformCustomerServiceFeeAmount))}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-slate-600">VAT ({booking.vatRatePercent}%)</span>
+                    <span className="text-sm font-medium">
+                      {formatCurrency(Number(paymentSummary.vatAmount))}
                     </span>
                   </div>
                   <Separator />
                   <div className="flex justify-between font-bold">
                     <span>Total Amount</span>
-                    <span className="text-green-600">
-                      {formatCurrency(Number(booking.totalAmount))}
-                    </span>
+                    <span>{formatCurrency(Number(paymentSummary.totalAmount))}</span>
                   </div>
-                  <Badge
-                    variant="outline"
-                    className="text-sm w-full justify-center bg-green-100 text-green-800 border-green-200 rounded-sm"
-                  >
-                    <CheckCircle className="w-3 h-3 mr-1" />
-                    Payment Completed
-                  </Badge>
                 </div>
               </CardContent>
             </Card>
@@ -665,7 +774,7 @@ export default function BookingDetails() {
                       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                         <DialogTrigger asChild>
                           <Button variant="outline" size="sm" className="text-sm w-full rounded-sm">
-                            Edit Booking
+                            Modify Booking
                           </Button>
                         </DialogTrigger>
                         <DialogContent className="sm:max-w-[425px]">
@@ -764,9 +873,13 @@ export default function BookingDetails() {
                       </Dialog>
                     )}
 
-                  <Button variant="outline" size="sm" className="text-sm w-full rounded-sm">
+                  <Link
+                    to={`/bookings/${booking.id}/receipt/pdf/pdfkit`}
+                    reloadDocument
+                    className="p-2 border rounded text-center flex items-center justify-center w-full"
+                  >
                     Download Receipt
-                  </Button>
+                  </Link>
 
                   {booking.status === "CONFIRMED" &&
                     isBookingEditable(new Date(booking.startDate)) && (

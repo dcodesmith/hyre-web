@@ -105,7 +105,7 @@ function EditCarForm({ car, setIsEditOpen }: EditCarFormProps) {
     }
   }, [fetcher.data, setIsEditOpen, fetcher.state]);
 
-  const [form, { make, model, year, registrationNumber, price, status, hourlyRate, nightRate }] =
+  const [form, { make, model, year, registrationNumber, dayRate, status, hourlyRate, nightRate }] =
     useForm({
       defaultValue: car,
       onValidate({ formData }) {
@@ -139,15 +139,15 @@ function EditCarForm({ car, setIsEditOpen }: EditCarFormProps) {
       </div>
 
       <div className="space-y-1">
-        <Label htmlFor={price.id}>Price</Label>
+        <Label htmlFor={dayRate.id}>Price</Label>
         <Input
-          {...getInputProps(price, { type: "number" })}
+          {...getInputProps(dayRate, { type: "number" })}
           step="1000"
           className={
-            price.errors ? "border-red-500 focus-visible:ring-red-500 focus-visible:ring-2" : ""
+            dayRate.errors ? "border-red-500 focus-visible:ring-red-500 focus-visible:ring-2" : ""
           }
         />
-        {price.errors && <p className="text-sm text-destructive">{price.errors.join(" ")}</p>}
+        {dayRate.errors && <p className="text-sm text-destructive">{dayRate.errors.join(" ")}</p>}
       </div>
 
       <div className="space-y-1">

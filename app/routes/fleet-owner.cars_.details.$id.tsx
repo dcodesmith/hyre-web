@@ -49,7 +49,7 @@ export default function CarDetails() {
                 {new Intl.NumberFormat("en-NG", {
                   style: "currency",
                   currency: "NGN",
-                }).format(car?.price ?? 0)}
+                }).format(car?.dayRate ?? 0)}
               </dd>
             </div>
             <div className="px-4 py-3 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">

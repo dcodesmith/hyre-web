@@ -72,14 +72,11 @@ export async function action({ request }: ActionFunctionArgs) {
     }
 
     if (error instanceof Response) {
-      // @!@ FLOWS HERE @!@
       return error;
-
-      // return null;
     }
   }
 
-  if (userHasRole(user, "fleetOwner")) {
+  if (user && userHasRole(user, "fleetOwner")) {
     return redirect("/fleet-owner");
   }
 

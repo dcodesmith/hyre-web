@@ -3,9 +3,11 @@ import { Link, redirect, useLoaderData, useSearchParams } from "@remix-run/react
 import invariant from "tiny-invariant";
 import BookingCard from "~/components/BookingCard";
 import CarCarousel from "~/components/Carousel";
+import logger from "~/lib/logger.server";
 import { getSessionUser, requireUser } from "~/modules/auth/auth.server";
 import { prisma } from "~/modules/db/db.server";
 import { isCarAvailable } from "~/services/cars.server";
+import { getRates } from "~/services/extensions.server";
 
 export async function action({ request, params }: ActionFunctionArgs) {
   await requireUser(request, {
@@ -55,11 +57,20 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
     throw redirect("/");
   }
 
-  return json({ car, isAvailable, user });
+  const { vatRatePercent, platformCustomerServiceFeeRatePercent } = await getRates();
+
+  return json({
+    car,
+    isAvailable,
+    user,
+    vatRate: vatRatePercent.toNumber(),
+    platformServiceFeeRate: platformCustomerServiceFeeRatePercent.toNumber(),
+  });
 };
 
 export default function CarDetails() {
-  const { car, isAvailable, user } = useLoaderData<typeof loader>();
+  const { car, isAvailable, user, vatRate, platformServiceFeeRate } =
+    useLoaderData<typeof loader>();
   const [searchParams] = useSearchParams();
 
   const carWithDates = {
@@ -70,10 +81,7 @@ export default function CarDetails() {
 
   return (
     <div className="max-w-6xl mx-auto p-4 space-y-4">
-      <Link
-        to={`/?${searchParams.toString()}`}
-        className="text-blue-500 hover:underline mb-1 inline-block"
-      >
+      <Link to={`/?${searchParams.toString()}`} className=" hover:underline mb-1 inline-block">
         &larr; Back to search results
       </Link>
 
@@ -143,7 +151,13 @@ export default function CarDetails() {
         </div>
 
         <div className="lg:sticky lg:top-4">
-          <BookingCard car={carWithDates} isAvailable={isAvailable} user={user} />
+          <BookingCard
+            car={carWithDates}
+            isAvailable={isAvailable}
+            user={user}
+            vatRate={vatRate}
+            platformServiceFeeRate={platformServiceFeeRate}
+          />
         </div>
       </div>
     </div>

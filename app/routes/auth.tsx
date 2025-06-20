@@ -1,7 +1,7 @@
 import { getFormProps, getInputProps, useForm } from "@conform-to/react";
 import { getZodConstraint, parseWithZod } from "@conform-to/zod";
 import { CogIcon } from "@heroicons/react/24/outline";
-import { ActionFunctionArgs, LoaderFunctionArgs, json } from "@remix-run/node";
+import { ActionFunctionArgs, LoaderFunctionArgs, json, redirect } from "@remix-run/node";
 import { Form, Outlet, useLoaderData, useNavigate, useSearchParams } from "@remix-run/react";
 import { AuthorizationError } from "remix-auth";
 import { z } from "zod";
@@ -19,6 +19,7 @@ import { RadioGroup, RadioGroupItem } from "~/components/ui/radio-group";
 import { useIsPending } from "~/lib/utils";
 import { authenticator } from "~/modules/auth/auth.server";
 import { commitSession, getSession } from "~/modules/auth/session.server";
+import { prisma } from "~/modules/db/db.server";
 
 const roles = ["user", "fleetOwner"] as const;
 
@@ -52,35 +53,46 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
 export async function action({ request }: ActionFunctionArgs) {
   const formData = await request.clone().formData();
-  const role = String(formData.get("role"));
+  const role = (formData.get("role") as string | null) ?? "user"; // Default to least privileged role
+
+  // Optionally guard against unexpected values
+  if (!["user", "fleetOwner"].includes(role)) {
+    throw new Response("Unsupported role", { status: 400 });
+  }
   const url = new URL(request.url);
   const pathname = url.pathname;
   const redirectTo = url.searchParams.get("redirectTo");
 
   try {
-    return await authenticator.authenticate("TOTP", request, {
+    const response = await authenticator.authenticate("TOTP", request, {
       successRedirect: redirectTo
         ? `/verify?redirectTo=${encodeURIComponent(redirectTo)}`
         : `/verify?role=${role}`,
       failureRedirect: pathname,
       context: { intent: "login", role },
     });
+
+    // If authentication is successful and the user is a fleet owner, check onboarding status
+    const user = await authenticator.isAuthenticated(request);
+    if (user && role === "fleetOwner") {
+      const fleetOwner = await prisma.user.findUnique({
+        where: { id: user.id },
+        select: { hasOnboarded: true },
+      });
+
+      if (fleetOwner && !fleetOwner.hasOnboarded) {
+        return redirect("/fleet-owner/onboarding");
+      }
+    }
+
+    return response;
   } catch (error) {
-    // if (error instanceof CSRFError) {
-    //   return json(
-    //     { error: "error with authenticating, please refresh" },
-    //     { status: 403 }
-    //   );
-    // }
     if (error instanceof AuthorizationError) {
       return json({ error: error.message }, { status: 401 });
     }
 
     if (error instanceof Response) {
-      // @!@ FLOWS HERE @!@
       return error;
-
-      // return null;
     }
   }
 }
@@ -139,12 +151,14 @@ export default function Login() {
             <div className="mt-2 flex flex-col sm:flex-col gap-4">
               <div className="space-y-1">
                 <RadioGroup
+                  value={role.value}
                   onValueChange={(value) => {
                     form.update({
-                      [role.name]: value,
+                      value: {
+                        role: value,
+                      },
                     });
                   }}
-                  defaultValue={searchParams.get("role") || role.value}
                   className="grid grid-cols-2"
                   name={role.name}
                 >

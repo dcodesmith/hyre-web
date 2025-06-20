@@ -131,7 +131,7 @@ export default function IndexPage() {
                     {new Intl.NumberFormat("en-NG", {
                       style: "currency",
                       currency: "NGN",
-                    }).format(row.original.price)}
+                    }).format(row.original.dayRate)}
                   </p>
                   {/* {row.original.owner.username} */}
                 </div>

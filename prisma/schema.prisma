@@ -11,17 +11,20 @@ datasource db {
 }
 
 model Car {
-  id                 String            @id @default(cuid())
+  id                 String @id @default(cuid())
   make               String
   model              String
   year               Int
   color              String
   registrationNumber String
-  price              Int // Regular daytime price
-  nightRate          Int // Nighttime rate (11pm - 5am)
-  status             Status
-  approvalStatus     CarApprovalStatus @default(PENDING)
-  approvalNotes      String? // Notes about approval status, e.g. rejection reasons
+
+  dayRate    Int // Assumed NET Regular daytime price
+  nightRate  Int // Assumed NET Nighttime rate
+  hourlyRate Int // Assumed NET hourly rate
+
+  status         Status
+  approvalStatus CarApprovalStatus @default(PENDING)
+  approvalNotes  String? // Notes about approval status, e.g. rejection reasons
 
   ownerId String
   owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
@@ -33,10 +36,8 @@ model Car {
   documents DocumentApproval[] @relation("CarDocuments")
   images    VehicleImage[]
 
-  hourlyRate Int @default(0)
-
   @@index([ownerId])
-  @@index([ownerId, updatedAt])
+  @@index([ownerId, updatedAt]) // This index was present in your initial schema
 }
 
 enum Status {
@@ -44,6 +45,24 @@ enum Status {
   BOOKED
   HOLD
   IN_SERVICE
+}
+
+enum BookingStatus {
+  PENDING // Initial state when booking is created
+  CONFIRMED // After payment/approval
+  ACTIVE // When car is picked up
+  COMPLETED // When car is returned
+  CANCELLED // If booking is cancelled
+  REJECTED // If booking is rejected by admin
+}
+
+enum PaymentStatus {
+  UNPAID
+  PAID
+  REFUNDED
+  REFUND_PROCESSING
+  REFUND_FAILED
+  PARTIALLY_REFUNDED
 }
 
 enum UserRole {
@@ -65,26 +84,29 @@ model User {
   roles        Role[]
   // Relations for fleet owners & chauffeur
   fleetOwnerId String? // Nullable because not all users are chauffeur
-  fleetOwner   User?   @relation("FleetOwnerChauffeurs", fields: [fleetOwnerId], references: [id])
+  fleetOwner   User?   @relation("FleetOwnerChauffeurs", fields: [fleetOwnerId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   chauffeurs   User[]  @relation("FleetOwnerChauffeurs")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  bookings Booking[] @relation("BookingCustomer")
+  bookings            Booking[] @relation("BookingCustomer")
+  bookingsAsChauffeur Booking[] @relation("BookingChauffeur")
+  cars                Car[] // Cars owned by this user
 
-  // Relations
-  bookingsAsChauffeur Booking[] @relation("BookingChauffeur") // Bookings where the user is the assigned chauffeur
-
-  cars Car[]
-
-  fleetOwnerStatus FleetOwnerStatus? @default(PROCESSING)
-
+  fleetOwnerStatus        FleetOwnerStatus?        @default(PROCESSING)
   chauffeurApprovalStatus ChauffeurApprovalStatus? @default(PENDING) // Only applicable for chauffeurs
+
+  // NEW RELATION for payouts received by fleet owner
+  payoutsReceived PayoutTransaction[] @relation("FleetOwnerPayouts")
 
   documents             DocumentApproval[] @relation("UserDocuments")
   approvedDocuments     DocumentApproval[] @relation("ApprovedBy")
   approvedVehicleImages VehicleImage[]     @relation("ApprovedVehicleImages")
+
+  bankDetailsId String?
+  bankDetails   BankDetails? @relation("UserBankDetails", fields: [bankDetailsId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  BankDetails   BankDetails?
 }
 
 model Role {
@@ -132,11 +154,29 @@ model Booking {
   startDate DateTime // Overall start date of the booking
   endDate   DateTime // Overall end date of the booking
 
-  // Payment information
-  totalAmount   Decimal       @db.Decimal(10, 2) // Overall total amount for the booking
-  paymentStatus PaymentStatus @default(UNPAID)
-  paymentId     String? // Reference to external payment provider for the main booking
-  paymentIntent String? // Payment Intent ID for pending payments for the main booking
+  // --- Existing Payment Information (totalAmount is now Gross, other fields kept) ---
+  totalAmount   Decimal       @db.Decimal(10, 2) // This is now the GROSS amount customer pays
+  paymentStatus PaymentStatus @default(UNPAID) // Overall payment status of this booking (uses existing enum)
+  paymentId     String? // Kept: Can store primary successful Flutterwave tx ID
+  paymentIntent String? // Kept: Can store initial tx_ref
+
+  // --- NEW Financial Breakdown fields for this Booking ---
+  netTotal                              Decimal? @db.Decimal(10, 2) // Sum of net price of legs/services
+  platformCustomerServiceFeeRatePercent Decimal? @db.Decimal(5, 2) // e.g., 5.00 for 5%
+  platformCustomerServiceFeeAmount      Decimal? @db.Decimal(10, 2) // Calculated customer service fee
+  subtotalBeforeVat                     Decimal? @db.Decimal(10, 2) // netTotal + platformCustomerServiceFeeAmount
+  vatRatePercent                        Decimal? @db.Decimal(5, 2) // e.g., 20.00 for 20%
+  vatAmount                             Decimal? @db.Decimal(10, 2) // VAT on subtotalBeforeVat
+
+  // --- NEW Fleet Owner Payout Calculation for this Booking ---
+  platformFleetOwnerCommissionRatePercent Decimal? @db.Decimal(5, 2)
+  platformFleetOwnerCommissionAmount      Decimal? @db.Decimal(10, 2)
+  fleetOwnerPayoutAmountNet               Decimal? @db.Decimal(10, 2) // Amount due to owner from this booking
+
+  // --- NEW Relations to detailed transaction tables ---
+  customerPayments    Payment[]                @relation("BookingCustomerPayments")
+  payoutTransactions  PayoutTransaction[]      @relation("BookingPayouts")
+  overallPayoutStatus PayoutTransactionStatus? // Overall status of paying out the owner for this booking
 
   // Car information
   carId String
@@ -144,9 +184,9 @@ model Booking {
 
   // Customer information
   userId String?
-  user   User?   @relation(fields: [userId], references: [id], name: "BookingCustomer")
+  user   User?   @relation("BookingCustomer", fields: [userId], references: [id], onDelete: SetNull)
 
-  guestUser Json? // Details of guest users, e.g., { "name": "John Doe", "email": "john@example.com", "phoneNumber": "070********" }
+  guestUser Json?
 
   // Optional fields
   pickupLocation  String
@@ -154,15 +194,14 @@ model Booking {
   specialRequests String?
 
   // Chauffeur information
-  chauffeurId String? // Nullable because the chauffeur is assigned later
-  chauffeur   User?   @relation(fields: [chauffeurId], references: [id], name: "BookingChauffeur")
+  chauffeurId String?
+  chauffeur   User?   @relation("BookingChauffeur", fields: [chauffeurId], references: [id], onDelete: SetNull)
 
   // Cancellation
   cancelledAt        DateTime?
   cancellationReason String?
 
-  // Booking Legs representing each day of the booking
-  legs BookingLeg[]
+  legs BookingLeg[] // This was already BookingLeg[] in your provided schema.
 
   @@index([carId])
   @@index([userId])
@@ -170,24 +209,42 @@ model Booking {
   @@index([chauffeurId])
   @@index([paymentStatus])
   @@index([paymentIntent])
+  @@index([overallPayoutStatus])
 }
 
 // Represents each individual day within a booking period
 model BookingLeg {
-  id              String    @id @default(cuid())
-  bookingId       String
-  booking         Booking   @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  legDate         DateTime  @db.Date // The calendar date this leg primarily covers
+  id        String   @id @default(cuid())
+  bookingId String
+  booking   Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  legDate   DateTime @db.Date
 
-  // New Explicit Time Fields
-  legStartTime    DateTime  // The actual start DateTime for service on this leg
-  legEndTime      DateTime  // The actual end DateTime for service on this leg (before further hour-by-hour extensions)
+  legStartTime DateTime
+  legEndTime   DateTime
 
-  totalDailyPrice Decimal   @db.Decimal(10, 2)
-  notes           String?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-  extensions      Extension[] // Extensions can still modify the legEndTime further
+  // --- NEW: Financials for the BASE DURATION of this Leg ---
+  itemsNetValueForLeg Decimal @db.Decimal(10, 2) // Net value of the car rental service for this leg's base duration.
+  // Calculated from Car rates and the (legStartTime to original planned legEndTime).
+  // This is the base for calculating fleet owner commission for the leg.
+
+  platformCommissionRateOnLeg Decimal? @db.Decimal(5, 2) // Snapshot of the platform's fleet owner commission rate (%)
+  // applied to this leg's itemsNetValueForLeg.
+  // Typically sourced from Booking.platformFleetOwnerCommissionRatePercent.
+
+  platformCommissionAmountOnLeg Decimal? @db.Decimal(10, 2) // Calculated commission: itemsNetValueForLeg * (platformCommissionRateOnLeg / 100).
+
+  fleetOwnerEarningForLeg Decimal @db.Decimal(10, 2) // Fleet owner's net earning from THIS BASE LEG's duration:
+  // itemsNetValueForLeg - platformCommissionAmountOnLeg.
+
+  // Existing field for the gross price portion of this leg paid by customer
+  // This should be calculated as:
+  // itemsNetValueForLeg + (this leg's share of Booking.platformCustomerServiceFeeAmount) + (this leg's share of Booking.vatAmount)
+  totalDailyPrice Decimal @db.Decimal(10, 2) // Gross customer-payable price portion for this leg.
+
+  notes      String?
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  extensions Extension[] // All extensions associated with this leg
 
   @@unique([bookingId, legDate])
   @@index([bookingId])
@@ -195,30 +252,45 @@ model BookingLeg {
 }
 
 enum ExtensionEventType {
-  HOURLY_ADDITION // Modifying an existing BookingLeg by adding hours
-  NEW_DAY_ADDITION // Represents the service/cost for a newly added full day BookingLeg
+  HOURLY_ADDITION
+  NEW_DAY_ADDITION
 }
 
-// Represents a specific extension event, either adding hours to an existing leg
-// or defining the service and cost for a newly added leg (a full day).
 model Extension {
-  id        String             @id @default(cuid())
-  eventType ExtensionEventType
+  id                    String             @id @default(cuid())
+  eventType             ExtensionEventType
+  bookingLegId          String
+  bookingLeg            BookingLeg         @relation(fields: [bookingLegId], references: [id], onDelete: Cascade)
+  extensionStartTime    DateTime
+  extensionEndTime      DateTime
+  extendedDurationHours Int
 
-  bookingLegId String // The BookingLeg this extension pertains to
-  bookingLeg   BookingLeg @relation(fields: [bookingLegId], references: [id])
+  // --- Existing Payment Information (totalAmount is now Gross, other fields kept) ---
+  totalAmount   Decimal       @db.Decimal(10, 2) // This is now GROSS for the extension
+  paymentStatus PaymentStatus @default(UNPAID) // Overall payment status for this extension
+  paymentId     String? // Kept: Primary successful Flutterwave tx ID
+  paymentIntent String? // Kept: Initial tx_ref
 
-  // Defines the specific service period this Extension record covers ON THE bookingLeg
-  extensionStartTime    DateTime // For HOURLY: actual start of extra hours. For NEW_DAY: start of service on the new leg's date.
-  extensionEndTime      DateTime // For HOURLY: actual end of extra hours. For NEW_DAY: end of service on the new leg's date.
-  extendedDurationHours Int // Duration of this specific extension period in hours
+  // --- NEW Financial Breakdown for this Extension ---
+  netTotal                              Decimal? @db.Decimal(10, 2)
+  platformCustomerServiceFeeRatePercent Decimal? @db.Decimal(5, 2)
+  platformCustomerServiceFeeAmount      Decimal? @db.Decimal(10, 2)
+  subtotalBeforeVat                     Decimal? @db.Decimal(10, 2)
+  vatRatePercent                        Decimal? @db.Decimal(5, 2)
+  vatAmount                             Decimal? @db.Decimal(10, 2)
 
-  // Financials for THIS specific extension event/period
-  totalAmount   Decimal       @db.Decimal(10, 2)
-  paymentStatus PaymentStatus @default(UNPAID)
-  paymentId     String? // Reference to external payment provider for this extension
-  paymentIntent String? // Payment Intent ID for this extension's payment
-  status        String        @default("PENDING") // e.g., PENDING, CONFIRMED, CANCELLED (for this specific extension)
+  // --- NEW Fleet Owner Payout Calculation for this Extension ---
+  platformFleetOwnerCommissionRatePercent Decimal? @db.Decimal(5, 2)
+  platformFleetOwnerCommissionAmount      Decimal? @db.Decimal(10, 2)
+  fleetOwnerPayoutAmountNet               Decimal? @db.Decimal(10, 2)
+
+  // --- NEW Relations to detailed transaction tables ---
+  customerPayments    Payment[]                @relation("ExtensionCustomerPayments")
+  payoutTransactions  PayoutTransaction[]      @relation("ExtensionPayouts")
+  overallPayoutStatus PayoutTransactionStatus? // Overall payout status for this extension's earnings
+
+  // Status of the extension approval/lifecycle itself
+  status String @default("PENDING")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -227,22 +299,90 @@ model Extension {
   @@index([paymentStatus])
   @@index([eventType])
   @@index([status])
+  @@index([overallPayoutStatus])
 }
 
-enum BookingStatus {
-  PENDING // Initial state when booking is created
-  CONFIRMED // After payment/approval
-  ACTIVE // When car is picked up
-  COMPLETED // When car is returned
-  CANCELLED // If booking is cancelled
-  REJECTED // If booking is rejected by admin
-}
-
-enum PaymentStatus {
-  UNPAID
-  PAID
+enum PaymentAttemptStatus {
+  PENDING
+  SUCCESSFUL
+  FAILED
   REFUNDED
+  REFUND_PROCESSING
+  REFUND_FAILED
   PARTIALLY_REFUNDED
+}
+
+enum PayoutTransactionStatus {
+  PENDING_APPROVAL
+  PENDING_DISBURSEMENT
+  PROCESSING
+  PAID_OUT
+  FAILED
+  REVERSED
+}
+
+model Payment {
+  id          String     @id @default(cuid())
+  bookingId   String?
+  booking     Booking?   @relation("BookingCustomerPayments", fields: [bookingId], references: [id], onDelete: SetNull)
+  extensionId String?
+  extension   Extension? @relation("ExtensionCustomerPayments", fields: [extensionId], references: [id], onDelete: SetNull)
+
+  txRef                    String  @unique // Your unique reference for this payment attempt
+  flutterwaveTransactionId String? @unique // Flutterwave's successful transaction ID
+  flutterwaveReference     String? @unique // Flutterwave's payment reference (flw_ref)
+
+  amountExpected       Decimal  @db.Decimal(10, 2)
+  amountCharged        Decimal? @db.Decimal(10, 2)
+  currency             String
+  feeChargedByProvider Decimal? @db.Decimal(10, 2)
+
+  status                PaymentAttemptStatus
+  paymentProviderStatus String? // Raw status from Flutterwave
+  paymentMethod         String?
+
+  initiatedAt    DateTime  @default(now())
+  confirmedAt    DateTime?
+  lastVerifiedAt DateTime?
+
+  webhookPayload       Json?
+  verificationResponse Json?
+
+  @@index([bookingId])
+  @@index([extensionId])
+  @@index([txRef])
+  @@index([flutterwaveTransactionId])
+  @@index([flutterwaveReference])
+  @@index([status])
+}
+
+model PayoutTransaction {
+  id           String @id @default(cuid())
+  fleetOwnerId String
+  fleetOwner   User   @relation("FleetOwnerPayouts", fields: [fleetOwnerId], references: [id])
+
+  bookingId   String?
+  booking     Booking?   @relation("BookingPayouts", fields: [bookingId], references: [id], onDelete: SetNull)
+  extensionId String?
+  extension   Extension? @relation("ExtensionPayouts", fields: [extensionId], references: [id], onDelete: SetNull)
+
+  amountToPay Decimal  @db.Decimal(10, 2)
+  amountPaid  Decimal? @db.Decimal(10, 2)
+  currency    String
+
+  status                  PayoutTransactionStatus
+  payoutProviderReference String?
+  payoutMethodDetails     String?
+
+  initiatedAt DateTime  @default(now())
+  processedAt DateTime?
+  completedAt DateTime?
+  notes       String?
+
+  @@index([fleetOwnerId])
+  @@index([status])
+  @@index([bookingId])
+  @@index([extensionId])
 }
 
 enum CarApprovalStatus {
@@ -284,17 +424,15 @@ model DocumentApproval {
   documentType DocumentType
   status       DocumentStatus @default(PENDING)
   documentUrl  String
-  notes        String? // For admin notes/rejection reasons
+  notes        String?
 
-  // Approval tracking
-  approvedBy   User?     @relation("ApprovedBy", fields: [approvedById], references: [id])
+  approvedBy   User?     @relation("ApprovedBy", fields: [approvedById], references: [id], onDelete: SetNull)
   approvedById String?
   approvedAt   DateTime?
 
-  // Document ownership
-  user   User?   @relation("UserDocuments", fields: [userId], references: [id])
+  user   User?   @relation("UserDocuments", fields: [userId], references: [id], onDelete: Cascade)
   userId String?
-  car    Car?    @relation("CarDocuments", fields: [carId], references: [id])
+  car    Car?    @relation("CarDocuments", fields: [carId], references: [id], onDelete: Cascade)
   carId  String?
 
   createdAt DateTime @default(now())
@@ -310,15 +448,14 @@ model VehicleImage {
   id     String         @id @default(cuid())
   url    String
   status DocumentStatus @default(PENDING)
-  notes  String? // For admin notes/rejection reasons
+  notes  String?
 
-  // Approval tracking
-  approvedBy   User?     @relation("ApprovedVehicleImages", fields: [approvedById], references: [id])
+  approvedBy   User?     @relation("ApprovedVehicleImages", fields: [approvedById], references: [id], onDelete: SetNull)
   approvedById String?
   approvedAt   DateTime?
 
   carId     String
-  car       Car      @relation(fields: [carId], references: [id])
+  car       Car      @relation(fields: [carId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -326,6 +463,64 @@ model VehicleImage {
   @@index([status])
 }
 
-// generator seed {
-//   provider = "tsx prisma/seed.ts"
-// }
+model TaxRate {
+  id             String    @id @default(cuid())
+  // jurisdiction String    // e.g., "NG" - Could be added if you ever foresee other countries
+  // For a single country, you might omit jurisdiction and implicitly assume Nigeria
+  // type        String    // e.g., "VAT_STANDARD" - If different VAT types exist in Nigeria for your services
+  ratePercent    Decimal   @db.Decimal(5, 2) // e.g., 7.50 for 7.5%
+  effectiveSince DateTime // Date this rate becomes active
+  effectiveUntil DateTime? // Date this rate is superseded (null if currently active)
+  description    String?   @default("Nigerian VAT") // Can specify if it's standard, etc.
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  // If only one VAT rate is active at any time for Nigeria:
+  @@unique([effectiveSince])
+  @@index([effectiveSince, effectiveUntil])
+}
+
+enum PlatformFeeType {
+  PLATFORM_SERVICE_FEE // Fee charged to the customer
+  FLEET_OWNER_COMMISSION // Commission taken from the fleet owner
+  // Add other fee types here as your business evolves
+}
+
+model PlatformFeeRate {
+  id             String          @id @default(cuid())
+  feeType        PlatformFeeType // Links to the enum
+  ratePercent    Decimal         @db.Decimal(5, 2) // e.g., 5.00 for 5%
+  effectiveSince DateTime // Date this rate becomes active
+  effectiveUntil DateTime? // Date this rate is superseded (null if currently active)
+  description    String? // e.g., "Standard customer service fee", "Launch commission rate for owners"
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@unique([feeType, effectiveSince]) // Only one rate per fee type active from a specific date
+  @@index([feeType, effectiveSince, effectiveUntil])
+}
+
+model BankDetails {
+  id String @id @default(cuid())
+
+  // Create a one-to-one relationship with the User model.
+  // The 'userId' field must be unique to enforce this.
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Store the actual bank details here
+  bankName      String // e.g., "Access Bank"
+  bankCode      String // Flutterwave's code for the bank, e.g., "044"
+  accountNumber String
+  accountName   String // The verified account holder name from Flutterwave
+
+  // Verification-specific metadata
+  isVerified           Boolean   @default(false)
+  lastVerifiedAt       DateTime?
+  verificationResponse Json? // Store the raw verification response from Flutterwave for auditing
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  User User[] @relation("UserBankDetails")
+}

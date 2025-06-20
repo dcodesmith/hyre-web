@@ -11,6 +11,7 @@ import {
   parseISO,
   startOfDay,
 } from "date-fns";
+import Decimal from "decimal.js";
 import { Calendar, Car, Clock, CreditCard } from "lucide-react";
 import crypto from "node:crypto";
 import { useState } from "react";
@@ -30,6 +31,7 @@ import logger from "~/lib/logger.server";
 import { formatCurrency, getCustomerDetails } from "~/lib/utils";
 import { requireUserWithRole } from "~/modules/auth/auth.server";
 import { prisma } from "~/modules/db/db.server";
+import { calculateExtensionFinancials, getRates } from "~/services/extensions.server";
 import { createPaymentIntent } from "~/services/payment.server";
 
 export async function loader({ params, request }: LoaderFunctionArgs) {
@@ -55,6 +57,8 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
     startDate: new Date(bookingData.startDate),
     endDate: new Date(bookingData.endDate),
   };
+
+  const { vatRatePercent } = await getRates();
 
   const overallBookingStartDate = booking.startDate;
   const overallBookingEndDate = booking.endDate;
@@ -119,6 +123,7 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
     )[0];
 
   let currentEndTimeToday: Date;
+
   if (latestConfirmedExtensionForTodaysLeg?.extensionEndTime) {
     currentEndTimeToday = parseISO(
       latestConfirmedExtensionForTodaysLeg.extensionEndTime.toISOString(),
@@ -196,6 +201,7 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
       user,
     },
     maxHours: validMaxHours,
+    vatRatePercent,
   });
 }
 
@@ -236,6 +242,12 @@ export async function action({ request, params }: ActionFunctionArgs) {
       return json({ error: "Booking not found" }, { status: 404 });
     }
 
+    const {
+      platformCustomerServiceFeeRatePercent,
+      platformFleetOwnerCommissionRatePercent,
+      vatRatePercent,
+    } = await getRates();
+
     const todaysLeg = booking.legs[0];
     const todaysLegsEndTime = todaysLeg.legEndTime;
     const maxEndTodayInAction = startOfDay(addDays(now, 1));
@@ -256,31 +268,29 @@ export async function action({ request, params }: ActionFunctionArgs) {
     }
 
     const newEndDateTimeForLeg = addHours(todaysLegsEndTime, hours);
-    const costForThisExtension = booking.car.hourlyRate * hours;
-    const totalWithVat = costForThisExtension * 1.075;
 
     logger.info(
       `Calculated new proposed end date for today's extension: ${newEndDateTimeForLeg.toISOString()}`,
     );
-    logger.info(
-      `Calculated cost for this transaction: ${costForThisExtension}, Total with VAT: ${totalWithVat}`,
-    );
 
     logger.info(`No PENDING extension. Creating new one for leg ${todaysLeg.id}.`);
 
+    const financials = await calculateExtensionFinancials(
+      booking.car.hourlyRate,
+      hours,
+      platformCustomerServiceFeeRatePercent,
+      platformFleetOwnerCommissionRatePercent,
+      vatRatePercent,
+    );
+
     const { checkoutUrl, paymentIntentId } = await createPaymentIntent({
-      amount: totalWithVat,
+      amount: financials.totalAmount.toNumber(),
       customer: getCustomerDetails(booking),
       metadata: {
         transactionType: "booking_extension",
-        // bookingId: booking.id,
-        // extensionDay: today.toISOString(),
-        // hours: actualHoursForPaymentIntentMetadata, // Total hours for this PENDING operation
-        // carId: booking.carId,
-        // ...(operationType === "update" && { existingExtensionId: extensionDataForDb.id }),
       },
       idempotencyKey: crypto.randomUUID(), // Always new idempotency key for new/updated PI
-      callbackUrl: `${process.env.APP_URL || "http://localhost:5173"}/bookings/payment-status?transactionType=booking_extension`,
+      callbackUrl: `${process.env.APP_URL || process.env.NGROK_DOMAIN || "http://localhost:5173"}/bookings/payment-status?transactionType=booking_extension`,
     });
 
     logger.debug(`Payment intent created: ${paymentIntentId}`);
@@ -290,7 +300,16 @@ export async function action({ request, params }: ActionFunctionArgs) {
       extensionStartTime: todaysLeg.legEndTime,
       extendedDurationHours: hours,
       extensionEndTime: newEndDateTimeForLeg,
-      totalAmount: totalWithVat,
+      totalAmount: financials.totalAmount,
+      netTotal: financials.netTotal,
+      platformCustomerServiceFeeRatePercent: financials.platformCustomerServiceFeeRatePercent,
+      platformCustomerServiceFeeAmount: financials.platformCustomerServiceFeeAmount,
+      subtotalBeforeVat: financials.subtotalBeforeVat,
+      vatRatePercent: financials.vatRatePercent,
+      vatAmount: financials.vatAmount,
+      platformFleetOwnerCommissionRatePercent: financials.platformFleetOwnerCommissionRatePercent,
+      platformFleetOwnerCommissionAmount: financials.platformFleetOwnerCommissionAmount,
+      fleetOwnerPayoutAmountNet: financials.fleetOwnerPayoutAmountNet,
       bookingLeg: { connect: { id: todaysLeg.id } },
       paymentIntent: paymentIntentId,
     };
@@ -312,17 +331,22 @@ export async function action({ request, params }: ActionFunctionArgs) {
 }
 
 export default function ExtendBookingPage() {
-  const { booking, maxHours } = useLoaderData<typeof loader>();
+  const { booking, maxHours, vatRatePercent } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const submit = useSubmit();
-  // Initialize state correctly, ensuring hours doesn't exceed maxHours if maxHours is less than 1 initially
   const [hours, setHours] = useState(maxHours >= 1 ? 1 : 0);
 
   // Ensure calculations handle potentially 0 hours selected
   const hourlyRate = booking.car.hourlyRate ?? 0; // Handle potential null/undefined rate
   const total = hourlyRate * hours;
-  const vat = total * 0.075; // Use your actual VAT calculation logic/rate
-  const totalWithVat = total + vat;
+  const platformServiceFeeRate = booking.platformCustomerServiceFeeRatePercent ?? 0;
+  const platformServiceFee = new Decimal(total).mul(platformServiceFeeRate).div(100).toNumber();
+  const subtotalBeforeVat = total + platformServiceFee;
+  const totalWithVat = new Decimal(subtotalBeforeVat)
+    .mul(vatRatePercent)
+    .div(100)
+    .plus(subtotalBeforeVat)
+    .toNumber();
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -414,8 +438,19 @@ export default function ExtendBookingPage() {
                 </div>
 
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">VAT (7.5%)</span>
-                  <span className="font-medium">{formatCurrency(vat)}</span>
+                  <span className="text-muted-foreground">
+                    Platform Fee ({platformServiceFeeRate.toString()}%)
+                  </span>
+                  <span className="font-medium">{formatCurrency(platformServiceFee)}</span>
+                </div>
+
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">VAT ({vatRatePercent.toString()}%)</span>
+                  <span className="font-medium">
+                    {formatCurrency(
+                      new Decimal(subtotalBeforeVat).mul(vatRatePercent).div(100).toNumber(),
+                    )}
+                  </span>
                 </div>
 
                 <Separator />

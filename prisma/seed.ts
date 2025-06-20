@@ -242,13 +242,13 @@ export async function seed() {
 
     const data = vehicles.map((vehicle) => ({
       ...vehicle,
-      price: [90000, 100000, 110000, 120000, 130000][Math.floor(Math.random() * 5)],
+      dayRate: [1000, 1100, 1200, 1300, 1400][Math.floor(Math.random() * 5)],
       color: ["Blue", "Silver", "Black", "White"][Math.floor(Math.random() * 4)],
       year: [2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024][
         Math.floor(Math.random() * 10)
       ],
-      hourlyRate: Math.floor(Math.random() * 6) * 1000 + 10000,
-      nightRate: Math.floor(Math.random() * 3) * 10000 + 100000,
+      hourlyRate: Math.floor(Math.random() * 6) * 100 + 100,
+      nightRate: Math.floor(Math.random() * 3) * 1000 + 100,
       status: Object.values(Status)[Math.floor(Math.random() * 4)] as Status,
       ownerId: createdFleetOwner.id,
       registrationNumber: `${faker.helpers.arrayElement([

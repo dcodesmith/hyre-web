@@ -31,16 +31,24 @@ export function Toolbar({ table, isAdmin = false }: ToolbarProps<SerializedCar>)
   const handleDateRangeChange = (dateRange: DateRange) => {
     setDateRange(dateRange);
 
-    // if (dateRange.from && dateRange.to) {
-    const params = new URLSearchParams({
-      ...Object.fromEntries(searchParams),
-      from: dateRange.from ? format(dateRange.from, "yyyy-MM-dd") : "",
-      to: dateRange.to ? format(dateRange.to, "yyyy-MM-dd") : "",
-    });
+    if (dateRange.from && dateRange.to) {
+      // const params = new URLSearchParams({
+      //   ...Object.fromEntries(searchParams),
+      //   from: dateRange.from ? format(dateRange.from, "yyyy-MM-dd") : "",
+      //   to: dateRange.to ? format(dateRange.to, "yyyy-MM-dd") : "",
+      // });
 
-    setSearchParams(params);
-    fetcher.load(`?${params.toString()}`);
-    // }
+      searchParams.set("from", format(dateRange.from, "yyyy-MM-dd"));
+      searchParams.set("to", format(dateRange.to, "yyyy-MM-dd"));
+
+      // setSearchParams(searchParams, { replace: true, preventScrollReset: true });
+      fetcher.load(`?${searchParams.toString()}`);
+    } else {
+      searchParams.delete("from");
+      searchParams.delete("to");
+    }
+
+    setSearchParams(searchParams, { replace: true, preventScrollReset: true });
   };
 
   return (
@@ -88,7 +96,7 @@ export function Toolbar({ table, isAdmin = false }: ToolbarProps<SerializedCar>)
           onClick={() => {
             handleDateRangeChange({ from: undefined, to: undefined });
             table.resetColumnFilters();
-            setSearchParams("");
+            setSearchParams(new URLSearchParams(), { replace: true, preventScrollReset: true });
           }}
           className="h-8 px-2 lg:px-3"
         >

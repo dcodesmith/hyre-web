@@ -1,4 +1,11 @@
-import { getFormProps, getInputProps, useForm } from "@conform-to/react";
+import React from "react";
+import {
+  getFormProps,
+  getInputProps,
+  useForm,
+  type FieldMetadata,
+  useInputControl,
+} from "@conform-to/react";
 import { parseWithZod } from "@conform-to/zod";
 import { CogIcon } from "@heroicons/react/24/outline";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
@@ -16,6 +23,10 @@ import { useState } from "react";
 import { RadioGroup, RadioGroupItem } from "~/components/ui/radio-group";
 import { uploadFileToS3 } from "~/services/s3.server";
 import { DocumentStatus, DocumentType } from "@prisma/client";
+import { banks } from "~/lib/banks";
+import { Combobox } from "~/components/ui/combobox";
+import axios from "axios";
+import logger from "~/lib/logger.server";
 
 const baseSchema = z.object({
   name: z.string({ required_error: "Name is required" }),
@@ -38,8 +49,16 @@ const independentDriverSchema = baseSchema.extend({
 const fleetOwnerSchema = baseSchema.extend({
   independentDriver: z.literal("false"),
   certificateOfIncorporation: z
-    .instanceof(File, { message: "Certificate of Incorporation is required" })
+    .instanceof(File, {
+      message: "Certificate of Incorporation is required",
+    })
     .refine((file) => file.size <= 5 * 1024 * 1024, "File must be less than 5MB"),
+  bankCode: z.string({ required_error: "Bank is required" }),
+  accountNumber: z
+    .string({ required_error: "Account number is required" })
+    .length(10, "Account number must be 10 digits")
+    .regex(/^[0-9]+$/, "Account number must only contain digits"),
+  accountName: z.string({ required_error: "Account name is required" }),
 });
 
 const onboardingSchema = z.discriminatedUnion("independentDriver", [
@@ -72,23 +91,102 @@ export async function action({ request }: ActionFunctionArgs) {
     return json(submission.reply());
   }
 
+  const { value } = submission;
+
+  // If fleet owner, verify bank details first
+  if (value.independentDriver === "false") {
+    const { accountNumber, bankCode, accountName } = value as z.infer<typeof fleetOwnerSchema>;
+
+    logger.info(`Verifying bank account: ${accountNumber} for bank: ${bankCode}`);
+
+    try {
+      const response = await axios.post(
+        "https://api.flutterwave.com/v3/accounts/resolve",
+        {
+          account_number: accountNumber,
+          account_bank: bankCode,
+        },
+        {
+          headers: {
+            accept: "application/json",
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${process.env.FLUTTERWAVE_SECRET_KEY}`,
+          },
+        },
+      );
+
+      const result = response.data;
+
+      if (result.status !== "success") {
+        return json(submission.reply({ formErrors: ["Could not verify bank account."] }));
+      }
+
+      const verifiedAccountName = result.data.account_name;
+
+      if (verifiedAccountName.toLowerCase() !== accountName.toLowerCase()) {
+        return json(
+          submission.reply({
+            fieldErrors: {
+              accountName: ["Account name does not match the provided account number."],
+            },
+          }),
+        );
+      }
+    } catch (error) {
+      logger.error(
+        `Flutterwave API Error: ${error instanceof Error ? error.message : String(error)}`,
+      );
+
+      let errorMessage = "An error occurred during verification. Please try again later.";
+      if (axios.isAxiosError(error) && error.response) {
+        // Log the full response for debugging
+        logger.error(`Flutterwave response data: ${JSON.stringify(error.response.data, null, 2)}`);
+        errorMessage = `Verification failed: ${error.response.data.message || "Unknown API error"}`;
+      } else if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+
+      return json(
+        submission.reply({
+          formErrors: [errorMessage],
+        }),
+      );
+    }
+  }
+
   // Create the user profile and document approval record in a transaction
   await prisma.$transaction(async (tx) => {
-    // Get the file from the submission
-    const certificateFile = !submission.value.independentDriver
-      ? (submission.value as z.infer<typeof fleetOwnerSchema>).certificateOfIncorporation
+    const certificateFile = !value.independentDriver
+      ? (value as z.infer<typeof fleetOwnerSchema>).certificateOfIncorporation
       : null;
-
     // Update user profile
     await tx.user.update({
       where: { id: user.id },
       data: {
-        name: submission.value.name,
-        phoneNumber: submission.value.phoneNumber,
-        address: submission.value.address,
+        name: value.name,
+        phoneNumber: value.phoneNumber,
+        address: value.address,
         hasOnboarded: true,
       },
     });
+
+    // Create Bank Details if fleet owner
+    if (value.independentDriver === "false") {
+      const { bankCode, accountNumber, accountName } = value as z.infer<typeof fleetOwnerSchema>;
+      const bank = banks.find((b) => b.code === bankCode);
+      if (bank) {
+        await tx.bankDetails.create({
+          data: {
+            userId: user.id,
+            bankName: bank.name,
+            bankCode,
+            accountNumber,
+            accountName,
+            isVerified: true,
+          },
+        });
+      }
+    }
 
     // Create document approval record for Certificate of Incorporation
     if (certificateFile) {
@@ -113,9 +211,69 @@ export async function action({ request }: ActionFunctionArgs) {
 }
 
 const roleOptions = {
-  fleetOwner: { label: "Fleet Owner", description: "You have a fleet of vehicles" },
-  independentDriver: { label: "Independent Driver", description: "You drive for yourself" },
+  fleetOwner: {
+    label: "Fleet Owner",
+    description: "You have a fleet of vehicles",
+  },
+  independentDriver: {
+    label: "Independent Driver",
+    description: "You drive for yourself",
+  },
 };
+
+function BankDetailsFields({
+  bankCode,
+  accountNumber,
+  accountName,
+}: {
+  bankCode: FieldMetadata<string>;
+  accountNumber: FieldMetadata<string>;
+  accountName: FieldMetadata<string>;
+}) {
+  const control = useInputControl(bankCode);
+
+  return (
+    <>
+      <div className="space-y-1">
+        <Label htmlFor={bankCode.id}>Bank</Label>
+        <Combobox
+          options={banks.map((b) => ({ value: b.code, label: b.name }))}
+          value={control.value}
+          onChange={(value) => control.change(value)}
+          placeholder="Select a bank"
+          searchPlaceholder="Search for a bank..."
+          noResultsMessage="No banks found."
+          triggerClassName="w-full"
+        />
+        <div className="text-sm text-red-600">{bankCode.errors}</div>
+      </div>
+      <div className="space-y-1">
+        <Label htmlFor={accountNumber.id}>Account Number</Label>
+        <Input
+          {...getInputProps(accountNumber, { type: "number" })}
+          key={accountNumber.key}
+          placeholder="Your 10-digit account number"
+          className={accountNumber.errors ? "border-red-500" : ""}
+        />
+        {accountNumber.errors?.map((error) => (
+          <p key={error} className="text-red-500 text-sm">
+            {error}
+          </p>
+        ))}
+      </div>
+      <div className="space-y-1">
+        <Label htmlFor={accountName.id}>Account Name</Label>
+        <Input
+          {...getInputProps(accountName, { type: "text" })}
+          key={undefined}
+          placeholder="The name on your bank account"
+          className={accountName.errors ? "border-red-500" : ""}
+        />
+        {accountName.errors && <p className="text-red-500 text-sm">{accountName.errors}</p>}
+      </div>
+    </>
+  );
+}
 
 export default function FleetOwnerOnboarding() {
   const isPending = useIsPending();
@@ -133,6 +291,9 @@ export default function FleetOwnerOnboarding() {
       lasdriCard,
       driversLicense,
       certificateOfIncorporation,
+      bankCode,
+      accountNumber,
+      accountName,
     },
   ] = useForm<z.infer<typeof onboardingSchema>>({
     lastResult,
@@ -149,9 +310,9 @@ export default function FleetOwnerOnboarding() {
   });
 
   return (
-    <div className="max-w-md mx-auto mt-8 p-6 bg-white border border-gray-200 rounded shadow-xl inset-shadow-sm">
-      <h1 className="text-2xl font-bold mb-6">Complete Your Profile</h1>
-      <p className="text-gray-600 mb-6">
+    <div className="mx-auto mt-8 max-w-md rounded border border-gray-200 bg-white p-6 shadow-xl inset-shadow-sm">
+      <h1 className="mb-6 text-2xl font-bold">Complete Your Profile</h1>
+      <p className="mb-6 text-gray-600">
         Please provide the following information to complete your registration.
       </p>
 
@@ -272,18 +433,25 @@ export default function FleetOwnerOnboarding() {
             </div>
           </>
         ) : (
-          <div className="space-y-1">
-            <Label htmlFor={certificateOfIncorporation.id}>Certificate of Incorporation</Label>
-            <Input
-              accept="application/pdf"
-              {...getInputProps(certificateOfIncorporation, { type: "file" })}
-              key={undefined}
-              className={certificateOfIncorporation.errors ? "border-red-500" : ""}
+          <>
+            <div className="space-y-1">
+              <Label htmlFor={certificateOfIncorporation.id}>Certificate of Incorporation</Label>
+              <Input
+                accept="application/pdf"
+                {...getInputProps(certificateOfIncorporation, { type: "file" })}
+                key={undefined}
+                className={certificateOfIncorporation.errors ? "border-red-500" : ""}
+              />
+              {certificateOfIncorporation.errors && (
+                <p className="text-red-500 text-sm">{certificateOfIncorporation.errors}</p>
+              )}
+            </div>
+            <BankDetailsFields
+              bankCode={bankCode}
+              accountNumber={accountNumber}
+              accountName={accountName}
             />
-            {certificateOfIncorporation.errors && (
-              <p className="text-red-500 text-sm">{certificateOfIncorporation.errors}</p>
-            )}
-          </div>
+          </>
         )}
 
         <Button className="w-full" type="submit" disabled={isPending}>

@@ -157,10 +157,10 @@ export const columns: ColumnDef<Car>[] = [
     cell: ({ row }) => <div className="w-[100px]">{row.original.year}</div>,
   },
   {
-    accessorKey: "price",
+    accessorKey: "dayRate",
     enableColumnFilter: false,
     header: ({ column }) => <ColumnHeader column={column} title="Daily Rate" />,
-    cell: ({ row }) => <div className="w-[150px]">{formatPrice(row.original.price)}</div>,
+    cell: ({ row }) => <div className="w-[150px]">{formatPrice(row.original.dayRate)}</div>,
   },
   {
     accessorKey: "hourlyRate",

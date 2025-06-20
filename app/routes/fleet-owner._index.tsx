@@ -13,7 +13,7 @@ import { prisma } from "~/modules/db/db.server";
 import { Prisma, BookingStatus, PaymentStatus } from "@prisma/client";
 import { getMonthToDateBookingsValue } from "~/services/bookings.server";
 import { requireUserWithRole } from "~/utils/permissions.server";
-import { startOfDay, endOfDay, subDays } from "date-fns";
+import { startOfDay, endOfDay, subDays, format } from "date-fns";
 
 type TimeRange = "week" | "month" | "year";
 
@@ -168,24 +168,28 @@ export async function loader({ request }: LoaderFunctionArgs) {
   );
 
   // TODO
-  // const legs = await prisma.bookingLeg.findMany({
-  //   where: { legDate: { gte: subDays(startOfToday, 29), lte: endOfToday } },
-  //   select: { legDate: true, totalDailyPrice: true },
-  // });
+  const legs = await prisma.bookingLeg.findMany({
+    where: {
+      legDate: { gte: subDays(startOfToday, 29), lte: endOfToday },
+      booking: {
+        car: { ownerId: fleetOwner.id },
+      },
+    },
+    select: { legDate: true, totalDailyPrice: true, fleetOwnerEarningForLeg: true },
+  });
 
-  // const revenueByDay = Array.from({ length: 30 }, (_, i) => {
-  //   const date = subDays(startOfToday, i);
-  //   const key = date.toISOString().slice(0, 10); // YYYY-MM-DD
-  //   const daySum = legs
-  //     .filter((l) => l.legDate.toISOString().startsWith(key))
-  //     .reduce((acc, l) => acc.add(l.totalDailyPrice), new Decimal(0));
-  //   return { date, revenue: daySum };
-  // }).reverse();
+  logger.info(`Legs: ${JSON.stringify(legs, null, 2)}`);
+
+  const revenueByDay = Array.from({ length: 30 }, (_, i) => {
+    const date = subDays(startOfToday, i);
+    const key = date.toISOString().slice(0, 10); // YYYY-MM-DD
+    const daySum = legs
+      .filter((l) => l.legDate.toISOString().startsWith(key))
+      .reduce((acc, l) => acc.add(l.fleetOwnerEarningForLeg), new Decimal(0));
+    return { date, revenue: daySum };
+  }).reverse();
 
   const dailyRevenue = dailyRev.slice().reverse();
-
-  logger.info(`Daily revenue: ${JSON.stringify(dailyRevenue, null, 2)}`);
-  // logger.info(`Revenue by day: ${JSON.stringify(revenueByDay, null, 2)}`);
 
   async function getTodaysLegsTotalPrice(
     fleetOwnerIdInput?: string,
@@ -199,10 +203,10 @@ export async function loader({ request }: LoaderFunctionArgs) {
     const start = new Date(Date.UTC(todayUtcYear, todayUtcMonth, todayUtcDay, 0, 0, 0, 0));
     const end = new Date(Date.UTC(todayUtcYear, todayUtcMonth, todayUtcDay, 23, 59, 59, 999));
 
-    let totalLegsPriceForToday = new Decimal(0);
+    let totalFleetOwnerEarningForToday = new Decimal(0);
 
     const bookingWhereClause: Prisma.BookingWhereInput = {
-      status: BookingStatus.ACTIVE,
+      status: { in: [BookingStatus.ACTIVE, BookingStatus.COMPLETED] },
       paymentStatus: PaymentStatus.PAID,
       chauffeurId: { not: null },
     };
@@ -222,91 +226,123 @@ export async function loader({ request }: LoaderFunctionArgs) {
     const relevantBookingLegs = await prisma.bookingLeg.findMany({
       where: bookingLegWhereClause,
       select: {
+        legDate: true,
         totalDailyPrice: true,
-        extensions: true,
+        fleetOwnerEarningForLeg: true,
       },
     });
 
     for (const leg of relevantBookingLegs) {
-      const legPrice = new Decimal(leg.totalDailyPrice.toString());
-      totalLegsPriceForToday = totalLegsPriceForToday.add(legPrice);
+      logger.info(
+        `${format(leg.legDate, "yyyy-MM-dd")}: Leg price: ${leg.fleetOwnerEarningForLeg.toFixed(2)}, ${leg.totalDailyPrice.toFixed(2)}`,
+      );
+      const legPrice = new Decimal(leg.fleetOwnerEarningForLeg.toString());
+      totalFleetOwnerEarningForToday = totalFleetOwnerEarningForToday.add(legPrice);
     }
 
-    return totalLegsPriceForToday;
+    return totalFleetOwnerEarningForToday;
   }
 
-  const ownerRevenueToday = await getTodaysLegsTotalPrice(fleetOwner.id);
+  async function getTodaysLegsFleetOwnerEarningSum(
+    fleetOwnerIdInput?: string,
+    dateInput: Date = new Date(),
+  ): Promise<Decimal> {
+    // Determine the start and end of the given date in UTC
+    const todayUtcYear = dateInput.getUTCFullYear();
+    const todayUtcMonth = dateInput.getUTCMonth(); // 0-indexed (January is 0)
+    const todayUtcDay = dateInput.getUTCDate();
 
-  // Get today's stats
-  const todayStats = await prisma.$transaction([
-    // Today's active bookings
-    prisma.booking.count({
-      where: {
-        status: "ACTIVE",
-        car: { ownerId: fleetOwner.id },
-        startDate: {
-          gte: startOfToday,
-          lte: endOfToday,
-        },
+    // Start of the day in UTC
+    const startOfTodayUTC = new Date(
+      Date.UTC(todayUtcYear, todayUtcMonth, todayUtcDay, 0, 0, 0, 0),
+    );
+    // End of the day in UTC
+    const endOfTodayUTC = new Date(
+      Date.UTC(todayUtcYear, todayUtcMonth, todayUtcDay, 23, 59, 59, 999),
+    );
+
+    // Construct the where clause for the related Booking entity
+    const bookingWhereClause: Prisma.BookingWhereInput = {
+      status: BookingStatus.ACTIVE,
+      paymentStatus: PaymentStatus.PAID,
+      chauffeurId: { not: null }, // Ensure a chauffeur is assigned
+    };
+
+    // Conditionally add filter for fleet owner if provided
+    if (fleetOwnerIdInput) {
+      bookingWhereClause.car = {
+        ownerId: fleetOwnerIdInput,
+      };
+    }
+
+    // Construct the main where clause for BookingLeg
+    const bookingLegWhereClause: Prisma.BookingLegWhereInput = {
+      legDate: {
+        gte: startOfTodayUTC, // Leg date is on or after the start of today (UTC)
+        lte: endOfTodayUTC, // Leg date is on or before the end of today (UTC)
       },
-    }),
-    // Today's completed bookings
-    prisma.booking.count({
-      where: {
-        status: "COMPLETED",
-        car: { ownerId: fleetOwner.id },
-        startDate: {
-          gte: startOfToday,
-          lte: endOfToday,
-        },
-      },
-    }),
-    // Today's cancelled bookings
-    prisma.booking.count({
-      where: {
-        status: "CANCELLED",
-        car: { ownerId: fleetOwner.id },
-        startDate: {
-          gte: startOfToday,
-          lte: endOfToday,
-        },
-      },
-    }),
-    // Today's confirmed bookings
-    prisma.booking.count({
-      where: {
-        status: "CONFIRMED",
-        car: { ownerId: fleetOwner.id },
-        startDate: {
-          gte: startOfToday,
-          lte: endOfToday,
-        },
-      },
-    }),
-    // Today's projected revenue
-    prisma.booking.aggregate({
-      where: {
-        car: { ownerId: fleetOwner.id },
-        endDate: {
-          gte: startOfToday,
-          lte: endOfToday,
-        },
-        status: {
-          in: ["ACTIVE", "CONFIRMED", "COMPLETED"],
-        },
-      },
+      booking: bookingWhereClause, // Apply filters on the related booking
+      totalDailyPrice: { gt: 0 }, // Consider only legs with a positive total daily price
+      // No explicit filter on fleetOwnerEarningForLeg itself, sum whatever value is present (positive, zero, or negative)
+    };
+
+    // Perform aggregation directly in the database
+    const aggregationResult = await prisma.bookingLeg.aggregate({
+      where: bookingLegWhereClause,
       _sum: {
-        totalAmount: true,
+        fleetOwnerEarningForLeg: true, // Sum this field
       },
-    }),
+    });
+
+    // The result of _sum can be null if no records match the criteria
+    const totalSum = aggregationResult._sum.fleetOwnerEarningForLeg;
+
+    // Return the sum, or Decimal(0) if the sum is null
+    return totalSum ? totalSum : new Decimal(0);
+  }
+
+  const ownerRevenueToday = await getTodaysLegsFleetOwnerEarningSum(fleetOwner.id);
+  const ownerRevenueToday2 = await getTodaysLegsTotalPrice(fleetOwner.id);
+
+  logger.info(`Owner revenue today: ${ownerRevenueToday.toString()}`);
+  logger.info(`Owner revenue today 2: ${ownerRevenueToday2.toString()}`);
+  // Get today's stats
+  const dateRangeFilter = {
+    startDate: { lte: endOfToday },
+    endDate: { gte: startOfToday },
+  };
+
+  const bookingCount = (status: BookingStatus) =>
+    prisma.booking.count({
+      where: {
+        status,
+        car: { ownerId: fleetOwner.id },
+        AND: [dateRangeFilter],
+      },
+    });
+
+  const todayStats = await prisma.$transaction([
+    bookingCount("ACTIVE"),
+    bookingCount("COMPLETED"),
+    bookingCount("CANCELLED"),
+    bookingCount("CONFIRMED"),
   ]);
+
+  const todayRevenue = await prisma.booking.aggregate({
+    where: {
+      status: { in: [BookingStatus.ACTIVE, BookingStatus.COMPLETED, BookingStatus.CONFIRMED] },
+      paymentStatus: PaymentStatus.PAID,
+      car: { ownerId: fleetOwner.id },
+      AND: [dateRangeFilter],
+    },
+    _sum: { totalAmount: true },
+  });
 
   const [
     todayActiveBookings,
     todayCompletedBookings,
     todayCancelledBookings,
     todayConfirmedBookings,
-    // todayRevenue,
   ] = todayStats;
 
   return json({
@@ -390,7 +426,6 @@ function numberToWords(num: number) {
   return `${recursiveNumberToWords(Math.floor(num))} Naira`;
 }
 
-// Function to add ordinal suffix
 const getOrdinal = (n: number): string => {
   const s = ["th", "st", "nd", "rd"];
   const v = n % 100;
@@ -491,6 +526,13 @@ function WelcomeMessage({
     projectedRevenue: number;
   };
 }) {
+  const {
+    activeBookings,
+    completedBookings,
+    cancelledBookings,
+    confirmedBookings,
+    projectedRevenue,
+  } = stats;
   const today = new Date();
 
   const formattedDate = today.toLocaleDateString("en-NG", {
@@ -513,10 +555,9 @@ function WelcomeMessage({
   };
 
   const hasAnyBookings =
-    stats.activeBookings > 0 ||
-    stats.completedBookings > 0 ||
-    stats.cancelledBookings > 0 ||
-    stats.confirmedBookings > 0;
+    activeBookings > 0 || completedBookings > 0 || cancelledBookings > 0 || confirmedBookings > 0;
+
+  console.log({ activeBookings, completedBookings, cancelledBookings, confirmedBookings });
 
   if (!hasAnyBookings) {
     return (
@@ -697,7 +738,7 @@ export default function FleetOwnerDashboard() {
         <div className="divide-y">
           {bookings.map((booking) => (
             <div key={booking.id} className="p-4">
-              <div className="grid grid-cols-2 md:grid-cols-7 gap-2">
+              <div className="grid grid-cols-2 md:grid-cols-8 gap-2">
                 <div>
                   <div className="text-sm text-gray-500">Car</div>
                   <div>
@@ -716,12 +757,22 @@ export default function FleetOwnerDashboard() {
                 </div>
 
                 <div>
-                  <div className="text-sm text-gray-500">Total Amount</div>
+                  <div className="text-sm text-gray-500">Net Total Amount</div>
                   <div>
                     {new Intl.NumberFormat("en-NG", {
                       style: "currency",
                       currency: "NGN",
-                    }).format(Number(booking.totalAmount))}
+                    }).format(Number(booking.netTotal))}
+                  </div>
+                </div>
+
+                <div>
+                  <div className="text-sm text-gray-500">Fleet Owner Payout</div>
+                  <div>
+                    {new Intl.NumberFormat("en-NG", {
+                      style: "currency",
+                      currency: "NGN",
+                    }).format(Number(booking.fleetOwnerPayoutAmountNet))}
                   </div>
                 </div>
 

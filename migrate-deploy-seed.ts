@@ -6,6 +6,9 @@ const execPromise = (command: string): Promise<string> => {
     exec(command, (error, stdout, stderr) => {
       if (error) {
         console.error(`Error running command: ${stderr}`);
+        console.error(`Error running command: ${error.message}`);
+        console.error(`Error running command: ${stdout}`);
+
         reject(new Error(stderr));
       } else {
         resolve(stdout);
@@ -16,10 +19,11 @@ const execPromise = (command: string): Promise<string> => {
 
 const runMigrationsAndSeed = async () => {
   try {
+    // const forceResetOutput = await execPromise("npx prisma migrate reset --force");
+    // console.log("Force Reset Output:", forceResetOutput);
+
     // Generate and apply migrations if schema changes are detected
     const migrationOutput = await execPromise("npx prisma migrate dev");
-
-    // Log migration output
     console.log("Migration Output:", migrationOutput);
 
     // if (migrationOutput.includes("No pending migrations to apply")) {
@@ -27,12 +31,10 @@ const runMigrationsAndSeed = async () => {
     // } else {
     // Run the seed script after applying migrations
     const seedOutput = await execPromise("npx prisma db seed");
-
-    // Log seed output
     console.log("Seed Output:", seedOutput);
     // }
   } catch (error: any) {
-    console.error(`Error running migrations or seed script: ${error.toString()}`);
+    console.error(`Error running migrations or seed script: ${error.message}`);
     process.exit(1);
   }
 };
