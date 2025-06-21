@@ -14,6 +14,7 @@ import {
   renderBookingConfirmationEmail,
   renderFleetOwnerBookingNotificationEmail,
 } from "~/modules/email/templates/booking-notification";
+import { renderPayoutNotificationEmail } from "~/modules/email/templates/payout-notification";
 import { Template, sendMessage } from "~/modules/messaging/messaging.server";
 import { emailQueue } from "~/queues/email-throttle.server";
 import { activateBooking, findBookingByPaymentIntent } from "~/services/bookings.server";
@@ -365,13 +366,24 @@ async function handleRefundCompleted(payload: FlutterwaveRefundPayload) {
 
 async function handleTransferCompleted(payload: FlutterwaveTransferCompletedPayload) {
   const {
-    data: { id: transferId, reference, status, complete_message: completeMessage },
+    data: { id: transferId, status, complete_message: completeMessage, amount },
   } = payload;
 
   logger.info(`[Transfer Webhook] Handling transfer ${transferId} with status ${status}`);
 
   const payoutTransaction = await prisma.payoutTransaction.findFirst({
     where: { payoutProviderReference: String(transferId) },
+    include: {
+      booking: {
+        include: {
+          car: {
+            include: {
+              owner: true,
+            },
+          },
+        },
+      },
+    },
   });
 
   if (!payoutTransaction) {
@@ -418,6 +430,39 @@ async function handleTransferCompleted(payload: FlutterwaveTransferCompletedPayl
   logger.info(
     `[Transfer Webhook] PayoutTransaction ${payoutTransaction.id} updated to ${finalStatus}`,
   );
+
+  if (finalStatus === "PAID_OUT" && payoutTransaction?.booking?.car?.owner) {
+    const owner = payoutTransaction.booking.car.owner;
+    const formattedAmount = new Intl.NumberFormat("en-NG", {
+      style: "currency",
+      currency: "NGN",
+    }).format(amount);
+
+    emailQueue.add(async () => {
+      const html = await renderPayoutNotificationEmail({
+        name: owner.name ?? owner.email,
+        amount: formattedAmount,
+      });
+      await sendEmail({
+        to: owner.email,
+        subject: "You've received a payout!",
+        html,
+      });
+    });
+
+    logger.info(`[Transfer Webhook] Payout notification queued for ${owner.email}`);
+  }
+
+  if (finalStatus === "FAILED") {
+    await emailQueue.add(async () => {
+      await sendEmail({
+        to: "dcodes@gmail.com",
+        subject: "Payout Failed",
+        html: "Payout failed",
+      });
+    });
+  }
+
   return json({ message: "Transfer webhook processed successfully" });
 }
 

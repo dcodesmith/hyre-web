@@ -67,7 +67,6 @@ export type BookingLegWithRelations = Prisma.BookingLegGetPayload<{
         car: { include: { owner: true } };
         user: true;
         chauffeur: true;
-        legs: true;
       };
     };
   };

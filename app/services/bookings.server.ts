@@ -1012,6 +1012,7 @@ export async function sendBookingStartReminderEmails() {
         },
       },
       include: {
+        extensions: true,
         booking: {
           include: {
             user: true,

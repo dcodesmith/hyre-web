@@ -46,7 +46,6 @@ async function getDocument(fileName: string) {
 }
 
 export async function seed() {
-  // Clear database in a single transaction
   await prisma.$transaction(async (transaction) => {
     // Delete in correct order to handle foreign key constraints
     await transaction.extension.deleteMany();
