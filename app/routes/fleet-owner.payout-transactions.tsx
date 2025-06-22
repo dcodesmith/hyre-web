@@ -1,0 +1,153 @@
+import { PayoutTransactionStatus } from "@prisma/client";
+import type { LoaderFunctionArgs } from "@remix-run/node";
+import { json } from "@remix-run/node";
+import { Link, useLoaderData } from "@remix-run/react";
+import { ColumnDef } from "@tanstack/react-table";
+import { MoreHorizontal } from "lucide-react";
+import { useMemo } from "react";
+import { ColumnHeader } from "~/components/Table/ColumnHeader";
+import { Table } from "~/components/Table/Table";
+import { Badge } from "~/components/ui/badge";
+import { Button } from "~/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "~/components/ui/dropdown-menu";
+import { cn, formatDate } from "~/lib/utils";
+import { requireUser } from "~/modules/auth/auth.server";
+import { prisma } from "~/modules/db/db.server";
+
+export async function loader({ request }: LoaderFunctionArgs) {
+  const user = await requireUser(request);
+  const transactions = await prisma.payoutTransaction.findMany({
+    where: {
+      fleetOwnerId: user.id,
+    },
+    orderBy: {
+      initiatedAt: "desc",
+    },
+    include: {
+      booking: true,
+    },
+  });
+
+  return json({ transactions });
+}
+
+const payoutStatusColors: Record<PayoutTransactionStatus, string> = {
+  PENDING_APPROVAL: "bg-yellow-50 ring-yellow-500/10 text-yellow-600",
+  PENDING_DISBURSEMENT: "bg-blue-50 ring-blue-500/10 text-blue-600",
+  PROCESSING: "bg-indigo-50 ring-indigo-500/10 text-indigo-600",
+  PAID_OUT: "bg-green-50 ring-green-500/10 text-green-600",
+  FAILED: "bg-red-50 ring-red-500/10 text-red-600",
+  REVERSED: "bg-purple-50 ring-purple-500/10 text-purple-600",
+};
+
+const payoutStatusOptions: Record<PayoutTransactionStatus, string> = {
+  PENDING_APPROVAL: "Pending Approval",
+  PENDING_DISBURSEMENT: "Pending Disbursement",
+  PROCESSING: "Processing",
+  PAID_OUT: "Paid Out",
+  FAILED: "Failed",
+  REVERSED: "Reversed",
+};
+
+export default function PayoutTransactionsPage() {
+  const { transactions } = useLoaderData<typeof loader>();
+
+  const columns = useMemo<ColumnDef<(typeof transactions)[number]>[]>(
+    () => [
+      {
+        accessorKey: "id",
+        header: ({ column }) => <ColumnHeader column={column} title="Transaction Id" />,
+        cell: ({ row }) => <div className="w-[150px] truncate">{row.original.id}</div>,
+      },
+      {
+        accessorKey: "bookingId",
+        header: ({ column }) => <ColumnHeader column={column} title="Booking Id" />,
+        cell: ({ row }) => <div className="w-[150px] truncate">{row.original.bookingId}</div>,
+      },
+
+      {
+        accessorKey: "booking.startDate",
+        header: ({ column }) => <ColumnHeader column={column} title="Booking Start Date" />,
+        cell: ({ row }) => (
+          <div className="w-[185px]">
+            {row.original.booking ? formatDate(row.original.booking.startDate) : "N/A"}
+          </div>
+        ),
+      },
+      {
+        accessorKey: "booking.endDate",
+        header: ({ column }) => <ColumnHeader column={column} title="Booking End Date" />,
+        cell: ({ row }) => (
+          <div className="w-[185px]">
+            {row.original.booking ? formatDate(row.original.booking.endDate) : "N/A"}
+          </div>
+        ),
+      },
+      {
+        accessorKey: "amountPaid",
+        header: ({ column }) => <ColumnHeader column={column} title="Amount" />,
+        cell: ({ row }) => <div className="w-[100px]">{`$${row.original.amountPaid}`}</div>,
+      },
+      {
+        accessorKey: "status",
+        header: ({ column }) => <ColumnHeader column={column} title="Status" />,
+        cell: ({ row }) => (
+          <div className="w-[150px]">
+            <Badge
+              variant="outline"
+              className={cn(
+                payoutStatusColors[row.original.status],
+                "rounded border-none ring-1 ring-inset",
+              )}
+            >
+              {payoutStatusOptions[row.original.status]}
+            </Badge>
+          </div>
+        ),
+      },
+      {
+        accessorKey: "payoutProviderReference",
+        header: ({ column }) => <ColumnHeader column={column} title="Provider Reference" />,
+        cell: ({ row }) => (
+          <div className="w-[150px] truncate">{row.original.payoutProviderReference || "N/A"}</div>
+        ),
+      },
+      {
+        id: "actions",
+        header: () => null,
+        enableHiding: false,
+        cell: ({ row }) => {
+          const transaction = row.original;
+
+          return (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="h-8 w-8 p-0">
+                  <span className="sr-only">Open menu</span>
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem asChild>
+                  <Link to={`/fleet-owner/bookings/${transaction.bookingId}`}>View Booking</Link>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          );
+        },
+      },
+    ],
+    [],
+  );
+
+  return (
+    <div className="container mx-auto">
+      <Table data={transactions} columns={columns} />
+    </div>
+  );
+}

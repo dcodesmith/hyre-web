@@ -1,6 +1,6 @@
 import { getFormProps, getInputProps, useForm } from "@conform-to/react";
 import { parseWithZod } from "@conform-to/zod";
-import { CogIcon } from "@heroicons/react/24/outline";
+import { CheckBadgeIcon, CogIcon } from "@heroicons/react/24/outline";
 import { BookingStatus } from "@prisma/client";
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { ActionFunctionArgs, json } from "@remix-run/node";
@@ -30,7 +30,6 @@ import { requireUser } from "~/modules/auth/auth.server";
 import { prisma } from "~/modules/db/db.server";
 import { createUser } from "~/services/users.server";
 import type { ChauffeurStatus, SerializedChauffeur } from "~/types";
-import { CheckCircleIcon, CheckBadgeIcon } from "@heroicons/react/24/outline";
 
 const chauffeurSchema = z.object({
   email: z
