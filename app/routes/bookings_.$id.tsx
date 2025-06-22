@@ -566,6 +566,13 @@ export default function BookingDetails() {
     }
   }, [actionData]);
 
+  const canBeModified =
+    booking.status === "CONFIRMED" && isBookingEditable(new Date(booking.startDate));
+  const canBeExtended = extendableDuration > 0;
+  const isCompleted = booking.status === "COMPLETED";
+
+  const shouldShowActionsCard = canBeModified || canBeExtended || isCompleted;
+
   return (
     <div className="min-h-screen p-4 md:p-6">
       <div className="max-w-4xl mx-auto space-y-4">
@@ -756,21 +763,21 @@ export default function BookingDetails() {
               </CardContent>
             </Card>
 
-            <Card className="rounded">
-              <CardContent className="p-4">
-                <div className="space-y-2">
-                  {extendableDuration > 0 && (
-                    <Link
-                      to={`/bookings/${booking.id}/extend${guestEmail ? `?email=${guestEmail}` : ""}`}
-                      className="p-2 border rounded text-center flex items-center justify-center w-full"
-                    >
-                      Extend Booking for up to {extendableDuration}{" "}
-                      {extendableDuration === 1 ? "hour" : "hours"}
-                    </Link>
-                  )}
+            {shouldShowActionsCard && (
+              <Card className="rounded">
+                <CardContent className="p-4">
+                  <div className="space-y-2">
+                    {canBeExtended && (
+                      <Link
+                        to={`/bookings/${booking.id}/extend${guestEmail ? `?email=${guestEmail}` : ""}`}
+                        className="p-2 border rounded text-center flex items-center justify-center w-full"
+                      >
+                        Extend Booking for up to {extendableDuration}{" "}
+                        {extendableDuration === 1 ? "hour" : "hours"}
+                      </Link>
+                    )}
 
-                  {booking.status === "CONFIRMED" &&
-                    isBookingEditable(new Date(booking.startDate)) && (
+                    {canBeModified && (
                       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                         <DialogTrigger asChild>
                           <Button variant="outline" size="sm" className="text-sm w-full rounded-sm">
@@ -873,16 +880,17 @@ export default function BookingDetails() {
                       </Dialog>
                     )}
 
-                  <Link
-                    to={`/bookings/${booking.id}/receipt/pdf/pdfkit`}
-                    reloadDocument
-                    className="p-2 border rounded text-center flex items-center justify-center w-full"
-                  >
-                    Download Receipt
-                  </Link>
+                    {isCompleted && (
+                      <Link
+                        to={`/bookings/${booking.id}/receipt/pdf/pdfkit`}
+                        reloadDocument
+                        className="p-2 border rounded text-center flex items-center justify-center w-full"
+                      >
+                        Download Receipt
+                      </Link>
+                    )}
 
-                  {booking.status === "CONFIRMED" &&
-                    isBookingEditable(new Date(booking.startDate)) && (
+                    {canBeModified && (
                       <Button
                         variant="outline"
                         size="sm"
@@ -891,9 +899,10 @@ export default function BookingDetails() {
                         Cancel Booking
                       </Button>
                     )}
-                </div>
-              </CardContent>
-            </Card>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
       </div>

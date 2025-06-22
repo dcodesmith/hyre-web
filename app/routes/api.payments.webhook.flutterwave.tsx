@@ -456,7 +456,7 @@ async function handleTransferCompleted(payload: FlutterwaveTransferCompletedPayl
   if (finalStatus === "FAILED") {
     await emailQueue.add(async () => {
       await sendEmail({
-        to: "dcodes@gmail.com",
+        to: "dcodesmith@gmail.com",
         subject: "Payout Failed",
         html: "Payout failed",
       });
