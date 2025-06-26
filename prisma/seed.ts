@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { faker } from "@faker-js/faker";
-import { DocumentStatus, DocumentType, Status } from "@prisma/client";
+import { DocumentStatus, DocumentType, PlatformFeeType, Status } from "@prisma/client";
 import { uploadFileToS3 } from "../app/services/s3.server";
 import { vehicles } from "../app/vehicles";
 import { prisma } from "../app/modules/db/db.server";
@@ -56,6 +56,37 @@ export async function seed() {
     await transaction.user.deleteMany();
     await transaction.permission.deleteMany();
     await transaction.role.deleteMany();
+    await transaction.taxRate.deleteMany();
+    await transaction.platformFeeRate.deleteMany();
+  });
+
+  await prisma.taxRate.create({
+    data: {
+      ratePercent: 7.5,
+      effectiveSince: new Date(),
+      effectiveUntil: null,
+      description: "VAT",
+    },
+  });
+
+  await prisma.platformFeeRate.create({
+    data: {
+      feeType: PlatformFeeType.PLATFORM_SERVICE_FEE,
+      ratePercent: 12.5,
+      effectiveSince: new Date(),
+      effectiveUntil: null,
+      description: "Platform service fee",
+    },
+  });
+
+  await prisma.platformFeeRate.create({
+    data: {
+      feeType: PlatformFeeType.FLEET_OWNER_COMMISSION,
+      ratePercent: 5,
+      effectiveSince: new Date(),
+      effectiveUntil: null,
+      description: "Fleet owner commission",
+    },
   });
 
   /**

@@ -8,7 +8,6 @@ import {
   Status,
   User,
 } from "@prisma/client";
-import { Decimal } from "decimal.js";
 import {
   addDays,
   addHours,
@@ -23,28 +22,29 @@ import {
   isSameDay,
   isValid,
   isWithinInterval,
-  parseISO,
   set,
   setHours,
   startOfDay,
   subMilliseconds,
 } from "date-fns";
-import { BookingWithRelations } from "~/types";
+import { Decimal } from "decimal.js";
 import logger from "~/lib/logger.server";
+import {
+  getCustomerDetails,
+  normaliseBookingDetails,
+  normaliseBookingLegDetails,
+} from "~/lib/utils";
 import { prisma } from "~/modules/db/db.server";
 import { sendEmail } from "~/modules/email/email.server";
 import {
   renderBookingReminderEmail,
   renderBookingStatusUpdateEmail,
 } from "~/modules/email/templates/booking-notification";
+import { Template, sendMessage } from "~/modules/messaging/messaging.server";
 import { emailQueue } from "~/queues/email-throttle.server";
-import {
-  getCustomerDetails,
-  normaliseBookingLegDetails,
-  normaliseBookingDetails,
-} from "~/lib/utils";
-import { sendMessage, Template } from "~/modules/messaging/messaging.server";
+import { BookingWithRelations } from "~/types";
 import { initiatePayout } from "./payment.server";
+import { customAlphabet } from "nanoid";
 
 export const SECURITY_DETAIL_COST = 30000;
 
@@ -63,6 +63,26 @@ export type CreateBookingParams = {
   paymentStatus?: PaymentStatus;
   includeSecurityDetail?: boolean;
 };
+
+// Define your alphabet (e.g., uppercase letters and numbers, avoiding ambiguous chars like 0/O, 1/I)
+const alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+const nanoid = customAlphabet(alphabet, 8); // Generate an 8-character ID
+
+export async function generateUniqueBookingReference(): Promise<string> {
+  while (true) {
+    const reference = `BK-${nanoid()}`; // e.g., "BK-4U9A1V8Z"
+
+    const existingBooking = await prisma.booking.findUnique({
+      where: { bookingReference: reference },
+      select: { id: true },
+    });
+
+    if (!existingBooking) {
+      return reference;
+    }
+    logger.info(`Collision detected for reference ${reference}. Regenerating...`);
+  }
+}
 
 export async function calculateBookingCost({
   car,
@@ -249,6 +269,7 @@ export async function createPendingBooking({
 }) {
   const car = await prisma.car.findUnique({ where: { id: carId } });
   if (!car) throw new Error("Car not found");
+  const bookingReference = await generateUniqueBookingReference();
 
   const booking = await prisma.$transaction(async (transaction) => {
     const {
@@ -277,6 +298,7 @@ export async function createPendingBooking({
 
     const query = {
       data: {
+        bookingReference,
         startDate,
         endDate,
         carId,
@@ -506,96 +528,6 @@ function calculateBookingLegPrice(
   // Case 4: Full intermediate day in a multi-day DAY booking
   // This leg is neither the first nor the last, so it's a full 24-hour period within the booking.
   return validDayRate;
-}
-
-export async function confirmBooking({
-  startDate,
-  endDate,
-  carId,
-  user,
-  pickupLocation,
-  returnLocation,
-  specialRequests,
-  paymentId,
-  type,
-  status = BookingStatus.CONFIRMED,
-  paymentStatus = PaymentStatus.PAID,
-}: CreateBookingParams) {
-  // Calculate total amount based on days and car price
-  const car = await prisma.car.findUnique({ where: { id: carId } });
-  if (!car) throw new Error("Car not found");
-
-  // This totalAmount might need to be re-evaluated or simply taken from the pending booking
-  // For now, let's assume it's correctly set during pending booking or payment confirmation updates it.
-  // Or, if the pending booking's totalAmount (sum of legs) is the source of truth,
-  // we might not need to recalculate it here at all if it's passed through.
-  // The original calculation is kept for now but commented out as it might be redundant.
-  // const days = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 3600 * 24));
-  // const totalAmount = car.dayRate * days;
-
-  // Create booking and update car status - This function might be deprecated or changed
-  // if createPendingBooking now handles legs and activateBooking handles confirmation.
-  // For now, removing leg creation from here.
-  const booking = await prisma.$transaction(async (transaction) => {
-    // If this function is still used to create a *new* confirmed booking (not from pending),
-    // it would need its own leg creation logic.
-    // However, the typical flow is pending -> confirmed.
-
-    // Let's assume this function might be used to directly create a confirmed booking
-    // or update a pending one. If updating, we'd fetch the pending booking first.
-    // For simplicity, and aligning with the idea that legs are created with pending,
-    // this simplified version just creates the booking record.
-    // The totalAmount here should ideally come from a reliable source (e.g. payment service or pre-calculated pending booking)
-
-    // Fetch the pending booking to get its already calculated totalAmount (sum of legs)
-    // This is a conceptual step; in reality, payment confirmation might pass this or the bookingId
-    const pendingBooking = await transaction.booking.findFirst({
-      where: { paymentIntent: paymentId }, // Assuming paymentId might be a paymentIntent here for lookup
-      // or we'd need another way to link to the pending booking.
-      // This part is a bit speculative without knowing the exact flow.
-      select: { totalAmount: true },
-    });
-
-    const bookingTotalAmount = pendingBooking?.totalAmount ?? 0; // Fallback, ideally always found
-
-    const newBooking = await transaction.booking.create({
-      data: {
-        startDate,
-        endDate,
-        carId,
-        type,
-        ...("id" in user
-          ? { userId: user.id }
-          : { guestUser: { email: user.email, name: user.name, phoneNumber: user.phoneNumber } }),
-        pickupLocation,
-        returnLocation,
-        specialRequests,
-        totalAmount: bookingTotalAmount, // Use amount from pending/payment
-        paymentId,
-        status,
-        paymentStatus,
-      },
-      include: {
-        car: { include: { owner: true } },
-        user: true,
-        // Legs should have been created with the pending booking.
-        // If we need them here, we'd include them.
-      },
-    });
-
-    // If booking legs were NOT created in pending, they would be created here.
-    // But we've moved that logic.
-
-    // Update car status to BOOKED
-    await transaction.car.update({
-      where: { id: carId },
-      data: { status: "BOOKED" },
-    });
-
-    return newBooking;
-  });
-
-  return booking;
 }
 
 export async function cancelBooking(bookingId: string, reason: string) {

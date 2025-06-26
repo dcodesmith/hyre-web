@@ -22,7 +22,7 @@ import { AutocompleteAddress } from "~/components/AutocompleteAddress";
 import { useState } from "react";
 import { RadioGroup, RadioGroupItem } from "~/components/ui/radio-group";
 import { uploadFileToS3 } from "~/services/s3.server";
-import { DocumentStatus, DocumentType } from "@prisma/client";
+import { DocumentStatus, DocumentType, type BankDetails } from "@prisma/client";
 import { banks } from "~/lib/banks";
 import { Combobox } from "~/components/ui/combobox";
 import axios from "axios";
@@ -159,23 +159,14 @@ export async function action({ request }: ActionFunctionArgs) {
     const certificateFile = !value.independentDriver
       ? (value as z.infer<typeof fleetOwnerSchema>).certificateOfIncorporation
       : null;
-    // Update user profile
-    await tx.user.update({
-      where: { id: user.id },
-      data: {
-        name: value.name,
-        phoneNumber: value.phoneNumber,
-        address: value.address,
-        hasOnboarded: true,
-      },
-    });
 
     // Create Bank Details if fleet owner
     if (value.independentDriver === "false") {
       const { bankCode, accountNumber, accountName } = value as z.infer<typeof fleetOwnerSchema>;
-      const bank = banks.find((b) => b.code === bankCode);
+      const bank = banks.find((bank) => bank.code === bankCode);
+
       if (bank) {
-        await tx.bankDetails.create({
+        const bankDetails = await tx.bankDetails.create({
           data: {
             userId: user.id,
             bankName: bank.name,
@@ -183,6 +174,18 @@ export async function action({ request }: ActionFunctionArgs) {
             accountNumber,
             accountName,
             isVerified: true,
+          },
+        });
+
+        // Update user profile
+        await tx.user.update({
+          where: { id: user.id },
+          data: {
+            name: value.name,
+            phoneNumber: value.phoneNumber,
+            address: value.address,
+            hasOnboarded: true,
+            bankDetailsId: bankDetails.id,
           },
         });
       }

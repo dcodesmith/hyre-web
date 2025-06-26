@@ -114,6 +114,8 @@ const paymentStatusColors: Record<PaymentStatus, string> = {
   PAID: "bg-green-50 ring-green-500/10 text-green-600", // Positive, indicates successful payment
   REFUNDED: "bg-blue-50 ring-blue-500/10 text-blue-600", // Neutral, represents the refund process
   PARTIALLY_REFUNDED: "bg-indigo-50 ring-indigo-500/10 text-indigo-600", // Slightly nuanced color to indicate partial refund
+  REFUND_PROCESSING: "bg-yellow-50 ring-yellow-500/10 text-yellow-600", // Represents warning or pending action
+  REFUND_FAILED: "bg-red-50 ring-red-500/10 text-red-600", // Stronger negative connotation
 };
 
 const bookingStatusOptions: Record<BookingStatus, string> = {
@@ -130,12 +132,19 @@ const paymentStatusOptions: Record<PaymentStatus, string> = {
   PAID: "Paid",
   REFUNDED: "Refunded",
   PARTIALLY_REFUNDED: "Partially Refunded",
+  REFUND_PROCESSING: "Refund Processing",
+  REFUND_FAILED: "Refund Failed",
 };
 
 export default function BookingsPage() {
   const { bookings } = useLoaderData<typeof loader>();
 
   const columns: ColumnDef<(typeof bookings)[number]>[] = [
+    {
+      accessorKey: "bookingReference",
+      header: ({ column }) => <ColumnHeader column={column} title="Booking Reference" />,
+      cell: ({ row }) => <div className="w-[150px]">{row.original.bookingReference}</div>,
+    },
     {
       accessorKey: "car",
       accessorFn: ({ car }) => `${car.make} ${car.model}`,

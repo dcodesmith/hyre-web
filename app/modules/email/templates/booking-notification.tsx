@@ -56,7 +56,9 @@ export function renderBookingStatusUpdateEmail(booking: NormalisedBookingDetails
         {booking.title} and is now {booking.status}.
       </Text>
       <Section className="mt-4 border-t border-gray-200 pt-4">
-        <Text className="font-semibold mb-2 underline">Booking Details</Text>
+        <Text className="font-semibold mb-2 underline">
+          Booking Details (Booking Reference: {booking.bookingReference})
+        </Text>
         <DetailListItem label="Start Date" value={booking.startDate} />
         <DetailListItem label="End Date" value={booking.endDate} />
         <DetailListItem label="Pickup Location" value={booking.pickupLocation} />
@@ -88,7 +90,9 @@ export function renderFleetOwnerBookingCancellationEmail(booking: NormalisedBook
       <DetailListItem label="Reason for cancellation" value={booking.cancellationReason} />
 
       <Section className="mt-4 border-t border-gray-200 pt-4">
-        <Text className="font-semibold mb-2 underline">Cancelled Booking Details</Text>
+        <Text className="font-semibold mb-2 underline">
+          Cancelled Booking Details (Booking Reference: {booking.bookingReference})
+        </Text>
         <DetailListItem label="Customer" value={customerName} />
         <DetailListItem label="Start Date & Time" value={booking.startDate} />
         <DetailListItem label="End Date & Time" value={booking.endDate} />
@@ -127,7 +131,9 @@ export function renderUserBookingCancellationEmail(booking: NormalisedBookingDet
       </Text>
 
       <Section className="mt-4 border-t border-gray-200 pt-4">
-        <Text className="font-semibold mb-2 underline">Cancelled Booking Details</Text>
+        <Text className="font-semibold mb-2 underline">
+          Cancelled Booking Details (Booking Reference: {booking.bookingReference})
+        </Text>
         <DetailListItem label="Start Date & Time" value={booking.startDate} />
         <DetailListItem label="End Date & Time" value={booking.endDate} />
         <DetailListItem label="Pickup Location" value={booking.pickupLocation} />
@@ -153,7 +159,9 @@ export function renderBookingConfirmationEmail(booking: NormalisedBookingDetails
         Your booking for the <span className="font-semibold">{carName}</span> has been confirmed.
       </Text>
       <Section className="border border-gray-200 rounded-md p-4 bg-gray-50">
-        <Text className="font-semibold mb-2 underline">Booking Details</Text>
+        <Text className="font-semibold mb-2 underline">
+          Booking Details (Booking Reference: {booking.bookingReference})
+        </Text>
         <DetailListItem label="Start Date & Time" value={booking.startDate} />
         <DetailListItem label="End Date & Time" value={booking.endDate} />
         <DetailListItem label="Pickup Location" value={booking.pickupLocation} />
@@ -193,7 +201,9 @@ export function renderFleetOwnerBookingNotificationEmail(booking: NormalisedBook
         for this booking as soon as possible.
       </Text>
       <Section className="mt-4 border-t border-gray-200 pt-4">
-        <Text className="font-semibold mb-2 underline">Booking Details</Text>
+        <Text className="font-semibold mb-2 underline">
+          Booking Details (Booking Reference: {booking.bookingReference})
+        </Text>
         <DetailListItem label="Customer" value={customerName} />
         <DetailListItem label="Start Date & Time" value={booking.startDate} />
         <DetailListItem label="End Date & Time" value={booking.endDate} />
@@ -235,7 +245,9 @@ export function renderChauffeurAssignedEmail(booking: NormalisedBookingDetails) 
             )}
           </>
         )}
-        <Text className="font-semibold mb-2 underline">Booking Details</Text>
+        <Text className="font-semibold mb-2 underline">
+          Booking Details (Booking Reference: {booking.bookingReference})
+        </Text>
         <DetailListItem label="Start Date & Time" value={booking.startDate} />
         <DetailListItem label="End Date & Time" value={booking.endDate} />
         <DetailListItem label="Pickup Location" value={booking.pickupLocation} />

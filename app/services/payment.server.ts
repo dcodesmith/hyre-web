@@ -313,7 +313,7 @@ async function initiateFlutterwavePayout(
     narration: `Payout for booking ${bookingId}`,
     currency: "NGN",
     reference: reference,
-    callback_url: `${process.env.APP_URL}/api/payments/webhook/flutterwave`,
+    callback_url: `${process.env.APP_URL || process.env.NGROK_DOMAIN}/api/payments/webhook/flutterwave`,
     debit_currency: "NGN",
   };
 
@@ -338,8 +338,12 @@ async function initiateFlutterwavePayout(
       data: response.data,
     };
   } catch (error) {
+    // biome-ignore lint/suspicious/noConsoleLog: <explanation>
+    console.log(error);
     logger.error(`Failed to initiate payout via Flutterwave: ${error}`);
     if (axios.isAxiosError(error) && error.response) {
+      // biome-ignore lint/suspicious/noConsoleLog: <explanation>
+      console.log(error.response);
       logger.error(`Flutterwave error response: ${JSON.stringify(error.response.data)}`);
       return { success: false, data: error.response.data };
     }

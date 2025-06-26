@@ -442,6 +442,7 @@ async function handleTransferCompleted(payload: FlutterwaveTransferCompletedPayl
       const html = await renderPayoutNotificationEmail({
         name: owner.name ?? owner.email,
         amount: formattedAmount,
+        bookingReference: payoutTransaction?.booking?.bookingReference ?? "",
       });
       await sendEmail({
         to: owner.email,

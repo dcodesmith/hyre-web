@@ -96,8 +96,6 @@ export const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat("en-NG", {
     style: "currency",
     currency: "NGN",
-    // minimumFractionDigits: 0,
-    // maximumFractionDigits: 0,
   }).format(amount);
 };
 
@@ -272,6 +270,7 @@ export function getUserDisplayName(
 }
 
 export type NormalisedBookingDetails = {
+  bookingReference: string;
   id: string;
   customerName: string;
   ownerName: string;
@@ -315,6 +314,7 @@ export function normaliseBookingDetails(booking: BookingWithRelations): Normalis
   const ownerName = getUserDisplayName(booking, "owner");
   const chauffeurName = getUserDisplayName(booking, "chauffeur");
   const carName = `${booking.car.make} ${booking.car.model} (${booking.car.year})`;
+  const { pickupLocation, returnLocation, id, bookingReference } = booking;
 
   const { title, status } = match(booking.status)
     .with(BookingStatus.CONFIRMED, () => ({ title: "started", status: "active" }))
@@ -325,7 +325,8 @@ export function normaliseBookingDetails(booking: BookingWithRelations): Normalis
     }));
 
   return {
-    id: booking.id,
+    bookingReference,
+    id,
     ownerName,
     customerName,
     chauffeurName,
@@ -334,8 +335,8 @@ export function normaliseBookingDetails(booking: BookingWithRelations): Normalis
     title,
     status,
     cancellationReason: booking.cancellationReason ?? "No reason provided",
-    pickupLocation: booking.pickupLocation,
-    returnLocation: booking.returnLocation,
+    pickupLocation,
+    returnLocation,
     startDate: formatDate(booking.startDate),
     endDate: formatDate(booking.endDate),
     totalAmount: formatCurrency(Number(booking.totalAmount.toFixed(2))),
@@ -345,10 +346,11 @@ export function normaliseBookingDetails(booking: BookingWithRelations): Normalis
 export function normaliseExtensionDetails(extension: Extension): NormalisedExtensionDetails {
   const { booking } = extension.bookingLeg;
   const customerName = getUserDisplayName(booking as BookingWithRelations, "user");
+  const carName = `${booking.car.make} ${booking.car.model} (${booking.car.year})`;
 
   return {
     customerName,
-    carName: `${booking.car.make} ${booking.car.model} (${booking.car.year})`,
+    carName,
     legDate: format(extension.bookingLeg.legDate, "PPPP"),
     extensionHours: extension.extendedDurationHours,
     from: format(extension.bookingLeg.legEndTime, "p"),

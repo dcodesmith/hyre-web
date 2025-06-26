@@ -51,13 +51,12 @@ export async function generatePdfWithPdfKit(booking: BookingWithRelations): Prom
   doc.font("Courier-Bold").fontSize(22).text("RECEIPT", { align: "center" });
   doc.moveDown(0.5);
 
-  const dt = booking.startDate;
-  const year = dt.getFullYear();
-  const month = String(dt.getMonth() + 1).padStart(2, "0");
-  const day = String(dt.getDate()).padStart(2, "0");
-  const bookingCode = `#BK-${year}-${month}${day}`;
-  doc.font("Courier").fontSize(10).fillColor("#666").text(bookingCode, { align: "center" });
-  doc.moveDown(3);
+  const bookingReference = booking.bookingReference;
+
+  if (bookingReference) {
+    doc.font("Courier").fontSize(10).fillColor("#666").text(bookingReference, { align: "center" });
+    doc.moveDown(3);
+  }
 
   const drawLine = () => {
     doc

@@ -81,6 +81,9 @@ model User {
   city         String?
   hasOnboarded Boolean @default(false)
 
+  bankDetailsId String?
+  bankDetails   BankDetails? @relation("UserBankDetails")
+
   roles        Role[]
   // Relations for fleet owners & chauffeur
   fleetOwnerId String? // Nullable because not all users are chauffeur
@@ -103,10 +106,6 @@ model User {
   documents             DocumentApproval[] @relation("UserDocuments")
   approvedDocuments     DocumentApproval[] @relation("ApprovedBy")
   approvedVehicleImages VehicleImage[]     @relation("ApprovedVehicleImages")
-
-  bankDetailsId String?
-  bankDetails   BankDetails? @relation("UserBankDetails", fields: [bankDetailsId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  BankDetails   BankDetails?
 }
 
 model Role {
@@ -140,7 +139,9 @@ enum BookingType {
 }
 
 model Booking {
-  id        String   @id @default(cuid())
+  id               String @id @default(cuid())
+  bookingReference String @unique
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -203,6 +204,7 @@ model Booking {
 
   legs BookingLeg[] // This was already BookingLeg[] in your provided schema.
 
+  @@index([bookingReference])
   @@index([carId])
   @@index([userId])
   @@index([status])
@@ -506,7 +508,7 @@ model BankDetails {
   // Create a one-to-one relationship with the User model.
   // The 'userId' field must be unique to enforce this.
   userId String @unique
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user   User   @relation("UserBankDetails", fields: [userId], references: [id], onDelete: Cascade)
 
   // Store the actual bank details here
   bankName      String // e.g., "Access Bank"
@@ -521,6 +523,4 @@ model BankDetails {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  User User[] @relation("UserBankDetails")
 }

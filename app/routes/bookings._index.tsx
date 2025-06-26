@@ -369,7 +369,10 @@ export default function BookingsPage() {
                           />
                           <div className="space-y-1">
                             <h3 className="text-pretty text-sm font-semibold">
-                              {booking.car.make} {booking.car.model} ({booking.car.year})
+                              {booking.car.make} {booking.car.model} ({booking.car.year}) -{" "}
+                              <span className="text-gray-500 italic">
+                                {booking.bookingReference}
+                              </span>
                             </h3>
                             <div className="text-sm text-pretty text-gray-600 space-y-1">
                               <p className="sm:block hidden">
@@ -464,12 +467,9 @@ export default function BookingsPage() {
                                           id="pickupAddress"
                                           inputProps={{
                                             name: "pickupAddress",
-                                            // value: booking.pickupLocation,
                                             placeholder: "Enter pickup address",
                                           }}
-                                          onSelect={(place) => {
-                                            // Handle place selection if needed
-                                          }}
+                                          onSelect={() => {}}
                                         />
                                       </div>
 
@@ -500,12 +500,9 @@ export default function BookingsPage() {
                                             id="dropOffAddress"
                                             inputProps={{
                                               name: "dropOffAddress",
-                                              // value: booking.returnLocation,
                                               placeholder: "Enter drop-off address",
                                             }}
-                                            onSelect={(place) => {
-                                              // Handle place selection if needed
-                                            }}
+                                            onSelect={() => {}}
                                           />
                                         </div>
                                       )}
@@ -541,8 +538,6 @@ export default function BookingsPage() {
                           <ChevronRight className="w-4 h-4 text-gray-500 sm:block hidden" />
                         </div>
                       </div>
-
-                      {/* <hr className="my-2 border-t border-gray-300" key={booking.id} /> */}
                     </Fragment>
                   );
                 })}

@@ -15,7 +15,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "~/components/ui/dropdown-menu";
-import { cn, formatDate } from "~/lib/utils";
+import { cn, formatCurrency, formatDate } from "~/lib/utils";
 import { requireUser } from "~/modules/auth/auth.server";
 import { prisma } from "~/modules/db/db.server";
 
@@ -63,11 +63,13 @@ export default function PayoutTransactionsPage() {
         accessorKey: "id",
         header: ({ column }) => <ColumnHeader column={column} title="Transaction Id" />,
         cell: ({ row }) => <div className="w-[150px] truncate">{row.original.id}</div>,
+        enableColumnFilter: false,
       },
       {
         accessorKey: "bookingId",
         header: ({ column }) => <ColumnHeader column={column} title="Booking Id" />,
         cell: ({ row }) => <div className="w-[150px] truncate">{row.original.bookingId}</div>,
+        enableColumnFilter: false,
       },
 
       {
@@ -89,9 +91,12 @@ export default function PayoutTransactionsPage() {
         ),
       },
       {
-        accessorKey: "amountPaid",
+        accessorKey: "amountToPay",
         header: ({ column }) => <ColumnHeader column={column} title="Amount" />,
-        cell: ({ row }) => <div className="w-[100px]">{`$${row.original.amountPaid}`}</div>,
+        cell: ({ row }) => (
+          <div className="w-[100px]">{`${formatCurrency(Number(row.original.amountToPay))}`}</div>
+        ),
+        enableColumnFilter: false,
       },
       {
         accessorKey: "status",

@@ -42,7 +42,7 @@ import {
 import { Template, sendMessage } from "~/modules/messaging/messaging.server";
 import { emailQueue } from "~/queues/email-throttle.server";
 import { cancelBooking, getBooking } from "~/services/bookings.server";
-import { refundPayment, verifyRefund } from "~/services/payment.server";
+import { refundPayment } from "~/services/payment.server";
 import { BookingLegWithRelations, BookingWithRelations } from "~/types";
 
 export async function action({ request, params }: ActionFunctionArgs) {
@@ -583,9 +583,11 @@ export default function BookingDetails() {
         </div>
 
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          {/* <h1 className="text-lg font-bold text-slate-900">Booking Details</h1> */}
-          <p className="text-base font-bold">
-            {booking.car.make} {booking.car.model} {booking.car.year} - {booking.car.color}
+          <p className="text-base flex sm:flex-row flex-col gap-2">
+            <span className="font-semibold">{booking.bookingReference}</span>
+            <span className="text-sm">
+              ({booking.car.make} {booking.car.model} {booking.car.year} - {booking.car.color})
+            </span>
           </p>
 
           <div className="flex flex-wrap items-center gap-2">
