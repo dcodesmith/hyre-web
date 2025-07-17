@@ -398,12 +398,17 @@ export default function IndexPage() {
                       <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
 
                       <span className="font-medium">
-                        {(4.0 + (Number.parseInt(row.original.id.slice(-2), 16) % 10) / 10).toFixed(
-                          1,
-                        )}
+                        {(
+                          4.0 +
+                          (Number.parseInt(row.original.dayRate.toString().slice(-2), 16) % 10) / 10
+                        ).toFixed(1)}
                       </span>
                       <span>
-                        ({50 + (Number.parseInt(row.original.id.slice(-3), 16) % 950)} reviews)
+                        (
+                        {50 +
+                          (Number.parseInt(row.original.dayRate.toString().slice(-3), 16) %
+                            950)}{" "}
+                        reviews)
                       </span>
                     </div>
                   </div>

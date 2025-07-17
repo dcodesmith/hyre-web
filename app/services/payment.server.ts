@@ -318,6 +318,18 @@ async function initiateFlutterwavePayout(
   };
 
   try {
+    logger.info(
+      `payout request: ${JSON.stringify({
+        method: "POST",
+        url: "https://api.flutterwave.com/v3/transfers",
+        data: payload,
+        headers: {
+          Authorization: `Bearer ${FLUTTERWAVE_SECRET_KEY}`,
+          "Content-Type": "application/json",
+        },
+      })}`,
+    );
+
     const response = await axios.post("https://api.flutterwave.com/v3/transfers", payload, {
       headers: {
         Authorization: `Bearer ${FLUTTERWAVE_SECRET_KEY}`,

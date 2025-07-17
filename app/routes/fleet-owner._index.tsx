@@ -36,15 +36,14 @@ export async function loader({ request }: LoaderFunctionArgs) {
     },
   });
 
-  const bookings = await prisma.booking.findMany({
+  const confirmedUnassignedBookings = await prisma.booking.findMany({
     where: {
       paymentStatus: "PAID",
-      status: {
-        not: "CANCELLED",
-      },
+      status: "CONFIRMED",
       car: {
         ownerId: fleetOwner.id,
       },
+      chauffeurId: null,
     },
     include: {
       car: true,
@@ -348,7 +347,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   return json({
     carCount: carCount,
     bookingsValue: bookingsValue,
-    bookings,
+    confirmedUnassignedBookings,
     chauffeurs,
     dashboardStats: {
       activeBookingsCount,
@@ -557,8 +556,6 @@ function WelcomeMessage({
   const hasAnyBookings =
     activeBookings > 0 || completedBookings > 0 || cancelledBookings > 0 || confirmedBookings > 0;
 
-  console.log({ activeBookings, completedBookings, cancelledBookings, confirmedBookings });
-
   if (!hasAnyBookings) {
     return (
       <div className="text-sm text-gray-700 mb-6">
@@ -607,19 +604,12 @@ export default function FleetOwnerDashboard() {
     todayStats,
     carCount,
     bookingsValue,
-    bookings,
+    confirmedUnassignedBookings,
     dashboardStats,
     dailyRevenue,
     chauffeurs,
   } = useLoaderData<typeof loader>();
   const [timeRange, setTimeRange] = useState<TimeRange>("week");
-
-  const totalBookingsValue = bookings.reduce(
-    (acc, booking) => acc + Number(booking.totalAmount),
-    0,
-  );
-
-  const amountInWords = numberToWords(totalBookingsValue);
 
   return (
     <div className="space-y-6 sm:p-4">
@@ -731,74 +721,80 @@ export default function FleetOwnerDashboard() {
         />
       </div>
 
-      <div className="rounded-md border">
+      <div className="rounded border">
         <div className="p-4">
-          <h2 className="text-xl font-semibold">Recent Bookings</h2>
+          <h2 className="text-base font-semibold">Confirmed Unassigned Bookings</h2>
         </div>
         <div className="divide-y">
-          {bookings.map((booking) => (
-            <div key={booking.id} className="p-4">
-              <div className="grid grid-cols-2 md:grid-cols-8 gap-2">
-                <div>
-                  <div className="text-sm text-gray-500">Car</div>
+          {confirmedUnassignedBookings.length > 0 ? (
+            confirmedUnassignedBookings.map((booking) => (
+              <div key={booking.id} className="p-4">
+                <div className="grid grid-cols-2 md:grid-cols-8 gap-2">
                   <div>
-                    {booking.car.make} {booking.car.model}
+                    <div className="text-sm text-gray-500">Car</div>
+                    <div>
+                      {booking.car.make} {booking.car.model}
+                    </div>
                   </div>
-                </div>
 
-                <div>
-                  <div className="text-sm text-gray-500">Booking Status</div>
-                  <div>{booking.status}</div>
-                </div>
-
-                <div>
-                  <div className="text-sm text-gray-500">Payment Status</div>
-                  <div>{booking.paymentStatus}</div>
-                </div>
-
-                <div>
-                  <div className="text-sm text-gray-500">Net Total Amount</div>
                   <div>
-                    {new Intl.NumberFormat("en-NG", {
-                      style: "currency",
-                      currency: "NGN",
-                    }).format(Number(booking.netTotal))}
+                    <div className="text-sm text-gray-500">Booking Status</div>
+                    <div>{booking.status}</div>
                   </div>
-                </div>
 
-                <div>
-                  <div className="text-sm text-gray-500">Fleet Owner Payout</div>
                   <div>
-                    {new Intl.NumberFormat("en-NG", {
-                      style: "currency",
-                      currency: "NGN",
-                    }).format(Number(booking.fleetOwnerPayoutAmountNet))}
+                    <div className="text-sm text-gray-500">Payment Status</div>
+                    <div>{booking.paymentStatus}</div>
                   </div>
-                </div>
 
-                <div>
-                  <div className="text-sm text-gray-500">Start Date</div>
-                  <div>{formatDate(booking.startDate)}</div>
-                </div>
+                  <div>
+                    <div className="text-sm text-gray-500">Net Total Amount</div>
+                    <div>
+                      {new Intl.NumberFormat("en-NG", {
+                        style: "currency",
+                        currency: "NGN",
+                      }).format(Number(booking.netTotal))}
+                    </div>
+                  </div>
 
-                <div>
-                  <div className="text-sm text-gray-500">End Date</div>
-                  <div>{formatDate(booking.endDate)}</div>
-                </div>
+                  <div>
+                    <div className="text-sm text-gray-500">Fleet Owner Payout</div>
+                    <div>
+                      {new Intl.NumberFormat("en-NG", {
+                        style: "currency",
+                        currency: "NGN",
+                      }).format(Number(booking.fleetOwnerPayoutAmountNet))}
+                    </div>
+                  </div>
 
-                <div>
-                  <div className="text-sm text-gray-500">Chauffeur</div>
-                  {booking.chauffeur ? (
-                    <div title={booking.chauffeur.email}>{booking.chauffeur.name}</div>
-                  ) : booking.status === "CONFIRMED" ? (
-                    <Link to={`/fleet-owner/bookings/${booking.id}?startDate=${booking.startDate}`}>
-                      Assign Chauffeur
-                    </Link>
-                  ) : null}
+                  <div>
+                    <div className="text-sm text-gray-500">Start Date</div>
+                    <div>{formatDate(booking.startDate)}</div>
+                  </div>
+
+                  <div>
+                    <div className="text-sm text-gray-500">End Date</div>
+                    <div>{formatDate(booking.endDate)}</div>
+                  </div>
+
+                  <div>
+                    <div className="text-sm text-gray-500">Chauffeur</div>
+                    {booking.chauffeur ? (
+                      <div title={booking.chauffeur.email}>{booking.chauffeur.name}</div>
+                    ) : booking.status === "CONFIRMED" ? (
+                      <Link
+                        to={`/fleet-owner/bookings/${booking.id}?startDate=${booking.startDate}`}
+                      >
+                        Assign Chauffeur
+                      </Link>
+                    ) : null}
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            ))
+          ) : (
+            <div className="p-4">No confirmed unassigned bookings</div>
+          )}
         </div>
       </div>
     </div>

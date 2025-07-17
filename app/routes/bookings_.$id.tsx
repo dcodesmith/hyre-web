@@ -574,7 +574,7 @@ export default function BookingDetails() {
   const shouldShowActionsCard = canBeModified || canBeExtended || isCompleted;
 
   return (
-    <div className="min-h-screen p-4 md:p-6">
+    <div className="min-h-screen p-2 sm:p-4 md:p-6">
       <div className="max-w-4xl mx-auto space-y-4">
         <div className="flex items-center gap-2">
           <Link to="/bookings" className="text-sm flex hover:underline">
@@ -582,15 +582,15 @@ export default function BookingDetails() {
           </Link>
         </div>
 
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex flex-row justify-between items-end gap-3">
           <p className="text-base flex sm:flex-row flex-col gap-2">
-            <span className="font-semibold">{booking.bookingReference}</span>
-            <span className="text-sm">
+            <span className="font-semibold items-end">{booking.bookingReference}</span>
+            <span className="text-sm items-end">
               ({booking.car.make} {booking.car.model} {booking.car.year} - {booking.car.color})
             </span>
           </p>
 
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-end gap-2">
             <Badge
               variant="outline"
               className={`text-sm rounded-sm capitalize ${

@@ -226,6 +226,35 @@ export default function BookingsPage() {
       ),
     },
     {
+      accessorKey: "Net Total",
+      enableColumnFilter: false,
+      header: ({ column }) => <ColumnHeader column={column} title="Net Total" />,
+      cell: ({ row }) => (
+        <div className="w-[130px]">
+          {typeof row.original.netTotal === "number" || typeof row.original.netTotal === "string"
+            ? new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN" }).format(
+                Number(row.original.netTotal),
+              )
+            : "-"}
+        </div>
+      ),
+    },
+    {
+      accessorKey: "fleetOwnerPayoutAmountNet",
+      enableColumnFilter: false,
+      header: ({ column }) => <ColumnHeader column={column} title="Payout Amount" />,
+      cell: ({ row }) => (
+        <div className="w-[130px]">
+          {typeof row.original.fleetOwnerPayoutAmountNet === "number" ||
+          typeof row.original.fleetOwnerPayoutAmountNet === "string"
+            ? new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN" }).format(
+                Number(row.original.fleetOwnerPayoutAmountNet),
+              )
+            : "-"}
+        </div>
+      ),
+    },
+    {
       id: "actions",
       header: () => null,
       enableHiding: false,

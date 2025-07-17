@@ -586,7 +586,7 @@ export default function BookingCard({
                   <FieldError errors={fields.dropOffAddress.errors} />
                 </div>
               )}
-              <div className="space-y-1">
+              {/* <div className="space-y-1">
                 <div className="flex items-center space-x-2">
                   <Checkbox
                     id="includeSecurityDetail"
@@ -597,7 +597,7 @@ export default function BookingCard({
                     Add security detail (+{formatCurrency(SECURITY_DETAIL_COST)} / day)
                   </Label>
                 </div>
-              </div>
+              </div> */}
             </div>
           )}
         </CardContent>
