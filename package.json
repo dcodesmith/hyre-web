@@ -4,13 +4,14 @@
 	"sideEffects": false,
 	"type": "module",
 	"scripts": {
-		"build": "remix vite:build",
+		"build": "npx prisma generate && remix vite:build",
 		"dev": "remix vite:dev",
 		"lint": "biome check .",
 		"format": "biome format .",
 		"start": "remix-serve ./build/server/index.js",
 		"typecheck": "tsc",
-		"postinstall": "npx prisma generate && npx tsx migrate-deploy-seed.ts"
+		"postinstall": "npx prisma generate && npx tsx migrate-deploy-seed.ts",
+		"vercel-build": "npx prisma generate && npx prisma migrate deploy && remix vite:build"
 	},
 	"prisma": {
 		"seed": "tsx prisma/seed.ts"
