@@ -30,8 +30,8 @@ const runMigrationsAndSeed = async () => {
     //   console.log("No migrations were needed");
     // } else {
     // Run the seed script after applying migrations
-    // const seedOutput = await execPromise("npx prisma db seed");
-    // console.log("Seed Output:", seedOutput);
+    const seedOutput = await execPromise("npx prisma db seed");
+    console.log("Seed Output:", seedOutput);
     // }
   } catch (error: any) {
     console.error(`Error running migrations or seed script: ${error.message}`);

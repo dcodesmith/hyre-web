@@ -64,35 +64,6 @@ export async function seed() {
     await transaction.platformFeeRate.deleteMany();
   });
 
-  await prisma.taxRate.create({
-    data: {
-      ratePercent: 7.5,
-      effectiveSince: new Date(),
-      effectiveUntil: null,
-      description: "VAT",
-    },
-  });
-
-  await prisma.platformFeeRate.create({
-    data: {
-      feeType: PlatformFeeType.PLATFORM_SERVICE_FEE,
-      ratePercent: 12.5,
-      effectiveSince: new Date(),
-      effectiveUntil: null,
-      description: "Platform service fee",
-    },
-  });
-
-  await prisma.platformFeeRate.create({
-    data: {
-      feeType: PlatformFeeType.FLEET_OWNER_COMMISSION,
-      ratePercent: 5,
-      effectiveSince: new Date(),
-      effectiveUntil: null,
-      description: "Fleet owner commission",
-    },
-  });
-
   /**
    * Users, Roles and Permissions.
    */
@@ -195,214 +166,248 @@ export async function seed() {
     },
   });
 
-  const fleetOwners = [
-    {
-      name: "Cool FleetOwner",
-      email: "cool.fleetowner@dcodesmith.com",
-    },
-    {
-      name: "Nerdy FleetOwner",
-      email: "nerdy.fleetowner@dcodesmith.com",
-    },
-  ];
+  logger.info("🎭 User roles and permissions have been successfully created.");
 
-  await prisma.user.create({
-    select: { id: true },
-    data: {
-      email: "dcodesmith@gmail.com",
-      username: "dcodesmith",
-      name: "Damola Kolawole",
-      roles: { connect: [{ name: "user" }] },
-    },
-  });
-
-  const chauffeurEmails = [
-    "calm.chauffeur@dcodesmith.com",
-    "happy.chauffeur@dcodesmith.com",
-    "jolly.chauffeur@dcodesmith.com",
-    "moody.chauffeur@dcodesmith.com",
-    "stern.chauffeur@dcodesmith.com",
-    "jovial.chauffeur@dcodesmith.com",
-    "fun.chauffeur@dcodesmith.com",
-    "hungry.chauffeur@dcodesmith.com",
-    "stable.chauffeur@dcodesmith.com",
-    "funky.chauffeur@dcodesmith.com",
-  ];
-
-  let index = -1;
-
-  for (const fleetOwner of fleetOwners) {
-    const createdFleetOwner = await prisma.user.create({
-      select: { id: true },
+  if (process.env.NODE_ENV === "development") {
+    await prisma.taxRate.create({
       data: {
-        email: fleetOwner.email,
-        username: fleetOwner.name,
-        name: fleetOwner.name,
-        roles: { connect: [{ name: "fleetOwner" }] },
+        ratePercent: 7.5,
+        effectiveSince: new Date(),
+        effectiveUntil: null,
+        description: "VAT",
       },
     });
 
-    // Create 5 chauffeurs for each fleet owner
-    for (let i = 0; i < 5; i++) {
-      index++;
-      const firstName = faker.person.firstName();
-      const lastName = faker.person.lastName();
+    await prisma.platformFeeRate.create({
+      data: {
+        feeType: PlatformFeeType.PLATFORM_SERVICE_FEE,
+        ratePercent: 12.5,
+        effectiveSince: new Date(),
+        effectiveUntil: null,
+        description: "Platform service fee",
+      },
+    });
 
-      const ninFile = await getDocument("nin.png");
-      const drivingLicenseFile = await getDocument("drivers_licence.png");
+    await prisma.platformFeeRate.create({
+      data: {
+        feeType: PlatformFeeType.FLEET_OWNER_COMMISSION,
+        ratePercent: 5,
+        effectiveSince: new Date(),
+        effectiveUntil: null,
+        description: "Fleet owner commission",
+      },
+    });
 
-      const createdChauffeur = await prisma.user.create({
+    const fleetOwners = [
+      {
+        name: "Cool FleetOwner",
+        email: "cool.fleetowner@dcodesmith.com",
+      },
+      {
+        name: "Nerdy FleetOwner",
+        email: "nerdy.fleetowner@dcodesmith.com",
+      },
+    ];
+
+    await prisma.user.create({
+      select: { id: true },
+      data: {
+        email: "dcodesmith@gmail.com",
+        username: "dcodesmith",
+        name: "Damola Kolawole",
+        roles: { connect: [{ name: "user" }] },
+      },
+    });
+
+    const chauffeurEmails = [
+      "calm.chauffeur@dcodesmith.com",
+      "happy.chauffeur@dcodesmith.com",
+      "jolly.chauffeur@dcodesmith.com",
+      "moody.chauffeur@dcodesmith.com",
+      "stern.chauffeur@dcodesmith.com",
+      "jovial.chauffeur@dcodesmith.com",
+      "fun.chauffeur@dcodesmith.com",
+      "hungry.chauffeur@dcodesmith.com",
+      "stable.chauffeur@dcodesmith.com",
+      "funky.chauffeur@dcodesmith.com",
+    ];
+
+    let index = -1;
+
+    for (const fleetOwner of fleetOwners) {
+      const createdFleetOwner = await prisma.user.create({
         select: { id: true },
         data: {
-          email: chauffeurEmails[index],
-          username: faker.internet.displayName(),
-          name: `${firstName} ${lastName}`,
-          phoneNumber: faker.helpers.arrayElement([
-            "+2348023456789",
-            "+2348134567890",
-            "+2348045678901",
-            "+2348156789012",
-            "+2348067890123",
-            "+2348178901234",
-            "+2348089012345",
-            "+2348190123456",
-            "+2348001234567",
-            "+2348112345678",
-          ]),
-          roles: { connect: [{ name: "chauffeur" }] },
-          fleetOwnerId: createdFleetOwner.id,
+          email: fleetOwner.email,
+          username: fleetOwner.name,
+          name: fleetOwner.name,
+          roles: { connect: [{ name: "fleetOwner" }] },
         },
       });
 
-      // Create document approvals directly
-      await prisma.documentApproval.createMany({
-        data: [
-          {
-            documentType: DocumentType.NIN,
-            documentUrl: ninFile
-              ? await uploadFileToS3(
-                  ninFile,
-                  `${createdFleetOwner.id}/${createdChauffeur.id}-${ninFile.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`,
-                )
-              : "",
-            status: DocumentStatus.PENDING,
-            userId: createdChauffeur.id,
+      // Create 5 chauffeurs for each fleet owner
+      for (let i = 0; i < 5; i++) {
+        index++;
+        const firstName = faker.person.firstName();
+        const lastName = faker.person.lastName();
+
+        const ninFile = await getDocument("nin.png");
+        const drivingLicenseFile = await getDocument("drivers_licence.png");
+
+        const createdChauffeur = await prisma.user.create({
+          select: { id: true },
+          data: {
+            email: chauffeurEmails[index],
+            username: faker.internet.displayName(),
+            name: `${firstName} ${lastName}`,
+            phoneNumber: faker.helpers.arrayElement([
+              "+2348023456789",
+              "+2348134567890",
+              "+2348045678901",
+              "+2348156789012",
+              "+2348067890123",
+              "+2348178901234",
+              "+2348089012345",
+              "+2348190123456",
+              "+2348001234567",
+              "+2348112345678",
+            ]),
+            roles: { connect: [{ name: "chauffeur" }] },
+            fleetOwnerId: createdFleetOwner.id,
           },
-          {
-            documentType: DocumentType.DRIVERS_LICENSE,
-            documentUrl: drivingLicenseFile
-              ? await uploadFileToS3(
-                  drivingLicenseFile,
-                  `${createdFleetOwner.id}/${createdChauffeur.id}-${drivingLicenseFile.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`,
-                )
-              : "",
-            status: DocumentStatus.PENDING,
-            userId: createdChauffeur.id,
-          },
-        ],
-      });
-    }
+        });
 
-    const data = vehicles.map((vehicle) => ({
-      ...vehicle,
-      dayRate: [1000, 1100, 1200, 1300, 1400][Math.floor(Math.random() * 5)],
-      color: ["Blue", "Silver", "Black", "White"][Math.floor(Math.random() * 4)],
-      year: [2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024][
-        Math.floor(Math.random() * 10)
-      ],
-      hourlyRate: Math.floor(Math.random() * 6) * 100 + 100,
-      nightRate: Math.floor(Math.random() * 3) * 1000 + 100,
-      status: Object.values(Status)[Math.floor(Math.random() * 4)] as Status,
-      ownerId: createdFleetOwner.id,
-      registrationNumber: `${faker.helpers.arrayElement([
-        "LAG",
-        "ABJ",
-        "KAN",
-        "KAD",
-        "PH",
-        "IKJ",
-      ])} ${faker.number.int({
-        min: 100,
-        max: 999,
-      })} ${faker.helpers.arrayElement(["AA", "AB", "AC", "AD", "AE", "AF", "AG", "AH"])}`,
-    }));
-
-    const createdCars = await prisma.car.createManyAndReturn({
-      data,
-    });
-
-    for (const car of createdCars) {
-      const formattedMake = car.make.toLowerCase().replace(/\s+/g, "-");
-      const formattedModel = car.model.toLowerCase().replace(/\s+/g, "-");
-      const basePattern = `${formattedMake}-${formattedModel}`;
-      const carImages = await getCarImages(basePattern);
-
-      const timestamp = Date.now();
-
-      const imagesUrl = await Promise.all(
-        carImages.map((image) => {
-          const safeFilename = `${timestamp}-${image.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`;
-          const key = `${car.ownerId}/${car.id}-${safeFilename}`;
-
-          return uploadFileToS3(image, key);
-        }),
-      );
-
-      // Create vehicle images
-      if (imagesUrl.length > 0) {
-        await prisma.vehicleImage.createMany({
-          data: imagesUrl.map((url) => ({
-            url,
-            carId: car.id,
-          })),
+        // Create document approvals directly
+        await prisma.documentApproval.createMany({
+          data: [
+            {
+              documentType: DocumentType.NIN,
+              documentUrl: ninFile
+                ? await uploadFileToS3(
+                    ninFile,
+                    `${createdFleetOwner.id}/${createdChauffeur.id}-${ninFile.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`,
+                  )
+                : "",
+              status: DocumentStatus.PENDING,
+              userId: createdChauffeur.id,
+            },
+            {
+              documentType: DocumentType.DRIVERS_LICENSE,
+              documentUrl: drivingLicenseFile
+                ? await uploadFileToS3(
+                    drivingLicenseFile,
+                    `${createdFleetOwner.id}/${createdChauffeur.id}-${drivingLicenseFile.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`,
+                  )
+                : "",
+              status: DocumentStatus.PENDING,
+              userId: createdChauffeur.id,
+            },
+          ],
         });
       }
 
-      const motCertificateFile = await getDocument("mot.pdf");
-      const insuranceCertificateFile = await getDocument("insurance.pdf");
-      const motCertificateUrl = await uploadFileToS3(
-        motCertificateFile!,
-        `${car.ownerId}/${car.id}-${timestamp}-${motCertificateFile?.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`,
-      );
-      const insuranceCertificateUrl = await uploadFileToS3(
-        insuranceCertificateFile!,
-        `${car.ownerId}/${car.id}-${timestamp}-${insuranceCertificateFile?.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`,
-      );
-
-      // Create document approvals for MOT and Insurance
-      await prisma.documentApproval.createMany({
-        data: [
-          {
-            documentType: DocumentType.MOT_CERTIFICATE,
-            documentUrl: motCertificateUrl,
-            carId: car.id,
-            status: DocumentStatus.PENDING,
-          },
-          {
-            documentType: DocumentType.INSURANCE_CERTIFICATE,
-            documentUrl: insuranceCertificateUrl,
-            carId: car.id,
-            status: DocumentStatus.PENDING,
-          },
+      const data = vehicles.map((vehicle) => ({
+        ...vehicle,
+        dayRate: [1000, 1100, 1200, 1300, 1400][Math.floor(Math.random() * 5)],
+        color: ["Blue", "Silver", "Black", "White"][Math.floor(Math.random() * 4)],
+        year: [2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024][
+          Math.floor(Math.random() * 10)
         ],
+        hourlyRate: Math.floor(Math.random() * 6) * 100 + 100,
+        nightRate: Math.floor(Math.random() * 3) * 1000 + 100,
+        status: Object.values(Status)[Math.floor(Math.random() * 4)] as Status,
+        ownerId: createdFleetOwner.id,
+        registrationNumber: `${faker.helpers.arrayElement([
+          "LAG",
+          "ABJ",
+          "KAN",
+          "KAD",
+          "PH",
+          "IKJ",
+        ])} ${faker.number.int({
+          min: 100,
+          max: 999,
+        })} ${faker.helpers.arrayElement(["AA", "AB", "AC", "AD", "AE", "AF", "AG", "AH"])}`,
+      }));
+
+      const createdCars = await prisma.car.createManyAndReturn({
+        data,
       });
 
-      const response = await prisma.car.update({
-        where: { id: car.id },
-        data: {
-          status: Status.AVAILABLE,
-        },
-        include: {
-          documents: true,
-          images: true,
-        },
-      });
+      for (const car of createdCars) {
+        const formattedMake = car.make.toLowerCase().replace(/\s+/g, "-");
+        const formattedModel = car.model.toLowerCase().replace(/\s+/g, "-");
+        const basePattern = `${formattedMake}-${formattedModel}`;
+        const carImages = await getCarImages(basePattern);
+
+        const timestamp = Date.now();
+
+        const imagesUrl = await Promise.all(
+          carImages.map((image) => {
+            const safeFilename = `${timestamp}-${image.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`;
+            const key = `${car.ownerId}/${car.id}-${safeFilename}`;
+
+            return uploadFileToS3(image, key);
+          }),
+        );
+
+        // Create vehicle images
+        if (imagesUrl.length > 0) {
+          await prisma.vehicleImage.createMany({
+            data: imagesUrl.map((url) => ({
+              url,
+              carId: car.id,
+            })),
+          });
+        }
+
+        const motCertificateFile = await getDocument("mot.pdf");
+        const insuranceCertificateFile = await getDocument("insurance.pdf");
+        const motCertificateUrl = await uploadFileToS3(
+          motCertificateFile!,
+          `${car.ownerId}/${car.id}-${timestamp}-${motCertificateFile?.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`,
+        );
+        const insuranceCertificateUrl = await uploadFileToS3(
+          insuranceCertificateFile!,
+          `${car.ownerId}/${car.id}-${timestamp}-${insuranceCertificateFile?.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`,
+        );
+
+        // Create document approvals for MOT and Insurance
+        await prisma.documentApproval.createMany({
+          data: [
+            {
+              documentType: DocumentType.MOT_CERTIFICATE,
+              documentUrl: motCertificateUrl,
+              carId: car.id,
+              status: DocumentStatus.PENDING,
+            },
+            {
+              documentType: DocumentType.INSURANCE_CERTIFICATE,
+              documentUrl: insuranceCertificateUrl,
+              carId: car.id,
+              status: DocumentStatus.PENDING,
+            },
+          ],
+        });
+
+        const response = await prisma.car.update({
+          where: { id: car.id },
+          data: {
+            status: Status.AVAILABLE,
+          },
+          include: {
+            documents: true,
+            images: true,
+          },
+        });
+      }
     }
-  }
 
-  logger.info("🚗 Cars have been successfully created.");
-  logger.info("🎭 User roles and permissions have been successfully created.");
-  logger.info("👤 Users have been successfully created.");
+    logger.info("🚗 Cars have been successfully created.");
+    logger.info("👤 Users have been successfully created.");
+    logger.info("💰 Tax rates have been successfully created.");
+    logger.info("💰 Platform fee rates have been successfully created.");
+  }
 }
 
 try {
