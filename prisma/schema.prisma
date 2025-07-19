@@ -64,13 +64,6 @@ enum PaymentStatus {
   REFUND_FAILED
   PARTIALLY_REFUNDED
 }
-
-enum UserRole {
-  USER
-  FLEET_OWNER
-  ADMIN
-}
-
 model User {
   id           String  @id @default(cuid())
   email        String  @unique

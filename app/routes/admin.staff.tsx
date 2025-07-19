@@ -22,7 +22,6 @@ import { createColumnHelper } from "@tanstack/react-table";
 import { ColumnHeader } from "~/components/Table/ColumnHeader";
 import { Badge } from "~/components/ui/badge";
 import { useToast } from "~/hooks/use-toast";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
 
 const staffSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),

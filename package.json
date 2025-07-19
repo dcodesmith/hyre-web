@@ -11,7 +11,7 @@
 		"start": "remix-serve ./build/server/index.js",
 		"typecheck": "tsc",
 		"postinstall": "npx prisma generate && npx tsx migrate-deploy-seed.ts",
-		"vercel-build": "npx prisma generate && npx prisma migrate deploy && remix vite:build"
+		"vercel-build": "npx prisma migrate deploy && npx prisma generate && remix vite:build"
 	},
 	"prisma": {
 		"seed": "tsx prisma/seed.ts"
