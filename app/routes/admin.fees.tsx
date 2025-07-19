@@ -1,6 +1,5 @@
 import { getFormProps, getInputProps, useForm } from "@conform-to/react";
 import { parseWithZod } from "@conform-to/zod";
-import { PlatformFeeType } from "@prisma/client";
 import { ActionFunctionArgs, LoaderFunctionArgs, json } from "@remix-run/node";
 import { Form, useActionData, useLoaderData } from "@remix-run/react";
 import { format } from "date-fns";
@@ -12,6 +11,11 @@ import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
 import { requireUserWithRole } from "~/modules/auth/auth.server";
 import { prisma } from "~/modules/db/db.server";
+
+const PlatformFeeType = {
+  PLATFORM_SERVICE_FEE: "PLATFORM_SERVICE_FEE",
+  FLEET_OWNER_COMMISSION: "FLEET_OWNER_COMMISSION",
+} as const;
 
 const ERROR_RING_CLASSES = "border-red-500 focus-visible:ring-red-500 focus-visible:ring-2";
 
