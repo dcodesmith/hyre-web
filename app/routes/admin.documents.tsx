@@ -1,6 +1,7 @@
 import { json, type LoaderFunctionArgs } from "@remix-run/node";
 import { useLoaderData, useFetcher } from "@remix-run/react";
 import { useState, useEffect } from "react";
+import { DocumentStatus, DocumentType } from "@prisma/client";
 import { prisma } from "~/modules/db/db.server";
 import { requireAdminOrStaffWithRedirect } from "~/modules/auth/auth.server";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
@@ -16,14 +17,14 @@ import {
 import { Textarea } from "~/components/ui/textarea";
 import { Button } from "~/components/ui/button";
 
-const DocumentType = {
-  MOT_CERTIFICATE: "MOT_CERTIFICATE",
-  INSURANCE_CERTIFICATE: "INSURANCE_CERTIFICATE",
-  NIN: "NIN",
-  DRIVERS_LICENSE: "DRIVERS_LICENSE",
-  VEHICLE_IMAGES: "VEHICLE_IMAGES",
-  CERTIFICATE_OF_INCORPORATION: "CERTIFICATE_OF_INCORPORATION",
-} as const;
+// const DocumentType = {
+//   MOT_CERTIFICATE: "MOT_CERTIFICATE",
+//   INSURANCE_CERTIFICATE: "INSURANCE_CERTIFICATE",
+//   NIN: "NIN",
+//   DRIVERS_LICENSE: "DRIVERS_LICENSE",
+//   VEHICLE_IMAGES: "VEHICLE_IMAGES",
+//   CERTIFICATE_OF_INCORPORATION: "CERTIFICATE_OF_INCORPORATION",
+// } as const;
 
 export async function loader({ request }: LoaderFunctionArgs) {
   await requireAdminOrStaffWithRedirect(request);
@@ -31,7 +32,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const [pendingDocuments, pendingVehicleImages] = await Promise.all([
     prisma.documentApproval.findMany({
       where: {
-        status: "PENDING",
+        status: DocumentStatus.PENDING,
       },
       include: {
         car: {
@@ -62,7 +63,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     }),
     prisma.vehicleImage.findMany({
       where: {
-        status: "PENDING",
+        status: DocumentStatus.PENDING,
       },
       include: {
         car: {
@@ -83,7 +84,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   return json({ pendingDocuments, pendingVehicleImages });
 }
 
-const isDocumentLink = (type: (typeof DocumentType)[keyof typeof DocumentType]) =>
+const isDocumentLink = (type: DocumentType) =>
   type === DocumentType.MOT_CERTIFICATE || type === DocumentType.INSURANCE_CERTIFICATE;
 
 const documentTypeMap: Record<(typeof DocumentType)[keyof typeof DocumentType], string> = {
