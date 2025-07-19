@@ -93,7 +93,7 @@ const platformFeeSchema = z
   );
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  await requireUserWithRole(request, "ADMIN");
+  await requireUserWithRole(request, "admin");
 
   const currentVatRate = await prisma.taxRate.findFirst({
     where: {
@@ -129,7 +129,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 }
 
 export async function action({ request }: ActionFunctionArgs) {
-  await requireUserWithRole(request, "ADMIN");
+  await requireUserWithRole(request, "admin");
 
   const formData = await request.formData();
   const intent = formData.get("intent");

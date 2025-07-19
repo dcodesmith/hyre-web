@@ -1,10 +1,10 @@
 import { json, type ActionFunctionArgs, redirect } from "@remix-run/node";
 import { prisma } from "~/modules/db/db.server";
-import { requireUserWithRole } from "~/modules/auth/auth.server";
+import { requireAdminOrStaffWithRedirect } from "~/modules/auth/auth.server";
 import { DocumentStatus, CarApprovalStatus } from "@prisma/client";
 
 export async function action({ request, params }: ActionFunctionArgs) {
-  const user = await requireUserWithRole(request, "admin");
+  const { user } = await requireAdminOrStaffWithRedirect(request);
   const imageId = params.imageId;
 
   if (!imageId) {

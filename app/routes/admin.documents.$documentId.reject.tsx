@@ -1,10 +1,10 @@
 import { json, type ActionFunctionArgs, redirect } from "@remix-run/node";
 import { prisma } from "~/modules/db/db.server";
-import { requireUserWithRole } from "~/modules/auth/auth.server";
+import { requireAdminOrStaffWithRedirect } from "~/modules/auth/auth.server";
 import { DocumentStatus, CarApprovalStatus } from "@prisma/client";
 
 export async function action({ request, params }: ActionFunctionArgs) {
-  const user = await requireUserWithRole(request, "admin");
+  const { user } = await requireAdminOrStaffWithRedirect(request);
   const documentId = params.documentId;
 
   if (!documentId) {
@@ -24,7 +24,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
     },
     include: {
       car: true,
-      chauffeur: true,
+      user: true,
     },
   });
 
@@ -41,9 +41,9 @@ export async function action({ request, params }: ActionFunctionArgs) {
   }
 
   // If this is a chauffeur document, update the chauffeur's approval status
-  if (document.chauffeur) {
+  if (document.user) {
     await prisma.user.update({
-      where: { id: document.chauffeur.id },
+      where: { id: document.user.id },
       data: {
         chauffeurApprovalStatus: "REJECTED",
       },

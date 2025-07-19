@@ -5,10 +5,13 @@ import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import logger from "~/lib/logger.server";
 import { authenticator } from "~/modules/auth/auth.server";
+import { prisma } from "~/modules/db/db.server";
+import { userHasRole } from "~/utils/misc";
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  // Redirect to admin if already authenticated as admin
+  // Redirect to admin if already authenticated
   const user = await authenticator.isAuthenticated(request);
+  console.log("user", user);
   if (user) {
     return redirect("/admin");
   }
@@ -24,23 +27,40 @@ export async function action({ request }: ActionFunctionArgs) {
   }
 
   try {
-    logger.info(`Authenticating admin, email: ${email}`);
+    // Check if the user exists and has the correct role
+    const user = await prisma.user.findUnique({
+      where: { email },
+      include: {
+        roles: {
+          select: { name: true },
+        },
+      },
+    });
+
+    if (!user) {
+      return json({ error: "Invalid email" }, { status: 401 });
+    }
+
+    const isAdmin = user.roles.some((role) => role.name === "admin");
+    const isStaff = user.roles.some((role) => role.name === "staff");
+
+    if (!isAdmin && !isStaff) {
+      return json({ error: "Unauthorized access" }, { status: 403 });
+    }
+
+    logger.info(`Authenticating admin/staff, email: ${email}`);
     return authenticator.authenticate("TOTP", request, {
-      successRedirect: "/admin/verify?role=admin",
+      successRedirect: `/admin/verify?role=${isAdmin ? "admin" : "staff"}`,
       failureRedirect: "/admin/login",
-      context: { role: "admin" },
+      context: { role: isAdmin ? "admin" : "staff" },
     });
   } catch (error) {
-    logger.error(`Error authenticating admin, email: ${email}`, error);
     if (error instanceof AuthorizationError) {
       return json({ error: error.message }, { status: 401 });
     }
 
     if (error instanceof Response) {
-      // @!@ FLOWS HERE @!@
       return error;
-
-      // return null;
     }
 
     return json({ error: "Invalid email" }, { status: 400 });
@@ -56,14 +76,14 @@ export default function AdminLogin() {
     <div className="flex min-h-screen items-center justify-center">
       <div className="w-full max-w-md space-y-8 p-6">
         <div>
-          <h2 className="text-center text-3xl font-bold">Admin Login</h2>
+          <h2 className="text-center text-3xl font-bold">Admin Portal</h2>
+          <p className="text-center text-gray-600 mt-2">Sign in as admin or staff</p>
         </div>
         <Form method="post" className="space-y-6">
           <div>
             <Input name="email" type="email" required placeholder="Email" className="w-full" />
           </div>
           {actionData?.error && <div className="text-red-500 text-sm">{actionData.error}</div>}
-          <input type="hidden" name="role" value="admin" />
           {redirectTo && <input type="hidden" name="redirectTo" value={redirectTo} />}
           <Button type="submit" className="w-full">
             Send verification code

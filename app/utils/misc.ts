@@ -32,7 +32,7 @@ export function useUser() {
  * Permissions.
  * Implementation based on github.com/epicweb-dev/epic-stack
  */
-export type RoleName = "user" | "fleetOwner" | "admin" | "chauffeur";
+export type RoleName = "user" | "fleetOwner" | "admin" | "chauffeur" | "staff";
 
 export function userHasRole(
   user: Pick<ReturnType<typeof useUser>, "roles"> | null,

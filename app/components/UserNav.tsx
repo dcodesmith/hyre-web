@@ -43,7 +43,7 @@ export function UserNav({
   return (
     <>
       <div className="flex items-center gap-2">
-        {userHasRole(user, "admin") ? (
+        {userHasRole(user, "admin") || userHasRole(user, "staff") ? (
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium">{user?.name}</span>
             <Link to="/logout">

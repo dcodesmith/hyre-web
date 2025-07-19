@@ -81,9 +81,9 @@ export default function App() {
               {ENV.APP_NAME}
             </Link>
             <div className="flex items-center gap-2 mr-2">
-              {!user?.roles.some((role) => ["admin", "fleetOwner"].includes(role.name)) && (
-                <Button variant="outline">Become a fleet owner</Button>
-              )}
+              {!user?.roles.some((role) =>
+                ["admin", "fleetOwner", "staff"].includes(role.name),
+              ) && <Button variant="outline">Become a fleet owner</Button>}
               <UserNav user={user} />
             </div>
           </header>

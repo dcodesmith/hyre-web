@@ -31,9 +31,15 @@ type TableProps<T extends object> = {
   columns: ColumnDef<T>[];
   data: T[];
   initialSorting?: SortingState;
+  hideColumnViewOptions?: boolean;
 };
 
-export function Table<T extends object>({ columns, data, initialSorting = [] }: TableProps<T>) {
+export function Table<T extends object>({
+  columns,
+  data,
+  initialSorting = [],
+  hideColumnViewOptions = false,
+}: TableProps<T>) {
   const [sorting, setSorting] = useState<SortingState>(initialSorting);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
@@ -105,7 +111,7 @@ export function Table<T extends object>({ columns, data, initialSorting = [] }: 
             )}
           </div>
 
-          <ColumnViewOptions table={table} />
+          {!hideColumnViewOptions && <ColumnViewOptions table={table} />}
         </div>
       )}
 

@@ -3,7 +3,7 @@ import { useLoaderData, useFetcher } from "@remix-run/react";
 import { useState, useEffect } from "react";
 import { DocumentStatus, DocumentType } from "@prisma/client";
 import { prisma } from "~/modules/db/db.server";
-import { requireUserWithRole } from "~/modules/auth/auth.server";
+import { requireAdminOrStaffWithRedirect } from "~/modules/auth/auth.server";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import { FileText, Car } from "lucide-react";
 import {
@@ -18,7 +18,7 @@ import { Textarea } from "~/components/ui/textarea";
 import { Button } from "~/components/ui/button";
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  await requireUserWithRole(request, "admin");
+  await requireAdminOrStaffWithRedirect(request);
 
   const [pendingDocuments, pendingVehicleImages] = await Promise.all([
     prisma.documentApproval.findMany({

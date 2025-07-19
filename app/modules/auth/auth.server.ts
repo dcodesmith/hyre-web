@@ -34,7 +34,7 @@ const totpStrategy = new TOTPStrategy(
 
         // Email is not sent for admin users.
         if (
-          email.startsWith("admin") ||
+          email.endsWith("@admin.com") ||
           email.startsWith("cool.fleetowner") ||
           email.startsWith("nerdy.fleetowner")
         ) {
@@ -178,4 +178,24 @@ export async function requireUserWithRole(request: Request, role: string) {
   }
 
   return user;
+}
+
+/**
+ * Require admin or staff user and redirect to admin login if not authenticated
+ */
+export async function requireAdminOrStaffWithRedirect(request: Request) {
+  const user = await requireUser(request, {
+    redirectTo: `/admin/login?${new URLSearchParams({
+      redirectTo: new URL(request.url).pathname,
+    })}`,
+  });
+
+  const isAdmin = userHasRole(user, "admin");
+  const isStaff = userHasRole(user, "staff");
+
+  if (!isAdmin && !isStaff) {
+    throw redirect("/admin/login");
+  }
+
+  return { user, isStaff, isAdmin };
 }

@@ -49,10 +49,14 @@ export async function seed() {
   await prisma.$transaction(async (transaction) => {
     // Delete in correct order to handle foreign key constraints
     await transaction.extension.deleteMany();
+    await transaction.bookingLeg.deleteMany();
     await transaction.booking.deleteMany();
     await transaction.vehicleImage.deleteMany();
     await transaction.documentApproval.deleteMany();
     await transaction.car.deleteMany();
+    await transaction.payoutTransaction.deleteMany();
+    await transaction.payment.deleteMany();
+    await transaction.bankDetails.deleteMany();
     await transaction.user.deleteMany();
     await transaction.permission.deleteMany();
     await transaction.role.deleteMany();
@@ -112,6 +116,35 @@ export async function seed() {
           select: { id: true },
           where: { access: "any" },
         }),
+      },
+    },
+  });
+
+  await prisma.role.create({
+    data: {
+      name: "staff",
+      description: "Staff member with document, car, and chauffeur approval permissions",
+      permissions: {
+        create: [
+          {
+            entity: "document",
+            action: "approve",
+            access: "any",
+            description: "Can approve or reject any document",
+          },
+          {
+            entity: "car",
+            action: "approve",
+            access: "any",
+            description: "Can approve or reject car registrations",
+          },
+          {
+            entity: "chauffeur",
+            action: "approve",
+            access: "any",
+            description: "Can approve or reject chauffeur registrations",
+          },
+        ],
       },
     },
   });
