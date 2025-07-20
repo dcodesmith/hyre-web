@@ -25,6 +25,7 @@ import { columns } from "~/components/Table/Columns";
 import { Pagination } from "~/components/Table/Pagination";
 import { Toolbar } from "~/components/Table/Toolbar";
 import { Button } from "~/components/ui/button";
+import logger from "~/lib/logger.server";
 import { prisma } from "~/modules/db/db.server";
 
 import type { SerializedCar } from "~/types";
@@ -65,11 +66,16 @@ export async function loader({ request }: LoaderFunctionArgs) {
       },
       select: {
         id: true,
+        email: true,
       },
     });
 
+    logger.info(
+      `fleet owners with no chauffeurs: ${JSON.stringify(fleetOwnersWithNoChauffeurs, null, 2)}`,
+    );
+
     // Find fleet owners where all chauffeurs are busy on the specific date
-    const busyFleetOwners = await prisma.user.findMany({
+    const fleetOwnersWithAllChauffeursBusy = await prisma.user.findMany({
       where: {
         // Condition 1: The user must be a fleet owner, meaning they have at least one chauffeur.
         chauffeurs: {
@@ -111,10 +117,14 @@ export async function loader({ request }: LoaderFunctionArgs) {
       },
     });
 
+    logger.info(
+      `fleet owners with all chauffeurs busy: ${JSON.stringify(fleetOwnersWithAllChauffeursBusy, null, 2)}`,
+    );
+
     // Combine both sets of IDs and remove duplicates
     const allUnavailableOwnerIds = [
       ...fleetOwnersWithNoChauffeurs.map((owner) => owner.id),
-      ...busyFleetOwners.map((owner) => owner.id),
+      ...fleetOwnersWithAllChauffeursBusy.map((owner) => owner.id),
     ];
 
     return [...new Set(allUnavailableOwnerIds)]; // Remove duplicates using Set
@@ -163,12 +173,19 @@ export async function loader({ request }: LoaderFunctionArgs) {
     },
     select: {
       id: true, // We only need the IDs of these owners
+      email: true,
     },
   });
+
+  logger.info(
+    `fleet owners with all chauffeurs busy outside of the date range: ${JSON.stringify(ownersWithAllChauffeursBusy, null, 2)}`,
+  );
 
   // Collect the IDs of these owners
   const ownerIdsToExclude = ownersWithAllChauffeursBusy.map((o) => o.id);
   const idsToExclude = await getFleetOwnersWithAllChauffeursBusy(from ? new Date(from) : undefined);
+
+  logger.info(`owners that we should exclude: ${JSON.stringify(ownerIdsToExclude, null, 2)}`);
 
   const cars = await prisma.car.findMany({
     where: {
