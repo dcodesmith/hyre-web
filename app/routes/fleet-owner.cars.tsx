@@ -26,11 +26,22 @@ import { prisma } from "~/modules/db/db.server";
 import { createCar } from "~/services/cars.server";
 import { NewCarForm, carSchema } from "./fleet-owner.cars_.new";
 
+import {
+  unstable_parseMultipartFormData,
+  unstable_createMemoryUploadHandler,
+} from "@remix-run/node";
+
 type ActionResponse = { success: boolean; error?: string | null } | undefined;
 
 export async function action({ request }: ActionFunctionArgs) {
   const user = await requireUser(request);
-  const formData = await request.formData();
+
+  // Use Remix's unstable_parseMultipartFormData for proper file handling on Vercel
+  const uploadHandler = unstable_createMemoryUploadHandler({
+    maxPartSize: 10 * 1024 * 1024, // 10MB limit
+  });
+
+  const formData = await unstable_parseMultipartFormData(request, uploadHandler);
 
   const intent = String(formData.get("intent"));
 

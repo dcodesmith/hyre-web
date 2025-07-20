@@ -27,6 +27,10 @@ import { banks } from "~/lib/banks";
 import { Combobox } from "~/components/ui/combobox";
 import axios from "axios";
 import logger from "~/lib/logger.server";
+import {
+  unstable_parseMultipartFormData,
+  unstable_createMemoryUploadHandler,
+} from "@remix-run/node";
 
 const baseSchema = z.object({
   name: z.string({ required_error: "Name is required" }),
@@ -84,7 +88,12 @@ export async function loader({ request }: LoaderFunctionArgs) {
 export async function action({ request }: ActionFunctionArgs) {
   const user = await requireUserWithRole(request, "fleetOwner");
 
-  const formData = await request.formData();
+  // Use Remix's unstable_parseMultipartFormData for proper file handling on Vercel
+  const uploadHandler = unstable_createMemoryUploadHandler({
+    maxPartSize: 10 * 1024 * 1024, // 10MB limit
+  });
+
+  const formData = await unstable_parseMultipartFormData(request, uploadHandler);
   const submission = parseWithZod(formData, { schema: onboardingSchema });
 
   if (submission.status !== "success") {

@@ -11,6 +11,10 @@ import { Label } from "~/components/ui/label";
 import { useIsPending } from "~/lib/utils";
 import { requireUser } from "~/modules/auth/auth.server";
 import { createUser } from "~/services/users.server";
+import {
+  unstable_parseMultipartFormData,
+  unstable_createMemoryUploadHandler,
+} from "@remix-run/node";
 
 const chauffeurSchema = z.object({
   email: z
@@ -50,9 +54,15 @@ const chauffeurSchema = z.object({
 export async function action({ request }: ActionFunctionArgs) {
   const user = await requireUser(request);
 
-  const formData = await request.formData();
+  // Use Remix's unstable_parseMultipartFormData for proper file handling on Vercel
+  const uploadHandler = unstable_createMemoryUploadHandler({
+    maxPartSize: 10 * 1024 * 1024, // 10MB limit
+  });
 
-  const submission = parseWithZod(formData, { schema: chauffeurSchema });
+  const formData = await unstable_parseMultipartFormData(request, uploadHandler);
+  const submission = parseWithZod(formData, {
+    schema: chauffeurSchema,
+  });
 
   if (submission.status !== "success") {
     return json(submission.reply());

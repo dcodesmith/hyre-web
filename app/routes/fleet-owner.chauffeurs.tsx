@@ -30,6 +30,10 @@ import { requireUser } from "~/modules/auth/auth.server";
 import { prisma } from "~/modules/db/db.server";
 import { createUser } from "~/services/users.server";
 import type { ChauffeurStatus, SerializedChauffeur } from "~/types";
+import {
+  unstable_parseMultipartFormData,
+  unstable_createMemoryUploadHandler,
+} from "@remix-run/node";
 
 const chauffeurSchema = z.object({
   email: z
@@ -158,7 +162,13 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
 export async function action({ request }: ActionFunctionArgs) {
   const user = await requireUser(request);
-  const formData = await request.formData();
+
+  // Use Remix's unstable_parseMultipartFormData for proper file handling on Vercel
+  const uploadHandler = unstable_createMemoryUploadHandler({
+    maxPartSize: 10 * 1024 * 1024, // 10MB limit
+  });
+
+  const formData = await unstable_parseMultipartFormData(request, uploadHandler);
 
   const intent = String(formData.get("intent"));
 
