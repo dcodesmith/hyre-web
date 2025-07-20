@@ -42,20 +42,17 @@ const baseSchema = z.object({
 
 const independentDriverSchema = baseSchema.extend({
   independentDriver: z.literal("true"),
-  lasdriCard: z
-    .instanceof(File, { message: "LASDRI card is required" })
-    .refine((file) => file.size <= 5 * 1024 * 1024, "File must be less than 5MB"),
-  driversLicense: z
-    .instanceof(File, { message: "Driver's license is required" })
-    .refine((file) => file.size <= 5 * 1024 * 1024, "File must be less than 5MB"),
+  // Validate based on the presence and size of the file, not instanceof File directly
+  lasdriCard: z.any().refine((file) => file && file.size > 0, "LASDRI card is required"),
+  driversLicense: z.any().refine((file) => file && file.size > 0, "Driver's license is required"),
 });
 
 const fleetOwnerSchema = baseSchema.extend({
   independentDriver: z.literal("false"),
+  // Validate based on the presence and size of the file, not instanceof File directly
   certificateOfIncorporation: z
-    .instanceof(File, {
-      message: "Certificate of Incorporation is required",
-    })
+    .any()
+    .refine((file) => file && file.size > 0, "Certificate of Incorporation is required")
     .refine((file) => file.size <= 5 * 1024 * 1024, "File must be less than 5MB"),
   bankCode: z.string({ required_error: "Bank is required" }),
   accountNumber: z
