@@ -1,7 +1,6 @@
 import { getFormProps, getInputProps, useForm } from "@conform-to/react";
 import { parseWithZod } from "@conform-to/zod";
 import { CogIcon } from "@heroicons/react/24/outline";
-import { Status } from "@prisma/client";
 import { useFetcher } from "@remix-run/react";
 import { z } from "zod";
 import { Button } from "~/components/ui/button";
@@ -14,6 +13,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "~/components/ui/select";
+
+const Status = {
+  AVAILABLE: "AVAILABLE",
+  BOOKED: "BOOKED",
+  HOLD: "HOLD",
+  IN_SERVICE: "IN_SERVICE",
+} as const;
 
 export const carSchema = z.object({
   make: z
@@ -104,12 +110,16 @@ export const carSchema = z.object({
   //     ),
   // ),
   images: z
-    .instanceof(File, { message: "Pictures are required" })
+    .any()
     .array()
     .min(1, "At least one file is required")
     .max(5, "You can upload up to 5 files")
     .refine(
-      (files) => files.every((file) => file.size < 5 * 1024 * 1024),
+      (files) => Array.isArray(files) && files.every((file) => file && file.size > 0),
+      "Pictures are required",
+    )
+    .refine(
+      (files) => files.every((file) => file.size <= 5 * 1024 * 1024),
       "Each file must be less than 5MB",
     )
     .refine(
@@ -119,17 +129,19 @@ export const carSchema = z.object({
     ),
 
   motCertificate: z
-    .instanceof(File, { message: "MOT certificate is required" })
-    .refine((file) => file.size < 5 * 1024 * 1024, "File must be less than 5MB")
+    .any()
+    .refine((file) => file && file.size > 0, "MOT certificate is required")
+    .refine((file) => file.size <= 5 * 1024 * 1024, "File must be less than 5MB")
     .refine((file) => file.type === "application/pdf", "File must be a PDF"),
 
   insuranceCertificate: z
-    .instanceof(File, { message: "Insurance certificate is required" })
-    .refine((file) => file.size < 5 * 1024 * 1024, "File must be less than 5MB")
+    .any()
+    .refine((file) => file && file.size > 0, "Insurance certificate is required")
+    .refine((file) => file.size <= 5 * 1024 * 1024, "File must be less than 5MB")
     .refine((file) => file.type === "application/pdf", "File must be a PDF"),
 });
 
-const statusMap: Record<Exclude<Status, "BOOKED">, string> = {
+const statusMap: Record<Exclude<(typeof Status)[keyof typeof Status], "BOOKED">, string> = {
   AVAILABLE: "Available",
   HOLD: "On Hold",
   IN_SERVICE: "In Service",

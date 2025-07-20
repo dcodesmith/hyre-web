@@ -43,8 +43,14 @@ const baseSchema = z.object({
 const independentDriverSchema = baseSchema.extend({
   independentDriver: z.literal("true"),
   // Validate based on the presence and size of the file, not instanceof File directly
-  lasdriCard: z.any().refine((file) => file && file.size > 0, "LASDRI card is required"),
-  driversLicense: z.any().refine((file) => file && file.size > 0, "Driver's license is required"),
+  lasdriCard: z
+    .any()
+    .refine((file) => file && file.size > 0, "LASDRI card is required")
+    .refine((file) => file.size <= 5 * 1024 * 1024, "File must be less than 5MB"),
+  driversLicense: z
+    .any()
+    .refine((file) => file && file.size > 0, "Driver's license is required")
+    .refine((file) => file.size <= 5 * 1024 * 1024, "File must be less than 5MB"),
 });
 
 const fleetOwnerSchema = baseSchema.extend({

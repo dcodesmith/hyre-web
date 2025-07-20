@@ -55,13 +55,21 @@ const chauffeurSchema = z.object({
     required_error: "Address is required.",
   }),
   ninFile: z
-    .instanceof(File, { message: "Please select a file" })
-    .refine(({ size }) => size < 5 * 1024 * 1024, "File must be less than 5MB")
-    .refine(({ type }) => ["image/jpeg", "image/png"].includes(type), "File must be a JPEG or PNG"),
+    .any()
+    .refine((file) => file && file.size > 0, "Please select a file")
+    .refine((file) => file.size <= 5 * 1024 * 1024, "File must be less than 5MB")
+    .refine(
+      (file) => ["image/jpeg", "image/png"].includes(file.type),
+      "File must be a JPEG or PNG",
+    ),
   drivingLicenceFile: z
-    .instanceof(File, { message: "Please select a file" })
-    .refine(({ size }) => size < 5 * 1024 * 1024, "File must be less than 5MB")
-    .refine(({ type }) => ["image/jpeg", "image/png"].includes(type), "File must be a JPEG or PNG"),
+    .any()
+    .refine((file) => file && file.size > 0, "Please select a file")
+    .refine((file) => file.size <= 5 * 1024 * 1024, "File must be less than 5MB")
+    .refine(
+      (file) => ["image/jpeg", "image/png"].includes(file.type),
+      "File must be a JPEG or PNG",
+    ),
 });
 
 const statusColors: Record<ChauffeurStatus, string> = {
@@ -184,8 +192,11 @@ export async function action({ request }: ActionFunctionArgs) {
         return json(submission.reply());
       }
 
+      const { ninFile, drivingLicenceFile, ...userData } = submission.value;
       await createUser({
-        ...submission.value,
+        ...userData,
+        ninFile: ninFile as File,
+        drivingLicenceFile: drivingLicenceFile as File,
         roles: { connect: [{ name: "chauffeur" }] },
         fleetOwner: { connect: { id: user.id } },
       });

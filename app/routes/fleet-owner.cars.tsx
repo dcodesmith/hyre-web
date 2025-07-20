@@ -1,5 +1,5 @@
 import { parseWithZod } from "@conform-to/zod";
-import { Car, Status } from "@prisma/client";
+import { Car } from "@prisma/client";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { useFetcher, useLoaderData } from "@remix-run/react";
@@ -31,6 +31,13 @@ import {
   unstable_createMemoryUploadHandler,
 } from "@remix-run/node";
 
+const Status = {
+  AVAILABLE: "AVAILABLE",
+  BOOKED: "BOOKED",
+  HOLD: "HOLD",
+  IN_SERVICE: "IN_SERVICE",
+} as const;
+
 type ActionResponse = { success: boolean; error?: string | null } | undefined;
 
 export async function action({ request }: ActionFunctionArgs) {
@@ -57,10 +64,14 @@ export async function action({ request }: ActionFunctionArgs) {
         return json(submission.reply());
       }
 
+      const { motCertificate, insuranceCertificate, ...rest } = submission.value;
+
       await createCar({
-        ...submission.value,
+        ...rest,
         color: "Red",
         owner: { connect: { id: user.id } },
+        motCertificate: motCertificate as File,
+        insuranceCertificate: insuranceCertificate as File,
       });
     }
 
@@ -121,14 +132,14 @@ const formatPrice = (price: number) => {
   }).format(price);
 };
 
-const statusColors: Record<Status, string> = {
+const statusColors: Record<(typeof Status)[keyof typeof Status], string> = {
   AVAILABLE: "bg-green-50 ring-green-600/10 text-green-600",
   BOOKED: "bg-blue-50 ring-blue-600/10 text-blue-600",
   HOLD: "bg-yellow-50 ring-yellow-600/10 text-yellow-600",
   IN_SERVICE: "bg-red-50 ring-red-600/10 text-red-600",
 };
 
-const carStatusOptions: Record<Status, string> = {
+const carStatusOptions: Record<(typeof Status)[keyof typeof Status], string> = {
   AVAILABLE: "Available",
   BOOKED: "Booked",
   HOLD: "Hold",
