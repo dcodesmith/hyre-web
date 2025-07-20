@@ -1,5 +1,4 @@
 import { parseWithZod } from "@conform-to/zod";
-import { Car } from "@prisma/client";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { useFetcher, useLoaderData } from "@remix-run/react";
@@ -30,6 +29,7 @@ import {
   unstable_parseMultipartFormData,
   unstable_createMemoryUploadHandler,
 } from "@remix-run/node";
+import { SerializedCar } from "~/types";
 
 const Status = {
   AVAILABLE: "AVAILABLE",
@@ -146,7 +146,7 @@ const carStatusOptions: Record<(typeof Status)[keyof typeof Status], string> = {
   IN_SERVICE: "In Service",
 };
 
-export const columns: ColumnDef<Car>[] = [
+export const columns: ColumnDef<SerializedCar>[] = [
   {
     accessorKey: "registrationNumber",
     header: ({ column }) => <ColumnHeader column={column} title="Registration #" />,

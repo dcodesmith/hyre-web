@@ -1,7 +1,7 @@
 import { getFormProps, getInputProps, useForm } from "@conform-to/react";
 import { parseWithZod } from "@conform-to/zod";
 import { CogIcon } from "@heroicons/react/24/outline";
-import { Status } from "@prisma/client";
+// import { Status } from "@prisma/client";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json, redirect } from "@remix-run/node";
 import { Form, useLoaderData, useNavigation } from "@remix-run/react";
@@ -18,8 +18,15 @@ import {
 import { useIsPending } from "~/lib/utils";
 import { prisma } from "~/modules/db/db.server";
 
+const Status = {
+  AVAILABLE: "AVAILABLE",
+  BOOKED: "BOOKED",
+  HOLD: "HOLD",
+  IN_SERVICE: "IN_SERVICE",
+} as const;
+
 const carSchema = z.object({
-  price: z
+  dayRate: z
     .number({
       required_error: "Price is required.",
     })
@@ -40,12 +47,12 @@ export async function action({ request, params }: ActionFunctionArgs) {
     return json(submission.reply());
   }
 
-  const { price, status, hourlyRate } = submission.value;
+  const { dayRate, status, hourlyRate } = submission.value;
 
   try {
     await prisma.car.update({
       where: { id: params.id },
-      data: { price, status, hourlyRate },
+      data: { dayRate, status, hourlyRate },
     });
 
     return redirect("/fleet-owner/cars");
@@ -77,7 +84,7 @@ export default function EditCarForm() {
   const navigation = useNavigation();
   const isPending = useIsPending();
 
-  const [form, { price, status }] = useForm({
+  const [form, { dayRate, status }] = useForm({
     defaultValue: car,
     // lastResult,
     // Reuse the validation logic on the client
@@ -136,17 +143,19 @@ export default function EditCarForm() {
         </div>
 
         <div className="mb-4">
-          <label htmlFor={price.id} className="block mb-2">
-            Price
+          <label htmlFor={dayRate.id} className="block mb-2">
+            Daily Rate
           </label>
           <input
-            {...getInputProps(price, { type: "number" })}
+            {...getInputProps(dayRate, { type: "number" })}
             step="0.01"
             className={`w-full px-3 py-2 border rounded ${
-              price.errors ? "border-destructive focus-visible:ring-destructive" : ""
+              dayRate.errors ? "border-destructive focus-visible:ring-destructive" : ""
             }`}
           />
-          {price.errors && <p className="text-red-500 text-sm mt-1">{price.errors.join(" ")}</p>}
+          {dayRate.errors && (
+            <p className="text-red-500 text-sm mt-1">{dayRate.errors.join(" ")}</p>
+          )}
         </div>
 
         <div className="mb-4">

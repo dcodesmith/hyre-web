@@ -11,6 +11,7 @@ import {
   json,
   useLoaderData,
   useRouteError,
+  useLocation,
 } from "@remix-run/react";
 import tailwindStyles from "~/tailwind.css?url";
 import Forbidden from "./components/Forbidden";
@@ -41,6 +42,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
 export default function App() {
   const { user, ENV } = useLoaderData<typeof loader>();
+  const location = useLocation();
+  const isAdminRoute = location.pathname.startsWith("/admin");
 
   return (
     <html lang="en" className="h-full">
@@ -81,9 +84,10 @@ export default function App() {
               {ENV.APP_NAME}
             </Link>
             <div className="flex items-center gap-2 mr-2">
-              {!user?.roles.some((role) =>
-                ["admin", "fleetOwner", "staff"].includes(role.name),
-              ) && <Button variant="outline">Become a fleet owner</Button>}
+              {!isAdminRoute &&
+                !user?.roles.some((role) =>
+                  ["admin", "fleetOwner", "staff"].includes(role.name),
+                ) && <Button variant="outline">Become a fleet owner</Button>}
               <UserNav user={user} />
             </div>
           </header>

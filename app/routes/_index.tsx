@@ -52,6 +52,23 @@ export async function loader({ request }: LoaderFunctionArgs) {
     const startDateAtTargetDate = new Date(Date.UTC(year, month, day, 0, 0, 0, 0));
     const endDateAtTargetDate = new Date(Date.UTC(year, month, day, 23, 59, 59, 999));
 
+    // Find fleet owners with no chauffeurs at all
+    const fleetOwnersWithNoChauffeurs = await prisma.user.findMany({
+      where: {
+        // Fleet owners who have cars but no chauffeurs
+        cars: {
+          some: {}, // Has at least one car
+        },
+        chauffeurs: {
+          none: {}, // But has no chauffeurs
+        },
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    // Find fleet owners where all chauffeurs are busy on the specific date
     const busyFleetOwners = await prisma.user.findMany({
       where: {
         // Condition 1: The user must be a fleet owner, meaning they have at least one chauffeur.
@@ -94,7 +111,13 @@ export async function loader({ request }: LoaderFunctionArgs) {
       },
     });
 
-    return busyFleetOwners.map((owner) => owner.id);
+    // Combine both sets of IDs and remove duplicates
+    const allUnavailableOwnerIds = [
+      ...fleetOwnersWithNoChauffeurs.map((owner) => owner.id),
+      ...busyFleetOwners.map((owner) => owner.id),
+    ];
+
+    return [...new Set(allUnavailableOwnerIds)]; // Remove duplicates using Set
   }
 
   const ownersWithAllChauffeursBusy = await prisma.user.findMany({
@@ -394,7 +417,7 @@ export default function IndexPage() {
                     <h2 className="text-base">
                       {row.original.make} {row.original.model} ({row.original.year})
                     </h2>
-                    <div className="flex items-center gap-1">
+                    {/* <div className="flex items-center gap-1">
                       <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
 
                       <span className="font-medium">
@@ -410,7 +433,7 @@ export default function IndexPage() {
                             950)}{" "}
                         reviews)
                       </span>
-                    </div>
+                    </div> */}
                   </div>
 
                   <div>

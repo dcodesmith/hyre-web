@@ -9,6 +9,7 @@ import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
+import logger from "~/lib/logger.server";
 import { requireUserWithRole } from "~/modules/auth/auth.server";
 import { prisma } from "~/modules/db/db.server";
 
@@ -124,6 +125,10 @@ export async function loader({ request }: LoaderFunctionArgs) {
     },
     orderBy: { effectiveSince: "desc" },
   });
+
+  logger.info(`currentVatRate: ${JSON.stringify(currentVatRate ?? {})}`);
+  logger.info(`currentPlatformServiceFee: ${JSON.stringify(currentPlatformServiceFee ?? {})}`);
+  logger.info(`currentFleetOwnerCommission: ${JSON.stringify(currentFleetOwnerCommission ?? {})}`);
 
   return json({
     currentVatRate,
@@ -292,210 +297,212 @@ export default function AdminFees() {
 
       <div className="grid gap-6 md:grid-cols-2">
         {/* VAT Rate Form */}
-        <Card>
-          <CardHeader>
-            <CardTitle>VAT Rate</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {currentVatRate && (
-              <Alert className="mb-4">
-                <AlertDescription>
-                  Current VAT Rate: {formatRate(currentVatRate.ratePercent)}% (Effective since{" "}
-                  {format(new Date(currentVatRate.effectiveSince), "MMM d, yyyy")})
-                </AlertDescription>
-              </Alert>
-            )}
 
-            <Form method="post" className="space-y-4" {...getFormProps(vatForm)}>
-              <div className="space-y-2">
-                <Label htmlFor={vatRate.id}>Rate Percentage</Label>
-                <Input
-                  {...getInputProps(vatRate, { type: "number", ariaAttributes: true })}
-                  step="0.01"
-                  min="0"
-                  max="100"
-                  required
-                  placeholder="e.g., 7.5"
-                  className={vatRate.errors ? ERROR_RING_CLASSES : ""}
-                />
-                {vatRate.errors && <p className="text-sm text-red-500">{vatRate.errors[0]}</p>}
-              </div>
+        <div>
+          {currentVatRate && (
+            <div className="mb-4 font-semibold">
+              Current VAT Rate: {formatRate(currentVatRate.ratePercent)}% (Effective since{" "}
+              {format(new Date(currentVatRate.effectiveSince), "MMM d, yyyy")})
+            </div>
+          )}
+          <Card>
+            <CardHeader>
+              <CardTitle>VAT Rate</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Form method="post" className="space-y-4" {...getFormProps(vatForm)}>
+                <div className="space-y-2">
+                  <Label htmlFor={vatRate.id}>Rate Percentage</Label>
+                  <Input
+                    {...getInputProps(vatRate, { type: "number", ariaAttributes: true })}
+                    step="0.01"
+                    min="0"
+                    max="100"
+                    required
+                    placeholder="e.g., 7.5"
+                    className={vatRate.errors ? ERROR_RING_CLASSES : ""}
+                  />
+                  {vatRate.errors && <p className="text-sm text-red-500">{vatRate.errors[0]}</p>}
+                </div>
 
-              <div className="space-y-2">
-                <Label htmlFor={vatEffectiveSince.id}>Effective Since</Label>
-                <Input
-                  {...getInputProps(vatEffectiveSince, {
-                    type: "datetime-local",
-                    ariaAttributes: true,
-                  })}
-                  required
-                  className={vatEffectiveSince.errors ? ERROR_RING_CLASSES : ""}
-                />
-                {vatEffectiveSince.errors && (
-                  <p className="text-sm text-red-500">{vatEffectiveSince.errors[0]}</p>
+                <div className="space-y-2">
+                  <Label htmlFor={vatEffectiveSince.id}>Effective Since</Label>
+                  <Input
+                    {...getInputProps(vatEffectiveSince, {
+                      type: "datetime-local",
+                      ariaAttributes: true,
+                    })}
+                    required
+                    className={vatEffectiveSince.errors ? ERROR_RING_CLASSES : ""}
+                  />
+                  {vatEffectiveSince.errors && (
+                    <p className="text-sm text-red-500">{vatEffectiveSince.errors[0]}</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor={vatEffectiveUntil.id}>Effective Until (Optional)</Label>
+                  <Input
+                    {...getInputProps(vatEffectiveUntil, {
+                      type: "datetime-local",
+                      ariaAttributes: true,
+                    })}
+                    className={vatEffectiveUntil.errors ? ERROR_RING_CLASSES : ""}
+                  />
+                  {vatEffectiveUntil.errors && (
+                    <p className="text-sm text-red-500">{vatEffectiveUntil.errors[0]}</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor={vatDescription.id}>Description (Optional)</Label>
+                  <Input
+                    {...getInputProps(vatDescription, { type: "text", ariaAttributes: true })}
+                    className={vatDescription.errors ? ERROR_RING_CLASSES : ""}
+                  />
+                  {vatDescription.errors && (
+                    <p className="text-sm text-red-500">{vatDescription.errors[0]}</p>
+                  )}
+                </div>
+
+                <Button type="submit" name="intent" value="vat">
+                  Save VAT Rate
+                </Button>
+
+                {actionData?.vatError && typeof actionData.vatError === "string" && (
+                  <Alert variant="destructive">
+                    <AlertDescription>{actionData.vatError}</AlertDescription>
+                  </Alert>
                 )}
-              </div>
 
-              <div className="space-y-2">
-                <Label htmlFor={vatEffectiveUntil.id}>Effective Until (Optional)</Label>
-                <Input
-                  {...getInputProps(vatEffectiveUntil, {
-                    type: "datetime-local",
-                    ariaAttributes: true,
-                  })}
-                  className={vatEffectiveUntil.errors ? ERROR_RING_CLASSES : ""}
-                />
-                {vatEffectiveUntil.errors && (
-                  <p className="text-sm text-red-500">{vatEffectiveUntil.errors[0]}</p>
+                {actionData?.vatSuccess && (
+                  <Alert>
+                    <AlertDescription>VAT rate saved successfully!</AlertDescription>
+                  </Alert>
                 )}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor={vatDescription.id}>Description (Optional)</Label>
-                <Input
-                  {...getInputProps(vatDescription, { type: "text", ariaAttributes: true })}
-                  className={vatDescription.errors ? ERROR_RING_CLASSES : ""}
-                />
-                {vatDescription.errors && (
-                  <p className="text-sm text-red-500">{vatDescription.errors[0]}</p>
-                )}
-              </div>
-
-              <Button type="submit" name="intent" value="vat">
-                Save VAT Rate
-              </Button>
-
-              {actionData?.vatError && typeof actionData.vatError === "string" && (
-                <Alert variant="destructive">
-                  <AlertDescription>{actionData.vatError}</AlertDescription>
-                </Alert>
-              )}
-
-              {actionData?.vatSuccess && (
-                <Alert>
-                  <AlertDescription>VAT rate saved successfully!</AlertDescription>
-                </Alert>
-              )}
-            </Form>
-          </CardContent>
-        </Card>
+              </Form>
+            </CardContent>
+          </Card>
+        </div>
 
         {/* Platform Fee Form */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Platform Fees</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {currentPlatformServiceFee && (
-              <Alert className="mb-4">
-                <AlertDescription>
-                  Current Platform Service Fee: {formatRate(currentPlatformServiceFee.ratePercent)}%
-                  (Effective since{" "}
-                  {format(new Date(currentPlatformServiceFee.effectiveSince), "MMM d, yyyy")})
-                </AlertDescription>
-              </Alert>
-            )}
+        <div>
+          {currentPlatformServiceFee && (
+            <div className="mb-4 font-semibold">
+              Current Platform Service Fee: {formatRate(currentPlatformServiceFee.ratePercent)}%
+              (Effective since{" "}
+              {format(new Date(currentPlatformServiceFee.effectiveSince), "MMM d, yyyy")})
+            </div>
+          )}
 
-            {currentFleetOwnerCommission && (
-              <Alert className="mb-4">
-                <AlertDescription>
-                  Current Fleet Owner Commission:{" "}
-                  {formatRate(currentFleetOwnerCommission.ratePercent)}% (Effective since{" "}
-                  {format(new Date(currentFleetOwnerCommission.effectiveSince), "MMM d, yyyy")})
-                </AlertDescription>
-              </Alert>
-            )}
+          {currentFleetOwnerCommission && (
+            <div className="mb-4 font-semibold">
+              Current Fleet Owner Commission: {formatRate(currentFleetOwnerCommission.ratePercent)}%
+              (Effective since{" "}
+              {format(new Date(currentFleetOwnerCommission.effectiveSince), "MMM d, yyyy")})
+            </div>
+          )}
 
-            <Form method="post" className="space-y-4" {...getFormProps(platformFeeForm)}>
-              <div className="space-y-2">
-                <Label htmlFor={feeType.id}>Fee Type</Label>
-                <select
-                  {...getInputProps(feeType, { type: "text", ariaAttributes: true })}
-                  className={`w-full rounded-md border border-input bg-background px-3 py-2 ${
-                    feeType.errors ? ERROR_RING_CLASSES : ""
-                  }`}
-                  required
-                >
-                  <option value="PLATFORM_SERVICE_FEE">Platform Service Fee</option>
-                  <option value="FLEET_OWNER_COMMISSION">Fleet Owner Commission</option>
-                </select>
-                {feeType.errors && <p className="text-sm text-red-500">{feeType.errors[0]}</p>}
-              </div>
+          <Card>
+            <CardHeader>
+              <CardTitle>Platform Fees</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Form method="post" className="space-y-4" {...getFormProps(platformFeeForm)}>
+                <div className="space-y-2">
+                  <Label htmlFor={feeType.id}>Fee Type</Label>
+                  <select
+                    {...getInputProps(feeType, { type: "text", ariaAttributes: true })}
+                    className={`w-full rounded-md border border-input bg-background px-3 py-2 ${
+                      feeType.errors ? ERROR_RING_CLASSES : ""
+                    }`}
+                    required
+                  >
+                    <option value="PLATFORM_SERVICE_FEE">Platform Service Fee</option>
+                    <option value="FLEET_OWNER_COMMISSION">Fleet Owner Commission</option>
+                  </select>
+                  {feeType.errors && <p className="text-sm text-red-500">{feeType.errors[0]}</p>}
+                </div>
 
-              <div className="space-y-2">
-                <Label htmlFor={platformFeeRate.id}>Rate Percentage</Label>
-                <Input
-                  {...getInputProps(platformFeeRate, { type: "number", ariaAttributes: true })}
-                  step="0.01"
-                  min="0"
-                  max="100"
-                  required
-                  placeholder="e.g., 15"
-                  className={platformFeeRate.errors ? ERROR_RING_CLASSES : ""}
-                />
-                {platformFeeRate.errors && (
-                  <p className="text-sm text-red-500">{platformFeeRate.errors[0]}</p>
+                <div className="space-y-2">
+                  <Label htmlFor={platformFeeRate.id}>Rate Percentage</Label>
+                  <Input
+                    {...getInputProps(platformFeeRate, { type: "number", ariaAttributes: true })}
+                    step="0.01"
+                    min="0"
+                    max="100"
+                    required
+                    placeholder="e.g., 15"
+                    className={platformFeeRate.errors ? ERROR_RING_CLASSES : ""}
+                  />
+                  {platformFeeRate.errors && (
+                    <p className="text-sm text-red-500">{platformFeeRate.errors[0]}</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor={platformFeeEffectiveSince.id}>Effective Since</Label>
+                  <Input
+                    {...getInputProps(platformFeeEffectiveSince, {
+                      type: "datetime-local",
+                      ariaAttributes: true,
+                    })}
+                    required
+                    className={platformFeeEffectiveSince.errors ? ERROR_RING_CLASSES : ""}
+                  />
+                  {platformFeeEffectiveSince.errors && (
+                    <p className="text-sm text-red-500">{platformFeeEffectiveSince.errors[0]}</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor={platformFeeEffectiveUntil.id}>Effective Until (Optional)</Label>
+                  <Input
+                    {...getInputProps(platformFeeEffectiveUntil, {
+                      type: "datetime-local",
+                      ariaAttributes: true,
+                    })}
+                    className={platformFeeEffectiveUntil.errors ? ERROR_RING_CLASSES : ""}
+                  />
+                  {platformFeeEffectiveUntil.errors && (
+                    <p className="text-sm text-red-500">{platformFeeEffectiveUntil.errors[0]}</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor={platformFeeDescription.id}>Description (Optional)</Label>
+                  <Input
+                    {...getInputProps(platformFeeDescription, {
+                      type: "text",
+                      ariaAttributes: true,
+                    })}
+                    className={platformFeeDescription.errors ? ERROR_RING_CLASSES : ""}
+                  />
+                  {platformFeeDescription.errors && (
+                    <p className="text-sm text-red-500">{platformFeeDescription.errors[0]}</p>
+                  )}
+                </div>
+
+                <Button type="submit" name="intent" value="platform-fee">
+                  Save Platform Fee
+                </Button>
+
+                {actionData?.platformFeeError &&
+                  typeof actionData.platformFeeError === "string" && (
+                    <Alert variant="destructive">
+                      <AlertDescription>{actionData.platformFeeError}</AlertDescription>
+                    </Alert>
+                  )}
+
+                {actionData?.platformFeeSuccess && (
+                  <Alert>
+                    <AlertDescription>Platform fee saved successfully!</AlertDescription>
+                  </Alert>
                 )}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor={platformFeeEffectiveSince.id}>Effective Since</Label>
-                <Input
-                  {...getInputProps(platformFeeEffectiveSince, {
-                    type: "datetime-local",
-                    ariaAttributes: true,
-                  })}
-                  required
-                  className={platformFeeEffectiveSince.errors ? ERROR_RING_CLASSES : ""}
-                />
-                {platformFeeEffectiveSince.errors && (
-                  <p className="text-sm text-red-500">{platformFeeEffectiveSince.errors[0]}</p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor={platformFeeEffectiveUntil.id}>Effective Until (Optional)</Label>
-                <Input
-                  {...getInputProps(platformFeeEffectiveUntil, {
-                    type: "datetime-local",
-                    ariaAttributes: true,
-                  })}
-                  className={platformFeeEffectiveUntil.errors ? ERROR_RING_CLASSES : ""}
-                />
-                {platformFeeEffectiveUntil.errors && (
-                  <p className="text-sm text-red-500">{platformFeeEffectiveUntil.errors[0]}</p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor={platformFeeDescription.id}>Description (Optional)</Label>
-                <Input
-                  {...getInputProps(platformFeeDescription, { type: "text", ariaAttributes: true })}
-                  className={platformFeeDescription.errors ? ERROR_RING_CLASSES : ""}
-                />
-                {platformFeeDescription.errors && (
-                  <p className="text-sm text-red-500">{platformFeeDescription.errors[0]}</p>
-                )}
-              </div>
-
-              <Button type="submit" name="intent" value="platform-fee">
-                Save Platform Fee
-              </Button>
-
-              {actionData?.platformFeeError && typeof actionData.platformFeeError === "string" && (
-                <Alert variant="destructive">
-                  <AlertDescription>{actionData.platformFeeError}</AlertDescription>
-                </Alert>
-              )}
-
-              {actionData?.platformFeeSuccess && (
-                <Alert>
-                  <AlertDescription>Platform fee saved successfully!</AlertDescription>
-                </Alert>
-              )}
-            </Form>
-          </CardContent>
-        </Card>
+              </Form>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );
