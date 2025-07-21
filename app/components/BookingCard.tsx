@@ -646,75 +646,84 @@ export default function BookingCard({
               </dl>
             </div>
 
-            <div className="space-y-4 pt-4 border-t">
-              {!user && (
-                <>
-                  <h3 className="text-md font-semibold">Guest Details</h3>
-                  <GuestInfoFields
-                    nameField={fields.name}
-                    emailField={fields.email}
-                    phoneNumberField={fields.phoneNumber}
-                  />
-                </>
-              )}
-
-              <div className="flex flex-col space-y-2">
-                {!user ? (
+            {/* Only show booking section if user is not a fleet owner */}
+            {(user === null ||
+              !user.roles?.some((role) =>
+                ["fleetOwner", "admin", "staff"].includes(role.name),
+              )) && (
+              <div className="space-y-4 pt-4 border-t">
+                {!user && (
                   <>
-                    <Button type="submit" className="rounded w-full" name="intent" value="guest">
-                      Book Now as Guest
-                    </Button>
-                    <div className="flex items-center justify-center text-sm pt-1">
-                      <span>Have an account?</span>
-                      <Button
-                        type="button"
-                        variant="link"
-                        className="underline px-1"
-                        onClick={() => {
-                          const currentParams = new URLSearchParams(searchParams);
-
-                          if (dateRange.from) {
-                            currentParams.set("from", format(dateRange.from, "yyyy-MM-dd"));
-                          }
-
-                          if (dateRange.to) {
-                            currentParams.set("to", format(dateRange.to, "yyyy-MM-dd"));
-                          }
-
-                          if (fields.pickupAddress.value) {
-                            currentParams.set("pickupAddress", fields.pickupAddress.value);
-                          }
-
-                          currentParams.set("sameLocation", sameLocationChecked ? "true" : "false");
-
-                          if (!sameLocationChecked && fields.dropOffAddress.value) {
-                            currentParams.set("dropOffAddress", fields.dropOffAddress.value);
-                          }
-
-                          if (fields.pickupTime.value && bookingType === DAY_BOOKING_TYPE) {
-                            currentParams.set("pickupTime", fields.pickupTime.value);
-                          }
-
-                          currentParams.set("bookingType", bookingType);
-                          currentParams.set("role", "client");
-
-                          const redirectTo = `/cars/${car.id}?${currentParams.toString()}`;
-                          navigate(`/auth?redirectTo=${encodeURIComponent(redirectTo)}`);
-                        }}
-                      >
-                        Sign in to book
-                      </Button>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <Button type="submit" className="rounded w-full" name="intent" value="auth">
-                      Book Now
-                    </Button>
+                    <h3 className="text-md font-semibold">Guest Details</h3>
+                    <GuestInfoFields
+                      nameField={fields.name}
+                      emailField={fields.email}
+                      phoneNumberField={fields.phoneNumber}
+                    />
                   </>
                 )}
+
+                <div className="flex flex-col space-y-2">
+                  {!user ? (
+                    <>
+                      <Button type="submit" className="rounded w-full" name="intent" value="guest">
+                        Book Now as Guest
+                      </Button>
+                      <div className="flex items-center justify-center text-sm pt-1">
+                        <span>Have an account?</span>
+                        <Button
+                          type="button"
+                          variant="link"
+                          className="underline px-1"
+                          onClick={() => {
+                            const currentParams = new URLSearchParams(searchParams);
+
+                            if (dateRange.from) {
+                              currentParams.set("from", format(dateRange.from, "yyyy-MM-dd"));
+                            }
+
+                            if (dateRange.to) {
+                              currentParams.set("to", format(dateRange.to, "yyyy-MM-dd"));
+                            }
+
+                            if (fields.pickupAddress.value) {
+                              currentParams.set("pickupAddress", fields.pickupAddress.value);
+                            }
+
+                            currentParams.set(
+                              "sameLocation",
+                              sameLocationChecked ? "true" : "false",
+                            );
+
+                            if (!sameLocationChecked && fields.dropOffAddress.value) {
+                              currentParams.set("dropOffAddress", fields.dropOffAddress.value);
+                            }
+
+                            if (fields.pickupTime.value && bookingType === DAY_BOOKING_TYPE) {
+                              currentParams.set("pickupTime", fields.pickupTime.value);
+                            }
+
+                            currentParams.set("bookingType", bookingType);
+                            currentParams.set("role", "client");
+
+                            const redirectTo = `/cars/${car.id}?${currentParams.toString()}`;
+                            navigate(`/auth?redirectTo=${encodeURIComponent(redirectTo)}`);
+                          }}
+                        >
+                          Sign in to book
+                        </Button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <Button type="submit" className="rounded w-full" name="intent" value="auth">
+                        Book Now
+                      </Button>
+                    </>
+                  )}
+                </div>
               </div>
-            </div>
+            )}
           </CardFooter>
         )}
       </Card>

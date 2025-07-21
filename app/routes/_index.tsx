@@ -30,140 +30,73 @@ import { prisma } from "~/modules/db/db.server";
 
 import type { SerializedCar } from "~/types";
 
-const blockingStatuses: BookingStatus[] = ["PENDING", "CONFIRMED", "ACTIVE"];
+/**
+ * Retrieves the IDs of fleet owners who are effectively 'unavailable'
+ * on a specific date. This includes owners who have no chauffeurs,
+ * or whose all chauffeurs are busy with confirmed/active bookings
+ * that fully or partially overlap with the specified date.
+ *
+ * @param specificDateInput The date for which to check availability. Defaults to the current date in UTC.
+ * @returns A promise that resolves to an array of unique fleet owner IDs (string[]).
+ */
+async function getFleetOwnersWithNoChauffeursOrAllChauffeursBusy(
+  specificDateInput: Date = new Date(),
+): Promise<string[]> {
+  // Use UTC methods to get the year, month, and day from the input Date object.
+  // This ensures that we correctly define the day in UTC, regardless of the
+  // local timezone of the server or the time component of the input Date.
+  const year = specificDateInput.getUTCFullYear();
+  const month = specificDateInput.getUTCMonth(); // JavaScript months are 0-indexed (0 for January, 11 for December)
+  const day = specificDateInput.getUTCDate();
 
-export async function loader({ request }: LoaderFunctionArgs) {
-  const url = new URL(request.url);
-  const from = url.searchParams.get("from");
-  const to = url.searchParams.get("to");
+  // Create Date objects for the very start and very end of that day in UTC.
+  // Using 0 for milliseconds for the start and 999 for the end to cover the full range of the day.
+  const startDateAtTargetDate = new Date(Date.UTC(year, month, day, 0, 0, 0, 0));
+  const endDateAtTargetDate = new Date(Date.UTC(year, month, day, 23, 59, 59, 999));
 
-  async function getFleetOwnersWithAllChauffeursBusy(specificDateInput?: Date) {
-    if (!specificDateInput) {
-      return [];
-    }
-
-    // Use UTC methods to get the year, month, and day from the input Date object.
-    // This ensures that we correctly define the day in UTC, regardless of the
-    // local timezone of the server or the time component of the input Date.
-    const year = specificDateInput.getUTCFullYear();
-    const month = specificDateInput.getUTCMonth(); // JavaScript months are 0-indexed (0 for January, 11 for December)
-    const day = specificDateInput.getUTCDate();
-
-    // Create Date objects for the very start and very end of that day in UTC.
-    const startDateAtTargetDate = new Date(Date.UTC(year, month, day, 0, 0, 0, 0));
-    const endDateAtTargetDate = new Date(Date.UTC(year, month, day, 23, 59, 59, 999));
-
-    // Find fleet owners with no chauffeurs at all
-    const fleetOwnersWithNoChauffeurs = await prisma.user.findMany({
-      where: {
-        // Fleet owners who have cars but no chauffeurs
-        cars: {
-          some: {}, // Has at least one car
-        },
-        chauffeurs: {
-          none: {}, // But has no chauffeurs
-        },
-      },
-      select: {
-        id: true,
-        email: true,
-      },
-    });
-
-    logger.info(
-      `fleet owners with no chauffeurs: ${JSON.stringify(fleetOwnersWithNoChauffeurs, null, 2)}`,
-    );
-
-    // Find fleet owners where all chauffeurs are busy on the specific date
-    const fleetOwnersWithAllChauffeursBusy = await prisma.user.findMany({
-      where: {
-        // Condition 1: The user must be a fleet owner, meaning they have at least one chauffeur.
-        chauffeurs: {
-          some: {}, // Ensures this user has at least one chauffeur.
-        },
-        // Condition 2: ALL of this fleet owner's chauffeurs must be busy on the specificDate.
-        AND: [
-          {
-            chauffeurs: {
-              every: {
-                // A chauffeur is considered busy if they have at least one booking meeting the criteria.
-                bookingsAsChauffeur: {
-                  some: {
-                    status: {
-                      in: [BookingStatus.CONFIRMED, BookingStatus.ACTIVE],
-                    },
-                    // Check for overlap with the specific date (entire day in UTC)
-                    AND: [
-                      // {
-                      //   startDate: {
-                      //     lte: endDateAtTargetDate, // Booking starts on or before the end of the target day (UTC)
-                      //   },
-                      // },
-                      {
-                        endDate: {
-                          gte: startDateAtTargetDate, // Booking ends on or after the start of the target day (UTC)
-                        },
-                      },
-                    ],
-                  },
-                },
-              },
-            },
-          },
-        ],
-      },
-      select: {
-        id: true, // We only need the IDs of the fleet owners
-      },
-    });
-
-    logger.info(
-      `fleet owners with all chauffeurs busy: ${JSON.stringify(fleetOwnersWithAllChauffeursBusy, null, 2)}`,
-    );
-
-    // Combine both sets of IDs and remove duplicates
-    const allUnavailableOwnerIds = [
-      ...fleetOwnersWithNoChauffeurs.map((owner) => owner.id),
-      ...fleetOwnersWithAllChauffeursBusy.map((owner) => owner.id),
-    ];
-
-    return [...new Set(allUnavailableOwnerIds)]; // Remove duplicates using Set
-  }
-
-  const ownersWithAllChauffeursBusy = await prisma.user.findMany({
+  // Find fleet owners who either have no chauffeurs or all chauffeurs are busy
+  const fleetOwnersWithNoChauffeursOrAllChauffeursBusy = await prisma.user.findMany({
     where: {
-      AND: [
-        // Ensure the user (fleet owner) *has* chauffeurs
+      // Condition: The user must be a fleet owner (i.e., owns at least one car)
+      cars: {
+        some: {},
+      },
+      // Condition: User is unavailable if one of the following is true:
+      OR: [
         {
+          // Case 1: Fleet owner has no chauffeurs at all
+          chauffeurs: {
+            none: {},
+          },
+        },
+        {
+          // Case 2: Fleet owner has chauffeurs, and ALL of them are busy
+          // Note: 'some: {}' here ensures the user actually has chauffeurs before checking 'every'
           chauffeurs: {
             some: {},
-          },
-        },
-        // For each chauffeur, check if there's *some* booking that overlaps
-        // the requested date range (startDate < booking.endDate && endDate > booking.startDate).
-        {
-          chauffeurs: {
             every: {
+              // A chauffeur is busy if they have at least one booking meeting the criteria
               bookingsAsChauffeur: {
                 some: {
-                  car: {
-                    owner: {
-                      is: {},
-                    },
-                  },
                   status: {
-                    in: blockingStatuses,
+                    // Define booking statuses that consider a chauffeur 'busy'
+                    in: ["PENDING", "CONFIRMED", "ACTIVE"],
                   },
-                  // Overlap condition
-                  // startDate: {
-                  //   lt: endDate,
-                  // },
-                  endDate: {
-                    gte: from ? new Date(from) : undefined,
-                  },
-                  // Optionally, filter by booking status if you only consider
-                  // certain statuses as blocking. E.g.:
-                  // status: { in: ['CONFIRMED', 'ACTIVE'] },
+                  // Crucial check for overlap with the specific target day (entire day in UTC)
+                  // A booking [B_start, B_end] overlaps with target day [T_start, T_end] if:
+                  // B_start <= T_end AND B_end >= T_start
+                  AND: [
+                    {
+                      startDate: {
+                        lte: endDateAtTargetDate, // Booking starts on or before the end of the target day
+                      },
+                    },
+                    {
+                      endDate: {
+                        gte: startDateAtTargetDate, // Booking ends on or after the start of the target day
+                      },
+                    },
+                  ],
                 },
               },
             },
@@ -172,20 +105,32 @@ export async function loader({ request }: LoaderFunctionArgs) {
       ],
     },
     select: {
-      id: true, // We only need the IDs of these owners
+      id: true,
       email: true,
+      name: true,
     },
+    distinct: ["id"],
   });
 
   logger.info(
-    `fleet owners with all chauffeurs busy outside of the date range: ${JSON.stringify(ownersWithAllChauffeursBusy, null, 2)}`,
+    `Found ${fleetOwnersWithNoChauffeursOrAllChauffeursBusy.length} fleet owners with no chauffeurs or all chauffeurs unavailable for chauffeur service on ${specificDateInput.toDateString()}.`,
+  );
+  // Log details only if needed, or in development/debug environments to prevent excessive logging in production.
+  logger.info(
+    `Unavailable fleet owner details ${JSON.stringify(fleetOwnersWithNoChauffeursOrAllChauffeursBusy)}`,
   );
 
-  // Collect the IDs of these owners
-  const ownerIdsToExclude = ownersWithAllChauffeursBusy.map((o) => o.id);
-  const idsToExclude = await getFleetOwnersWithAllChauffeursBusy(from ? new Date(from) : undefined);
+  return fleetOwnersWithNoChauffeursOrAllChauffeursBusy.map((owner) => owner.id);
+}
 
-  logger.info(`owners that we should exclude: ${JSON.stringify(ownerIdsToExclude, null, 2)}`);
+export async function loader({ request }: LoaderFunctionArgs) {
+  const url = new URL(request.url);
+  const from = url.searchParams.get("from");
+  const to = url.searchParams.get("to");
+
+  const fleetOwnersToExclude = await getFleetOwnersWithNoChauffeursOrAllChauffeursBusy(
+    from ? new Date(from) : undefined,
+  );
 
   const cars = await prisma.car.findMany({
     where: {
@@ -193,7 +138,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
         {
           // Your existing conditions for owner, approvalStatus, etc. should remain
           ownerId: {
-            notIn: idsToExclude, // Assuming idsToExclude is defined
+            notIn: fleetOwnersToExclude, // Assuming idsToExclude is defined
           },
           approvalStatus: "APPROVED",
           owner: {

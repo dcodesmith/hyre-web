@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
 import logger from "~/lib/logger.server";
-import { requireUserWithRole } from "~/modules/auth/auth.server";
+import { requireAdminWithRedirect, requireUserWithRole } from "~/modules/auth/auth.server";
 import { prisma } from "~/modules/db/db.server";
 
 const PlatformFeeType = {
@@ -98,7 +98,7 @@ const platformFeeSchema = z
   );
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  await requireUserWithRole(request, "admin");
+  await requireAdminWithRedirect(request);
 
   const currentVatRate = await prisma.taxRate.findFirst({
     where: {
@@ -138,7 +138,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 }
 
 export async function action({ request }: ActionFunctionArgs) {
-  await requireUserWithRole(request, "admin");
+  await requireAdminWithRedirect(request);
 
   const formData = await request.formData();
   const intent = formData.get("intent");

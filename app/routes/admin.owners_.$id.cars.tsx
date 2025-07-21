@@ -1,20 +1,16 @@
-import { json, type LoaderFunctionArgs, type ActionFunctionArgs } from "@remix-run/node";
-import { useLoaderData, useSubmit } from "@remix-run/react";
-import { Table } from "~/components/Table/Table";
-import { requireAdminWithRedirect } from "~/modules/auth/auth.server";
-import { prisma } from "~/modules/db/db.server";
+import { Car, CarApprovalStatus, FleetOwnerStatus, Status } from "@prisma/client";
+import { type ActionFunctionArgs, type LoaderFunctionArgs, json } from "@remix-run/node";
+import { Link, useLoaderData, useSubmit } from "@remix-run/react";
 import { createColumnHelper } from "@tanstack/react-table";
-import { Link } from "@remix-run/react";
-import { Badge } from "~/components/ui/badge";
-import { Car, CarApprovalStatus, Status, FleetOwnerStatus } from "@prisma/client";
-import { ColumnHeader } from "~/components/Table/ColumnHeader";
-import { Button } from "~/components/ui/button";
-import { AdminCarRowActions } from "~/components/Table/AdminRowActions";
 import { CircleAlertIcon } from "lucide-react";
+import { AdminCarRowActions } from "~/components/Table/AdminRowActions";
+import { ColumnHeader } from "~/components/Table/ColumnHeader";
+import { Table } from "~/components/Table/Table";
+import { Badge } from "~/components/ui/badge";
+import { Button } from "~/components/ui/button";
+import { prisma } from "~/modules/db/db.server";
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
-  await requireAdminWithRedirect(request);
-
   const owner = await prisma.user.findUnique({
     where: { id: params.id },
     include: {
@@ -31,8 +27,6 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 }
 
 export async function action({ request, params }: ActionFunctionArgs) {
-  await requireAdminWithRedirect(request);
-
   const formData = await request.formData();
   const intent = formData.get("intent");
 

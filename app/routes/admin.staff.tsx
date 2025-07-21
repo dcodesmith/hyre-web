@@ -30,7 +30,7 @@ const staffSchema = z.object({
 });
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  const user = await requireAdminWithRedirect(request);
+  await requireAdminWithRedirect(request);
 
   // Get all users who currently have staff role
   const currentStaff = await prisma.user.findMany({
