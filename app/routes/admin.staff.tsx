@@ -16,7 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "~/components/ui/dialog";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Table } from "~/components/Table/Table";
 import { createColumnHelper } from "@tanstack/react-table";
 import { ColumnHeader } from "~/components/Table/ColumnHeader";
@@ -262,6 +262,12 @@ type StaffMember = {
   status: "active" | "revoked";
 };
 
+type ActionResponse = {
+  success: boolean;
+  error?: string;
+  user?: any;
+};
+
 function StaffTable({
   data,
   hideColumnViewOptions,
@@ -344,6 +350,26 @@ export default function AdminStaffPage() {
   });
 
   const isSubmitting = fetcher.state === "submitting";
+
+  // Close modal and show toast when staff is successfully added
+  useEffect(() => {
+    const data = fetcher.data as ActionResponse;
+    if (data?.success && fetcher.state === "idle") {
+      setIsAddStaffOpen(false);
+      toast({
+        title: "Success",
+        description: "Staff member has been added successfully.",
+      });
+      // Reset the form
+      form.reset();
+    } else if (data && !data?.success && fetcher.state === "idle") {
+      toast({
+        title: "Error",
+        description: data?.error || "Failed to add staff member.",
+        variant: "destructive",
+      });
+    }
+  }, [fetcher.data, fetcher.state, toast, form]);
 
   const activeStaffCount = allStaff.filter((staff) => staff.status === "active").length;
   const revokedStaffCount = allStaff.filter((staff) => staff.status === "revoked").length;
