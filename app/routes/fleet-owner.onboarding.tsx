@@ -337,7 +337,7 @@ export default function FleetOwnerOnboarding() {
         className="space-y-4"
         encType="multipart/form-data"
       >
-        <div className="space-y-1">
+        {/* <div className="space-y-1">
           <RadioGroup
             onValueChange={(value) => {
               const isDriver = value === "independentDriver";
@@ -373,7 +373,7 @@ export default function FleetOwnerOnboarding() {
           {independentDriver.errors && (
             <p className="text-red-500 text-sm">{independentDriver.errors}</p>
           )}
-        </div>
+        </div> */}
 
         <input
           type="hidden"
