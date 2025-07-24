@@ -3,6 +3,21 @@ import { PaymentStatus } from "@prisma/client";
 import logger from "~/lib/logger.server";
 import Decimal from "decimal.js";
 
+// Simple in-memory cache for rates (since they change infrequently)
+const ratesCache: {
+  data: {
+    platformCustomerServiceFeeRatePercent: Decimal;
+    platformFleetOwnerCommissionRatePercent: Decimal;
+    vatRatePercent: Decimal;
+  } | null;
+  timestamp: number;
+} = {
+  data: null,
+  timestamp: 0,
+};
+
+const RATES_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
 // Activate an extension after payment is confirmed
 export async function activateExtension(extensionId: string, paymentId: string) {
   const extension = await prisma.$transaction(async (transaction) => {
@@ -141,47 +156,61 @@ export async function calculateExtensionFinancials(
 }
 
 export async function getRates() {
-  // Get current platform fee rates
-  const platformFeeRate = await prisma.platformFeeRate.findFirst({
-    where: {
-      feeType: "PLATFORM_SERVICE_FEE",
-      effectiveSince: { lte: new Date() },
-      OR: [{ effectiveUntil: { gt: new Date() } }, { effectiveUntil: null }],
-    },
-  });
+  const now = Date.now();
+
+  // Check if we have cached data that's still valid
+  if (ratesCache.data && now - ratesCache.timestamp < RATES_CACHE_TTL) {
+    return ratesCache.data;
+  }
+
+  const currentDate = new Date();
+
+  // Run all rate queries in parallel for better performance
+  const [platformRates, vatRate] = await Promise.all([
+    // Get both platform fee rates in a single query
+    prisma.platformFeeRate.findMany({
+      where: {
+        feeType: { in: ["PLATFORM_SERVICE_FEE", "FLEET_OWNER_COMMISSION"] },
+        effectiveSince: { lte: currentDate },
+        OR: [{ effectiveUntil: { gt: currentDate } }, { effectiveUntil: null }],
+      },
+    }),
+    // Get VAT rate
+    prisma.taxRate.findFirst({
+      where: {
+        effectiveSince: { lte: currentDate },
+        OR: [{ effectiveUntil: { gt: currentDate } }, { effectiveUntil: null }],
+      },
+    }),
+  ]);
+
+  // Extract the specific rates from the array
+  const platformFeeRate = platformRates.find((rate) => rate.feeType === "PLATFORM_SERVICE_FEE");
+  const fleetOwnerCommissionRate = platformRates.find(
+    (rate) => rate.feeType === "FLEET_OWNER_COMMISSION",
+  );
 
   if (!platformFeeRate) {
     throw new Error("No active platform service fee rate found");
   }
 
-  // Get fleet owner commission rate
-  const fleetOwnerCommissionRate = await prisma.platformFeeRate.findFirst({
-    where: {
-      feeType: "FLEET_OWNER_COMMISSION",
-      effectiveSince: { lte: new Date() },
-      OR: [{ effectiveUntil: { gt: new Date() } }, { effectiveUntil: null }],
-    },
-  });
-
   if (!fleetOwnerCommissionRate) {
     throw new Error("No active fleet owner commission rate found");
   }
-
-  // Get current VAT rate
-  const vatRate = await prisma.taxRate.findFirst({
-    where: {
-      effectiveSince: { lte: new Date() },
-      OR: [{ effectiveUntil: { gt: new Date() } }, { effectiveUntil: null }],
-    },
-  });
 
   if (!vatRate) {
     throw new Error("No active VAT rate found");
   }
 
-  return {
+  const result = {
     platformCustomerServiceFeeRatePercent: platformFeeRate.ratePercent,
     platformFleetOwnerCommissionRatePercent: fleetOwnerCommissionRate.ratePercent,
     vatRatePercent: vatRate.ratePercent,
   };
+
+  // Cache the result
+  ratesCache.data = result;
+  ratesCache.timestamp = now;
+
+  return result;
 }

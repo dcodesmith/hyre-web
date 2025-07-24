@@ -7,47 +7,55 @@ export async function isCarAvailable(
   startDate: Date,
   endDate: Date,
 ): Promise<boolean> {
+  // First check if the car exists and is available
   const car = await prisma.car.findUnique({
     where: { id: carId },
-    include: {
-      bookings: {
-        where: {
-          paymentStatus: "PAID",
-          // Only check active or confirmed bookings
-          status: {
-            in: ["CONFIRMED", "ACTIVE"],
-          },
-          // Check for any date overlap or if it ends 3hrs before a night booking starts
-          OR: [
-            // New booking starts during an existing booking
-            {
-              startDate: {
-                lte: new Date(endDate.setHours(23, 59, 59, 999)),
-              },
-              endDate: {
-                gte: new Date(startDate.setHours(0, 0, 0, 0)),
-              },
-            },
-            // New night booking starts 3 hours after an existing booking ends
-            {
-              type: BookingType.NIGHT,
-              endDate: {
-                gte: new Date(startDate.setHours(20, 0, 0, 0)),
-                lt: new Date(startDate.setHours(23, 0, 0, 0)),
-              },
-            },
-          ],
-        },
-      },
-    },
+    select: { id: true, status: true },
   });
 
   if (!car) {
     throw new Error("Car not found");
   }
 
-  // Car is available if it's status is AVAILABLE and has no overlapping bookings
-  return car.bookings.length === 0;
+  // If car status is not AVAILABLE, return false early
+  if (car.status !== "AVAILABLE") {
+    return false;
+  }
+
+  // Use a count query instead of fetching all bookings for better performance
+  const conflictingBookingsCount = await prisma.booking.count({
+    where: {
+      carId,
+      paymentStatus: "PAID",
+      // Only check active or confirmed bookings
+      status: {
+        in: ["CONFIRMED", "ACTIVE"],
+      },
+      // Check for any date overlap or if it ends 3hrs before a night booking starts
+      OR: [
+        // New booking starts during an existing booking
+        {
+          startDate: {
+            lte: new Date(endDate.setHours(23, 59, 59, 999)),
+          },
+          endDate: {
+            gte: new Date(startDate.setHours(0, 0, 0, 0)),
+          },
+        },
+        // New night booking starts 3 hours after an existing booking ends
+        {
+          type: BookingType.NIGHT,
+          endDate: {
+            gte: new Date(startDate.setHours(20, 0, 0, 0)),
+            lt: new Date(startDate.setHours(23, 0, 0, 0)),
+          },
+        },
+      ],
+    },
+  });
+
+  // Car is available if it has no overlapping bookings
+  return conflictingBookingsCount === 0;
 }
 
 const getKey = (car: Car, file: File) => {

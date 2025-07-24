@@ -16,8 +16,6 @@ export async function action({ request, params }: ActionFunctionArgs) {
 }
 
 export const loader = async ({ request, params }: LoaderFunctionArgs) => {
-  const user = await getSessionUser(request);
-
   invariant(params.id, "Car ID is required");
   const carId = params.id;
   const url = new URL(request.url);
@@ -26,45 +24,40 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   const toDate = url.searchParams.get("to");
   const bookingType = url.searchParams.get("bookingType");
 
-  // If no fromDate is provided and current time is after 12pm,
-  // set default fromDate to tomorrow
-  // if (!fromDate) {
-  //   const now = new Date();
-  //   if (now.getHours() >= 12) {
-  //     const tomorrow = new Date();
-  //     tomorrow.setDate(tomorrow.getDate() + 1);
-  //     fromDate = tomorrow.toISOString().split("T")[0];
-  //     // Update the URL with the new fromDate
-  //     url.searchParams.set("from", fromDate);
-  //     throw redirect(`${url.pathname}${url.search}`);
-  //   }
-  // }
-
-  let isAvailable = true;
-
-  if (fromDate && toDate) {
-    isAvailable = await isCarAvailable(carId, new Date(fromDate), new Date(toDate));
-  }
-
-  const car = await prisma.car.findUnique({
-    where: { id: carId },
-    include: {
-      images: { select: { url: true } },
-    },
-  });
+  // Run all independent queries in parallel for better performance
+  const [user, car, rates] = await Promise.all([
+    getSessionUser(request),
+    prisma.car.findUnique({
+      where: { id: carId },
+      include: {
+        images: { select: { url: true } },
+      },
+    }),
+    getRates(),
+  ]);
 
   if (!car) {
     throw redirect("/");
   }
 
-  const { vatRatePercent, platformCustomerServiceFeeRatePercent } = await getRates();
+  // Only check availability if dates are provided
+  let isAvailable = true;
+  if (fromDate && toDate) {
+    isAvailable = await isCarAvailable(carId, new Date(fromDate), new Date(toDate));
+  }
 
   return json({
     car,
     isAvailable,
-    user,
-    vatRate: vatRatePercent.toNumber(),
-    platformServiceFeeRate: platformCustomerServiceFeeRatePercent.toNumber(),
+    user: user
+      ? {
+          ...user,
+          createdAt: user.createdAt.toISOString(),
+          updatedAt: user.updatedAt.toISOString(),
+        }
+      : null,
+    vatRate: rates.vatRatePercent.toNumber(),
+    platformServiceFeeRate: rates.platformCustomerServiceFeeRatePercent.toNumber(),
   });
 };
 
@@ -154,7 +147,7 @@ export default function CarDetails() {
           <BookingCard
             car={carWithDates}
             isAvailable={isAvailable}
-            user={user}
+            user={user as any}
             vatRate={vatRate}
             platformServiceFeeRate={platformServiceFeeRate}
           />

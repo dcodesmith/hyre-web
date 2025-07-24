@@ -25,8 +25,6 @@ import { useToast } from "~/hooks/use-toast";
 import { ChauffeurStatus } from "~/types";
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
-  await requireAdminWithRedirect(request);
-
   const owner = await prisma.user.findUnique({
     where: { id: params.id },
     include: {
