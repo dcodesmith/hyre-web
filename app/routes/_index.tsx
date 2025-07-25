@@ -106,10 +106,13 @@ async function getFleetOwnersWithNoChauffeursOrAllChauffeursBusy(
     },
     select: {
       id: true,
+      // Only select essential fields for performance
       email: true,
       name: true,
     },
     distinct: ["id"],
+    // Add ordering for consistent results
+    orderBy: { id: "asc" },
   });
 
   logger.info(
@@ -128,58 +131,124 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const from = url.searchParams.get("from");
   const to = url.searchParams.get("to");
 
-  const fleetOwnersToExclude = await getFleetOwnersWithNoChauffeursOrAllChauffeursBusy(
-    from ? new Date(from) : undefined,
-  );
+  try {
+    // Performance logging
+    const startTime = Date.now();
 
-  const cars = await prisma.car.findMany({
-    where: {
-      AND: [
-        {
-          // Your existing conditions for owner, approvalStatus, etc. should remain
-          ownerId: {
-            notIn: fleetOwnersToExclude, // Assuming idsToExclude is defined
+    const fleetOwnersToExclude = await getFleetOwnersWithNoChauffeursOrAllChauffeursBusy(
+      from ? new Date(from) : undefined,
+    );
+
+    const fleetOwnerQueryTime = Date.now() - startTime;
+    logger.info(`Fleet owners query completed in ${fleetOwnerQueryTime}ms`);
+
+    const carQueryStartTime = Date.now();
+
+    const cars = await prisma.car.findMany({
+      where: {
+        AND: [
+          {
+            // Your existing conditions for owner, approvalStatus, etc. should remain
+            ownerId: {
+              notIn: fleetOwnersToExclude, // Assuming idsToExclude is defined
+            },
+            approvalStatus: "APPROVED",
+            owner: {
+              fleetOwnerStatus: "APPROVED",
+              hasOnboarded: true,
+            },
           },
-          approvalStatus: "APPROVED",
-          owner: {
-            fleetOwnerStatus: "APPROVED",
-            hasOnboarded: true,
-          },
-        },
-        {
-          // New condition to exclude cars with conflicting bookings
-          NOT: {
-            bookings: {
-              some: {
-                status: { in: ["CONFIRMED", "ACTIVE"] }, // Booked and paid for
-                // Overlap condition:
-                // A booking conflicts if:
-                // its start is before the search range's end AND its end is after the search range's start
-                AND: [
-                  {
-                    startDate: {
-                      lt: to ? new Date(`${to}T23:59:59.999Z`) : undefined, // Booking starts before the end of the search 'to' date
+          {
+            // New condition to exclude cars with conflicting bookings
+            NOT: {
+              bookings: {
+                some: {
+                  status: { in: ["CONFIRMED", "ACTIVE"] }, // Booked and paid for
+                  // Overlap condition:
+                  // A booking conflicts if:
+                  // its start is before the search range's end AND its end is after the search range's start
+                  AND: [
+                    {
+                      startDate: {
+                        lt: to ? new Date(`${to}T23:59:59.999Z`) : undefined, // Booking starts before the end of the search 'to' date
+                      },
                     },
-                  },
-                  {
-                    endDate: {
-                      gt: from ? new Date(`${from}T00:00:00.000Z`) : undefined, // Booking ends after the start of the search 'from' date
+                    {
+                      endDate: {
+                        gt: from ? new Date(`${from}T00:00:00.000Z`) : undefined, // Booking ends after the start of the search 'from' date
+                      },
                     },
-                  },
-                ],
+                  ],
+                },
               },
             },
           },
+        ],
+      },
+      include: {
+        // Owner info (include both username and name as required by SerializedCar)
+        owner: {
+          select: {
+            username: true,
+            name: true, // Added missing field required by SerializedCar
+          },
         },
+        // Images (optimized with ordering and limit)
+        images: {
+          select: { url: true },
+          orderBy: { createdAt: "asc" },
+          take: 8, // Limit to reduce payload size
+        },
+        // Documents (required by SerializedCar type)
+        documents: {
+          select: {
+            id: true,
+            documentType: true,
+            documentUrl: true,
+            status: true,
+            notes: true,
+            userId: true,
+            carId: true,
+            approvedById: true,
+            createdAt: true,
+            updatedAt: true,
+            approvedAt: true,
+          },
+        },
+      },
+      // Optimize ordering for better performance
+      orderBy: [
+        { updatedAt: "desc" }, // Recently updated cars first
+        { dayRate: "asc" }, // Then by price
       ],
-    },
-    include: {
-      owner: { select: { username: true } },
-      images: { select: { url: true } },
-    },
-  });
+      // Add reasonable limit to prevent excessive data loading
+      take: 200, // Adjust based on your typical car inventory
+    });
 
-  return json({ cars });
+    const carQueryTime = Date.now() - carQueryStartTime;
+    const totalTime = Date.now() - startTime;
+    logger.info(`Cars query completed in ${carQueryTime}ms`);
+    logger.info(`Total loader execution time: ${totalTime}ms`);
+
+    return json(
+      {
+        cars,
+      },
+      {
+        // Add caching headers for better performance
+        headers: {
+          "Cache-Control": "public, max-age=60, stale-while-revalidate=300",
+          Vary: "Accept-Encoding",
+        },
+      },
+    );
+  } catch (error) {
+    logger.error("Error in loader:", error);
+    // Return empty cars array instead of error object to maintain expected interface
+    return json({
+      cars: [],
+    });
+  }
 }
 
 const PAGE_SIZE = 12;

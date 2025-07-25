@@ -38,6 +38,10 @@ model Car {
 
   @@index([ownerId])
   @@index([ownerId, updatedAt]) // This index was present in your initial schema
+  @@index([ownerId, approvalStatus]) // From add_index_performance_optimizations
+  @@index([approvalStatus]) // From add_index_performance_optimizations
+  @@index([status]) // From add_performance_indexes
+  @@index([updatedAt(sort: Desc), dayRate(sort: Asc)]) // From add_index_performance_optimizations
 }
 
 enum Status {
@@ -99,6 +103,11 @@ model User {
   documents             DocumentApproval[] @relation("UserDocuments")
   approvedDocuments     DocumentApproval[] @relation("ApprovedBy")
   approvedVehicleImages VehicleImage[]     @relation("ApprovedVehicleImages")
+
+  @@index([fleetOwnerId]) // From add_index_performance_optimizations
+  @@index([fleetOwnerStatus, hasOnboarded]) // From add_index_performance_optimizations
+  @@index([hasOnboarded]) // From add_index_performance_optimizations
+  @@index([id, email]) // From add_performance_indexes
 }
 
 model Role {
@@ -205,6 +214,10 @@ model Booking {
   @@index([paymentStatus])
   @@index([paymentIntent])
   @@index([overallPayoutStatus])
+  @@index([startDate, endDate, status]) // From add_index_performance_optimizations
+  @@index([chauffeurId, status, startDate, endDate]) // From add_index_performance_optimizations
+  @@index([carId, paymentStatus, status, startDate, endDate]) // From add_performance_indexes
+  @@index([type, endDate]) // From add_performance_indexes
 }
 
 // Represents each individual day within a booking period
