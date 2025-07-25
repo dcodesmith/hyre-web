@@ -43,13 +43,8 @@ type ActionResponse = { success: boolean; error?: string | null } | undefined;
 export async function action({ request }: ActionFunctionArgs) {
   const user = await requireUser(request);
 
-  // Use Remix's unstable_parseMultipartFormData for proper file handling on Vercel
-  const uploadHandler = unstable_createMemoryUploadHandler({
-    maxPartSize: 10 * 1024 * 1024, // 10MB limit
-  });
-
-  const formData = await unstable_parseMultipartFormData(request, uploadHandler);
-
+  // Parse as regular form data to get the intent
+  const formData = await request.formData();
   const intent = String(formData.get("intent"));
 
   if (!["create", "edit"].includes(intent)) {
@@ -58,7 +53,16 @@ export async function action({ request }: ActionFunctionArgs) {
 
   try {
     if (intent === "create") {
-      const submission = parseWithZod(formData, { schema: carSchema });
+      // Use Remix's unstable_parseMultipartFormData for proper file handling on Vercel
+      const uploadHandler = unstable_createMemoryUploadHandler({
+        maxPartSize: 10 * 1024 * 1024, // 10MB limit
+      });
+      const multipartFormData = await unstable_parseMultipartFormData(
+        request.clone(),
+        uploadHandler,
+      );
+
+      const submission = parseWithZod(multipartFormData, { schema: carSchema });
 
       if (submission.status !== "success") {
         return json(submission.reply());

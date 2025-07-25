@@ -60,11 +60,11 @@ const carSchema = z.object({
         },
       ),
     ),
-  price: z
+  dayRate: z
     .number({
-      required_error: "Price is required.",
+      required_error: "Day rate is required.",
     })
-    .positive("Price must be positive"),
+    .positive("Day rate must be positive"),
   status: z.enum(STATUSES),
 
   hourlyRate: z
@@ -139,7 +139,7 @@ function EditCarForm({ car, setIsEditOpen }: EditCarFormProps) {
       </div>
 
       <div className="space-y-0.5">
-        <Label htmlFor={dayRate.id}>Price</Label>
+        <Label htmlFor={dayRate.id}>Day Rate</Label>
         <Input
           {...getInputProps(dayRate, { type: "number" })}
           step="1000"
