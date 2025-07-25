@@ -16,12 +16,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "~/components/ui/dialog";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Table } from "~/components/Table/Table";
 import { createColumnHelper } from "@tanstack/react-table";
 import { ColumnHeader } from "~/components/Table/ColumnHeader";
 import { Badge } from "~/components/ui/badge";
-import { useToast } from "~/hooks/use-toast";
 
 const staffSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
@@ -294,11 +293,14 @@ function StaffTable({
     }),
     columnHelper.accessor("status", {
       header: ({ column }) => <ColumnHeader column={column} title="Status" />,
-      cell: (info) => (
-        <Badge variant={info.getValue() === "active" ? "default" : "secondary"}>
-          {info.getValue() === "active" ? "Active" : "Revoked"}
-        </Badge>
-      ),
+      cell: (info) => {
+        const status = info.getValue() as "active" | "revoked";
+        return (
+          <Badge variant={status === "active" ? "default" : "secondary"}>
+            {status === "active" ? "Active" : "Revoked"}
+          </Badge>
+        );
+      },
     }),
     columnHelper.accessor("createdAt", {
       header: ({ column }) => <ColumnHeader column={column} title="Added On" />,
@@ -333,43 +335,32 @@ function StaffTable({
     }),
   ];
 
-  return <Table columns={columns} data={data} hideColumnViewOptions />;
+  return <Table columns={columns as any} data={data} hideColumnViewOptions />;
 }
 
 export default function AdminStaffPage() {
   const { allStaff } = useLoaderData<typeof loader>();
   const [isAddStaffOpen, setIsAddStaffOpen] = useState(false);
   const fetcher = useFetcher();
-  const { toast } = useToast();
+  const formRef = useRef<HTMLFormElement>(null);
 
   const [form, { name, email, phoneNumber }] = useForm({
+    lastResult: fetcher.data as any,
     onValidate({ formData }) {
       return parseWithZod(formData, { schema: staffSchema });
     },
-    shouldValidate: "onInput",
+    shouldValidate: "onBlur",
   });
 
   const isSubmitting = fetcher.state === "submitting";
 
-  // Close modal and show toast when staff is successfully added
+  // Close modal when staff is successfully added
   useEffect(() => {
     const data = fetcher.data as ActionResponse;
     if (data?.success && fetcher.state === "idle") {
       setIsAddStaffOpen(false);
-      toast({
-        title: "Success",
-        description: "Staff member has been added successfully.",
-      });
-      // Reset the form
-      form.reset();
-    } else if (data && !data?.success && fetcher.state === "idle") {
-      toast({
-        title: "Error",
-        description: data?.error || "Failed to add staff member.",
-        variant: "destructive",
-      });
     }
-  }, [fetcher.data, fetcher.state, toast, form]);
+  }, [fetcher.data, fetcher.state]);
 
   const activeStaffCount = allStaff.filter((staff) => staff.status === "active").length;
   const revokedStaffCount = allStaff.filter((staff) => staff.status === "revoked").length;
@@ -397,7 +388,7 @@ export default function AdminStaffPage() {
             </DialogDescription>
           </DialogHeader>
 
-          <fetcher.Form method="post" className="space-y-4" {...getFormProps(form)}>
+          <fetcher.Form ref={formRef} method="post" className="space-y-4" {...getFormProps(form)}>
             <div className="space-y-1">
               <Label htmlFor={name.id}>Full Name</Label>
               <Input
@@ -435,7 +426,14 @@ export default function AdminStaffPage() {
             </div>
 
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setIsAddStaffOpen(false)}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setIsAddStaffOpen(false);
+                  form.reset();
+                }}
+              >
                 Cancel
               </Button>
               <Button type="submit" disabled={isSubmitting}>

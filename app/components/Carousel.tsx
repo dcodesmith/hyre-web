@@ -3,6 +3,7 @@ import { Button } from "./ui/button";
 
 interface CarouselProps {
   images?: string[];
+  priority?: boolean; // Add priority prop for above-the-fold images
 }
 
 export default function Carousel({
@@ -11,6 +12,7 @@ export default function Carousel({
     "https://picsum.photos/seed/2/800/600",
     "https://picsum.photos/seed/3/800/600",
   ],
+  priority = false, // Default to lazy loading
 }: CarouselProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
 
@@ -39,6 +41,11 @@ export default function Carousel({
             src={image}
             alt={`Car view ${index + 1}`}
             className="w-full h-80 object-cover flex-shrink-0"
+            width="400"
+            height="320"
+            loading={priority && index === 0 ? "eager" : "lazy"}
+            decoding="async"
+            // fetchPriority={priority && index === 0 ? "high" : "low"}
           />
         ))}
       </div>

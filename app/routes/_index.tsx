@@ -18,7 +18,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { LocateFixed, ShieldCheck, Star } from "lucide-react";
+import { LocateFixed, ShieldCheck } from "lucide-react";
 import { useRef, useState } from "react";
 import Carousel from "~/components/Carousel";
 import { columns } from "~/components/Table/Columns";
@@ -30,8 +30,22 @@ import { prisma } from "~/modules/db/db.server";
 
 import type { SerializedCar } from "~/types";
 
-// Preload hero image only for home page
+// Preload hero image only for home page - use WebP with responsive fallback
 export const links = () => [
+  {
+    rel: "preload",
+    href: "/images/hero.webp",
+    as: "image",
+    type: "image/webp",
+    media: "(min-width: 1024px)",
+  },
+  {
+    rel: "preload",
+    href: "/images/hero-1200.webp",
+    as: "image",
+    type: "image/webp",
+    media: "(min-width: 768px) and (max-width: 1023px)",
+  },
   { rel: "preload", href: "/images/hero.png", as: "image", type: "image/png" },
 ];
 
@@ -149,62 +163,66 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
     const carQueryStartTime = Date.now();
 
+    // Optimized query with reduced includes for better performance
     const cars = await prisma.car.findMany({
       where: {
         AND: [
           {
             // Your existing conditions for owner, approvalStatus, etc. should remain
-            ownerId: {
-              notIn: fleetOwnersToExclude, // Assuming idsToExclude is defined
-            },
+            ...(fleetOwnersToExclude.length > 0 && {
+              ownerId: {
+                notIn: fleetOwnersToExclude,
+              },
+            }),
             approvalStatus: "APPROVED",
             owner: {
               fleetOwnerStatus: "APPROVED",
               hasOnboarded: true,
             },
           },
-          {
-            // New condition to exclude cars with conflicting bookings
-            NOT: {
-              bookings: {
-                some: {
-                  status: { in: ["CONFIRMED", "ACTIVE"] }, // Booked and paid for
-                  // Overlap condition:
-                  // A booking conflicts if:
-                  // its start is before the search range's end AND its end is after the search range's start
-                  AND: [
-                    {
-                      startDate: {
-                        lt: to ? new Date(`${to}T23:59:59.999Z`) : undefined, // Booking starts before the end of the search 'to' date
+          // Only add booking conflict check if dates are provided
+          ...(from && to
+            ? [
+                {
+                  NOT: {
+                    bookings: {
+                      some: {
+                        status: { in: [BookingStatus.CONFIRMED, BookingStatus.ACTIVE] },
+                        AND: [
+                          {
+                            startDate: {
+                              lt: new Date(`${to}T23:59:59.999Z`),
+                            },
+                          },
+                          {
+                            endDate: {
+                              gt: new Date(`${from}T00:00:00.000Z`),
+                            },
+                          },
+                        ],
                       },
                     },
-                    {
-                      endDate: {
-                        gt: from ? new Date(`${from}T00:00:00.000Z`) : undefined, // Booking ends after the start of the search 'from' date
-                      },
-                    },
-                  ],
+                  },
                 },
-              },
-            },
-          },
+              ]
+            : []),
         ],
       },
       include: {
-        // Owner info (include both username and name as required by SerializedCar)
+        // Minimal owner info for better performance
         owner: {
           select: {
             username: true,
-            name: true, // Added missing field required by SerializedCar
+            name: true,
           },
         },
-        // Images (optimized with ordering and limit)
+        // Reduced image selection for faster loading
         images: {
           select: { url: true },
           orderBy: { createdAt: "asc" },
-          take: 8, // Limit to reduce payload size
+          take: 4, // Reduced from 8 to 4 for faster loading
         },
-        // Documents (required by SerializedCar type)
+        // Keep minimal documents for type compatibility
         documents: {
           select: {
             id: true,
@@ -219,15 +237,13 @@ export async function loader({ request }: LoaderFunctionArgs) {
             updatedAt: true,
             approvedAt: true,
           },
+          take: 1, // Only take first document for performance
         },
       },
       // Optimize ordering for better performance
-      orderBy: [
-        { updatedAt: "desc" }, // Recently updated cars first
-        { dayRate: "asc" }, // Then by price
-      ],
+      orderBy: [{ updatedAt: "desc" }, { dayRate: "asc" }],
       // Add reasonable limit to prevent excessive data loading
-      take: 200, // Adjust based on your typical car inventory
+      take: 100, // Reduced from 200 to 100 for faster initial load
     });
 
     const carQueryTime = Date.now() - carQueryStartTime;
@@ -240,10 +256,11 @@ export async function loader({ request }: LoaderFunctionArgs) {
         cars,
       },
       {
-        // Add caching headers for better performance
+        // Enhanced caching headers for better performance
         headers: {
-          "Cache-Control": "public, max-age=60, stale-while-revalidate=300",
+          "Cache-Control": "public, max-age=300, stale-while-revalidate=1800", // Increased cache time
           Vary: "Accept-Encoding",
+          "X-Total-Time": `${totalTime}ms`,
         },
       },
     );
@@ -424,11 +441,31 @@ export default function IndexPage() {
         </div>
 
         <div className="relative lg:col-span-2 md:col-span-1 hidden md:block">
-          <img
-            src={`${baseUrl}/images/hero.png`}
-            alt="Hero"
-            className="md:h-[648px] w-full object-cover"
-          />
+          <picture>
+            <source
+              media="(min-width: 1024px)"
+              srcSet={`${baseUrl}/images/hero.webp`}
+              type="image/webp"
+            />
+            <source
+              media="(min-width: 768px)"
+              srcSet={`${baseUrl}/images/hero-1200.webp`}
+              type="image/webp"
+            />
+            <source
+              media="(min-width: 1024px)"
+              srcSet={`${baseUrl}/images/hero.png`}
+              type="image/png"
+            />
+            <img
+              src={`${baseUrl}/images/hero.png`}
+              alt="Professional chauffeur service - luxury vehicle ready for hire"
+              className="md:h-[648px] w-full object-cover"
+              width="1024"
+              height="1024"
+              decoding="async"
+            />
+          </picture>
         </div>
       </div>
 
@@ -437,7 +474,7 @@ export default function IndexPage() {
           ref={carsRef}
           className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-2 gap-y-6"
         >
-          {table.getRowModel().rows.map((row) => (
+          {table.getRowModel().rows.map((row, index) => (
             <Link key={row.original.id} to={`/cars/${row.original.id}?${searchParams.toString()}`}>
               <div className="overflow-hidden space-y-2">
                 <Carousel
@@ -446,6 +483,7 @@ export default function IndexPage() {
                       ? row.original.images.map(({ url }) => url)
                       : undefined
                   }
+                  priority={index < 3} // Only first 3 cars are above-the-fold
                 />
 
                 <div className="space-y-1 font-semibold flex flex-col">

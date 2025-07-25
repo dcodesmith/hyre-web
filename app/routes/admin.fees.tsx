@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
 import logger from "~/lib/logger.server";
-import { requireAdminWithRedirect, requireUserWithRole } from "~/modules/auth/auth.server";
+import { requireAdminWithRedirect } from "~/modules/auth/auth.server";
 import { prisma } from "~/modules/db/db.server";
 
 const PlatformFeeType = {

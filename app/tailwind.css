@@ -5,6 +5,15 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Add font-display: swap for better LCP */
+@font-face {
+  font-family: "DancingScript";
+  src: url("/fonts/DancingScript-Regular.ttf") format("truetype");
+  font-display: swap;
+  font-weight: normal;
+  font-style: normal;
+}
+
 @layer base {
   :root {
     --radius: 0.5rem;
