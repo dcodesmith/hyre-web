@@ -1,6 +1,7 @@
 import { cssBundleHref } from "@remix-run/css-bundle";
 import type { LinksFunction, LoaderFunctionArgs } from "@remix-run/node";
 import { SpeedInsights } from "@vercel/speed-insights/react";
+import { Analytics } from "@vercel/analytics/remix";
 import {
   Link,
   Links,
@@ -75,6 +76,8 @@ export default function App() {
         <Links />
       </head>
       <body className="h-full bg-background">
+        <Analytics />
+
         <div className="flex flex-col min-h-screen">
           <header className="p-4 flex container mx-auto justify-between items-center z-10">
             <Link
