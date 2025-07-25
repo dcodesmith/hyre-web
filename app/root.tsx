@@ -25,7 +25,10 @@ import { Button } from "./components/ui/button";
 export const links: LinksFunction = () => [
   ...(cssBundleHref ? [{ rel: "stylesheet", href: cssBundleHref }] : []),
   { rel: "stylesheet", href: tailwindStyles },
-  { rel: "icon", href: "/logo.svg" },
+  { rel: "icon", type: "image/svg+xml", href: "/logo.svg" },
+  { rel: "alternate icon", href: "/favicon.ico" },
+  { rel: "apple-touch-icon", href: "/apple-touch-icon.svg" },
+  { rel: "apple-touch-icon-precomposed", href: "/apple-touch-icon.svg" },
   // Performance optimizations
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
   { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
