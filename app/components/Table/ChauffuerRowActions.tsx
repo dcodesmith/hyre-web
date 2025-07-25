@@ -152,7 +152,7 @@ export function ChauffeurRowActions({ row }: DataTableRowActionsProps) {
       </DropdownMenu>
 
       <Sheet open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <SheetContent className="sm:max-w-[400px] px-8">
+        <SheetContent className="sm:max-w-[400px] w-full px-8 overflow-y-auto">
           <SheetHeader>
             <SheetTitle>Edit Chauffeur</SheetTitle>
             <SheetDescription>

@@ -26,7 +26,7 @@ import {
 } from "~/components/ui/sheet";
 import { useToast } from "~/hooks/use-toast";
 import { cn, useIsPending } from "~/lib/utils";
-import { requireUser } from "~/modules/auth/auth.server";
+import { requireUserWithRole } from "~/modules/auth/auth.server";
 import { prisma } from "~/modules/db/db.server";
 import { createUser } from "~/services/users.server";
 import type { ChauffeurStatus, SerializedChauffeur } from "~/types";
@@ -85,7 +85,7 @@ const chauffeurStatusOptions: Record<ChauffeurStatus, string> = {
 };
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  const user = await requireUser(request);
+  const user = await requireUserWithRole(request, "fleetOwner");
 
   const chauffeurs = await prisma.user.findMany({
     where: {
@@ -169,15 +169,10 @@ export async function loader({ request }: LoaderFunctionArgs) {
 }
 
 export async function action({ request }: ActionFunctionArgs) {
-  const user = await requireUser(request);
+  const user = await requireUserWithRole(request, "fleetOwner");
 
-  // Use Remix's unstable_parseMultipartFormData for proper file handling on Vercel
-  const uploadHandler = unstable_createMemoryUploadHandler({
-    maxPartSize: 10 * 1024 * 1024, // 10MB limit
-  });
-
-  const formData = await unstable_parseMultipartFormData(request, uploadHandler);
-
+  // Parse as regular form data to get the intent
+  const formData = await request.formData();
   const intent = String(formData.get("intent"));
 
   if (!["create", "edit"].includes(intent)) {
@@ -186,7 +181,16 @@ export async function action({ request }: ActionFunctionArgs) {
 
   try {
     if (intent === "create") {
-      const submission = parseWithZod(formData, { schema: chauffeurSchema });
+      // Re-parse as multipart form data for file uploads
+      const uploadHandler = unstable_createMemoryUploadHandler({
+        maxPartSize: 10 * 1024 * 1024, // 10MB limit
+      });
+      const multipartFormData = await unstable_parseMultipartFormData(
+        request.clone(),
+        uploadHandler,
+      );
+
+      const submission = parseWithZod(multipartFormData, { schema: chauffeurSchema });
 
       if (submission.status !== "success") {
         return json(submission.reply());
@@ -208,7 +212,7 @@ export async function action({ request }: ActionFunctionArgs) {
       const chauffeurId = String(formData.get("chauffeurId"));
 
       const submission = parseWithZod(formData, {
-        schema: chauffeurSchema, //.pick({ phoneNumber: true, address: true }),
+        schema: chauffeurSchema.omit({ ninFile: true, drivingLicenceFile: true }),
       });
 
       if (submission.status !== "success") {
@@ -455,7 +459,7 @@ export default function ChauffeursPage() {
             </Button>
           </SheetTrigger>
           <SheetContent
-            className="sm:max-w-[400px] w-full px-8"
+            className="sm:max-w-[400px] w-full px-8 overflow-y-auto"
             onInteractOutside={(e) => e.preventDefault()}
           >
             <SheetHeader>
@@ -464,7 +468,7 @@ export default function ChauffeursPage() {
                 Fill in the details to add a new chauffeur to your fleet.
               </SheetDescription>
             </SheetHeader>
-            <div className="mt-4 w-full">
+            <div className="mt-4">
               <ChauffeurForm />
             </div>
           </SheetContent>

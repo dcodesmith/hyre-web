@@ -3,7 +3,6 @@ import { Link, redirect, useLoaderData, useSearchParams } from "@remix-run/react
 import invariant from "tiny-invariant";
 import BookingCard from "~/components/BookingCard";
 import CarCarousel from "~/components/Carousel";
-import logger from "~/lib/logger.server";
 import { getSessionUser, requireUser } from "~/modules/auth/auth.server";
 import { prisma } from "~/modules/db/db.server";
 import { isCarAvailable } from "~/services/cars.server";

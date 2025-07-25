@@ -118,27 +118,27 @@ function EditCarForm({ car, setIsEditOpen }: EditCarFormProps) {
   return (
     <fetcher.Form method="post" {...getFormProps(form)} className="space-y-4">
       {fetcher.data?.error && <p className="text-sm text-red-500">{fetcher.data.error}</p>}
-      <div className="space-y-1">
+      <div className="space-y-0.5">
         <Label htmlFor={make.id}>Make</Label>
         <Input readOnly {...getInputProps(make, { type: "text" })} />
       </div>
 
-      <div className="space-y-1">
+      <div className="space-y-0.5">
         <Label htmlFor={model.id}>Model</Label>
         <Input readOnly {...getInputProps(model, { type: "text" })} />
       </div>
 
-      <div className="space-y-1">
+      <div className="space-y-0.5">
         <Label htmlFor={year.id}>Year</Label>
         <Input readOnly {...getInputProps(year, { type: "number" })} />
       </div>
 
-      <div className="space-y-1">
+      <div className="space-y-0.5">
         <Label htmlFor={registrationNumber.id}>Registration Number</Label>
         <Input readOnly {...getInputProps(registrationNumber, { type: "text" })} />
       </div>
 
-      <div className="space-y-1">
+      <div className="space-y-0.5">
         <Label htmlFor={dayRate.id}>Price</Label>
         <Input
           {...getInputProps(dayRate, { type: "number" })}
@@ -150,7 +150,7 @@ function EditCarForm({ car, setIsEditOpen }: EditCarFormProps) {
         {dayRate.errors && <p className="text-sm text-destructive">{dayRate.errors.join(" ")}</p>}
       </div>
 
-      <div className="space-y-1">
+      <div className="space-y-0.5">
         <Label htmlFor="hourlyRate">Hourly Rate</Label>
         <Input
           {...getInputProps(hourlyRate, { type: "number" })}
@@ -166,7 +166,7 @@ function EditCarForm({ car, setIsEditOpen }: EditCarFormProps) {
         )}
       </div>
 
-      <div className="space-y-1">
+      <div className="space-y-0.5">
         <Label htmlFor="nightRate">Nightly Rate</Label>
         <Input
           {...getInputProps(nightRate, { type: "number" })}
@@ -181,7 +181,7 @@ function EditCarForm({ car, setIsEditOpen }: EditCarFormProps) {
       </div>
 
       {car.status !== "BOOKED" && (
-        <div className="space-y-1">
+        <div className="space-y-0.5">
           <Label htmlFor={status.id}>Status</Label>
           <Select
             {...getInputProps(status, { type: "text" })}
@@ -264,7 +264,7 @@ export function RowActions({ row }: DataTableRowActionsProps) {
       </DropdownMenu>
 
       <Sheet open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <SheetContent className="sm:max-w-[400px] px-8">
+        <SheetContent className="sm:max-w-[400px] w-full px-8 overflow-y-auto">
           <SheetHeader>
             <SheetTitle>Edit Car</SheetTitle>
             <SheetDescription>

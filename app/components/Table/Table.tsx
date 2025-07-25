@@ -153,7 +153,7 @@ export function Table<T extends object>({
         </TableUI>
       </div>
 
-      <Pagination table={table} />
+      {data.length >= 10 && <Pagination table={table} />}
     </div>
   );
 }

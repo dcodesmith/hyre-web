@@ -28,8 +28,6 @@ export const links: LinksFunction = () => [
   // Performance optimizations
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
   { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
-  // Preload critical images for faster rendering
-  { rel: "preload", href: "/images/hero.png", as: "image", type: "image/png" },
   // DNS prefetch for potential external resources
   { rel: "dns-prefetch", href: "https://vercel.app" },
 ];

@@ -30,6 +30,11 @@ import { prisma } from "~/modules/db/db.server";
 
 import type { SerializedCar } from "~/types";
 
+// Preload hero image only for home page
+export const links = () => [
+  { rel: "preload", href: "/images/hero.png", as: "image", type: "image/png" },
+];
+
 /**
  * Retrieves the IDs of fleet owners who are effectively 'unavailable'
  * on a specific date. This includes owners who have no chauffeurs,
