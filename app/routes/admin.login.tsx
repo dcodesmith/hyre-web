@@ -6,15 +6,14 @@ import { Input } from "~/components/ui/input";
 import logger from "~/lib/logger.server";
 import { authenticator } from "~/modules/auth/auth.server";
 import { prisma } from "~/modules/db/db.server";
-import { userHasRole } from "~/utils/misc";
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  // Redirect to admin if already authenticated
   const user = await authenticator.isAuthenticated(request);
-  console.log("user", user);
+
   if (user) {
     return redirect("/admin");
   }
+
   return null;
 }
 

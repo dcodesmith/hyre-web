@@ -83,9 +83,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
   return json({ pendingDocuments, pendingVehicleImages });
 }
 
-const isDocumentLink = (type: (typeof DocumentType)[keyof typeof DocumentType]) =>
-  type === DocumentType.MOT_CERTIFICATE || type === DocumentType.INSURANCE_CERTIFICATE;
-
 const documentTypeMap: Record<(typeof DocumentType)[keyof typeof DocumentType], string> = {
   [DocumentType.MOT_CERTIFICATE]: "MOT Certificate",
   [DocumentType.INSURANCE_CERTIFICATE]: "Insurance Certificate",
@@ -207,24 +204,31 @@ export default function AdminDocumentsPage() {
                         {/* Document Header */}
                         <div className="space-y-2">
                           <h3 className="text-base font-medium">
-                            {documentTypeMap[doc.documentType]} for {doc.car?.make} {doc.car?.model}{" "}
-                            [{doc.car?.registrationNumber}]
+                            {documentTypeMap[doc.documentType]}{" "}
+                            {doc.documentType === DocumentType.NIN ||
+                            doc.documentType === DocumentType.DRIVERS_LICENSE
+                              ? `for ${doc.user?.name || "Unknown User"}`
+                              : doc.documentType === DocumentType.MOT_CERTIFICATE ||
+                                  doc.documentType === DocumentType.INSURANCE_CERTIFICATE
+                                ? `for car [${doc.car?.registrationNumber.trim()}]`
+                                : `for ${doc.car?.make} ${doc.car?.model}`}
                           </h3>
                           <p className="text-sm text-gray-600">
                             Submitted on {new Date(doc.createdAt).toLocaleDateString("en-GB")} by{" "}
-                            {doc.car?.owner?.name || "fleet owner"}
+                            {doc.car?.owner?.name ||
+                              doc.user?.name ||
+                              doc.user?.email ||
+                              "fleet owner"}
                           </p>
                         </div>
 
                         {/* View Certificate Button */}
-                        {isDocumentLink(doc.documentType) && (
-                          <div className="flex items-center gap-2">
-                            <FileText className="h-4 w-4" />
-                            <a href={doc.documentUrl} target="_blank" rel="noreferrer">
-                              View Certificate
-                            </a>
-                          </div>
-                        )}
+                        <div className="flex items-center gap-2">
+                          <FileText className="h-4 w-4" />
+                          <a href={doc.documentUrl} target="_blank" rel="noreferrer">
+                            View Document
+                          </a>
+                        </div>
 
                         {/* Action Buttons */}
                         <div className="flex gap-3">
