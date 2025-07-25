@@ -1,5 +1,6 @@
 import { cssBundleHref } from "@remix-run/css-bundle";
 import type { LinksFunction, LoaderFunctionArgs } from "@remix-run/node";
+import { SpeedInsights } from "@vercel/speed-insights/react";
 import {
   Link,
   Links,
@@ -118,6 +119,7 @@ export default function App() {
           }}
         />
         <Scripts />
+        <SpeedInsights />
       </body>
     </html>
   );
