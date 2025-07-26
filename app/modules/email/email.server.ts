@@ -44,12 +44,12 @@ export async function sendEmail(options: SendEmailOptions) {
   const parsedData = ResendSuccessSchema.safeParse(data);
 
   if (response.ok && parsedData.success) {
-    logger.info({
-      message: "Email sent successfully",
+    const emailData = {
       to: options.to,
       subject: options.subject,
       id: parsedData.data.id,
-    });
+    };
+    logger.info("Email sent successfully", emailData);
     return { status: "success", data: parsedData } as const;
   }
 

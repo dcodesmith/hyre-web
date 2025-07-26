@@ -38,9 +38,12 @@ export async function loader({ request }: LoaderFunctionArgs) {
     | null;
   const flutterwaveTransactionId = url.searchParams.get("transaction_id");
 
-  logger.info(
-    `[PaymentStatus Loader] Received: tx_ref=${txRef}, fwStatus=${fwStatus}, transactionType=${transactionType}, fw_tx_id=${flutterwaveTransactionId}`,
-  );
+  logger.info("[PaymentStatus Loader] Received payment status", {
+    txRef,
+    fwStatus,
+    transactionType,
+    flutterwaveTransactionId,
+  });
 
   let initialError: string | null = null;
   let bookingData: LoaderBookingData | null = null;
@@ -48,7 +51,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
   if (!txRef) {
     initialError = "Transaction reference (tx_ref) is missing from the URL.";
-    logger.warn("[PaymentStatus Loader] tx_ref missing.");
+    logger.warn("[PaymentStatus Loader] tx_ref missing");
     return json(
       {
         txRef: null,
@@ -66,7 +69,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
   if (!transactionType) {
     initialError = "Transaction type (transactionType) is missing from the URL.";
-    logger.warn("[PaymentStatus Loader] transactionType missing.");
+    logger.warn("[PaymentStatus Loader] transactionType missing");
     return json(
       {
         txRef,
@@ -85,9 +88,9 @@ export async function loader({ request }: LoaderFunctionArgs) {
   if (transactionType === "booking_extension") {
     extensionData = await findExtensionByPaymentIntent(txRef);
     if (extensionData) {
-      logger.info("[PaymentStatus Loader] Extension Data:", extensionData);
+      logger.info("[PaymentStatus Loader] Extension Data", extensionData);
     } else {
-      logger.warn(`[PaymentStatus Loader] Extension with tx_ref ${txRef} not found in DB yet.`);
+      logger.warn("[PaymentStatus Loader] Extension with tx_ref not found in DB yet", { txRef });
     }
   } else if (transactionType === "booking_creation") {
     const booking = await findBookingByPaymentIntent(txRef);
@@ -96,13 +99,13 @@ export async function loader({ request }: LoaderFunctionArgs) {
         ...booking,
         totalAmount: booking.totalAmount ? Number(booking.totalAmount) : null,
       };
-      logger.info("[PaymentStatus Loader] Booking Data:", bookingData);
+      logger.info("[PaymentStatus Loader] Booking Data", bookingData);
     } else {
-      logger.warn(`[PaymentStatus Loader] Booking with tx_ref ${txRef} not found in DB yet.`);
+      logger.warn("[PaymentStatus Loader] Booking with tx_ref not found in DB yet", { txRef });
     }
   } else {
     initialError = "Invalid transactionType specified.";
-    logger.warn(`[PaymentStatus Loader] Invalid transactionType: ${transactionType}`);
+    logger.warn("[PaymentStatus Loader] Invalid transactionType", { transactionType });
   }
 
   return json({

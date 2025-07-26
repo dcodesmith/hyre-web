@@ -26,7 +26,7 @@ function getTwilioConfig(): TwilioConfig {
       .join(", ");
 
     const errorMessage = `Twilio configuration missing: ${missing}. Please check environment variables.`;
-    logger.error(errorMessage);
+    logger.error("Twilio configuration missing", { missing });
     throw new Error(errorMessage);
   }
 
@@ -67,14 +67,14 @@ let twilioClient: Twilio | null = null;
 if (twilioConfig?.accountSid && twilioConfig?.authToken) {
   try {
     twilioClient = twilio(twilioConfig.accountSid, twilioConfig.authToken);
-    logger.info("Twilio client initialized successfully.");
+    logger.info("Twilio client initialized successfully");
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    logger.error(`Failed to initialize Twilio client at module load: ${errorMessage}`);
+    logger.error("Failed to initialize Twilio client at module load", { error: errorMessage });
   }
 } else {
   logger.error(
-    "Twilio client could not be initialized due to missing configuration (accountSid or authToken).",
+    "Twilio client could not be initialized due to missing configuration (accountSid or authToken)",
   );
 }
 
@@ -88,13 +88,13 @@ export async function sendMessage({
   templateKey: Template;
 }): Promise<MessageInstance | null> {
   if (!twilioConfig) {
-    logger.error("Cannot send WhatsApp message: Twilio configuration is missing.");
+    logger.error("Cannot send WhatsApp message: Twilio configuration is missing");
     return null;
   }
 
   if (!twilioClient) {
     logger.error(
-      "Cannot send WhatsApp message: Twilio client is not initialized. Check logs for initialization errors.",
+      "Cannot send WhatsApp message: Twilio client is not initialized. Check logs for initialization errors",
     );
     return null;
   }
@@ -103,20 +103,20 @@ export async function sendMessage({
 
   if (!recipientNumber) {
     logger.error(
-      "Cannot send WhatsApp message: Recipient number is not provided and no default is configured.",
+      "Cannot send WhatsApp message: Recipient number is not provided and no default is configured",
     );
     return null;
   }
 
   if (!twilioConfig.whatsAppNumber) {
-    logger.error("Cannot send WhatsApp message: Twilio WhatsApp sender number is not configured.");
+    logger.error("Cannot send WhatsApp message: Twilio WhatsApp sender number is not configured");
     return null;
   }
 
   const contentSid = contentSidMap[templateKey];
 
   if (!contentSid) {
-    logger.error(`Could not find SID for template key: ${templateKey}. This should not happen.`);
+    logger.error("Could not find SID for template key", { templateKey });
     return null;
   }
 
@@ -146,8 +146,8 @@ export async function sendMessage({
       `Error sending WhatsApp message to ${to} using template '${templateKey}': ${errorMessage}`,
       {
         recipient: to,
-        templateKey: templateKey,
-        rawError: error,
+        templateKey,
+        error: errorMessage,
       },
     );
 

@@ -18,7 +18,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { LocateFixed, ShieldCheck } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
 import { useRef, useState } from "react";
 import Carousel from "~/components/Carousel";
 import { columns } from "~/components/Table/Columns";
@@ -138,9 +138,7 @@ async function getFleetOwnersWithNoChauffeursOrAllChauffeursBusy(
     `Found ${fleetOwnersWithNoChauffeursOrAllChauffeursBusy.length} fleet owners with no chauffeurs or all chauffeurs unavailable for chauffeur service on ${specificDateInput.toDateString()}.`,
   );
   // Log details only if needed, or in development/debug environments to prevent excessive logging in production.
-  logger.info(
-    `Unavailable fleet owner details ${JSON.stringify(fleetOwnersWithNoChauffeursOrAllChauffeursBusy)}`,
-  );
+  logger.info("Unavailable fleet owner details", fleetOwnersWithNoChauffeursOrAllChauffeursBusy);
 
   return fleetOwnersWithNoChauffeursOrAllChauffeursBusy.map((owner) => owner.id);
 }
@@ -426,12 +424,17 @@ export default function IndexPage() {
             <div className="flex flex-col mt-4 gap-2">
               <div className="flex justify-item gap-2">
                 <ShieldCheck className="h-4 w-4" />
+                <span>Vetted Fleet Owners</span>
+              </div>
+              <div className="flex justify-item gap-2">
+                <ShieldCheck className="h-4 w-4" />
                 <span>Vetted chauffeurs</span>
               </div>
-              <div className="flex items-center gap-2">
+
+              {/* <div className="flex items-center gap-2">
                 <LocateFixed className="h-4 w-4" />
                 <span>Real-time location tracking</span>
-              </div>
+              </div> */}
               <div className="flex items-center gap-2">
                 <ShieldCheck className="h-4 w-4" />
                 <span>Secure online booking</span>

@@ -33,11 +33,12 @@ export async function createPaymentIntent({
   const FLUTTERWAVE_WEBHOOK_SECRET = process.env.FLUTTERWAVE_WEBHOOK_SECRET;
 
   if (!FLUTTERWAVE_SECRET_KEY || !FLUTTERWAVE_PUBLIC_KEY || !FLUTTERWAVE_WEBHOOK_SECRET) {
-    logger.error(`FLUTTERWAVE_SECRET_KEY: ${FLUTTERWAVE_SECRET_KEY}`);
-    logger.error(`FLUTTERWAVE_PUBLIC_KEY: ${FLUTTERWAVE_PUBLIC_KEY}`);
-    logger.error(`FLUTTERWAVE_WEBHOOK_SECRET: ${FLUTTERWAVE_WEBHOOK_SECRET}`);
-    logger.error("Missing Flutterwave API keys");
-
+    const missingKeys = {
+      secretKey: FLUTTERWAVE_SECRET_KEY ? "present" : "missing",
+      publicKey: FLUTTERWAVE_PUBLIC_KEY ? "present" : "missing",
+      webhookSecret: FLUTTERWAVE_WEBHOOK_SECRET ? "present" : "missing",
+    };
+    logger.error("Missing Flutterwave API keys", missingKeys);
     throw new Error("Payment service configuration error");
   }
 
@@ -50,7 +51,7 @@ export async function createPaymentIntent({
     const payload = {
       tx_ref,
       amount: formattedAmount,
-      currency: "NGN", // Or your currency code
+      currency: "NGN",
       redirect_url: callbackUrl,
       customer: {
         email: customer.email,
@@ -68,11 +69,11 @@ export async function createPaymentIntent({
           metadata.transactionType === "booking_creation"
             ? "Payment for booking "
             : "Payment for booking extension",
-        logo: "https://yourdomain.com/logo.png", // Your app logo URL
+        logo: "https://yourdomain.com/logo.png",
       },
     };
 
-    logger.info("Payment intent payload:", payload);
+    logger.info("Payment intent payload", payload);
 
     // Call Flutterwave API to initialize payment
     const response = await axios.post("https://api.flutterwave.com/v3/payments", payload, {
@@ -84,18 +85,18 @@ export async function createPaymentIntent({
 
     if (response.data.status === "success") {
       return {
-        paymentIntentId: idempotencyKey, // tx_ref serves as the payment intent ID
-        checkoutUrl: response.data.data.link, // The hosted payment page URL
-        transactionId: response.data.data.id, // Flutterwave's internal transaction ID
+        paymentIntentId: idempotencyKey,
+        checkoutUrl: response.data.data.link,
+        transactionId: response.data.data.id,
       };
     }
 
-    logger.error("Failed to create payment intent:", response.data);
+    logger.error("Failed to create payment intent", response.data);
     throw new Error("Payment initialization failed");
   } catch (error: unknown) {
-    logger.error(
-      `Payment intent creation error: ${error instanceof Error ? error.message : String(error)}`,
-    );
+    logger.error("Payment intent creation error", {
+      error: error instanceof Error ? error.message : String(error),
+    });
     if (error instanceof Error && "response" in error) {
       const axiosError = error as any;
       throw new Error(axiosError.response?.data?.message || "Failed to initialize payment");
@@ -108,26 +109,26 @@ export async function createPaymentIntent({
  * Verifies that a webhook request is authentic by validating the signature
  */
 export async function verifyPaymentWebhook(request: Request) {
-  // Get the Flutterwave signature from the headers
-  const signatureFromFlutterwave = request.headers.get("verif-hash"); // This is the header
+  const signatureFromFlutterwave = request.headers.get("verif-hash");
   const WEBHOOK_SECRET = process.env.FLUTTERWAVE_WEBHOOK_SECRET;
 
   if (!signatureFromFlutterwave || !WEBHOOK_SECRET) {
-    logger.error(`signatureFromFlutterwave: ${signatureFromFlutterwave}`);
-    logger.error(`WEBHOOK_SECRET: ${WEBHOOK_SECRET}`);
-    logger.error("Webhook security check: Missing signature or configured secret.");
+    logger.error("Webhook security check: Missing signature or configured secret", {
+      signaturePresent: !!signatureFromFlutterwave,
+      secretPresent: !!WEBHOOK_SECRET,
+    });
     return false;
   }
 
-  // Simple verification by comparing the signature with your secret
   if (signatureFromFlutterwave === WEBHOOK_SECRET) {
-    logger.info("Webhook signature (verif-hash) is VALID.");
+    logger.info("Webhook signature (verif-hash) is VALID");
     return true;
   }
 
-  logger.warn(
-    `Webhook signature (verif-hash) is INVALID. Expected: "${WEBHOOK_SECRET}", Got: "${signatureFromFlutterwave}"`,
-  );
+  logger.warn("Webhook signature (verif-hash) is INVALID", {
+    expected: WEBHOOK_SECRET,
+    received: signatureFromFlutterwave,
+  });
   return false;
 }
 
@@ -192,7 +193,7 @@ export async function verifyTransaction(
     };
   } catch (error: unknown) {
     logger.error(
-      `Transaction verification error: ${error instanceof Error ? error.message : String(error)}`,
+      `Transaction verification failed: ${error instanceof Error ? error.message : String(error)}`,
     );
     return { verified: false, error: error instanceof Error ? error.message : String(error) };
   }
@@ -202,15 +203,16 @@ export async function verifyTransaction(
  * Initiates a refund for a transaction
  */
 export async function refundPayment(transactionId: string, amount: number, callbackurl: string) {
-  logger.info(`Refunding payment for transactionId: ${transactionId}`);
-  logger.info(`Amount: ${amount}`);
-  logger.info(`Callback URL: ${callbackurl}`);
+  logger.info("Refunding payment", {
+    transactionId,
+    amount,
+    callbackurl,
+  });
 
   const FLUTTERWAVE_SECRET_KEY = process.env.FLUTTERWAVE_SECRET_KEY;
 
   try {
     const payload = { amount, callbackurl };
-
     const response = await axios.post(
       `https://api.flutterwave.com/v3/transactions/${transactionId}/refund`,
       payload,
@@ -222,7 +224,7 @@ export async function refundPayment(transactionId: string, amount: number, callb
       },
     );
 
-    logger.info("Refund response:", response.data);
+    logger.info("Refund response", response.data);
 
     if (response.data.status === "success") {
       return {
@@ -238,17 +240,14 @@ export async function refundPayment(transactionId: string, amount: number, callb
     if (axios.isAxiosError(error)) {
       const errorMessage =
         error.response?.data?.message || "An error occurred during the refund process.";
-      logger.error(
-        `[Flutterwave Refund] API error: ${errorMessage} - Response: ${JSON.stringify(
-          error.response?.data,
-          null,
-          2,
-        )}`,
-      );
+      logger.error("[Flutterwave Refund] API error", {
+        error: errorMessage,
+        response: error.response?.data,
+      });
       return { success: false, error: errorMessage };
     }
 
-    logger.error(`[Flutterwave Refund] Unknown error: ${String(error)}`);
+    logger.error("[Flutterwave Refund] Unknown error", { error: String(error) });
     return { success: false, error: "An unknown error occurred" };
   }
 }
@@ -318,17 +317,11 @@ async function initiateFlutterwavePayout(
   };
 
   try {
-    logger.info(
-      `payout request: ${JSON.stringify({
-        method: "POST",
-        url: "https://api.flutterwave.com/v3/transfers",
-        data: payload,
-        headers: {
-          Authorization: `Bearer ${FLUTTERWAVE_SECRET_KEY}`,
-          "Content-Type": "application/json",
-        },
-      })}`,
-    );
+    logger.info("payout request", {
+      method: "POST",
+      url: "https://api.flutterwave.com/v3/transfers",
+      payload,
+    });
 
     const response = await axios.post("https://api.flutterwave.com/v3/transfers", payload, {
       headers: {
@@ -337,7 +330,7 @@ async function initiateFlutterwavePayout(
       },
     });
 
-    logger.info("Flutterwave transfer initiation response:", response.data);
+    logger.info("Flutterwave transfer initiation response", response.data);
 
     if (response.data.status === "success") {
       return {
@@ -350,13 +343,11 @@ async function initiateFlutterwavePayout(
       data: response.data,
     };
   } catch (error) {
-    // biome-ignore lint/suspicious/noConsoleLog: <explanation>
-    console.log(error);
-    logger.error(`Failed to initiate payout via Flutterwave: ${error}`);
+    logger.error("Failed to initiate payout via Flutterwave", {
+      error: String(error),
+      response: axios.isAxiosError(error) ? error.response?.data : undefined,
+    });
     if (axios.isAxiosError(error) && error.response) {
-      // biome-ignore lint/suspicious/noConsoleLog: <explanation>
-      console.log(error.response);
-      logger.error("Flutterwave error response:", error.response.data);
       return { success: false, data: error.response.data };
     }
     return { success: false, data: { message: "An unknown error occurred" } };
@@ -370,7 +361,6 @@ async function initiateFlutterwavePayout(
  * @param booking The completed booking object.
  */
 export async function initiatePayout(booking: BookingWithRelations) {
-  // Check if a payout is already in progress
   const existingPayout = await prisma.payoutTransaction.findFirst({
     where: {
       bookingId: booking.id,
@@ -379,20 +369,21 @@ export async function initiatePayout(booking: BookingWithRelations) {
   });
 
   if (existingPayout) {
-    logger.info(`Payout already in progress for booking ${booking.id}`);
+    logger.info("Payout already in progress for booking", { bookingId: booking.id });
     return;
   }
 
   if (!booking.fleetOwnerPayoutAmountNet || booking.fleetOwnerPayoutAmountNet.isZero()) {
-    logger.info(`Booking ${booking.id} has no payout amount. Skipping payout.`);
+    logger.info("Booking has no payout amount. Skipping payout", { bookingId: booking.id });
     return;
   }
 
   const fleetOwner = booking.car.owner;
   if (!fleetOwner.bankDetailsId) {
-    logger.warn(
-      `Fleet owner ${fleetOwner.id} has no bank details. Cannot process payout for booking ${booking.id}.`,
-    );
+    logger.warn("Fleet owner has no bank details. Cannot process payout for booking", {
+      fleetOwnerId: fleetOwner.id,
+      bookingId: booking.id,
+    });
     return;
   }
 
@@ -402,7 +393,13 @@ export async function initiatePayout(booking: BookingWithRelations) {
 
   if (!bankDetails || !bankDetails.isVerified) {
     logger.warn(
-      `Bank details for fleet owner ${fleetOwner.id} not found or not verified. Cannot process payout for booking ${booking.id}.`,
+      "Bank details for fleet owner not found or not verified. Cannot process payout for booking",
+      {
+        fleetOwnerId: fleetOwner.id,
+        bookingId: booking.id,
+        detailsFound: !!bankDetails,
+        isVerified: bankDetails?.isVerified,
+      },
     );
     return;
   }
@@ -431,7 +428,7 @@ export async function initiatePayout(booking: BookingWithRelations) {
   );
 
   // 3. Update the PayoutTransaction and Booking based on the result
-  if (payoutResult.success) {
+  if (payoutResult?.success) {
     payoutTransaction = await prisma.payoutTransaction.update({
       where: { id: payoutTransaction.id },
       data: {
@@ -443,23 +440,25 @@ export async function initiatePayout(booking: BookingWithRelations) {
       where: { id: booking.id },
       data: { overallPayoutStatus: "PROCESSING" },
     });
-    logger.info(
-      `Payout for booking ${booking.id} initiated successfully. Transaction ID: ${payoutTransaction.id}`,
-    );
+    logger.info("Payout for booking initiated successfully. Transaction ID", {
+      bookingId: booking.id,
+      transactionId: payoutTransaction.id,
+    });
   } else {
     payoutTransaction = await prisma.payoutTransaction.update({
       where: { id: payoutTransaction.id },
       data: {
         status: "FAILED",
-        notes: `Flutterwave initiation failed: ${payoutResult.data.message}`,
+        notes: `Flutterwave initiation failed: ${payoutResult?.data.message}`,
       },
     });
     await prisma.booking.update({
       where: { id: booking.id },
       data: { overallPayoutStatus: "FAILED" },
     });
-    logger.error(
-      `Payout initiation for booking ${booking.id} failed. Reason: ${payoutResult.data.message}`,
-    );
+    logger.error("Payout initiation for booking failed. Reason", {
+      bookingId: booking.id,
+      reason: payoutResult?.data.message,
+    });
   }
 }

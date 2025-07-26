@@ -106,13 +106,13 @@ async function handleFailedPayment(paymentIntent: string, transactionType: strin
       where: { paymentIntent, status: "PENDING" },
       data: { status: "CANCELLED" },
     });
-    logger.info(`[Unified Webhook] Booking ${paymentIntent} cancelled.`);
+    logger.info("Booking cancelled", { paymentIntent });
   } else if (transactionType === "booking_extension") {
     await prisma.extension.updateMany({
       where: { paymentIntent, status: "PENDING" },
       data: { status: "CANCELLED" },
     });
-    logger.info(`[Unified Webhook] Extension ${paymentIntent} cancelled.`);
+    logger.info("Extension cancelled", { paymentIntent });
   }
 }
 
@@ -121,9 +121,13 @@ async function handleChargeCompleted(payload: FlutterwaveChargeCompletedPayload)
   const { status, tx_ref: paymentIntent, id: transactionId } = data;
   const transactionType = meta_data.transactionType ?? "";
 
-  logger.info(
-    `[Unified Webhook] Details: Type: ${transactionType}, Status: ${status}, PaymentIntent: ${paymentIntent}, TransactionID: ${transactionId}`,
-  );
+  const webhookData = {
+    type: transactionType,
+    status,
+    paymentIntent,
+    transactionId,
+  };
+  logger.info("Webhook details", webhookData);
 
   // Ensure critical variables are strings
   const currentStatus = String(status);
@@ -134,9 +138,11 @@ async function handleChargeCompleted(payload: FlutterwaveChargeCompletedPayload)
   await createOrUpdatePaymentRecord(payload);
 
   if (currentStatus !== "successful") {
-    logger.warn(
-      `[Unified Webhook] Payment not successful for ${transactionType} - PaymentIntent: ${currentPaymentIntent}, Status: ${currentStatus}`,
-    );
+    logger.warn("[Unified Webhook] Payment not successful", {
+      transactionType,
+      paymentIntent: currentPaymentIntent,
+      status: currentStatus,
+    });
 
     await handleFailedPayment(currentPaymentIntent, transactionType);
     return json({ message: "Payment not successful, transaction cancelled." });
@@ -160,9 +166,11 @@ async function handleChargeCompleted(payload: FlutterwaveChargeCompletedPayload)
   });
 
   if (!verificationResult.verified) {
-    logger.error(
-      `[Unified Webhook] Failed to verify ${transactionType} transaction ${currentTransactionId} with Flutterwave API. Reason(s): ${verificationResult.mismatch ?? "unknown"}`,
-    );
+    logger.error("[Unified Webhook] Transaction verification failed", {
+      transactionType,
+      transactionId: currentTransactionId,
+      reason: verificationResult.mismatch ?? "unknown",
+    });
 
     return json({ error: "Transaction verification failed" }, { status: 400 });
   }
@@ -234,32 +242,27 @@ async function handleChargeCompleted(payload: FlutterwaveChargeCompletedPayload)
           html: await renderFleetOwnerBookingNotificationEmail(bookingDetails),
         });
       });
-      logger.info(
-        `[Unified Webhook] Fleet owner notification queued for ${booking.car.owner.email}`,
-      );
-
-      logger.info(
-        `[Unified Webhook] Booking creation for ${currentPaymentIntent} processed successfully.`,
-      );
+      logger.info(`[Unified Webhook] Fleet owner notification queued for ${email}`);
     } else if (transactionType === "booking_extension") {
-      logger.info(`[Unified Webhook] Processing booking_extension for ${currentPaymentIntent}`);
+      logger.info(`[Unified Webhook] Processing booking extension for ${currentPaymentIntent}`);
 
       const pendingExtension = await findExtensionByPaymentIntent(currentPaymentIntent);
 
       if (!pendingExtension) {
-        logger.error(`[Unified Webhook] Pending extension not found for ${currentPaymentIntent}`);
+        logger.error("Pending extension not found", { paymentIntent: currentPaymentIntent });
         return json({ error: "Extension not found" }, { status: 404 });
       }
 
-      logger.info(
-        `[Unified Webhook] Found pending extension ${pendingExtension.id} for booking ${pendingExtension.bookingLeg.booking.id}`,
-      );
+      logger.info("Found pending extension", {
+        extensionId: pendingExtension.id,
+        bookingId: pendingExtension.bookingLeg.booking.id,
+      });
 
       const activatedExtension = await activateExtension(
         pendingExtension.id,
         String(currentTransactionId),
       );
-      logger.info(`[Unified Webhook] Activated extension ${pendingExtension.id}`);
+      logger.info("Extension activated", { id: pendingExtension.id });
 
       const { booking } = activatedExtension.bookingLeg;
       const { email } = getCustomerDetails(booking);
@@ -289,19 +292,22 @@ async function handleChargeCompleted(payload: FlutterwaveChargeCompletedPayload)
         `[Unified Webhook] Booking extension for ${currentPaymentIntent} processed successfully.`,
       );
     } else {
-      logger.warn(
-        `[Unified Webhook] Unknown transactionType: ${transactionType} for ${currentPaymentIntent}`,
-      );
+      logger.warn("Unknown transaction type", {
+        transactionType,
+        paymentIntent: currentPaymentIntent,
+      });
       return json({ error: "Unknown transaction type" }, { status: 400 });
     }
 
     return json({ message: "Webhook processed successfully" });
   } catch (error: unknown) {
     const e = error as Error;
-    logger.error(
-      `[Unified Webhook] Error processing ${transactionType} for ${currentPaymentIntent}: ${e.message}`,
-    );
-    logger.error(e.stack);
+    logger.error("Error processing webhook", {
+      transactionType,
+      paymentIntent: currentPaymentIntent,
+      error: e.message,
+      stack: e.stack,
+    });
     return json({ error: "Server error processing webhook" }, { status: 500 });
   }
 }
@@ -471,12 +477,12 @@ export async function action({ request }: ActionFunctionArgs) {
   const isWebhookVerified = await verifyPaymentWebhook(request.clone());
 
   if (!isWebhookVerified) {
-    logger.error("[Unified Webhook] Webhook verification failed.");
+    logger.error("[Unified Webhook] Webhook verification failed");
     return json({ error: "Webhook verification failed" }, { status: 400 });
   }
 
   const payload = await request.json();
-  logger.info(`[Unified Webhook] Received payload: ${JSON.stringify(payload)}`);
+  logger.info("[Unified Webhook] Received payload", payload);
 
   // --- Event-based routing ---
   if (isChargeCompletedPayload(payload)) {
