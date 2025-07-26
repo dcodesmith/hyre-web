@@ -72,7 +72,7 @@ export async function createPaymentIntent({
       },
     };
 
-    logger.info(`Payload: ${JSON.stringify(payload, null, 2)}`);
+    logger.info("Payment intent payload:", payload);
 
     // Call Flutterwave API to initialize payment
     const response = await axios.post("https://api.flutterwave.com/v3/payments", payload, {
@@ -90,7 +90,7 @@ export async function createPaymentIntent({
       };
     }
 
-    logger.error(`Failed to create payment intent: ${JSON.stringify(response.data)}`);
+    logger.error("Failed to create payment intent:", response.data);
     throw new Error("Payment initialization failed");
   } catch (error: unknown) {
     logger.error(
@@ -222,7 +222,7 @@ export async function refundPayment(transactionId: string, amount: number, callb
       },
     );
 
-    logger.info(`Refund response: ${JSON.stringify(response.data, null, 2)}`);
+    logger.info("Refund response:", response.data);
 
     if (response.data.status === "success") {
       return {
@@ -337,7 +337,7 @@ async function initiateFlutterwavePayout(
       },
     });
 
-    logger.info(`Flutterwave transfer initiation response: ${JSON.stringify(response.data)}`);
+    logger.info("Flutterwave transfer initiation response:", response.data);
 
     if (response.data.status === "success") {
       return {
@@ -356,7 +356,7 @@ async function initiateFlutterwavePayout(
     if (axios.isAxiosError(error) && error.response) {
       // biome-ignore lint/suspicious/noConsoleLog: <explanation>
       console.log(error.response);
-      logger.error(`Flutterwave error response: ${JSON.stringify(error.response.data)}`);
+      logger.error("Flutterwave error response:", error.response.data);
       return { success: false, data: error.response.data };
     }
     return { success: false, data: { message: "An unknown error occurred" } };

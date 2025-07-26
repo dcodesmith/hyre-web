@@ -316,7 +316,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
     const extension = await prisma.extension.create({ data: createClause });
 
-    logger.debug(`Extension created: ${JSON.stringify(extension, null, 2)}`);
+    logger.debug("Extension created:", extension);
 
     logger.info(`Redirecting to Flutterwave checkout: ${checkoutUrl}`);
 

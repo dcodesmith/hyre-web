@@ -61,7 +61,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     `[Twilio Webhook] SID: ${messageSid}, Status: ${messageStatus}${errorCode ? `, ErrorCode: ${errorCode}` : ""}`,
   );
   const safeParams = { ...params, To: "***redacted***", From: "***redacted***" };
-  logger.debug(`Raw Twilio params: ${JSON.stringify(safeParams)}`);
+  logger.debug("Raw Twilio params:", safeParams);
 
   try {
     // =================================================================

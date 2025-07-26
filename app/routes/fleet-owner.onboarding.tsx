@@ -152,7 +152,7 @@ export async function action({ request }: ActionFunctionArgs) {
       let errorMessage = "An error occurred during verification. Please try again later.";
       if (axios.isAxiosError(error) && error.response) {
         // Log the full response for debugging
-        logger.error(`Flutterwave response data: ${JSON.stringify(error.response.data, null, 2)}`);
+        logger.error("Flutterwave response data:", error.response.data);
         errorMessage = `Verification failed: ${error.response.data.message || "Unknown API error"}`;
       } else if (error instanceof Error) {
         errorMessage = error.message;

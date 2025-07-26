@@ -45,7 +45,7 @@ export async function activateExtension(extensionId: string, paymentId: string) 
     return extension;
   });
 
-  logger.debug(`Activated extension: ${JSON.stringify(extension, null, 2)}`);
+  logger.debug("Activated extension:", extension);
 
   return extension;
 }

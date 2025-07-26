@@ -100,35 +100,38 @@ const platformFeeSchema = z
 export async function loader({ request }: LoaderFunctionArgs) {
   await requireAdminWithRedirect(request);
 
-  const currentVatRate = await prisma.taxRate.findFirst({
-    where: {
-      effectiveSince: { lte: new Date() },
-      OR: [{ effectiveUntil: { gt: new Date() } }, { effectiveUntil: null }],
-    },
-    orderBy: { effectiveSince: "desc" },
-  });
+  const [currentVatRate, currentPlatformServiceFee, currentFleetOwnerCommission] =
+    await Promise.all([
+      prisma.taxRate.findFirst({
+        where: {
+          effectiveSince: { lte: new Date() },
+          OR: [{ effectiveUntil: { gt: new Date() } }, { effectiveUntil: null }],
+        },
+        orderBy: { effectiveSince: "desc" },
+      }),
+      prisma.platformFeeRate.findFirst({
+        where: {
+          feeType: "PLATFORM_SERVICE_FEE",
+          effectiveSince: { lte: new Date() },
+          OR: [{ effectiveUntil: { gt: new Date() } }, { effectiveUntil: null }],
+        },
+        orderBy: { effectiveSince: "desc" },
+      }),
+      prisma.platformFeeRate.findFirst({
+        where: {
+          feeType: "FLEET_OWNER_COMMISSION",
+          effectiveSince: { lte: new Date() },
+          OR: [{ effectiveUntil: { gt: new Date() } }, { effectiveUntil: null }],
+        },
+        orderBy: { effectiveSince: "desc" },
+      }),
+    ]);
 
-  const currentPlatformServiceFee = await prisma.platformFeeRate.findFirst({
-    where: {
-      feeType: "PLATFORM_SERVICE_FEE",
-      effectiveSince: { lte: new Date() },
-      OR: [{ effectiveUntil: { gt: new Date() } }, { effectiveUntil: null }],
-    },
-    orderBy: { effectiveSince: "desc" },
+  logger.info("Current rates:", {
+    currentVatRate,
+    currentPlatformServiceFee,
+    currentFleetOwnerCommission,
   });
-
-  const currentFleetOwnerCommission = await prisma.platformFeeRate.findFirst({
-    where: {
-      feeType: "FLEET_OWNER_COMMISSION",
-      effectiveSince: { lte: new Date() },
-      OR: [{ effectiveUntil: { gt: new Date() } }, { effectiveUntil: null }],
-    },
-    orderBy: { effectiveSince: "desc" },
-  });
-
-  logger.info(`currentVatRate: ${JSON.stringify(currentVatRate ?? {})}`);
-  logger.info(`currentPlatformServiceFee: ${JSON.stringify(currentPlatformServiceFee ?? {})}`);
-  logger.info(`currentFleetOwnerCommission: ${JSON.stringify(currentFleetOwnerCommission ?? {})}`);
 
   return json({
     currentVatRate,

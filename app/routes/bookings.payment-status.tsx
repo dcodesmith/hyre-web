@@ -85,7 +85,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   if (transactionType === "booking_extension") {
     extensionData = await findExtensionByPaymentIntent(txRef);
     if (extensionData) {
-      logger.info(`[PaymentStatus Loader] Extension Data: ${JSON.stringify(extensionData)}`);
+      logger.info("[PaymentStatus Loader] Extension Data:", extensionData);
     } else {
       logger.warn(`[PaymentStatus Loader] Extension with tx_ref ${txRef} not found in DB yet.`);
     }
@@ -96,7 +96,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
         ...booking,
         totalAmount: booking.totalAmount ? Number(booking.totalAmount) : null,
       };
-      logger.info(`[PaymentStatus Loader] Booking Data: ${JSON.stringify(bookingData)}`);
+      logger.info("[PaymentStatus Loader] Booking Data:", bookingData);
     } else {
       logger.warn(`[PaymentStatus Loader] Booking with tx_ref ${txRef} not found in DB yet.`);
     }

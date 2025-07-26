@@ -395,7 +395,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     throw new Response("Unauthorized: Access denied.", { status: 401 });
   }
 
-  logger.info(`booking: ${JSON.stringify(booking, null, 2)}`);
+  logger.info("booking:", { booking });
 
   const paymentSummary = createPaymentSummary(booking);
   const extendableDuration = getLegExtendableDuration(booking);

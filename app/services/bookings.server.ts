@@ -360,7 +360,7 @@ export async function createPendingBooking({
 
     const newBooking = await transaction.booking.create(query);
 
-    logger.debug(`From createPendingBooking: newBooking: ${JSON.stringify(newBooking, null, 2)}`);
+    logger.debug("From createPendingBooking: newBooking:", newBooking);
     return newBooking;
   });
 

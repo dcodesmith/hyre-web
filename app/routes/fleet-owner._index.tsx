@@ -177,7 +177,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     select: { legDate: true, totalDailyPrice: true, fleetOwnerEarningForLeg: true },
   });
 
-  logger.info(`Legs: ${JSON.stringify(legs, null, 2)}`);
+  logger.info("Booking legs:", legs);
 
   const revenueByDay = Array.from({ length: 30 }, (_, i) => {
     const date = subDays(startOfToday, i);
