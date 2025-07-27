@@ -4,58 +4,12 @@ import { createReadableStreamFromReadable } from "@remix-run/node";
 import { RemixServer } from "@remix-run/react";
 import { isbot } from "isbot";
 import { renderToPipeableStream } from "react-dom/server";
-import logger from "./lib/logger.server";
-// import {
-//   scheduleBookingEndReminderEmails,
-//   scheduleBookingStartReminderEmails,
-// } from "./queues/bookingReminder.server";
-// import {
-//   scheduleActiveToCompletedUpdates,
-//   scheduleConfirmedToActiveUpdates,
-// } from "./queues/bookingStatus.server";
-import { startBookingReminderWorker } from "./queues/reminder.server";
-import { startStatusUpdateWorker } from "./queues/status.server";
+
 import { initEnvs } from "./utils/env.server";
-// import express from "express";
-
-// import { serverAdapter } from "./queues/config.server";
-
-// const app = express();
 
 const ABORT_DELAY = 5_000;
 
 initEnvs();
-
-// app.use("/admin/queues", serverAdapter.getRouter());
-
-startBookingReminderWorker();
-startStatusUpdateWorker();
-
-// scheduleConfirmedToActiveUpdates()
-//   .then((job) => logger.info(`Booking status for job ${job.name} scheduled`))
-//   .catch((error) =>
-//     logger.error("Failed to schedule booking status update from confirmed to active", error),
-//   );
-
-// scheduleActiveToCompletedUpdates()
-//   .then((job) => logger.info(`Booking status for job ${job.name} scheduled`))
-//   .catch((error) =>
-//     logger.error("Failed to schedule booking status update from active to completed", error),
-//   );
-
-// scheduleBookingStartReminderEmails()
-//   .then((job) => logger.info(`Booking start reminder for job ${job.name} scheduled`))
-//   .catch((error) => logger.error("Failed to schedule booking start reminder emails", error));
-
-// scheduleBookingEndReminderEmails()
-//   .then((job) => logger.info(`Booking end reminder for job ${job.name} scheduled`))
-//   .catch((error) => logger.error("Failed to schedule booking end reminder emails", error));
-
-// app.once("listening", () => {
-//   console.log("Server is running on port 3000");
-// });
-
-// app.listen(3000);
 
 export default function handleRequest(
   request: Request,

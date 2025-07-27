@@ -148,40 +148,41 @@ export function renderFleetOwnerApprovalEmail({
         </>
       );
       break;
-    case FleetOwnerStatus.REJECTED:
-      subject = "Update on Your Fleet Owner Account Application";
-      mainHeading = "Account Application Update";
-      messageBody = (
-        <>
-          <Text className="mb-3">
-            Thank you for your interest in becoming a Fleet Owner on our platform.
-          </Text>
-          <Text className="mb-3">
-            After careful review, we regret to inform you that your Fleet Owner account application
-            has not been approved at this time.
-          </Text>
-          {reason && (
-            <Section className="my-3 p-3 border border-gray-200 rounded-md bg-gray-50">
-              <Text className="font-semibold m-0">Reason:</Text>
-              <Text className="m-0">{reason}</Text>
-            </Section>
-          )}
-          <Text className="mb-3">
-            If you believe this is an error or wish to get more details, please contact our support
-            team.
-          </Text>
-          <Text>
-            Contact support:{" "}
-            <Link
-              href={`mailto:${process.env.SUPPORT_EMAIL || "support@example.com"}`}
-              className="text-blue-600 underline"
-            >
-              {process.env.SUPPORT_EMAIL || "support@example.com"}
-            </Link>
-          </Text>
-        </>
-      );
-      break;
+    // case FleetOwnerStatus.REJECTED:
+    //   subject = "Update on Your Fleet Owner Account Application";
+    //   mainHeading = "Account Application Update";
+    //   messageBody = (
+    //     <>
+    //       <Text className="mb-3">
+    //         Thank you for your interest in becoming a Fleet Owner on our platform.
+    //       </Text>
+    //       <Text className="mb-3">
+    //         After careful review, we regret to inform you that your Fleet Owner account application
+    //         has not been approved at this time.
+    //       </Text>
+    //       {reason && (
+    //         <Section className="my-3 p-3 border border-gray-200 rounded-md bg-gray-50">
+    //           <Text className="font-semibold m-0">Reason:</Text>
+    //           <Text className="m-0">{reason}</Text>
+    //         </Section>
+    //       )}
+    //       <Text className="mb-3">
+    //         If you believe this is an error or wish to get more details, please contact our support
+    //         team.
+    //       </Text>
+    //       <Text>
+    //         Contact support:{" "}
+    //         <Link
+    //           href={`mailto:${process.env.SUPPORT_EMAIL || "support@example.com"}`}
+    //           className="text-blue-600 underline"
+    //         >
+    //           {process.env.SUPPORT_EMAIL || "support@example.com"}
+    //         </Link>
+    //       </Text>
+    //     </>
+    //   );
+    //   break;
+
     case FleetOwnerStatus.ON_HOLD:
       subject = "Action Required: Your Fleet Owner Account is On Hold";
       mainHeading = "Account On Hold";

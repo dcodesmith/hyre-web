@@ -5,7 +5,10 @@
   },
   "files": {
     "ignoreUnknown": true,
-    "ignore": ["package.json", "pnpm-lock.yaml", ".eslintrc.cjs"]
+    "ignore": [
+      "package.json",
+      "pnpm-lock.yaml"
+    ]
   },
   "vcs": {
     "enabled": true,
@@ -54,6 +57,14 @@
     "formatter": {
       "quoteStyle": "double"
     },
-    "globals": ["beforeEach", "afterEach", "describe", "test", "expect", "it", "jest"]
+    "globals": [
+      "beforeEach",
+      "afterEach",
+      "describe",
+      "test",
+      "expect",
+      "it",
+      "jest"
+    ]
   }
 }

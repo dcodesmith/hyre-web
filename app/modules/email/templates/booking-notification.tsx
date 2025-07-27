@@ -1,10 +1,6 @@
 import { Heading, Hr, Link, Section, Text } from "@react-email/components";
 import { render } from "@react-email/render";
-import {
-  NormalisedBookingDetails,
-  NormalisedBookingLegDetails,
-  NormalisedExtensionDetails,
-} from "~/lib/utils";
+import { NormalisedBookingDetails, NormalisedExtensionDetails } from "~/lib/utils";
 import { EmailTemplate } from "./EmailTemplate";
 
 function DetailListItem({
@@ -259,77 +255,6 @@ export function renderChauffeurAssignedEmail(booking: NormalisedBookingDetails) 
         Your chauffeur will contact you before the pickup time. If you have any questions, please
         don't hesitate to contact us.
       </Text>
-    </EmailTemplate>,
-  );
-}
-
-// --- Booking Reminder Email (for Client or Chauffeur) ---
-export function renderBookingReminderEmail(
-  bookingLeg: NormalisedBookingLegDetails,
-  recipientType: "client" | "chauffeur",
-  isStartReminder = true,
-) {
-  const recipientName =
-    recipientType === "client" ? bookingLeg.customerName : bookingLeg.chauffeurName;
-
-  const reminderAction = isStartReminder ? "starts" : "ends";
-  const previewText = `Reminder: Your booking ${reminderAction} in 1 hour.`;
-  const carName = bookingLeg.carName;
-
-  // const latestExtension = booking.extensions?.[booking.extensions.length - 1];
-  // const endDateToCheck = latestExtension ? latestExtension.endDate : booking.endDate;
-
-  return render(
-    <EmailTemplate
-      previewText={previewText}
-      pageTitle={`Booking Leg ${isStartReminder ? "Start" : "End"} Reminder`}
-    >
-      <Heading as="h2" className="text-xl font-semibold mb-4">
-        Booking Reminder
-      </Heading>
-
-      <Text className="mb-3">Hello {recipientName},</Text>
-
-      <Text className="mb-3">
-        This is a friendly reminder that your booking for the {carName} {reminderAction} in
-        approximately 1 hour.
-      </Text>
-
-      <Section className="border border-gray-200 p-4 bg-gray-50">
-        <Text className="font-semibold mb-2 underline">Booking Leg Details</Text>
-        <DetailListItem label="Car" value={carName} />
-        <DetailListItem label="Start Date & Time" value={bookingLeg.legStartTime} />
-        <DetailListItem label="End Date & Time" value={bookingLeg.legEndTime} />
-        <DetailListItem label="Pickup Location" value={bookingLeg.pickupLocation} />
-        <DetailListItem label="Drop-off Location" value={bookingLeg.returnLocation} />
-      </Section>
-
-      {recipientType === "client" && isStartReminder && (
-        <Text className="mb-3">
-          Your chauffeur, {bookingLeg.chauffeurName}, will meet you at the pickup location.
-        </Text>
-      )}
-
-      {recipientType === "chauffeur" && isStartReminder && (
-        <Text className="mb-3">
-          Your client, {bookingLeg.customerName}, will meet you at the pickup location.
-        </Text>
-      )}
-
-      {recipientType === "client" && !isStartReminder && (
-        // format(endDateToCheck, "HH:mm") !== "00:00" && (
-        <Text className="mt-4 mb-3">
-          Want to keep the car longer?{" "}
-          <Link
-            href={`${process.env.DOMAIN}/bookings/${bookingLeg.bookingId}/extend`} // Ensure this link is correct
-            className="text-blue-600 underline"
-          >
-            Extend Booking
-          </Link>
-        </Text>
-      )}
-
-      {isStartReminder && <Text className="mt-4">Please be prepared for the scheduled time.</Text>}
     </EmailTemplate>,
   );
 }

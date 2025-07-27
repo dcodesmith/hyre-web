@@ -12,7 +12,7 @@ import {
 } from "date-fns";
 import { twMerge } from "tailwind-merge";
 import { match } from "ts-pattern";
-import { BookingLegWithRelations, BookingWithRelations, Extension } from "~/types";
+import { BookingWithRelations, Extension } from "~/types";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -43,12 +43,6 @@ export function formatDate(date: string | Date) {
     dateStyle: "medium",
     timeStyle: "short",
     hour12: true,
-    // year: "numeric",
-    // month: "short",
-    // day: "2-digit",
-    // hour: "numeric",
-    // minute: "numeric",
-    // hour12: true,
   });
 
   function replaceWithOrdinalSuffix(day: string) {
@@ -296,19 +290,6 @@ export type NormalisedExtensionDetails = {
   to: string;
 };
 
-export type NormalisedBookingLegDetails = {
-  bookingId: string;
-  customerName: string;
-  chauffeurName: string;
-  legDate: string;
-  legStartTime: string;
-  legEndTime: string;
-  chauffeurPhoneNumber: string;
-  carName: string;
-  pickupLocation: string;
-  returnLocation: string;
-};
-
 export function normaliseBookingDetails(booking: BookingWithRelations): NormalisedBookingDetails {
   const customerName = getUserDisplayName(booking, "user");
   const ownerName = getUserDisplayName(booking, "owner");
@@ -355,27 +336,5 @@ export function normaliseExtensionDetails(extension: Extension): NormalisedExten
     extensionHours: extension.extendedDurationHours,
     from: format(extension.bookingLeg.legEndTime, "p"),
     to: format(extension.extensionEndTime, "p"),
-  };
-}
-
-export function normaliseBookingLegDetails(
-  bookingLeg: BookingLegWithRelations,
-): NormalisedBookingLegDetails {
-  const { booking } = bookingLeg;
-  const customerName = getUserDisplayName(booking, "user");
-  const chauffeurName = getUserDisplayName(booking, "chauffeur");
-  const carName = `${booking.car.make} ${booking.car.model} (${booking.car.year})`;
-
-  return {
-    bookingId: booking.id,
-    customerName,
-    chauffeurName,
-    legDate: format(bookingLeg.legDate, "PPPP"),
-    legStartTime: format(bookingLeg.legStartTime, "p"),
-    legEndTime: format(bookingLeg.legEndTime, "p"),
-    chauffeurPhoneNumber: booking.chauffeur?.phoneNumber ?? "",
-    pickupLocation: booking.pickupLocation,
-    returnLocation: booking.returnLocation,
-    carName,
   };
 }
