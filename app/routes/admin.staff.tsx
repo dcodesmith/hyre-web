@@ -21,6 +21,8 @@ import { Table } from "~/components/Table/Table";
 import { createColumnHelper } from "@tanstack/react-table";
 import { ColumnHeader } from "~/components/Table/ColumnHeader";
 import { Badge } from "~/components/ui/badge";
+import { useAuthenticityToken } from "remix-utils/csrf/react";
+import { validateCSRF } from "~/utils/csrf-action.server";
 
 const staffSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
@@ -187,38 +189,37 @@ export async function loader({ request }: LoaderFunctionArgs) {
 }
 
 export async function action({ request }: ActionFunctionArgs) {
-  const user = await requireAdminWithRedirect(request);
+  await validateCSRF(request);
+
+  await requireAdminWithRedirect(request);
   const formData = await request.formData();
   const intent = formData.get("intent");
 
   if (intent === "revoke" || intent === "reinstate") {
     const staffId = formData.get("staffId");
+
     if (typeof staffId !== "string") {
       return json({ success: false, error: "Invalid staff ID" }, { status: 400 });
     }
 
     try {
-      if (intent === "revoke") {
-        // Remove the staff role from the user
-        await prisma.user.update({
-          where: { id: staffId },
-          data: {
-            roles: {
-              disconnect: [{ name: "staff" }],
-            },
-          },
-        });
-      } else {
-        // Reinstate the staff role
-        await prisma.user.update({
-          where: { id: staffId },
-          data: {
-            roles: {
-              connect: [{ name: "staff" }],
-            },
-          },
-        });
+      const roleAction = {
+        revoke: "disconnect",
+        reinstate: "connect",
+      }[intent];
+
+      if (!roleAction) {
+        throw new Error("Invalid intent");
       }
+
+      await prisma.user.update({
+        where: { id: staffId },
+        data: {
+          roles: {
+            [roleAction]: [{ name: "staff" }],
+          },
+        },
+      });
 
       return json({ success: true });
     } catch (error) {
@@ -343,6 +344,7 @@ export default function AdminStaffPage() {
   const [isAddStaffOpen, setIsAddStaffOpen] = useState(false);
   const fetcher = useFetcher();
   const formRef = useRef<HTMLFormElement>(null);
+  const csrfToken = useAuthenticityToken();
 
   const [form, { name, email, phoneNumber }] = useForm({
     lastResult: fetcher.data as any,
@@ -352,9 +354,8 @@ export default function AdminStaffPage() {
     shouldValidate: "onBlur",
   });
 
-  const isSubmitting = fetcher.state === "submitting";
+  const isPending = fetcher.state === "submitting";
 
-  // Close modal when staff is successfully added
   useEffect(() => {
     const data = fetcher.data as ActionResponse;
     if (data?.success && fetcher.state === "idle") {
@@ -362,8 +363,13 @@ export default function AdminStaffPage() {
     }
   }, [fetcher.data, fetcher.state]);
 
-  const activeStaffCount = allStaff.filter((staff) => staff.status === "active").length;
-  const revokedStaffCount = allStaff.filter((staff) => staff.status === "revoked").length;
+  const { activeStaffCount, revokedStaffCount } = allStaff.reduce(
+    (acc, staff) => ({
+      activeStaffCount: acc.activeStaffCount + (staff.status === "active" ? 1 : 0),
+      revokedStaffCount: acc.revokedStaffCount + (staff.status === "revoked" ? 1 : 0),
+    }),
+    { activeStaffCount: 0, revokedStaffCount: 0 },
+  );
 
   return (
     <div>
@@ -389,6 +395,7 @@ export default function AdminStaffPage() {
           </DialogHeader>
 
           <fetcher.Form ref={formRef} method="post" className="space-y-4" {...getFormProps(form)}>
+            <input type="hidden" name="csrf" value={csrfToken} />
             <div className="space-y-1">
               <Label htmlFor={name.id}>Full Name</Label>
               <Input
@@ -436,8 +443,8 @@ export default function AdminStaffPage() {
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? "Adding..." : "Add Staff"}
+              <Button type="submit" disabled={isPending}>
+                {isPending ? "Adding..." : "Add Staff"}
               </Button>
             </DialogFooter>
           </fetcher.Form>
