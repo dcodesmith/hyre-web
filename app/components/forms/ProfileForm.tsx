@@ -16,6 +16,7 @@ import { profileFormSchema } from "~/schemas/user";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
+import { useAuthenticityToken } from "remix-utils/csrf/react";
 
 interface ProfileFormProps {
   onOpenChange: (open: boolean) => void;
@@ -25,6 +26,7 @@ interface ProfileFormProps {
 export function ProfileForm({ onOpenChange, user }: ProfileFormProps) {
   const fetcher = useFetcher<{ success: boolean; error?: string }>();
   const isSubmitting = fetcher.state === "submitting";
+  const csrfToken = useAuthenticityToken();
 
   const [form, { name, email, phoneNumber, city, address }] = useForm({
     defaultValue: user,
@@ -51,6 +53,8 @@ export function ProfileForm({ onOpenChange, user }: ProfileFormProps) {
 
         <fetcher.Form action="/profile" method="put" {...getFormProps(form)} className="space-y-4">
           {fetcher.data?.error && <p className="text-sm text-red-500">{fetcher.data.error}</p>}
+
+          <input type="hidden" name="csrf" value={csrfToken} />
 
           <div className="space-y-1">
             <Label htmlFor={name.id}>Name</Label>

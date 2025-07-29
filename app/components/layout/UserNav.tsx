@@ -48,6 +48,7 @@ export function UserNav({
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const location = useLocation();
   const isAdminRoute = location.pathname.startsWith("/admin");
+  const isHomeRoute = location.pathname === "/";
 
   return (
     <>
@@ -67,13 +68,17 @@ export function UserNav({
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
-                  className="relative h-8 w-8 rounded-full border flex items-center justify-center capitalize italic md:hover:bg-transparent md:hover:text-white"
+                  className={`relative h-8 w-8 rounded-full border flex items-center justify-center capitalize italic md:hover:bg-transparent md:hover:text-white ${
+                    isHomeRoute ? "text-white" : "text-black"
+                  }`}
                 >
                   {user ? (
                     getInitials(user)
                   ) : (
                     <span className="block">
-                      <UserIcon className="h-5 w-5 md:stroke-white" />
+                      <UserIcon
+                        className={`h-5 w-5 md:stroke-white ${isHomeRoute ? "text-white" : "text-black"}`}
+                      />
                     </span>
                   )}
                 </Button>
