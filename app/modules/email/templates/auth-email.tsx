@@ -1,14 +1,6 @@
-import {
-  Body,
-  Button,
-  Container,
-  Heading,
-  Hr,
-  Preview,
-  Section,
-  Text,
-} from "@react-email/components";
+import { Button, Heading, Section, Text } from "@react-email/components";
 import { render } from "@react-email/render";
+import { env } from "~/utils/server/env.server";
 import { EmailTemplate } from "./EmailTemplate";
 
 type AuthEmailOptions = {
@@ -19,16 +11,16 @@ type AuthEmailOptions = {
 
 export function renderAuthEmail({ code, magicLink, intent }: AuthEmailOptions) {
   return render(
-    <EmailTemplate previewText={`Your ${process.env.APP_NAME} ${intent} code`}>
+    <EmailTemplate previewText={`Your ${env.APP_NAME} ${intent} code`}>
       <Heading className="text-2xl font-medium text-gray-800">
-        Your {intent === "registration" ? "registration" : "login"} code for {process.env.APP_NAME}
+        Your {intent === "registration" ? "registration" : "login"} code for {env.APP_NAME}
       </Heading>
       {magicLink && (
         <Section className="py-4">
           <Button className="bg-slate-800 text-white font-semibold text-sm p-4" href={magicLink}>
             {intent === "registration"
-              ? `Complete your ${process.env.APP_NAME} registration`
-              : `Login to ${process.env.APP_NAME}`}
+              ? `Complete your ${env.APP_NAME} registration`
+              : `Login to ${env.APP_NAME}`}
           </Button>
         </Section>
       )}

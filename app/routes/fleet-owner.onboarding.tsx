@@ -1,36 +1,36 @@
-import React from "react";
 import {
+  type FieldMetadata,
   getFormProps,
   getInputProps,
   useForm,
-  type FieldMetadata,
   useInputControl,
 } from "@conform-to/react";
 import { parseWithZod } from "@conform-to/zod";
 import { CogIcon } from "@heroicons/react/24/outline";
+import { DocumentStatus, DocumentType } from "@prisma/client";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
-import { json, redirect } from "@remix-run/node";
+import {
+  json,
+  redirect,
+  unstable_createMemoryUploadHandler,
+  unstable_parseMultipartFormData,
+} from "@remix-run/node";
 import { Form, useActionData, useLoaderData } from "@remix-run/react";
+import axios from "axios";
+import { useState } from "react";
 import { z } from "zod";
+import { AutocompleteAddress } from "~/components/AutocompleteAddress";
 import { Button } from "~/components/ui/button";
+import { Combobox } from "~/components/ui/combobox";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
-import { useIsPending } from "~/lib/utils";
-import { requireUserWithRole } from "~/utils/permissions.server";
-import { prisma } from "~/modules/db/db.server";
-import { AutocompleteAddress } from "~/components/AutocompleteAddress";
-import { useState } from "react";
-import { RadioGroup, RadioGroupItem } from "~/components/ui/radio-group";
-import { uploadFileToS3 } from "~/services/s3.server";
-import { DocumentStatus, DocumentType, type BankDetails } from "@prisma/client";
 import { banks } from "~/lib/banks";
-import { Combobox } from "~/components/ui/combobox";
-import axios from "axios";
 import logger from "~/lib/logger.server";
-import {
-  unstable_parseMultipartFormData,
-  unstable_createMemoryUploadHandler,
-} from "@remix-run/node";
+import { useIsPending } from "~/lib/utils";
+import { prisma } from "~/modules/db/db.server";
+import { uploadFileToS3 } from "~/services/s3.server";
+import { requireUserWithRole } from "~/utils/server/permissions.server";
+import { env } from "~/utils/server/env.server";
 
 const baseSchema = z.object({
   name: z.string({ required_error: "Name is required" }),
@@ -91,9 +91,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
 export async function action({ request }: ActionFunctionArgs) {
   const user = await requireUserWithRole(request, "fleetOwner");
 
-  // Use Remix's unstable_parseMultipartFormData for proper file handling on Vercel
   const uploadHandler = unstable_createMemoryUploadHandler({
-    maxPartSize: 10 * 1024 * 1024, // 10MB limit
+    maxPartSize: 10 * 1024 * 1024,
   });
 
   const formData = await unstable_parseMultipartFormData(request, uploadHandler);
@@ -122,7 +121,7 @@ export async function action({ request }: ActionFunctionArgs) {
           headers: {
             accept: "application/json",
             "Content-Type": "application/json",
-            Authorization: `Bearer ${process.env.FLUTTERWAVE_SECRET_KEY}`,
+            Authorization: `Bearer ${env.FLUTTERWAVE_SECRET_KEY}`,
           },
         },
       );

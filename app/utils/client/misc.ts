@@ -42,5 +42,5 @@ export function userHasRole(
     return false;
   }
 
-  return user.roles.some((role) => role.name === roleName);
+  return user.roles?.some((role) => role.name === roleName) ?? false;
 }

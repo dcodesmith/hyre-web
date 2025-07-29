@@ -6,8 +6,9 @@ import invariant from "tiny-invariant";
 import logger from "~/lib/logger.server";
 import { prisma } from "~/modules/db/db.server";
 import { sendAuthEmail } from "~/modules/email/email.server";
-import { RoleName, userHasRole } from "~/utils/misc";
+import { RoleName, userHasRole } from "~/utils/client/misc";
 import { sessionStorage } from "./session.server";
+import { env } from "~/utils/server/env.server";
 
 export const authenticator = new Authenticator<User>(sessionStorage, {
   sessionErrorKey: "my-error-key",
@@ -15,7 +16,7 @@ export const authenticator = new Authenticator<User>(sessionStorage, {
 
 const totpStrategy = new TOTPStrategy(
   {
-    secret: process.env.ENCRYPTION_SECRET || "NOT_A_STRONG_SECRET",
+    secret: env.ENCRYPTION_SECRET || "NOT_A_STRONG_SECRET",
     magicLinkPath: "/magic-link",
     sendTOTP: async ({ email, code, magicLink, context }) => {
       const role = context?.role as RoleName;

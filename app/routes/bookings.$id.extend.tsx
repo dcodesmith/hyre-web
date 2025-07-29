@@ -1,6 +1,7 @@
 import type { Prisma, User } from "@prisma/client";
 import { type ActionFunctionArgs, type LoaderFunctionArgs, json, redirect } from "@remix-run/node";
 import { Form, useActionData, useLoaderData, useSubmit } from "@remix-run/react";
+import { useAuthenticityToken } from "remix-utils/csrf/react";
 import {
   addDays,
   addHours,
@@ -33,6 +34,8 @@ import { requireUserWithRole } from "~/modules/auth/auth.server";
 import { prisma } from "~/modules/db/db.server";
 import { calculateExtensionFinancials, getRates } from "~/services/extensions.server";
 import { createPaymentIntent } from "~/services/payment.server";
+import { validateCSRF } from "~/utils/csrf-action.server";
+import { env } from "~/utils/server/env.server";
 
 export async function loader({ params, request }: LoaderFunctionArgs) {
   invariant(params.id, "Booking ID route parameter is required");
@@ -68,8 +71,10 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
 
   try {
     if (guestEmail) {
-      if (!booking.guestUser || (booking.guestUser as { email: string }).email !== guestEmail)
+      if (!booking.guestUser || (booking.guestUser as { email: string }).email !== guestEmail) {
+        logger.error(`Unauthorized guest access: ${guestEmail}`);
         throw new Response("Unauthorized guest access", { status: 403 });
+      }
       user = booking.guestUser as { email: string; name?: string; phoneNumber?: string };
       logger.info(`Guest user authorized: ${guestEmail}`);
     } else {
@@ -206,6 +211,8 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
 }
 
 export async function action({ request, params }: ActionFunctionArgs) {
+  await validateCSRF(request);
+
   invariant(params.id, "Booking ID route parameter is required");
   logger.info(`Starting action for booking ID: ${params.id}`);
 
@@ -290,7 +297,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
         transactionType: "booking_extension",
       },
       idempotencyKey: crypto.randomUUID(), // Always new idempotency key for new/updated PI
-      callbackUrl: `${process.env.APP_URL || process.env.NGROK_DOMAIN || "http://localhost:5173"}/bookings/payment-status?transactionType=booking_extension`,
+      callbackUrl: `${env.FLUTTERWAVE_WEBHOOK_URL || "http://localhost:5173"}/bookings/payment-status?transactionType=booking_extension`,
     });
 
     logger.debug(`Payment intent created: ${paymentIntentId}`);
@@ -334,6 +341,7 @@ export default function ExtendBookingPage() {
   const { booking, maxHours, vatRatePercent } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const submit = useSubmit();
+  const csrfToken = useAuthenticityToken();
   const [hours, setHours] = useState(maxHours >= 1 ? 1 : 0);
 
   // Ensure calculations handle potentially 0 hours selected
@@ -352,6 +360,8 @@ export default function ExtendBookingPage() {
     event.preventDefault();
     if (hours <= 0) return; // Don't submit if 0 hours
     const formData = new FormData(event.currentTarget);
+
+    formData.append("csrf", csrfToken);
     submit(formData, { method: "POST", action: `/bookings/${booking.id}/extend` });
   };
 

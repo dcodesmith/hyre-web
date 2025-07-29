@@ -3,6 +3,7 @@ import crypto from "node:crypto";
 import logger from "~/lib/logger.server";
 import { prisma } from "~/modules/db/db.server";
 import { BookingWithRelations } from "~/types";
+import { env } from "~/utils/server/env.server";
 
 type CustomerInfo = {
   email: string;
@@ -28,9 +29,7 @@ export async function createPaymentIntent({
   idempotencyKey = crypto.randomUUID(),
   callbackUrl,
 }: PaymentIntentOptions) {
-  const FLUTTERWAVE_SECRET_KEY = process.env.FLUTTERWAVE_SECRET_KEY;
-  const FLUTTERWAVE_PUBLIC_KEY = process.env.FLUTTERWAVE_PUBLIC_KEY;
-  const FLUTTERWAVE_WEBHOOK_SECRET = process.env.FLUTTERWAVE_WEBHOOK_SECRET;
+  const { FLUTTERWAVE_SECRET_KEY, FLUTTERWAVE_PUBLIC_KEY, FLUTTERWAVE_WEBHOOK_SECRET } = env;
 
   if (!FLUTTERWAVE_SECRET_KEY || !FLUTTERWAVE_PUBLIC_KEY || !FLUTTERWAVE_WEBHOOK_SECRET) {
     const missingKeys = {
@@ -73,7 +72,7 @@ export async function createPaymentIntent({
       },
     };
 
-    logger.info("Payment intent payload", payload);
+    logger.debug("Payment intent payload", payload);
 
     // Call Flutterwave API to initialize payment
     const response = await axios.post("https://api.flutterwave.com/v3/payments", payload, {
@@ -110,7 +109,7 @@ export async function createPaymentIntent({
  */
 export async function verifyPaymentWebhook(request: Request) {
   const signatureFromFlutterwave = request.headers.get("verif-hash");
-  const WEBHOOK_SECRET = process.env.FLUTTERWAVE_WEBHOOK_SECRET;
+  const WEBHOOK_SECRET = env.FLUTTERWAVE_WEBHOOK_SECRET;
 
   if (!signatureFromFlutterwave || !WEBHOOK_SECRET) {
     logger.error("Webhook security check: Missing signature or configured secret", {
@@ -143,14 +142,12 @@ export async function verifyTransaction(
     tx_ref: string;
   },
 ) {
-  const FLUTTERWAVE_SECRET_KEY = process.env.FLUTTERWAVE_SECRET_KEY;
-
   try {
     const response = await axios.get(
       `https://api.flutterwave.com/v3/transactions/${transactionId}/verify`,
       {
         headers: {
-          Authorization: `Bearer ${FLUTTERWAVE_SECRET_KEY}`,
+          Authorization: `Bearer ${env.FLUTTERWAVE_SECRET_KEY}`,
         },
       },
     );
@@ -209,8 +206,6 @@ export async function refundPayment(transactionId: string, amount: number, callb
     callbackurl,
   });
 
-  const FLUTTERWAVE_SECRET_KEY = process.env.FLUTTERWAVE_SECRET_KEY;
-
   try {
     const payload = { amount, callbackurl };
     const response = await axios.post(
@@ -218,7 +213,7 @@ export async function refundPayment(transactionId: string, amount: number, callb
       payload,
       {
         headers: {
-          Authorization: `Bearer ${FLUTTERWAVE_SECRET_KEY}`,
+          Authorization: `Bearer ${env.FLUTTERWAVE_SECRET_KEY}`,
           "Content-Type": "application/json",
         },
       },
@@ -256,12 +251,10 @@ export async function refundPayment(transactionId: string, amount: number, callb
  * Verifies a refund's status directly with Flutterwave
  */
 export async function verifyRefund(refundId: string) {
-  const FLUTTERWAVE_SECRET_KEY = process.env.FLUTTERWAVE_SECRET_KEY;
-
   try {
     const response = await axios.get(`https://api.flutterwave.com/v3/refunds/${refundId}`, {
       headers: {
-        Authorization: `Bearer ${FLUTTERWAVE_SECRET_KEY}`,
+        Authorization: `Bearer ${env.FLUTTERWAVE_SECRET_KEY}`,
       },
     });
 
@@ -299,7 +292,8 @@ async function initiateFlutterwavePayout(
   reference: string,
   bookingId: string,
 ) {
-  const FLUTTERWAVE_SECRET_KEY = process.env.FLUTTERWAVE_SECRET_KEY;
+  const { FLUTTERWAVE_SECRET_KEY } = env;
+
   if (!FLUTTERWAVE_SECRET_KEY) {
     logger.error("Missing Flutterwave API secret key");
     throw new Error("Payment service configuration error");
@@ -312,7 +306,7 @@ async function initiateFlutterwavePayout(
     narration: `Payout for booking ${bookingId}`,
     currency: "NGN",
     reference: reference,
-    callback_url: `${process.env.APP_URL || process.env.NGROK_DOMAIN}/api/payments/webhook/flutterwave`,
+    callback_url: `${env.FLUTTERWAVE_WEBHOOK_URL}/api/payments/webhook/flutterwave`,
     debit_currency: "NGN",
   };
 

@@ -1,6 +1,6 @@
 import type { LoaderFunction } from "@remix-run/node";
 import { prisma } from "~/modules/db/db.server";
-import { generatePdfWithPdfKit } from "~/utils/pdfKitReceipt";
+import { generatePdfWithPdfKit } from "~/utils/server/pdfKitReceipt.server";
 
 export const loader: LoaderFunction = async ({ params }) => {
   const booking = await prisma.booking.findUnique({

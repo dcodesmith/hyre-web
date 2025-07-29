@@ -1,12 +1,7 @@
-/**
- * Permissions and Roles.
- * Implementation based on github.com/epicweb-dev/epic-stack
- */
 import { json } from "@remix-run/node";
+import logger from "~/lib/logger.server";
 import { requireUser } from "~/modules/auth/auth.server";
-import { RoleName, userHasRole } from "~/utils/misc";
-// import { ROUTE_PATH as LOGIN_PATH } from "~/routes/auth+/login";
-// export type RoleName = "user" | "client" | "admin";
+import { RoleName, userHasRole } from "~/utils/client/misc";
 
 export async function requireUserWithRole(request: Request, name: RoleName) {
   const user = await requireUser(request, { redirectTo: "/auth" });
@@ -14,6 +9,7 @@ export async function requireUserWithRole(request: Request, name: RoleName) {
 
   // for security reasons, do we wanna tell you the user they have no access or just redirect them to the home page like the page doesn't exist
   if (!hasRole) {
+    logger.error(`Unauthorized: required role: ${name}:`, user);
     throw json(
       {
         error: "Unauthorized",

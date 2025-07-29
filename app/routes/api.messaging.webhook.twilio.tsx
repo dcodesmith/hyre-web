@@ -1,6 +1,7 @@
 import type { ActionFunctionArgs } from "@remix-run/node"; // or cloudflare/deno
 import twilio from "twilio";
 import logger from "~/lib/logger.server";
+import { env } from "~/utils/server/env.server";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   if (request.method !== "POST") {
@@ -8,8 +9,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     return new Response("Method Not Allowed", { status: 405 });
   }
 
-  const authToken = process.env.TWILIO_AUTH_TOKEN;
-  const webhookUrl = process.env.TWILIO_WEBHOOK_URL; // Use the configured URL for validation
+  const authToken = env.TWILIO_AUTH_TOKEN;
+  const webhookUrl = env.TWILIO_WEBHOOK_URL; // Use the configured URL for validation
   const twilioSignature =
     request.headers.get("x-twilio-signature") ?? request.headers.get("x-twilio-signature-256");
 

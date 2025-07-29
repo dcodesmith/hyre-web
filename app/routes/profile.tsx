@@ -3,8 +3,11 @@ import { ActionFunctionArgs, json } from "@remix-run/node";
 import { authenticator } from "~/modules/auth/auth.server";
 import { prisma } from "~/modules/db/db.server";
 import { profileFormSchema } from "~/schemas/user";
+import { validateCSRF } from "~/utils/csrf-action.server";
 
 export async function action({ request }: ActionFunctionArgs) {
+  await validateCSRF(request);
+
   const user = await authenticator.isAuthenticated(request, {
     failureRedirect: "/auth",
   });

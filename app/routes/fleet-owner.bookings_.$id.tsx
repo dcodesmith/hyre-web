@@ -2,6 +2,7 @@ import { BookingStatus, PaymentStatus } from "@prisma/client";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { redirect, useFetcher, useLoaderData } from "@remix-run/react";
+import { useAuthenticityToken } from "remix-utils/csrf/react";
 import { useState } from "react";
 import invariant from "tiny-invariant";
 import { Button } from "~/components/ui/button";
@@ -19,8 +20,11 @@ import { renderChauffeurAssignedEmail } from "~/modules/email/templates/booking-
 import { format } from "date-fns";
 import logger from "~/lib/logger.server";
 import { sendMessage, Template } from "~/modules/messaging/messaging.server";
+import { validateCSRF } from "~/utils/csrf-action.server";
 
 export const action = async ({ request, params }: ActionFunctionArgs) => {
+  await validateCSRF(request);
+
   try {
     if (request.method !== "PATCH") {
       return json({ error: "Method not allowed" }, { status: 405 });
@@ -140,6 +144,7 @@ export default function BookingDetails() {
   const { booking } = useLoaderData<typeof loader>();
   const fetcher = useFetcher();
   const [showForm, setShowForm] = useState(false);
+  const csrfToken = useAuthenticityToken();
 
   return (
     <div className="max-w-3xl mx-auto p-6 space-y-2">
@@ -198,6 +203,7 @@ export default function BookingDetails() {
                 </div>
               ) : (
                 <fetcher.Form method="patch">
+                  <input type="hidden" name="csrf" value={csrfToken} />
                   {fetcher.data?.error && (
                     <div className="text-sm text-red-600 mb-2">{fetcher.data.error}</div>
                   )}

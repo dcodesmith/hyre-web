@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { renderAuthEmail } from "./templates/auth-email";
 import logger from "~/lib/logger.server";
+import { env } from "~/utils/server/env.server";
 
 const ResendErrorSchema = z.union([
   z.object({
@@ -27,14 +28,13 @@ export type SendEmailOptions = {
 };
 
 export async function sendEmail(options: SendEmailOptions) {
-  // For development mode, Resend will only accept emails from this domain.
-  const from = `Damola from ${process.env.APP_NAME} <no-reply@dcodesmith.com>`; //"hello@resend.dev";
+  const from = `Damola from ${env.APP_NAME} <no-reply@dcodesmith.com>`;
   const email = { from, ...options };
 
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+      Authorization: `Bearer ${env.RESEND_API_KEY}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify(email),
@@ -60,7 +60,7 @@ export async function sendEmail(options: SendEmailOptions) {
     console.error(parseResult.data);
     throw new Error("Unable to send email.");
   }
-  console.error(data);
+  logger.error("Unable to send email.", data);
   throw new Error("Unable to send email.");
 }
 
@@ -76,7 +76,7 @@ export async function sendAuthEmail({ email, code, magicLink, intent }: AuthEmai
 
   await sendEmail({
     to: email,
-    subject: `${process.env.APP_NAME} ${intent === "login" ? "Login" : "Registration"} Code`,
+    subject: `${env.APP_NAME} ${intent === "login" ? "Login" : "Registration"} Code`,
     html,
   });
 }

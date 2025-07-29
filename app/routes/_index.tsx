@@ -404,8 +404,6 @@ export default function IndexPage() {
     return days;
   };
 
-  const baseUrl = process.env.NODE_ENV === "production" ? "https://hyre-neon.vercel.app/" : "";
-
   return (
     <div className="max-w-8xl mx-auto space-y-2 -mt-16">
       <div className="grid grid-cols-1 lg:grid-cols-3 md:grid-cols-2 gap-2">
@@ -445,23 +443,11 @@ export default function IndexPage() {
 
         <div className="relative lg:col-span-2 md:col-span-1 hidden md:block">
           <picture>
-            <source
-              media="(min-width: 1024px)"
-              srcSet={`${baseUrl}/images/hero.webp`}
-              type="image/webp"
-            />
-            <source
-              media="(min-width: 768px)"
-              srcSet={`${baseUrl}/images/hero-1200.webp`}
-              type="image/webp"
-            />
-            <source
-              media="(min-width: 1024px)"
-              srcSet={`${baseUrl}/images/hero.png`}
-              type="image/png"
-            />
+            <source media="(min-width: 1024px)" srcSet="/images/hero.webp" type="image/webp" />
+            <source media="(min-width: 768px)" srcSet="/images/hero-1200.webp" type="image/webp" />
+            <source media="(min-width: 1024px)" srcSet="/images/hero.png" type="image/png" />
             <img
-              src={`${baseUrl}/images/hero.png`}
+              src="/images/hero.png"
               alt="Professional chauffeur service - luxury vehicle ready for hire"
               className="md:h-[648px] w-full object-cover"
               width="1024"

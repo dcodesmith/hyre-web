@@ -1,22 +1,24 @@
 import { type FieldMetadata, getFormProps, getInputProps, useForm } from "@conform-to/react";
 import { parseWithZod } from "@conform-to/zod";
 import type { Car, User } from "@prisma/client";
-import { Form, useNavigate, useSearchParams, useSubmit, useFetcher } from "@remix-run/react";
+import { useNavigate, useNavigation, useSearchParams, useSubmit } from "@remix-run/react";
 import { eachDayOfInterval, format, isAfter, parseISO, startOfDay } from "date-fns";
-import { CreditCard } from "lucide-react";
+import { CreditCard, Loader2 } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import { DateRange } from "react-day-picker";
+import { useAuthenticityToken } from "remix-utils/csrf/react";
 import { z } from "zod";
+import { Form } from "~/components/CSRFForm";
 import { formatCurrency } from "~/lib/utils";
-import { AutocompleteAddress } from "./AutocompleteAddress";
+import { AutocompleteAddress } from "../AutocompleteAddress";
+import { Button } from "../ui/button";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "../ui/card";
+import { Checkbox } from "../ui/checkbox";
+import { Input } from "../ui/input";
+import { Label } from "../ui/label";
+import { RadioGroup, RadioGroupItem } from "../ui/radio-group";
 import { BookingTimeSelect } from "./BookingTimeSelect";
 import { DateRangePicker } from "./DateRangePicker";
-import { Button } from "./ui/button";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "./ui/card";
-import { Checkbox } from "./ui/checkbox";
-import { Input } from "./ui/input";
-import { Label } from "./ui/label";
-import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
 
 const SECURITY_DETAIL_COST = 30000;
 const ERROR_RING_CLASSES = "border-red-500 focus-visible:ring-red-500 focus-visible:ring-2";
@@ -125,7 +127,8 @@ const calculateTotalDays = (from: Date | undefined, to: Date | undefined): numbe
 function getOrdinal(n: number): string {
   if (n > 3 && n < 21) {
     return `${n}th`;
-  } // Braces added
+  }
+
   switch (n % 10) {
     case 1:
       return `${n}st`;
@@ -200,45 +203,41 @@ export default function BookingCard({
 }: BookingCardProps) {
   const navigate = useNavigate();
   const submit = useSubmit();
+  const csrfToken = useAuthenticityToken();
   const [searchParams, setSearchParams] = useSearchParams();
   const [bookingType, setBookingType] = useState<BookingType>(
     (searchParams.get("bookingType") as BookingType | null) || DAY_BOOKING_TYPE,
   );
+  const navigation = useNavigation();
+  const isPending = navigation.state === "submitting" && navigation.formMethod === "POST";
+
   const [sameLocationChecked, setSameLocationChecked] = useState<boolean>(
     searchParams.get("sameLocation") !== "false",
   );
   const [includeSecurityDetail, setIncludeSecurityDetail] = useState(false);
 
   const initialDateRange = useMemo(() => {
-    const fromParam = searchParams.get("from");
-    const toParam = searchParams.get("to");
-    let fromDate: Date | undefined;
-    let toDate: Date | undefined;
+    const parseDateParam = (param: string | null) => {
+      if (!param) {
+        return undefined;
+      }
 
-    try {
-      if (fromParam) {
-        fromDate = parseISO(fromParam);
-        if (Number.isNaN(fromDate.getTime())) {
-          fromDate = undefined;
+      try {
+        const date = parseISO(param);
+
+        if (Number.isNaN(date.getTime())) {
+          console.warn("Invalid date parameter:", param);
+          return undefined;
         }
-        if (fromDate === undefined) {
-          console.warn("Invalid 'from' date parameter:", fromParam);
-        }
+        return date;
+      } catch (e) {
+        console.error("Error parsing date param:", e);
+        return undefined;
       }
-      if (toParam) {
-        toDate = parseISO(toParam);
-        if (Number.isNaN(toDate.getTime())) {
-          toDate = undefined;
-        }
-        if (toDate === undefined) {
-          console.warn("Invalid 'to' date parameter:", toParam);
-        }
-      }
-    } catch (e) {
-      console.error("Error parsing date params:", e);
-      fromDate = undefined;
-      toDate = undefined;
-    }
+    };
+
+    const fromDate = parseDateParam(searchParams.get("from"));
+    const toDate = parseDateParam(searchParams.get("to"));
 
     if (fromDate && toDate && isAfter(fromDate, toDate)) {
       console.warn("'from' date is after 'to' date, resetting range.");
@@ -249,7 +248,7 @@ export default function BookingCard({
   }, [searchParams]);
 
   const [dateRange, setDateRange] = useState<DateRange>(initialDateRange);
-  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+  const [_, setIsDatePickerOpen] = useState(false);
 
   const totalDays = useMemo(
     () => calculateTotalDays(dateRange.from, dateRange.to),
@@ -348,6 +347,7 @@ export default function BookingCard({
         return navigate(`/auth?redirectTo=${encodeURIComponent(redirectTo)}`);
       }
 
+      formData.append("csrf", csrfToken);
       submit(formData, { method: "POST", action: `/bookings?${searchParams.toString()}` });
     },
   });
@@ -419,11 +419,6 @@ export default function BookingCard({
       setSearchParams(newSearchParams, { replace: true, preventScrollReset: true });
     },
     [searchParams, setSearchParams],
-  );
-
-  const handlePlaceSelect = useCallback(
-    (name: string, value: string) => form.update({ name, value }),
-    [form],
   );
 
   const nightBookingHelperText = useMemo(() => {
@@ -548,10 +543,9 @@ export default function BookingCard({
 
               <div className="space-y-1">
                 <input
-                  {...getInputProps(fields.sameLocation, {
-                    type: "hidden",
-                    value: sameLocationChecked ? "true" : "false",
-                  })}
+                  type="hidden"
+                  name={fields.sameLocation.name}
+                  value={sameLocationChecked ? "true" : "false"}
                 />
                 <div className="flex items-center space-x-2">
                   <Checkbox
@@ -666,8 +660,21 @@ export default function BookingCard({
                 <div className="flex flex-col space-y-2">
                   {!user ? (
                     <>
-                      <Button type="submit" className="rounded w-full" name="intent" value="guest">
-                        Book Now as Guest
+                      <Button
+                        type="submit"
+                        className="rounded w-full"
+                        name="intent"
+                        value="guest"
+                        disabled={isPending}
+                      >
+                        {isPending ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Redirecting to payment...
+                          </>
+                        ) : (
+                          "Pay Now as Guest"
+                        )}
                       </Button>
                       <div className="flex items-center justify-center text-sm pt-1">
                         <span>Have an account?</span>
@@ -675,6 +682,7 @@ export default function BookingCard({
                           type="button"
                           variant="link"
                           className="underline px-1"
+                          disabled={isPending}
                           onClick={() => {
                             const currentParams = new URLSearchParams(searchParams);
 
@@ -715,11 +723,22 @@ export default function BookingCard({
                       </div>
                     </>
                   ) : (
-                    <>
-                      <Button type="submit" className="rounded w-full" name="intent" value="auth">
-                        Book Now
-                      </Button>
-                    </>
+                    <Button
+                      type="submit"
+                      className="rounded w-full"
+                      name="intent"
+                      value="auth"
+                      disabled={isPending}
+                    >
+                      {isPending ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Redirecting to payment...
+                        </>
+                      ) : (
+                        "Pay Now"
+                      )}
+                    </Button>
                   )}
                 </div>
               </div>

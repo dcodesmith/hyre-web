@@ -34,6 +34,7 @@ import {
   unstable_parseMultipartFormData,
   unstable_createMemoryUploadHandler,
 } from "@remix-run/node";
+import logger from "~/lib/logger.server";
 
 const chauffeurSchema = z.object({
   email: z
@@ -171,8 +172,11 @@ export async function loader({ request }: LoaderFunctionArgs) {
 export async function action({ request }: ActionFunctionArgs) {
   const user = await requireUserWithRole(request, "fleetOwner");
 
-  // Parse as regular form data to get the intent
-  const formData = await request.formData();
+  // Parse as multipart form data for file uploads
+  const uploadHandler = unstable_createMemoryUploadHandler({
+    maxPartSize: 10 * 1024 * 1024, // 10MB limit
+  });
+  const formData = await unstable_parseMultipartFormData(request, uploadHandler);
   const intent = String(formData.get("intent"));
 
   if (!["create", "edit"].includes(intent)) {
@@ -181,16 +185,7 @@ export async function action({ request }: ActionFunctionArgs) {
 
   try {
     if (intent === "create") {
-      // Re-parse as multipart form data for file uploads
-      const uploadHandler = unstable_createMemoryUploadHandler({
-        maxPartSize: 10 * 1024 * 1024, // 10MB limit
-      });
-      const multipartFormData = await unstable_parseMultipartFormData(
-        request.clone(),
-        uploadHandler,
-      );
-
-      const submission = parseWithZod(multipartFormData, { schema: chauffeurSchema });
+      const submission = parseWithZod(formData, { schema: chauffeurSchema });
 
       if (submission.status !== "success") {
         return json(submission.reply());
@@ -227,7 +222,7 @@ export async function action({ request }: ActionFunctionArgs) {
 
     return json({ success: true, error: null } as const);
   } catch (error) {
-    console.error(error);
+    logger.error(error instanceof Error ? error.message : "An unexpected error occurred");
     return json(
       {
         success: false,

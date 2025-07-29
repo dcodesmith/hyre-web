@@ -1,5 +1,5 @@
 import { format } from "date-fns";
-import fs from "node:fs";
+import fs, { constants } from "node:fs";
 import path from "node:path";
 import { PassThrough } from "node:stream";
 import { fileURLToPath } from "node:url";
@@ -34,7 +34,9 @@ export async function generatePdfWithPdfKit(booking: BookingWithRelations): Prom
   const fontDir = path.join(currentDir, "..", "..", "public", "fonts");
   const dancingScriptPath = path.join(fontDir, "DancingScript-Regular.ttf");
 
-  if (!fs.existsSync(dancingScriptPath)) {
+  try {
+    await fs.promises.access(dancingScriptPath, constants.R_OK);
+  } catch {
     const errorMsg = `Dancing Script font not found at: ${dancingScriptPath}`;
     logger.error(errorMsg);
     throw new Error(errorMsg);

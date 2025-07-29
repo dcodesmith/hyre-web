@@ -14,14 +14,14 @@ import {
 } from "@react-email/components";
 import * as React from "react";
 import tailwindConfig from "tailwind.config";
+import { env } from "~/utils/server/env.server";
 
 // Sourcing company details from environment variables for a Remix app (server-side)
-const COMPANY_NAME = process.env.APP_NAME || "Your Company Name";
-const COMPANY_LOGO_URL =
-  process.env.COMPANY_LOGO_URL || "https://via.placeholder.com/150x50?text=Your+Logo";
-const COMPANY_ADDRESS = process.env.COMPANY_ADDRESS || "Lagos, Nigeria";
-const WEBSITE_URL = process.env.WEBSITE_URL || process.env.DOMAIN || "https://dcodesmith.com";
-const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL || "support@dcodesmith.com";
+const COMPANY_NAME = env.APP_NAME || "Your Company Name";
+const COMPANY_LOGO_URL = "https://via.placeholder.com/150x50?text=Your+Logo";
+const COMPANY_ADDRESS = "Lagos, Nigeria";
+const WEBSITE_URL = env.WEBSITE_URL || env.DOMAIN || "https://dcodesmith.com";
+const SUPPORT_EMAIL = env.SUPPORT_EMAIL || "support@dcodesmith.com";
 const CURRENT_YEAR = new Date().getFullYear();
 
 interface EmailTemplateProps {

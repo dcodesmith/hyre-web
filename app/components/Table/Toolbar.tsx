@@ -6,7 +6,7 @@ import { useState } from "react";
 import { DateRange } from "react-day-picker";
 import { Button } from "~/components/ui/button";
 import { SerializedCar } from "~/types";
-import { DateRangePicker } from "../DateRangePicker";
+import { DateRangePicker } from "../booking/DateRangePicker";
 import { ColumnViewOptions } from "./ColumnViewOptions";
 import { FacetedFilter } from "./FacetedFilter";
 

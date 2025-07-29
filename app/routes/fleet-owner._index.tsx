@@ -12,7 +12,7 @@ import { formatDate } from "~/lib/utils";
 import { prisma } from "~/modules/db/db.server";
 import { Prisma, BookingStatus, PaymentStatus } from "@prisma/client";
 import { getMonthToDateBookingsValue } from "~/services/bookings.server";
-import { requireUserWithRole } from "~/utils/permissions.server";
+import { requireUserWithRole } from "~/utils/server/permissions.server";
 import { startOfDay, endOfDay, subDays, format } from "date-fns";
 
 type TimeRange = "week" | "month" | "year";
@@ -368,61 +368,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
       projectedRevenue: ownerRevenueToday,
     },
   });
-}
-
-function numberToWords(num: number) {
-  const units = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine"];
-  const teens = [
-    "Ten",
-    "Eleven",
-    "Twelve",
-    "Thirteen",
-    "Fourteen",
-    "Fifteen",
-    "Sixteen",
-    "Seventeen",
-    "Eighteen",
-    "Nineteen",
-  ];
-  const tens = [
-    "",
-    "",
-    "Twenty",
-    "Thirty",
-    "Forty",
-    "Fifty",
-    "Sixty",
-    "Seventy",
-    "Eighty",
-    "Ninety",
-  ];
-  const scales = ["", "Thousand", "Million", "Billion", "Trillion"];
-
-  if (num === 0) return "Zero Naira";
-
-  function recursiveNumberToWords(n: number): string {
-    if (n < 10) return units[n];
-    if (n < 20) return teens[n - 10];
-    if (n < 100) return tens[Math.floor(n / 10)] + (n % 10 ? ` ${units[n % 10]}` : "");
-    if (n < 1000)
-      return `${units[Math.floor(n / 100)]} Hundred${n % 100 ? ` and ${recursiveNumberToWords(n % 100)}` : ""}`;
-
-    let scaleIndex = 0;
-    let result = "";
-    let remaining = n;
-
-    while (remaining > 0) {
-      if (remaining % 1000 !== 0) {
-        result = `${recursiveNumberToWords(remaining % 1000)} ${scales[scaleIndex]} ${result}`;
-      }
-      remaining = Math.floor(remaining / 1000);
-      scaleIndex++;
-    }
-
-    return result.trim();
-  }
-
-  return `${recursiveNumberToWords(Math.floor(num))} Naira`;
 }
 
 const getOrdinal = (n: number): string => {

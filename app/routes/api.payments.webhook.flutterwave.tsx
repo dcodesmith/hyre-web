@@ -27,7 +27,7 @@ import {
   type FlutterwaveChargeCompletedPayload,
   type FlutterwaveRefundPayload,
   type FlutterwaveTransferCompletedPayload,
-} from "~/types/flutterwave";
+} from "~/types/payment";
 
 async function createOrUpdatePaymentRecord(payload: FlutterwaveChargeCompletedPayload) {
   const {

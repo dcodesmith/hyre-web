@@ -2,7 +2,8 @@ import { getFormProps, getInputProps, useForm } from "@conform-to/react";
 import { getZodConstraint, parseWithZod } from "@conform-to/zod";
 import { CogIcon } from "@heroicons/react/24/outline";
 import { ActionFunctionArgs, LoaderFunctionArgs, json, redirect } from "@remix-run/node";
-import { Form, Outlet, useLoaderData, useNavigate, useSearchParams } from "@remix-run/react";
+import { Outlet, useLoaderData, useNavigate, useSearchParams } from "@remix-run/react";
+import { Form } from "~/components/CSRFForm";
 import { AuthorizationError } from "remix-auth";
 import { z } from "zod";
 import { Button } from "~/components/ui/button";
@@ -20,6 +21,7 @@ import { useIsPending } from "~/lib/utils";
 import { authenticator } from "~/modules/auth/auth.server";
 import { commitSession, getSession } from "~/modules/auth/session.server";
 import { prisma } from "~/modules/db/db.server";
+import { validateCSRF } from "~/utils/csrf-action.server";
 
 const roles = ["user", "fleetOwner"] as const;
 
@@ -52,6 +54,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
 }
 
 export async function action({ request }: ActionFunctionArgs) {
+  await validateCSRF(request);
+
   const formData = await request.clone().formData();
   const role = (formData.get("role") as string | null) ?? "user"; // Default to least privileged role
 

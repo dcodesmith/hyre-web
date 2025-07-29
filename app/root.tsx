@@ -16,16 +16,20 @@ import {
   useLocation,
 } from "@remix-run/react";
 import tailwindStyles from "~/tailwind.css?url";
-import Forbidden from "./components/Forbidden";
-import { UserNav } from "./components/UserNav";
+import Forbidden from "./components/layout/Forbidden";
+import { UserNav } from "./components/layout/UserNav";
 import { Toaster } from "./components/ui/toaster";
 import { getSessionUser } from "./modules/auth/auth.server";
 import { Button } from "./components/ui/button";
+import { csrf } from "~/utils/csrf.server";
+import { AuthenticityTokenProvider } from "remix-utils/csrf/react";
+import { env } from "./utils/server/env.server";
 
 export const links: LinksFunction = () => [
   ...(cssBundleHref ? [{ rel: "stylesheet", href: cssBundleHref }] : []),
   { rel: "stylesheet", href: tailwindStyles },
-  { rel: "icon", type: "image/svg+xml", href: "/logo.svg" },
+  { rel: "icon", href: "/favicon.ico" },
+  // { rel: "icon", type: "image/svg+xml", href: "/logo.svg" },
   { rel: "alternate icon", href: "/favicon.ico" },
   { rel: "apple-touch-icon", href: "/apple-touch-icon.svg" },
   { rel: "apple-touch-icon-precomposed", href: "/apple-touch-icon.svg" },
@@ -44,19 +48,25 @@ export const links: LinksFunction = () => [
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const user = await getSessionUser(request);
+  const [csrfToken, csrfCookieHeader] = await csrf.commitToken(request);
 
   const ENV = {
-    APP_NAME: process.env.APP_NAME,
+    APP_NAME: env.APP_NAME,
   };
 
-  return json({
-    user,
-    ENV,
-    // csrfToken,
-  } as const);
+  return json(
+    {
+      user,
+      ENV,
+      csrfToken,
+    } as const,
+    {
+      headers: csrfCookieHeader ? { "Set-Cookie": csrfCookieHeader } : {},
+    },
+  );
 }
 
-export default function App() {
+function AppContent() {
   const { user, ENV } = useLoaderData<typeof loader>();
   const location = useLocation();
   const isAdminRoute = location.pathname.startsWith("/admin");
@@ -116,25 +126,50 @@ export default function App() {
         />
         <Scripts />
 
-        {/* Load Google Maps asynchronously after critical content */}
+        {/* Load Google Maps asynchronously */}
         <script
+          // biome-ignore lint/security/noDangerouslySetInnerHtml: <framework pattern>
           dangerouslySetInnerHTML={{
             __html: `
-              window.addEventListener('load', function() {
-                // Delay Google Maps loading to after critical content
-                setTimeout(function() {
-                  (g=>{var h,a,k,p="The Google Maps JavaScript API",c="google",l="importLibrary",q="__ib__",m=document,b=window;b=b[c]||(b[c]={});var d=b.maps||(b.maps={}),r=new Set,e=new URLSearchParams,u=()=>h||(h=new Promise(async(f,n)=>{await (a=m.createElement("script"));e.set("libraries",[...r]+"");for(k in g)e.set(k.replace(/[A-Z]/g,t=>"_"+t.toLowerCase()),g[k]);e.set("callback",c+".maps."+q);a.src='https://maps.'+c+'apis.com/maps/api/js?'+e;d[q]=f;a.onerror=()=>h=n(Error(p+" could not load."));a.nonce=m.querySelector("script[nonce]")?.nonce||"";m.head.append(a)}));d[l]?console.warn(p+" only loads once. Ignoring:",g):d[l]=(f,...n)=>r.add(f)&&u().then(()=>d[l](f,...n))})({
-                    key: "AIzaSyC4wP-v71ZBOKNUXx8hOxmuYKdxY2gh0XM",
-                    v: "weekly"
-                  });
-                }, 1000); // Load after 1 second delay
+              (g=>{var h,a,k,p="The Google Maps JavaScript API",c="google",l="importLibrary",q="__ib__",m=document,b=window;b=b[c]||(b[c]={});var d=b.maps||(b.maps={}),r=new Set,e=new URLSearchParams,u=()=>h||(h=new Promise(async(f,n)=>{await (a=m.createElement("script"));e.set("libraries",[...r]+"");for(k in g)e.set(k.replace(/[A-Z]/g,t=>"_"+t.toLowerCase()),g[k]);e.set("callback",c+".maps."+q);a.src='https://maps.'+c+'apis.com/maps/api/js?'+e;d[q]=f;a.onerror=()=>h=n(Error(p+" could not load."));a.nonce=m.querySelector("script[nonce]")?.nonce||"";m.head.append(a)}));d[l]?console.warn(p+" only loads once. Ignoring:",g):d[l]=(f,...n)=>r.add(f)&&u().then(()=>d[l](f,...n))})({
+                key: "AIzaSyC4wP-v71ZBOKNUXx8hOxmuYKdxY2gh0XM",
+                v: "weekly"
               });
+            `,
+          }}
+        />
+        {/* Fallback Google Maps loading */}
+        <script
+          // biome-ignore lint/security/noDangerouslySetInnerHtml: <framework pattern>
+          dangerouslySetInnerHTML={{
+            __html: `
+              // Fallback: ensure Google Maps is loaded
+              setTimeout(function() {
+                if (!window.google?.maps?.importLibrary) {
+                  console.log('Loading Google Maps via fallback method');
+                  const script = document.createElement('script');
+                  script.src = 'https://maps.googleapis.com/maps/api/js?key=AIzaSyC4wP-v71ZBOKNUXx8hOxmuYKdxY2gh0XM&libraries=places&v=weekly';
+                  script.async = true;
+                  script.defer = true;
+                  document.head.appendChild(script);
+                }
+              }, 2000);
             `,
           }}
         />
         <SpeedInsights />
       </body>
     </html>
+  );
+}
+
+export default function App() {
+  const { csrfToken } = useLoaderData<typeof loader>();
+
+  return (
+    <AuthenticityTokenProvider token={csrfToken}>
+      <AppContent />
+    </AuthenticityTokenProvider>
   );
 }
 

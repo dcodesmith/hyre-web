@@ -1,30 +1,29 @@
-import { json, type LoaderFunctionArgs, type ActionFunctionArgs } from "@remix-run/node";
-import { useLoaderData, useSubmit, useActionData, useNavigation } from "@remix-run/react";
-import { Table } from "~/components/Table/Table";
-import { requireAdminWithRedirect } from "~/modules/auth/auth.server";
-import { prisma } from "~/modules/db/db.server";
-import { createColumnHelper } from "@tanstack/react-table";
-import { Link } from "@remix-run/react";
-import { Badge } from "~/components/ui/badge";
 import { ChauffeurApprovalStatus, User } from "@prisma/client";
+import { type ActionFunctionArgs, type LoaderFunctionArgs, json } from "@remix-run/node";
+import { useActionData, useLoaderData, useNavigation } from "@remix-run/react";
+import { Link } from "@remix-run/react";
+import { Form } from "@remix-run/react";
+import { createColumnHelper } from "@tanstack/react-table";
+import { MoreHorizontal } from "lucide-react";
+import { useEffect } from "react";
 import { ColumnHeader } from "~/components/Table/ColumnHeader";
+import { Table } from "~/components/Table/Table";
+import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
-import { CircleAlertIcon } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "~/components/ui/dropdown-menu";
-import { Form } from "@remix-run/react";
-// import { useToast } from "~/components/ui/use-toast";
-import { useEffect } from "react";
-import { cn } from "~/lib/utils";
-import { MoreHorizontal } from "lucide-react";
 import { useToast } from "~/hooks/use-toast";
+import { cn } from "~/lib/utils";
+import { requireAdminOrStaffWithRedirect } from "~/modules/auth/auth.server";
+import { prisma } from "~/modules/db/db.server";
 import { ChauffeurStatus } from "~/types";
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
+  await requireAdminOrStaffWithRedirect(request);
   const owner = await prisma.user.findUnique({
     where: { id: params.id },
     include: {
@@ -50,8 +49,8 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   return json({ owner });
 }
 
-export async function action({ request, params }: ActionFunctionArgs) {
-  await requireAdminWithRedirect(request);
+export async function action({ request }: ActionFunctionArgs) {
+  await requireAdminOrStaffWithRedirect(request);
 
   const formData = await request.formData();
   const intent = String(formData.get("intent"));
@@ -82,15 +81,15 @@ const statusColors: Record<ChauffeurApprovalStatus, string> = {
 };
 
 const chauffeurApprovalStatusOptions: Record<ChauffeurApprovalStatus, string> = {
-  PENDING: "Pending",
-  APPROVED: "Approved",
-  REJECTED: "Rejected",
+  [ChauffeurApprovalStatus.PENDING]: "Pending",
+  [ChauffeurApprovalStatus.APPROVED]: "Approved",
+  [ChauffeurApprovalStatus.REJECTED]: "Rejected",
 };
 
 const chauffeurApprovalStatusColors: Record<ChauffeurApprovalStatus, string> = {
-  PENDING: "bg-yellow-50 ring-yellow-600/10 text-yellow-600",
-  APPROVED: "bg-green-50 ring-green-600/10 text-green-600",
-  REJECTED: "bg-red-50 ring-red-600/10 text-red-600",
+  [ChauffeurApprovalStatus.PENDING]: "bg-yellow-50 ring-yellow-600/10 text-yellow-600",
+  [ChauffeurApprovalStatus.APPROVED]: "bg-green-50 ring-green-600/10 text-green-600",
+  [ChauffeurApprovalStatus.REJECTED]: "bg-red-50 ring-red-600/10 text-red-600",
 };
 
 // const approvalStatusOptions = {
@@ -246,7 +245,7 @@ const columns = [
       );
     },
   }),
-] as const;
+];
 
 export default function OwnerChauffeurs() {
   const { owner } = useLoaderData<typeof loader>();
@@ -282,6 +281,7 @@ export default function OwnerChauffeurs() {
       </div>
 
       <Table
+        hideColumnViewOptions
         columns={columns}
         data={owner.chauffeurs}
         initialSorting={[

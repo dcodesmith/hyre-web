@@ -7,7 +7,7 @@ import { Calendar, CheckCircle, CreditCard, MapPin, User } from "lucide-react";
 import { useEffect, useState } from "react";
 import invariant from "tiny-invariant";
 import { AutocompleteAddress } from "~/components/AutocompleteAddress";
-import { BookingTimeSelect } from "~/components/BookingTimeSelect";
+import { BookingTimeSelect } from "~/components/booking/BookingTimeSelect";
 import { Alert, AlertDescription } from "~/components/ui/alert";
 import { Avatar, AvatarFallback, AvatarImage } from "~/components/ui/avatar";
 import { Badge } from "~/components/ui/badge";
@@ -43,7 +43,8 @@ import { Template, sendMessage } from "~/modules/messaging/messaging.server";
 import { emailQueue } from "~/queues/email-throttle.server";
 import { cancelBooking, getBooking } from "~/services/bookings.server";
 import { refundPayment } from "~/services/payment.server";
-import { BookingLegWithRelations, BookingWithRelations } from "~/types";
+import { BookingWithRelations } from "~/types";
+import { env } from "~/utils/server/env.server";
 
 export async function action({ request, params }: ActionFunctionArgs) {
   invariant(params.id, "Booking ID is required");
@@ -68,6 +69,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
     if (bookingGuestEmail && bookingGuestEmail === guestEmail) {
       isAuthorized = true;
     } else {
+      logger.error(`Unauthorized guest access: ${guestEmail}:`, currentBooking);
       return json(
         { error: "Unauthorized: Invalid guest email for this booking action." },
         { status: 403 },
@@ -202,7 +204,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
       logger.info(`Booking paymentId: ${booking.paymentId}`);
 
       if (booking.paymentId && booking.totalAmount.gt(0)) {
-        const callbackurl = `${process.env.APP_URL || process.env.NGROK_DOMAIN}/api/payments/webhook/flutterwave`;
+        const callbackurl = `${env.FLUTTERWAVE_WEBHOOK_URL}/api/payments/webhook/flutterwave`;
 
         const refund = await refundPayment(
           booking.paymentId,
@@ -395,7 +397,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     throw new Response("Unauthorized: Access denied.", { status: 401 });
   }
 
-  logger.info("booking:", { booking });
+  logger.info("booking:", booking);
 
   const paymentSummary = createPaymentSummary(booking);
   const extendableDuration = getLegExtendableDuration(booking);

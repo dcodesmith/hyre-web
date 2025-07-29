@@ -3,18 +3,20 @@ import { parseWithZod } from "@conform-to/zod";
 import { CogIcon } from "@heroicons/react/24/outline";
 import type { ActionFunctionArgs } from "@remix-run/node";
 import { json, redirect } from "@remix-run/node";
-import { Form, useActionData, useNavigation } from "@remix-run/react";
+import { useActionData, useNavigation } from "@remix-run/react";
+import { Form } from "~/components/CSRFForm";
 import { z } from "zod";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
 import { useIsPending } from "~/lib/utils";
-import { requireUser } from "~/modules/auth/auth.server";
+import { requireUserWithRole } from "~/modules/auth/auth.server";
 import { createUser } from "~/services/users.server";
 import {
   unstable_parseMultipartFormData,
   unstable_createMemoryUploadHandler,
 } from "@remix-run/node";
+import { validateCSRF } from "~/utils/csrf-action.server";
 
 const chauffeurSchema = z.object({
   email: z
@@ -54,9 +56,9 @@ const chauffeurSchema = z.object({
 });
 
 export async function action({ request }: ActionFunctionArgs) {
-  const user = await requireUser(request);
+  await validateCSRF(request);
+  const user = await requireUserWithRole(request, "fleetOwner");
 
-  // Use Remix's unstable_parseMultipartFormData for proper file handling on Vercel
   const uploadHandler = unstable_createMemoryUploadHandler({
     maxPartSize: 10 * 1024 * 1024, // 10MB limit
   });

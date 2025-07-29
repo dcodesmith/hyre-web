@@ -68,26 +68,31 @@ export interface FlutterwaveRefundPayload {
 
 export type FlutterwaveWebhookPayload =
   | FlutterwaveChargeCompletedPayload
-  | FlutterwaveRefundPayload;
+  | FlutterwaveRefundPayload
+  | FlutterwaveTransferCompletedPayload;
 
 export function isChargeCompletedPayload(
-  payload: any,
+  payload: unknown,
 ): payload is FlutterwaveChargeCompletedPayload {
+  if (typeof payload !== "object" || payload === null) {
+    return false;
+  }
+
+  const p = payload as Partial<FlutterwaveChargeCompletedPayload>;
+
   return (
-    payload?.event === "charge.completed" &&
-    typeof payload?.data === "object" &&
-    typeof payload?.meta_data === "object"
+    p.event === "charge.completed" && typeof p.data === "object" && typeof p.meta_data === "object"
   );
 }
 
-export function isRefundPayload(payload: any): payload is FlutterwaveRefundPayload {
-  return (
-    typeof payload === "object" &&
-    payload !== null &&
-    "AmountRefunded" in payload &&
-    "FlwRef" in payload &&
-    !payload.event
-  );
+export function isRefundPayload(payload: unknown): payload is FlutterwaveRefundPayload {
+  if (typeof payload !== "object" || payload === null) {
+    return false;
+  }
+
+  const p = payload as Partial<FlutterwaveRefundPayload>;
+
+  return "AmountRefunded" in p && "FlwRef" in p && !("event" in p);
 }
 
 export type FlutterwaveTransferCompletedPayload = {
@@ -114,7 +119,11 @@ export type FlutterwaveTransferCompletedPayload = {
 };
 
 export function isTransferCompletedPayload(
-  payload: any,
+  payload: unknown,
 ): payload is FlutterwaveTransferCompletedPayload {
-  return payload && payload.event === "transfer.completed" && payload.data;
+  if (typeof payload !== "object" || payload === null) {
+    return false;
+  }
+  const p = payload as Partial<FlutterwaveTransferCompletedPayload>;
+  return p.event === "transfer.completed" && typeof p.data === "object";
 }

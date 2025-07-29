@@ -3,8 +3,11 @@ import { redirect, useLoaderData } from "@remix-run/react";
 import invariant from "tiny-invariant";
 import { requireUser } from "~/modules/auth/auth.server";
 import { cancelBooking, getBooking } from "~/services/bookings.server";
+import { validateCSRF } from "~/utils/csrf-action.server";
 
 export async function action({ request }: ActionFunctionArgs) {
+  await validateCSRF(request);
+
   const formData = await request.formData();
   const bookingId = formData.get("bookingId");
   const reason = formData.get("reason");

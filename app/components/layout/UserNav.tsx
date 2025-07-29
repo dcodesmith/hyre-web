@@ -12,25 +12,32 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "~/components/ui/dropdown-menu";
-import { userHasRole } from "~/utils/misc";
-import { ProfileForm } from "./ProfileForm";
+import { userHasRole } from "~/utils/client/misc";
+import { ProfileForm } from "../forms/ProfileForm";
 
-function getInitials(user: User) {
+function getInitials(user: User): string {
   if (!user) return "U";
 
   if (user.name) {
-    const nameParts = user.name.trim().split(/\s+/);
+    const nameParts = user.name
+      .trim()
+      .split(/\s+/)
+      .filter((part) => part.length > 0);
 
     if (nameParts.length > 1) {
       return (nameParts[0][0] + nameParts[nameParts.length - 1][0]).toUpperCase();
     }
 
-    return nameParts[0][0].toUpperCase();
+    if (nameParts.length > 0) {
+      return nameParts[0][0].toUpperCase();
+    }
   }
 
-  if (user.username) {
+  if (user.username && user.username.length > 0) {
     return user.username[0].toUpperCase();
   }
+
+  return "U";
 }
 
 export function UserNav({
@@ -47,7 +54,7 @@ export function UserNav({
       <div className="flex items-center gap-2">
         {userHasRole(user, "admin") || userHasRole(user, "staff") ? (
           <div className="flex items-center gap-2">
-            <span className="text-sm font-medium">{user?.name}</span>
+            <span className="text-sm font-medium">{user?.name ?? user?.username ?? "User"}</span>
             <Link to="/logout">
               <Button variant="ghost" size="sm">
                 Log out

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { quotes } from "../quotes";
+import { quotes } from "../data/quotes";
 
 export function RandomQuoteTailwind() {
   const [currentQuote, setCurrentQuote] = useState(() => quotes[0]);

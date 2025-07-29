@@ -13,9 +13,9 @@ import {
   DialogTitle,
 } from "~/components/ui/dialog";
 import { profileFormSchema } from "~/schemas/user";
-import { Button } from "./ui/button";
-import { Input } from "./ui/input";
-import { Label } from "./ui/label";
+import { Button } from "../ui/button";
+import { Input } from "../ui/input";
+import { Label } from "../ui/label";
 
 interface ProfileFormProps {
   onOpenChange: (open: boolean) => void;
@@ -61,26 +61,29 @@ export function ProfileForm({ onOpenChange, user }: ProfileFormProps) {
           <div className="space-y-1">
             <Label htmlFor={email.id}>Email</Label>
             <Input {...getInputProps(email, { type: "email" })} />
+            {email.errors && <p className="text-sm text-destructive">{email.errors.join(" ")}</p>}
           </div>
 
           <div className="space-y-1">
             <Label htmlFor={phoneNumber.id}>Phone</Label>
-            <Input
-              {...getInputProps(phoneNumber, { type: "tel" })}
-              className={
-                phoneNumber.errors
-                  ? "border-red-500 focus-visible:ring-red-500 focus-visible:ring-2"
-                  : ""
-              }
-            />
+            <Input {...getInputProps(phoneNumber, { type: "tel" })} />
             {phoneNumber.errors && (
               <p className="text-sm text-destructive">{phoneNumber.errors.join(" ")}</p>
             )}
           </div>
 
           <div className="space-y-1">
+            <Label htmlFor={city.id}>City</Label>
+            <Input {...getInputProps(city, { type: "text" })} />
+            {city.errors && <p className="text-sm text-destructive">{city.errors.join(" ")}</p>}
+          </div>
+
+          <div className="space-y-1">
             <Label htmlFor={address.id}>Address</Label>
             <Input {...getInputProps(address, { type: "text" })} />
+            {address.errors && (
+              <p className="text-sm text-destructive">{address.errors.join(" ")}</p>
+            )}
           </div>
 
           <input type="hidden" name="intent" value="update" />

@@ -3,7 +3,7 @@ import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { useFetcher, useLoaderData } from "@remix-run/react";
 import { ColumnDef } from "@tanstack/react-table";
-import { PlusCircle, CheckCircle2 } from "lucide-react";
+import { CheckCircle2, PlusCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { ColumnHeader } from "~/components/Table/ColumnHeader";
 import { RowActions } from "~/components/Table/RowActions";
@@ -20,14 +20,15 @@ import {
 } from "~/components/ui/sheet";
 import { useToast } from "~/hooks/use-toast";
 import { cn } from "~/lib/utils";
-import { requireUser } from "~/modules/auth/auth.server";
+import { requireUserWithRole } from "~/modules/auth/auth.server";
 import { prisma } from "~/modules/db/db.server";
 import { createCar } from "~/services/cars.server";
+import { validateCSRF } from "~/utils/csrf-action.server";
 import { NewCarForm, carSchema } from "./fleet-owner.cars_.new";
 
 import {
-  unstable_parseMultipartFormData,
   unstable_createMemoryUploadHandler,
+  unstable_parseMultipartFormData,
 } from "@remix-run/node";
 import { SerializedCar } from "~/types";
 
@@ -41,10 +42,14 @@ const Status = {
 type ActionResponse = { success: boolean; error?: string | null } | undefined;
 
 export async function action({ request }: ActionFunctionArgs) {
-  const user = await requireUser(request);
+  await validateCSRF(request);
 
-  // Parse as regular form data to get the intent
-  const formData = await request.formData();
+  const user = await requireUserWithRole(request, "fleetOwner");
+
+  const uploadHandler = unstable_createMemoryUploadHandler({
+    maxPartSize: 10 * 1024 * 1024, // 10MB limit
+  });
+  const formData = await unstable_parseMultipartFormData(request, uploadHandler);
   const intent = String(formData.get("intent"));
 
   if (!["create", "edit"].includes(intent)) {
@@ -53,16 +58,7 @@ export async function action({ request }: ActionFunctionArgs) {
 
   try {
     if (intent === "create") {
-      // Use Remix's unstable_parseMultipartFormData for proper file handling on Vercel
-      const uploadHandler = unstable_createMemoryUploadHandler({
-        maxPartSize: 10 * 1024 * 1024, // 10MB limit
-      });
-      const multipartFormData = await unstable_parseMultipartFormData(
-        request.clone(),
-        uploadHandler,
-      );
-
-      const submission = parseWithZod(multipartFormData, { schema: carSchema });
+      const submission = parseWithZod(formData, { schema: carSchema });
 
       if (submission.status !== "success") {
         return json(submission.reply());
@@ -110,7 +106,8 @@ export async function action({ request }: ActionFunctionArgs) {
 }
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  const user = await requireUser(request);
+  const user = await requireUserWithRole(request, "fleetOwner");
+
   const cars = await prisma.car.findMany({
     where: { ownerId: user.id },
     include: {

@@ -3,12 +3,13 @@ import { Authenticator } from "remix-auth";
 import { TOTPStrategy } from "remix-auth-totp";
 import { prisma } from "../db/db.server";
 import { sessionStorage } from "./session.server";
+import { env } from "~/utils/server/env.server";
 
 export const totpAuthenticator = new Authenticator<User>(sessionStorage);
 
 const totpStrategy = new TOTPStrategy(
   {
-    secret: process.env.ENCRYPTION_SECRET || "NOT_A_STRONG_SECRET",
+    secret: env.ENCRYPTION_SECRET || "NOT_A_STRONG_SECRET",
     sendTOTP: async ({ email, code }) => {
       const user = await prisma.user.findUnique({
         where: { email },

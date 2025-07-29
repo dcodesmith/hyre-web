@@ -1,7 +1,7 @@
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { Link, Outlet, useLocation } from "@remix-run/react";
 import { ScrollArea, ScrollBar } from "~/components/ui/scroll-area";
-import { requireUserWithRole } from "~/utils/permissions.server";
+import { requireUserWithRole } from "~/utils/server/permissions.server";
 import { redirect } from "@remix-run/node";
 
 interface NavLinkProps {

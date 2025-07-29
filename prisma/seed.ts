@@ -3,7 +3,7 @@ import path from "node:path";
 import { faker } from "@faker-js/faker";
 import { DocumentStatus, DocumentType, PlatformFeeType, Status } from "@prisma/client";
 import { uploadFileToS3 } from "../app/services/s3.server";
-import { vehicles } from "../app/vehicles";
+import { vehicles } from "../app/data/vehicles";
 import { prisma } from "../app/modules/db/db.server";
 import logger from "../app/lib/logger.server";
 

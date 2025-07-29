@@ -1,6 +1,7 @@
 import {
   BookingStatus,
   BookingType,
+  Car,
   CarApprovalStatus,
   FleetOwnerStatus,
   PaymentStatus,
@@ -29,7 +30,7 @@ export const SECURITY_DETAIL_COST = 30000;
 export type CreateBookingParams = {
   startDate: Date;
   endDate: Date;
-  carId: string;
+  car: Car;
   user: User | { email: string; name: string; phoneNumber: string };
   pickupLocation: string;
   returnLocation: string;
@@ -234,7 +235,7 @@ export async function calculateBookingCost({
 export async function createPendingBooking({
   startDate,
   endDate,
-  carId,
+  car,
   user,
   pickupLocation,
   returnLocation,
@@ -245,8 +246,6 @@ export async function createPendingBooking({
 }: Omit<CreateBookingParams, "paymentId" | "status" | "paymentStatus"> & {
   paymentIntent: string;
 }) {
-  const car = await prisma.car.findUnique({ where: { id: carId } });
-  if (!car) throw new Error("Car not found");
   const bookingReference = await generateUniqueBookingReference();
 
   const booking = await prisma.$transaction(async (transaction) => {
@@ -279,7 +278,7 @@ export async function createPendingBooking({
         bookingReference,
         startDate,
         endDate,
-        carId,
+        carId: car.id,
         type,
         ...("id" in user
           ? { userId: user.id }

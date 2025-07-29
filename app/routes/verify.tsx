@@ -2,7 +2,8 @@ import { getFormProps, getInputProps, useForm } from "@conform-to/react";
 import { getZodConstraint, parseWithZod } from "@conform-to/zod";
 import { User } from "@prisma/client";
 import { ActionFunctionArgs, LoaderFunctionArgs, json, redirect } from "@remix-run/node";
-import { Form, useLoaderData, useNavigate, useSearchParams } from "@remix-run/react";
+import { useLoaderData, useNavigate, useSearchParams } from "@remix-run/react";
+import { Form } from "~/components/CSRFForm";
 import { AuthorizationError } from "remix-auth";
 import { z } from "zod";
 import { Button } from "~/components/ui/button";
@@ -16,7 +17,8 @@ import {
 import { Input } from "~/components/ui/input";
 import { authenticator } from "~/modules/auth/auth.server";
 import { commitSession, getSession } from "~/modules/auth/session.server";
-import { userHasRole } from "~/utils/misc";
+import { userHasRole } from "~/utils/client/misc";
+import { validateCSRF } from "~/utils/csrf-action.server";
 
 export const VerifySchema = z.object({
   code: z
@@ -48,6 +50,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
 }
 
 export async function action({ request }: ActionFunctionArgs) {
+  await validateCSRF(request);
+
   const url = new URL(request.url);
   const currentPath = url.pathname;
   const redirectTo = url.searchParams.get("redirectTo");

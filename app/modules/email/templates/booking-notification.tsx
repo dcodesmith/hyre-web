@@ -2,6 +2,7 @@ import { Heading, Hr, Link, Section, Text } from "@react-email/components";
 import { render } from "@react-email/render";
 import { NormalisedBookingDetails, NormalisedExtensionDetails } from "~/lib/utils";
 import { EmailTemplate } from "./EmailTemplate";
+import { env } from "~/utils/server/env.server";
 
 function DetailListItem({
   label,
@@ -179,7 +180,7 @@ export function renderFleetOwnerBookingNotificationEmail(booking: NormalisedBook
   const customerName = booking.customerName;
   const carName = booking.carName;
   const previewText = "New Booking Alert - Action Required";
-  const bookingLink = `${process.env.DOMAIN}/fleet-owner/bookings/${booking.id}?startDate=${encodeURIComponent(
+  const bookingLink = `${env.DOMAIN}/fleet-owner/bookings/${booking.id}?startDate=${encodeURIComponent(
     booking.startDate,
   )}`;
 

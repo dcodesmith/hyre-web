@@ -1,26 +1,23 @@
 import twilio, { Twilio } from "twilio";
 import { MessageInstance } from "twilio/lib/rest/api/v2010/account/message";
 import logger from "~/lib/logger.server";
-
+import { env } from "~/utils/server/env.server";
 interface TwilioConfig {
   accountSid: string;
   authToken: string;
-  whatsAppNumber: string;
-  whatsAppRecipientNumber: string;
+  whatsAppNumber: number;
 }
 
 function getTwilioConfig(): TwilioConfig {
-  const accountSid = process.env.TWILIO_ACCOUNT_SID;
-  const authToken = process.env.TWILIO_AUTH_TOKEN;
-  const whatsAppNumber = process.env.TWILIO_WHATSAPP_NUMBER;
-  const whatsAppRecipientNumber = process.env.TWILIO_WHATSAPP_RECIPIENT_NUMBER;
+  const accountSid = env.TWILIO_ACCOUNT_SID;
+  const authToken = env.TWILIO_AUTH_TOKEN;
+  const whatsAppNumber = env.TWILIO_WHATSAPP_NUMBER;
 
-  if (!accountSid || !authToken || !whatsAppNumber || !whatsAppRecipientNumber) {
+  if (!accountSid || !authToken || !whatsAppNumber) {
     const missing = [
       !accountSid && "TWILIO_ACCOUNT_SID",
       !authToken && "TWILIO_AUTH_TOKEN",
       !whatsAppNumber && "TWILIO_WHATSAPP_NUMBER",
-      !whatsAppRecipientNumber && "TWILIO_WHATSAPP_RECIPIENT_NUMBER",
     ]
       .filter(Boolean)
       .join(", ");
@@ -30,7 +27,7 @@ function getTwilioConfig(): TwilioConfig {
     throw new Error(errorMessage);
   }
 
-  return { accountSid, authToken, whatsAppNumber, whatsAppRecipientNumber };
+  return { accountSid, authToken, whatsAppNumber };
 }
 
 export enum Template {
@@ -79,11 +76,11 @@ if (twilioConfig?.accountSid && twilioConfig?.authToken) {
 }
 
 export async function sendMessage({
-  to = twilioConfig?.whatsAppRecipientNumber,
+  to,
   variables,
   templateKey,
 }: {
-  to?: string;
+  to: number;
   variables: Record<string, string | number>;
   templateKey: Template;
 }): Promise<MessageInstance | null> {
@@ -95,15 +92,6 @@ export async function sendMessage({
   if (!twilioClient) {
     logger.error(
       "Cannot send WhatsApp message: Twilio client is not initialized. Check logs for initialization errors",
-    );
-    return null;
-  }
-
-  const recipientNumber = to || twilioConfig.whatsAppRecipientNumber;
-
-  if (!recipientNumber) {
-    logger.error(
-      "Cannot send WhatsApp message: Recipient number is not provided and no default is configured",
     );
     return null;
   }

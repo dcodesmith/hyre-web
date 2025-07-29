@@ -14,7 +14,8 @@ import crypto from "node:crypto";
 import { Fragment, useEffect, useState } from "react";
 import invariant from "tiny-invariant";
 import { AutocompleteAddress } from "~/components/AutocompleteAddress";
-import { BookingTimeSelect } from "~/components/BookingTimeSelect";
+import { validateCSRF } from "~/utils/csrf-action.server";
+import { BookingTimeSelect } from "~/components/booking/BookingTimeSelect";
 import { Button } from "~/components/ui/button";
 import { Checkbox } from "~/components/ui/checkbox";
 import {
@@ -40,6 +41,7 @@ import {
   calculateBookingCost,
 } from "~/services/bookings.server";
 import { createPaymentIntent } from "~/services/payment.server";
+import { env } from "~/utils/server/env.server";
 
 type BookingWithRelations = Booking & {
   car: Car & { owner: User; images: VehicleImage[] };
@@ -51,6 +53,8 @@ type GroupedBookings = {
 };
 
 export async function action({ request }: ActionFunctionArgs) {
+  await validateCSRF(request);
+
   let user: User | null | { email: string; name: string; phoneNumber: string } = null;
 
   user = await getSessionUser(request);
@@ -98,6 +102,8 @@ export async function action({ request }: ActionFunctionArgs) {
       return json({ error: "End date cannot be before start date" }, { status: 400 });
     }
 
+    logger.info(`Booking request received: ${startDate} to ${endDate}`);
+
     const pickupAddress = String(formData.get("pickupAddress"));
     const sameLocation = formData.get("sameLocation");
     const pickupTime = String(formData.get("pickupTime"));
@@ -121,8 +127,8 @@ export async function action({ request }: ActionFunctionArgs) {
     }
 
     // Parse the time from pickupTime (e.g. "8:00 AM") and set it on startDate
-    const [time, period] = pickupTime.split(" ");
-    const [hours, minutes] = time.split(":");
+    const [hours, period] = pickupTime.split(" ");
+    // const minutes = "00";
     const startDateTime = new Date(startDate);
 
     // Convert 12-hour format to 24-hour
@@ -133,9 +139,9 @@ export async function action({ request }: ActionFunctionArgs) {
     }
 
     startDateTime.setHours(bookingType === "NIGHT" ? 23 : hour);
-    startDateTime.setMinutes(bookingType === "NIGHT" ? 0 : Number.parseInt(minutes));
-    startDateTime.setSeconds(0);
-    startDateTime.setMilliseconds(0);
+    // startDateTime.setMinutes(bookingType === "NIGHT" ? 0 : Number.parseInt(minutes));
+    // startDateTime.setSeconds(0);
+    // startDateTime.setMilliseconds(0);
 
     // Set end date time based on booking type
     const endDateTime = new Date(endDate);
@@ -210,13 +216,13 @@ export async function action({ request }: ActionFunctionArgs) {
           bookingType,
         },
         idempotencyKey,
-        callbackUrl: `${process.env.APP_URL || url.origin}/bookings/payment-status?transactionType=booking_creation`,
+        callbackUrl: `${env.DOMAIN || url.origin}/bookings/payment-status?transactionType=booking_creation`,
       });
 
       const booking = await createPendingBooking({
         startDate: startDateTime,
         endDate: endDateTime,
-        carId,
+        car,
         user,
         pickupLocation,
         returnLocation,

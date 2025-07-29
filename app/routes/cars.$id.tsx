@@ -1,14 +1,17 @@
 import { ActionFunctionArgs, LoaderFunctionArgs, json } from "@remix-run/node";
 import { Link, redirect, useLoaderData, useSearchParams } from "@remix-run/react";
 import invariant from "tiny-invariant";
-import BookingCard from "~/components/BookingCard";
+import BookingCard from "~/components/booking/BookingCard";
 import CarCarousel from "~/components/Carousel";
 import { getSessionUser, requireUser } from "~/modules/auth/auth.server";
 import { prisma } from "~/modules/db/db.server";
 import { isCarAvailable } from "~/services/cars.server";
 import { getRates } from "~/services/extensions.server";
+import { validateCSRF } from "~/utils/csrf-action.server";
 
 export async function action({ request, params }: ActionFunctionArgs) {
+  await validateCSRF(request);
+
   await requireUser(request, {
     redirectTo: `/auth?redirectTo=/cars/${params.id}`,
   });

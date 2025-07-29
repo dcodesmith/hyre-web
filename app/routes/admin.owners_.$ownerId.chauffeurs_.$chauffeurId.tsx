@@ -1,17 +1,18 @@
-import { json, type LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
+import { DocumentType } from "@prisma/client";
+import { ActionFunctionArgs, type LoaderFunctionArgs, json } from "@remix-run/node";
 import { Form, useActionData, useLoaderData, useNavigation } from "@remix-run/react";
-import { requireAdminWithRedirect } from "~/modules/auth/auth.server";
-import { prisma } from "~/modules/db/db.server";
-import { Dialog, DialogContent, DialogTrigger } from "~/components/ui/dialog";
-import { FileText, CheckCircle2, XCircle, AlertCircle } from "lucide-react";
-import { Button } from "~/components/ui/button";
-import { Badge } from "~/components/ui/badge";
-import { useToast } from "~/hooks/use-toast";
+import { AlertCircle, CheckCircle2, FileText, XCircle } from "lucide-react";
 import { useEffect } from "react";
+import { Badge } from "~/components/ui/badge";
+import { Button } from "~/components/ui/button";
+import { Dialog, DialogContent, DialogTrigger } from "~/components/ui/dialog";
+import { useToast } from "~/hooks/use-toast";
 import { cn } from "~/lib/utils";
+import { requireAdminOrStaffWithRedirect } from "~/modules/auth/auth.server";
+import { prisma } from "~/modules/db/db.server";
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
-  await requireAdminWithRedirect(request);
+  await requireAdminOrStaffWithRedirect(request);
 
   const chauffeur = await prisma.user.findUnique({
     where: {
@@ -20,6 +21,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     },
     include: {
       fleetOwner: true,
+      documents: true,
       bookingsAsChauffeur: {
         where: {
           status: {
@@ -42,11 +44,16 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 }
 
 export async function action({ request, params }: ActionFunctionArgs) {
-  await requireAdminWithRedirect(request);
+  await requireAdminOrStaffWithRedirect(request);
+
+  const validStatuses = ["APPROVED", "REJECTED", "PENDING"] as const;
 
   const formData = await request.formData();
   const intent = formData.get("intent");
-  const status = formData.get("status") as "APPROVED" | "REJECTED" | "PENDING";
+  const statusValue = formData.get("status");
+  const status = validStatuses.includes(statusValue as (typeof validStatuses)[number])
+    ? (statusValue as (typeof validStatuses)[number])
+    : null;
 
   if (intent !== "updateApprovalStatus" || !status) {
     return json({ success: false, error: "Invalid request" }, { status: 400 });
@@ -229,12 +236,18 @@ export default function ChauffeurDetails() {
           <div className="mt-8">
             <h2 className="text-lg font-semibold mb-4">Documents</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {chauffeur.ninUrl && (
+              {chauffeur.documents.find(
+                (document) => document.documentType === DocumentType.NIN,
+              ) && (
                 <Dialog>
                   <DialogTrigger asChild>
                     <div className="relative aspect-square cursor-pointer hover:opacity-90 transition-opacity">
                       <img
-                        src={chauffeur.ninUrl}
+                        src={
+                          chauffeur.documents.find(
+                            (document) => document.documentType === DocumentType.NIN,
+                          )?.documentUrl
+                        }
                         alt="National ID Card"
                         className="object-cover w-full h-full rounded"
                       />
@@ -242,19 +255,29 @@ export default function ChauffeurDetails() {
                   </DialogTrigger>
                   <DialogContent className="max-w-4xl">
                     <img
-                      src={chauffeur.ninUrl}
+                      src={
+                        chauffeur.documents.find(
+                          (document) => document.documentType === DocumentType.NIN,
+                        )?.documentUrl
+                      }
                       alt="National ID Card"
                       className="w-full h-full object-contain"
                     />
                   </DialogContent>
                 </Dialog>
               )}
-              {chauffeur.drivingLicenceUrl && (
+              {chauffeur.documents.find(
+                (document) => document.documentType === DocumentType.DRIVERS_LICENSE,
+              ) && (
                 <Dialog>
                   <DialogTrigger asChild>
                     <div className="relative aspect-square cursor-pointer hover:opacity-90 transition-opacity">
                       <img
-                        src={chauffeur.drivingLicenceUrl}
+                        src={
+                          chauffeur.documents.find(
+                            (document) => document.documentType === DocumentType.DRIVERS_LICENSE,
+                          )?.documentUrl
+                        }
                         alt="Driver's License"
                         className="object-cover w-full h-full rounded"
                       />
@@ -262,7 +285,11 @@ export default function ChauffeurDetails() {
                   </DialogTrigger>
                   <DialogContent className="max-w-4xl">
                     <img
-                      src={chauffeur.drivingLicenceUrl}
+                      src={
+                        chauffeur.documents.find(
+                          (document) => document.documentType === DocumentType.DRIVERS_LICENSE,
+                        )?.documentUrl
+                      }
                       alt="Driver's License"
                       className="w-full h-full object-contain"
                     />
@@ -272,11 +299,17 @@ export default function ChauffeurDetails() {
             </div>
 
             <div className="mt-4 space-y-2">
-              {chauffeur.ninUrl && (
+              {chauffeur.documents.find(
+                (document) => document.documentType === DocumentType.NIN,
+              ) && (
                 <div className="flex items-center">
                   <FileText className="w-4 h-4 mr-2" />
                   <a
-                    href={chauffeur.ninUrl}
+                    href={
+                      chauffeur.documents.find(
+                        (document) => document.documentType === DocumentType.NIN,
+                      )?.documentUrl
+                    }
                     target="_blank"
                     rel="noopener noreferrer"
                     className="block w-48 hover:opacity-90 transition-opacity"
@@ -285,11 +318,17 @@ export default function ChauffeurDetails() {
                   </a>
                 </div>
               )}
-              {chauffeur.drivingLicenceUrl && (
+              {chauffeur.documents.find(
+                (document) => document.documentType === DocumentType.DRIVERS_LICENSE,
+              ) && (
                 <div className="flex items-center">
                   <FileText className="w-4 h-4 mr-2" />
                   <a
-                    href={chauffeur.drivingLicenceUrl}
+                    href={
+                      chauffeur.documents.find(
+                        (document) => document.documentType === DocumentType.DRIVERS_LICENSE,
+                      )?.documentUrl
+                    }
                     target="_blank"
                     rel="noopener noreferrer"
                     className="block w-48 hover:opacity-90 transition-opacity"

@@ -1,10 +1,11 @@
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { env } from "~/utils/server/env.server";
 
 const s3Client = new S3Client({
-  region: process.env.AWS_REGION,
+  region: env.AWS_REGION,
   credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+    accessKeyId: env.AWS_ACCESS_KEY_ID,
+    secretAccessKey: env.AWS_SECRET_ACCESS_KEY,
   },
 });
 
@@ -13,7 +14,7 @@ export async function uploadFileToS3(file: File, key: string) {
   const buffer = Buffer.from(arrayBuffer);
 
   const command = new PutObjectCommand({
-    Bucket: process.env.AWS_BUCKET_NAME,
+    Bucket: env.AWS_BUCKET_NAME,
     Key: key,
     Body: buffer,
     ContentType: file.type,
@@ -22,5 +23,5 @@ export async function uploadFileToS3(file: File, key: string) {
 
   await s3Client.send(command);
 
-  return `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${key}`;
+  return `https://${env.AWS_BUCKET_NAME}.s3.${env.AWS_REGION}.amazonaws.com/${key}`;
 }

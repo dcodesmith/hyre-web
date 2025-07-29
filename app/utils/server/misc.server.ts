@@ -10,15 +10,3 @@ export function singleton<Value>(name: string, value: () => Value): Value {
 
   return globalStore.__singletons[name];
 }
-
-// add google map types
-declare global {
-  interface Window {
-    google: {
-      maps: {
-        // importLibrary: (library: string) => any;
-        places: any;
-      };
-    };
-  }
-}

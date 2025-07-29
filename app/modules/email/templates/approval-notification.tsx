@@ -1,16 +1,9 @@
-import {
-  Heading,
-  Text,
-  Section,
-  Link, // Added for support links
-} from "@react-email/components";
+import { Heading, Text, Section, Link } from "@react-email/components";
 import { render } from "@react-email/render";
 import { EmailTemplate } from "./EmailTemplate";
 import { CarApprovalStatus, FleetOwnerStatus } from "@prisma/client";
-// Assuming these enums are defined in EmailShared.ts or directly imported if from Prisma
-// import { CarApprovalStatus, FleetOwnerStatus } from "./EmailShared"; // Or your actual path to type definitions
+import { env } from "~/utils/server/env.server";
 
-// --- Car Approval/Rejection Email ---
 interface CarApprovalEmailProps {
   carDetails: { make: string; model: string; year: number; registration?: string }; // Added optional registration
   status: CarApprovalStatus;
@@ -75,10 +68,10 @@ export function renderCarApprovalEmail({
           <Text>
             Contact support:{" "}
             <Link
-              href={`mailto:${process.env.SUPPORT_EMAIL || "support@example.com"}`}
+              href={`mailto:${env.SUPPORT_EMAIL || "support@example.com"}`}
               className="text-blue-600 underline"
             >
-              {process.env.SUPPORT_EMAIL || "support@example.com"}
+              {env.SUPPORT_EMAIL || "support@example.com"}
             </Link>
           </Text>
         </>
@@ -139,7 +132,7 @@ export function renderFleetOwnerApprovalEmail({
           </Text>
           {/* Optionally, add a direct link to the dashboard */}
           <Link
-            href={`${process.env.WEBSITE_URL || process.env.DOMAIN || "https://example.com"}/dashboard`} // Adjust link as needed
+            href={`${env.WEBSITE_URL || env.DOMAIN || "https://example.com"}/dashboard`} // Adjust link as needed
             className="text-base font-semibold text-white bg-blue-600 hover:bg-blue-700 py-3 px-5 rounded-md my-4 inline-block"
             style={{ textDecoration: "none" }}
           >
@@ -206,10 +199,10 @@ export function renderFleetOwnerApprovalEmail({
           <Text>
             Contact support:{" "}
             <Link
-              href={`mailto:${process.env.SUPPORT_EMAIL || "support@example.com"}`}
+              href={`mailto:${env.SUPPORT_EMAIL || "support@example.com"}`}
               className="text-blue-600 underline"
             >
-              {process.env.SUPPORT_EMAIL || "support@example.com"}
+              {env.SUPPORT_EMAIL || "support@example.com"}
             </Link>
           </Text>
         </>

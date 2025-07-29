@@ -1,11 +1,13 @@
 import { json, redirect, type ActionFunctionArgs, type LoaderFunctionArgs } from "@remix-run/node";
-import { Form, useActionData, useSearchParams } from "@remix-run/react";
+import { useActionData, useSearchParams } from "@remix-run/react";
+import { Form } from "~/components/CSRFForm";
 import { AuthorizationError } from "remix-auth";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import logger from "~/lib/logger.server";
 import { authenticator } from "~/modules/auth/auth.server";
 import { prisma } from "~/modules/db/db.server";
+import { validateCSRF } from "~/utils/csrf-action.server";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const user = await authenticator.isAuthenticated(request);
@@ -18,6 +20,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
 }
 
 export async function action({ request }: ActionFunctionArgs) {
+  await validateCSRF(request);
+
   const formData = await request.clone().formData();
   const email = formData.get("email");
 
@@ -44,6 +48,7 @@ export async function action({ request }: ActionFunctionArgs) {
     const isStaff = user.roles.some((role) => role.name === "staff");
 
     if (!isAdmin && !isStaff) {
+      logger.error(`Unauthorized access: ${email}:`, user);
       return json({ error: "Unauthorized access" }, { status: 403 });
     }
 

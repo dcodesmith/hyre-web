@@ -2,6 +2,7 @@ import { getFormProps, getInputProps, useForm } from "@conform-to/react";
 import { parseWithZod } from "@conform-to/zod";
 import { CogIcon } from "@heroicons/react/24/outline";
 import { useFetcher } from "@remix-run/react";
+import { useAuthenticityToken } from "remix-utils/csrf/react";
 import { z } from "zod";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
@@ -151,6 +152,7 @@ export function NewCarForm() {
   const fetcher = useFetcher<{ success: boolean; error?: string }>({
     key: "new-car",
   });
+  const csrfToken = useAuthenticityToken();
 
   const lastResult = fetcher.data;
 
@@ -170,7 +172,10 @@ export function NewCarForm() {
       nightRate,
     },
   ] = useForm({
-    lastResult: fetcher.state === "idle" ? lastResult : null,
+    lastResult:
+      fetcher.state === "idle" && lastResult?.success === false
+        ? { status: "error" as const, error: {} }
+        : null,
     onValidate({ formData }) {
       return parseWithZod(formData, { schema: carSchema });
     },
@@ -188,6 +193,7 @@ export function NewCarForm() {
       encType="multipart/form-data"
       className="space-y-4"
     >
+      <input type="hidden" name="csrf" value={csrfToken} />
       {fetcher.data?.error && <p className="text-red-600 text-sm">{fetcher.data?.error}</p>}
       <div className="space-y-0.5">
         <Label htmlFor={make.id}>Make</Label>

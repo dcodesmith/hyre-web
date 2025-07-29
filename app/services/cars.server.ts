@@ -17,11 +17,6 @@ export async function isCarAvailable(
     throw new Error("Car not found");
   }
 
-  // If car status is not AVAILABLE, return false early
-  if (car.status !== "AVAILABLE") {
-    return false;
-  }
-
   // Use a count query instead of fetching all bookings for better performance
   const conflictingBookingsCount = await prisma.booking.count({
     where: {
