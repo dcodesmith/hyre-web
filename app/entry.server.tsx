@@ -4,11 +4,17 @@ import { createReadableStreamFromReadable } from "@remix-run/node";
 import { RemixServer } from "@remix-run/react";
 import { isbot } from "isbot";
 import { renderToPipeableStream } from "react-dom/server";
-
+import logger from "./lib/logger.server";
 import { env } from "./utils/server/env.server";
+
+process.env.TZ = "Africa/Lagos";
 
 const ABORT_DELAY = 5_000;
 
+const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+logger.info(`Server timezone: ${timezone}`);
+logger.info(`Current time in ${timezone}: ${new Date().toLocaleString("en-NG")}`);
 /**
  * Add comprehensive security headers to prevent various attacks
  */
