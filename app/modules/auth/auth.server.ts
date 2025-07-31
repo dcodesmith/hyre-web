@@ -30,10 +30,9 @@ const totpStrategy = new TOTPStrategy(
         throw new Error("Did you sign up with a different role?");
       }
 
-      if (process.env.NODE_ENV === "development") {
-        logger.info(`OTP code: ${code}`);
+      logger.info(`OTP code: ${code}`);
 
-        // Email is not sent for admin users.
+      if (process.env.NODE_ENV === "development") {
         if (
           email.endsWith("@admin.com") ||
           email.startsWith("cool.fleetowner") ||
