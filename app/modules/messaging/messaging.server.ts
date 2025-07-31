@@ -33,29 +33,21 @@ function getTwilioConfig(): TwilioConfig {
 export enum Template {
   BookingConfirmation = "bookingConfirmation",
   BookingExtensionConfirmation = "bookingExtensionConfirmation",
-  BookingStatusUpdate = "bookingStatusUpdate",
   BookingCancellationClient = "bookingCancellationClient",
   BookingCancellationFleetOwner = "bookingCancellationFleetOwner",
   FleetOwnerBookingNotification = "fleetOwnerBookingNotification",
   ChauffeurAssigned = "chauffeurAssigned",
-  ClientBookingLegStartReminder = "clientBookingLegStartReminder",
-  ChauffeurBookingLegStartReminder = "chauffeurBookingLegStartReminder",
-  ClientBookingLegEndReminder = "clientBookingLegEndReminder",
-  ChauffeurBookingLegEndReminder = "chauffeurBookingLegEndReminder",
+  ChauffeurBookingNotification = "chauffeurBookingNotification",
 }
 
 const contentSidMap: Record<Template, string> = {
   [Template.BookingConfirmation]: "HXac9f0b83ee03d47fe2f2969173dac354",
   [Template.BookingExtensionConfirmation]: "HXebb188350408a8673d65216990a1e618",
-  [Template.BookingStatusUpdate]: "HX199f51dda921d5a781b2424b82b931a5",
   [Template.BookingCancellationClient]: "HXd32930f086ad7e2c3ac976e245c314f9",
   [Template.BookingCancellationFleetOwner]: "HX5ad3e909d6c011f24e00f4706a78a90e",
   [Template.FleetOwnerBookingNotification]: "HXaeda40fabb6c33f323c1f101e0a10165",
   [Template.ChauffeurAssigned]: "HXadbe21560eb8f732677a73892de67cb7",
-  [Template.ClientBookingLegStartReminder]: "HX862149f716a87ae25ce34151140bfc60",
-  [Template.ChauffeurBookingLegStartReminder]: "HX8d44b0747c995713d129d77f4cc3c860",
-  [Template.ClientBookingLegEndReminder]: "HX8d44b0xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
-  [Template.ChauffeurBookingLegEndReminder]: "HX8d44b0xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+  [Template.ChauffeurBookingNotification]: "HX27cc87e3ed7adb436d2895e94d8edd73",
 };
 
 const twilioConfig: TwilioConfig | null = getTwilioConfig();

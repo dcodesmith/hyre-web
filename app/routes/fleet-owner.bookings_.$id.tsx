@@ -71,6 +71,21 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
       });
     }
 
+    if (booking.chauffeur?.phoneNumber) {
+      await sendMessage({
+        templateKey: Template.ChauffeurBookingNotification,
+        to: booking.chauffeur.phoneNumber,
+        variables: {
+          "1": bookingDetails.chauffeurName,
+          "2": bookingDetails.carName,
+          "3": bookingDetails.startDate,
+          "4": bookingDetails.endDate,
+          "5": bookingDetails.pickupLocation,
+          "6": bookingDetails.returnLocation,
+        },
+      });
+    }
+
     await sendEmail({
       to: email,
       subject: "A chauffeur has been assigned to your booking",

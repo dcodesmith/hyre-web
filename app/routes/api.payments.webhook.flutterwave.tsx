@@ -129,12 +129,10 @@ async function handleChargeCompleted(payload: FlutterwaveChargeCompletedPayload)
   };
   logger.info("Webhook details", webhookData);
 
-  // Ensure critical variables are strings
   const currentStatus = String(status);
   const currentPaymentIntent = String(paymentIntent);
   const currentTransactionId = String(transactionId);
 
-  // Create or update payment record
   await createOrUpdatePaymentRecord(payload);
 
   if (currentStatus !== "successful") {
@@ -179,7 +177,6 @@ async function handleChargeCompleted(payload: FlutterwaveChargeCompletedPayload)
     `[Unified Webhook] Transaction ${currentTransactionId} successfully verified with Flutterwave API.`,
   );
 
-  // --- Transaction Type Specific Logic ---
   try {
     if (transactionType === "booking_creation") {
       logger.info(`[Unified Webhook] Processing booking_creation for ${currentPaymentIntent}`);
