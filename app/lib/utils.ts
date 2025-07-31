@@ -275,6 +275,7 @@ export type NormalisedBookingDetails = {
   returnLocation: string;
   startDate: string;
   endDate: string;
+  customerPhoneNumber: string;
   totalAmount: string;
   title: string;
   status: string;
@@ -283,6 +284,7 @@ export type NormalisedBookingDetails = {
 
 export type NormalisedExtensionDetails = {
   customerName: string;
+  customerPhoneNumber: string;
   carName: string;
   legDate: string;
   extensionHours: number;
@@ -311,6 +313,7 @@ export function normaliseBookingDetails(booking: BookingWithRelations): Normalis
     ownerName,
     customerName,
     chauffeurName,
+    customerPhoneNumber: booking.user?.phoneNumber || booking.guestUser?.phoneNumber || "",
     chauffeurPhoneNumber: booking.chauffeur?.phoneNumber ?? "",
     carName,
     title,
@@ -332,6 +335,7 @@ export function normaliseExtensionDetails(extension: Extension): NormalisedExten
   return {
     customerName,
     carName,
+    customerPhoneNumber: booking.user?.phoneNumber || booking.guestUser?.phoneNumber || "",
     legDate: format(extension.bookingLeg.legDate, "PPPP"),
     extensionHours: extension.extendedDurationHours,
     from: format(extension.bookingLeg.legEndTime, "p"),

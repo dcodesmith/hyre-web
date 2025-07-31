@@ -53,20 +53,23 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
     const { email } = getCustomerDetails(booking);
     const bookingDetails = normaliseBookingDetails(booking);
 
-    await sendMessage({
-      templateKey: Template.ChauffeurAssigned,
-      variables: {
-        "1": bookingDetails.customerName,
-        "2": bookingDetails.carName,
-        "3": bookingDetails.chauffeurName,
-        "4": bookingDetails.chauffeurPhoneNumber,
-        "5": bookingDetails.startDate,
-        "6": bookingDetails.endDate,
-        "7": bookingDetails.pickupLocation,
-        "8": bookingDetails.returnLocation,
-        "9": bookingDetails.totalAmount,
-      },
-    });
+    if (bookingDetails.customerPhoneNumber) {
+      await sendMessage({
+        templateKey: Template.ChauffeurAssigned,
+        to: bookingDetails.customerPhoneNumber,
+        variables: {
+          "1": bookingDetails.customerName,
+          "2": bookingDetails.carName,
+          "3": bookingDetails.chauffeurName,
+          "4": bookingDetails.chauffeurPhoneNumber,
+          "5": bookingDetails.startDate,
+          "6": bookingDetails.endDate,
+          "7": bookingDetails.pickupLocation,
+          "8": bookingDetails.returnLocation,
+          "9": bookingDetails.totalAmount,
+        },
+      });
+    }
 
     await sendEmail({
       to: email,

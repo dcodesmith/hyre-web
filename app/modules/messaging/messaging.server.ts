@@ -80,7 +80,7 @@ export async function sendMessage({
   variables,
   templateKey,
 }: {
-  to: number;
+  to: string;
   variables: Record<string, string | number>;
   templateKey: Template;
 }): Promise<MessageInstance | null> {
@@ -125,6 +125,7 @@ export async function sendMessage({
     logger.info(`Message sent successfully! SID: ${message.sid}, Status: ${message.status}`, {
       sid: message.sid,
       status: message.status,
+      to,
     });
     return message;
   } catch (error: unknown) {

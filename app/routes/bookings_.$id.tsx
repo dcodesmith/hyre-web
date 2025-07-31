@@ -229,19 +229,22 @@ export async function action({ request, params }: ActionFunctionArgs) {
       emailQueue.add(async () => {
         logger.info(`Sending booking cancellation email to ${email}`);
 
-        await sendMessage({
-          variables: {
-            "1": bookingDetails.customerName,
-            "2": bookingDetails.carName,
-            "3": bookingDetails.totalAmount,
-            "4": bookingDetails.cancellationReason,
-            "5": bookingDetails.startDate,
-            "6": bookingDetails.endDate,
-            "7": bookingDetails.pickupLocation,
-            "8": bookingDetails.returnLocation,
-          },
-          templateKey: Template.BookingCancellationClient,
-        });
+        if (bookingDetails.customerPhoneNumber) {
+          await sendMessage({
+            variables: {
+              "1": bookingDetails.customerName,
+              "2": bookingDetails.carName,
+              "3": bookingDetails.totalAmount,
+              "4": bookingDetails.cancellationReason,
+              "5": bookingDetails.startDate,
+              "6": bookingDetails.endDate,
+              "7": bookingDetails.pickupLocation,
+              "8": bookingDetails.returnLocation,
+            },
+            to: bookingDetails.customerPhoneNumber,
+            templateKey: Template.BookingCancellationClient,
+          });
+        }
 
         await sendEmail({
           to: email,
@@ -253,20 +256,23 @@ export async function action({ request, params }: ActionFunctionArgs) {
       emailQueue.add(async () => {
         logger.info(`Sending booking cancellation email to ${booking.car.owner.email}`);
 
-        await sendMessage({
-          variables: {
-            "1": bookingDetails.ownerName,
-            "2": bookingDetails.carName,
-            "3": bookingDetails.cancellationReason,
-            "4": bookingDetails.customerName,
-            "5": bookingDetails.startDate,
-            "6": bookingDetails.endDate,
-            "7": bookingDetails.pickupLocation,
-            "8": bookingDetails.returnLocation,
-            "9": bookingDetails.totalAmount,
-          },
-          templateKey: Template.BookingCancellationFleetOwner,
-        });
+        if (booking.car.owner.phoneNumber) {
+          await sendMessage({
+            variables: {
+              "1": bookingDetails.ownerName,
+              "2": bookingDetails.carName,
+              "3": bookingDetails.cancellationReason,
+              "4": bookingDetails.customerName,
+              "5": bookingDetails.startDate,
+              "6": bookingDetails.endDate,
+              "7": bookingDetails.pickupLocation,
+              "8": bookingDetails.returnLocation,
+              "9": bookingDetails.totalAmount,
+            },
+            to: booking.car.owner.phoneNumber,
+            templateKey: Template.BookingCancellationFleetOwner,
+          });
+        }
 
         await sendEmail({
           to: booking.car.owner.email,

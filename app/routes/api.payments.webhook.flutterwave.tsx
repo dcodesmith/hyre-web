@@ -202,18 +202,21 @@ async function handleChargeCompleted(payload: FlutterwaveChargeCompletedPayload)
       const html = await renderBookingConfirmationEmail(bookingDetails);
 
       emailQueue.add(async () => {
-        await sendMessage({
-          variables: {
-            "1": bookingDetails.customerName,
-            "2": bookingDetails.carName,
-            "3": bookingDetails.startDate,
-            "4": bookingDetails.endDate,
-            "5": bookingDetails.pickupLocation,
-            "6": bookingDetails.returnLocation,
-            "7": bookingDetails.totalAmount,
-          },
-          templateKey: Template.BookingConfirmation,
-        });
+        if (bookingDetails.customerPhoneNumber) {
+          await sendMessage({
+            variables: {
+              "1": bookingDetails.customerName,
+              "2": bookingDetails.carName,
+              "3": bookingDetails.startDate,
+              "4": bookingDetails.endDate,
+              "5": bookingDetails.pickupLocation,
+              "6": bookingDetails.returnLocation,
+              "7": bookingDetails.totalAmount,
+            },
+            to: bookingDetails.customerPhoneNumber,
+            templateKey: Template.BookingConfirmation,
+          });
+        }
 
         await sendEmail({ to: email, subject: "Booking Confirmed", html });
       });
@@ -221,20 +224,23 @@ async function handleChargeCompleted(payload: FlutterwaveChargeCompletedPayload)
       logger.info(`[Unified Webhook] Booking confirmation email queued for ${email}`);
 
       emailQueue.add(async () => {
-        await sendMessage({
-          variables: {
-            "1": bookingDetails.ownerName,
-            "2": bookingDetails.carName,
-            "3": bookingDetails.customerName,
-            "4": bookingDetails.startDate,
-            "5": bookingDetails.endDate,
-            "6": bookingDetails.pickupLocation,
-            "7": bookingDetails.returnLocation,
-            "8": bookingDetails.totalAmount,
-            "9": bookingDetails.id,
-          },
-          templateKey: Template.FleetOwnerBookingNotification,
-        });
+        if (booking.car.owner.phoneNumber) {
+          await sendMessage({
+            variables: {
+              "1": bookingDetails.ownerName,
+              "2": bookingDetails.carName,
+              "3": bookingDetails.customerName,
+              "4": bookingDetails.startDate,
+              "5": bookingDetails.endDate,
+              "6": bookingDetails.pickupLocation,
+              "7": bookingDetails.returnLocation,
+              "8": bookingDetails.totalAmount,
+              "9": bookingDetails.id,
+            },
+            to: booking.car.owner.phoneNumber,
+            templateKey: Template.FleetOwnerBookingNotification,
+          });
+        }
 
         await sendEmail({
           to: booking.car.owner.email,
@@ -272,17 +278,20 @@ async function handleChargeCompleted(payload: FlutterwaveChargeCompletedPayload)
       logger.info(`[Unified Webhook] Sending extension confirmation email to ${email}`);
 
       emailQueue.add(async () => {
-        await sendMessage({
-          variables: {
-            "1": extensionDetails.customerName,
-            "2": extensionDetails.carName,
-            "3": extensionDetails.legDate,
-            "4": extensionDetails.extensionHours,
-            "5": extensionDetails.from,
-            "6": extensionDetails.to,
-          },
-          templateKey: Template.BookingExtensionConfirmation,
-        });
+        if (extensionDetails.customerPhoneNumber) {
+          await sendMessage({
+            variables: {
+              "1": extensionDetails.customerName,
+              "2": extensionDetails.carName,
+              "3": extensionDetails.legDate,
+              "4": extensionDetails.extensionHours,
+              "5": extensionDetails.from,
+              "6": extensionDetails.to,
+            },
+            to: extensionDetails.customerPhoneNumber,
+            templateKey: Template.BookingExtensionConfirmation,
+          });
+        }
         await sendEmail({ to: email, subject: "Booking Extension Confirmed", html });
       });
 
