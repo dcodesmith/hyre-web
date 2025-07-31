@@ -49,9 +49,12 @@ const chauffeurSchema = z.object({
     .min(1),
   phoneNumber: z
     .string({
-      required_error: "Phone is required.",
+      required_error: "Phone number is required.",
     })
-    .min(11, "Phone number must be at least 11 digits"),
+    .regex(
+      /^\+234[789][01]\d{8}$/,
+      "Phone number must be a valid Nigerian number (e.g., +2349012341234)",
+    ),
   address: z.string({
     required_error: "Address is required.",
   }),
@@ -218,9 +221,11 @@ export async function action({ request }: ActionFunctionArgs) {
         where: { id: chauffeurId, fleetOwnerId: user.id },
         data: submission.value,
       });
+
+      return json({ success: true, error: null });
     }
 
-    return json({ success: true, error: null } as const);
+    return json({ success: true, error: null });
   } catch (error) {
     logger.error(error instanceof Error ? error.message : "An unexpected error occurred");
     return json(
@@ -236,12 +241,15 @@ export async function action({ request }: ActionFunctionArgs) {
 function ChauffeurForm() {
   const lastResult = useActionData<typeof action>();
   const isPending = useIsPending();
-  const serverError = lastResult?.error;
+  const serverError = typeof lastResult?.error === "string" ? lastResult.error : undefined;
 
   const errorRingClasses = "border-red-500 focus-visible:ring-red-500 focus-visible:ring-2";
 
   const [form, { email, name, phoneNumber, address, ninFile, drivingLicenceFile }] = useForm({
-    lastResult,
+    lastResult:
+      lastResult && "error" in lastResult && typeof lastResult.error === "object"
+        ? lastResult
+        : undefined,
     onValidate({ formData }) {
       return parseWithZod(formData, { schema: chauffeurSchema });
     },
@@ -285,6 +293,7 @@ function ChauffeurForm() {
           name={phoneNumber.name}
           id={phoneNumber.id}
           type="tel"
+          placeholder="+2349012341234"
           className={`rounded ${phoneNumber.errors ? errorRingClasses : ""}`}
         />
         {phoneNumber.errors && (
@@ -433,7 +442,12 @@ export default function ChauffeursPage() {
   );
 
   useEffect(() => {
-    if (navigation.state === "idle" && lastResult?.success) {
+    if (
+      navigation.state === "idle" &&
+      lastResult &&
+      "success" in lastResult &&
+      lastResult.success
+    ) {
       setIsOpen(false);
       toast({
         title: "Success",

@@ -36,7 +36,10 @@ const baseSchema = z.object({
   name: z.string({ required_error: "Name is required" }),
   phoneNumber: z
     .string({ required_error: "Phone number is required" })
-    .regex(/^(?:070|080|081|090|091|0809|0909)\d{8}$/, "Invalid Nigerian phone number"),
+    .regex(
+      /^\+234[789][01]\d{8}$/,
+      "Phone number must be a valid Nigerian number (e.g., +2349012341234)",
+    ),
   address: z.string({ required_error: "Address is required" }),
 });
 
@@ -396,7 +399,7 @@ export default function FleetOwnerOnboarding() {
           <Input
             {...getInputProps(phoneNumber, { type: "tel" })}
             key={undefined}
-            placeholder="Your phone number"
+            placeholder="+2349012341234"
             className={phoneNumber.errors ? "border-red-500 focus-visible:ring-red-500" : ""}
           />
           {phoneNumber.errors && <p className="text-red-500 text-sm">{phoneNumber.errors}</p>}

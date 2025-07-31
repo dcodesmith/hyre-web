@@ -31,9 +31,12 @@ const chauffeurSchema = z.object({
     .min(1),
   phoneNumber: z
     .string({
-      required_error: "Phone is required.",
+      required_error: "Phone number is required.",
     })
-    .min(11, "Phone number must be at least 11 digits"),
+    .regex(
+      /^\+234[789][01]\d{8}$/,
+      "Phone number must be a valid Nigerian number (e.g., +2349012341234)",
+    ),
   address: z.string({
     required_error: "Address is required.",
   }),
@@ -157,6 +160,7 @@ export default function NewChauffeurForm() {
         <div className="space-y-1">
           <Label htmlFor={phoneNumber.id}>Phone Number</Label>
           <Input
+            placeholder="+2349012341234"
             name="phoneNumber"
             id={phoneNumber.id}
             type="tel"

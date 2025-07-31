@@ -70,7 +70,10 @@ export function ProfileForm({ onOpenChange, user }: ProfileFormProps) {
 
           <div className="space-y-1">
             <Label htmlFor={phoneNumber.id}>Phone</Label>
-            <Input {...getInputProps(phoneNumber, { type: "tel" })} />
+            <Input
+              {...getInputProps(phoneNumber, { type: "tel" })}
+              placeholder="+1234567890, +447911123456, +2349012341234"
+            />
             {phoneNumber.errors && (
               <p className="text-sm text-destructive">{phoneNumber.errors.join(" ")}</p>
             )}

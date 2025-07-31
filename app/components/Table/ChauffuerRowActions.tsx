@@ -39,7 +39,10 @@ const chauffeurSchema = z.object({
     .string({
       required_error: "Phone number is required.",
     })
-    .min(11, "Phone number must be at least 11 digits"),
+    .regex(
+      /^\+234[789][01]\d{8}$/,
+      "Phone number must be a valid Nigerian number (e.g., +2349012341234)",
+    ),
   address: z
     .string({
       required_error: "Address is required.",
@@ -89,6 +92,7 @@ function EditChauffeurForm({ chauffeur, setIsEditOpen }: EditChauffeurFormProps)
   return (
     <fetcher.Form
       method="PUT"
+      encType="multipart/form-data"
       action={"/fleet-owner/chauffeurs"}
       {...getFormProps(form)}
       className="space-y-4"
@@ -108,7 +112,7 @@ function EditChauffeurForm({ chauffeur, setIsEditOpen }: EditChauffeurFormProps)
 
       <div className="space-y-1">
         <Label htmlFor={phoneNumber.id}>Phone Number</Label>
-        <Input {...getInputProps(phoneNumber, { type: "tel" })} />
+        <Input {...getInputProps(phoneNumber, { type: "tel" })} placeholder="+2349012341234" />
         {phoneNumber.errors && <p className="text-sm text-red-500">{phoneNumber.errors}</p>}
       </div>
 
