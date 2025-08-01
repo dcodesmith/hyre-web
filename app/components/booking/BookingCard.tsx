@@ -114,11 +114,28 @@ const getBookingSchema = (isGuestBooking: boolean) => {
   });
 };
 
-const calculateTotalDays = (from: Date | undefined, to: Date | undefined): number => {
+const calculateTotalDays = (
+  from: Date | undefined,
+  to: Date | undefined,
+  bookingType?: BookingType,
+): number => {
   if (!from || !to || isAfter(from, to)) {
     return 0;
   }
 
+  // For night bookings, calculate the number of nights (each night spans 2 calendar days)
+  if (bookingType === NIGHT_BOOKING_TYPE) {
+    const start = startOfDay(from);
+    const end = startOfDay(to);
+    const daysDiff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+
+    // For night bookings, each night spans from one day to the next
+    // So if user selects 1st and 2nd, that's 1 night
+    // If user selects 1st and 3rd, that's 2 nights
+    return Math.max(1, daysDiff);
+  }
+
+  // For day bookings, use the existing logic
   const start = startOfDay(from);
   const end = startOfDay(to);
   return Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
@@ -251,8 +268,8 @@ export default function BookingCard({
   const [_, setIsDatePickerOpen] = useState(false);
 
   const totalDays = useMemo(
-    () => calculateTotalDays(dateRange.from, dateRange.to),
-    [dateRange.from, dateRange.to],
+    () => calculateTotalDays(dateRange.from, dateRange.to, bookingType),
+    [dateRange.from, dateRange.to, bookingType],
   );
 
   const currentCarPrice =

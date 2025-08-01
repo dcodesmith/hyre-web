@@ -147,7 +147,8 @@ export async function action({ request }: ActionFunctionArgs) {
     const endDateTime = new Date(endDate);
 
     if (bookingType === "NIGHT") {
-      endDateTime.setHours(startDateTime.getHours() + 6);
+      // For night bookings, end time should be 5am on the end date
+      endDateTime.setHours(5);
     } else {
       endDateTime.setHours(startDateTime.getHours() + 12);
     }
@@ -157,7 +158,9 @@ export async function action({ request }: ActionFunctionArgs) {
 
     if (
       startDateTime < now ||
-      (startDateTime.toDateString() === now.toDateString() && now.getHours() >= 12)
+      (bookingType !== "NIGHT" &&
+        startDateTime.toDateString() === now.toDateString() &&
+        now.getHours() >= 12)
     ) {
       return json(
         { error: "Start date and time cannot be after 12pm of the current day" },

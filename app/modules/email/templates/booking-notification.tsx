@@ -273,7 +273,8 @@ export function bookingExtensionConfirmationEmail(extension: NormalisedExtension
       <Text className="mb-3">Hello {customerName},</Text>
       <Text className="mb-3">
         Your booking for the {carName} today, {extension.legDate} has been extended for{" "}
-        {extension.extensionHours} hours from {extension.from} to {extension.to}
+        {extension.extensionHours === 1 ? "1 hour" : `${extension.extensionHours} hours`} from{" "}
+        {extension.from} to {extension.to}
       </Text>
     </EmailTemplate>,
   );

@@ -92,11 +92,33 @@ export async function calculateBookingCost({
     effectiveEndDateForLegGeneration = subMilliseconds(endDate, 1);
   }
 
-  // First, calculate all leg prices to determine the totalAmount for the Booking
-  const bookingDates = eachDayOfInterval({
-    start: startDate,
-    end: effectiveEndDateForLegGeneration,
-  });
+  // For night bookings, we need to handle the leg generation differently
+  let bookingDates: Date[];
+
+  if (type === BookingType.NIGHT) {
+    // For night bookings, generate legs for each night
+    // A night booking from 1st to 2nd should generate 1 leg (the night of 1st-2nd)
+    // A night booking from 1st to 3rd should generate 2 legs (nights of 1st-2nd and 2nd-3rd)
+    const startDay = startOfDay(startDate);
+    const endDay = startOfDay(endDate);
+    const daysDiff = Math.ceil((endDay.getTime() - startDay.getTime()) / (1000 * 60 * 60 * 24));
+
+    // For night bookings, the number of legs equals the number of nights
+    // Each night spans from one day to the next, so we generate legs for the start days
+    // For a night booking from 1st to 2nd: 1 night = 1 leg (1st)
+    // For a night booking from 1st to 3rd: 2 nights = 2 legs (1st, 2nd)
+    bookingDates = [];
+    for (let i = 0; i < daysDiff; i++) {
+      bookingDates.push(addDays(startDay, i));
+    }
+  } else {
+    // For day bookings, use the existing logic
+    bookingDates = eachDayOfInterval({
+      start: startDate,
+      end: effectiveEndDateForLegGeneration,
+    });
+  }
+
   const legPrices: number[] = [];
   const startHours = startDate.getHours();
   const endHours = endDate.getHours();

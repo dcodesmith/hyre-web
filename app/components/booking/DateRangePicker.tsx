@@ -1,5 +1,5 @@
 import { CalendarIcon } from "@heroicons/react/24/outline";
-import { addDays, format, startOfToday, startOfTomorrow, parseISO } from "date-fns";
+import { addDays, format, startOfToday, startOfTomorrow, parseISO, startOfDay } from "date-fns";
 import { ChevronsDownUp, ChevronsUpDown } from "lucide-react";
 import { useState } from "react";
 import { DateRange } from "react-day-picker";
@@ -57,6 +57,17 @@ export function DateRangePicker({
       from: range.from ? new Date(range.from) : undefined,
       to: range.to ? new Date(range.to) : undefined,
     };
+
+    // For night bookings, enforce that start and end dates must be different
+    if (isNightBooking && normalizedRange.from && normalizedRange.to) {
+      const startDate = startOfDay(normalizedRange.from);
+      const endDate = startOfDay(normalizedRange.to);
+
+      if (startDate.getTime() === endDate.getTime()) {
+        // If same day selected, don't allow the selection
+        return;
+      }
+    }
 
     onDateChange(normalizedRange);
 
