@@ -245,17 +245,6 @@ export async function action({ request, params }: ActionFunctionArgs) {
             templateKey: Template.BookingCancellationClient,
           });
         }
-
-        await sendEmail({
-          to: email,
-          subject: "Booking Cancelled",
-          html: await renderUserBookingCancellationEmail(bookingDetails),
-        });
-      });
-
-      emailQueue.add(async () => {
-        logger.info(`Sending booking cancellation email to ${booking.car.owner.email}`);
-
         if (booking.car.owner.phoneNumber) {
           await sendMessage({
             variables: {
@@ -273,11 +262,32 @@ export async function action({ request, params }: ActionFunctionArgs) {
             templateKey: Template.BookingCancellationFleetOwner,
           });
         }
+      });
 
-        await sendEmail({
-          to: booking.car.owner.email,
-          subject: "Booking Cancelled by User",
-          html: await renderFleetOwnerBookingCancellationEmail(bookingDetails),
+      emailQueue.add(async () => {
+        logger.info(`Sending booking cancellation email to ${booking.car.owner.email}`);
+
+        const results = await Promise.allSettled([
+          sendEmail({
+            to: email,
+            subject: "Booking Cancelled",
+            html: await renderUserBookingCancellationEmail(bookingDetails),
+          }),
+
+          sendEmail({
+            to: booking.car.owner.email,
+            subject: "Booking Cancelled by User",
+            html: await renderFleetOwnerBookingCancellationEmail(bookingDetails),
+          }),
+        ]);
+
+        results.forEach((result, index) => {
+          const emailType = index === 0 ? "customer" : "fleet owner";
+          if (result.status === "fulfilled") {
+            logger.info(`${emailType} email sent successfully`);
+          } else {
+            logger.error(`${emailType} email failed`, { error: result.reason });
+          }
         });
       });
 
@@ -576,7 +586,7 @@ export default function BookingDetails() {
 
   const canBeModified =
     booking.status === "CONFIRMED" && isBookingEditable(new Date(booking.startDate));
-  const canBeExtended = extendableDuration > 0;
+  const canBeExtended = extendableDuration > 0 && booking.type === "DAY";
   const isCompleted = booking.status === "COMPLETED";
 
   const shouldShowActionsCard = canBeModified || canBeExtended || isCompleted;

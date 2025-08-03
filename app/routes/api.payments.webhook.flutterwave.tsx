@@ -215,12 +215,6 @@ async function handleChargeCompleted(payload: FlutterwaveChargeCompletedPayload)
           });
         }
 
-        await sendEmail({ to: email, subject: "Booking Confirmed", html });
-      });
-
-      logger.info(`[Unified Webhook] Booking confirmation email queued for ${email}`);
-
-      emailQueue.add(async () => {
         if (booking.car.owner.phoneNumber) {
           await sendMessage({
             variables: {
@@ -238,11 +232,28 @@ async function handleChargeCompleted(payload: FlutterwaveChargeCompletedPayload)
             templateKey: Template.FleetOwnerBookingNotification,
           });
         }
+      });
 
-        await sendEmail({
-          to: booking.car.owner.email,
-          subject: "New Booking Alert",
-          html: await renderFleetOwnerBookingNotificationEmail(bookingDetails),
+      logger.info(`[Unified Webhook] Booking confirmation email queued for ${email}`);
+
+      emailQueue.add(async () => {
+        const results = await Promise.allSettled([
+          sendEmail({ to: email, subject: "Booking Confirmed", html }),
+
+          sendEmail({
+            to: booking.car.owner.email,
+            subject: "New Booking Alert",
+            html: await renderFleetOwnerBookingNotificationEmail(bookingDetails),
+          }),
+        ]);
+
+        results.forEach((result, index) => {
+          const emailType = index === 0 ? "customer" : "fleet owner";
+          if (result.status === "fulfilled") {
+            logger.info(`${emailType} email sent successfully`);
+          } else {
+            logger.error(`${emailType} email failed`, { error: result.reason });
+          }
         });
       });
       logger.info(`[Unified Webhook] Fleet owner notification queued for ${email}`);
