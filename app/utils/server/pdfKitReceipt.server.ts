@@ -143,10 +143,14 @@ export async function generatePdfWithPdfKit(booking: BookingWithRelations): Prom
     formatCurrency(Number(booking.netTotal ?? 0)),
   );
 
-  let extensionCount = 0;
+  let totalExtendedHours = 0;
   let extensionTotalAmount = 0;
+
   for (const leg of booking.legs) {
-    extensionCount += leg.extensions.length;
+    totalExtendedHours += leg.extensions.reduce(
+      (acc, ext) => acc + Number(ext.extendedDurationHours ?? 0),
+      0,
+    );
     extensionTotalAmount += leg.extensions.reduce(
       (acc, extension) => acc + Number(extension.totalAmount),
       0,
@@ -155,15 +159,17 @@ export async function generatePdfWithPdfKit(booking: BookingWithRelations): Prom
 
   if (extensionTotalAmount > 0) {
     twoColumnText(
-      `Extension (${extensionCount} hour${extensionCount > 1 ? "s" : ""})`,
+      `Extension (${totalExtendedHours} hour${totalExtendedHours > 1 ? "s" : ""})`,
       formatCurrency(extensionTotalAmount),
     );
   }
 
-  twoColumnText(
-    `Platform Fee (${booking.platformCustomerServiceFeeRatePercent}%)`,
-    formatCurrency(Number(booking.platformCustomerServiceFeeAmount ?? 0)),
-  );
+  if (Number(booking.platformCustomerServiceFeeAmount ?? 0) > 0) {
+    twoColumnText(
+      `Platform Fee (${booking.platformCustomerServiceFeeRatePercent}%)`,
+      formatCurrency(Number(booking.platformCustomerServiceFeeAmount ?? 0)),
+    );
+  }
 
   twoColumnText(`VAT (${booking.vatRatePercent}%)`, formatCurrency(Number(booking.vatAmount ?? 0)));
 

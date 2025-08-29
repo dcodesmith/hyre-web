@@ -180,7 +180,7 @@ export async function action({ request }: ActionFunctionArgs) {
     maxPartSize: 10 * 1024 * 1024, // 10MB limit
   });
   const formData = await unstable_parseMultipartFormData(request, uploadHandler);
-  const intent = String(formData.get("intent"));
+  const intent = formData.get("intent")?.toString() ?? "";
 
   if (!["create", "edit"].includes(intent)) {
     return json({ error: "Invalid intent" }, { status: 400 });
@@ -201,6 +201,7 @@ export async function action({ request }: ActionFunctionArgs) {
         drivingLicenceFile: drivingLicenceFile as File,
         roles: { connect: [{ name: "chauffeur" }] },
         fleetOwner: { connect: { id: user.id } },
+        autoApprove: true,
       });
 
       return json({ success: true, error: null });
@@ -246,10 +247,7 @@ function ChauffeurForm() {
   const errorRingClasses = "border-red-500 focus-visible:ring-red-500 focus-visible:ring-2";
 
   const [form, { email, name, phoneNumber, address, ninFile, drivingLicenceFile }] = useForm({
-    lastResult:
-      lastResult && "error" in lastResult && typeof lastResult.error === "object"
-        ? lastResult
-        : undefined,
+    lastResult: lastResult && "status" in lastResult ? lastResult : undefined,
     onValidate({ formData }) {
       return parseWithZod(formData, { schema: chauffeurSchema });
     },

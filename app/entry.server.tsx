@@ -44,7 +44,7 @@ function addSecurityHeaders(headers: Headers) {
   headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
   headers.set(
     "Content-Security-Policy",
-    `default-src 'self'; script-src 'self' 'unsafe-inline' https://maps.googleapis.com https://maps.gstatic.com https://va.vercel-scripts.com https://vercel.live; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src ${imgSrcDirectives.join(" ")}; connect-src 'self' https://api.flutterwave.com https://vercel.live https://vitals.vercel-insights.com https://maps.googleapis.com https://places.googleapis.com; frame-src 'self' https://vercel.live;`,
+    `default-src 'self'; script-src 'self' 'unsafe-inline' https://maps.googleapis.com https://maps.gstatic.com https://va.vercel-scripts.com https://vercel.live; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src ${imgSrcDirectives.join(" ")}; connect-src 'self' https://api.flutterwave.com https://vercel.live https://vitals.vercel-insights.com https://maps.googleapis.com https://places.googleapis.com wss://ws-us3.pusher.com wss://*.pusher.com; frame-src 'self' https://vercel.live;`,
   );
   headers.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
   headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=()");

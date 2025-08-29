@@ -89,10 +89,16 @@ export const carSchema = z.object({
     .int()
     .positive("Nightly rate must be positive"),
 
+  fuelUpgradeRate: z
+    .number({
+      required_error: "Fuel upgrade rate is required.",
+    })
+    .int()
+    .positive("Fuel upgrade rate must be positive"),
+
   // images: z.preprocess(
   //   (files) => {
   //     // If the input is a FileList, convert it to an array
-  //     console.log("files", files);
   //     if (files instanceof FileList) return Array.from(files);
   //     return files;
   //   },
@@ -170,6 +176,7 @@ export function NewCarForm() {
       motCertificate,
       insuranceCertificate,
       nightRate,
+      fuelUpgradeRate,
     },
   ] = useForm({
     lastResult:
@@ -258,6 +265,23 @@ export function NewCarForm() {
           className={`rounded ${nightRate.errors ? errorRingClasses : ""}`}
         />
         {nightRate.errors && <p className="text-red-500 text-sm">{nightRate.errors.join(" ")}</p>}
+      </div>
+
+      <div className="space-y-0.5">
+        <Label htmlFor={fuelUpgradeRate.id}>Fuel Upgrade Rate</Label>
+        <Input
+          {...getInputProps(fuelUpgradeRate, { type: "number", step: "1000" })}
+          min={1000}
+          className={`rounded ${fuelUpgradeRate.errors ? errorRingClasses : ""}`}
+          placeholder="Cost to upgrade from partial to full tank"
+        />
+        {fuelUpgradeRate.errors && (
+          <p className="text-red-500 text-sm">{fuelUpgradeRate.errors.join(" ")}</p>
+        )}
+        <p className="text-xs text-gray-500">
+          Amount charged to customers who want to upgrade from partial tank (1/3 or 2/3) to full
+          tank for 1-2 day bookings
+        </p>
       </div>
 
       <div className="space-y-0.5">

@@ -1,14 +1,17 @@
-import { Form, json, useActionData, useLoaderData } from "@remix-run/react";
-import { ActionFunctionArgs, LoaderFunctionArgs, redirect } from "@remix-run/node";
+import { useActionData, useLoaderData } from "@remix-run/react";
+import { ActionFunctionArgs, LoaderFunctionArgs, redirect, json } from "@remix-run/node";
 import { authenticator } from "~/modules/auth/auth.server";
 import { AuthorizationError } from "remix-auth";
 import { commitSession, getSession } from "~/modules/auth/session.server";
 import { Button } from "~/components/ui/button";
+import { safeRedirect } from "~/utils/safe-redirect";
+import { validateCSRF } from "~/utils/csrf-action.server";
+import { Form } from "~/components/CSRFForm";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   // Redirect to admin if already authenticated
   const url = new URL(request.url);
-  const redirectTo = url.searchParams.get("redirectTo");
+  const redirectTo = safeRedirect(url.searchParams.get("redirectTo"));
 
   await authenticator.isAuthenticated(request, {
     successRedirect: redirectTo || "/admin",
@@ -28,8 +31,10 @@ export async function loader({ request }: LoaderFunctionArgs) {
 }
 
 export async function action({ request }: ActionFunctionArgs) {
+  await validateCSRF(request);
+
   const url = new URL(request.url);
-  const redirectTo = url.searchParams.get("redirectTo");
+  const redirectTo = safeRedirect(url.searchParams.get("redirectTo"));
   const role = url.searchParams.get("role");
 
   try {
@@ -38,7 +43,6 @@ export async function action({ request }: ActionFunctionArgs) {
       failureRedirect: role ? `/admin/verify?role=${role}` : "/admin/verify",
     });
   } catch (error) {
-    console.log("Error verifying admin/staff", error);
     if (error instanceof AuthorizationError) {
       return json({ error: error.message }, { status: 401 });
     }
@@ -47,17 +51,13 @@ export async function action({ request }: ActionFunctionArgs) {
       return error;
     }
 
-    console.log("Error verifying admin/staff", error);
-
     return json({ error: "Invalid verification code" }, { status: 400 });
   }
 }
 
 export default function AdminVerify() {
   const actionData = useActionData<typeof action>();
-  const { authEmail, authError } = useLoaderData<typeof loader>();
-
-  console.log({ authEmail, authError });
+  const { authError } = useLoaderData<typeof loader>();
 
   return (
     <div className="flex min-h-screen items-center justify-center">
@@ -87,7 +87,11 @@ export default function AdminVerify() {
             Verify
           </Button>
 
-          {authError && <div className="text-red-500 text-sm text-center">{authError.message}</div>}
+          {authError && (
+            <div className="text-red-500 text-sm text-center">
+              {typeof authError === "string" ? authError : authError?.message}
+            </div>
+          )}
 
           {actionData?.error && (
             <div className="text-red-500 text-sm text-center">{actionData.error}</div>

@@ -28,6 +28,8 @@ const schema = z.object({
   AWS_BUCKET_NAME: z.string(),
   APP_NAME: z.string(),
 
+  GOOGLE_MAPS_API_KEY: z.string(),
+
   SUPPORT_EMAIL: z.string().optional(),
   WEBSITE_URL: z.string().optional(),
   DOMAIN: z.string().optional(),
@@ -70,6 +72,7 @@ export function getSharedEnvs() {
     DEV_HOST_URL: env.DEV_HOST_URL,
     PROD_HOST_URL: env.PROD_HOST_URL,
     APP_NAME: env.APP_NAME,
+    GOOGLE_MAPS_API_KEY: env.GOOGLE_MAPS_API_KEY,
   };
 }
 

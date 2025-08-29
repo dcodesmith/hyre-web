@@ -3,19 +3,18 @@ import { parseWithZod } from "@conform-to/zod";
 import { CogIcon } from "@heroicons/react/24/outline";
 import type { ActionFunctionArgs } from "@remix-run/node";
 import { json, redirect } from "@remix-run/node";
+import {
+  unstable_createMemoryUploadHandler,
+  unstable_parseMultipartFormData,
+} from "@remix-run/node";
 import { useActionData, useNavigation } from "@remix-run/react";
-import { Form } from "~/components/CSRFForm";
 import { z } from "zod";
+import { Form } from "~/components/CSRFForm";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
-import { useIsPending } from "~/lib/utils";
 import { requireUserWithRole } from "~/modules/auth/auth.server";
 import { createUser } from "~/services/users.server";
-import {
-  unstable_parseMultipartFormData,
-  unstable_createMemoryUploadHandler,
-} from "@remix-run/node";
 import { validateCSRF } from "~/utils/csrf-action.server";
 
 const chauffeurSchema = z.object({
@@ -83,6 +82,7 @@ export async function action({ request }: ActionFunctionArgs) {
       drivingLicenceFile: drivingLicenceFile as File,
       roles: { connect: [{ name: "chauffeur" }] },
       fleetOwner: { connect: { id: user.id } },
+      autoApprove: true,
     });
 
     return redirect("/fleet-owner");
@@ -95,14 +95,12 @@ export async function action({ request }: ActionFunctionArgs) {
       },
       { status: 500 },
     );
-    // return json({ error: "Failed to create new car" }, { status: 500 });
   }
 }
 
 export default function NewChauffeurForm() {
   const lastResult = useActionData<typeof action>();
   const navigation = useNavigation();
-  const isPending = useIsPending();
 
   const serverError = lastResult?.error;
 
@@ -122,7 +120,7 @@ export default function NewChauffeurForm() {
     shouldRevalidate: "onInput",
   });
 
-  const isSubmitting = navigation.state === "submitting";
+  const isSubmitting = navigation.state !== "idle";
 
   const errorRingClasses = "border-red-500 focus-visible:ring-red-500 focus-visible:ring-2";
 
@@ -183,7 +181,7 @@ export default function NewChauffeurForm() {
         </div>
 
         <Button type="submit" disabled={isSubmitting}>
-          {isPending ? <CogIcon className="h-5 w-5 animate-spin" /> : "Save"}
+          {isSubmitting ? <CogIcon className="h-5 w-5 animate-spin" /> : "Save"}
         </Button>
       </Form>
     </div>

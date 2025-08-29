@@ -101,8 +101,9 @@ export async function calculateExtensionFinancials(
   // const platformCustomerServiceFeeRatePercent = platformFeeRate;
   logger.debug(`Platform Service Fee Rate: ${platformCustomerServiceFeeRatePercent.toString()}%`);
 
+  // Only apply platform service fee if the fee percent is greater than 0
   const platformCustomerServiceFeeAmount = netTotal
-    .mul(platformCustomerServiceFeeRatePercent)
+    .mul(Decimal.max(platformCustomerServiceFeeRatePercent, new Decimal(0)))
     .div(100);
   logger.debug(`Platform Service Fee Amount: ${platformCustomerServiceFeeAmount.toString()}`);
 
@@ -123,9 +124,11 @@ export async function calculateExtensionFinancials(
   logger.debug(
     `Fleet Owner Commission Rate: ${platformFleetOwnerCommissionRatePercent.toString()}%`,
   );
-  const platformFleetOwnerCommissionAmount = netTotal
-    .mul(platformFleetOwnerCommissionRatePercent)
-    .div(100);
+
+  // Only apply fleet owner commission if rate is greater than 0
+  const platformFleetOwnerCommissionAmount = platformFleetOwnerCommissionRatePercent.gt(0)
+    ? netTotal.mul(platformFleetOwnerCommissionRatePercent).div(100)
+    : new Decimal(0);
   logger.debug(`Fleet Owner Commission Amount: ${platformFleetOwnerCommissionAmount.toString()}`);
   const fleetOwnerPayoutAmountNet = netTotal.minus(platformFleetOwnerCommissionAmount);
   logger.debug(`Fleet Owner Payout Amount (Net): ${fleetOwnerPayoutAmountNet.toString()}`);
@@ -174,6 +177,7 @@ export async function getRates() {
         effectiveSince: { lte: currentDate },
         OR: [{ effectiveUntil: { gt: currentDate } }, { effectiveUntil: null }],
       },
+      orderBy: { effectiveSince: "desc" },
     }),
     // Get VAT rate
     prisma.taxRate.findFirst({
@@ -181,6 +185,7 @@ export async function getRates() {
         effectiveSince: { lte: currentDate },
         OR: [{ effectiveUntil: { gt: currentDate } }, { effectiveUntil: null }],
       },
+      orderBy: { effectiveSince: "desc" },
     }),
   ]);
 

@@ -21,6 +21,8 @@ model Car {
   dayRate    Int // Assumed NET Regular daytime price
   nightRate  Int // Assumed NET Nighttime rate
   hourlyRate Int // Assumed NET hourly rate
+  fuelUpgradeRate Int // Cost to upgrade from partial to full tank
+
 
   status         Status
   approvalStatus CarApprovalStatus @default(PENDING)

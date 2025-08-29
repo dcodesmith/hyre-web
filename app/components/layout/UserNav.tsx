@@ -1,6 +1,5 @@
 import { Role, User } from "@prisma/client";
 import { Link, useLocation } from "@remix-run/react";
-import { UserIcon } from "lucide-react";
 import { useState } from "react";
 import { Button } from "~/components/ui/button";
 import {
@@ -14,8 +13,81 @@ import {
 } from "~/components/ui/dropdown-menu";
 import { userHasRole } from "~/utils/client/misc";
 import { ProfileForm } from "../forms/ProfileForm";
+import { Form } from "~/components/CSRFForm";
 
-function getInitials(user: User): string {
+type AuthSectionProps = {
+  readonly user: (User & { roles: Pick<Role, "name">[] }) | null;
+  readonly isHomeRoute: boolean;
+  readonly onProfileOpen: () => void;
+};
+
+function AuthSection({ user, isHomeRoute, onProfileOpen }: AuthSectionProps) {
+  if (user) {
+    return (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost"
+            className={`relative h-8 w-8 rounded-full border flex items-center justify-center capitalize italic md:hover:bg-transparent md:hover:text-white ${
+              isHomeRoute ? "text-white" : "text-black"
+            }`}
+            aria-label="Open profile menu"
+          >
+            {getInitials(user)}
+          </Button>
+        </DropdownMenuTrigger>
+
+        <DropdownMenuContent align="end" forceMount>
+          <>
+            <DropdownMenuLabel className="font-normal">
+              <div className="flex flex-col space-y-1">
+                <p className="text-sm font-medium leading-none">{user.name ?? user.username}</p>
+                {user.email && (
+                  <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
+                )}
+              </div>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuGroup>
+              <DropdownMenuItem onClick={onProfileOpen}>Profile</DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                {!userHasRole(user, "fleetOwner") ? (
+                  <Link to="/bookings">Bookings</Link>
+                ) : (
+                  <Link to="/fleet-owner">Dashboard</Link>
+                )}
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem asChild>
+              <Form method="post" action="/logout">
+                <button type="submit" className="w-full text-left">
+                  Log out
+                </button>
+              </Form>
+            </DropdownMenuItem>
+          </>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    );
+  }
+
+  return (
+    <Link to="/auth">
+      <Button
+        variant="outline"
+        size="sm"
+        // className={`flex border items-center justify-center md:hover:bg-transparent md:hover:text-white ${
+        //   isHomeRoute ? "text-white" : "text-black"
+        // }`}
+      >
+        Register or Log in
+      </Button>
+    </Link>
+  );
+}
+
+function getInitials(user: (User & { roles: Pick<Role, "name">[] }) | null): string {
   if (!user) return "U";
 
   if (user.name) {
@@ -40,11 +112,11 @@ function getInitials(user: User): string {
   return "U";
 }
 
-export function UserNav({
-  user,
-}: {
-  user: (User & { roles: Pick<Role, "name">[] }) | null;
-}) {
+type UserNavProps = {
+  readonly user: (User & { roles: Pick<Role, "name">[] }) | null;
+};
+
+export function UserNav({ user }: UserNavProps) {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const location = useLocation();
   const isAdminRoute = location.pathname.startsWith("/admin");
@@ -56,76 +128,19 @@ export function UserNav({
         {userHasRole(user, "admin") || userHasRole(user, "staff") ? (
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium">{user?.name ?? user?.username ?? "User"}</span>
-            <Link to="/logout">
-              <Button variant="ghost" size="sm">
+            <Form method="post" action="/logout">
+              <button type="submit" className="w-full text-left">
                 Log out
-              </Button>
-            </Link>
+              </button>
+            </Form>
           </div>
         ) : (
           !isAdminRoute && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  className={`relative h-8 w-8 rounded-full border flex items-center justify-center capitalize italic md:hover:bg-transparent md:hover:text-white ${
-                    isHomeRoute ? "text-white" : "text-black"
-                  }`}
-                >
-                  {user ? (
-                    getInitials(user)
-                  ) : (
-                    <span className="block">
-                      <UserIcon
-                        className={`h-5 w-5 md:stroke-white ${isHomeRoute ? "text-white" : "text-black"}`}
-                      />
-                    </span>
-                  )}
-                </Button>
-              </DropdownMenuTrigger>
-
-              <DropdownMenuContent align="end" forceMount>
-                {user ? (
-                  <>
-                    <DropdownMenuLabel className="font-normal">
-                      <div className="flex flex-col space-y-1">
-                        <p className="text-sm font-medium leading-none">
-                          {user.name ?? user.username}
-                        </p>
-                        <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
-                      </div>
-                    </DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuGroup>
-                      <DropdownMenuItem onClick={() => setIsProfileOpen(true)}>
-                        Profile
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        {!userHasRole(user, "fleetOwner") ? (
-                          <Link to="/bookings">Bookings</Link>
-                        ) : (
-                          <Link to="/fleet-owner">Dashboard</Link>
-                        )}
-                      </DropdownMenuItem>
-                    </DropdownMenuGroup>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem asChild>
-                      <Link to="/logout">Log out</Link>
-                    </DropdownMenuItem>
-                  </>
-                ) : (
-                  <>
-                    <DropdownMenuItem asChild>
-                      <Link to="/auth">Register or Log in</Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem className="text-muted-foreground cursor-not-allowed">
-                      Become a fleet owner
-                    </DropdownMenuItem>
-                  </>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <AuthSection
+              user={user}
+              isHomeRoute={isHomeRoute}
+              onProfileOpen={() => setIsProfileOpen(true)}
+            />
           )
         )}
       </div>

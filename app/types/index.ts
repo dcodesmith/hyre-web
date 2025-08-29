@@ -10,6 +10,7 @@ import type {
 export type SerializedCar = Omit<Car, "createdAt" | "updatedAt"> & {
   createdAt: string;
   updatedAt: string;
+  fuelUpgradeRate: number;
   owner: {
     username: string | null;
     name: string | null;
@@ -57,4 +58,8 @@ export type BookingWithRelations = Prisma.BookingGetPayload<{
 
 export type Extension = Prisma.ExtensionGetPayload<{
   include: { bookingLeg: { include: { booking: { include: { car: true; user: true } } } } };
+}>;
+
+export type BookingLegWithRelations = Prisma.BookingLegGetPayload<{
+  include: { extensions: true };
 }>;

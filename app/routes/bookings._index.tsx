@@ -111,6 +111,7 @@ export async function action({ request }: ActionFunctionArgs) {
     const carId = String(formData.get("carId"));
     const bookingType = String(formData.get("bookingType"));
     const includeSecurityDetail = formData.get("includeSecurityDetail") === "true";
+    const requiresFullTank = formData.get("requiresFullTank") === "true";
 
     // Check if guest email exists as a user
     if (guestEmail) {
@@ -189,6 +190,7 @@ export async function action({ request }: ActionFunctionArgs) {
       endDate: endDateTime,
       type: bookingType as BookingType,
       includeSecurityDetail,
+      requiresFullTank,
     });
 
     if (clientTotalAmount && Number(clientTotalAmount) !== totalCost.toNumber()) {
@@ -232,6 +234,7 @@ export async function action({ request }: ActionFunctionArgs) {
         paymentIntent: paymentIntentId,
         type: bookingType as BookingType,
         includeSecurityDetail,
+        requiresFullTank,
       });
 
       logger.info(`Created pending booking ${booking.id} with payment intent ${paymentIntentId}`);

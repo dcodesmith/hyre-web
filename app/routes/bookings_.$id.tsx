@@ -1,13 +1,20 @@
 import type { Prisma, User as PrismaUser } from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/library";
 import { ActionFunctionArgs, LoaderFunctionArgs, json } from "@remix-run/node";
-import { Form, Link, useActionData, useLoaderData, useSearchParams } from "@remix-run/react";
+import {
+  Link,
+  useActionData,
+  useLoaderData,
+  useNavigation,
+  useSearchParams,
+} from "@remix-run/react";
 import { format, isToday } from "date-fns";
-import { Calendar, CheckCircle, CreditCard, MapPin, User } from "lucide-react";
+import { Calendar, CheckCircle, CreditCard, Loader2, MapPin, User } from "lucide-react";
 import { useEffect, useState } from "react";
 import invariant from "tiny-invariant";
 import { AutocompleteAddress } from "~/components/AutocompleteAddress";
 import { BookingTimeSelect } from "~/components/booking/BookingTimeSelect";
+import { Form } from "~/components/CSRFForm";
 import { Alert, AlertDescription } from "~/components/ui/alert";
 import { Avatar, AvatarFallback, AvatarImage } from "~/components/ui/avatar";
 import { Badge } from "~/components/ui/badge";
@@ -43,7 +50,7 @@ import { Template, sendMessage } from "~/modules/messaging/messaging.server";
 import { emailQueue } from "~/queues/email-throttle.server";
 import { cancelBooking, getBooking } from "~/services/bookings.server";
 import { refundPayment } from "~/services/payment.server";
-import { BookingWithRelations } from "~/types";
+import { BookingLegWithRelations, BookingWithRelations } from "~/types";
 import { env } from "~/utils/server/env.server";
 
 export async function action({ request, params }: ActionFunctionArgs) {
@@ -69,7 +76,12 @@ export async function action({ request, params }: ActionFunctionArgs) {
     if (bookingGuestEmail && bookingGuestEmail === guestEmail) {
       isAuthorized = true;
     } else {
-      logger.error(`Unauthorized guest access: ${guestEmail}:`, currentBooking);
+      logger.error("Unauthorized guest access", {
+        bookingId: currentBooking.id,
+        bookingReference: currentBooking.bookingReference,
+        guestEmailAttempt: `${guestEmail[0]}***${guestEmail.substring(guestEmail.indexOf("@"))}`,
+      });
+
       return json(
         { error: "Unauthorized: Invalid guest email for this booking action." },
         { status: 403 },
@@ -318,7 +330,7 @@ function createPaymentSummary(booking: BookingWithRelations) {
     // .filter(ext => ext.status !== 'CANCELLED') // Optional: Exclude cancelled extensions
     .reduce(
       (acc, ext) => {
-        // Use `itemsNetTotal` from the extension schema.
+        // Using extension netTotal (sum of confirmed/paid extensions).
         acc.netTotal = acc.netTotal.plus(ext.netTotal ?? 0);
         acc.totalHours += ext.extendedDurationHours ?? 0;
         return acc;
@@ -413,7 +425,11 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     throw new Response("Unauthorized: Access denied.", { status: 401 });
   }
 
-  logger.info("booking:", booking);
+  logger.info({
+    msg: "booking loaded",
+    bookingId: booking.id,
+    bookingReference: booking.bookingReference,
+  });
 
   const paymentSummary = createPaymentSummary(booking);
   const extendableDuration = getLegExtendableDuration(booking);
@@ -457,7 +473,11 @@ const BookingLegTimeline = ({
   leg,
   index,
   booking,
-}: { leg: BookingLegWithRelations; index: number; booking: BookingWithRelations }) => {
+}: {
+  leg: BookingLegWithRelations;
+  index: number;
+  booking: BookingWithRelations;
+}) => {
   const legDate = new Date(leg.legDate);
   const legEndTime = new Date(leg.legEndTime);
   const legStartTime = new Date(leg.legStartTime);
@@ -574,13 +594,18 @@ export default function BookingDetails() {
     booking.pickupLocation !== booking.returnLocation,
   );
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
   const actionData = useActionData<typeof action>();
+  const navigation = useNavigation();
   const [searchParams] = useSearchParams();
   const guestEmail = searchParams.get("email");
+
+  const isCancelling = navigation.state === "submitting" && navigation.formMethod === "DELETE";
 
   useEffect(() => {
     if (actionData && "success" in actionData && actionData.success) {
       setIsDialogOpen(false);
+      setIsCancelDialogOpen(false);
     }
   }, [actionData]);
 
@@ -599,6 +624,20 @@ export default function BookingDetails() {
             &larr; Back to Bookings
           </Link>
         </div>
+
+        {actionData && "error" in actionData && (
+          <Alert className="border-red-200 bg-red-50 rounded">
+            <AlertDescription className="text-sm text-red-800">{actionData.error}</AlertDescription>
+          </Alert>
+        )}
+
+        {actionData && "success" in actionData && actionData.success && "message" in actionData && (
+          <Alert className="border-green-200 bg-green-50 rounded">
+            <AlertDescription className="text-sm text-green-800">
+              {actionData.message}
+            </AlertDescription>
+          </Alert>
+        )}
 
         <div className="flex flex-row justify-between items-end gap-3">
           <p className="text-base flex sm:flex-row flex-col gap-2">
@@ -760,14 +799,16 @@ export default function BookingDetails() {
                       </span>
                     </div>
                   )}
-                  <div className="flex justify-between">
-                    <span className="text-sm text-slate-600">
-                      Platform Fee ({booking.platformCustomerServiceFeeRatePercent}%)
-                    </span>
-                    <span className="text-sm font-medium">
-                      {formatCurrency(Number(paymentSummary.platformCustomerServiceFeeAmount))}
-                    </span>
-                  </div>
+                  {Number(paymentSummary.platformCustomerServiceFeeAmount) > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-sm text-slate-600">
+                        Platform Fee ({booking.platformCustomerServiceFeeRatePercent}%)
+                      </span>
+                      <span className="text-sm font-medium">
+                        {formatCurrency(Number(paymentSummary.platformCustomerServiceFeeAmount))}
+                      </span>
+                    </div>
+                  )}
                   <div className="flex justify-between">
                     <span className="text-sm text-slate-600">VAT ({booking.vatRatePercent}%)</span>
                     <span className="text-sm font-medium">
@@ -877,7 +918,7 @@ export default function BookingDetails() {
                                       defaultValue: booking.returnLocation,
                                       placeholder: "Enter drop-off address",
                                     }}
-                                    onSelect={(place: any) => {
+                                    onSelect={(place) => {
                                       // Handle place selection if needed
                                     }}
                                   />
@@ -911,13 +952,67 @@ export default function BookingDetails() {
                     )}
 
                     {canBeModified && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="text-sm w-full rounded-sm text-red-600 hover:text-red-700"
+                      <Dialog
+                        open={isCancelDialogOpen}
+                        onOpenChange={(open) => !isCancelling && setIsCancelDialogOpen(open)}
                       >
-                        Cancel Booking
-                      </Button>
+                        <DialogTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={isCancelling}
+                            className="text-sm w-full rounded-sm text-red-600 hover:text-red-700"
+                          >
+                            {isCancelling ? (
+                              <>
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                Cancelling...
+                              </>
+                            ) : (
+                              "Cancel Booking"
+                            )}
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="sm:max-w-[425px]">
+                          <DialogHeader>
+                            <DialogTitle>Cancel Booking</DialogTitle>
+                            <DialogDescription>
+                              <span className="block">
+                                Are you sure you want to cancel this booking? This action cannot be
+                                undone.
+                              </span>
+                              {booking.paymentStatus === "PAID" && (
+                                <span className="block">
+                                  A refund will be processed automatically.
+                                  <br />
+                                </span>
+                              )}
+                            </DialogDescription>
+                          </DialogHeader>
+                          <Form method="DELETE" className="space-y-4">
+                            <div className="flex justify-end gap-3">
+                              <Button
+                                variant="outline"
+                                type="button"
+                                disabled={isCancelling}
+                                onClick={() => setIsCancelDialogOpen(false)}
+                              >
+                                Cancel
+                              </Button>
+                              <Button type="submit" variant="destructive" disabled={isCancelling}>
+                                {isCancelling ? (
+                                  <>
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                    Cancelling...
+                                  </>
+                                ) : (
+                                  "Yes, Cancel Booking"
+                                )}
+                              </Button>
+                            </div>
+                          </Form>
+                        </DialogContent>
+                      </Dialog>
                     )}
                   </div>
                 </CardContent>

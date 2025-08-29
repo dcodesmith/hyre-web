@@ -125,9 +125,6 @@ async function getFleetOwnersWithNoChauffeursOrAllChauffeursBusy(
     },
     select: {
       id: true,
-      // Only select essential fields for performance
-      email: true,
-      name: true,
     },
     distinct: ["id"],
     // Add ordering for consistent results
@@ -332,6 +329,23 @@ export default function IndexPage() {
     pageSize: PAGE_SIZE,
   });
 
+  function mergeSearchParams(
+    prev: URLSearchParams,
+    next: URLSearchParams,
+    prefixesToClear: string[],
+  ) {
+    const existing = new URLSearchParams(prev);
+    for (const key of existing.keys()) {
+      if (prefixesToClear.some((p) => key.startsWith(p))) {
+        existing.delete(key);
+      }
+    }
+    for (const [k, v] of next) {
+      existing.set(k, v);
+    }
+    return existing;
+  }
+
   const table = useReactTable<SerializedCar>({
     data: cars,
     columns,
@@ -359,7 +373,7 @@ export default function IndexPage() {
         sorting: newSorting,
       });
 
-      setSearchParams(params);
+      setSearchParams((prev) => mergeSearchParams(prev, params, ["sort."]), { replace: true });
     },
     onColumnFiltersChange: (updater) => {
       const newFilters = typeof updater === "function" ? updater(columnFilters) : updater;
@@ -371,17 +385,7 @@ export default function IndexPage() {
         sorting,
       });
 
-      setSearchParams((prev) => {
-        const existingParams = new URLSearchParams(prev);
-        const newParams = new URLSearchParams(params);
-
-        // Merge new params with existing ones
-        for (const [key, value] of newParams) {
-          existingParams.set(key, value);
-        }
-
-        return existingParams;
-      });
+      setSearchParams((prev) => mergeSearchParams(prev, params, ["filter."]), { replace: true });
     },
     onColumnVisibilityChange: setColumnVisibility,
     onPaginationChange: setPagination,
@@ -422,20 +426,16 @@ export default function IndexPage() {
             <div className="flex flex-col mt-4 gap-2">
               <div className="flex justify-item gap-2">
                 <ShieldCheck className="h-4 w-4" />
-                <span>Vetted Fleet Owners</span>
+                <span>Real-time Location Tracking</span>
               </div>
               <div className="flex justify-item gap-2">
                 <ShieldCheck className="h-4 w-4" />
-                <span>Vetted chauffeurs</span>
+                <span>Vetted Chauffeurs</span>
               </div>
 
-              {/* <div className="flex items-center gap-2">
-                <LocateFixed className="h-4 w-4" />
-                <span>Real-time location tracking</span>
-              </div> */}
               <div className="flex items-center gap-2">
                 <ShieldCheck className="h-4 w-4" />
-                <span>Secure online booking</span>
+                <span>Secure Online Booking</span>
               </div>
             </div>
           </div>

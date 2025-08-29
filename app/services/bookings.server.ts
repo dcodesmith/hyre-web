@@ -69,13 +69,21 @@ export async function calculateBookingCost({
   endDate,
   type,
   includeSecurityDetail,
+  requiresFullTank,
   prismaInstance = prisma,
 }: {
-  car: { dayRate: number; nightRate: number; hourlyRate: number; id: string };
+  car: {
+    dayRate: number;
+    nightRate: number;
+    hourlyRate: number;
+    fuelUpgradeRate: number;
+    id: string;
+  };
   startDate: Date;
   endDate: Date;
   type: BookingType;
   includeSecurityDetail?: boolean;
+  requiresFullTank?: boolean;
   prismaInstance?: Prisma.TransactionClient | typeof prisma;
 }) {
   let effectiveEndDateForLegGeneration = endDate;
@@ -144,7 +152,13 @@ export async function calculateBookingCost({
     ? new Decimal(SECURITY_DETAIL_COST).mul(bookingDates.length)
     : new Decimal(0);
 
-  const netTotalWithSecurity = netTotal.plus(securityDetailCost);
+  // Calculate fuel upgrade cost (only for 1-2 day bookings, same logic as client)
+  const fuelUpgradeCost =
+    requiresFullTank && bookingDates.length <= 2
+      ? new Decimal(car.fuelUpgradeRate)
+      : new Decimal(0);
+
+  const netTotalWithSecurityAndFuel = netTotal.plus(securityDetailCost).plus(fuelUpgradeCost);
 
   // Get current platform fee rates
   const platformFeeRates = await prismaInstance.platformFeeRate.findFirst({
@@ -189,13 +203,17 @@ export async function calculateBookingCost({
     platformFeeRates.ratePercent.toString(),
   );
   logger.debug(`Platform Service Fee Rate: ${platformCustomerServiceFeeRatePercent.toString()}%`);
-  const platformCustomerServiceFeeAmount = netTotalWithSecurity
-    .mul(platformCustomerServiceFeeRatePercent)
+
+  // Only apply platform service fee if the fee percent is greater than 0
+  // Per policy, platform fee excludes security detail but includes fuel upgrade
+  const platformFeeBase = netTotal.plus(fuelUpgradeCost);
+  const platformCustomerServiceFeeAmount = platformFeeBase
+    .mul(Decimal.max(platformCustomerServiceFeeRatePercent, new Decimal(0)))
     .div(100);
   logger.debug(`Platform Service Fee Amount: ${platformCustomerServiceFeeAmount.toString()}`);
 
   // Calculate subtotal before VAT
-  const subtotalBeforeVat = netTotalWithSecurity.plus(platformCustomerServiceFeeAmount);
+  const subtotalBeforeVat = netTotalWithSecurityAndFuel.plus(platformCustomerServiceFeeAmount);
   logger.debug(`Subtotal Before VAT: ${subtotalBeforeVat.toString()}`);
 
   // Calculate VAT
@@ -215,18 +233,23 @@ export async function calculateBookingCost({
   logger.debug(
     `Fleet Owner Commission Rate: ${platformFleetOwnerCommissionRatePercent.toString()}%`,
   );
-  const platformFleetOwnerCommissionAmount = netTotal
-    .mul(platformFleetOwnerCommissionRatePercent)
-    .div(100);
+
+  // Only apply fleet owner commission if rate is greater than 0
+  // Commission calculated on same base as platform fee (excludes security detail but includes fuel upgrade)
+  const platformFleetOwnerCommissionAmount = platformFleetOwnerCommissionRatePercent.gt(0)
+    ? platformFeeBase.mul(platformFleetOwnerCommissionRatePercent).div(100)
+    : new Decimal(0);
   logger.debug(`Fleet Owner Commission Amount: ${platformFleetOwnerCommissionAmount.toString()}`);
-  const fleetOwnerPayoutAmountNet = netTotal.minus(platformFleetOwnerCommissionAmount);
+  const fleetOwnerPayoutAmountNet = platformFeeBase.minus(platformFleetOwnerCommissionAmount);
   logger.debug(`Fleet Owner Payout Amount (Net): ${fleetOwnerPayoutAmountNet.toString()}`);
 
   // Log the complete breakdown
   logger.debug(`Complete Calculation Breakdown:
       Net Total: ${netTotal.toString()}
       Security Detail Cost: ${securityDetailCost.toString()}
-      Net Total with Security: ${netTotalWithSecurity.toString()}
+      Fuel Upgrade Cost: ${fuelUpgradeCost.toString()}
+      Net Total with Security and Fuel: ${netTotalWithSecurityAndFuel.toString()}
+      Platform Fee Base (Net + Fuel): ${platformFeeBase.toString()}
       Platform Service Fee (${platformCustomerServiceFeeRatePercent.toString()}%): ${platformCustomerServiceFeeAmount.toString()}
       Subtotal Before VAT: ${subtotalBeforeVat.toString()}
       VAT (${vatRatePercent.toString()}%): ${vatAmount.toString()}
@@ -265,8 +288,10 @@ export async function createPendingBooking({
   paymentIntent,
   type,
   includeSecurityDetail,
+  requiresFullTank,
 }: Omit<CreateBookingParams, "paymentId" | "status" | "paymentStatus"> & {
   paymentIntent: string;
+  requiresFullTank?: boolean;
 }) {
   const bookingReference = await generateUniqueBookingReference();
 
@@ -292,6 +317,7 @@ export async function createPendingBooking({
       endDate,
       type,
       includeSecurityDetail,
+      requiresFullTank,
       prismaInstance: transaction,
     });
 

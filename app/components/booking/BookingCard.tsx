@@ -4,7 +4,7 @@ import type { Car, User } from "@prisma/client";
 import { useNavigate, useNavigation, useSearchParams, useSubmit } from "@remix-run/react";
 import { eachDayOfInterval, format, isAfter, parseISO, startOfDay } from "date-fns";
 import { CreditCard, Loader2 } from "lucide-react";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { DateRange } from "react-day-picker";
 import { useAuthenticityToken } from "remix-utils/csrf/react";
 import { z } from "zod";
@@ -24,7 +24,7 @@ const SECURITY_DETAIL_COST = 30000;
 const ERROR_RING_CLASSES = "border-red-500 focus-visible:ring-red-500 focus-visible:ring-2";
 
 type BookingCardProps = {
-  car: Car;
+  car: Car & { fuelUpgradeRate: number };
   isAvailable: boolean;
   user: (User & { roles: { name: string }[]; phoneNumber?: string | null }) | null;
   vatRate: number;
@@ -76,6 +76,7 @@ const guestInfoSchema = z.object({
 const bookingSchemaSameLocation = coreBookingFields.extend({
   sameLocation: z.literal("true"),
 });
+
 const bookingSchemaDifferentLocation = coreBookingFields
   .extend({
     sameLocation: z.literal("false"),
@@ -158,6 +159,26 @@ function getOrdinal(n: number): string {
   }
 }
 
+function getFuelTankNote(totalDays: number, requiresFullTank = false): string | null {
+  if (totalDays <= 0) {
+    return null;
+  }
+
+  let note: string | null = null;
+
+  if (requiresFullTank && totalDays <= 2) {
+    note = "Booking comes with a full tank";
+  } else if (totalDays === 1) {
+    note = "Booking comes with 1/3rd of a tank";
+  } else if (totalDays === 2) {
+    note = "Booking comes with 2/3rd of a tank";
+  } else if (totalDays >= 3) {
+    note = "Booking comes with a full tank";
+  }
+
+  return note ? `${note}, after that, it's your responsibility to fill the tank.` : null;
+}
+
 function FieldError({ errors }: { errors?: string[] }) {
   if (!errors || errors.length === 0) {
     return null;
@@ -232,6 +253,8 @@ export default function BookingCard({
     searchParams.get("sameLocation") !== "false",
   );
   const [includeSecurityDetail, setIncludeSecurityDetail] = useState(false);
+  const [requiresFullTank, setRequiresFullTank] = useState(false);
+  const fallbackDateRef = useRef<Date>(startOfDay(new Date()));
 
   const initialDateRange = useMemo(() => {
     const parseDateParam = (param: string | null) => {
@@ -281,14 +304,27 @@ export default function BookingCard({
     [includeSecurityDetail, totalDays],
   );
 
+  const fuelUpgradeCost = useMemo(() => {
+    if (!requiresFullTank || totalDays >= 3) {
+      return 0;
+    }
+    return Number(car.fuelUpgradeRate);
+  }, [requiresFullTank, car.fuelUpgradeRate, totalDays]);
+
   const subtotal = useMemo(
-    () => baseTotal + securityDetailTotalCost,
-    [baseTotal, securityDetailTotalCost],
+    () => baseTotal + securityDetailTotalCost + fuelUpgradeCost,
+    [baseTotal, securityDetailTotalCost, fuelUpgradeCost],
+  );
+  // Per policy, platform fee excludes security detail
+  const platformFeeBase = useMemo(() => baseTotal + fuelUpgradeCost, [baseTotal, fuelUpgradeCost]);
+  const platformFee = useMemo(
+    () => platformFeeBase * (platformServiceFeeRate / 100),
+    [platformFeeBase, platformServiceFeeRate],
   );
 
-  const platformFee = useMemo(
-    () => subtotal * (platformServiceFeeRate / 100),
-    [subtotal, platformServiceFeeRate],
+  const fuelNote = useMemo(
+    () => getFuelTankNote(totalDays, requiresFullTank),
+    [totalDays, requiresFullTank],
   );
 
   const subtotalBeforeVat = useMemo(() => subtotal + platformFee, [subtotal, platformFee]);
@@ -359,6 +395,7 @@ export default function BookingCard({
         currentParams.set("sameLocation", sameLocationChecked ? "true" : "false");
         currentParams.set("bookingType", bookingType);
 
+        currentParams.set("requiresFullTank", String(requiresFullTank));
         const redirectTo = `/cars/${car.id}?${currentParams.toString()}`;
 
         return navigate(`/auth?redirectTo=${encodeURIComponent(redirectTo)}`);
@@ -454,6 +491,7 @@ export default function BookingCard({
       <input type="hidden" name="carId" value={car.id} />
       <input type="hidden" name="totalAmount" value={finalTotalCost} />
       <input type="hidden" name="includeSecurityDetail" value={String(includeSecurityDetail)} />
+      <input type="hidden" name="requiresFullTank" value={String(requiresFullTank)} />
 
       <Card className="rounded sticky top-4 shadow-xl inset-shadow-sm">
         <CardHeader>
@@ -521,7 +559,7 @@ export default function BookingCard({
                     Pickup Time
                   </Label>
                   <BookingTimeSelect
-                    date={dateRange.from!}
+                    date={dateRange.from ?? fallbackDateRef.current}
                     {...getInputProps(fields.pickupTime, { type: "text", ariaAttributes: true })}
                     className={fields.pickupTime.errors ? ERROR_RING_CLASSES : ""}
                   />
@@ -547,7 +585,7 @@ export default function BookingCard({
                 <AutocompleteAddress
                   id={fields.pickupAddress.id}
                   onSelect={(address) => {
-                    form.update({ name: fields.pickupAddress.name!, value: address });
+                    form.update({ name: fields.pickupAddress.name, value: address });
                   }}
                   inputProps={getInputProps(fields.pickupAddress, {
                     type: "text",
@@ -586,7 +624,7 @@ export default function BookingCard({
                   <AutocompleteAddress
                     id={fields.dropOffAddress.id}
                     onSelect={(address) => {
-                      form.update({ name: fields.dropOffAddress.name!, value: address });
+                      form.update({ name: fields.dropOffAddress.name, value: address });
                     }}
                     inputProps={getInputProps(fields.dropOffAddress, {
                       type: "text",
@@ -597,6 +635,32 @@ export default function BookingCard({
                   <FieldError errors={fields.dropOffAddress.errors} />
                 </div>
               )}
+
+              {/* Fuel upgrade option - only show for 1-2 day bookings */}
+              {totalDays > 0 && totalDays <= 2 && (
+                <div className="space-y-1">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="requiresFullTank"
+                      checked={requiresFullTank}
+                      onCheckedChange={(checked) => setRequiresFullTank(!!checked)}
+                    />
+                    <Label htmlFor="requiresFullTank" className="cursor-pointer">
+                      Upgrade to full tank (+{formatCurrency(Number(car.fuelUpgradeRate))})
+                    </Label>
+                  </div>
+                </div>
+              )}
+
+              {fuelNote && (
+                <div
+                  className="bg-green-50 border-l-4 border-green-400 text-green-800 p-2 text-sm"
+                  role="alert"
+                >
+                  <span className="font-bold">Fuel included:</span> {fuelNote}
+                </div>
+              )}
+
               {/* <div className="space-y-1">
                 <div className="flex items-center space-x-2">
                   <Checkbox
@@ -640,12 +704,20 @@ export default function BookingCard({
                     <dd className="text-gray-800">{formatCurrency(securityDetailTotalCost)}</dd>
                   </div>
                 )}
-                <div className="flex justify-between">
-                  <dt className="text-gray-600">
-                    Platform Fee ({platformServiceFeeRate.toFixed(1)}%)
-                  </dt>
-                  <dd className="text-gray-800">{formatCurrency(platformFee)}</dd>
-                </div>
+                {fuelUpgradeCost > 0 && (
+                  <div className="flex justify-between">
+                    <dt className="text-gray-600">Fuel Upgrade to Full Tank</dt>
+                    <dd className="text-gray-800">{formatCurrency(fuelUpgradeCost)}</dd>
+                  </div>
+                )}
+                {platformFee > 0 && (
+                  <div className="flex justify-between">
+                    <dt className="text-gray-600">
+                      Platform Fee ({platformServiceFeeRate.toFixed(1)}%)
+                    </dt>
+                    <dd className="text-gray-800">{formatCurrency(platformFee)}</dd>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <dt className="text-gray-600">VAT ({vatRate.toFixed(1)}%)</dt>
                   <dd className="text-gray-800">{formatCurrency(vat)}</dd>
@@ -729,7 +801,9 @@ export default function BookingCard({
                             }
 
                             currentParams.set("bookingType", bookingType);
-                            currentParams.set("role", "client");
+                            currentParams.set("role", "user");
+
+                            currentParams.set("requiresFullTank", String(requiresFullTank));
 
                             const redirectTo = `/cars/${car.id}?${currentParams.toString()}`;
                             navigate(`/auth?redirectTo=${encodeURIComponent(redirectTo)}`);

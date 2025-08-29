@@ -5,6 +5,7 @@ import { Car } from "@prisma/client";
 import { useFetcher, useNavigate } from "@remix-run/react";
 import { Row } from "@tanstack/react-table";
 import { Dispatch, SetStateAction, useEffect, useState } from "react";
+import { useAuthenticityToken } from "remix-utils/csrf/react";
 import { z } from "zod";
 import { useToast } from "~/hooks/use-toast";
 import { Button } from "../ui/button";
@@ -78,6 +79,13 @@ const carSchema = z.object({
       required_error: "Nightly rate is required.",
     })
     .positive("Nightly rate must be positive"),
+
+  fuelUpgradeRate: z
+    .number({
+      required_error: "Fuel upgrade rate is required.",
+    })
+    .int()
+    .positive("Fuel upgrade rate must be positive"),
 });
 
 const statusMap: Record<(typeof STATUSES)[number], string> = {
@@ -87,13 +95,14 @@ const statusMap: Record<(typeof STATUSES)[number], string> = {
 };
 
 interface EditCarFormProps {
-  car: Car;
+  car: Car & { fuelUpgradeRate: number };
   setIsEditOpen: Dispatch<SetStateAction<boolean>>;
 }
 
 function EditCarForm({ car, setIsEditOpen }: EditCarFormProps) {
   const fetcher = useFetcher<{ success: boolean; error?: string }>();
   const isSubmitting = fetcher.state === "submitting";
+  const csrfToken = useAuthenticityToken();
 
   useEffect(() => {
     if (fetcher.data && !fetcher.data?.success) {
@@ -105,18 +114,31 @@ function EditCarForm({ car, setIsEditOpen }: EditCarFormProps) {
     }
   }, [fetcher.data, setIsEditOpen, fetcher.state]);
 
-  const [form, { make, model, year, registrationNumber, dayRate, status, hourlyRate, nightRate }] =
-    useForm({
-      defaultValue: car,
-      onValidate({ formData }) {
-        return parseWithZod(formData, { schema: carSchema });
-      },
-      shouldValidate: "onInput",
-      shouldRevalidate: "onInput",
-    });
+  const [
+    form,
+    {
+      make,
+      model,
+      year,
+      registrationNumber,
+      dayRate,
+      status,
+      hourlyRate,
+      nightRate,
+      fuelUpgradeRate,
+    },
+  ] = useForm({
+    defaultValue: car,
+    onValidate({ formData }) {
+      return parseWithZod(formData, { schema: carSchema });
+    },
+    shouldValidate: "onInput",
+    shouldRevalidate: "onInput",
+  });
 
   return (
     <fetcher.Form method="post" {...getFormProps(form)} className="space-y-4">
+      <input type="hidden" name="csrf" value={csrfToken} />
       {fetcher.data?.error && <p className="text-sm text-red-500">{fetcher.data.error}</p>}
       <div className="space-y-0.5">
         <Label htmlFor={make.id}>Make</Label>
@@ -180,6 +202,27 @@ function EditCarForm({ car, setIsEditOpen }: EditCarFormProps) {
         )}
       </div>
 
+      <div className="space-y-0.5">
+        <Label htmlFor="fuelUpgradeRate">Fuel Upgrade Rate</Label>
+        <Input
+          {...getInputProps(fuelUpgradeRate, { type: "number" })}
+          step="1000"
+          className={
+            fuelUpgradeRate.errors
+              ? "border-red-500 focus-visible:ring-red-500 focus-visible:ring-2"
+              : ""
+          }
+          placeholder="Cost to upgrade from partial to full tank"
+        />
+        {fuelUpgradeRate.errors && (
+          <p className="text-sm text-destructive">{fuelUpgradeRate.errors.join(" ")}</p>
+        )}
+        <p className="text-xs text-gray-500">
+          Amount charged to customers who want to upgrade from partial tank to full tank for 1-2 day
+          bookings
+        </p>
+      </div>
+
       {car.status !== "BOOKED" && (
         <div className="space-y-0.5">
           <Label htmlFor={status.id}>Status</Label>
@@ -212,7 +255,7 @@ function EditCarForm({ car, setIsEditOpen }: EditCarFormProps) {
 }
 
 interface DataTableRowActionsProps {
-  row: Row<Car>;
+  row: Row<Car & { fuelUpgradeRate: number }>;
 }
 
 export function RowActions({ row }: DataTableRowActionsProps) {

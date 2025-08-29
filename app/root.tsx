@@ -1,7 +1,5 @@
 import { cssBundleHref } from "@remix-run/css-bundle";
 import type { LinksFunction, LoaderFunctionArgs } from "@remix-run/node";
-import { SpeedInsights } from "@vercel/speed-insights/react";
-import { Analytics } from "@vercel/analytics/remix";
 import {
   Link,
   Links,
@@ -13,16 +11,16 @@ import {
   json,
   useLoaderData,
   useRouteError,
-  useLocation,
 } from "@remix-run/react";
+import { Analytics } from "@vercel/analytics/remix";
+import { SpeedInsights } from "@vercel/speed-insights/react";
+import { AuthenticityTokenProvider } from "remix-utils/csrf/react";
 import tailwindStyles from "~/tailwind.css?url";
+import { csrf } from "~/utils/csrf.server";
 import Forbidden from "./components/layout/Forbidden";
 import { UserNav } from "./components/layout/UserNav";
 import { Toaster } from "./components/ui/toaster";
 import { getSessionUser } from "./modules/auth/auth.server";
-import { Button } from "./components/ui/button";
-import { csrf } from "~/utils/csrf.server";
-import { AuthenticityTokenProvider } from "remix-utils/csrf/react";
 import { env } from "./utils/server/env.server";
 
 export const links: LinksFunction = () => [
@@ -38,9 +36,8 @@ export const links: LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
   // Preload critical fonts
   {
-    rel: "preload",
+    rel: "stylesheet",
     href: "https://fonts.googleapis.com/css2?family=Nunito+Sans:ital,opsz,wght@0,6..12,200..1000;1,6..12,200..1000&display=swap",
-    as: "style",
   },
   // DNS prefetch for potential external resources
   { rel: "dns-prefetch", href: "https://vercel.app" },
@@ -52,6 +49,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
   const ENV = {
     APP_NAME: env.APP_NAME,
+    GOOGLE_MAPS_API_KEY: env.GOOGLE_MAPS_API_KEY,
   };
 
   return json(
@@ -61,15 +59,15 @@ export async function loader({ request }: LoaderFunctionArgs) {
       csrfToken,
     } as const,
     {
-      headers: csrfCookieHeader ? { "Set-Cookie": csrfCookieHeader } : {},
+      headers: csrfCookieHeader ? { "Set-Cookie": csrfCookieHeader } : undefined,
     },
   );
 }
 
 function AppContent() {
   const { user, ENV } = useLoaderData<typeof loader>();
-  const location = useLocation();
-  const isAdminRoute = location.pathname.startsWith("/admin");
+  // const location = useLocation();
+  // const isAdminRoute = location.pathname.startsWith("/admin");
 
   return (
     <html lang="en" className="h-full">
@@ -87,9 +85,9 @@ function AppContent() {
           <header className="p-4 flex container mx-auto justify-between items-center z-10">
             <Link
               to={
-                user?.roles.some((role) => role.name === "admin")
+                user?.roles?.some((role) => role.name === "admin")
                   ? "/admin"
-                  : user?.roles.some((role) => role.name === "fleetOwner")
+                  : user?.roles?.some((role) => role.name === "fleetOwner")
                     ? "/fleet-owner"
                     : "/"
               }
@@ -98,10 +96,10 @@ function AppContent() {
               {ENV.APP_NAME}
             </Link>
             <div className="flex items-center gap-2 mr-2">
-              {!isAdminRoute &&
+              {/* {!isAdminRoute &&
                 !user?.roles.some((role) =>
                   ["admin", "fleetOwner", "staff"].includes(role.name),
-                ) && <Button variant="outline">Become a fleet owner</Button>}
+                ) && <Button variant="outline">Become a fleet owner</Button>} */}
               <UserNav user={user} />
             </div>
           </header>
@@ -132,7 +130,7 @@ function AppContent() {
           dangerouslySetInnerHTML={{
             __html: `
               (g=>{var h,a,k,p="The Google Maps JavaScript API",c="google",l="importLibrary",q="__ib__",m=document,b=window;b=b[c]||(b[c]={});var d=b.maps||(b.maps={}),r=new Set,e=new URLSearchParams,u=()=>h||(h=new Promise(async(f,n)=>{await (a=m.createElement("script"));e.set("libraries",[...r]+"");for(k in g)e.set(k.replace(/[A-Z]/g,t=>"_"+t.toLowerCase()),g[k]);e.set("callback",c+".maps."+q);a.src='https://maps.'+c+'apis.com/maps/api/js?'+e;d[q]=f;a.onerror=()=>h=n(Error(p+" could not load."));a.nonce=m.querySelector("script[nonce]")?.nonce||"";m.head.append(a)}));d[l]?console.warn(p+" only loads once. Ignoring:",g):d[l]=(f,...n)=>r.add(f)&&u().then(()=>d[l](f,...n))})({
-                key: "AIzaSyC4wP-v71ZBOKNUXx8hOxmuYKdxY2gh0XM",
+                key: ${JSON.stringify(ENV.GOOGLE_MAPS_API_KEY)},
                 v: "weekly"
               });
             `,
@@ -148,7 +146,8 @@ function AppContent() {
                 if (!window.google?.maps?.importLibrary) {
                   console.log('Loading Google Maps via fallback method');
                   const script = document.createElement('script');
-                  script.src = 'https://maps.googleapis.com/maps/api/js?key=AIzaSyC4wP-v71ZBOKNUXx8hOxmuYKdxY2gh0XM&libraries=places&v=weekly';
+                  const key = encodeURIComponent(window.ENV?.GOOGLE_MAPS_API_KEY ?? '');
+                  script.src = 'https://maps.googleapis.com/maps/api/js?key=' + key + '&libraries=places&v=weekly';
                   script.async = true;
                   script.defer = true;
                   document.head.appendChild(script);

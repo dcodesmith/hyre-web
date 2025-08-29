@@ -1,11 +1,18 @@
 import { getFormProps, getInputProps, useForm } from "@conform-to/react";
 import { getZodConstraint, parseWithZod } from "@conform-to/zod";
 import { CogIcon } from "@heroicons/react/24/outline";
-import { ActionFunctionArgs, LoaderFunctionArgs, json, redirect } from "@remix-run/node";
-import { Outlet, useLoaderData, useNavigate, useSearchParams } from "@remix-run/react";
-import { Form } from "~/components/CSRFForm";
+import { ActionFunctionArgs, LoaderFunctionArgs, json } from "@remix-run/node";
+import {
+  Outlet,
+  useActionData,
+  useLoaderData,
+  useNavigate,
+  useSearchParams,
+} from "@remix-run/react";
+
 import { AuthorizationError } from "remix-auth";
 import { z } from "zod";
+import { Form } from "~/components/CSRFForm";
 import { Button } from "~/components/ui/button";
 import {
   Dialog,
@@ -15,13 +22,11 @@ import {
   DialogTitle,
 } from "~/components/ui/dialog";
 import { Input } from "~/components/ui/input";
-import { Label } from "~/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "~/components/ui/radio-group";
 import { useIsPending } from "~/lib/utils";
 import { authenticator } from "~/modules/auth/auth.server";
-import { commitSession, getSession } from "~/modules/auth/session.server";
-import { prisma } from "~/modules/db/db.server";
+import { getSession } from "~/modules/auth/session.server";
 import { validateCSRF } from "~/utils/csrf-action.server";
+import { safeRedirect } from "~/utils/safe-redirect";
 
 const roles = ["user", "fleetOwner"] as const;
 
@@ -30,14 +35,23 @@ export const LoginSchema = z.object({
     .string({
       required_error: "Email is required.",
     })
+    .trim()
     .max(60)
     .email("Email address is not valid."),
-  role: z.enum(roles, {
-    required_error: "You need to select a user type.",
-  }),
+  role: z
+    .enum(roles, {
+      required_error: "You need to select a user type.",
+    })
+    .default("user"),
 });
 
 export async function loader({ request }: LoaderFunctionArgs) {
+  // const user = await authenticator.isAuthenticated(request);
+
+  // if (user) {
+  //   return redirect("/");
+  // }
+
   await authenticator.isAuthenticated(request, {
     successRedirect: "/",
   });
@@ -46,49 +60,40 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const authEmail = cookie.get("auth:email");
   const authError = cookie.get(authenticator.sessionErrorKey);
 
-  return json({ authEmail, authError } as const, {
-    headers: {
-      "Set-Cookie": await commitSession(cookie),
-    },
-  });
+  return json({ authEmail, authError });
 }
 
 export async function action({ request }: ActionFunctionArgs) {
   await validateCSRF(request);
 
   const formData = await request.clone().formData();
-  const role = (formData.get("role") as string | null) ?? "user"; // Default to least privileged role
+  // const role = (formData.get("role") as string | null) ?? "user"; // Default to least privileged role
 
-  // Optionally guard against unexpected values
-  if (!["user", "fleetOwner"].includes(role)) {
-    throw new Response("Unsupported role", { status: 400 });
+  // Validate the form data
+  const submission = parseWithZod(formData, { schema: LoginSchema });
+  if (submission.status !== "success") {
+    return json(submission.reply(), { status: 400 });
   }
+
   const url = new URL(request.url);
   const pathname = url.pathname;
-  const redirectTo = url.searchParams.get("redirectTo");
+  const redirectTo = safeRedirect(url.searchParams.get("redirectTo"), "");
+
+  const { role } = submission.value;
 
   try {
+    // Build the verify URL with appropriate parameters
+    const verifyParams = new URLSearchParams();
+    if (redirectTo) {
+      verifyParams.set("redirectTo", redirectTo);
+    }
+    verifyParams.set("role", role);
+
     const response = await authenticator.authenticate("TOTP", request, {
-      successRedirect: redirectTo
-        ? `/verify?redirectTo=${encodeURIComponent(redirectTo)}`
-        : `/verify?role=${role}`,
+      successRedirect: `/verify?${verifyParams.toString()}`,
       failureRedirect: pathname,
       context: { intent: "login", role },
     });
-
-    // If authentication is successful and the user is a fleet owner, check onboarding status
-    const user = await authenticator.isAuthenticated(request);
-    if (user && role === "fleetOwner") {
-      const fleetOwner = await prisma.user.findUnique({
-        where: { id: user.id },
-        select: { hasOnboarded: true },
-      });
-
-      if (fleetOwner && !fleetOwner.hasOnboarded) {
-        return redirect("/fleet-owner/onboarding");
-      }
-    }
-
     return response;
   } catch (error) {
     if (error instanceof AuthorizationError) {
@@ -98,40 +103,35 @@ export async function action({ request }: ActionFunctionArgs) {
     if (error instanceof Response) {
       return error;
     }
+
+    throw error;
   }
 }
 
-const errorRingClasses = "border-red-500 focus-visible:ring-red-500 focus-visible:ring-2";
-
-const userTypeOptions = {
-  user: { label: "Client", description: "Book a chauffeur-driven car" },
-  fleetOwner: {
-    label: "Fleet Owner",
-    description: "List and manage your fleet",
-  },
-};
-
 export default function Login() {
   const { authEmail, authError } = useLoaderData<typeof loader>();
+  const actionData = useActionData<typeof action>();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const isPending = useIsPending();
 
-  const redirectToUrl = searchParams.get("redirectTo");
+  const redirectToUrl = safeRedirect(searchParams.get("redirectTo"), "");
 
   const roleFromRedirect = redirectToUrl
-    ? new URL(redirectToUrl, "http://dummy.com").searchParams.get("role")
+    ? new URL(redirectToUrl, "https://dummy.com").searchParams.get("role")
     : null;
+
+  const defaultRole = roleFromRedirect || searchParams.get("role") || "user";
 
   const [form, { email, role }] = useForm({
     defaultValue: {
-      role: roleFromRedirect || "user",
+      role: defaultRole,
     },
     constraint: getZodConstraint(LoginSchema),
     onValidate({ formData }) {
       return parseWithZod(formData, { schema: LoginSchema });
     },
-    shouldValidate: "onInput",
+    shouldValidate: "onSubmit",
     shouldRevalidate: "onInput",
   });
 
@@ -140,20 +140,18 @@ export default function Login() {
       <Dialog
         defaultOpen
         onOpenChange={(open: boolean) => {
-          open ? () => {} : navigate(-1);
+          if (!open) navigate(-1);
         }}
       >
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>Register or Sign In</DialogTitle>
-            <DialogDescription>
-              Please select a user type and enter your email to continue
-            </DialogDescription>
+            <DialogDescription>Enter your email to continue</DialogDescription>
           </DialogHeader>
 
           <Form method="post" {...getFormProps(form)}>
             <div className="mt-2 flex flex-col sm:flex-col gap-4">
-              <div className="space-y-1">
+              {/* <div className="space-y-1">
                 <RadioGroup
                   value={role.value}
                   onValueChange={(value) => {
@@ -192,11 +190,13 @@ export default function Login() {
                 {role.errors && (
                   <div className="text-destructive text-sm">{role.errors.join(", ")}</div>
                 )}
-              </div>
+              </div> */}
+
+              <input type="hidden" name="role" value={role.value} />
 
               <div className="space-y-1">
                 <Input
-                  defaultValue={authEmail ? authEmail : ""}
+                  defaultValue={authEmail ?? ""}
                   className={`bg-transparent ${
                     email.errors ? "border-destructive focus-visible:ring-destructive" : ""
                   }`}
@@ -208,9 +208,9 @@ export default function Login() {
                 )}
               </div>
 
-              {!authEmail && authError && (
+              {!authEmail && actionData?.error && (
                 <span className="mb-2 text-sm text-destructive dark:text-destructive-foreground">
-                  {authError.message}
+                  {actionData.error}
                 </span>
               )}
 
@@ -219,14 +219,11 @@ export default function Login() {
               </Button>
             </div>
 
-            {/* Email Errors Handling. */}
-            {/* {!authEmail && (
-            <span>
-              auth email error: {authError?.message || "email?.error"}
-            </span>
-          )} */}
-            {/* Code Errors Handling. */}
-            {/* {authEmail && <span>{authError?.message || "code?.error"}</span>} */}
+            {authError && (
+              <div className="text-red-500 text-sm text-center">
+                {typeof authError === "string" ? authError : authError?.message}
+              </div>
+            )}
           </Form>
         </DialogContent>
       </Dialog>

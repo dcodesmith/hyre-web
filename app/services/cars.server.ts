@@ -1,4 +1,12 @@
-import { Car, Prisma, DocumentStatus, DocumentType, Status, BookingType } from "@prisma/client";
+import {
+  Car,
+  Prisma,
+  DocumentStatus,
+  DocumentType,
+  Status,
+  BookingType,
+  CarApprovalStatus,
+} from "@prisma/client";
 import { prisma } from "~/modules/db/db.server";
 import { uploadFileToS3 } from "./s3.server";
 
@@ -31,18 +39,34 @@ export async function isCarAvailable(
         // New booking starts during an existing booking
         {
           startDate: {
-            lte: new Date(endDate.setHours(23, 59, 59, 999)),
+            lte: (() => {
+              const d = new Date(endDate);
+              d.setHours(23, 59, 59, 999);
+              return d;
+            })(),
           },
           endDate: {
-            gte: new Date(startDate.setHours(0, 0, 0, 0)),
+            gte: (() => {
+              const d = new Date(startDate);
+              d.setHours(0, 0, 0, 0);
+              return d;
+            })(),
           },
         },
         // New night booking starts 3 hours after an existing booking ends
         {
           type: BookingType.NIGHT,
           endDate: {
-            gte: new Date(startDate.setHours(20, 0, 0, 0)),
-            lt: new Date(startDate.setHours(23, 0, 0, 0)),
+            gte: (() => {
+              const d = new Date(startDate);
+              d.setHours(20, 0, 0, 0);
+              return d;
+            })(),
+            lt: (() => {
+              const d = new Date(startDate);
+              d.setHours(23, 0, 0, 0);
+              return d;
+            })(),
           },
         },
       ],
@@ -63,11 +87,13 @@ export async function createCar({
   images,
   motCertificate,
   insuranceCertificate,
+  autoApprove = false,
   ...data
 }: Omit<Prisma.CarCreateInput, "images" | "motCertificateUrl" | "insuranceCertificateUrl"> & {
   images: File[];
   motCertificate: File;
   insuranceCertificate: File;
+  autoApprove?: boolean;
 }) {
   // Step 1: Create the car record
   const car = await prisma.car.create({ data });
@@ -80,44 +106,48 @@ export async function createCar({
       uploadFileToS3(insuranceCertificate, getKey(car, insuranceCertificate)),
     ]);
 
-    // Step 3: Create vehicle images
-    await prisma.vehicleImage.createMany({
-      data: imageUrls.map((url) => ({
-        url,
-        carId: car.id,
-        status: DocumentStatus.PENDING,
-      })),
-    });
-
-    // Step 4: Create document approvals for certificates
-    await prisma.documentApproval.createMany({
-      data: [
-        {
-          documentType: DocumentType.MOT_CERTIFICATE,
-          documentUrl: motCertificateUrl,
+    // Steps 3–5: persist in a single transaction for consistency
+    await prisma.$transaction(async (tx) => {
+      await tx.vehicleImage.createMany({
+        data: imageUrls.map((url) => ({
+          url,
           carId: car.id,
-          status: DocumentStatus.PENDING,
+          status: autoApprove ? DocumentStatus.APPROVED : DocumentStatus.PENDING,
+        })),
+      });
+
+      await tx.documentApproval.createMany({
+        data: [
+          {
+            documentType: DocumentType.MOT_CERTIFICATE,
+            documentUrl: motCertificateUrl,
+            carId: car.id,
+            status: autoApprove ? DocumentStatus.APPROVED : DocumentStatus.PENDING,
+          },
+          {
+            documentType: DocumentType.INSURANCE_CERTIFICATE,
+            documentUrl: insuranceCertificateUrl,
+            carId: car.id,
+            status: autoApprove ? DocumentStatus.APPROVED : DocumentStatus.PENDING,
+          },
+        ],
+      });
+
+      await tx.car.update({
+        where: { id: car.id },
+        data: {
+          status: Status.AVAILABLE,
+          approvalStatus: autoApprove ? CarApprovalStatus.APPROVED : CarApprovalStatus.PENDING,
         },
-        {
-          documentType: DocumentType.INSURANCE_CERTIFICATE,
-          documentUrl: insuranceCertificateUrl,
-          carId: car.id,
-          status: DocumentStatus.PENDING,
-        },
-      ],
+      });
     });
 
-    // Update car status to available
-    await prisma.car.update({
-      where: { id: car.id },
-      data: {
-        status: Status.AVAILABLE,
-      },
-    });
-
-    return car;
+    return await prisma.car.findUnique({ where: { id: car.id } });
   } catch (error) {
-    await prisma.car.delete({ where: { id: car.id } });
-    throw new Error("Failed to upload images", { cause: error });
+    // best-effort cleanup; ignore if already removed or blocked
+    try {
+      await prisma.car.delete({ where: { id: car.id } });
+    } catch {}
+    throw new Error("Failed to create car and related assets", { cause: error as Error });
   }
 }

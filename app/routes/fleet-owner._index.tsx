@@ -147,8 +147,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
     },
   });
 
-  // const oni = startOfDay(new Date()); // Today at 00:00:00
-
   const todayUtcYear = today.getUTCFullYear(); // Native Date method
   const todayUtcMonth = today.getUTCMonth(); // Native Date method (0-indexed)
   const todayUtcDay = today.getUTCDate(); // Native Date method
@@ -157,90 +155,43 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const startOfToday = new Date(Date.UTC(todayUtcYear, todayUtcMonth, todayUtcDay, 0, 0, 0, 0));
   const endOfToday = new Date(Date.UTC(todayUtcYear, todayUtcMonth, todayUtcDay, 23, 59, 59, 999));
 
-  const dailyRev = await Promise.all(
-    Array.from({ length: 30 }, async (_, index) => {
-      const date = subDays(startOfToday, index); // Use subDays for clear subtraction
-
-      const revenue = await getTodaysLegsTotalPrice(fleetOwner.id, date);
-      return { date, revenue };
-    }),
-  );
-
-  // TODO
   const legs = await prisma.bookingLeg.findMany({
     where: {
       legDate: { gte: subDays(startOfToday, 29), lte: endOfToday },
       booking: {
         car: { ownerId: fleetOwner.id },
+        status: { in: [BookingStatus.ACTIVE, BookingStatus.COMPLETED] },
+        paymentStatus: PaymentStatus.PAID,
+        chauffeurId: { not: null },
       },
     },
-    select: { legDate: true, totalDailyPrice: true, fleetOwnerEarningForLeg: true },
+    select: { legDate: true, fleetOwnerEarningForLeg: true },
   });
 
-  logger.info("Booking legs:", legs);
-
-  const revenueByDay = Array.from({ length: 30 }, (_, i) => {
+  const daily = new Map<string, Decimal>();
+  for (const l of legs) {
+    const key = l.legDate.toISOString().slice(0, 10);
+    const prev = daily.get(key) ?? new Decimal(0);
+    daily.set(key, prev.add(l.fleetOwnerEarningForLeg));
+  }
+  const dailyRevenue = Array.from({ length: 30 }, (_, i) => {
     const date = subDays(startOfToday, i);
-    const key = date.toISOString().slice(0, 10); // YYYY-MM-DD
-    const daySum = legs
-      .filter((l) => l.legDate.toISOString().startsWith(key))
-      .reduce((acc, l) => acc.add(l.fleetOwnerEarningForLeg), new Decimal(0));
-    return { date, revenue: daySum };
+    const key = date.toISOString().slice(0, 10);
+    const v = daily.get(key) ?? new Decimal(0);
+    return { date, revenue: v.toNumber() };
   }).reverse();
 
-  const dailyRevenue = dailyRev.slice().reverse();
+  logger.info(`Booking legs fetched: ${legs.length}`);
+  // const revenueByDay = Array.from({ length: 30 }, (_, i) => {
+  //   const date = subDays(startOfToday, i);
+  //   const key = date.toISOString().slice(0, 10); // YYYY-MM-DD
+  //   const daySum = legs
+  //     .filter((l) => l.legDate.toISOString().startsWith(key))
+  //     .reduce((acc, l) => acc.add(l.fleetOwnerEarningForLeg), new Decimal(0));
+  //   return { date, revenue: daySum };
+  // }).reverse();
 
-  async function getTodaysLegsTotalPrice(
-    fleetOwnerIdInput?: string,
-    dateInput: Date = new Date(),
-  ): Promise<Decimal> {
-    const todayUtcYear = dateInput.getUTCFullYear(); // Native Date method
-    const todayUtcMonth = dateInput.getUTCMonth(); // Native Date method (0-indexed)
-    const todayUtcDay = dateInput.getUTCDate(); // Native Date method
-
-    // Construct start and end of "today" in UTC
-    const start = new Date(Date.UTC(todayUtcYear, todayUtcMonth, todayUtcDay, 0, 0, 0, 0));
-    const end = new Date(Date.UTC(todayUtcYear, todayUtcMonth, todayUtcDay, 23, 59, 59, 999));
-
-    let totalFleetOwnerEarningForToday = new Decimal(0);
-
-    const bookingWhereClause: Prisma.BookingWhereInput = {
-      status: { in: [BookingStatus.ACTIVE, BookingStatus.COMPLETED] },
-      paymentStatus: PaymentStatus.PAID,
-      chauffeurId: { not: null },
-    };
-
-    if (fleetOwnerIdInput) {
-      bookingWhereClause.car = {
-        ownerId: fleetOwnerIdInput,
-      };
-    }
-
-    const bookingLegWhereClause: Prisma.BookingLegWhereInput = {
-      legDate: { gte: start, lte: end },
-      booking: bookingWhereClause,
-      totalDailyPrice: { gt: 0 },
-    };
-
-    const relevantBookingLegs = await prisma.bookingLeg.findMany({
-      where: bookingLegWhereClause,
-      select: {
-        legDate: true,
-        totalDailyPrice: true,
-        fleetOwnerEarningForLeg: true,
-      },
-    });
-
-    for (const leg of relevantBookingLegs) {
-      logger.info(
-        `${format(leg.legDate, "yyyy-MM-dd")}: Leg price: ${leg.fleetOwnerEarningForLeg.toFixed(2)}, ${leg.totalDailyPrice.toFixed(2)}`,
-      );
-      const legPrice = new Decimal(leg.fleetOwnerEarningForLeg.toString());
-      totalFleetOwnerEarningForToday = totalFleetOwnerEarningForToday.add(legPrice);
-    }
-
-    return totalFleetOwnerEarningForToday;
-  }
+  // const dailyRevenue = dailyRev.slice().reverse();
 
   async function getTodaysLegsFleetOwnerEarningSum(
     fleetOwnerIdInput?: string,
@@ -301,10 +252,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
   }
 
   const ownerRevenueToday = await getTodaysLegsFleetOwnerEarningSum(fleetOwner.id);
-  const ownerRevenueToday2 = await getTodaysLegsTotalPrice(fleetOwner.id);
 
   logger.info(`Owner revenue today: ${ownerRevenueToday.toString()}`);
-  logger.info(`Owner revenue today 2: ${ownerRevenueToday2.toString()}`);
   // Get today's stats
   const dateRangeFilter = {
     startDate: { lte: endOfToday },
@@ -380,8 +329,8 @@ function RevenueChart({
   data,
   timeRange,
 }: {
-  data: Array<{ date: Date; revenue: number }>;
-  timeRange: TimeRange;
+  readonly data: Array<{ date: Date; revenue: number }>;
+  readonly timeRange: TimeRange;
 }) {
   const chartConfig = {
     revenue: {
@@ -605,7 +554,7 @@ export default function FleetOwnerDashboard() {
         <StatsCard
           title="Unassigned Bookings"
           stats={[
-            { label: "Total Unassigned", value: dashboardStats.activeBookingsCount },
+            { label: "Total Unassigned", value: confirmedUnassignedBookings.length },
             { label: "Available Chauffeurs", value: dashboardStats.availableChauffeursCount },
             {
               label: "On Duty",
@@ -634,7 +583,7 @@ export default function FleetOwnerDashboard() {
               }).format(
                 dailyRevenue
                   .slice(timeRange === "week" ? -7 : -30)
-                  .reduce((sum, day) => sum + Number(day.revenue), 0),
+                  .reduce((sum, day) => sum + day.revenue, 0),
               )}
             </p>
           </div>
@@ -660,7 +609,7 @@ export default function FleetOwnerDashboard() {
           data={dailyRevenue.map((item) => ({
             ...item,
             date: new Date(item.date),
-            revenue: Number(item.revenue),
+            revenue: item.revenue,
           }))}
           timeRange={timeRange}
         />

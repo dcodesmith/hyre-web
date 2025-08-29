@@ -30,8 +30,6 @@ export const action: ActionFunction = async ({ request }) => {
   //     return json({ error: "Email is required" }, { status: 400 });
   //   }
 
-  //   console.log("login", { email });
-
   //   {
   //     successRedirect: "/root",
   //     failureRedirect: pathname,

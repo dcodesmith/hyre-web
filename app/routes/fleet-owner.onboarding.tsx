@@ -15,7 +15,7 @@ import {
   unstable_createMemoryUploadHandler,
   unstable_parseMultipartFormData,
 } from "@remix-run/node";
-import { Form, useActionData, useLoaderData } from "@remix-run/react";
+import { useActionData, useLoaderData } from "@remix-run/react";
 import axios from "axios";
 import { useState } from "react";
 import { z } from "zod";
@@ -31,6 +31,8 @@ import { prisma } from "~/modules/db/db.server";
 import { uploadFileToS3 } from "~/services/s3.server";
 import { requireUserWithRole } from "~/utils/server/permissions.server";
 import { env } from "~/utils/server/env.server";
+import { validateCSRF } from "~/utils/csrf-action.server";
+import { Form } from "~/components/CSRFForm";
 
 const baseSchema = z.object({
   name: z.string({ required_error: "Name is required" }),
@@ -62,12 +64,16 @@ const fleetOwnerSchema = baseSchema.extend({
   certificateOfIncorporation: z
     .any()
     .refine((file) => file && file.size > 0, "Certificate of Incorporation is required")
-    .refine((file) => file.size <= 5 * 1024 * 1024, "File must be less than 5MB"),
-  bankCode: z.string({ required_error: "Bank is required" }),
+    .refine((file) => file.size <= 5 * 1024 * 1024, "File must be less than 5MB")
+    .refine((file) => file?.type === "application/pdf", "File must be a PDF"),
+  bankCode: z
+    .string({ required_error: "Bank is required" })
+    .refine((code) => banks.some((b) => b.code === code), {
+      message: "Select a valid bank.",
+    }),
   accountNumber: z
     .string({ required_error: "Account number is required" })
-    .length(10, "Account number must be 10 digits")
-    .regex(/^[0-9]+$/, "Account number must only contain digits"),
+    .regex(/^\d{10}$/, "Account number must be exactly 10 digits"),
   accountName: z.string({ required_error: "Account name is required" }),
 });
 
@@ -92,6 +98,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 }
 
 export async function action({ request }: ActionFunctionArgs) {
+  await validateCSRF(request);
   const user = await requireUserWithRole(request, "fleetOwner");
 
   const uploadHandler = unstable_createMemoryUploadHandler({
@@ -109,9 +116,10 @@ export async function action({ request }: ActionFunctionArgs) {
 
   // If fleet owner, verify bank details first
   if (value.independentDriver === "false") {
-    const { accountNumber, bankCode, accountName } = value as z.infer<typeof fleetOwnerSchema>;
+    const { accountNumber, bankCode, accountName } = value;
 
-    logger.info(`Verifying bank account: ${accountNumber} for bank: ${bankCode}`);
+    const masked = accountNumber.replace(/\d(?=\d{4})/g, "•");
+    logger.info(`Verifying bank account: ${masked} for bank: ${bankCode}`);
 
     try {
       const response = await axios.post(
@@ -137,7 +145,7 @@ export async function action({ request }: ActionFunctionArgs) {
 
       const verifiedAccountName = result.data.account_name;
 
-      if (verifiedAccountName.toLowerCase() !== accountName.toLowerCase()) {
+      if (verifiedAccountName.trim().toLowerCase() !== accountName.trim().toLowerCase()) {
         return json(
           submission.reply({
             fieldErrors: {
@@ -153,9 +161,14 @@ export async function action({ request }: ActionFunctionArgs) {
 
       let errorMessage = "An error occurred during verification. Please try again later.";
       if (axios.isAxiosError(error) && error.response) {
-        // Log the full response for debugging
-        logger.error("Flutterwave response data:", error.response.data);
-        errorMessage = `Verification failed: ${error.response.data.message || "Unknown API error"}`;
+        const { status, statusText, data } = error.response;
+        logger.error("Flutterwave error", {
+          status,
+          statusText,
+          message: data?.message,
+          code: data?.code,
+        });
+        errorMessage = `Verification failed: ${data?.message || "Unknown API error"}`;
       } else if (error instanceof Error) {
         errorMessage = error.message;
       }
@@ -176,7 +189,7 @@ export async function action({ request }: ActionFunctionArgs) {
 
     // Create Bank Details if fleet owner
     if (value.independentDriver === "false") {
-      const { bankCode, accountNumber, accountName } = value as z.infer<typeof fleetOwnerSchema>;
+      const { bankCode, accountNumber, accountName } = value;
       const bank = banks.find((bank) => bank.code === bankCode);
 
       if (bank) {
@@ -199,7 +212,6 @@ export async function action({ request }: ActionFunctionArgs) {
             phoneNumber: value.phoneNumber,
             address: value.address,
             hasOnboarded: true,
-            bankDetailsId: bankDetails.id,
           },
         });
       }
@@ -243,9 +255,9 @@ function BankDetailsFields({
   accountNumber,
   accountName,
 }: {
-  bankCode: FieldMetadata<string>;
-  accountNumber: FieldMetadata<string>;
-  accountName: FieldMetadata<string>;
+  readonly bankCode: FieldMetadata<string>;
+  readonly accountNumber: FieldMetadata<string>;
+  readonly accountName: FieldMetadata<string>;
 }) {
   const control = useInputControl(bankCode);
 
@@ -262,12 +274,20 @@ function BankDetailsFields({
           noResultsMessage="No banks found."
           triggerClassName="w-full"
         />
-        <div className="text-sm text-red-600">{bankCode.errors}</div>
+        {bankCode.errors?.map((error) => (
+          <p key={error} className="text-red-600 text-sm">
+            {error}
+          </p>
+        ))}
       </div>
       <div className="space-y-1">
         <Label htmlFor={accountNumber.id}>Account Number</Label>
         <Input
-          {...getInputProps(accountNumber, { type: "number" })}
+          {...getInputProps(accountNumber, { type: "text" })}
+          inputMode="numeric"
+          pattern="^[0-9]{10}$"
+          minLength={10}
+          maxLength={10}
           key={accountNumber.key}
           placeholder="Your 10-digit account number"
           className={accountNumber.errors ? "border-red-500" : ""}
@@ -282,11 +302,15 @@ function BankDetailsFields({
         <Label htmlFor={accountName.id}>Account Name</Label>
         <Input
           {...getInputProps(accountName, { type: "text" })}
-          key={undefined}
+          key={accountName.key}
           placeholder="The name on your bank account"
           className={accountName.errors ? "border-red-500" : ""}
         />
-        {accountName.errors && <p className="text-red-500 text-sm">{accountName.errors}</p>}
+        {accountName.errors?.map((error) => (
+          <p key={error} className="text-red-500 text-sm">
+            {error}
+          </p>
+        ))}
       </div>
     </>
   );
@@ -305,8 +329,8 @@ export default function FleetOwnerOnboarding() {
       name,
       phoneNumber,
       address,
-      lasdriCard,
-      driversLicense,
+      // lasdriCard,
+      // driversLicense,
       certificateOfIncorporation,
       bankCode,
       accountNumber,
@@ -387,7 +411,6 @@ export default function FleetOwnerOnboarding() {
           <Label htmlFor={name.id}>{isIndependentDriver ? "Name" : "Business Name"}</Label>
           <Input
             {...getInputProps(name, { type: "text" })}
-            key={undefined}
             placeholder={isIndependentDriver ? "Your name" : "Your business name"}
             className={name.errors ? "border-red-500 focus-visible:ring-red-500" : ""}
           />
@@ -398,7 +421,6 @@ export default function FleetOwnerOnboarding() {
           <Label htmlFor={phoneNumber.id}>Phone Number</Label>
           <Input
             {...getInputProps(phoneNumber, { type: "tel" })}
-            key={undefined}
             placeholder="+2349012341234"
             className={phoneNumber.errors ? "border-red-500 focus-visible:ring-red-500" : ""}
           />
@@ -424,7 +446,7 @@ export default function FleetOwnerOnboarding() {
           {address.errors && <p className="text-red-500 text-sm">{address.errors}</p>}
         </div>
 
-        {isIndependentDriver ? (
+        {/* {isIndependentDriver ? (
           <>
             <div className="space-y-1">
               <Label htmlFor={lasdriCard.id}>LASDRI Card</Label>
@@ -449,27 +471,25 @@ export default function FleetOwnerOnboarding() {
               )}
             </div>
           </>
-        ) : (
-          <>
-            <div className="space-y-1">
-              <Label htmlFor={certificateOfIncorporation.id}>Certificate of Incorporation</Label>
-              <Input
-                accept="application/pdf"
-                {...getInputProps(certificateOfIncorporation, { type: "file" })}
-                key={undefined}
-                className={certificateOfIncorporation.errors ? "border-red-500" : ""}
-              />
-              {certificateOfIncorporation.errors && (
-                <p className="text-red-500 text-sm">{certificateOfIncorporation.errors}</p>
-              )}
-            </div>
-            <BankDetailsFields
-              bankCode={bankCode}
-              accountNumber={accountNumber}
-              accountName={accountName}
+        ) : ( */}
+        <>
+          <div className="space-y-1">
+            <Label htmlFor={certificateOfIncorporation.id}>Certificate of Incorporation</Label>
+            <Input
+              {...getInputProps(certificateOfIncorporation, { type: "file" })}
+              accept="application/pdf"
+              className={certificateOfIncorporation.errors ? "border-red-500" : ""}
             />
-          </>
-        )}
+            {certificateOfIncorporation.errors && (
+              <p className="text-red-500 text-sm">{certificateOfIncorporation.errors}</p>
+            )}
+          </div>
+          <BankDetailsFields
+            bankCode={bankCode}
+            accountNumber={accountNumber}
+            accountName={accountName}
+          />
+        </>
 
         <Button className="w-full" type="submit" disabled={isPending}>
           {isPending ? <CogIcon className="h-5 w-5 animate-spin" /> : "Complete Onboarding"}

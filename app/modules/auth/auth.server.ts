@@ -9,6 +9,7 @@ import { sendAuthEmail } from "~/modules/email/email.server";
 import { RoleName, userHasRole } from "~/utils/client/misc";
 import { sessionStorage } from "./session.server";
 import { env } from "~/utils/server/env.server";
+import { safeRedirect } from "~/utils/safe-redirect";
 
 export const authenticator = new Authenticator<User>(sessionStorage, {
   sessionErrorKey: "my-error-key",
@@ -54,9 +55,17 @@ const totpStrategy = new TOTPStrategy(
   async ({ email, request }) => {
     const url = new URL(request.url);
     const redirectToUrl = url.searchParams.get("redirectTo");
-    const role = redirectToUrl
-      ? new URL(redirectToUrl, "http://dummy.com").searchParams.get("role")
-      : url.searchParams.get("role");
+    let role = url.searchParams.get("role");
+
+    // If redirectTo contains a role parameter, use that, otherwise keep the role from URL params
+    if (redirectToUrl) {
+      const roleFromRedirectTo = new URL(redirectToUrl, "https://dummy.com").searchParams.get(
+        "role",
+      );
+      if (roleFromRedirectTo) {
+        role = roleFromRedirectTo;
+      }
+    }
 
     invariant(role, "role is required");
 
@@ -69,7 +78,12 @@ const totpStrategy = new TOTPStrategy(
 
     if (!user) {
       user = await prisma.user.create({
-        data: { email, roles: { connect: [{ name: role }] } },
+        data: {
+          email,
+          roles: { connect: [{ name: role }] },
+          hasOnboarded: role === "fleetOwner",
+          ...(role === "fleetOwner" && { fleetOwnerStatus: "APPROVED" }),
+        },
         include: { roles: true },
       });
     }
@@ -99,7 +113,7 @@ export async function requireSessionUser(
       throw redirect("/logout");
     }
 
-    throw redirect(redirectTo);
+    throw redirect(safeRedirect(redirectTo, "/logout"));
   }
 
   return sessionUser;
@@ -124,7 +138,7 @@ export async function requireUser(
     if (!redirectTo) {
       throw redirect("/logout");
     }
-    throw redirect(redirectTo);
+    throw redirect(safeRedirect(redirectTo, "/logout"));
   }
 
   return user;

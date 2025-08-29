@@ -19,6 +19,7 @@ import { authenticator } from "~/modules/auth/auth.server";
 import { commitSession, getSession } from "~/modules/auth/session.server";
 import { userHasRole } from "~/utils/client/misc";
 import { validateCSRF } from "~/utils/csrf-action.server";
+import { safeRedirect } from "~/utils/safe-redirect";
 
 export const VerifySchema = z.object({
   code: z
@@ -30,10 +31,10 @@ export const VerifySchema = z.object({
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const url = new URL(request.url);
-  const redirectTo = url.searchParams.get("redirectTo");
+  const redirectTo = safeRedirect(url.searchParams.get("redirectTo"), "");
 
   await authenticator.isAuthenticated(request, {
-    successRedirect: redirectTo ? `/?redirectTo=${redirectTo}` : "/",
+    successRedirect: redirectTo ? `/?redirectTo=${encodeURIComponent(redirectTo)}` : "/",
   });
 
   const cookie = await getSession(request.headers.get("Cookie"));
@@ -54,11 +55,15 @@ export async function action({ request }: ActionFunctionArgs) {
 
   const url = new URL(request.url);
   const currentPath = url.pathname;
-  const redirectTo = url.searchParams.get("redirectTo");
+  const redirectTo = safeRedirect(url.searchParams.get("redirectTo"), "");
   let role = url.searchParams.get("role");
 
+  // If redirectTo contains a role parameter, use that, otherwise keep the role from URL params
   if (redirectTo) {
-    role = new URL(redirectTo, "http://dummy.com").searchParams.get("role");
+    const roleFromRedirectTo = new URL(redirectTo, "https://dummy.com").searchParams.get("role");
+    if (roleFromRedirectTo) {
+      role = roleFromRedirectTo;
+    }
   }
 
   let user: User | null = null;
@@ -70,6 +75,19 @@ export async function action({ request }: ActionFunctionArgs) {
       successRedirect,
       failureRedirect: currentPath,
     });
+
+    // If authentication is successful and the user is a fleet owner, check onboarding status
+    // const user = await authenticator.isAuthenticated(request);
+    // if (user && role === "fleetOwner") {
+    //   const fleetOwner = await prisma.user.findUnique({
+    //     where: { id: user.id },
+    //     select: { hasOnboarded: true },
+    //   });
+
+    //   if (fleetOwner && !fleetOwner.hasOnboarded) {
+    //     return redirect("/fleet-owner/onboarding");
+    //   }
+    // }
   } catch (error) {
     if (error instanceof AuthorizationError) {
       return json({ error: error.message }, { status: 401 });

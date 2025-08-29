@@ -72,6 +72,7 @@ export async function action({ request }: ActionFunctionArgs) {
         owner: { connect: { id: user.id } },
         motCertificate: motCertificate as File,
         insuranceCertificate: insuranceCertificate as File,
+        autoApprove: true,
       });
     }
 
@@ -196,6 +197,12 @@ export const columns: ColumnDef<SerializedCar>[] = [
     enableColumnFilter: false,
     header: ({ column }) => <ColumnHeader column={column} title="Nightly Rate" />,
     cell: ({ row }) => <div className="w-[150px]">{formatPrice(row.original.nightRate)}</div>,
+  },
+  {
+    accessorKey: "fuelUpgradeRate",
+    enableColumnFilter: false,
+    header: ({ column }) => <ColumnHeader column={column} title="Fuel Upgrade Rate" />,
+    cell: ({ row }) => <div className="w-[150px]">{formatPrice(row.original.fuelUpgradeRate)}</div>,
   },
   {
     accessorKey: "status",

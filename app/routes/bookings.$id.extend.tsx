@@ -72,7 +72,8 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
   try {
     if (guestEmail) {
       if (!booking.guestUser || (booking.guestUser as { email: string }).email !== guestEmail) {
-        logger.error(`Unauthorized guest access: ${guestEmail}`);
+        const maskedEmail = `${guestEmail[0]}***${guestEmail.substring(guestEmail.indexOf("@"))}`;
+        logger.error(`Unauthorized guest access: ${maskedEmail}`);
         throw new Response("Unauthorized guest access", { status: 403 });
       }
       user = booking.guestUser as { email: string; name?: string; phoneNumber?: string };
@@ -347,14 +348,14 @@ export default function ExtendBookingPage() {
   // Ensure calculations handle potentially 0 hours selected
   const hourlyRate = booking.car.hourlyRate ?? 0; // Handle potential null/undefined rate
   const total = hourlyRate * hours;
-  const platformServiceFeeRate = booking.platformCustomerServiceFeeRatePercent ?? 0;
-  const platformServiceFee = new Decimal(total).mul(platformServiceFeeRate).div(100).toNumber();
-  const subtotalBeforeVat = total + platformServiceFee;
-  const totalWithVat = new Decimal(subtotalBeforeVat)
-    .mul(vatRatePercent)
+  const platformServiceFeeRate = Number(booking.platformCustomerServiceFeeRatePercent ?? 0);
+  const platformServiceFee = new Decimal(total)
+    .mul(Math.max(platformServiceFeeRate, 0))
     .div(100)
-    .plus(subtotalBeforeVat)
     .toNumber();
+  const subtotalBeforeVat = total + platformServiceFee;
+  const vatAmount = new Decimal(subtotalBeforeVat).mul(vatRatePercent).div(100).toNumber();
+  const totalWithVat = subtotalBeforeVat + vatAmount;
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -447,20 +448,18 @@ export default function ExtendBookingPage() {
                   <span className="font-medium">{formatCurrency(total)}</span>
                 </div>
 
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">
-                    Platform Fee ({platformServiceFeeRate.toString()}%)
-                  </span>
-                  <span className="font-medium">{formatCurrency(platformServiceFee)}</span>
-                </div>
+                {platformServiceFee > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">
+                      Platform Fee ({platformServiceFeeRate.toString()}%)
+                    </span>
+                    <span className="font-medium">{formatCurrency(platformServiceFee)}</span>
+                  </div>
+                )}
 
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">VAT ({vatRatePercent.toString()}%)</span>
-                  <span className="font-medium">
-                    {formatCurrency(
-                      new Decimal(subtotalBeforeVat).mul(vatRatePercent).div(100).toNumber(),
-                    )}
-                  </span>
+                  <span className="font-medium">{formatCurrency(vatAmount)}</span>
                 </div>
 
                 <Separator />
