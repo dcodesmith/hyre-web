@@ -31,6 +31,7 @@ const adminNavLinks = [
   { to: "/admin/documents", label: "Documents" },
   { to: "/admin/staff", label: "Staff" },
   { to: "/admin/fees", label: "Fees" },
+  { to: "/admin/addon-rates", label: "Addon Rates" },
 ] as const;
 
 const staffNavLinks = [

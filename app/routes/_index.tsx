@@ -25,6 +25,7 @@ import { columns } from "~/components/Table/Columns";
 import { Pagination } from "~/components/Table/Pagination";
 import { Toolbar } from "~/components/Table/Toolbar";
 import { Button } from "~/components/ui/button";
+
 import logger from "~/lib/logger.server";
 import { prisma } from "~/modules/db/db.server";
 
@@ -135,8 +136,10 @@ async function getFleetOwnersWithNoChauffeursOrAllChauffeursBusy(
     `Found ${fleetOwnersWithNoChauffeursOrAllChauffeursBusy.length} fleet owners with no chauffeurs or all chauffeurs unavailable for chauffeur service on ${specificDateInput.toDateString()}.`,
   );
   // Log details only if needed, or in development/debug environments to prevent excessive logging in production.
-  logger.info("Unavailable fleet owner details", fleetOwnersWithNoChauffeursOrAllChauffeursBusy);
-
+  logger.debug(
+    { count: fleetOwnersWithNoChauffeursOrAllChauffeursBusy.length },
+    "Unavailable fleet owner details",
+  );
   return fleetOwnersWithNoChauffeursOrAllChauffeursBusy.map((owner) => owner.id);
 }
 
@@ -149,9 +152,9 @@ export async function loader({ request }: LoaderFunctionArgs) {
     // Performance logging
     const startTime = Date.now();
 
-    const fleetOwnersToExclude = await getFleetOwnersWithNoChauffeursOrAllChauffeursBusy(
-      from ? new Date(from) : undefined,
-    );
+    const fleetOwnersToExclude = from
+      ? await getFleetOwnersWithNoChauffeursOrAllChauffeursBusy(new Date(from))
+      : [];
 
     const fleetOwnerQueryTime = Date.now() - startTime;
     logger.info(`Fleet owners query completed in ${fleetOwnerQueryTime}ms`);
@@ -260,7 +263,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
       },
     );
   } catch (error) {
-    logger.error("Error in loader:", error);
+    logger.error("Error in loader:", error instanceof Error ? error.message : "Unknown error");
     // Return empty cars array instead of error object to maintain expected interface
     return json({
       cars: [],
@@ -316,7 +319,9 @@ export default function IndexPage() {
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const from = searchParams.get("from");
   const to = searchParams.get("to");
+
   const carsRef = useRef<HTMLDivElement>(null);
+
   // Initialize table state from URL search params
   const initialTableState = parseSearchParamsToTableState(searchParams);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>(
@@ -416,7 +421,11 @@ export default function IndexPage() {
             <div className="w-64 text-3xl font-semibold">
               Comfort. Safety. Professional. Every Ride.
             </div>
-            <Toolbar table={table} />
+
+            <div className="w-64">
+              <Toolbar table={table} />
+            </div>
+
             <Button
               className="w-64"
               onClick={() => carsRef.current?.scrollIntoView({ behavior: "smooth" })}
@@ -432,7 +441,6 @@ export default function IndexPage() {
                 <ShieldCheck className="h-4 w-4" />
                 <span>Vetted Chauffeurs</span>
               </div>
-
               <div className="flex items-center gap-2">
                 <ShieldCheck className="h-4 w-4" />
                 <span>Secure Online Booking</span>
@@ -480,41 +488,17 @@ export default function IndexPage() {
                     <h2 className="text-base">
                       {row.original.make} {row.original.model} ({row.original.year})
                     </h2>
-                    {/* <div className="flex items-center gap-1">
-                      <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
-
-                      <span className="font-medium">
-                        {(
-                          4.0 +
-                          (Number.parseInt(row.original.dayRate.toString().slice(-2), 16) % 10) / 10
-                        ).toFixed(1)}
-                      </span>
-                      <span>
-                        (
-                        {50 +
-                          (Number.parseInt(row.original.dayRate.toString().slice(-3), 16) %
-                            950)}{" "}
-                        reviews)
-                      </span>
-                    </div> */}
                   </div>
 
                   <div>
                     {!from || !to ? (
                       <>
-                        {/* Day:{" "} */}
                         <span className="font-bold text-base">
                           {new Intl.NumberFormat("en-NG", {
                             style: "currency",
                             currency: "NGN",
                           }).format(row.original.dayRate)}
                         </span>
-
-                        {/* | Night:{" "}
-                        {new Intl.NumberFormat("en-NG", {
-                          style: "currency",
-                          currency: "NGN",
-                        }).format(row.original.nightRate)} */}
                       </>
                     ) : (
                       <>

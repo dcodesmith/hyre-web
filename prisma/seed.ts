@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { faker } from "@faker-js/faker";
-import { DocumentStatus, DocumentType, PlatformFeeType, Status } from "@prisma/client";
+import { AddonType, DocumentStatus, DocumentType, PlatformFeeType, Status } from "@prisma/client";
 import { uploadFileToS3 } from "../app/services/s3.server";
 import { vehicles } from "../app/data/vehicles";
 import { prisma } from "../app/modules/db/db.server";
@@ -45,7 +45,7 @@ async function getDocument(fileName: string) {
   }
 }
 
-export async function seed() {
+const cleanUp = async () => {
   await prisma.$transaction(async (transaction) => {
     // Delete in correct order to handle foreign key constraints
     await transaction.extension.deleteMany();
@@ -58,36 +58,23 @@ export async function seed() {
     await transaction.payment.deleteMany();
     await transaction.bankDetails.deleteMany();
     await transaction.user.deleteMany();
-    await transaction.permission.deleteMany();
     await transaction.role.deleteMany();
     await transaction.taxRate.deleteMany();
     await transaction.platformFeeRate.deleteMany();
+    await transaction.addonRate.deleteMany();
   });
+};
+
+export async function seed() {
+  await cleanUp();
 
   /**
-   * Users, Roles and Permissions.
+   * Users and Roles.
    */
-  const entities = ["user"];
-  const actions = ["create", "read", "update", "delete"];
-  const accesses = ["own", "any"] as const;
-
-  for (const entity of entities) {
-    for (const action of actions) {
-      for (const access of accesses) {
-        await prisma.permission.create({ data: { entity, action, access } });
-      }
-    }
-  }
-
   await prisma.role.create({
     data: {
       name: "admin",
-      permissions: {
-        connect: await prisma.permission.findMany({
-          select: { id: true },
-          where: { access: "any" },
-        }),
-      },
+      description: "Administrator with full system access",
     },
   });
 
@@ -95,64 +82,27 @@ export async function seed() {
     data: {
       name: "staff",
       description: "Staff member with document, car, and chauffeur approval permissions",
-      permissions: {
-        create: [
-          {
-            entity: "document",
-            action: "approve",
-            access: "any",
-            description: "Can approve or reject any document",
-          },
-          {
-            entity: "car",
-            action: "approve",
-            access: "any",
-            description: "Can approve or reject car registrations",
-          },
-          {
-            entity: "chauffeur",
-            action: "approve",
-            access: "any",
-            description: "Can approve or reject chauffeur registrations",
-          },
-        ],
-      },
     },
   });
 
   await prisma.role.create({
     data: {
       name: "fleetOwner",
-      permissions: {
-        connect: await prisma.permission.findMany({
-          select: { id: true },
-          where: { access: "own" },
-        }),
-      },
+      description: "Fleet owner who can manage cars and chauffeurs",
     },
   });
 
   await prisma.role.create({
     data: {
       name: "chauffeur",
-      permissions: {
-        connect: await prisma.permission.findMany({
-          select: { id: true },
-          where: { access: "own" },
-        }),
-      },
+      description: "Chauffeur who can drive cars",
     },
   });
 
   await prisma.role.create({
     data: {
       name: "user",
-      permissions: {
-        connect: await prisma.permission.findMany({
-          select: { id: true },
-          where: { access: "own" },
-        }),
-      },
+      description: "Regular user who can book cars",
     },
   });
 
@@ -166,7 +116,7 @@ export async function seed() {
     },
   });
 
-  logger.info("🎭 User roles and permissions have been successfully created.");
+  logger.info("🎭 User roles have been successfully created.");
 
   if (process.env.NODE_ENV === "development") {
     await prisma.taxRate.create({
@@ -181,7 +131,7 @@ export async function seed() {
     await prisma.platformFeeRate.create({
       data: {
         feeType: PlatformFeeType.PLATFORM_SERVICE_FEE,
-        ratePercent: 12.5,
+        ratePercent: 0,
         effectiveSince: new Date(),
         effectiveUntil: null,
         description: "Platform service fee",
@@ -191,10 +141,20 @@ export async function seed() {
     await prisma.platformFeeRate.create({
       data: {
         feeType: PlatformFeeType.FLEET_OWNER_COMMISSION,
-        ratePercent: 5,
+        ratePercent: 0,
         effectiveSince: new Date(),
         effectiveUntil: null,
         description: "Fleet owner commission",
+      },
+    });
+
+    await prisma.addonRate.create({
+      data: {
+        addonType: AddonType.SECURITY_DETAIL,
+        rateAmount: 30000,
+        effectiveSince: new Date(),
+        effectiveUntil: null,
+        description: "Security detail service per day",
       },
     });
 
@@ -309,13 +269,14 @@ export async function seed() {
       const data = vehicles.map((vehicle) => ({
         ...vehicle,
         dayRate: faker.helpers.arrayElement([1000, 1100, 1200, 1300, 1400]),
+        fullDayRate: faker.helpers.arrayElement([2000, 2100, 2200, 2300, 2400]),
         color: faker.helpers.arrayElement(["Blue", "Silver", "Black", "White"]),
         year: faker.helpers.arrayElement([
           2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024,
         ]),
-        hourlyRate: faker.helpers.arrayElement([100, 200, 300, 400, 500, 600]),
-        nightRate: faker.helpers.arrayElement([100, 1100, 2100]),
-        fuelUpgradeRate: faker.helpers.arrayElement([15000, 18000, 20000, 22000, 25000]),
+        hourlyRate: faker.helpers.arrayElement([80, 100, 120, 140]),
+        nightRate: faker.helpers.arrayElement([800, 850, 900]),
+        fuelUpgradeRate: faker.helpers.arrayElement([1500, 1800, 2000, 2200, 2500]),
         status: faker.helpers.arrayElement(Object.values(Status)),
         ownerId: createdFleetOwner.id,
         registrationNumber: `${faker.helpers.arrayElement([
@@ -391,7 +352,7 @@ export async function seed() {
           ],
         });
 
-        const response = await prisma.car.update({
+        await prisma.car.update({
           where: { id: car.id },
           data: {
             status: Status.AVAILABLE,

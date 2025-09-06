@@ -2,8 +2,8 @@ import { MouseEvent, useState, useRef, TouchEvent } from "react";
 import { Button } from "./ui/button";
 
 interface CarouselProps {
-  images?: string[];
-  priority?: boolean; // Add priority prop for above-the-fold images
+  readonly images?: string[];
+  readonly priority?: boolean; // Add priority prop for above-the-fold images
 }
 
 export default function Carousel({
@@ -15,8 +15,8 @@ export default function Carousel({
   priority = false, // Default to lazy loading
 }: CarouselProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
-  const touchStartX = useRef<number>(0);
-  const touchEndX = useRef<number>(0);
+  const touchStartX = useRef<number | null>(null);
+  const touchEndX = useRef<number | null>(null);
 
   const nextSlide = (event: MouseEvent) => {
     event.preventDefault();
@@ -40,7 +40,9 @@ export default function Carousel({
   };
 
   const handleTouchEnd = () => {
-    if (!touchStartX.current || !touchEndX.current) return;
+    if (touchStartX.current === null || touchEndX.current === null) {
+      return;
+    }
 
     const distance = touchStartX.current - touchEndX.current;
     const isLeftSwipe = distance > 50;
@@ -54,8 +56,8 @@ export default function Carousel({
     }
 
     // Reset touch positions
-    touchStartX.current = 0;
-    touchEndX.current = 0;
+    touchStartX.current = null;
+    touchEndX.current = null;
   };
 
   return (

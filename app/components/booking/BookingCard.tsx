@@ -20,21 +20,31 @@ import { RadioGroup, RadioGroupItem } from "../ui/radio-group";
 import { BookingTimeSelect } from "./BookingTimeSelect";
 import { DateRangePicker } from "./DateRangePicker";
 
-const SECURITY_DETAIL_COST = 30000;
 const ERROR_RING_CLASSES = "border-red-500 focus-visible:ring-red-500 focus-visible:ring-2";
 
 type BookingCardProps = {
-  car: Car & { fuelUpgradeRate: number };
-  isAvailable: boolean;
-  user: (User & { roles: { name: string }[]; phoneNumber?: string | null }) | null;
-  vatRate: number;
-  platformServiceFeeRate: number;
+  readonly car: Car & { fuelUpgradeRate: number };
+  readonly isAvailable: boolean;
+  readonly user: (User & { roles: { name: string }[]; phoneNumber?: string | null }) | null;
+  readonly vatRate: number;
+  readonly platformServiceFeeRate: number;
+  readonly securityDetailRate: number;
 };
 
 const DAY_BOOKING_TYPE = "DAY" as const;
 const NIGHT_BOOKING_TYPE = "NIGHT" as const;
-const BOOKING_TYPE_OPTIONS = [DAY_BOOKING_TYPE, NIGHT_BOOKING_TYPE] as const;
+const FULL_DAY_BOOKING_TYPE = "FULL_DAY" as const;
+
+const BOOKING_TYPE_OPTIONS = [DAY_BOOKING_TYPE, NIGHT_BOOKING_TYPE, FULL_DAY_BOOKING_TYPE] as const;
+
 type BookingType = (typeof BOOKING_TYPE_OPTIONS)[number];
+
+const BOOKING_TYPE_LABELS = {
+  [DAY_BOOKING_TYPE]: { singular: "day", plural: "days", perUnit: "12-hour day" },
+  [NIGHT_BOOKING_TYPE]: { singular: "night", plural: "nights", perUnit: "6-hour night" },
+  [FULL_DAY_BOOKING_TYPE]: { singular: "full day", plural: "full days", perUnit: "24-hour day" },
+} as const;
+
 const BOOKING_TYPE_OPTIONS_MAP = {
   [DAY_BOOKING_TYPE]: (
     <span className="font-medium text-sm">
@@ -44,6 +54,11 @@ const BOOKING_TYPE_OPTIONS_MAP = {
   [NIGHT_BOOKING_TYPE]: (
     <span className="font-medium text-sm">
       Night <span className="text-xs text-gray-600">(6hr)</span>
+    </span>
+  ),
+  [FULL_DAY_BOOKING_TYPE]: (
+    <span className="font-medium text-sm">
+      Full Day <span className="text-xs text-gray-600">(24hr)</span>
     </span>
   ),
 } as const;
@@ -103,12 +118,12 @@ const getBookingSchema = (isGuestBooking: boolean) => {
   // Apply refinement for conditional pickupTime validation
   return baseSchema.superRefine((data, ctx) => {
     if (
-      data.bookingType === DAY_BOOKING_TYPE &&
+      (data.bookingType === DAY_BOOKING_TYPE || data.bookingType === FULL_DAY_BOOKING_TYPE) &&
       (!data.pickupTime || data.pickupTime.trim() === "")
     ) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "Pickup time is required for daytime bookings",
+        message: "Pickup time is required for daytime and full day bookings",
         path: ["pickupTime"],
       });
     }
@@ -136,6 +151,12 @@ const calculateTotalDays = (
     return Math.max(1, daysDiff);
   }
 
+  // For FULL_DAY bookings, calculate the number of 24-hour periods
+  if (bookingType === FULL_DAY_BOOKING_TYPE) {
+    const totalHours = Math.abs(to.getTime() - from.getTime()) / (1000 * 60 * 60);
+    return Math.max(1, Math.ceil(totalHours / 24));
+  }
+
   // For day bookings, use the existing logic
   const start = startOfDay(from);
   const end = startOfDay(to);
@@ -159,14 +180,23 @@ function getOrdinal(n: number): string {
   }
 }
 
-function getFuelTankNote(totalDays: number, requiresFullTank = false): string | null {
+function getFuelTankNote(
+  totalDays: number,
+  requiresFullTank = false,
+  bookingType?: BookingType,
+): string | null {
   if (totalDays <= 0) {
     return null;
   }
 
   let note: string | null = null;
 
-  if (requiresFullTank && totalDays <= 2) {
+  // For 24-hour bookings, always comes with a full tank
+  if (bookingType === FULL_DAY_BOOKING_TYPE) {
+    note = "24-hour booking comes with a full tank";
+  } else if (bookingType === NIGHT_BOOKING_TYPE) {
+    note = "Night booking comes with 1/3rd of a tank";
+  } else if (requiresFullTank && totalDays <= 2) {
     note = "Booking comes with a full tank";
   } else if (totalDays === 1) {
     note = "Booking comes with 1/3rd of a tank";
@@ -179,7 +209,7 @@ function getFuelTankNote(totalDays: number, requiresFullTank = false): string | 
   return note ? `${note}, after that, it's your responsibility to fill the tank.` : null;
 }
 
-function FieldError({ errors }: { errors?: string[] }) {
+function FieldError({ errors }: { readonly errors?: readonly string[] }) {
   if (!errors || errors.length === 0) {
     return null;
   }
@@ -238,6 +268,7 @@ export default function BookingCard({
   user,
   vatRate,
   platformServiceFeeRate,
+  securityDetailRate,
 }: BookingCardProps) {
   const navigate = useNavigate();
   const submit = useSubmit();
@@ -295,21 +326,36 @@ export default function BookingCard({
     [dateRange.from, dateRange.to, bookingType],
   );
 
-  const currentCarPrice =
-    bookingType === NIGHT_BOOKING_TYPE ? Number(car.nightRate) : Number(car.dayRate);
+  const currentCarPrice = useMemo(() => {
+    if (bookingType === NIGHT_BOOKING_TYPE) {
+      return car.nightRate;
+    }
+
+    if (bookingType === FULL_DAY_BOOKING_TYPE) {
+      return car.fullDayRate;
+    }
+
+    return car.dayRate;
+  }, [bookingType, car.nightRate, car.fullDayRate, car.dayRate]);
 
   const baseTotal = useMemo(() => currentCarPrice * totalDays, [currentCarPrice, totalDays]);
   const securityDetailTotalCost = useMemo(
-    () => (includeSecurityDetail ? SECURITY_DETAIL_COST * totalDays : 0),
-    [includeSecurityDetail, totalDays],
+    () => (includeSecurityDetail ? securityDetailRate * totalDays : 0),
+    [includeSecurityDetail, securityDetailRate, totalDays],
   );
 
   const fuelUpgradeCost = useMemo(() => {
-    if (!requiresFullTank || totalDays >= 3) {
+    // FULL_DAY and NIGHT bookings don't have fuel upgrades
+    if (
+      bookingType === FULL_DAY_BOOKING_TYPE ||
+      bookingType === NIGHT_BOOKING_TYPE ||
+      !requiresFullTank ||
+      totalDays >= 3
+    ) {
       return 0;
     }
     return Number(car.fuelUpgradeRate);
-  }, [requiresFullTank, car.fuelUpgradeRate, totalDays]);
+  }, [bookingType, requiresFullTank, car.fuelUpgradeRate, totalDays]);
 
   const subtotal = useMemo(
     () => baseTotal + securityDetailTotalCost + fuelUpgradeCost,
@@ -323,8 +369,8 @@ export default function BookingCard({
   );
 
   const fuelNote = useMemo(
-    () => getFuelTankNote(totalDays, requiresFullTank),
-    [totalDays, requiresFullTank],
+    () => getFuelTankNote(totalDays, requiresFullTank, bookingType),
+    [totalDays, requiresFullTank, bookingType],
   );
 
   const subtotalBeforeVat = useMemo(() => subtotal + platformFee, [subtotal, platformFee]);
@@ -502,7 +548,7 @@ export default function BookingCard({
                   {formatCurrency(currentCarPrice)}
                   <span className="text-sm text-gray-500 font-normal">
                     {" "}
-                    per {bookingType.toLowerCase()}
+                    per {BOOKING_TYPE_LABELS[bookingType].perUnit}
                   </span>
                 </>
               ) : (
@@ -518,7 +564,7 @@ export default function BookingCard({
             <RadioGroup
               value={bookingType}
               onValueChange={handleBookingTypeChange}
-              className="space-x-2 grid grid-cols-2"
+              className="space-x-2 grid grid-cols-3"
               {...getInputProps(fields.bookingType, { type: "radio", value: bookingType })}
             >
               {BOOKING_TYPE_OPTIONS.map((type) => (
@@ -526,7 +572,11 @@ export default function BookingCard({
                   key={type}
                   className="flex items-center space-x-2 cursor-pointer p-2 border rounded has-[:checked]:bg-muted has-[:checked]:border-primary transition-colors"
                 >
-                  <RadioGroupItem value={type} id={`booking-type-${type}`} />
+                  <RadioGroupItem
+                    value={type}
+                    id={`booking-type-${type}`}
+                    className="sr-only" // This hides the radio button visually but keeps it accessible
+                  />
                   {BOOKING_TYPE_OPTIONS_MAP[type]}
                 </Label>
               ))}
@@ -539,6 +589,7 @@ export default function BookingCard({
             </Label>
             <DateRangePicker
               isNightBooking={bookingType === NIGHT_BOOKING_TYPE}
+              isFullDayBooking={bookingType === FULL_DAY_BOOKING_TYPE}
               date={dateRange}
               onDateChange={handleDateChange}
               onOpenChange={setIsDatePickerOpen}
@@ -552,21 +603,22 @@ export default function BookingCard({
           )}
 
           {carIsAvailableToBook && (
-            <div className="w-full space-y-4 pt-4 border-t">
-              {bookingType === DAY_BOOKING_TYPE ? (
+            <div className="w-full space-y-4">
+              {bookingType !== NIGHT_BOOKING_TYPE ? (
                 <div className="space-y-1">
                   <Label htmlFor={fields.pickupTime.id} className="font-semibold">
                     Pickup Time
                   </Label>
                   <BookingTimeSelect
                     date={dateRange.from ?? fallbackDateRef.current}
+                    bookingType={bookingType}
                     {...getInputProps(fields.pickupTime, { type: "text", ariaAttributes: true })}
                     className={fields.pickupTime.errors ? ERROR_RING_CLASSES : ""}
                   />
                   <FieldError errors={fields.pickupTime.errors} />
                 </div>
               ) : (
-                <Input value="11:00 PM" {...getInputProps(fields.pickupTime, { type: "hidden" })} />
+                <input type="hidden" name="pickupTime" value="11:00 PM" />
               )}
 
               {bookingType === NIGHT_BOOKING_TYPE && nightBookingHelperText && (
@@ -636,8 +688,17 @@ export default function BookingCard({
                 </div>
               )}
 
-              {/* Fuel upgrade option - only show for 1-2 day bookings */}
-              {totalDays > 0 && totalDays <= 2 && (
+              {fuelNote && (
+                <div
+                  className="bg-green-50 border-l-4 border-green-400 text-green-800 p-2 text-sm"
+                  role="alert"
+                >
+                  <span className="font-bold">Fuel included:</span> {fuelNote}
+                </div>
+              )}
+
+              {/* Fuel upgrade option - only show for 1-2 DAY bookings */}
+              {totalDays > 0 && totalDays <= 2 && bookingType === DAY_BOOKING_TYPE && (
                 <div className="space-y-1">
                   <div className="flex items-center space-x-2">
                     <Checkbox
@@ -652,16 +713,7 @@ export default function BookingCard({
                 </div>
               )}
 
-              {fuelNote && (
-                <div
-                  className="bg-green-50 border-l-4 border-green-400 text-green-800 p-2 text-sm"
-                  role="alert"
-                >
-                  <span className="font-bold">Fuel included:</span> {fuelNote}
-                </div>
-              )}
-
-              {/* <div className="space-y-1">
+              <div className="space-y-1">
                 <div className="flex items-center space-x-2">
                   <Checkbox
                     id="includeSecurityDetail"
@@ -669,10 +721,10 @@ export default function BookingCard({
                     onCheckedChange={(checked) => setIncludeSecurityDetail(!!checked)}
                   />
                   <Label htmlFor="includeSecurityDetail" className="cursor-pointer">
-                    Add security detail (+{formatCurrency(SECURITY_DETAIL_COST)} / day)
+                    Add security detail (+{formatCurrency(securityDetailRate)} / day)
                   </Label>
                 </div>
-              </div> */}
+              </div>
             </div>
           )}
         </CardContent>
@@ -680,19 +732,19 @@ export default function BookingCard({
         {carIsAvailableToBook && (
           <CardFooter className="flex flex-col items-stretch space-y-4 bg-gray-50 p-4 border-t">
             <div className="w-full">
-              <h3 className="text-base flex items-center space-x-2 gap-2 font-semibold mb-2">
-                <CreditCard className="h-5 w-5 text-blue-600" />
+              <h3 className="text-base flex items-center space-x-2 gap-2 font-medium mb-2">
+                {/* <CreditCard className="h-5 w-5 text-blue-600" /> */}
                 Cost Breakdown
               </h3>
               <dl className="space-y-1.5 text-sm">
                 <div className="flex justify-between">
                   <dt className="text-gray-600">
                     {formatCurrency(currentCarPrice)} &times; {totalDays}
-                    {totalDays === 1
-                      ? ` ${bookingType.toLowerCase()}`
-                      : bookingType === NIGHT_BOOKING_TYPE
-                        ? " nights"
-                        : " days"}
+                    {` ${
+                      totalDays === 1
+                        ? BOOKING_TYPE_LABELS[bookingType].singular
+                        : BOOKING_TYPE_LABELS[bookingType].plural
+                    }`}
                   </dt>
                   <dd className="text-gray-800">{formatCurrency(baseTotal)}</dd>
                 </div>

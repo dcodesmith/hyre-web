@@ -68,7 +68,7 @@ export async function action({ request }: ActionFunctionArgs) {
 
       await createCar({
         ...rest,
-        color: "Red",
+        color: "",
         owner: { connect: { id: user.id } },
         motCertificate: motCertificate as File,
         insuranceCertificate: insuranceCertificate as File,
@@ -197,6 +197,12 @@ export const columns: ColumnDef<SerializedCar>[] = [
     enableColumnFilter: false,
     header: ({ column }) => <ColumnHeader column={column} title="Nightly Rate" />,
     cell: ({ row }) => <div className="w-[150px]">{formatPrice(row.original.nightRate)}</div>,
+  },
+  {
+    accessorKey: "fullDayRate",
+    enableColumnFilter: false,
+    header: ({ column }) => <ColumnHeader column={column} title="24-Hour Rate" />,
+    cell: ({ row }) => <div className="w-[150px]">{formatPrice(row.original.fullDayRate)}</div>,
   },
   {
     accessorKey: "fuelUpgradeRate",

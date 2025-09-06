@@ -1,11 +1,12 @@
-import type {
-  // Booking,
-  Car,
-  ChauffeurApprovalStatus,
-  DocumentApproval,
-  Prisma,
-  User,
-} from "@prisma/client";
+import type { Car, ChauffeurApprovalStatus, DocumentApproval, Prisma } from "@prisma/client";
+
+// Re-export as runtime value
+export const AddonType = {
+  SECURITY_DETAIL: "SECURITY_DETAIL",
+} as const;
+
+// Export the type
+export type AddonType = (typeof AddonType)[keyof typeof AddonType];
 
 export type SerializedCar = Omit<Car, "createdAt" | "updatedAt"> & {
   createdAt: string;

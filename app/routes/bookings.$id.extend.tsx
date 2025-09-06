@@ -100,6 +100,12 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
 
   logger.info(`Booking ${booking.id} is ACTIVE and within overall time frame.`);
 
+  // Check if this is a FULL_DAY booking - they cannot be extended
+  if (booking.type === "FULL_DAY") {
+    logger.warn(`Extension attempt blocked for FULL_DAY booking: ${booking.id}`);
+    throw new Response("24-hour bookings cannot be extended.", { status: 400 });
+  }
+
   // --- Calculate Current State for Today, based on Today's Leg and its Extensions ---
   const todaysLeg = booking.legs.find((leg) =>
     isSameDay(parseISO(leg.legDate.toISOString()), today),
@@ -248,6 +254,12 @@ export async function action({ request, params }: ActionFunctionArgs) {
     if (!booking || !booking.car) {
       logger.error(`Booking not found: ${params.id}`);
       return json({ error: "Booking not found" }, { status: 404 });
+    }
+
+    // Check if this is a FULL_DAY booking - they cannot be extended
+    if (booking.type === "FULL_DAY") {
+      logger.warn(`Extension attempt blocked for FULL_DAY booking in action: ${booking.id}`);
+      return json({ error: "24-hour bookings cannot be extended." }, { status: 400 });
     }
 
     const {

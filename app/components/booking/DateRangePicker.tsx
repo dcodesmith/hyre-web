@@ -9,11 +9,13 @@ import { Popover, PopoverContent, PopoverTrigger } from "~/components/ui/popover
 import { cn } from "~/lib/utils";
 
 interface DateRangePickerProps {
-  date: DateRange;
-  onDateChange: (dateRange: DateRange) => void;
-  className?: string;
-  isNightBooking?: boolean;
-  onOpenChange?: (open: boolean) => void;
+  readonly date: DateRange;
+  readonly onDateChange: (dateRange: DateRange) => void;
+  readonly className?: string;
+  readonly isNightBooking?: boolean;
+  readonly isFullDayBooking?: boolean;
+  readonly onOpenChange?: (open: boolean) => void;
+  readonly singleDateMode?: boolean; // New prop to enable single date selection
 }
 
 export function DateRangePicker({
@@ -21,7 +23,9 @@ export function DateRangePicker({
   onDateChange,
   className,
   isNightBooking,
+  isFullDayBooking,
   onOpenChange,
+  singleDateMode = false,
 }: DateRangePickerProps) {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -41,9 +45,11 @@ export function DateRangePicker({
       ? new Date().getHours() >= 23
         ? startOfTomorrow()
         : startOfToday()
-      : new Date().getHours() >= 12
-        ? startOfTomorrow()
-        : startOfToday(),
+      : isFullDayBooking
+        ? startOfToday() // FULL_DAY bookings can always select today
+        : new Date().getHours() >= 12
+          ? startOfTomorrow()
+          : startOfToday(),
   };
 
   const handleDateChange = (range: DateRange | undefined) => {
@@ -58,6 +64,14 @@ export function DateRangePicker({
       to: range.to ? new Date(range.to) : undefined,
     };
 
+    // For single date mode, set both from and to to the same date
+    if (singleDateMode && normalizedRange.from) {
+      const singleDate = normalizedRange.from;
+      onDateChange({ from: singleDate, to: singleDate });
+      handleOpenChange(false);
+      return;
+    }
+
     // For night bookings, enforce that start and end dates must be different
     if (isNightBooking && normalizedRange.from && normalizedRange.to) {
       const startDate = startOfDay(normalizedRange.from);
@@ -71,8 +85,8 @@ export function DateRangePicker({
 
     onDateChange(normalizedRange);
 
-    // Close the calendar if both dates are selected
-    if (normalizedRange.from && normalizedRange.to) {
+    // Close the calendar if both dates are selected (or single date in single mode)
+    if (normalizedRange.from && (singleDateMode || normalizedRange.to)) {
       handleOpenChange(false);
     }
   };
@@ -92,16 +106,18 @@ export function DateRangePicker({
           >
             {/* <CalendarIcon className="mr-2 h-5 w-5" /> */}
             {normalizedDate?.from ? (
-              normalizedDate.to ? (
+              singleDateMode ||
+              !normalizedDate.to ||
+              normalizedDate.from.getTime() === normalizedDate.to.getTime() ? (
+                format(normalizedDate.from, "LLL dd, y")
+              ) : (
                 <>
                   {format(normalizedDate.from, "LLL dd, y")} -{" "}
                   {format(normalizedDate.to, "LLL dd, y")}
                 </>
-              ) : (
-                format(normalizedDate.from, "LLL dd, y")
               )
             ) : (
-              <span className="text-black">Pick a date</span>
+              <span className="text-black">Pick a date{singleDateMode ? "" : " range"}</span>
             )}
             {isOpen ? (
               <ChevronsDownUp className="h-4 w-4 ml-auto" />
@@ -114,26 +130,33 @@ export function DateRangePicker({
           <div className="flex flex-col w-auto">
             <Calendar
               initialFocus
-              mode="range"
-              selected={normalizedDate}
+              mode={singleDateMode ? "single" : "range"}
+              selected={singleDateMode ? normalizedDate.from : normalizedDate}
               defaultMonth={addDays(new Date(), 1)}
-              onSelect={handleDateChange}
-              numberOfMonths={2}
+              onSelect={
+                singleDateMode
+                  ? (date: Date | undefined) =>
+                      handleDateChange(date ? { from: date, to: date } : undefined)
+                  : handleDateChange
+              }
+              numberOfMonths={singleDateMode ? 1 : 2}
               disabled={disabledDays}
             />
             <div className="flex justify-between items-center flex-col sm:flex-row gap-2 p-2 w-full border-t">
               <div className="text-sm h-10 items-center flex font-semibold">
                 {normalizedDate?.from ? (
-                  normalizedDate.to ? (
+                  singleDateMode ||
+                  !normalizedDate.to ||
+                  normalizedDate.from.getTime() === normalizedDate.to.getTime() ? (
+                    format(normalizedDate.from, "LLL dd, y")
+                  ) : (
                     <>
                       {format(normalizedDate.from, "LLL dd, y")} -{" "}
                       {format(normalizedDate.to, "LLL dd, y")}
                     </>
-                  ) : (
-                    format(normalizedDate.from, "LLL dd, y")
                   )
                 ) : (
-                  "No dates selected"
+                  `No date${singleDateMode ? "" : "s"} selected`
                 )}
               </div>
 

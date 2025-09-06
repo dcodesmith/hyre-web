@@ -89,6 +89,13 @@ export const carSchema = z.object({
     .int()
     .positive("Nightly rate must be positive"),
 
+  fullDayRate: z
+    .number({
+      required_error: "24-hour rate is required.",
+    })
+    .int()
+    .positive("24-hour rate must be positive"),
+
   fuelUpgradeRate: z
     .number({
       required_error: "Fuel upgrade rate is required.",
@@ -176,6 +183,7 @@ export function NewCarForm() {
       motCertificate,
       insuranceCertificate,
       nightRate,
+      fullDayRate,
       fuelUpgradeRate,
     },
   ] = useForm({
@@ -265,6 +273,17 @@ export function NewCarForm() {
           className={`rounded ${nightRate.errors ? errorRingClasses : ""}`}
         />
         {nightRate.errors && <p className="text-red-500 text-sm">{nightRate.errors.join(" ")}</p>}
+      </div>
+
+      <div className="space-y-0.5">
+        <Label htmlFor={fullDayRate.id}>24-Hour Rate</Label>
+        <Input
+          {...getInputProps(fullDayRate, { type: "number", step: "1000" })}
+          className={`rounded ${fullDayRate.errors ? errorRingClasses : ""}`}
+        />
+        {fullDayRate.errors && (
+          <p className="text-red-500 text-sm">{fullDayRate.errors.join(" ")}</p>
+        )}
       </div>
 
       <div className="space-y-0.5">

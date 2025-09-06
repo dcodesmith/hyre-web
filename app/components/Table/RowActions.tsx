@@ -80,6 +80,12 @@ const carSchema = z.object({
     })
     .positive("Nightly rate must be positive"),
 
+  fullDayRate: z
+    .number({
+      required_error: "24-hour rate is required.",
+    })
+    .int()
+    .positive("24-hour rate must be positive"),
   fuelUpgradeRate: z
     .number({
       required_error: "Fuel upgrade rate is required.",
@@ -95,8 +101,8 @@ const statusMap: Record<(typeof STATUSES)[number], string> = {
 };
 
 interface EditCarFormProps {
-  car: Car & { fuelUpgradeRate: number };
-  setIsEditOpen: Dispatch<SetStateAction<boolean>>;
+  readonly car: Car & { fuelUpgradeRate: number };
+  readonly setIsEditOpen: Dispatch<SetStateAction<boolean>>;
 }
 
 function EditCarForm({ car, setIsEditOpen }: EditCarFormProps) {
@@ -125,6 +131,7 @@ function EditCarForm({ car, setIsEditOpen }: EditCarFormProps) {
       status,
       hourlyRate,
       nightRate,
+      fullDayRate,
       fuelUpgradeRate,
     },
   ] = useForm({
@@ -203,6 +210,22 @@ function EditCarForm({ car, setIsEditOpen }: EditCarFormProps) {
       </div>
 
       <div className="space-y-0.5">
+        <Label htmlFor="fullDayRate">24-Hour Rate</Label>
+        <Input
+          {...getInputProps(fullDayRate, { type: "number" })}
+          step="1000"
+          className={
+            fullDayRate.errors
+              ? "border-red-500 focus-visible:ring-red-500 focus-visible:ring-2"
+              : ""
+          }
+        />
+        {fullDayRate.errors && (
+          <p className="text-sm text-destructive">{fullDayRate.errors.join(" ")}</p>
+        )}
+      </div>
+
+      <div className="space-y-0.5">
         <Label htmlFor="fuelUpgradeRate">Fuel Upgrade Rate</Label>
         <Input
           {...getInputProps(fuelUpgradeRate, { type: "number" })}
@@ -255,7 +278,7 @@ function EditCarForm({ car, setIsEditOpen }: EditCarFormProps) {
 }
 
 interface DataTableRowActionsProps {
-  row: Row<Car & { fuelUpgradeRate: number }>;
+  readonly row: Row<Car & { fuelUpgradeRate: number }>;
 }
 
 export function RowActions({ row }: DataTableRowActionsProps) {

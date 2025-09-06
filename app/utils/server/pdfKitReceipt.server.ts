@@ -164,6 +164,13 @@ export async function generatePdfWithPdfKit(booking: BookingWithRelations): Prom
     );
   }
 
+  if (Number(booking.securityDetailCost ?? 0) > 0) {
+    twoColumnText(
+      `Security Detail (${totalDays} day${totalDays > 1 ? "s" : ""})`,
+      formatCurrency(Number(booking.securityDetailCost)),
+    );
+  }
+
   if (Number(booking.platformCustomerServiceFeeAmount ?? 0) > 0) {
     twoColumnText(
       `Platform Fee (${booking.platformCustomerServiceFeeRatePercent}%)`,

@@ -9,6 +9,7 @@ const ratesCache: {
     platformCustomerServiceFeeRatePercent: Decimal;
     platformFleetOwnerCommissionRatePercent: Decimal;
     vatRatePercent: Decimal;
+    securityDetailRate: Decimal;
   } | null;
   timestamp: number;
 } = {
@@ -169,7 +170,7 @@ export async function getRates() {
   const currentDate = new Date();
 
   // Run all rate queries in parallel for better performance
-  const [platformRates, vatRate] = await Promise.all([
+  const [platformRates, vatRate, securityDetailAddonRate] = await Promise.all([
     // Get both platform fee rates in a single query
     prisma.platformFeeRate.findMany({
       where: {
@@ -182,6 +183,15 @@ export async function getRates() {
     // Get VAT rate
     prisma.taxRate.findFirst({
       where: {
+        effectiveSince: { lte: currentDate },
+        OR: [{ effectiveUntil: { gt: currentDate } }, { effectiveUntil: null }],
+      },
+      orderBy: { effectiveSince: "desc" },
+    }),
+    // Get security detail addon rate
+    prisma.addonRate.findFirst({
+      where: {
+        addonType: "SECURITY_DETAIL",
         effectiveSince: { lte: currentDate },
         OR: [{ effectiveUntil: { gt: currentDate } }, { effectiveUntil: null }],
       },
@@ -207,10 +217,15 @@ export async function getRates() {
     throw new Error("No active VAT rate found");
   }
 
+  if (!securityDetailAddonRate) {
+    throw new Error("No active security detail rate found");
+  }
+
   const result = {
     platformCustomerServiceFeeRatePercent: platformFeeRate.ratePercent,
     platformFleetOwnerCommissionRatePercent: fleetOwnerCommissionRate.ratePercent,
     vatRatePercent: vatRate.ratePercent,
+    securityDetailRate: securityDetailAddonRate.rateAmount,
   };
 
   // Cache the result

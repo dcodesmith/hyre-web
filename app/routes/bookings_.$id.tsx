@@ -128,7 +128,13 @@ export async function action({ request, params }: ActionFunctionArgs) {
         baseDate.setHours(hour24, minutes, 0, 0);
         newStartDateForPatch = new Date(baseDate);
         newEndDateForPatch = new Date(newStartDateForPatch);
-        newEndDateForPatch.setHours(newStartDateForPatch.getHours() + 12);
+
+        // Set end time based on booking type
+        if (currentBooking.type === "FULL_DAY") {
+          newEndDateForPatch.setTime(newStartDateForPatch.getTime() + 24 * 60 * 60 * 1000);
+        } else {
+          newEndDateForPatch.setHours(newStartDateForPatch.getHours() + 12);
+        }
       } else {
         return json({ error: "Invalid pickup time format." }, { status: 400 });
       }
@@ -322,6 +328,7 @@ function createPaymentSummary(booking: BookingWithRelations) {
   const baseBookingNetTotal = new Decimal(booking.netTotal ?? 0);
   const baseBookingServiceFee = new Decimal(booking.platformCustomerServiceFeeAmount ?? 0);
   const baseBookingVat = new Decimal(booking.vatAmount ?? 0);
+  const fuelUpgradeCost = new Decimal(booking.fuelUpgradeCost ?? 0);
 
   // Step 1: Sum up the net total and duration from all active extensions.
   // Using flatMap + reduce is more direct than nested reduce calls.
@@ -346,6 +353,7 @@ function createPaymentSummary(booking: BookingWithRelations) {
       extensionNetTotal: new Decimal(0),
       totalExtendedHours: new Decimal(0),
       vatAmount: baseBookingVat,
+      fuelUpgradeCost,
       totalAmount: new Decimal(booking.totalAmount ?? 0),
     };
   }
@@ -371,6 +379,7 @@ function createPaymentSummary(booking: BookingWithRelations) {
     extensionNetTotal: extensionSummary.netTotal,
     totalExtendedHours: new Decimal(extensionSummary.totalHours),
     vatAmount: finalVat,
+    fuelUpgradeCost,
     totalAmount: finalGrossTotal,
   };
 }
@@ -550,13 +559,23 @@ const BookingLegTimeline = ({
         <div className="flex-1 space-y-3">
           <TimePointRow
             label="Pickup"
-            timeText={format(legStartTime, "h:mm a")}
+            timeText={
+              booking.type === "FULL_DAY"
+                ? format(legStartTime, "h:mm a - MMM do")
+                : format(legStartTime, "h:mm a")
+            }
             labelColorClassWhenStarted="text-green-600"
             isLegStarted={isLegStarted}
           />
           <TimePointRow
             label="Return"
-            timeText={returnTimeText}
+            timeText={
+              booking.type === "FULL_DAY"
+                ? extendedDuration > 0
+                  ? `${format(legEndTime, "h:mm a - MMM do")} (Extended)`
+                  : format(legEndTime, "h:mm a - MMM do")
+                : returnTimeText
+            }
             labelColorClassWhenStarted="text-red-600"
             isLegStarted={isLegStarted}
           />
@@ -580,7 +599,11 @@ const BookingLegTimeline = ({
         </Alert>
       ) : (
         <p className={`text-sm ${isLegStarted ? "text-slate-600" : "text-slate-400"}`}>
-          Standard 12-hour service
+          {booking.type === "FULL_DAY"
+            ? "Standard 24-hour service"
+            : booking.type === "NIGHT"
+              ? "Standard 6-hour service"
+              : "Standard 12-hour service"}
         </p>
       )}
       {index < booking.legs.length - 1 && <Separator />}
@@ -679,7 +702,9 @@ export default function BookingDetails() {
           <AlertDescription className="text-sm text-blue-800">
             {booking.type === "DAY"
               ? "Each booking day is for a 12-hour duration ending 12 hours after the start time unless extended."
-              : "Each night booking is for a 6-hour duration starting at 11pm."}
+              : booking.type === "NIGHT"
+                ? "Each night booking is for a 6-hour duration starting at 11pm."
+                : "Each full day booking is for a 24-hour duration ending 24 hours after the pickup time."}
           </AlertDescription>
         </Alert>
 
@@ -799,6 +824,25 @@ export default function BookingDetails() {
                       </span>
                     </div>
                   )}
+                  {Number(booking.securityDetailCost ?? 0) > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-sm text-slate-600">
+                        Security Detail ({booking.legs.length}{" "}
+                        {booking.legs.length === 1 ? "day" : "days"})
+                      </span>
+                      <span className="text-sm font-medium">
+                        {formatCurrency(Number(booking.securityDetailCost))}
+                      </span>
+                    </div>
+                  )}
+                  {Number(paymentSummary.fuelUpgradeCost) > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-sm text-slate-600">Fuel Upgrade</span>
+                      <span className="text-sm font-medium">
+                        {formatCurrency(Number(paymentSummary.fuelUpgradeCost))}
+                      </span>
+                    </div>
+                  )}
                   {Number(paymentSummary.platformCustomerServiceFeeAmount) > 0 && (
                     <div className="flex justify-between">
                       <span className="text-sm text-slate-600">
@@ -885,7 +929,7 @@ export default function BookingDetails() {
                                     defaultValue: booking.pickupLocation,
                                     placeholder: "Enter pickup address",
                                   }}
-                                  onSelect={(place: any) => {
+                                  onSelect={(place) => {
                                     // Handle place selection if needed
                                   }}
                                 />

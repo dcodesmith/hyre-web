@@ -60,11 +60,12 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
       : null,
     vatRate: rates.vatRatePercent.toNumber(),
     platformServiceFeeRate: rates.platformCustomerServiceFeeRatePercent.toNumber(),
+    securityDetailRate: rates.securityDetailRate,
   });
 };
 
 export default function CarDetails() {
-  const { car, isAvailable, user, vatRate, platformServiceFeeRate } =
+  const { car, isAvailable, user, vatRate, platformServiceFeeRate, securityDetailRate } =
     useLoaderData<typeof loader>();
   const [searchParams] = useSearchParams();
 
@@ -152,6 +153,7 @@ export default function CarDetails() {
             user={user as any}
             vatRate={vatRate}
             platformServiceFeeRate={platformServiceFeeRate}
+            securityDetailRate={securityDetailRate}
           />
         </div>
       </div>

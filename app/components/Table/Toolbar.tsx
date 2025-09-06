@@ -1,5 +1,5 @@
-import { AdjustmentsVerticalIcon, XCircleIcon } from "@heroicons/react/24/outline";
-import { useFetcher, useSearchParams } from "@remix-run/react";
+import { XCircleIcon } from "@heroicons/react/24/outline";
+import { useSearchParams } from "@remix-run/react";
 import { Table } from "@tanstack/react-table";
 import { format } from "date-fns";
 import { useState } from "react";
@@ -7,16 +7,15 @@ import { DateRange } from "react-day-picker";
 import { Button } from "~/components/ui/button";
 import { SerializedCar } from "~/types";
 import { DateRangePicker } from "../booking/DateRangePicker";
-import { ColumnViewOptions } from "./ColumnViewOptions";
+
 import { FacetedFilter } from "./FacetedFilter";
 
 interface ToolbarProps<TData extends SerializedCar> {
-  table: Table<TData>;
-  isAdmin?: boolean;
+  readonly table: Table<TData>;
+  readonly isAdmin?: boolean;
 }
 
 export function Toolbar({ table, isAdmin = false }: ToolbarProps<SerializedCar>) {
-  const fetcher = useFetcher();
   const [searchParams, setSearchParams] = useSearchParams();
   const isFiltered = table.getState().columnFilters.length > 0;
 
@@ -28,38 +27,31 @@ export function Toolbar({ table, isAdmin = false }: ToolbarProps<SerializedCar>)
     to: to ? new Date(`${to}T00:00:00`) : undefined,
   });
 
+  const hasDateRange = Boolean(
+    searchParams.get("from") || searchParams.get("to") || dateRange.from || dateRange.to,
+  );
+  const showReset = isFiltered || hasDateRange;
+
   const handleDateRangeChange = (dateRange: DateRange) => {
     setDateRange(dateRange);
 
+    // Create a new URLSearchParams object (don't modify the existing one)
+    const newSearchParams = new URLSearchParams(searchParams);
+
     if (dateRange.from && dateRange.to) {
-      // const params = new URLSearchParams({
-      //   ...Object.fromEntries(searchParams),
-      //   from: dateRange.from ? format(dateRange.from, "yyyy-MM-dd") : "",
-      //   to: dateRange.to ? format(dateRange.to, "yyyy-MM-dd") : "",
-      // });
-
-      searchParams.set("from", format(dateRange.from, "yyyy-MM-dd"));
-      searchParams.set("to", format(dateRange.to, "yyyy-MM-dd"));
-
-      // setSearchParams(searchParams, { replace: true, preventScrollReset: true });
-      fetcher.load(`?${searchParams.toString()}`);
+      newSearchParams.set("from", format(dateRange.from, "yyyy-MM-dd"));
+      newSearchParams.set("to", format(dateRange.to, "yyyy-MM-dd"));
     } else {
-      searchParams.delete("from");
-      searchParams.delete("to");
+      newSearchParams.delete("from");
+      newSearchParams.delete("to");
     }
 
-    setSearchParams(searchParams, { replace: true, preventScrollReset: true });
+    // Update the URL (this will re-run the loader)
+    setSearchParams(newSearchParams, { replace: true, preventScrollReset: true });
   };
 
   return (
-    // sticky top-16 sm:h-16 h-28 z-10 bg-white
     <div className="flex flex-col items-center justify-center gap-2 mt-4 mb-2">
-      {/* <div className="flex items-center flex-wrap gap-2"> */}
-      {/* <div className="content-center hidden sm:block">
-          <AdjustmentsVerticalIcon className="h-5 w-5" />
-        </div> */}
-
-      {/* <div className="flex items-center sm:w-auto w-full gap-2 sm:justify-start justify-between"> */}
       {table.getColumn("make") && (
         <div className="w-64">
           <FacetedFilter
@@ -90,11 +82,11 @@ export function Toolbar({ table, isAdmin = false }: ToolbarProps<SerializedCar>)
         </div>
       )}
 
-      {isFiltered && (
+      {showReset && (
         <Button
           variant="ghost"
           onClick={() => {
-            handleDateRangeChange({ from: undefined, to: undefined });
+            setDateRange({ from: undefined, to: undefined });
             table.resetColumnFilters();
             setSearchParams(new URLSearchParams(), { replace: true, preventScrollReset: true });
           }}
@@ -104,13 +96,15 @@ export function Toolbar({ table, isAdmin = false }: ToolbarProps<SerializedCar>)
           <XCircleIcon className="ml-2 h-4 w-4" />
         </Button>
       )}
-      {/* </div> */}
 
       {!isAdmin && (
-        <DateRangePicker className="w-64" date={dateRange} onDateChange={handleDateRangeChange} />
+        <DateRangePicker
+          className="w-64"
+          date={dateRange}
+          onDateChange={handleDateRangeChange}
+          singleDateMode={false}
+        />
       )}
-      {/* </div> */}
-      {/* {isAdmin && <ColumnViewOptions table={table} />} */}
     </div>
   );
 }

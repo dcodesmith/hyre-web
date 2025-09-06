@@ -43,8 +43,13 @@ export const columns: ColumnDef<SerializedCar>[] = [
   },
   {
     accessorKey: "dayRate",
-    header: ({ column }) => <ColumnHeader column={column} title="Price" />,
+    header: ({ column }) => <ColumnHeader column={column} title="Day Rate" />,
     cell: ({ row }) => <div className="w-[150px]">{formatPrice(row.original.dayRate)}</div>,
+  },
+  {
+    accessorKey: "fullDayRate",
+    header: ({ column }) => <ColumnHeader column={column} title="24hr Rate" />,
+    cell: ({ row }) => <div className="w-[150px]">{formatPrice(row.original.fullDayRate)}</div>,
   },
   {
     accessorKey: "status",

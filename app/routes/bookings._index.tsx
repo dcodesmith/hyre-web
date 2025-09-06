@@ -8,7 +8,7 @@ import {
   useNavigate,
   useSearchParams,
 } from "@remix-run/react";
-import { format } from "date-fns";
+import { format, differenceInCalendarDays, addHours } from "date-fns";
 import { ChevronRight } from "lucide-react";
 import crypto from "node:crypto";
 import { Fragment, useEffect, useState } from "react";
@@ -150,21 +150,27 @@ export async function action({ request }: ActionFunctionArgs) {
     if (bookingType === "NIGHT") {
       // For night bookings, end time should be 5am on the end date
       endDateTime.setHours(5);
+    } else if (bookingType === "FULL_DAY") {
+      // For FULL_DAY bookings, enforce strict 24h blocks from the pickup time (DST-safe)
+      const daySpan = Math.max(1, differenceInCalendarDays(new Date(endDate), new Date(startDate)));
+      const adjusted = addHours(startDateTime, 24 * daySpan);
+      endDateTime.setTime(adjusted.getTime());
     } else {
+      // For day bookings, end time should be 12 hours after start time
       endDateTime.setHours(startDateTime.getHours() + 12);
+      endDateTime.setMinutes(startDateTime.getMinutes());
     }
-    endDateTime.setMinutes(startDateTime.getMinutes());
     endDateTime.setSeconds(0);
     endDateTime.setMilliseconds(0);
 
     if (
       startDateTime < now ||
-      (bookingType !== "NIGHT" &&
+      (bookingType === "DAY" &&
         startDateTime.toDateString() === now.toDateString() &&
         now.getHours() >= 12)
     ) {
       return json(
-        { error: "Start date and time cannot be after 12pm of the current day" },
+        { error: "Day bookings cannot be made at or after 12pm of the current day" },
         { status: 400 },
       );
     }

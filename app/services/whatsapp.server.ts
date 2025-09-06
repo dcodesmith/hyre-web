@@ -1,4 +1,5 @@
 import twilio from "twilio";
+import logger from "~/lib/logger.server";
 import { env } from "~/utils/server/env.server";
 
 // --- Configuration ---
@@ -20,7 +21,7 @@ const templateVariables = {
   "3": "26th May 2025 @ 07:00 am", // Example: Corresponds to {{3}}
   "4": "26th May 2025 @ 07:00 pm", // Example: Corresponds to {{4}}
   "5": "Mason Apts, Ikoyi", // Example: Corresponds to {{5}}
-  "6": "Lagos Int. Airport", // Example: Corresponds to {{6}}
+  "6": "Destination Address", // Example: Corresponds to {{6}}
   "7": "₦130,000.00", // Example: Corresponds to {{7}}
   "8": "Hello", // Example: Corresponds to {{8}}
   "9": "https://www.harrods.com/en-gb/p/golden-goose-leather-ballstar-sneakers-000000000007683463", // Example: Corresponds to {{9}}
@@ -44,7 +45,7 @@ const client = twilio("ACf0ade1a8aad13182d4f6dd3590762f35", "bdd1169e4167eb28362
  * Sends a WhatsApp message using a pre-approved Twilio template.
  */
 async function sendWhatsAppTemplateMessage(): Promise<void> {
-  console.log(`Attempting to send template ${templateSid} to ${recipientWhatsAppNumber}...`);
+  logger.info(`Attempting to send template ${templateSid} to ${recipientWhatsAppNumber}...`);
 
   try {
     const message = await client.messages.create({
@@ -52,13 +53,12 @@ async function sendWhatsAppTemplateMessage(): Promise<void> {
       from: "whatsapp:+14155238886", // Your Twilio WhatsApp sender # with 'whatsapp:' prefix
       contentSid: templateSid, // The SID of your approved template
       contentVariables: JSON.stringify(templateVariables), // Variables as a JSON string
-      shortenUrls: true,
     });
 
-    console.log(`Message sent successfully! SID: ${message.sid}`);
-    console.log(`Status: ${message.status}`);
+    logger.info(`Message sent successfully! SID: ${message.sid}`);
+    logger.info(`Status: ${message.status}`);
   } catch (error) {
-    console.error("Error sending WhatsApp message:", error);
+    logger.error("Error sending WhatsApp message:", error);
   }
 }
 
