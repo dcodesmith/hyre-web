@@ -1,6 +1,6 @@
 import { CheckIcon } from "@heroicons/react/24/outline";
 import { useSearchParams } from "@remix-run/react";
-import { ListFilterIcon } from "lucide-react";
+import { ListFilter } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { cn } from "~/lib/utils";
 import { Badge } from "../ui/badge";
@@ -60,7 +60,7 @@ export function URLFacetedFilter({ title, paramKey, options }: URLFacetedFilterP
     <Popover>
       <PopoverTrigger asChild>
         <Button variant="outline" size="sm" className="sm:w-auto w-full rounded gap-2 h-10">
-          <ListFilterIcon className="h-4 w-4" />
+          <ListFilter className="h-4 w-4" />
           {title}
           {selectedValues?.size > 0 && (
             <>

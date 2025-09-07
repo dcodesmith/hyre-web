@@ -2,7 +2,7 @@ import { Car, CarApprovalStatus, FleetOwnerStatus, Status } from "@prisma/client
 import { type ActionFunctionArgs, type LoaderFunctionArgs, json } from "@remix-run/node";
 import { Link, useLoaderData, useSubmit } from "@remix-run/react";
 import { createColumnHelper } from "@tanstack/react-table";
-import { CircleAlertIcon } from "lucide-react";
+import { AlertCircle } from "lucide-react";
 import { AdminCarRowActions } from "~/components/Table/AdminRowActions";
 import { ColumnHeader } from "~/components/Table/ColumnHeader";
 import { Table } from "~/components/Table/Table";
@@ -215,7 +215,7 @@ export default function OwnerDetails() {
           </>
         ) : (
           <div className="text-yellow-600 border border-yellow-600 p-2 flex items-center gap-2 text-sm w-full md:w-auto">
-            <CircleAlertIcon className="shrink-0" />
+            <AlertCircle className="shrink-0" />
             <span>At least 1 car must be approved before we can approve this fleet owner</span>
           </div>
         )}
