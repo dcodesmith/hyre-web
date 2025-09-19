@@ -1,6 +1,6 @@
 import { Decimal } from "@prisma/client/runtime/library";
 import type { LoaderFunctionArgs } from "@remix-run/node";
-import { json } from "@remix-run/node";
+import { data } from "@remix-run/node";
 import { Link, useLoaderData } from "@remix-run/react";
 import { useMemo, useState } from "react";
 import { Bar, BarChart, CartesianGrid, Tooltip, XAxis, YAxis } from "recharts";
@@ -54,6 +54,16 @@ export async function loader({ request }: LoaderFunctionArgs) {
       startDate: "asc",
     },
   });
+
+  const serializedConfirmedUnassignedBookings = confirmedUnassignedBookings.map((booking) => ({
+    ...booking,
+    totalAmount: booking.totalAmount.toNumber(),
+    netTotal: booking.netTotal?.toNumber(),
+    vatAmount: booking.vatAmount?.toNumber(),
+    platformCustomerServiceFeeAmount: booking.platformCustomerServiceFeeAmount?.toNumber(),
+    fuelUpgradeCost: booking.fuelUpgradeCost?.toNumber(),
+    securityDetailCost: booking.securityDetailCost?.toNumber(),
+  }));
 
   const stats = await prisma.$transaction([
     // Active bookings count
@@ -248,7 +258,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     const totalSum = aggregationResult._sum.fleetOwnerEarningForLeg;
 
     // Return the sum, or Decimal(0) if the sum is null
-    return totalSum ? totalSum : new Decimal(0);
+    return totalSum ?? new Decimal(0);
   }
 
   const ownerRevenueToday = await getTodaysLegsFleetOwnerEarningSum(fleetOwner.id);
@@ -293,10 +303,10 @@ export async function loader({ request }: LoaderFunctionArgs) {
     todayConfirmedBookings,
   ] = todayStats;
 
-  return json({
+  return {
     carCount: carCount,
     bookingsValue: bookingsValue,
-    confirmedUnassignedBookings,
+    confirmedUnassignedBookings: serializedConfirmedUnassignedBookings,
     chauffeurs,
     dashboardStats: {
       activeBookingsCount,
@@ -316,7 +326,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
       confirmedBookings: todayConfirmedBookings,
       projectedRevenue: ownerRevenueToday,
     },
-  });
+  };
 }
 
 const getOrdinal = (n: number): string => {
@@ -410,8 +420,8 @@ function WelcomeMessage({
   name,
   stats,
 }: {
-  name: string;
-  stats: {
+  readonly name: string;
+  readonly stats: {
     activeBookings: number;
     completedBookings: number;
     cancelledBookings: number;
@@ -699,8 +709,8 @@ function StatsCard({
   title,
   stats,
 }: {
-  title: string;
-  stats: Array<{ label: string; value: string | number }>;
+  readonly title: string;
+  readonly stats: Array<{ label: string; value: string | number }>;
 }) {
   return (
     <Card className="rounded">

@@ -1,3 +1,4 @@
+import { data } from "@remix-run/node";
 import logger from "~/lib/logger.server";
 import { csrf, CSRFError } from "~/utils/csrf.server";
 
@@ -7,8 +8,12 @@ export async function validateCSRF(request: Request) {
   } catch (error) {
     if (error instanceof CSRFError) {
       logger.error(`CSRF validation failed: ${error.message}`);
-      throw new Response("Invalid CSRF token", { status: 403 });
+      throw data(
+        { error: "Invalid CSRF token" },
+        { status: 403, headers: { "Cache-Control": "no-store" } },
+      );
     }
+
     throw error;
   }
 }

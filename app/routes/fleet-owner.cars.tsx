@@ -1,6 +1,10 @@
 import { parseWithZod } from "@conform-to/zod";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
-import { json } from "@remix-run/node";
+import {
+  data,
+  unstable_createMemoryUploadHandler,
+  unstable_parseMultipartFormData,
+} from "@remix-run/node";
 import { useFetcher, useLoaderData } from "@remix-run/react";
 import { ColumnDef } from "@tanstack/react-table";
 import { CheckCircle2, PlusCircle } from "lucide-react";
@@ -25,12 +29,8 @@ import { prisma } from "~/modules/db/db.server";
 import { createCar } from "~/services/cars.server";
 import { validateCSRF } from "~/utils/csrf-action.server";
 import { NewCarForm, carSchema } from "./fleet-owner.cars_.new";
-
-import {
-  unstable_createMemoryUploadHandler,
-  unstable_parseMultipartFormData,
-} from "@remix-run/node";
 import { SerializedCar } from "~/types";
+import logger from "~/lib/logger.server";
 
 const Status = {
   AVAILABLE: "AVAILABLE",
@@ -46,14 +46,25 @@ export async function action({ request }: ActionFunctionArgs) {
 
   const user = await requireUserWithRole(request, "fleetOwner");
 
-  const uploadHandler = unstable_createMemoryUploadHandler({
-    maxPartSize: 10 * 1024 * 1024, // 10MB limit
-  });
-  const formData = await unstable_parseMultipartFormData(request, uploadHandler);
-  const intent = String(formData.get("intent"));
+  // Clone the request to peek at the intent without consuming the stream
+  const clonedRequest = request.clone();
+  const tempFormData = await clonedRequest.formData();
+  const intent = String(tempFormData.get("intent"));
 
   if (!["create", "edit"].includes(intent)) {
-    return json({ success: false, error: "Invalid intent" }, { status: 400 });
+    return data({ success: false, error: "Invalid intent" }, { status: 400 });
+  }
+
+  // Parse form data based on intent
+  let formData: FormData;
+
+  if (intent === "create") {
+    const uploadHandler = unstable_createMemoryUploadHandler({
+      maxPartSize: 10 * 1024 * 1024, // 10MB limit
+    });
+    formData = await unstable_parseMultipartFormData(request, uploadHandler);
+  } else {
+    formData = await request.formData();
   }
 
   try {
@@ -61,7 +72,7 @@ export async function action({ request }: ActionFunctionArgs) {
       const submission = parseWithZod(formData, { schema: carSchema });
 
       if (submission.status !== "success") {
-        return json(submission.reply());
+        return data(submission.reply(), { status: 400 });
       }
 
       const { motCertificate, insuranceCertificate, ...rest } = submission.value;
@@ -84,19 +95,19 @@ export async function action({ request }: ActionFunctionArgs) {
       });
 
       if (submission.status !== "success") {
-        return json(submission.reply());
+        return data(submission.reply(), { status: 400 });
       }
 
       await prisma.car.update({
-        where: { id: carId },
+        where: { id: carId, ownerId: user.id },
         data: submission.value,
       });
     }
 
-    return json({ success: true, error: null } as const);
+    return { success: true, error: null };
   } catch (error) {
-    console.error(error);
-    return json(
+    logger.error({ error }, `Failed to ${intent} car`);
+    return data(
       {
         success: false,
         error: `Failed to ${intent} car`,
@@ -123,7 +134,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     },
   });
 
-  return json({ cars });
+  return { cars };
 }
 
 const formatPrice = (price: number) => {

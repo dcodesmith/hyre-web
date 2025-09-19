@@ -1,21 +1,50 @@
 import { Car, CarApprovalStatus, FleetOwnerStatus, Status } from "@prisma/client";
-import { type ActionFunctionArgs, type LoaderFunctionArgs, json } from "@remix-run/node";
+import { type ActionFunctionArgs, type LoaderFunctionArgs, data } from "@remix-run/node";
 import { Link, useLoaderData, useSubmit } from "@remix-run/react";
 import { createColumnHelper } from "@tanstack/react-table";
 import { AlertCircle } from "lucide-react";
+import { useAuthenticityToken } from "remix-utils/csrf/react";
+import { z } from "zod";
+import { parseWithZod } from "@conform-to/zod";
 import { AdminCarRowActions } from "~/components/Table/AdminRowActions";
 import { ColumnHeader } from "~/components/Table/ColumnHeader";
 import { Table } from "~/components/Table/Table";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
+import { requireAdminOrStaffWithRedirect } from "~/modules/auth/auth.server";
 import { prisma } from "~/modules/db/db.server";
+import { validateCSRF } from "~/utils/csrf-action.server";
+
+// Validation schemas
+const updateCarStatusSchema = z.object({
+  intent: z.literal("updateCarStatus"),
+  carId: z.string().min(1, "Car ID is required"),
+  status: z.nativeEnum(CarApprovalStatus, {
+    required_error: "Car approval status is required",
+    invalid_type_error: "Invalid car approval status",
+  }),
+});
+
+const updateOwnerStatusSchema = z.object({
+  intent: z.literal("updateOwnerStatus"),
+  status: z.nativeEnum(FleetOwnerStatus, {
+    required_error: "Fleet owner status is required",
+    invalid_type_error: "Invalid fleet owner status",
+  }),
+});
+
+const actionSchema = z.discriminatedUnion("intent", [
+  updateCarStatusSchema,
+  updateOwnerStatusSchema,
+]);
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
+  await requireAdminOrStaffWithRedirect(request);
+
   const owner = await prisma.user.findUnique({
     where: { id: params.id },
     include: {
       cars: true,
-      //   fleetOwnerStatus: true,
     },
   });
 
@@ -23,44 +52,57 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     throw new Response("Not Found", { status: 404 });
   }
 
-  return json({ owner });
+  return { owner };
 }
 
 export async function action({ request, params }: ActionFunctionArgs) {
+  await validateCSRF(request);
+  await requireAdminOrStaffWithRedirect(request);
+
   const formData = await request.formData();
-  const intent = formData.get("intent");
+  const submission = parseWithZod(formData, { schema: actionSchema });
+  const ownerId = params.id;
+
+  if (submission.status !== "success") {
+    return data(
+      {
+        success: false,
+        error: "Validation failed",
+        submission: submission.reply(),
+      },
+      { status: 400 },
+    );
+  }
+
+  const { intent } = submission.value;
 
   if (intent === "updateCarStatus") {
-    const { carId, status } = Object.fromEntries(formData);
+    const { carId, status } = submission.value;
 
-    if (typeof carId !== "string" || typeof status !== "string") {
-      return json({ success: false });
-    }
-
-    await prisma.car.update({
-      where: { id: carId },
+    const { count } = await prisma.car.updateMany({
+      where: { id: carId, ownerId },
       data: {
-        approvalStatus: status as CarApprovalStatus,
+        approvalStatus: status,
       },
     });
+
+    if (count === 0) {
+      return data({ success: false, error: "Car not found" }, { status: 404 });
+    }
   }
 
   if (intent === "updateOwnerStatus") {
-    const { ownerId, status } = Object.fromEntries(formData);
-
-    if (typeof ownerId !== "string" || typeof status !== "string") {
-      return json({ success: false });
-    }
+    const { status } = submission.value;
 
     await prisma.user.update({
       where: { id: ownerId },
       data: {
-        fleetOwnerStatus: status as FleetOwnerStatus,
+        fleetOwnerStatus: status,
       },
     });
   }
 
-  return json({ success: true });
+  return { success: true };
 }
 
 const statusColorMap: Record<CarApprovalStatus, string> = {
@@ -68,6 +110,7 @@ const statusColorMap: Record<CarApprovalStatus, string> = {
   APPROVED: "text-green-600 border-green-600",
   REJECTED: "text-red-600 border-red-600",
 };
+
 const statusTextMap: Record<CarApprovalStatus, string> = {
   PENDING: "Pending",
   APPROVED: "Approved",
@@ -136,19 +179,21 @@ const columns = [
     enableColumnFilter: false,
     cell: ({ row }) => {
       const submit = useSubmit();
+      const csrfToken = useAuthenticityToken();
 
       const handleUpdateStatus = (id: string, status: CarApprovalStatus) => {
         const formData = new FormData();
         formData.append("intent", "updateCarStatus");
         formData.append("carId", id);
         formData.append("status", status);
+        formData.append("csrf", csrfToken);
         submit(formData, { method: "POST" });
       };
 
       return <AdminCarRowActions row={row} onUpdateStatus={handleUpdateStatus} />;
     },
   }),
-] as const;
+];
 
 const fleetOwnerstatusColors: Record<FleetOwnerStatus, string> = {
   PROCESSING: "text-yellow-600 border-yellow-600",
@@ -167,6 +212,7 @@ const fleetOwnerStatusOptions: Record<FleetOwnerStatus, string> = {
 export default function OwnerDetails() {
   const { owner } = useLoaderData<typeof loader>();
   const submit = useSubmit();
+  const csrfToken = useAuthenticityToken();
 
   const handleStatusUpdate = (status: FleetOwnerStatus) => {
     if (
@@ -174,7 +220,10 @@ export default function OwnerDetails() {
         `Are you sure you want to change this fleet owner's status to ${status.toLowerCase()}?`,
       )
     ) {
-      submit({ status, intent: "updateOwnerStatus", ownerId: owner.id }, { method: "POST" });
+      submit(
+        { status, intent: "updateOwnerStatus", ownerId: owner.id, csrf: csrfToken },
+        { method: "POST" },
+      );
     }
   };
 
@@ -202,7 +251,7 @@ export default function OwnerDetails() {
                 onClick={() => handleStatusUpdate("ON_HOLD")}
                 className="bg-yellow-600 hover:bg-yellow-700 text-white w-full md:w-auto"
               >
-                Mark as Pending
+                Put on Hold
               </Button>
             ) : (
               <Button

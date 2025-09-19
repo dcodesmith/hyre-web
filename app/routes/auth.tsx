@@ -1,7 +1,7 @@
 import { getFormProps, getInputProps, useForm } from "@conform-to/react";
 import { getZodConstraint, parseWithZod } from "@conform-to/zod";
 import { CogIcon } from "@heroicons/react/24/outline";
-import { ActionFunctionArgs, LoaderFunctionArgs, json } from "@remix-run/node";
+import { ActionFunctionArgs, LoaderFunctionArgs, data } from "@remix-run/node";
 import {
   Outlet,
   useActionData,
@@ -60,7 +60,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const authEmail = cookie.get("auth:email");
   const authError = cookie.get(authenticator.sessionErrorKey);
 
-  return json({ authEmail, authError });
+  return { authEmail, authError };
 }
 
 export async function action({ request }: ActionFunctionArgs) {
@@ -72,7 +72,7 @@ export async function action({ request }: ActionFunctionArgs) {
   // Validate the form data
   const submission = parseWithZod(formData, { schema: LoginSchema });
   if (submission.status !== "success") {
-    return json(submission.reply(), { status: 400 });
+    return data(submission.reply(), { status: 400 });
   }
 
   const url = new URL(request.url);
@@ -97,7 +97,7 @@ export async function action({ request }: ActionFunctionArgs) {
     return response;
   } catch (error) {
     if (error instanceof AuthorizationError) {
-      return json({ error: error.message }, { status: 401 });
+      return data({ error: error.message }, { status: 401 });
     }
 
     if (error instanceof Response) {

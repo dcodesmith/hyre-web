@@ -1,6 +1,5 @@
 import type { Prisma, User as PrismaUser } from "@prisma/client";
-import { Decimal } from "@prisma/client/runtime/library";
-import { ActionFunctionArgs, LoaderFunctionArgs, json } from "@remix-run/node";
+import { type ActionFunctionArgs, type LoaderFunctionArgs, data } from "@remix-run/node";
 import {
   Link,
   useActionData,
@@ -8,6 +7,7 @@ import {
   useNavigation,
   useSearchParams,
 } from "@remix-run/react";
+import { Decimal } from "@prisma/client/runtime/library";
 import { format, isToday } from "date-fns";
 import { Calendar, CheckCircle, CreditCard, Loader2, MapPin, User } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -51,337 +51,314 @@ import { emailQueue } from "~/queues/email-throttle.server";
 import { cancelBooking, getBooking } from "~/services/bookings.server";
 import { refundPayment } from "~/services/payment.server";
 import { BookingLegWithRelations, BookingWithRelations } from "~/types";
+import { validateCSRF } from "~/utils/csrf-action.server";
 import { env } from "~/utils/server/env.server";
 
-export async function action({ request, params }: ActionFunctionArgs) {
-  invariant(params.id, "Booking ID is required");
-  const bookingId = params.id;
+type Booking = ReturnType<typeof useLoaderData<typeof loader>>["booking"];
 
-  const currentBooking = await getBooking(bookingId);
-
-  if (!currentBooking) {
-    return json({ error: "Booking not found" }, { status: 404 });
-  }
-
+async function authorizeBookingAccess(
+  request: Request,
+  currentBooking: BookingWithRelations,
+  bookingId: string,
+): Promise<{
+  isAuthorized: boolean;
+  sessionUser: PrismaUser | null;
+  errorResponse?: Response;
+}> {
   const url = new URL(request.url);
   const guestEmail = url.searchParams.get("email");
-
-  let isAuthorized = false;
-  let sessionUser: PrismaUser | null = null;
 
   if (guestEmail) {
     const bookingGuestDetails = currentBooking.guestUser as Prisma.JsonObject | null;
     const bookingGuestEmail = bookingGuestDetails?.email as string | undefined;
 
     if (bookingGuestEmail && bookingGuestEmail === guestEmail) {
-      isAuthorized = true;
-    } else {
-      logger.error("Unauthorized guest access", {
-        bookingId: currentBooking.id,
-        bookingReference: currentBooking.bookingReference,
-        guestEmailAttempt: `${guestEmail[0]}***${guestEmail.substring(guestEmail.indexOf("@"))}`,
-      });
+      return { isAuthorized: true, sessionUser: null };
+    }
 
-      return json(
+    logger.error("Unauthorized guest access", {
+      bookingId: currentBooking.id,
+      bookingReference: currentBooking.bookingReference,
+      guestEmailAttempt: `${guestEmail[0]}***${guestEmail.substring(guestEmail.indexOf("@"))}`,
+    });
+
+    return {
+      isAuthorized: false,
+      sessionUser: null,
+      errorResponse: data(
         { error: "Unauthorized: Invalid guest email for this booking action." },
         { status: 403 },
-      );
-    }
-  } else {
-    sessionUser = await requireUser(request, {
-      redirectTo: `/auth?redirectTo=/bookings/${params.id}`,
-    });
-    if (currentBooking.userId === sessionUser.id) {
-      isAuthorized = true;
-    }
+      ),
+    };
   }
 
+  const sessionUser = await requireUser(request, {
+    redirectTo: `/auth?redirectTo=/bookings/${bookingId}`,
+  });
+
+  return {
+    isAuthorized: currentBooking.userId === sessionUser.id,
+    sessionUser,
+  };
+}
+
+async function parsePickupTime(
+  pickupTime: string,
+  currentBooking: BookingWithRelations,
+): Promise<{ startDate?: Date; endDate?: Date; error?: string }> {
+  const baseDate = new Date(currentBooking.startDate);
+  const [time, period] = pickupTime.split(" ");
+  const [hoursStr, minutesStr] = time.split(":");
+  const hours = Number.parseInt(hoursStr, 10);
+  const minutes = Number.parseInt(minutesStr, 10);
+
+  let hour24 = hours;
+  if (period.toUpperCase() === "PM" && hour24 !== 12) {
+    hour24 += 12;
+  } else if (period.toUpperCase() === "AM" && hour24 === 12) {
+    hour24 = 0;
+  }
+
+  if (Number.isNaN(hour24) || Number.isNaN(minutes)) {
+    return { error: "Invalid pickup time format." };
+  }
+
+  baseDate.setHours(hour24, minutes, 0, 0);
+  const newStartDate = new Date(baseDate);
+  const newEndDate = new Date(newStartDate);
+
+  if (currentBooking.type === "FULL_DAY") {
+    newEndDate.setTime(newStartDate.getTime() + 24 * 60 * 60 * 1000);
+  } else {
+    newEndDate.setHours(newStartDate.getHours() + 12);
+  }
+
+  return { startDate: newStartDate, endDate: newEndDate };
+}
+
+async function handleBookingUpdate(
+  request: Request,
+  bookingId: string,
+  currentBooking: BookingWithRelations,
+) {
+  const formData = await request.formData();
+  const pickupTime = formData.get("pickupTime")?.toString();
+  const pickupAddress = formData.get("pickupAddress")?.toString();
+  const sameLocation = formData.get("sameLocation") === "on";
+  const dropOffAddressFromForm = formData.get("dropOffAddress")?.toString();
+
+  let newStartDateForPatch: Date | undefined;
+  let newEndDateForPatch: Date | undefined;
+
+  if (pickupTime) {
+    const timeResult = await parsePickupTime(pickupTime, currentBooking);
+    if (timeResult.error) return timeResult.error;
+    newStartDateForPatch = timeResult.startDate;
+    newEndDateForPatch = timeResult.endDate;
+  }
+
+  const dateForEditCheck = newStartDateForPatch || new Date(currentBooking.startDate);
+  if (!isBookingEditable(dateForEditCheck)) {
+    return data(
+      { error: "Bookings cannot be edited within 12 hours of start time." },
+      { status: 400 },
+    );
+  }
+
+  const newPickupLocationForUpdate =
+    pickupAddress && pickupAddress !== currentBooking.pickupLocation ? pickupAddress : undefined;
+  const finalEffectivePickupLocation = newPickupLocationForUpdate ?? currentBooking.pickupLocation;
+  const targetReturnLocation = sameLocation
+    ? finalEffectivePickupLocation
+    : dropOffAddressFromForm || currentBooking.returnLocation;
+  const newReturnLocationForUpdate =
+    targetReturnLocation !== currentBooking.returnLocation ? targetReturnLocation : undefined;
+
+  const updateData: Prisma.BookingUpdateInput = {
+    ...(newStartDateForPatch && { startDate: newStartDateForPatch }),
+    ...(newEndDateForPatch && { endDate: newEndDateForPatch }),
+    ...(newPickupLocationForUpdate && { pickupLocation: newPickupLocationForUpdate }),
+    ...(newReturnLocationForUpdate && { returnLocation: newReturnLocationForUpdate }),
+  };
+
+  if (Object.keys(updateData).length === 0) {
+    return {
+      success: true,
+      booking: currentBooking,
+      message: "No changes detected.",
+    };
+  }
+
+  try {
+    const updatedBooking = await prisma.booking.update({
+      where: { id: bookingId },
+      data: updateData,
+      include: {
+        user: true,
+        car: { include: { owner: true } },
+        chauffeur: true,
+        legs: { include: { extensions: true } },
+      },
+    });
+
+    const { email } = getCustomerDetails(updatedBooking);
+    const { carName } = normaliseBookingDetails(updatedBooking);
+
+    if (email) {
+      await emailQueue.add(async () => {
+        try {
+          await sendEmail({
+            to: email,
+            subject: "Booking Updated",
+            html: `Your booking for ${carName} has been updated.`,
+          });
+        } catch (err) {
+          logger.error("Failed to send booking update email", { bookingId, to: email, err });
+        }
+      });
+    } else {
+      logger.warn("No customer email available for booking update notification", { bookingId });
+    }
+
+    return { success: true, booking: updatedBooking };
+  } catch {
+    return data({ error: "Failed to update booking. Please try again." }, { status: 500 });
+  }
+}
+
+async function handleBookingCancellation(bookingId: string, sessionUser: PrismaUser | null) {
+  try {
+    const booking = await cancelBooking(
+      bookingId,
+      sessionUser ? "User requested cancellation" : "Guest requested cancellation",
+    );
+
+    if (!booking) {
+      return data({ error: "Booking not found or already cancelled" }, { status: 404 });
+    }
+
+    if (booking.paymentId && booking.totalAmount.gt(0)) {
+      const callbackurl = `${env.FLUTTERWAVE_WEBHOOK_URL}/api/payments/webhook/flutterwave`;
+      const refund = await refundPayment(
+        booking.paymentId,
+        booking.totalAmount.toNumber(),
+        callbackurl,
+      );
+
+      if (refund.success && refund.refundId) {
+        logger.info(`Refund successful for Booking ${booking.id}. Refund ID: ${refund.refundId}.`);
+      } else {
+        logger.error(
+          `Failed to initiate refund for booking ${booking.id}: ${refund.error}. MANUAL REFUND REQUIRED.`,
+        );
+      }
+    }
+
+    const bookingDetails = normaliseBookingDetails(booking);
+    const { email } = getCustomerDetails(booking);
+
+    // Send notifications
+    await emailQueue.add(async () => {
+      if (bookingDetails.customerPhoneNumber) {
+        const result = await sendMessage({
+          variables: {
+            "1": bookingDetails.customerName,
+            "2": bookingDetails.carName,
+            "3": bookingDetails.totalAmount,
+            "4": bookingDetails.cancellationReason,
+            "5": bookingDetails.startDate,
+            "6": bookingDetails.endDate,
+            "7": bookingDetails.pickupLocation,
+            "8": bookingDetails.returnLocation,
+          },
+          to: bookingDetails.customerPhoneNumber,
+          templateKey: Template.BookingCancellationClient,
+        });
+
+        if (result) {
+          logger.info(`Message sent successfully to ${bookingDetails.customerPhoneNumber}`);
+        } else {
+          logger.error(`Failed to send message to ${bookingDetails.customerPhoneNumber}`);
+        }
+      }
+
+      if (booking.car.owner.phoneNumber) {
+        await sendMessage({
+          variables: {
+            "1": bookingDetails.ownerName,
+            "2": bookingDetails.carName,
+            "3": bookingDetails.cancellationReason,
+            "4": bookingDetails.customerName,
+            "5": bookingDetails.startDate,
+            "6": bookingDetails.endDate,
+            "7": bookingDetails.pickupLocation,
+            "8": bookingDetails.returnLocation,
+            "9": bookingDetails.totalAmount,
+          },
+          to: booking.car.owner.phoneNumber,
+          templateKey: Template.BookingCancellationFleetOwner,
+        });
+      }
+    });
+
+    await emailQueue.add(async () => {
+      const results = await Promise.allSettled([
+        sendEmail({
+          to: email,
+          subject: "Booking Cancelled",
+          html: await renderUserBookingCancellationEmail(bookingDetails),
+        }),
+        sendEmail({
+          to: booking.car.owner.email,
+          subject: "Booking Cancelled by User",
+          html: await renderFleetOwnerBookingCancellationEmail(bookingDetails),
+        }),
+      ]);
+
+      results.forEach((result, index) => {
+        const emailType = index === 0 ? "customer" : "fleet owner";
+        if (result.status === "fulfilled") {
+          logger.info(`${emailType} email sent successfully`);
+        } else {
+          logger.error(`${emailType} email failed`, { error: result.reason });
+        }
+      });
+    });
+
+    await emailQueue.onIdle();
+    return { success: true, message: "Booking cancelled successfully." };
+  } catch {
+    return data({ error: "Failed to cancel booking. Please try again." }, { status: 500 });
+  }
+}
+
+export async function action({ request, params }: ActionFunctionArgs) {
+  await validateCSRF(request);
+  invariant(params.id, "Booking ID is required");
+
+  const currentBooking = await getBooking(params.id);
+  if (!currentBooking) {
+    return data({ error: "Booking not found" }, { status: 404 });
+  }
+
+  const { isAuthorized, sessionUser, errorResponse } = await authorizeBookingAccess(
+    request,
+    currentBooking,
+    params.id,
+  );
   if (!isAuthorized) {
-    return json({ error: "Unauthorized" }, { status: 403 });
+    return errorResponse || data({ error: "Unauthorized" }, { status: 403 });
   }
 
   if (request.method === "PATCH") {
-    const formData = await request.formData();
-    const pickupTime = formData.get("pickupTime")?.toString();
-    const pickupAddress = formData.get("pickupAddress")?.toString();
-    const sameLocation = formData.get("sameLocation") === "on";
-    const dropOffAddressFromForm = formData.get("dropOffAddress")?.toString();
-
-    let newStartDateForPatch: Date | undefined;
-    let newEndDateForPatch: Date | undefined;
-
-    if (pickupTime) {
-      const baseDate = new Date(currentBooking.startDate);
-      const [time, period] = pickupTime.split(" ");
-      const [hoursStr, minutesStr] = time.split(":");
-      const hours = Number.parseInt(hoursStr, 10);
-      const minutes = Number.parseInt(minutesStr, 10);
-
-      let hour24 = hours;
-      if (period?.toUpperCase() === "PM" && hour24 !== 12) {
-        hour24 += 12;
-      } else if (period?.toUpperCase() === "AM" && hour24 === 12) {
-        hour24 = 0;
-      }
-
-      if (!Number.isNaN(hour24) && !Number.isNaN(minutes)) {
-        baseDate.setHours(hour24, minutes, 0, 0);
-        newStartDateForPatch = new Date(baseDate);
-        newEndDateForPatch = new Date(newStartDateForPatch);
-
-        // Set end time based on booking type
-        if (currentBooking.type === "FULL_DAY") {
-          newEndDateForPatch.setTime(newStartDateForPatch.getTime() + 24 * 60 * 60 * 1000);
-        } else {
-          newEndDateForPatch.setHours(newStartDateForPatch.getHours() + 12);
-        }
-      } else {
-        return json({ error: "Invalid pickup time format." }, { status: 400 });
-      }
-    }
-
-    const dateForEditCheck = newStartDateForPatch || new Date(currentBooking.startDate);
-
-    if (!isBookingEditable(dateForEditCheck)) {
-      return json(
-        { error: "Bookings cannot be edited within 12 hours of start time." },
-        { status: 400 },
-      );
-    }
-
-    const newPickupLocationForUpdate =
-      pickupAddress && pickupAddress !== currentBooking.pickupLocation ? pickupAddress : undefined;
-
-    const finalEffectivePickupLocation =
-      newPickupLocationForUpdate ?? currentBooking.pickupLocation;
-
-    const targetReturnLocation = sameLocation
-      ? finalEffectivePickupLocation
-      : dropOffAddressFromForm || currentBooking.returnLocation;
-
-    const newReturnLocationForUpdate =
-      targetReturnLocation !== currentBooking.returnLocation ? targetReturnLocation : undefined;
-
-    const updateData: Prisma.BookingUpdateInput = {
-      ...(newStartDateForPatch && { startDate: newStartDateForPatch }),
-      ...(newEndDateForPatch && { endDate: newEndDateForPatch }),
-      ...(newPickupLocationForUpdate && { pickupLocation: newPickupLocationForUpdate }),
-      ...(newReturnLocationForUpdate && { returnLocation: newReturnLocationForUpdate }),
-    };
-
-    if (Object.keys(updateData).length === 0) {
-      return json({ success: true, booking: currentBooking, message: "No changes detected." });
-    }
-
-    try {
-      const updatedBooking = await prisma.booking.update({
-        where: { id: bookingId },
-        data: updateData,
-        include: {
-          user: true,
-          car: { include: { owner: true } },
-          chauffeur: true,
-          legs: {
-            include: {
-              extensions: true,
-            },
-          },
-        },
-      });
-
-      const { email } = getCustomerDetails(updatedBooking);
-      const { carName } = normaliseBookingDetails(updatedBooking);
-
-      emailQueue.add(async () => {
-        logger.info(`Sending booking update email to ${email}`);
-
-        await sendEmail({
-          to: email,
-          subject: "Booking Updated",
-          html: `Your booking for ${carName} has been updated.`,
-        });
-      });
-
-      return json({ success: true, booking: updatedBooking });
-    } catch (error) {
-      return json({ error: "Failed to update booking. Please try again." }, { status: 500 });
-    }
+    return handleBookingUpdate(request, params.id, currentBooking);
   }
 
   if (request.method === "DELETE") {
-    try {
-      const booking = await cancelBooking(
-        bookingId,
-        sessionUser ? "User requested cancellation" : "Guest requested cancellation",
-      );
-
-      if (!booking) {
-        return json({ error: "Booking not found or already cancelled" }, { status: 404 });
-      }
-
-      logger.info(`Booking paymentId: ${booking.paymentId}`);
-
-      if (booking.paymentId && booking.totalAmount.gt(0)) {
-        const callbackurl = `${env.FLUTTERWAVE_WEBHOOK_URL}/api/payments/webhook/flutterwave`;
-
-        const refund = await refundPayment(
-          booking.paymentId,
-          booking.totalAmount.toNumber(),
-          callbackurl,
-        );
-
-        if (refund.success && refund.refundId) {
-          logger.info(
-            `Refund successful for Booking ${booking.id}. Refund ID: ${refund.refundId}.`,
-          );
-        } else {
-          logger.error(
-            `Failed to initiate refund for booking ${booking.id}: ${refund.error}. MANUAL REFUND REQUIRED.`,
-          );
-        }
-      }
-
-      const bookingDetails = normaliseBookingDetails(booking);
-      const { email } = getCustomerDetails(booking);
-
-      emailQueue.add(async () => {
-        logger.info(`Sending booking cancellation email to ${email}`);
-
-        if (bookingDetails.customerPhoneNumber) {
-          await sendMessage({
-            variables: {
-              "1": bookingDetails.customerName,
-              "2": bookingDetails.carName,
-              "3": bookingDetails.totalAmount,
-              "4": bookingDetails.cancellationReason,
-              "5": bookingDetails.startDate,
-              "6": bookingDetails.endDate,
-              "7": bookingDetails.pickupLocation,
-              "8": bookingDetails.returnLocation,
-            },
-            to: bookingDetails.customerPhoneNumber,
-            templateKey: Template.BookingCancellationClient,
-          });
-        }
-        if (booking.car.owner.phoneNumber) {
-          await sendMessage({
-            variables: {
-              "1": bookingDetails.ownerName,
-              "2": bookingDetails.carName,
-              "3": bookingDetails.cancellationReason,
-              "4": bookingDetails.customerName,
-              "5": bookingDetails.startDate,
-              "6": bookingDetails.endDate,
-              "7": bookingDetails.pickupLocation,
-              "8": bookingDetails.returnLocation,
-              "9": bookingDetails.totalAmount,
-            },
-            to: booking.car.owner.phoneNumber,
-            templateKey: Template.BookingCancellationFleetOwner,
-          });
-        }
-      });
-
-      emailQueue.add(async () => {
-        logger.info(`Sending booking cancellation email to ${booking.car.owner.email}`);
-
-        const results = await Promise.allSettled([
-          sendEmail({
-            to: email,
-            subject: "Booking Cancelled",
-            html: await renderUserBookingCancellationEmail(bookingDetails),
-          }),
-
-          sendEmail({
-            to: booking.car.owner.email,
-            subject: "Booking Cancelled by User",
-            html: await renderFleetOwnerBookingCancellationEmail(bookingDetails),
-          }),
-        ]);
-
-        results.forEach((result, index) => {
-          const emailType = index === 0 ? "customer" : "fleet owner";
-          if (result.status === "fulfilled") {
-            logger.info(`${emailType} email sent successfully`);
-          } else {
-            logger.error(`${emailType} email failed`, { error: result.reason });
-          }
-        });
-      });
-
-      await emailQueue.onIdle();
-      return json({
-        success: true,
-        message: "Booking cancelled successfully.",
-      });
-    } catch (error) {
-      return json({ error: "Failed to cancel booking. Please try again." }, { status: 500 });
-    }
+    return handleBookingCancellation(params.id, sessionUser);
   }
 
-  return json({ error: "Method not allowed" }, { status: 405 });
-}
-
-function createPaymentSummary(booking: BookingWithRelations) {
-  // Use schema field names for clarity; map them from your original `netTotal` if different.
-  // Example: const baseBookingNetTotal = new Decimal(booking.netTotal ?? 0);
-  const baseBookingNetTotal = new Decimal(booking.netTotal ?? 0);
-  const baseBookingServiceFee = new Decimal(booking.platformCustomerServiceFeeAmount ?? 0);
-  const baseBookingVat = new Decimal(booking.vatAmount ?? 0);
-  const fuelUpgradeCost = new Decimal(booking.fuelUpgradeCost ?? 0);
-
-  // Step 1: Sum up the net total and duration from all active extensions.
-  // Using flatMap + reduce is more direct than nested reduce calls.
-  const extensionSummary = booking.legs
-    .flatMap((leg) => leg.extensions) // Get all extensions into a single array
-    // .filter(ext => ext.status !== 'CANCELLED') // Optional: Exclude cancelled extensions
-    .reduce(
-      (acc, ext) => {
-        // Using extension netTotal (sum of confirmed/paid extensions).
-        acc.netTotal = acc.netTotal.plus(ext.netTotal ?? 0);
-        acc.totalHours += ext.extendedDurationHours ?? 0;
-        return acc;
-      },
-      { netTotal: new Decimal(0), totalHours: 0 },
-    );
-
-  // If there are no extensions, return the base booking's summary.
-  if (extensionSummary.totalHours === 0) {
-    return {
-      netTotal: baseBookingNetTotal,
-      platformCustomerServiceFeeAmount: baseBookingServiceFee,
-      extensionNetTotal: new Decimal(0),
-      totalExtendedHours: new Decimal(0),
-      vatAmount: baseBookingVat,
-      fuelUpgradeCost,
-      totalAmount: new Decimal(booking.totalAmount ?? 0),
-    };
-  }
-
-  // Step 2: Calculate the service fee and VAT for the *extensions only*.
-  const feeRatePercent = new Decimal(booking.platformCustomerServiceFeeRatePercent ?? 0).div(100);
-  const vatRatePercent = new Decimal(booking.vatRatePercent ?? 0).div(100);
-
-  const extensionServiceFee = extensionSummary.netTotal.mul(feeRatePercent);
-  const extensionSubtotalBeforeVat = extensionSummary.netTotal.plus(extensionServiceFee);
-  const extensionVat = extensionSubtotalBeforeVat.mul(vatRatePercent);
-
-  // Step 3: Calculate the final grand totals by ADDING the base and extension components.
-  const finalServiceFee = baseBookingServiceFee.plus(extensionServiceFee);
-  const finalVat = baseBookingVat.plus(extensionVat);
-  const finalNetTotal = baseBookingNetTotal.plus(extensionSummary.netTotal);
-  const finalGrossTotal = finalNetTotal.plus(finalServiceFee).plus(finalVat);
-
-  // Step 4: Return the final summary object, matching your original structure.
-  return {
-    netTotal: baseBookingNetTotal,
-    platformCustomerServiceFeeAmount: finalServiceFee,
-    extensionNetTotal: extensionSummary.netTotal,
-    totalExtendedHours: new Decimal(extensionSummary.totalHours),
-    vatAmount: finalVat,
-    fuelUpgradeCost,
-    totalAmount: finalGrossTotal,
-  };
+  return data({ error: "Method not allowed" }, { status: 405 });
 }
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
@@ -443,7 +420,78 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   const paymentSummary = createPaymentSummary(booking);
   const extendableDuration = getLegExtendableDuration(booking);
 
-  return json({ booking, paymentSummary, extendableDuration });
+  // Serialize Decimal fields to numbers to prevent hydration issues
+  const serializedBooking = {
+    ...booking,
+    vatRatePercent: booking.vatRatePercent?.toNumber() ?? 0,
+    platformCustomerServiceFeeRatePercent:
+      booking.platformCustomerServiceFeeRatePercent?.toNumber() ?? 0,
+    securityDetailCost: booking.securityDetailCost?.toNumber() ?? 0,
+  };
+
+  return data({ booking: serializedBooking, paymentSummary, extendableDuration }, { status: 200 });
+}
+
+function createPaymentSummary(booking: BookingWithRelations) {
+  // Use schema field names for clarity; map them from your original `netTotal` if different.
+  // Example: const baseBookingNetTotal = new Decimal(booking.netTotal ?? 0);
+  const baseBookingNetTotal = new Decimal(booking.netTotal ?? 0);
+  const baseBookingServiceFee = new Decimal(booking.platformCustomerServiceFeeAmount ?? 0);
+  const baseBookingVat = new Decimal(booking.vatAmount ?? 0);
+  const fuelUpgradeCost = new Decimal(booking.fuelUpgradeCost ?? 0);
+
+  // Step 1: Sum up the net total and duration from all active extensions.
+  // Using flatMap + reduce is more direct than nested reduce calls.
+  const extensionSummary = booking.legs
+    .flatMap((leg) => leg.extensions) // Get all extensions into a single array
+    // .filter(ext => ext.status !== 'CANCELLED') // Optional: Exclude cancelled extensions
+    .reduce(
+      (acc, ext) => {
+        // Using extension netTotal (sum of confirmed/paid extensions).
+        acc.netTotal = acc.netTotal.plus(ext.netTotal ?? 0);
+        acc.totalHours += ext.extendedDurationHours ?? 0;
+        return acc;
+      },
+      { netTotal: new Decimal(0), totalHours: 0 },
+    );
+
+  // If there are no extensions, return the base booking's summary.
+  if (extensionSummary.totalHours === 0) {
+    return {
+      netTotal: baseBookingNetTotal.toNumber(),
+      platformCustomerServiceFeeAmount: baseBookingServiceFee.toNumber(),
+      extensionNetTotal: new Decimal(0).toNumber(),
+      totalExtendedHours: new Decimal(0).toNumber(),
+      vatAmount: baseBookingVat.toNumber(),
+      fuelUpgradeCost: fuelUpgradeCost.toNumber(),
+      totalAmount: new Decimal(booking.totalAmount ?? 0).toNumber(),
+    };
+  }
+
+  // Step 2: Calculate the service fee and VAT for the *extensions only*.
+  const feeRatePercent = new Decimal(booking.platformCustomerServiceFeeRatePercent ?? 0).div(100);
+  const vatRatePercent = new Decimal(booking.vatRatePercent ?? 0).div(100);
+
+  const extensionServiceFee = extensionSummary.netTotal.mul(feeRatePercent);
+  const extensionSubtotalBeforeVat = extensionSummary.netTotal.plus(extensionServiceFee);
+  const extensionVat = extensionSubtotalBeforeVat.mul(vatRatePercent);
+
+  // Step 3: Calculate the final grand totals by ADDING the base and extension components.
+  const finalServiceFee = baseBookingServiceFee.plus(extensionServiceFee);
+  const finalVat = baseBookingVat.plus(extensionVat);
+  const finalNetTotal = baseBookingNetTotal.plus(extensionSummary.netTotal);
+  const finalGrossTotal = finalNetTotal.plus(finalServiceFee).plus(finalVat);
+
+  // Step 4: Return the final summary object, matching your original structure.
+  return {
+    netTotal: baseBookingNetTotal.toNumber(),
+    platformCustomerServiceFeeAmount: finalServiceFee.toNumber(),
+    extensionNetTotal: extensionSummary.netTotal.toNumber(),
+    totalExtendedHours: new Decimal(extensionSummary.totalHours).toNumber(),
+    vatAmount: finalVat.toNumber(),
+    fuelUpgradeCost: fuelUpgradeCost.toNumber(),
+    totalAmount: finalGrossTotal.toNumber(),
+  };
 }
 
 const TimePointRow = ({
@@ -529,10 +577,25 @@ const BookingLegTimeline = ({
     return { text: "Error", styleClass: "bg-red-50 text-red-700 border-red-200" };
   })();
 
-  const returnTimeText =
-    extendedDuration > 0
-      ? `${format(legEndTime, "h:mm a")} (Extended)`
-      : format(bookingEndDateObject, "h:mm a");
+  const getReturnTimeText = () => {
+    if (extendedDuration > 0) {
+      return `${format(legEndTime, "h:mm a")} (Extended)`;
+    }
+    return format(bookingEndDateObject, "h:mm a");
+  };
+
+  const getFullDayReturnText = () => {
+    if (extendedDuration > 0) {
+      return `${format(legEndTime, "h:mm a - MMM do")} (Extended)`;
+    }
+    return format(legEndTime, "h:mm a - MMM do");
+  };
+
+  const getServiceTypeText = () => {
+    if (booking.type === "FULL_DAY") return "Standard 24-hour service";
+    if (booking.type === "NIGHT") return "Standard 6-hour service";
+    return "Standard 12-hour service";
+  };
 
   return (
     <div key={leg.id} className="space-y-3">
@@ -569,13 +632,7 @@ const BookingLegTimeline = ({
           />
           <TimePointRow
             label="Return"
-            timeText={
-              booking.type === "FULL_DAY"
-                ? extendedDuration > 0
-                  ? `${format(legEndTime, "h:mm a - MMM do")} (Extended)`
-                  : format(legEndTime, "h:mm a - MMM do")
-                : returnTimeText
-            }
+            timeText={booking.type === "FULL_DAY" ? getFullDayReturnText() : getReturnTimeText()}
             labelColorClassWhenStarted="text-red-600"
             isLegStarted={isLegStarted}
           />
@@ -599,11 +656,7 @@ const BookingLegTimeline = ({
         </Alert>
       ) : (
         <p className={`text-sm ${isLegStarted ? "text-slate-600" : "text-slate-400"}`}>
-          {booking.type === "FULL_DAY"
-            ? "Standard 24-hour service"
-            : booking.type === "NIGHT"
-              ? "Standard 6-hour service"
-              : "Standard 12-hour service"}
+          {getServiceTypeText()}
         </p>
       )}
       {index < booking.legs.length - 1 && <Separator />}
@@ -611,11 +664,142 @@ const BookingLegTimeline = ({
   );
 };
 
+function BookingHeader({ booking }: { booking: Booking }) {
+  const getPaymentStatusClass = () => {
+    if (booking.paymentStatus === "REFUNDED") return "bg-blue-100 text-blue-800 border-blue-200";
+    if (booking.paymentStatus === "PAID") return "bg-green-100 text-green-800 border-green-200";
+    return "bg-yellow-100 text-yellow-800 border-yellow-200";
+  };
+
+  return (
+    <div className="flex flex-row justify-between items-end gap-3">
+      <p className="text-base flex sm:flex-row flex-col gap-2">
+        <span className="font-semibold items-end">
+          {booking.car.make} {booking.car.model} - {booking.car.year}
+        </span>
+        <span className="text-sm items-end">({booking.bookingReference})</span>
+      </p>
+      <div className="flex flex-wrap items-end gap-2">
+        <Badge
+          variant="outline"
+          className={`text-sm rounded-sm capitalize ${
+            booking.status === "CANCELLED"
+              ? "bg-red-100 text-red-800 border-red-200"
+              : "bg-green-100 text-green-800 border-green-200"
+          }`}
+        >
+          <CheckCircle className="w-3 h-3 mr-1" />
+          {booking.status.toLowerCase()}
+        </Badge>
+        <Badge
+          variant="outline"
+          className={`text-sm rounded-sm capitalize ${getPaymentStatusClass()}`}
+        >
+          <CreditCard className="w-3 h-3 mr-1" />
+          {booking.paymentStatus.toLowerCase()}
+        </Badge>
+      </div>
+    </div>
+  );
+}
+
+function BookingTimeline({ booking }: { booking: Booking }) {
+  return (
+    <Card className="rounded">
+      <CardHeader className="p-4">
+        <CardTitle className="flex items-center gap-2 text-base">
+          <Calendar className="w-5 h-5 text-blue-600" />
+          Trip Timeline
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="p-4 pt-0">
+        <div className="space-y-6">
+          {booking.legs.map((leg, index: number) => (
+            <BookingLegTimeline
+              key={leg.id}
+              leg={leg as unknown as BookingLegWithRelations}
+              index={index}
+              booking={booking as unknown as BookingWithRelations}
+            />
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function LocationCard({ booking }: { booking: Booking }) {
+  return (
+    <Card className="rounded">
+      <CardHeader className="p-4">
+        <CardTitle className="flex items-center gap-2 text-base">
+          <MapPin className="w-5 h-5 text-blue-600" />
+          Location Details
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="p-4 pt-0">
+        <div className="space-y-4">
+          <div className="flex items-start gap-3">
+            <div className="w-2 h-2 bg-green-500 rounded-full mt-2" />
+            <div>
+              <p className="text-sm font-medium text-slate-600">Pickup Location</p>
+              <p className="text-sm font-semibold text-slate-900">{booking.pickupLocation}</p>
+            </div>
+          </div>
+          <Separator />
+          <div className="flex items-start gap-3">
+            <div className="w-2 h-2 bg-red-500 rounded-full mt-2" />
+            <div>
+              <p className="text-sm font-medium text-slate-600">Return Location</p>
+              <p className="text-sm font-semibold text-slate-900">{booking.returnLocation}</p>
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function ChauffeurCard({ booking }: { booking: Booking }) {
+  return (
+    <Card className="rounded">
+      <CardHeader className="p-4">
+        <CardTitle className="flex items-center gap-2 text-base">
+          <User className="w-5 h-5 text-blue-600" />
+          Your Chauffeur
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="p-4 pt-0">
+        <div className="flex items-center gap-3">
+          <Avatar className="w-12 h-12">
+            <AvatarImage alt={booking.chauffeur?.name || "Not Assigned"} />
+            <AvatarFallback>
+              {booking.chauffeur?.name
+                ? booking.chauffeur.name
+                    .split(" ")
+                    .map((n: string) => n[0])
+                    .join("")
+                : "NA"}
+            </AvatarFallback>
+          </Avatar>
+          <div>
+            <p className="text-sm font-semibold text-slate-900">
+              {booking.chauffeur?.name || "Not Assigned"}
+            </p>
+            <p className="text-sm text-slate-600">Professional Chauffeur</p>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function BookingDetails() {
   const { booking, paymentSummary, extendableDuration } = useLoaderData<typeof loader>();
   const [showDropoffFields, setShowDropoffFields] = useState(
     booking.pickupLocation !== booking.returnLocation,
   );
+
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
   const actionData = useActionData<typeof action>();
@@ -638,6 +822,18 @@ export default function BookingDetails() {
   const isCompleted = booking.status === "COMPLETED";
 
   const shouldShowActionsCard = canBeModified || canBeExtended || isCompleted;
+
+  const getBookingTypeDescription = () => {
+    if (booking.type === "DAY") {
+      return "Each booking day is for a 12-hour duration ending 12 hours after the start time unless extended.";
+    }
+
+    if (booking.type === "NIGHT") {
+      return "Each night booking is for a 6-hour duration starting at 11pm.";
+    }
+
+    return "Each full day booking is for a 24-hour duration ending 24 hours after the pickup time.";
+  };
 
   return (
     <div className="min-h-screen p-2 sm:p-4 md:p-6">
@@ -662,140 +858,22 @@ export default function BookingDetails() {
           </Alert>
         )}
 
-        <div className="flex flex-row justify-between items-end gap-3">
-          <p className="text-base flex sm:flex-row flex-col gap-2">
-            <span className="font-semibold items-end">{booking.bookingReference}</span>
-            <span className="text-sm items-end">
-              ({booking.car.make} {booking.car.model} {booking.car.year} - {booking.car.color})
-            </span>
-          </p>
-
-          <div className="flex flex-wrap items-end gap-2">
-            <Badge
-              variant="outline"
-              className={`text-sm rounded-sm capitalize ${
-                booking.status === "CANCELLED"
-                  ? "bg-red-100 text-red-800 border-red-200"
-                  : "bg-green-100 text-green-800 border-green-200"
-              }`}
-            >
-              <CheckCircle className="w-3 h-3 mr-1" />
-              {booking.status.toLowerCase()}
-            </Badge>
-            <Badge
-              variant="outline"
-              className={`text-sm rounded-sm capitalize ${
-                booking.paymentStatus === "REFUNDED"
-                  ? "bg-blue-100 text-blue-800 border-blue-200"
-                  : booking.paymentStatus === "PAID"
-                    ? "bg-green-100 text-green-800 border-green-200"
-                    : "bg-yellow-100 text-yellow-800 border-yellow-200"
-              }`}
-            >
-              <CreditCard className="w-3 h-3 mr-1" />
-              {booking.paymentStatus.toLowerCase()}
-            </Badge>
-          </div>
-        </div>
+        <BookingHeader booking={booking} />
 
         <Alert className="border-blue-200 bg-blue-50 rounded">
           <AlertDescription className="text-sm text-blue-800">
-            {booking.type === "DAY"
-              ? "Each booking day is for a 12-hour duration ending 12 hours after the start time unless extended."
-              : booking.type === "NIGHT"
-                ? "Each night booking is for a 6-hour duration starting at 11pm."
-                : "Each full day booking is for a 24-hour duration ending 24 hours after the pickup time."}
+            {getBookingTypeDescription()}
           </AlertDescription>
         </Alert>
 
         <div className="grid lg:grid-cols-3 gap-4 md:gap-6">
           <div className="lg:col-span-2 space-y-6">
-            <Card className="rounded">
-              <CardHeader className="p-4">
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <Calendar className="w-5 h-5 text-blue-600" />
-                  Trip Timeline
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-4 pt-0">
-                <div className="space-y-6">
-                  {booking.legs.map((leg, index) => {
-                    return (
-                      <BookingLegTimeline
-                        key={leg.id}
-                        leg={leg as unknown as BookingLegWithRelations}
-                        index={index}
-                        booking={booking as unknown as BookingWithRelations}
-                      />
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="rounded">
-              <CardHeader className="p-4">
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <MapPin className="w-5 h-5 text-blue-600" />
-                  Location Details
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-4 pt-0">
-                <div className="space-y-4">
-                  <div className="flex items-start gap-3">
-                    <div className="w-2 h-2 bg-green-500 rounded-full mt-2" />
-                    <div>
-                      <p className="text-sm font-medium text-slate-600">Pickup Location</p>
-                      <p className="text-sm font-semibold text-slate-900">
-                        {booking.pickupLocation}
-                      </p>
-                    </div>
-                  </div>
-                  <Separator />
-                  <div className="flex items-start gap-3">
-                    <div className="w-2 h-2 bg-red-500 rounded-full mt-2" />
-                    <div>
-                      <p className="text-sm font-medium text-slate-600">Return Location</p>
-                      <p className="text-sm font-semibold text-slate-900">
-                        {booking.returnLocation}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <BookingTimeline booking={booking} />
+            <LocationCard booking={booking} />
           </div>
 
           <div className="space-y-6">
-            <Card className="rounded">
-              <CardHeader className="p-4">
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <User className="w-5 h-5 text-blue-600" />
-                  Your Chauffeur
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-4 pt-0">
-                <div className="flex items-center gap-3">
-                  <Avatar className="w-12 h-12">
-                    <AvatarImage alt={booking.chauffeur?.name || "Not Assigned"} />
-                    <AvatarFallback>
-                      {booking.chauffeur?.name
-                        ? booking.chauffeur.name
-                            .split(" ")
-                            .map((n) => n[0])
-                            .join("")
-                        : "NA"}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <p className="text-sm font-semibold text-slate-900">
-                      {booking.chauffeur?.name || "Not Assigned"}
-                    </p>
-                    <p className="text-sm text-slate-600">Professional Chauffeur</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <ChauffeurCard booking={booking} />
 
             <Card className="rounded">
               <CardHeader className="p-4">
@@ -817,7 +895,7 @@ export default function BookingDetails() {
                   {Number(paymentSummary.extensionNetTotal) > 0 && (
                     <div className="flex justify-between">
                       <span className="text-sm text-slate-600">
-                        Extension ({paymentSummary.totalExtendedHours.toString()} hours)
+                        Extension ({Number(paymentSummary.totalExtendedHours)} hours)
                       </span>
                       <span className="text-sm font-medium">
                         {formatCurrency(Number(paymentSummary.extensionNetTotal))}
@@ -846,7 +924,7 @@ export default function BookingDetails() {
                   {Number(paymentSummary.platformCustomerServiceFeeAmount) > 0 && (
                     <div className="flex justify-between">
                       <span className="text-sm text-slate-600">
-                        Platform Fee ({booking.platformCustomerServiceFeeRatePercent}%)
+                        Platform Fee ({Number(booking.platformCustomerServiceFeeRatePercent)}%)
                       </span>
                       <span className="text-sm font-medium">
                         {formatCurrency(Number(paymentSummary.platformCustomerServiceFeeAmount))}
@@ -854,7 +932,9 @@ export default function BookingDetails() {
                     </div>
                   )}
                   <div className="flex justify-between">
-                    <span className="text-sm text-slate-600">VAT ({booking.vatRatePercent}%)</span>
+                    <span className="text-sm text-slate-600">
+                      VAT ({booking.vatRatePercent.toString()}%)
+                    </span>
                     <span className="text-sm font-medium">
                       {formatCurrency(Number(paymentSummary.vatAmount))}
                     </span>

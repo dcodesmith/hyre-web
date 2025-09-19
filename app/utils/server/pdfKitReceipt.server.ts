@@ -30,19 +30,46 @@ export async function generatePdfWithPdfKit(booking: BookingWithRelations): Prom
   const passThrough = new PassThrough();
   doc.pipe(passThrough);
 
-  const currentDir = path.dirname(fileURLToPath(import.meta.url));
-  const fontDir = path.join(currentDir, "..", "..", "public", "fonts");
-  const dancingScriptPath = path.join(fontDir, "DancingScript-Regular.ttf");
+  // Try multiple possible font paths for different environments
+  const possibleFontPaths = [
+    // Production Vercel path
+    path.join(process.cwd(), "build", "client", "fonts", "DancingScript-Regular.ttf"),
+    // Development path
+    path.join(process.cwd(), "public", "fonts", "DancingScript-Regular.ttf"),
+    // Build output path
+    path.join(process.cwd(), "build", "public", "fonts", "DancingScript-Regular.ttf"),
+    // Relative to current file
+    path.join(
+      path.dirname(fileURLToPath(import.meta.url)),
+      "..",
+      "..",
+      "public",
+      "fonts",
+      "DancingScript-Regular.ttf",
+    ),
+  ];
 
-  try {
-    await fs.promises.access(dancingScriptPath, constants.R_OK);
-  } catch {
-    const errorMsg = `Dancing Script font not found at: ${dancingScriptPath}`;
+  let fontBuffer: Buffer | null = null;
+  let dancingScriptPath: string | null = null;
+
+  for (const fontPath of possibleFontPaths) {
+    try {
+      fontBuffer = fs.readFileSync(fontPath);
+      dancingScriptPath = fontPath;
+      logger.info(`Font loaded successfully from: ${fontPath}`);
+      break;
+    } catch (error) {
+      logger.debug(`Font not found at: ${fontPath} - ${error}`);
+    }
+  }
+
+  if (!dancingScriptPath || !fontBuffer) {
+    const errorMsg = `Dancing Script font not found at any of the expected paths: ${possibleFontPaths.join(", ")}`;
     logger.error(errorMsg);
     throw new Error(errorMsg);
   }
 
-  doc.registerFont("DancingScript", dancingScriptPath);
+  doc.registerFont("DancingScript", fontBuffer);
 
   const contentLeft = doc.page.margins.left;
   const contentRight = doc.page.width - doc.page.margins.right;
@@ -206,7 +233,7 @@ export async function generatePdfWithPdfKit(booking: BookingWithRelations): Prom
     const buffers: Buffer[] = [];
     passThrough.on("data", (chunk) => buffers.push(chunk));
     passThrough.on("end", () => resolve(Buffer.concat(buffers)));
-    passThrough.on("error", reject);
+    passThrough.on("error", (error) => resolve(Buffer.from(error.message)));
   });
 
   return pdfBuffer;

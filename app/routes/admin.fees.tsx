@@ -1,9 +1,11 @@
 import { getFormProps, getInputProps, useForm } from "@conform-to/react";
 import { parseWithZod } from "@conform-to/zod";
-import { ActionFunctionArgs, LoaderFunctionArgs, json } from "@remix-run/node";
-import { Form, useActionData, useLoaderData } from "@remix-run/react";
+import { type ActionFunctionArgs, type LoaderFunctionArgs, data } from "@remix-run/node";
+import { useActionData, useLoaderData } from "@remix-run/react";
 import { format } from "date-fns";
+import { useAuthenticityToken } from "remix-utils/csrf/react";
 import { z } from "zod";
+import { Form } from "~/components/CSRFForm";
 import { Alert, AlertDescription } from "~/components/ui/alert";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
@@ -12,21 +14,11 @@ import { Label } from "~/components/ui/label";
 import logger from "~/lib/logger.server";
 import { requireAdminWithRedirect } from "~/modules/auth/auth.server";
 import { prisma } from "~/modules/db/db.server";
+import { validateCSRF } from "~/utils/csrf-action.server";
 
-const PlatformFeeType = {
-  PLATFORM_SERVICE_FEE: "PLATFORM_SERVICE_FEE",
-  FLEET_OWNER_COMMISSION: "FLEET_OWNER_COMMISSION",
-} as const;
+const PLATFORM_FEE_TYPES = ["PLATFORM_SERVICE_FEE", "FLEET_OWNER_COMMISSION"] as const;
 
 const ERROR_RING_CLASSES = "border-red-500 focus-visible:ring-red-500 focus-visible:ring-2";
-
-type ActionData = {
-  vatError?: string | Record<string, string[] | null> | null;
-  vatSuccess?: boolean;
-  platformFeeError?: string | Record<string, string[] | null> | null;
-  platformFeeSuccess?: boolean;
-  error?: string;
-};
 
 // Validation schemas
 const vatRateSchema = z
@@ -63,7 +55,7 @@ const vatRateSchema = z
 
 const platformFeeSchema = z
   .object({
-    feeType: z.nativeEnum(PlatformFeeType, {
+    feeType: z.enum(PLATFORM_FEE_TYPES, {
       required_error: "Fee type is required",
       invalid_type_error: "Invalid fee type selected",
     }),
@@ -133,14 +125,15 @@ export async function loader({ request }: LoaderFunctionArgs) {
     currentFleetOwnerCommission,
   });
 
-  return json({
+  return {
     currentVatRate,
     currentPlatformServiceFee,
     currentFleetOwnerCommission,
-  });
+  };
 }
 
 export async function action({ request }: ActionFunctionArgs) {
+  await validateCSRF(request);
   await requireAdminWithRedirect(request);
 
   const formData = await request.formData();
@@ -150,7 +143,7 @@ export async function action({ request }: ActionFunctionArgs) {
     const submission = parseWithZod(formData, { schema: vatRateSchema });
 
     if (submission.status !== "success") {
-      return json<ActionData>({ vatError: submission.error });
+      return data({ vatError: submission.reply() }, { status: 400 });
     }
 
     const { effectiveSince, effectiveUntil } = submission.value;
@@ -158,42 +151,21 @@ export async function action({ request }: ActionFunctionArgs) {
     // Check for overlapping rates
     const overlappingRate = await prisma.taxRate.findFirst({
       where: {
-        AND: [
-          {
-            OR: [
-              // New rate starts during existing rate period
-              {
-                effectiveSince: { lte: effectiveSince },
-                OR: [{ effectiveUntil: { gte: effectiveSince } }, { effectiveUntil: null }],
-              },
-              // New rate ends during existing rate period (if it has an end date)
-              ...(effectiveUntil
-                ? [
-                    {
-                      effectiveSince: { lte: effectiveUntil },
-                      OR: [{ effectiveUntil: { gte: effectiveUntil } }, { effectiveUntil: null }],
-                    },
-                  ]
-                : []),
-              // Existing rate is completely within new rate period
-              {
-                effectiveSince: { gte: effectiveSince },
-                ...(effectiveUntil
-                  ? {
-                      effectiveSince: { lte: effectiveUntil },
-                    }
-                  : {}),
-              },
-            ],
-          },
-        ],
+        // overlap exists if NOT (existing ends before new starts OR existing starts after new ends)
+        NOT: {
+          OR: [
+            { effectiveUntil: { lt: effectiveSince } },
+            ...(effectiveUntil ? [{ effectiveSince: { gt: effectiveUntil } }] : []),
+          ],
+        },
       },
     });
 
     if (overlappingRate) {
-      return json<ActionData>({
-        vatError: "A rate already exists for the specified time period",
-      });
+      return data(
+        { vatError: "A rate already exists for the specified time period" },
+        { status: 409 },
+      );
     }
 
     try {
@@ -206,9 +178,10 @@ export async function action({ request }: ActionFunctionArgs) {
         },
       });
 
-      return json<ActionData>({ vatSuccess: true });
+      return data({ vatSuccess: true }, { status: 201 });
     } catch (error) {
-      return json<ActionData>({ vatError: "Failed to create VAT rate" });
+      logger.error("Error creating VAT rate:", error);
+      return data({ vatError: "Failed to create VAT rate" }, { status: 500 });
     }
   }
 
@@ -216,7 +189,29 @@ export async function action({ request }: ActionFunctionArgs) {
     const submission = parseWithZod(formData, { schema: platformFeeSchema });
 
     if (submission.status !== "success") {
-      return json<ActionData>({ platformFeeError: submission.error });
+      return data({ platformFeeError: "Validation failed" }, { status: 400 });
+    }
+
+    // Prevent overlapping fee periods for the same type
+    const { feeType, effectiveSince, effectiveUntil } = submission.value;
+
+    const overlapping = await prisma.platformFeeRate.findFirst({
+      where: {
+        feeType,
+        NOT: {
+          OR: [
+            { effectiveUntil: { lt: effectiveSince } },
+            ...(effectiveUntil ? [{ effectiveSince: { gt: effectiveUntil } }] : []),
+          ],
+        },
+      },
+    });
+
+    if (overlapping) {
+      return data(
+        { platformFeeError: "A rate already exists for the specified time period" },
+        { status: 409 },
+      );
     }
 
     try {
@@ -230,19 +225,21 @@ export async function action({ request }: ActionFunctionArgs) {
         },
       });
 
-      return json<ActionData>({ platformFeeSuccess: true });
+      return data({ platformFeeSuccess: true }, { status: 201 });
     } catch (error) {
-      return json<ActionData>({ platformFeeError: "Failed to create platform fee rate" });
+      logger.error("Error creating platform fee rate:", error);
+      return data({ platformFeeError: "Failed to create platform fee rate" }, { status: 500 });
     }
   }
 
-  return json<ActionData>({ error: "Invalid intent" });
+  return data({ error: "Invalid intent" }, { status: 400 });
 }
 
 export default function AdminFees() {
   const { currentVatRate, currentPlatformServiceFee, currentFleetOwnerCommission } =
     useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
+  const csrfToken = useAuthenticityToken();
 
   const [
     vatForm,
@@ -254,6 +251,10 @@ export default function AdminFees() {
     },
   ] = useForm({
     id: "vat-form",
+    lastSubmission:
+      actionData?.vatError && typeof actionData.vatError !== "string"
+        ? actionData.vatError
+        : undefined,
     defaultValue: {
       ratePercent: "",
       effectiveSince: "",
@@ -304,8 +305,8 @@ export default function AdminFees() {
         <div>
           {currentVatRate && (
             <div className="mb-4 font-semibold">
-              Current VAT Rate: {formatRate(currentVatRate.ratePercent)}% (Effective since{" "}
-              {format(new Date(currentVatRate.effectiveSince), "MMM d, yyyy")})
+              Current VAT Rate: {formatRate(Number(currentVatRate.ratePercent))}% (Effective since{" "}
+              {format(new Date(currentVatRate?.effectiveSince), "MMM d, yyyy")})
             </div>
           )}
           <Card>
@@ -392,16 +393,16 @@ export default function AdminFees() {
         <div>
           {currentPlatformServiceFee && (
             <div className="mb-4 font-semibold">
-              Current Platform Service Fee: {formatRate(currentPlatformServiceFee.ratePercent)}%
-              (Effective since{" "}
+              Current Platform Service Fee:{" "}
+              {formatRate(Number(currentPlatformServiceFee.ratePercent))}% (Effective since{" "}
               {format(new Date(currentPlatformServiceFee.effectiveSince), "MMM d, yyyy")})
             </div>
           )}
 
           {currentFleetOwnerCommission && (
             <div className="mb-4 font-semibold">
-              Current Fleet Owner Commission: {formatRate(currentFleetOwnerCommission.ratePercent)}%
-              (Effective since{" "}
+              Current Fleet Owner Commission:{" "}
+              {formatRate(Number(currentFleetOwnerCommission.ratePercent))}% (Effective since{" "}
               {format(new Date(currentFleetOwnerCommission.effectiveSince), "MMM d, yyyy")})
             </div>
           )}

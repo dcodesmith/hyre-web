@@ -1,4 +1,4 @@
-import { LoaderFunctionArgs, json } from "@remix-run/node";
+import type { LoaderFunctionArgs } from "@remix-run/node";
 import { Outlet, useLoaderData } from "@remix-run/react";
 import invariant from "tiny-invariant";
 import CarCarousel from "~/components/Carousel";
@@ -15,7 +15,7 @@ export const loader = async ({ params }: LoaderFunctionArgs) => {
     },
   });
 
-  return json({ car });
+  return { car };
 };
 
 export default function CarDetails() {

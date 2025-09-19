@@ -1,5 +1,5 @@
 import { useActionData, useLoaderData } from "@remix-run/react";
-import { ActionFunctionArgs, LoaderFunctionArgs, redirect, json } from "@remix-run/node";
+import { ActionFunctionArgs, LoaderFunctionArgs, data, redirect } from "@remix-run/node";
 import { authenticator } from "~/modules/auth/auth.server";
 import { AuthorizationError } from "remix-auth";
 import { commitSession, getSession } from "~/modules/auth/session.server";
@@ -21,13 +21,21 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const authEmail = cookie.get("auth:email");
   const authError = cookie.get(authenticator.sessionErrorKey);
 
+  if (cookie.has(authenticator.sessionErrorKey)) {
+    cookie.unset(authenticator.sessionErrorKey);
+  }
+
   if (!authEmail) return redirect("/admin/login");
 
-  return json({ authEmail, authError } as const, {
-    headers: {
-      "Set-Cookie": await commitSession(cookie),
+  return data(
+    { authEmail, authError },
+    {
+      headers: {
+        "Set-Cookie": await commitSession(cookie),
+        "Cache-Control": "no-store",
+      },
     },
-  });
+  );
 }
 
 export async function action({ request }: ActionFunctionArgs) {
@@ -38,20 +46,26 @@ export async function action({ request }: ActionFunctionArgs) {
   const role = url.searchParams.get("role");
 
   try {
-    return authenticator.authenticate("TOTP", request, {
+    return await authenticator.authenticate("TOTP", request, {
       successRedirect: redirectTo || "/admin",
       failureRedirect: role ? `/admin/verify?role=${role}` : "/admin/verify",
     });
   } catch (error) {
     if (error instanceof AuthorizationError) {
-      return json({ error: error.message }, { status: 401 });
+      return data(
+        { error: error.message },
+        { status: 401, headers: { "Cache-Control": "no-store" } },
+      );
     }
 
     if (error instanceof Response) {
       return error;
     }
 
-    return json({ error: "Invalid verification code" }, { status: 400 });
+    return data(
+      { error: "Invalid verification code" },
+      { status: 400, headers: { "Cache-Control": "no-store" } },
+    );
   }
 }
 

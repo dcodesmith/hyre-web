@@ -1,5 +1,5 @@
 import { Booking, BookingStatus, BookingType, Car, User, VehicleImage } from "@prisma/client";
-import { ActionFunctionArgs, type LoaderFunctionArgs, json } from "@remix-run/node";
+import { ActionFunctionArgs, type LoaderFunctionArgs, data } from "@remix-run/node";
 import {
   Link,
   redirect,
@@ -42,14 +42,11 @@ import {
 } from "~/services/bookings.server";
 import { createPaymentIntent } from "~/services/payment.server";
 import { env } from "~/utils/server/env.server";
+import { useAuthenticityToken } from "remix-utils/csrf/react";
 
 type BookingWithRelations = Booking & {
   car: Car & { owner: User; images: VehicleImage[] };
   chauffeur?: User | null;
-};
-
-type GroupedBookings = {
-  [K in BookingStatus]?: BookingWithRelations[];
 };
 
 export async function action({ request }: ActionFunctionArgs) {
@@ -82,9 +79,10 @@ export async function action({ request }: ActionFunctionArgs) {
 
     try {
       await cancelBooking(bookingId, reason);
-      return json({ success: true });
+      return { success: true };
     } catch (error) {
-      return json({ error: "Failed to cancel booking" }, { status: 500 });
+      logger.error(`Failed to cancel booking: ${error}`);
+      return data({ error: "Failed to cancel booking" }, { status: 500 });
     }
   }
 
@@ -99,7 +97,7 @@ export async function action({ request }: ActionFunctionArgs) {
     const now = new Date();
 
     if (new Date(endDate) < new Date(startDate)) {
-      return json({ error: "End date cannot be before start date" }, { status: 400 });
+      return data({ error: "End date cannot be before start date" }, { status: 400 });
     }
 
     logger.info(`Booking request received: ${startDate} to ${endDate}`);
@@ -120,7 +118,7 @@ export async function action({ request }: ActionFunctionArgs) {
       });
 
       if (existingUser) {
-        return json(
+        return data(
           { error: "This email is registered to an existing user. Please login to continue." },
           { status: 400 },
         );
@@ -128,21 +126,32 @@ export async function action({ request }: ActionFunctionArgs) {
     }
 
     // Parse the time from pickupTime (e.g. "8:00 AM") and set it on startDate
-    const [hours, period] = pickupTime.split(" ");
-    // const minutes = "00";
+    // const [hours, period] = pickupTime.split(" ");
+
+    if (!pickupTime || !/^(1[0-2]|[1-9])(:00)?\s?(AM|PM)$/i.test(pickupTime)) {
+      return new Response("Invalid pickup time format", { status: 400 });
+    }
+
+    const [timePart, period] = pickupTime.toUpperCase().split(" ");
+    const [hourStr] = timePart.split(":");
+
     const startDateTime = new Date(startDate);
 
     // Convert 12-hour format to 24-hour
-    let hour = Number.parseInt(hours);
+    let hour = Number.parseInt(hourStr, 10);
 
     if (period === "PM" && hour !== 12) {
       hour += 12;
     }
 
+    if (period === "AM" && hour === 12) {
+      hour = 0; // Fix 12 AM = midnight
+    }
+
     startDateTime.setHours(bookingType === "NIGHT" ? 23 : hour);
-    // startDateTime.setMinutes(bookingType === "NIGHT" ? 0 : Number.parseInt(minutes));
-    // startDateTime.setSeconds(0);
-    // startDateTime.setMilliseconds(0);
+    startDateTime.setMinutes(0);
+    startDateTime.setSeconds(0);
+    startDateTime.setMilliseconds(0);
 
     // Set end date time based on booking type
     const endDateTime = new Date(endDate);
@@ -169,7 +178,7 @@ export async function action({ request }: ActionFunctionArgs) {
         startDateTime.toDateString() === now.toDateString() &&
         now.getHours() >= 12)
     ) {
-      return json(
+      return data(
         { error: "Day bookings cannot be made at or after 12pm of the current day" },
         { status: 400 },
       );
@@ -179,13 +188,13 @@ export async function action({ request }: ActionFunctionArgs) {
     const returnLocation = sameLocation === "true" ? pickupAddress : dropOffAddress;
 
     if (!user) {
-      return json({ error: "User not found" }, { status: 400 });
+      return data({ error: "User not found" }, { status: 400 });
     }
 
     // Calculate the total cost for creating payment intent
     const car = await prisma.car.findUnique({ where: { id: carId } });
     if (!car) {
-      return json({ error: "Car not found" }, { status: 404 });
+      return data({ error: "Car not found" }, { status: 404 });
     }
 
     const clientTotalAmount = formData.get("totalAmount");
@@ -204,7 +213,7 @@ export async function action({ request }: ActionFunctionArgs) {
         `Client total amount ${clientTotalAmount} does not match server-calculated amount ${totalCost}. Trusting server amount.`,
       );
       // Optional: uncomment the line below to block the transaction if prices mismatch
-      return json({ error: "Price mismatch. Please try again." }, { status: 400 });
+      return data({ error: "Price mismatch. Please try again." }, { status: 400 });
     }
 
     try {
@@ -250,7 +259,7 @@ export async function action({ request }: ActionFunctionArgs) {
       logger.error(
         `Error creating booking or payment intent: ${error instanceof Error ? error.message : "Unknown error"}`,
       );
-      return json(
+      return data(
         {
           errors: {
             general: error instanceof Error ? error.message : "An unexpected error occurred",
@@ -261,12 +270,12 @@ export async function action({ request }: ActionFunctionArgs) {
     }
   }
 
-  if (request.method === "GET") {
-    const bookings = await getBookingsByStatus(user?.email!);
-    return json({ bookings });
+  if (request.method === "GET" && user?.email) {
+    const bookings = await getBookingsByStatus(user?.email);
+    return { bookings };
   }
 
-  return json({ error: "Invalid request method" }, { status: 405 });
+  return data({ error: "Invalid request method" }, { status: 405 });
 }
 
 export async function loader({ request }: LoaderFunctionArgs) {
@@ -285,16 +294,16 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
   if (!email) {
     logger.info("No email found");
-    return json({ bookings: {} });
+    return { bookings: null, user };
   }
 
   const bookings = await getBookingsByStatus(email, Boolean(guestEmail));
 
-  return json({ bookings, user });
+  return { bookings, user };
 }
 
 export default function BookingsPage() {
-  const { bookings, user } = useLoaderData<{ bookings: GroupedBookings; user: User }>();
+  const { bookings, user } = useLoaderData<typeof loader>();
   const fetcher = useFetcher();
   const [searchParams] = useSearchParams();
   const status = searchParams.get("status")?.toLocaleUpperCase() ?? "ACTIVE";
@@ -304,6 +313,7 @@ export default function BookingsPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [bookingToCancel, setBookingToCancel] = useState<BookingWithRelations | null>(null);
   const editFetcher = useFetcher<{ success: boolean }>();
+  const csrfToken = useAuthenticityToken();
 
   useEffect(() => {
     if (editFetcher.data?.success) {
@@ -355,7 +365,7 @@ export default function BookingsPage() {
                 }}
               >
                 {status.charAt(0) + status.slice(1).toLowerCase()}
-                <span>({bookings[status]?.length || 0})</span>
+                <span>({bookings?.[status]?.length || 0})</span>
               </TabsTrigger>
             ))}
           </TabsList>
@@ -367,7 +377,7 @@ export default function BookingsPage() {
               value={status}
             >
               <div className="flex flex-col">
-                {bookings[status as BookingStatus]?.map((booking) => {
+                {bookings?.[status]?.map((booking) => {
                   const isThisBookingBeingCancelled =
                     fetcher.state !== "idle" && fetcher.formData?.get("bookingId") === booking.id;
                   return (
@@ -559,8 +569,7 @@ export default function BookingsPage() {
                     </Fragment>
                   );
                 })}
-                {(!bookings[status as BookingStatus] ||
-                  bookings[status as BookingStatus]?.length === 0) && (
+                {(!bookings?.[status] || bookings?.[status]?.length === 0) && (
                   <div className="text-center py-8 text-gray-500">
                     No {status.toLowerCase()} bookings
                   </div>
@@ -603,6 +612,7 @@ export default function BookingsPage() {
                       {
                         bookingId: bookingToCancel.id,
                         reason: "User requested cancellation",
+                        csrf: csrfToken,
                       },
                       {
                         method: "DELETE",

@@ -1,5 +1,5 @@
 import type { Prisma, User } from "@prisma/client";
-import { type ActionFunctionArgs, type LoaderFunctionArgs, json, redirect } from "@remix-run/node";
+import { type ActionFunctionArgs, type LoaderFunctionArgs, data, redirect } from "@remix-run/node";
 import { Form, useActionData, useLoaderData, useSubmit } from "@remix-run/react";
 import { useAuthenticityToken } from "remix-utils/csrf/react";
 import {
@@ -107,9 +107,7 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
   }
 
   // --- Calculate Current State for Today, based on Today's Leg and its Extensions ---
-  const todaysLeg = booking.legs.find((leg) =>
-    isSameDay(parseISO(leg.legDate.toISOString()), today),
-  );
+  const todaysLeg = booking.legs.find((leg) => isSameDay(leg.legDate, today));
 
   if (!todaysLeg) {
     logger.error(`Loader: No active leg found for booking ${booking.id} on ${today.toISOString()}`);
@@ -118,7 +116,7 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
 
   logger.info(`Loader: Today's leg ID: ${todaysLeg.id}, Date: ${todaysLeg.legDate}`);
 
-  const todaysLegOriginalEndTime = parseISO(todaysLeg.legEndTime.toISOString());
+  const todaysLegOriginalEndTime = todaysLeg.legEndTime;
 
   const latestConfirmedExtensionForTodaysLeg = todaysLeg.extensions
     .filter(
@@ -126,20 +124,15 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
         ext.status === "ACTIVE" &&
         ext.paymentStatus === "PAID" &&
         ext.extensionEndTime &&
-        isSameDay(parseISO(ext.extensionEndTime.toISOString()), today),
+        isSameDay(ext.extensionEndTime, today),
     )
-    .sort(
-      (a, b) =>
-        parseISO(b.extensionEndTime!.toISOString()).getTime() -
-        parseISO(a.extensionEndTime!.toISOString()).getTime(),
-    )[0];
+    .sort((a, b) => b.extensionEndTime.getTime() - a.extensionEndTime.getTime())[0];
 
   let currentEndTimeToday: Date;
 
   if (latestConfirmedExtensionForTodaysLeg?.extensionEndTime) {
-    currentEndTimeToday = parseISO(
-      latestConfirmedExtensionForTodaysLeg.extensionEndTime.toISOString(),
-    );
+    currentEndTimeToday = latestConfirmedExtensionForTodaysLeg.extensionEndTime;
+
     logger.info(
       `Loader: Confirmed extension (ID: ${latestConfirmedExtensionForTodaysLeg.id}) found for today's leg. Current end time for today is ${currentEndTimeToday.toISOString()}.`,
     );
@@ -206,7 +199,7 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
   logger.info(
     `Loader finished successfully for booking ${booking.id}. Max hours: ${validMaxHours}`,
   );
-  return json({
+  return {
     booking: {
       ...booking,
       currentEndDateDisplay: format(currentEndTimeToday, "LLL do p"),
@@ -214,7 +207,7 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
     },
     maxHours: validMaxHours,
     vatRatePercent,
-  });
+  };
 }
 
 export async function action({ request, params }: ActionFunctionArgs) {
@@ -228,14 +221,14 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
   if (!hours || hours < 1 || !Number.isInteger(hours)) {
     logger.error(`Invalid hours value: ${hours}`);
-    return json({ error: "Please select a valid number of hours." }, { status: 400 });
+    return data({ error: "Please select a valid number of hours." }, { status: 400 });
   }
 
   const now = new Date();
 
   try {
     const booking = await prisma.booking.findUnique({
-      where: { id: params.id },
+      where: { id: params.id, status: "ACTIVE" },
       include: {
         car: true,
         user: true,
@@ -253,13 +246,28 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
     if (!booking || !booking.car) {
       logger.error(`Booking not found: ${params.id}`);
-      return json({ error: "Booking not found" }, { status: 404 });
+      return data({ error: "Booking not found" }, { status: 404 });
+    }
+
+    // Authorization: mirror loader behavior
+    const url = new URL(request.url);
+    const guestEmail = url.searchParams.get("email");
+
+    if (guestEmail) {
+      if (!booking.guestUser || (booking.guestUser as { email: string }).email !== guestEmail) {
+        return data({ error: "Unauthorized guest access" }, { status: 403 });
+      }
+    } else {
+      const loggedInUser = await requireUserWithRole(request, "user");
+      if (loggedInUser.id !== booking.userId) {
+        return data({ error: "Booking does not belong to this user" }, { status: 403 });
+      }
     }
 
     // Check if this is a FULL_DAY booking - they cannot be extended
     if (booking.type === "FULL_DAY") {
       logger.warn(`Extension attempt blocked for FULL_DAY booking in action: ${booking.id}`);
-      return json({ error: "24-hour bookings cannot be extended." }, { status: 400 });
+      return data({ error: "24-hour bookings cannot be extended." }, { status: 400 });
     }
 
     const {
@@ -269,9 +277,26 @@ export async function action({ request, params }: ActionFunctionArgs) {
     } = await getRates();
 
     const todaysLeg = booking.legs[0];
-    const todaysLegsEndTime = todaysLeg.legEndTime;
+
+    if (!todaysLeg) {
+      logger.error(`Action: No active leg found for booking ${booking.id} today`);
+      return data({ error: "No active booking segment found for today." }, { status: 400 });
+    }
+
+    const latestConfirmedExtension = todaysLeg.extensions
+      .filter(
+        (ext) =>
+          ext.status === "ACTIVE" &&
+          ext.paymentStatus === "PAID" &&
+          ext.extensionEndTime &&
+          isSameDay(new Date(ext.extensionEndTime), startOfDay(now)),
+      )
+      .sort(
+        (a, b) => new Date(b.extensionEndTime).getTime() - new Date(a.extensionEndTime).getTime(),
+      )[0];
+    const effectiveEndTime = latestConfirmedExtension?.extensionEndTime ?? todaysLeg.legEndTime;
     const maxEndTodayInAction = startOfDay(addDays(now, 1));
-    const maxExtensionHours = differenceInHours(maxEndTodayInAction, todaysLegsEndTime);
+    const maxExtensionHours = Math.max(0, differenceInHours(maxEndTodayInAction, effectiveEndTime));
 
     logger.info(
       `Recalculated maxHours for validation (action): ${maxExtensionHours}. Max end today (midnight): ${maxEndTodayInAction.toISOString()}`,
@@ -279,7 +304,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
     if (hours > maxExtensionHours) {
       logger.error(`Submitted hours (${hours}) exceeds max allowed (${maxExtensionHours}).`);
-      return json(
+      return data(
         {
           error: `Cannot extend by ${hours} hours. Maximum currently available is ${maxExtensionHours} hour(s). Please refresh or try again.`,
         },
@@ -287,7 +312,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
       );
     }
 
-    const newEndDateTimeForLeg = addHours(todaysLegsEndTime, hours);
+    const newEndDateTimeForLeg = addHours(effectiveEndTime, hours);
 
     logger.info(
       `Calculated new proposed end date for today's extension: ${newEndDateTimeForLeg.toISOString()}`,
@@ -317,7 +342,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
     const createClause: Prisma.ExtensionCreateInput = {
       eventType: "HOURLY_ADDITION",
-      extensionStartTime: todaysLeg.legEndTime,
+      extensionStartTime: effectiveEndTime,
       extendedDurationHours: hours,
       extensionEndTime: newEndDateTimeForLeg,
       totalAmount: financials.totalAmount,
@@ -346,7 +371,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
       `Payment intent creation failed: ${error instanceof Error ? error.message : String(error)}`,
     );
 
-    return json({ error: "Failed to initialize payment. Please try again." }, { status: 500 });
+    return data({ error: "Failed to initialize payment. Please try again." }, { status: 500 });
   }
 }
 
@@ -366,7 +391,7 @@ export default function ExtendBookingPage() {
     .div(100)
     .toNumber();
   const subtotalBeforeVat = total + platformServiceFee;
-  const vatAmount = new Decimal(subtotalBeforeVat).mul(vatRatePercent).div(100).toNumber();
+  const vatAmount = new Decimal(subtotalBeforeVat).mul(Number(vatRatePercent)).div(100).toNumber();
   const totalWithVat = subtotalBeforeVat + vatAmount;
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -470,7 +495,9 @@ export default function ExtendBookingPage() {
                 )}
 
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">VAT ({vatRatePercent.toString()}%)</span>
+                  <span className="text-muted-foreground">
+                    VAT ({Number(vatRatePercent).toString()}%)
+                  </span>
                   <span className="font-medium">{formatCurrency(vatAmount)}</span>
                 </div>
 

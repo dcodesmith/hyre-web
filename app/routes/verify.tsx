@@ -1,7 +1,7 @@
 import { getFormProps, getInputProps, useForm } from "@conform-to/react";
 import { getZodConstraint, parseWithZod } from "@conform-to/zod";
 import { User } from "@prisma/client";
-import { ActionFunctionArgs, LoaderFunctionArgs, json, redirect } from "@remix-run/node";
+import { ActionFunctionArgs, LoaderFunctionArgs, data, redirect } from "@remix-run/node";
 import { useLoaderData, useNavigate, useSearchParams } from "@remix-run/react";
 import { Form } from "~/components/CSRFForm";
 import { AuthorizationError } from "remix-auth";
@@ -43,11 +43,15 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
   if (!authEmail) return redirect("/auth");
 
-  return json({ authEmail, authError } as const, {
-    headers: {
-      "Set-Cookie": await commitSession(cookie),
+  return data(
+    { authEmail, authError },
+    {
+      headers: {
+        "Set-Cookie": await commitSession(cookie),
+        "Cache-Control": "no-store",
+      },
     },
-  });
+  );
 }
 
 export async function action({ request }: ActionFunctionArgs) {
@@ -90,7 +94,7 @@ export async function action({ request }: ActionFunctionArgs) {
     // }
   } catch (error) {
     if (error instanceof AuthorizationError) {
-      return json({ error: error.message }, { status: 401 });
+      return data({ error: error.message }, { status: 401 });
     }
 
     if (error instanceof Response) {
@@ -110,7 +114,6 @@ export default function Verify() {
   const [searchParams] = useSearchParams();
 
   const redirectTo = searchParams.get("redirectTo");
-  // const actionData = useActionData<typeof action>();
   const navigate = useNavigate();
 
   const [codeForm, { code }] = useForm({

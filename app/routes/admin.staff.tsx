@@ -1,4 +1,4 @@
-import { json, type LoaderFunctionArgs, type ActionFunctionArgs } from "@remix-run/node";
+import { type LoaderFunctionArgs, type ActionFunctionArgs, data } from "@remix-run/node";
 import { useLoaderData, useFetcher } from "@remix-run/react";
 import { z } from "zod";
 import { parseWithZod } from "@conform-to/zod";
@@ -18,11 +18,13 @@ import {
 } from "~/components/ui/dialog";
 import { useState, useEffect, useRef } from "react";
 import { Table } from "~/components/Table/Table";
-import { createColumnHelper } from "@tanstack/react-table";
+import { createColumnHelper, type Row } from "@tanstack/react-table";
 import { ColumnHeader } from "~/components/Table/ColumnHeader";
 import { Badge } from "~/components/ui/badge";
 import { useAuthenticityToken } from "remix-utils/csrf/react";
 import { validateCSRF } from "~/utils/csrf-action.server";
+import { Prisma } from "@prisma/client";
+import logger from "~/lib/logger.server";
 
 const staffSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
@@ -154,7 +156,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const activeStaff: StaffMember[] = [];
   const revokedStaff: StaffMember[] = [];
 
-  for (const [id, user] of allPotentialStaff) {
+  for (const [user] of allPotentialStaff) {
     const hasStaffRole = user.roles.some((role: any) => role.name === "staff");
     const isAdmin = user.roles.some((role: any) => role.name === "admin");
 
@@ -185,13 +187,13 @@ export async function loader({ request }: LoaderFunctionArgs) {
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
   );
 
-  return json({ allStaff });
+  return { allStaff };
 }
 
 export async function action({ request }: ActionFunctionArgs) {
   await validateCSRF(request);
-
   await requireAdminWithRedirect(request);
+
   const formData = await request.formData();
   const intent = formData.get("intent");
 
@@ -199,32 +201,27 @@ export async function action({ request }: ActionFunctionArgs) {
     const staffId = formData.get("staffId");
 
     if (typeof staffId !== "string") {
-      return json({ success: false, error: "Invalid staff ID" }, { status: 400 });
+      return data({ success: false, error: "Invalid staff ID" }, { status: 400 });
     }
 
     try {
-      const roleAction = {
-        revoke: "disconnect",
-        reinstate: "connect",
-      }[intent];
-
-      if (!roleAction) {
-        throw new Error("Invalid intent");
-      }
-
       await prisma.user.update({
         where: { id: staffId },
         data: {
-          roles: {
-            [roleAction]: [{ name: "staff" }],
-          },
+          roles:
+            intent === "revoke"
+              ? { disconnect: [{ name: "staff" }] }
+              : { connect: [{ name: "staff" }] },
         },
       });
 
-      return json({ success: true });
+      return { success: true };
     } catch (error) {
-      console.error(`Error ${intent}ing staff access:`, error);
-      return json({ success: false, error: `Failed to ${intent} staff access` }, { status: 500 });
+      logger.error(`Error ${intent}ing staff access:`, error);
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {
+        return data({ success: false, error: "User not found" }, { status: 404 });
+      }
+      return data({ success: false, error: `Failed to ${intent} staff access` }, { status: 500 });
     }
   }
 
@@ -232,12 +229,12 @@ export async function action({ request }: ActionFunctionArgs) {
   const submission = parseWithZod(formData, { schema: staffSchema });
 
   if (submission.status !== "success") {
-    return json(submission.reply());
+    return data(submission.reply(), { status: 400 });
   }
 
   try {
     // Create the user with staff role
-    const newUser = await prisma.user.create({
+    await prisma.user.create({
       data: {
         ...submission.value,
         roles: {
@@ -246,10 +243,13 @@ export async function action({ request }: ActionFunctionArgs) {
       },
     });
 
-    return json({ success: true, user: newUser });
+    return { success: true };
   } catch (error) {
     console.error("Error creating staff member:", error);
-    return json({ success: false, error: "Failed to create staff member" }, { status: 500 });
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      return data({ success: false, error: "Email already exists" }, { status: 409 });
+    }
+    return data({ success: false, error: "Failed to create staff member" }, { status: 500 });
   }
 }
 
@@ -268,75 +268,77 @@ type ActionResponse = {
   user?: any;
 };
 
+const columnHelper = createColumnHelper<StaffMember>();
+
+const columns = [
+  columnHelper.accessor("name", {
+    header: ({ column }) => <ColumnHeader column={column} title="Name" />,
+    cell: (info) => info.getValue() || "N/A",
+    enableColumnFilter: false,
+  }),
+  columnHelper.accessor("email", {
+    header: ({ column }) => <ColumnHeader column={column} title="Email" />,
+    enableColumnFilter: false,
+  }),
+  columnHelper.accessor("phoneNumber", {
+    header: ({ column }) => <ColumnHeader column={column} title="Phone" />,
+    cell: (info) => info.getValue() || "N/A",
+    enableColumnFilter: false,
+  }),
+  columnHelper.accessor("status", {
+    header: ({ column }) => <ColumnHeader column={column} title="Status" />,
+    cell: (info) => {
+      const status = info.getValue();
+      return (
+        <Badge variant={status === "active" ? "default" : "secondary"}>
+          {status === "active" ? "Active" : "Revoked"}
+        </Badge>
+      );
+    },
+  }),
+  columnHelper.accessor("createdAt", {
+    header: ({ column }) => <ColumnHeader column={column} title="Added On" />,
+    cell: (info) => new Date(info.getValue()).toLocaleDateString(),
+    enableColumnFilter: false,
+  }),
+  columnHelper.accessor("id", {
+    enableColumnFilter: false,
+    header: "Actions",
+    cell: ({ row }) => <StaffActions row={row} />,
+  }),
+];
+
+function StaffActions({ row }: { readonly row: Row<StaffMember> }) {
+  const actionFetcher = useFetcher();
+  const csrf = useAuthenticityToken();
+  const isProcessing = actionFetcher.state === "submitting";
+  const isActive = row.original.status === "active";
+  const intent = isActive ? "revoke" : "reinstate";
+  const buttonText = isActive ? "Revoke Access" : "Reinstate Access";
+  const buttonVariant = isActive ? "destructive" : "default";
+  const staffId = row.original.id;
+
+  const handleAction = () => {
+    if (window.confirm(`Are you sure you want to ${intent} this staff member's access?`)) {
+      actionFetcher.submit({ intent, staffId, csrf }, { method: "post" });
+    }
+  };
+
+  return (
+    <Button variant={buttonVariant} size="sm" onClick={handleAction} disabled={isProcessing}>
+      {isProcessing ? `${intent === "revoke" ? "Revoking..." : "Reinstating..."}` : buttonText}
+    </Button>
+  );
+}
+
 function StaffTable({
   data,
   hideColumnViewOptions,
 }: {
-  data: StaffMember[];
-  hideColumnViewOptions: boolean;
+  readonly data: StaffMember[];
+  readonly hideColumnViewOptions: boolean;
 }) {
-  const columnHelper = createColumnHelper<StaffMember>();
-
-  const columns = [
-    columnHelper.accessor("name", {
-      header: ({ column }) => <ColumnHeader column={column} title="Name" />,
-      cell: (info) => info.getValue() || "N/A",
-      enableColumnFilter: false,
-    }),
-    columnHelper.accessor("email", {
-      header: ({ column }) => <ColumnHeader column={column} title="Email" />,
-      enableColumnFilter: false,
-    }),
-    columnHelper.accessor("phoneNumber", {
-      header: ({ column }) => <ColumnHeader column={column} title="Phone" />,
-      cell: (info) => info.getValue() || "N/A",
-      enableColumnFilter: false,
-    }),
-    columnHelper.accessor("status", {
-      header: ({ column }) => <ColumnHeader column={column} title="Status" />,
-      cell: (info) => {
-        const status = info.getValue() as "active" | "revoked";
-        return (
-          <Badge variant={status === "active" ? "default" : "secondary"}>
-            {status === "active" ? "Active" : "Revoked"}
-          </Badge>
-        );
-      },
-    }),
-    columnHelper.accessor("createdAt", {
-      header: ({ column }) => <ColumnHeader column={column} title="Added On" />,
-      cell: (info) => new Date(info.getValue()).toLocaleDateString(),
-      enableColumnFilter: false,
-    }),
-    columnHelper.accessor("id", {
-      enableColumnFilter: false,
-      header: "Actions",
-      cell: ({ row }) => {
-        const actionFetcher = useFetcher();
-        const isProcessing = actionFetcher.state === "submitting";
-        const isActive = row.original.status === "active";
-        const intent = isActive ? "revoke" : "reinstate";
-        const buttonText = isActive ? "Revoke Access" : "Reinstate Access";
-        const buttonVariant = isActive ? "destructive" : "default";
-
-        const handleAction = () => {
-          if (window.confirm(`Are you sure you want to ${intent} this staff member's access?`)) {
-            actionFetcher.submit({ intent, staffId: row.original.id }, { method: "post" });
-          }
-        };
-
-        return (
-          <Button variant={buttonVariant} size="sm" onClick={handleAction} disabled={isProcessing}>
-            {isProcessing
-              ? `${intent === "revoke" ? "Revoking..." : "Reinstating..."}`
-              : buttonText}
-          </Button>
-        );
-      },
-    }),
-  ];
-
-  return <Table columns={columns as any} data={data} hideColumnViewOptions />;
+  return <Table columns={columns} data={data} hideColumnViewOptions={hideColumnViewOptions} />;
 }
 
 export default function AdminStaffPage() {

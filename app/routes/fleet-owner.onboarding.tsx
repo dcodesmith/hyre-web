@@ -9,6 +9,7 @@ import { parseWithZod } from "@conform-to/zod";
 import { CogIcon } from "@heroicons/react/24/outline";
 import { DocumentStatus, DocumentType } from "@prisma/client";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
+import { data } from "@remix-run/node";
 import {
   json,
   redirect,
@@ -94,7 +95,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     return redirect("/fleet-owner");
   }
 
-  return json({ user });
+  return { user };
 }
 
 export async function action({ request }: ActionFunctionArgs) {
@@ -109,7 +110,7 @@ export async function action({ request }: ActionFunctionArgs) {
   const submission = parseWithZod(formData, { schema: onboardingSchema });
 
   if (submission.status !== "success") {
-    return json(submission.reply());
+    return data(submission.reply(), { status: 400 });
   }
 
   const { value } = submission;
@@ -140,13 +141,13 @@ export async function action({ request }: ActionFunctionArgs) {
       const result = response.data;
 
       if (result.status !== "success") {
-        return json(submission.reply({ formErrors: ["Could not verify bank account."] }));
+        return data(submission.reply({ formErrors: ["Could not verify bank account."] }));
       }
 
       const verifiedAccountName = result.data.account_name;
 
       if (verifiedAccountName.trim().toLowerCase() !== accountName.trim().toLowerCase()) {
-        return json(
+        return data(
           submission.reply({
             fieldErrors: {
               accountName: ["Account name does not match the provided account number."],
@@ -173,7 +174,7 @@ export async function action({ request }: ActionFunctionArgs) {
         errorMessage = error.message;
       }
 
-      return json(
+      return data(
         submission.reply({
           formErrors: [errorMessage],
         }),

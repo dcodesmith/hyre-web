@@ -1,6 +1,6 @@
 import { BookingStatus } from "@prisma/client";
 import type { LoaderFunctionArgs } from "@remix-run/node";
-import { json } from "@remix-run/node";
+import { data } from "@remix-run/node";
 import { Link, useLoaderData, useSearchParams } from "@remix-run/react";
 import {
   ColumnFilter,
@@ -249,10 +249,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
     logger.info(`Cars query completed in ${carQueryTime}ms`);
     logger.info(`Total loader execution time: ${totalTime}ms`);
 
-    return json(
-      {
-        cars,
-      },
+    return data(
+      { cars },
       {
         // Enhanced caching headers for better performance
         headers: {
@@ -265,9 +263,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
   } catch (error) {
     logger.error("Error in loader:", error instanceof Error ? error.message : "Unknown error");
     // Return empty cars array instead of error object to maintain expected interface
-    return json({
-      cars: [],
-    });
+
+    return data({ cars: [] }, { status: 500, headers: { "Cache-Control": "no-store" } });
   }
 }
 
@@ -492,14 +489,12 @@ export default function IndexPage() {
 
                   <div>
                     {!from || !to ? (
-                      <>
-                        <span className="font-bold text-base">
-                          {new Intl.NumberFormat("en-NG", {
-                            style: "currency",
-                            currency: "NGN",
-                          }).format(row.original.dayRate)}
-                        </span>
-                      </>
+                      <span className="font-bold text-base">
+                        {new Intl.NumberFormat("en-NG", {
+                          style: "currency",
+                          currency: "NGN",
+                        }).format(row.original.dayRate)}
+                      </span>
                     ) : (
                       <>
                         Booking total:{" "}

@@ -1,6 +1,5 @@
 import type { PaymentAttemptStatus, Prisma } from "@prisma/client";
-import type { ActionFunctionArgs } from "@remix-run/node";
-import { json } from "@remix-run/node";
+import { type ActionFunctionArgs } from "@remix-run/node";
 import logger from "~/lib/logger.server";
 import {
   getCustomerDetails,
@@ -17,7 +16,11 @@ import {
 import { renderPayoutNotificationEmail } from "~/modules/email/templates/payout-notification";
 import { Template, sendMessage } from "~/modules/messaging/messaging.server";
 import { emailQueue } from "~/queues/email-throttle.server";
-import { activateBooking, findBookingByPaymentIntent } from "~/services/bookings.server";
+import {
+  activateBooking,
+  findBookingByPaymentIntent,
+  cancelBooking,
+} from "~/services/bookings.server";
 import { activateExtension, findExtensionByPaymentIntent } from "~/services/extensions.server";
 import { verifyPaymentWebhook, verifyTransaction } from "~/services/payment.server";
 import {
@@ -102,11 +105,20 @@ async function createOrUpdatePaymentRecord(payload: FlutterwaveChargeCompletedPa
 
 async function handleFailedPayment(paymentIntent: string, transactionType: string) {
   if (transactionType === "booking_creation") {
-    await prisma.booking.updateMany({
-      where: { paymentIntent, status: "PENDING" },
-      data: { status: "CANCELLED" },
-    });
-    logger.info("Booking cancelled", { paymentIntent });
+    const booking = await findBookingByPaymentIntent(paymentIntent);
+    if (booking && booking.status === "PENDING") {
+      await cancelBooking(booking.id, "Payment not successful");
+      logger.info("Booking cancelled via cancelBooking()", {
+        paymentIntent,
+        bookingId: booking.id,
+      });
+    } else {
+      await prisma.booking.updateMany({
+        where: { paymentIntent, status: "PENDING" },
+        data: { status: "CANCELLED" },
+      });
+      logger.info("Booking cancelled (fallback)", { paymentIntent });
+    }
   } else if (transactionType === "booking_extension") {
     await prisma.extension.updateMany({
       where: { paymentIntent, status: "PENDING" },
@@ -117,8 +129,11 @@ async function handleFailedPayment(paymentIntent: string, transactionType: strin
 }
 
 async function handleChargeCompleted(payload: FlutterwaveChargeCompletedPayload) {
-  const { data, meta_data } = payload;
-  const { status, tx_ref: paymentIntent, id: transactionId } = data;
+  const {
+    data: { status, tx_ref: paymentIntent, id: transactionId, amount, currency },
+    meta_data,
+  } = payload;
+
   const transactionType = meta_data.transactionType ?? "";
 
   const webhookData = {
@@ -143,7 +158,10 @@ async function handleChargeCompleted(payload: FlutterwaveChargeCompletedPayload)
     });
 
     await handleFailedPayment(currentPaymentIntent, transactionType);
-    return json({ message: "Payment not successful, transaction cancelled." });
+    return Response.json(
+      { message: "Payment not successful, transaction cancelled." },
+      { status: 400 },
+    );
   }
 
   logger.info(
@@ -154,8 +172,8 @@ async function handleChargeCompleted(payload: FlutterwaveChargeCompletedPayload)
     `[Unified Webhook] Verifying transaction ${currentTransactionId} with Flutterwave API.`,
   );
 
-  const expectedAmount = Number(meta_data?.amount ?? data.amount ?? 0);
-  const expectedCurrency = String(meta_data?.currency ?? data.currency ?? "NGN");
+  const expectedAmount = Number(meta_data?.amount ?? amount ?? 0);
+  const expectedCurrency = String(meta_data?.currency ?? currency ?? "NGN");
 
   const verificationResult = await verifyTransaction(currentTransactionId, {
     amount: expectedAmount,
@@ -170,7 +188,7 @@ async function handleChargeCompleted(payload: FlutterwaveChargeCompletedPayload)
       reason: verificationResult.mismatch ?? "unknown",
     });
 
-    return json({ error: "Transaction verification failed" }, { status: 400 });
+    return Response.json({ error: "Transaction verification failed" }, { status: 400 });
   }
 
   logger.info(
@@ -185,7 +203,7 @@ async function handleChargeCompleted(payload: FlutterwaveChargeCompletedPayload)
 
       if (!pendingBooking) {
         logger.error(`[Unified Webhook] Pending booking not found for ${currentPaymentIntent}`);
-        return json({ error: "Booking not found" }, { status: 404 });
+        return Response.json({ error: "Booking not found" }, { status: 404 });
       }
 
       logger.info(`[Unified Webhook] Found pending booking ${pendingBooking.id}`);
@@ -194,69 +212,89 @@ async function handleChargeCompleted(payload: FlutterwaveChargeCompletedPayload)
 
       logger.info(`[Unified Webhook] Activated booking ${booking.id}`);
 
-      const { email } = getCustomerDetails(booking);
       const bookingDetails = normaliseBookingDetails(booking);
-      const html = await renderBookingConfirmationEmail(bookingDetails);
 
-      emailQueue.add(async () => {
-        if (bookingDetails.customerPhoneNumber) {
-          await sendMessage({
-            variables: {
-              "1": bookingDetails.customerName,
-              "2": bookingDetails.carName,
-              "3": bookingDetails.startDate,
-              "4": bookingDetails.endDate,
-              "5": bookingDetails.pickupLocation,
-              "6": bookingDetails.returnLocation,
-              "7": bookingDetails.totalAmount,
-            },
-            to: bookingDetails.customerPhoneNumber,
-            templateKey: Template.BookingConfirmation,
-          });
-        }
+      // Send customer WhatsApp message as separate queue task
+      if (bookingDetails.customerPhoneNumber) {
+        await emailQueue.add(async () => {
+          try {
+            await sendMessage({
+              variables: {
+                "1": bookingDetails.customerName,
+                "2": bookingDetails.carName,
+                "3": bookingDetails.startDate,
+                "4": bookingDetails.endDate,
+                "5": bookingDetails.pickupLocation,
+                "6": bookingDetails.returnLocation,
+                "7": bookingDetails.totalAmount,
+              },
+              to: bookingDetails.customerPhoneNumber,
+              templateKey: Template.BookingConfirmation,
+            });
+            logger.info("Customer WhatsApp message sent successfully");
+          } catch (error) {
+            logger.error("Customer WhatsApp message failed", { error });
+          }
+        });
+      }
 
-        if (booking.car.owner.phoneNumber) {
-          await sendMessage({
-            variables: {
-              "1": bookingDetails.ownerName,
-              "2": bookingDetails.carName,
-              "3": bookingDetails.customerName,
-              "4": bookingDetails.startDate,
-              "5": bookingDetails.endDate,
-              "6": bookingDetails.pickupLocation,
-              "7": bookingDetails.returnLocation,
-              "8": bookingDetails.totalAmount,
-              "9": bookingDetails.id,
-            },
-            to: booking.car.owner.phoneNumber,
-            templateKey: Template.FleetOwnerBookingNotification,
+      // Send fleet owner WhatsApp message as separate queue task
+      if (booking.car.owner.phoneNumber !== null) {
+        await emailQueue.add(async () => {
+          try {
+            await sendMessage({
+              variables: {
+                "1": bookingDetails.ownerName,
+                "2": bookingDetails.carName,
+                "3": bookingDetails.customerName,
+                "4": bookingDetails.startDate,
+                "5": bookingDetails.endDate,
+                "6": bookingDetails.pickupLocation,
+                "7": bookingDetails.returnLocation,
+                "8": bookingDetails.totalAmount,
+                "9": bookingDetails.id,
+              },
+              to: booking.car.owner.phoneNumber,
+              templateKey: Template.FleetOwnerBookingNotification,
+            });
+            logger.info("Fleet owner WhatsApp message sent successfully");
+          } catch (error) {
+            logger.error("Fleet owner WhatsApp message failed", { error });
+          }
+        });
+      }
+
+      const { email } = getCustomerDetails(booking);
+
+      // Send customer email as separate queue task
+      await emailQueue.add(async () => {
+        logger.info(`[Unified Webhook] Sending customer email to ${email}`);
+        try {
+          await sendEmail({
+            to: email,
+            subject: "Booking Confirmed",
+            html: await renderBookingConfirmationEmail(bookingDetails),
           });
+          logger.info("Customer email sent successfully");
+        } catch (error) {
+          logger.error("Customer email failed", { error });
         }
       });
 
-      logger.info(`[Unified Webhook] Booking confirmation email queued for ${email}`);
-
-      emailQueue.add(async () => {
-        const results = await Promise.allSettled([
-          sendEmail({ to: email, subject: "Booking Confirmed", html }),
-
-          sendEmail({
+      // Send fleet owner email as separate queue task
+      await emailQueue.add(async () => {
+        logger.info(`[Unified Webhook] Sending fleet owner email to ${booking.car.owner.email}`);
+        try {
+          await sendEmail({
             to: booking.car.owner.email,
             subject: "New Booking Alert",
             html: await renderFleetOwnerBookingNotificationEmail(bookingDetails),
-          }),
-        ]);
-
-        results.forEach((result, index) => {
-          const emailType = index === 0 ? "customer" : "fleet owner";
-          if (result.status === "fulfilled") {
-            logger.info(`${emailType} email sent successfully`);
-          } else {
-            logger.error(`${emailType} email failed`, { error: result.reason });
-          }
-        });
+          });
+          logger.info("Fleet owner email sent successfully");
+        } catch (error) {
+          logger.error("Fleet owner email failed", { error });
+        }
       });
-      logger.info(`[Unified Webhook] Fleet owner notification queued for ${email}`);
     } else if (transactionType === "booking_extension") {
       logger.info(`[Unified Webhook] Processing booking extension for ${currentPaymentIntent}`);
 
@@ -264,7 +302,7 @@ async function handleChargeCompleted(payload: FlutterwaveChargeCompletedPayload)
 
       if (!pendingExtension) {
         logger.error("Pending extension not found", { paymentIntent: currentPaymentIntent });
-        return json({ error: "Extension not found" }, { status: 404 });
+        return Response.json({ error: "Extension not found" }, { status: 404 });
       }
 
       logger.info("Found pending extension", {
@@ -285,7 +323,7 @@ async function handleChargeCompleted(payload: FlutterwaveChargeCompletedPayload)
 
       logger.info(`[Unified Webhook] Sending extension confirmation email to ${email}`);
 
-      emailQueue.add(async () => {
+      await emailQueue.add(async () => {
         if (extensionDetails.customerPhoneNumber) {
           await sendMessage({
             variables: {
@@ -313,10 +351,10 @@ async function handleChargeCompleted(payload: FlutterwaveChargeCompletedPayload)
         transactionType,
         paymentIntent: currentPaymentIntent,
       });
-      return json({ error: "Unknown transaction type" }, { status: 400 });
+      return Response.json({ error: "Unknown transaction type" }, { status: 400 });
     }
 
-    return json({ message: "Webhook processed successfully" });
+    return Response.json({ message: "Webhook processed successfully" }, { status: 200 });
   } catch (error: unknown) {
     const e = error as Error;
     logger.error("Error processing webhook", {
@@ -325,7 +363,7 @@ async function handleChargeCompleted(payload: FlutterwaveChargeCompletedPayload)
       error: e.message,
       stack: e.stack,
     });
-    return json({ error: "Server error processing webhook" }, { status: 500 });
+    return Response.json({ error: "Server error processing webhook" }, { status: 500 });
   }
 }
 
@@ -336,14 +374,14 @@ async function handleRefundCompleted(payload: FlutterwaveRefundPayload) {
     logger.warn(
       `[Unified Webhook] Refund event received but status is not 'completed': ${status}. Ignoring.`,
     );
-    return json({ message: "Refund not completed." });
+    return Response.json({ message: "Refund not completed." }, { status: 400 });
   }
 
   if (!flutterwaveReference) {
     logger.error(
       "[Unified Webhook] Flutterwave transaction reference (FlwRef) not found in refund payload.",
     );
-    return json({ error: "Transaction reference missing" }, { status: 400 });
+    return Response.json({ error: "Transaction reference missing" }, { status: 400 });
   }
 
   try {
@@ -356,12 +394,12 @@ async function handleRefundCompleted(payload: FlutterwaveRefundPayload) {
       logger.error(
         `[Unified Webhook] Payment record not found for Flutterwave transaction reference: ${flutterwaveReference}.`,
       );
-      return json({ error: "Payment not found" }, { status: 404 });
+      return Response.json({ error: "Payment not found" }, { status: 404 });
     }
 
     if (!payment.booking) {
       logger.error(`[Unified Webhook] No associated booking found for payment ID: ${payment.id}.`);
-      return json({ error: "Booking not found for payment" }, { status: 404 });
+      return Response.json({ error: "Booking not found for payment" }, { status: 404 });
     }
 
     // Update payment and booking status to REFUNDED
@@ -379,12 +417,62 @@ async function handleRefundCompleted(payload: FlutterwaveRefundPayload) {
     logger.info(
       `[Unified Webhook] Successfully processed refund for booking ${payment.booking.id}. Status updated to REFUNDED.`,
     );
+
+    // Handle referral reversal on refund
+    // try {
+    //   if (payment.booking.referralStatus !== "NONE") {
+    //     const reward = await prisma.referralReward.findFirst({
+    //       where: { bookingId: payment.booking.id },
+    //     });
+    //     if (reward) {
+    //       if (reward.status === "RELEASED") {
+    //         await prisma.$transaction([
+    //           prisma.referralReward.update({
+    //             where: { id: reward.id },
+    //             data: { status: "REVERSED", reason: "Refund completed" },
+    //           }),
+    //           prisma.userReferralStats.update({
+    //             where: { userId: reward.referrerUserId },
+    //             data: { totalRewardsGranted: { decrement: reward.amount } },
+    //           }),
+    //           prisma.booking.update({
+    //             where: { id: payment.booking.id },
+    //             data: { referralStatus: "REVERSED" },
+    //           }),
+    //         ]);
+    //       } else if (reward.status === "PENDING") {
+    //         await prisma.$transaction([
+    //           prisma.referralReward.update({
+    //             where: { id: reward.id },
+    //             data: { status: "REVERSED", reason: "Refund completed" },
+    //           }),
+    //           prisma.user.update({
+    //             where: { id: reward.refereeUserId },
+    //             data: { referralDiscountUsed: false },
+    //           }),
+    //           prisma.userReferralStats.update({
+    //             where: { userId: reward.referrerUserId },
+    //             data: { totalRewardsPending: { decrement: reward.amount } },
+    //           }),
+    //           prisma.booking.update({
+    //             where: { id: payment.booking.id },
+    //             data: { referralStatus: "REVERSED" },
+    //           }),
+    //         ]);
+    //       }
+    //     }
+    //   }
+    // } catch (e) {
+    //   logger.error("[Unified Webhook] Failed to reverse referral on refund", {
+    //     error: e instanceof Error ? e.message : e,
+    //   });
+    // }
   } catch (error) {
     logger.error(`[Unified Webhook] Error processing refund: ${error}`);
-    return json({ error: "Failed to process refund" }, { status: 500 });
+    return Response.json({ error: "Failed to process refund" }, { status: 500 });
   }
 
-  return json({ message: "Refund processed successfully" });
+  return Response.json({ message: "Refund processed successfully" }, { status: 200 });
 }
 
 async function handleTransferCompleted(payload: FlutterwaveTransferCompletedPayload) {
@@ -412,7 +500,7 @@ async function handleTransferCompleted(payload: FlutterwaveTransferCompletedPayl
   if (!payoutTransaction) {
     logger.error(`[Transfer Webhook] PayoutTransaction not found for transferId: ${transferId}`);
     // Acknowledge receipt to prevent retries, but log error.
-    return json({ error: "Transaction not found" }, { status: 404 });
+    return Response.json({ error: "Transaction not found" }, { status: 404 });
   }
 
   let finalStatus: "PAID_OUT" | "FAILED";
@@ -428,7 +516,10 @@ async function handleTransferCompleted(payload: FlutterwaveTransferCompletedPayl
         `[Transfer Webhook] Received unhandled transfer status '${status}' for transfer ${transferId}. No action taken.`,
       );
       // Acknowledge receipt, but take no action.
-      return json({ message: "Webhook acknowledged, no action taken for this status." });
+      return Response.json(
+        { message: "Webhook acknowledged, no action taken for this status." },
+        { status: 200 },
+      );
   }
 
   await prisma.payoutTransaction.update({
@@ -461,7 +552,7 @@ async function handleTransferCompleted(payload: FlutterwaveTransferCompletedPayl
       currency: "NGN",
     }).format(amount);
 
-    emailQueue.add(async () => {
+    await emailQueue.add(async () => {
       const html = await renderPayoutNotificationEmail({
         name: owner.name ?? owner.email,
         amount: formattedAmount,
@@ -487,34 +578,48 @@ async function handleTransferCompleted(payload: FlutterwaveTransferCompletedPayl
     });
   }
 
-  return json({ message: "Transfer webhook processed successfully" });
+  return Response.json({ message: "Transfer webhook processed successfully" }, { status: 200 });
 }
 
+// Disable Vercel Authentication for webhook endpoint
+export const config = {
+  auth: false,
+};
+
 export async function action({ request }: ActionFunctionArgs) {
+  const contentType = request.headers.get("content-type");
+  logger.info(`[Unified Webhook] Content type, ${contentType}`);
+  logger.info("[Unified Webhook] Handling webhook");
+
   const isWebhookVerified = await verifyPaymentWebhook(request.clone());
 
   if (!isWebhookVerified) {
     logger.error("[Unified Webhook] Webhook verification failed");
-    return json({ error: "Webhook verification failed" }, { status: 400 });
+    return Response.json({ error: "Webhook verification failed" }, { status: 400 });
   }
 
+  logger.info("[Unified Webhook] Webhook verification successful, processing payload");
   const payload = await request.json();
   logger.info("[Unified Webhook] Received payload", payload);
 
   // --- Event-based routing ---
   if (isChargeCompletedPayload(payload)) {
+    logger.info("[Unified Webhook] Handling charge completed");
+    logger.info(payload);
     return handleChargeCompleted(payload);
   }
 
   if (isRefundPayload(payload)) {
+    logger.info("[Unified Webhook] Handling refund completed");
     return handleRefundCompleted(payload);
   }
 
   if (isTransferCompletedPayload(payload)) {
+    logger.info("[Unified Webhook] Handling transfer completed");
     return handleTransferCompleted(payload);
   }
 
   logger.warn("[Unified Webhook] Received an unhandled event type.");
   // Acknowledge receipt of the webhook even if we don't handle it
-  return json({ message: "Event type not handled" }, { status: 200 });
+  return Response.json({ message: "Event type not handled" }, { status: 200 });
 }

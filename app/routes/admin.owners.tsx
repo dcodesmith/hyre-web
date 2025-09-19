@@ -1,14 +1,27 @@
-import { json, type LoaderFunctionArgs, type ActionFunctionArgs } from "@remix-run/node";
-import { useLoaderData, useSubmit } from "@remix-run/react";
+import { parseWithZod } from "@conform-to/zod";
+import { FleetOwnerStatus, User } from "@prisma/client";
+import { type ActionFunctionArgs, type LoaderFunctionArgs, data } from "@remix-run/node";
+import { Link, useLoaderData, useSubmit } from "@remix-run/react";
+import { createColumnHelper, Row } from "@tanstack/react-table";
+import { useAuthenticityToken } from "remix-utils/csrf/react";
+import { z } from "zod";
+import { AdminFleetOwnerRowActions } from "~/components/Table/AdminRowActions";
+import { ColumnHeader } from "~/components/Table/ColumnHeader";
 import { Table } from "~/components/Table/Table";
+import { Badge } from "~/components/ui/badge";
 import { requireAdminOrStaffWithRedirect } from "~/modules/auth/auth.server";
 import { prisma } from "~/modules/db/db.server";
-import { createColumnHelper } from "@tanstack/react-table";
-import { Link } from "@remix-run/react";
-import { FleetOwnerStatus, User } from "@prisma/client";
-import { Badge } from "~/components/ui/badge";
-import { ColumnHeader } from "~/components/Table/ColumnHeader";
-import { AdminFleetOwnerRowActions } from "~/components/Table/AdminRowActions";
+import { validateCSRF } from "~/utils/csrf-action.server";
+
+const UpdateOwnerStatusSchema = z.object({
+  ownerId: z.string().min(1, "Owner ID is required"),
+  status: z.nativeEnum(FleetOwnerStatus, {
+    errorMap: () => ({ message: "Invalid status" }),
+  }),
+  intent: z.literal("updateOwnerStatus", {
+    errorMap: () => ({ message: "Invalid intent" }),
+  }),
+});
 
 export async function loader({ request }: LoaderFunctionArgs) {
   await requireAdminOrStaffWithRedirect(request);
@@ -37,45 +50,44 @@ export async function loader({ request }: LoaderFunctionArgs) {
     },
   });
 
-  return json({ fleetOwners });
+  return { fleetOwners };
 }
 
 export async function action({ request }: ActionFunctionArgs) {
+  await validateCSRF(request);
   await requireAdminOrStaffWithRedirect(request);
 
   const formData = await request.formData();
-  const { ownerId, status, intent } = Object.fromEntries(formData);
+  const submission = parseWithZod(formData, { schema: UpdateOwnerStatusSchema });
 
-  if (typeof ownerId !== "string" || typeof status !== "string" || typeof intent !== "string") {
-    return json({ success: false });
+  if (submission.status !== "success") {
+    return data(
+      {
+        success: false,
+        error: "Invalid form data",
+        submission: submission.reply(),
+      },
+      { status: 400 },
+    );
   }
 
-  //   await prisma.user.update({
-  //     where: { id: ownerId },
-  //     data: {
-  //       fleetOwnerStatus: status as FleetOwnerStatus,
-  //     },
-  //   });
+  const { ownerId, status, intent } = submission.value;
 
   if (intent === "updateOwnerStatus") {
-    // const { ownerId, status } = Object.fromEntries(formData);
-
-    // if (typeof ownerId !== "string" || typeof status !== "string") {
-    //   return json({ success: false });
-    // }
-
     await prisma.user.update({
       where: { id: ownerId },
       data: {
-        fleetOwnerStatus: status as FleetOwnerStatus,
+        fleetOwnerStatus: status,
       },
     });
   }
 
-  return json({ success: true });
+  return { success: true };
 }
 
-const columnHelper = createColumnHelper<User & { _count: { cars: number; chauffeurs: number } }>();
+type FleetOwner = User & { _count: { cars: number; chauffeurs: number } };
+
+const columnHelper = createColumnHelper<FleetOwner>();
 
 const statusColorMap: Record<FleetOwnerStatus, string> = {
   PROCESSING: "text-yellow-600 border-yellow-600",
@@ -83,6 +95,7 @@ const statusColorMap: Record<FleetOwnerStatus, string> = {
   ON_HOLD: "text-orange-600 border-orange-600",
   ARCHIVED: "text-gray-600 border-gray-600",
 };
+
 const statusTextMap: Record<FleetOwnerStatus, string> = {
   PROCESSING: "Processing",
   APPROVED: "Approved",
@@ -145,20 +158,25 @@ const columns = [
   columnHelper.accessor("id", {
     enableColumnFilter: false,
     header: "Actions",
-    cell: ({ row }) => {
-      const submit = useSubmit();
-
-      const handleUpdateStatus = (id: string, status: FleetOwnerStatus) => {
-        const formData = new FormData();
-        formData.append("ownerId", id);
-        formData.append("status", status);
-        submit(formData, { method: "POST" });
-      };
-
-      return <AdminFleetOwnerRowActions row={row} onUpdateStatus={handleUpdateStatus} />;
-    },
+    cell: ({ row }) => <FleetOwnerActionsCell row={row} />,
   }),
 ] as const;
+
+function FleetOwnerActionsCell({ row }: { readonly row: Row<FleetOwner> }) {
+  const submit = useSubmit();
+  const csrfToken = useAuthenticityToken();
+
+  const handleUpdateStatus = (id: string, status: FleetOwnerStatus) => {
+    const formData = new FormData();
+    formData.append("ownerId", id);
+    formData.append("status", status);
+    formData.append("csrf", csrfToken);
+    formData.append("intent", "updateOwnerStatus");
+    submit(formData, { method: "POST" });
+  };
+
+  return <AdminFleetOwnerRowActions row={row} onUpdateStatus={handleUpdateStatus} />;
+}
 
 export const handle = {
   breadcrumb: () => ({

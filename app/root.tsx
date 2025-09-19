@@ -1,5 +1,5 @@
 import { cssBundleHref } from "@remix-run/css-bundle";
-import type { LinksFunction, LoaderFunctionArgs } from "@remix-run/node";
+import { type LinksFunction, type LoaderFunctionArgs, data } from "@remix-run/node";
 import {
   Link,
   Links,
@@ -8,7 +8,6 @@ import {
   Scripts,
   ScrollRestoration,
   isRouteErrorResponse,
-  json,
   useLoaderData,
   useRouteError,
 } from "@remix-run/react";
@@ -21,6 +20,7 @@ import Forbidden from "./components/layout/Forbidden";
 import { UserNav } from "./components/layout/UserNav";
 import { Toaster } from "./components/ui/toaster";
 import { getSessionUser } from "./modules/auth/auth.server";
+import { touchSession } from "./modules/auth/session.server";
 import { env } from "./utils/server/env.server";
 
 export const links: LinksFunction = () => [
@@ -52,22 +52,35 @@ export async function loader({ request }: LoaderFunctionArgs) {
     GOOGLE_MAPS_API_KEY: env.GOOGLE_MAPS_API_KEY,
   };
 
-  return json(
+  // Touch session to extend expiry (rolling expiry)
+  const sessionCookie = await touchSession(request);
+
+  // Properly handle multiple Set-Cookie headers
+  const headers = new Headers();
+
+  headers.set("Cache-Control", "private, no-store, must-revalidate");
+  headers.append("Vary", "Cookie");
+
+  if (csrfCookieHeader) {
+    headers.append("Set-Cookie", csrfCookieHeader);
+  }
+
+  if (sessionCookie) {
+    headers.append("Set-Cookie", sessionCookie);
+  }
+
+  return data(
     {
       user,
       ENV,
       csrfToken,
-    } as const,
-    {
-      headers: csrfCookieHeader ? { "Set-Cookie": csrfCookieHeader } : undefined,
     },
+    { headers },
   );
 }
 
 function AppContent() {
   const { user, ENV } = useLoaderData<typeof loader>();
-  // const location = useLocation();
-  // const isAdminRoute = location.pathname.startsWith("/admin");
 
   return (
     <html lang="en" className="h-full">
@@ -96,10 +109,6 @@ function AppContent() {
               {ENV.APP_NAME}
             </Link>
             <div className="flex items-center gap-2 mr-2">
-              {/* {!isAdminRoute &&
-                !user?.roles.some((role) =>
-                  ["admin", "fleetOwner", "staff"].includes(role.name),
-                ) && <Button variant="outline">Become a fleet owner</Button>} */}
               <UserNav user={user} />
             </div>
           </header>

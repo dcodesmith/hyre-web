@@ -1,6 +1,5 @@
 import { BookingStatus, PaymentStatus } from "@prisma/client";
-import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
-import { json } from "@remix-run/node";
+import { type ActionFunctionArgs, type LoaderFunctionArgs, data } from "@remix-run/node";
 import { redirect, useFetcher, useLoaderData } from "@remix-run/react";
 import { useAuthenticityToken } from "remix-utils/csrf/react";
 import { useState } from "react";
@@ -27,13 +26,37 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
 
   try {
     if (request.method !== "PATCH") {
-      return json({ error: "Method not allowed" }, { status: 405 });
+      return data({ error: "Method not allowed" }, { status: 405 });
     }
 
     invariant(params.id, "Booking ID is required");
 
     const formData = await request.formData();
     const chauffeurId = String(formData.get("chauffeurId"));
+
+    const existing = await prisma.booking.findUnique({
+      where: { id: params.id },
+      include: { car: { select: { ownerId: true } } },
+    });
+
+    if (!existing) {
+      return data({ error: "Booking not found" }, { status: 404 });
+    }
+
+    const validChauffeur = await prisma.user.findFirst({
+      where: {
+        id: chauffeurId,
+        fleetOwnerId: existing.car.ownerId,
+        roles: { some: { name: "chauffeur" } },
+        bookingsAsChauffeur: {
+          none: { status: { in: [BookingStatus.CONFIRMED, BookingStatus.ACTIVE] } },
+        },
+      },
+    });
+
+    if (!validChauffeur) {
+      return data({ error: "Invalid chauffeur for this booking" }, { status: 400 });
+    }
 
     const booking = await prisma.booking.update({
       where: { id: params.id },
@@ -47,7 +70,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
     });
 
     if (!booking) {
-      return json({ error: "Booking not found" }, { status: 404 });
+      return data({ error: "Booking not found" }, { status: 404 });
     }
 
     const { email } = getCustomerDetails(booking);
@@ -96,7 +119,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred";
     logger.error(errorMessage);
-    return json({ error: errorMessage }, { status: 500 });
+    return data({ error: errorMessage }, { status: 500 });
   }
 };
 
@@ -152,10 +175,10 @@ export async function loader({ params }: LoaderFunctionArgs) {
   });
 
   if (!booking) {
-    throw new Response("Booking not found", { status: 404 });
+    throw data({ error: "Booking not found" }, { status: 404 });
   }
 
-  return json({ booking });
+  return { booking };
 }
 
 export default function BookingDetails() {

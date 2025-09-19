@@ -1,10 +1,9 @@
 import { PayoutTransactionStatus } from "@prisma/client";
 import type { LoaderFunctionArgs } from "@remix-run/node";
-import { json } from "@remix-run/node";
+import { data } from "@remix-run/node";
 import { Link, useLoaderData } from "@remix-run/react";
 import { ColumnDef } from "@tanstack/react-table";
 import { MoreHorizontal } from "lucide-react";
-import { useMemo } from "react";
 import { ColumnHeader } from "~/components/Table/ColumnHeader";
 import { Table } from "~/components/Table/Table";
 import { Badge } from "~/components/ui/badge";
@@ -19,6 +18,8 @@ import { cn, formatCurrency, formatDate } from "~/lib/utils";
 import { requireUser } from "~/modules/auth/auth.server";
 import { prisma } from "~/modules/db/db.server";
 
+type Transaction = ReturnType<typeof useLoaderData<typeof loader>>["transactions"][number];
+
 export async function loader({ request }: LoaderFunctionArgs) {
   const user = await requireUser(request);
   const transactions = await prisma.payoutTransaction.findMany({
@@ -28,12 +29,20 @@ export async function loader({ request }: LoaderFunctionArgs) {
     orderBy: {
       initiatedAt: "desc",
     },
-    include: {
-      booking: true,
+    select: {
+      id: true,
+      bookingId: true,
+      amountToPay: true,
+      status: true,
+      payoutProviderReference: true,
+      booking: { select: { startDate: true, endDate: true } },
     },
   });
 
-  return json({ transactions });
+  return data(
+    { transactions },
+    { headers: { "Cache-Control": "private, no-store", Vary: "Cookie" } },
+  );
 }
 
 const payoutStatusColors: Record<PayoutTransactionStatus, string> = {
@@ -54,101 +63,98 @@ const payoutStatusOptions: Record<PayoutTransactionStatus, string> = {
   REVERSED: "Reversed",
 };
 
+const columns: ColumnDef<Transaction>[] = [
+  {
+    accessorKey: "id",
+    header: ({ column }) => <ColumnHeader column={column} title="Transaction Id" />,
+    cell: ({ row }) => <div className="w-[150px] truncate">{row.original.id}</div>,
+    enableColumnFilter: false,
+  },
+  {
+    accessorKey: "bookingId",
+    header: ({ column }) => <ColumnHeader column={column} title="Booking Id" />,
+    cell: ({ row }) => <div className="w-[150px] truncate">{row.original.bookingId}</div>,
+    enableColumnFilter: false,
+  },
+
+  {
+    accessorKey: "booking.startDate",
+    header: ({ column }) => <ColumnHeader column={column} title="Booking Start Date" />,
+    cell: ({ row }) => (
+      <div className="w-[185px]">
+        {row.original.booking ? formatDate(row.original.booking.startDate) : "N/A"}
+      </div>
+    ),
+  },
+  {
+    accessorKey: "booking.endDate",
+    header: ({ column }) => <ColumnHeader column={column} title="Booking End Date" />,
+    cell: ({ row }) => (
+      <div className="w-[185px]">
+        {row.original.booking ? formatDate(row.original.booking.endDate) : "N/A"}
+      </div>
+    ),
+  },
+  {
+    accessorKey: "amountToPay",
+    header: ({ column }) => <ColumnHeader column={column} title="Amount" />,
+    cell: ({ row }) => (
+      <div className="w-[100px]">{`${formatCurrency(Number(row.original.amountToPay))}`}</div>
+    ),
+    enableColumnFilter: false,
+  },
+  {
+    accessorKey: "status",
+    header: ({ column }) => <ColumnHeader column={column} title="Status" />,
+    cell: ({ row }) => (
+      <div className="w-[150px]">
+        <Badge
+          variant="outline"
+          className={cn(
+            payoutStatusColors[row.original.status],
+            "rounded border-none ring-1 ring-inset",
+          )}
+        >
+          {payoutStatusOptions[row.original.status]}
+        </Badge>
+      </div>
+    ),
+  },
+  {
+    accessorKey: "payoutProviderReference",
+    header: ({ column }) => <ColumnHeader column={column} title="Provider Reference" />,
+    cell: ({ row }) => (
+      <div className="w-[150px] truncate">{row.original.payoutProviderReference || "N/A"}</div>
+    ),
+  },
+  {
+    id: "actions",
+    header: () => null,
+    enableHiding: false,
+    cell: ({ row }) => {
+      const transaction = row.original;
+
+      return (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" className="h-8 w-8 p-0">
+              <span className="sr-only">Open menu</span>
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem asChild>
+              <Link to={`/fleet-owner/bookings/${transaction.bookingId}`}>View Booking</Link>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      );
+    },
+  },
+];
+
 export default function PayoutTransactionsPage() {
   const { transactions } = useLoaderData<typeof loader>();
-
-  const columns = useMemo<ColumnDef<(typeof transactions)[number]>[]>(
-    () => [
-      {
-        accessorKey: "id",
-        header: ({ column }) => <ColumnHeader column={column} title="Transaction Id" />,
-        cell: ({ row }) => <div className="w-[150px] truncate">{row.original.id}</div>,
-        enableColumnFilter: false,
-      },
-      {
-        accessorKey: "bookingId",
-        header: ({ column }) => <ColumnHeader column={column} title="Booking Id" />,
-        cell: ({ row }) => <div className="w-[150px] truncate">{row.original.bookingId}</div>,
-        enableColumnFilter: false,
-      },
-
-      {
-        accessorKey: "booking.startDate",
-        header: ({ column }) => <ColumnHeader column={column} title="Booking Start Date" />,
-        cell: ({ row }) => (
-          <div className="w-[185px]">
-            {row.original.booking ? formatDate(row.original.booking.startDate) : "N/A"}
-          </div>
-        ),
-      },
-      {
-        accessorKey: "booking.endDate",
-        header: ({ column }) => <ColumnHeader column={column} title="Booking End Date" />,
-        cell: ({ row }) => (
-          <div className="w-[185px]">
-            {row.original.booking ? formatDate(row.original.booking.endDate) : "N/A"}
-          </div>
-        ),
-      },
-      {
-        accessorKey: "amountToPay",
-        header: ({ column }) => <ColumnHeader column={column} title="Amount" />,
-        cell: ({ row }) => (
-          <div className="w-[100px]">{`${formatCurrency(Number(row.original.amountToPay))}`}</div>
-        ),
-        enableColumnFilter: false,
-      },
-      {
-        accessorKey: "status",
-        header: ({ column }) => <ColumnHeader column={column} title="Status" />,
-        cell: ({ row }) => (
-          <div className="w-[150px]">
-            <Badge
-              variant="outline"
-              className={cn(
-                payoutStatusColors[row.original.status],
-                "rounded border-none ring-1 ring-inset",
-              )}
-            >
-              {payoutStatusOptions[row.original.status]}
-            </Badge>
-          </div>
-        ),
-      },
-      {
-        accessorKey: "payoutProviderReference",
-        header: ({ column }) => <ColumnHeader column={column} title="Provider Reference" />,
-        cell: ({ row }) => (
-          <div className="w-[150px] truncate">{row.original.payoutProviderReference || "N/A"}</div>
-        ),
-      },
-      {
-        id: "actions",
-        header: () => null,
-        enableHiding: false,
-        cell: ({ row }) => {
-          const transaction = row.original;
-
-          return (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="h-8 w-8 p-0">
-                  <span className="sr-only">Open menu</span>
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem asChild>
-                  <Link to={`/fleet-owner/bookings/${transaction.bookingId}`}>View Booking</Link>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          );
-        },
-      },
-    ],
-    [],
-  );
 
   return (
     <div className="container mx-auto">

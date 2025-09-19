@@ -1,16 +1,24 @@
-import { SerializeFrom } from "@remix-run/node";
 import { useRouteLoaderData } from "@remix-run/react";
-import { loader as rootLoader } from "~/root";
+import type { User } from "@prisma/client";
 
 /**
  * Use root-loader data.
  */
-function isUser(user: unknown): user is SerializeFrom<typeof rootLoader>["user"] {
+export type RootLoaderData = {
+  user: (User & { roles: { name: string }[] }) | null;
+  ENV: {
+    APP_NAME: string;
+    GOOGLE_MAPS_API_KEY: string;
+  };
+  csrfToken: string;
+};
+
+function isUser(user: unknown): user is User & { roles: { name: string }[] } {
   return Boolean(user && typeof user === "object" && "id" in user && typeof user.id === "string");
 }
 
-export function useOptionalUser() {
-  const data = useRouteLoaderData<typeof rootLoader>("root");
+export function useOptionalUser(): (User & { roles: { name: string }[] }) | undefined {
+  const data = useRouteLoaderData<RootLoaderData>("root");
 
   if (!data || !isUser(data.user)) {
     return undefined;
@@ -42,5 +50,5 @@ export function userHasRole(
     return false;
   }
 
-  return user.roles?.some((role) => role.name === roleName) ?? false;
+  return user.roles.some((role) => role.name === roleName);
 }

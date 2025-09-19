@@ -1,5 +1,5 @@
 import { parseWithZod } from "@conform-to/zod";
-import { ActionFunctionArgs, json, type LoaderFunctionArgs, redirect } from "@remix-run/node";
+import { ActionFunctionArgs, type LoaderFunctionArgs, redirect, data } from "@remix-run/node";
 import { useActionData, useLoaderData } from "@remix-run/react";
 import { AddonType } from "~/types";
 import { z } from "zod";
@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from "~/components/ui/select";
 import { formatCurrency } from "~/lib/utils";
+import logger from "~/lib/logger.server";
 
 const createAddonRateSchema = z.object({
   addonType: z.nativeEnum(AddonType),
@@ -35,7 +36,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     orderBy: [{ addonType: "asc" }, { effectiveSince: "desc" }],
   });
 
-  return json({ addonRates });
+  return { addonRates };
 }
 
 export async function action({ request }: ActionFunctionArgs) {
@@ -49,7 +50,7 @@ export async function action({ request }: ActionFunctionArgs) {
     const submission = parseWithZod(formData, { schema: createAddonRateSchema });
 
     if (submission.status !== "success") {
-      return json({ success: false, message: "Validation failed" }, { status: 400 });
+      return data({ success: false, message: "Validation failed" }, { status: 400 });
     }
 
     const { addonType, rateAmount, description, effectiveSince } = submission.value;
@@ -78,7 +79,8 @@ export async function action({ request }: ActionFunctionArgs) {
 
       return redirect("/admin/addon-rates");
     } catch (error) {
-      return json({ success: false, message: "Failed to create addon rate" }, { status: 400 });
+      logger.error("Error creating addon rate:", error);
+      return data({ success: false, message: "Failed to create addon rate" }, { status: 400 });
     }
   }
 
@@ -93,16 +95,18 @@ export async function action({ request }: ActionFunctionArgs) {
 
       return redirect("/admin/addon-rates");
     } catch (error) {
-      return json({ success: false, message: "Failed to end addon rate" }, { status: 400 });
+      logger.error("Error ending addon rate:", error);
+      return data({ success: false, message: "Failed to end addon rate" }, { status: 400 });
     }
   }
 
-  return json({ success: false, message: "Invalid action" }, { status: 400 });
+  return data({ success: false, message: "Invalid action" }, { status: 400 });
 }
 
 export default function AdminAddonRates() {
   const { addonRates } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
+  const { success, message } = actionData ?? {};
 
   const groupedRates = addonRates.reduce(
     (acc, rate) => {
@@ -123,9 +127,9 @@ export default function AdminAddonRates() {
 
       {actionData && (
         <div
-          className={`p-4 rounded ${actionData.success ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}
+          className={`p-4 rounded ${success ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}
         >
-          {actionData.message}
+          {message}
         </div>
       )}
 

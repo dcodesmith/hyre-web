@@ -2,13 +2,19 @@ import { getFormProps, getInputProps, useForm } from "@conform-to/react";
 import { parseWithZod } from "@conform-to/zod";
 import { CheckBadgeIcon, CogIcon } from "@heroicons/react/24/outline";
 import { BookingStatus } from "@prisma/client";
-import type { LoaderFunctionArgs } from "@remix-run/node";
-import { ActionFunctionArgs, json } from "@remix-run/node";
-import { Form, useActionData, useLoaderData, useNavigation } from "@remix-run/react";
+import {
+  type ActionFunctionArgs,
+  type LoaderFunctionArgs,
+  data,
+  unstable_createMemoryUploadHandler,
+  unstable_parseMultipartFormData,
+} from "@remix-run/node";
+import { useActionData, useLoaderData, useNavigation } from "@remix-run/react";
 import { ColumnDef } from "@tanstack/react-table";
 import { PlusCircle } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { z } from "zod";
+import { Form } from "~/components/CSRFForm";
 import { ChauffeurRowActions } from "~/components/Table/ChauffuerRowActions";
 import { ColumnHeader } from "~/components/Table/ColumnHeader";
 import { Table } from "~/components/Table/Table";
@@ -25,16 +31,13 @@ import {
   SheetTrigger,
 } from "~/components/ui/sheet";
 import { useToast } from "~/hooks/use-toast";
+import logger from "~/lib/logger.server";
 import { cn, useIsPending } from "~/lib/utils";
 import { requireUserWithRole } from "~/modules/auth/auth.server";
 import { prisma } from "~/modules/db/db.server";
 import { createUser } from "~/services/users.server";
 import type { ChauffeurStatus, SerializedChauffeur } from "~/types";
-import {
-  unstable_parseMultipartFormData,
-  unstable_createMemoryUploadHandler,
-} from "@remix-run/node";
-import logger from "~/lib/logger.server";
+import { validateCSRF } from "~/utils/csrf-action.server";
 
 const chauffeurSchema = z.object({
   email: z
@@ -114,6 +117,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
           // },
         },
         take: 1,
+        orderBy: { startDate: "asc" },
         include: {
           car: {
             select: {
@@ -128,7 +132,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     },
   });
 
-  const serializedChauffeurs: SerializedChauffeur[] = chauffeurs.map((chauffeur) => ({
+  const serializedChauffeurs = chauffeurs.map((chauffeur) => ({
     id: chauffeur.id,
     name: chauffeur.name ?? "No name",
     email: chauffeur.email,
@@ -169,10 +173,11 @@ export async function loader({ request }: LoaderFunctionArgs) {
     approvalStatus: chauffeur.chauffeurApprovalStatus ?? "PENDING",
   }));
 
-  return json({ chauffeurs: serializedChauffeurs });
+  return { chauffeurs: serializedChauffeurs };
 }
 
 export async function action({ request }: ActionFunctionArgs) {
+  await validateCSRF(request);
   const user = await requireUserWithRole(request, "fleetOwner");
 
   // Parse as multipart form data for file uploads
@@ -183,7 +188,7 @@ export async function action({ request }: ActionFunctionArgs) {
   const intent = formData.get("intent")?.toString() ?? "";
 
   if (!["create", "edit"].includes(intent)) {
-    return json({ error: "Invalid intent" }, { status: 400 });
+    return data({ success: false, error: "Invalid intent" }, { status: 400 });
   }
 
   try {
@@ -191,7 +196,7 @@ export async function action({ request }: ActionFunctionArgs) {
       const submission = parseWithZod(formData, { schema: chauffeurSchema });
 
       if (submission.status !== "success") {
-        return json(submission.reply());
+        return data(submission.reply(), { status: 400 });
       }
 
       const { ninFile, drivingLicenceFile, ...userData } = submission.value;
@@ -204,7 +209,7 @@ export async function action({ request }: ActionFunctionArgs) {
         autoApprove: true,
       });
 
-      return json({ success: true, error: null });
+      return { success: true, error: null };
     }
 
     if (intent === "edit") {
@@ -215,7 +220,7 @@ export async function action({ request }: ActionFunctionArgs) {
       });
 
       if (submission.status !== "success") {
-        return json(submission.reply());
+        return data(submission.reply(), { status: 400 });
       }
 
       await prisma.user.update({
@@ -223,13 +228,11 @@ export async function action({ request }: ActionFunctionArgs) {
         data: submission.value,
       });
 
-      return json({ success: true, error: null });
+      return { success: true, error: null };
     }
-
-    return json({ success: true, error: null });
   } catch (error) {
-    logger.error(error instanceof Error ? error.message : "An unexpected error occurred");
-    return json(
+    logger.error({ error }, `Failed to ${intent} chauffeur`);
+    return data(
       {
         success: false,
         error: `Failed to ${intent} chauffeur`,
@@ -342,102 +345,95 @@ function ChauffeurForm() {
   );
 }
 
+const columns: ColumnDef<SerializedChauffeur>[] = [
+  {
+    accessorKey: "name",
+    header: ({ column }) => <ColumnHeader column={column} title="Name" />,
+    enableColumnFilter: false,
+    cell: ({ row }) => (
+      <div className="w-[150px] flex items-center gap-2">
+        {row.original.name}
+        {row.original.approvalStatus === "APPROVED" && (
+          <CheckBadgeIcon className="h-5 w-5 text-green-500" title="Verified Chauffeur" />
+        )}
+      </div>
+    ),
+  },
+  {
+    accessorKey: "email",
+    header: ({ column }) => <ColumnHeader column={column} title="Email" />,
+    enableColumnFilter: false,
+    cell: ({ row }) => <div className="w-[200px]">{row.original.email}</div>,
+  },
+  {
+    accessorKey: "phoneNumber",
+    enableColumnFilter: false,
+    header: ({ column }) => <ColumnHeader column={column} title="Phone Number" />,
+    cell: ({ row }) => <div className="w-[150px]">{row.original.phoneNumber}</div>,
+  },
+  {
+    accessorKey: "assignedCar",
+    enableColumnFilter: false,
+    header: ({ column }) => <ColumnHeader column={column} title="Assigned Car" />,
+    cell: ({ row: { original } }) => (
+      <div className="w-[250px]">
+        {original.assignedCar
+          ? `${original.assignedCar.make} ${original.assignedCar.model} (${original.assignedCar.registrationNumber})`
+          : "Not assigned"}
+      </div>
+    ),
+  },
+  {
+    id: "status",
+    accessorFn: ({ status }) => chauffeurStatusOptions[status],
+    header: ({ column }) => <ColumnHeader column={column} title="Status" />,
+    cell: ({ row }) => (
+      <div className="w-[100px]">
+        <Badge
+          variant="outline"
+          className={cn(statusColors[row.original.status], "rounded border-none ring-1 ring-inset")}
+        >
+          {row.getValue("status")}
+        </Badge>
+      </div>
+    ),
+  },
+  {
+    accessorKey: "approvalStatus",
+    header: ({ column }) => <ColumnHeader column={column} title="Approval Status" />,
+    cell: ({ row }) => (
+      <div className="w-[150px]">
+        <Badge
+          variant="outline"
+          className={cn(
+            row.original.approvalStatus === "PENDING" &&
+              "bg-yellow-50 text-yellow-600 ring-yellow-600/10",
+            row.original.approvalStatus === "APPROVED" &&
+              "bg-green-50 text-green-600 ring-green-600/10",
+            row.original.approvalStatus === "REJECTED" && "bg-red-50 text-red-600 ring-red-600/10",
+            "rounded border-none ring-1 ring-inset",
+          )}
+        >
+          {row.original.approvalStatus.charAt(0) +
+            row.original.approvalStatus.slice(1).toLowerCase()}
+        </Badge>
+      </div>
+    ),
+  },
+  {
+    id: "actions",
+    header: () => null,
+    enableHiding: false,
+    cell: ({ row }) => <ChauffeurRowActions row={row} />,
+  },
+] as const;
+
 export default function ChauffeursPage() {
   const { chauffeurs } = useLoaderData<typeof loader>();
   const [isOpen, setIsOpen] = useState(false);
   const navigation = useNavigation();
   const lastResult = useActionData<typeof action>();
   const { toast } = useToast();
-
-  const columns = useMemo<ColumnDef<SerializedChauffeur>[]>(
-    () => [
-      {
-        accessorKey: "name",
-        header: ({ column }) => <ColumnHeader column={column} title="Name" />,
-        enableColumnFilter: false,
-        cell: ({ row }) => (
-          <div className="w-[150px] flex items-center gap-2">
-            {row.original.name}
-            {row.original.approvalStatus === "APPROVED" && (
-              <CheckBadgeIcon className="h-5 w-5 text-green-500" title="Verified Chauffeur" />
-            )}
-          </div>
-        ),
-      },
-      {
-        accessorKey: "email",
-        header: ({ column }) => <ColumnHeader column={column} title="Email" />,
-        enableColumnFilter: false,
-        cell: ({ row }) => <div className="w-[200px]">{row.original.email}</div>,
-      },
-      {
-        accessorKey: "phoneNumber",
-        enableColumnFilter: false,
-        header: ({ column }) => <ColumnHeader column={column} title="Phone Number" />,
-        cell: ({ row }) => <div className="w-[150px]">{row.original.phoneNumber}</div>,
-      },
-      {
-        accessorKey: "assignedCar",
-        enableColumnFilter: false,
-        header: ({ column }) => <ColumnHeader column={column} title="Assigned Car" />,
-        cell: ({ row: { original } }) => (
-          <div className="w-[250px]">
-            {original.assignedCar
-              ? `${original.assignedCar.make} ${original.assignedCar.model} (${original.assignedCar.registrationNumber})`
-              : "Not assigned"}
-          </div>
-        ),
-      },
-      {
-        accessorKey: "status",
-        accessorFn: ({ status }) => chauffeurStatusOptions[status],
-        header: ({ column }) => <ColumnHeader column={column} title="Status" />,
-        cell: ({ row }) => (
-          <div className="w-[100px]">
-            <Badge
-              variant="outline"
-              className={cn(
-                statusColors[row.original.status],
-                "rounded border-none ring-1 ring-inset",
-              )}
-            >
-              {chauffeurStatusOptions[row.original.status]}
-            </Badge>
-          </div>
-        ),
-      },
-      {
-        accessorKey: "approvalStatus",
-        header: ({ column }) => <ColumnHeader column={column} title="Approval Status" />,
-        cell: ({ row }) => (
-          <div className="w-[150px]">
-            <Badge
-              variant="outline"
-              className={cn(
-                row.original.approvalStatus === "PENDING" &&
-                  "bg-yellow-50 text-yellow-600 ring-yellow-600/10",
-                row.original.approvalStatus === "APPROVED" &&
-                  "bg-green-50 text-green-600 ring-green-600/10",
-                row.original.approvalStatus === "REJECTED" &&
-                  "bg-red-50 text-red-600 ring-red-600/10",
-                "rounded border-none ring-1 ring-inset",
-              )}
-            >
-              {row.original.approvalStatus.charAt(0) +
-                row.original.approvalStatus.slice(1).toLowerCase()}
-            </Badge>
-          </div>
-        ),
-      },
-      {
-        id: "actions",
-        header: () => null,
-        enableHiding: false,
-        cell: ({ row }) => <ChauffeurRowActions row={row} />,
-      },
-    ],
-    [],
-  );
 
   useEffect(() => {
     if (

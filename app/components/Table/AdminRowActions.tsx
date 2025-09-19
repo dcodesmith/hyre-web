@@ -10,13 +10,13 @@ import {
 import { Button } from "../ui/button";
 
 interface AdminCarRowActionsProps<TData> {
-  row: Row<TData>;
-  onUpdateStatus: (id: string, status: CarApprovalStatus) => void;
+  readonly row: Row<TData>;
+  readonly onUpdateStatus: (id: string, status: CarApprovalStatus) => void;
 }
 
 interface AdminFleetOwnerRowActionsProps<TData> {
-  row: Row<TData>;
-  onUpdateStatus: (id: string, status: FleetOwnerStatus) => void;
+  readonly row: Row<TData>;
+  readonly onUpdateStatus: (id: string, status: FleetOwnerStatus) => void;
 }
 
 export function AdminCarRowActions<TData>({ row, onUpdateStatus }: AdminCarRowActionsProps<Car>) {

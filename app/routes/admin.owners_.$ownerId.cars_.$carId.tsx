@@ -1,10 +1,11 @@
-import { json, type LoaderFunctionArgs, type ActionFunctionArgs } from "@remix-run/node";
+import { type LoaderFunctionArgs, type ActionFunctionArgs, data } from "@remix-run/node";
 import { useLoaderData, useSubmit, useNavigate } from "@remix-run/react";
 import { prisma } from "~/modules/db/db.server"; // Update the import path
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
-import { CarApprovalStatus, DocumentApproval, DocumentStatus, DocumentType } from "@prisma/client";
+import { CarApprovalStatus } from "@prisma/client";
 import { requireAdminWithRedirect } from "~/modules/auth/auth.server";
+import { validateCSRF } from "~/utils/csrf-action.server";
 import { useState } from "react";
 import {
   Dialog,
@@ -15,18 +16,26 @@ import {
   DialogDescription,
 } from "~/components/ui/dialog";
 import { CheckCircle2, FileText, Loader2 } from "lucide-react";
-import { SerializedCar } from "~/types";
 import { Worker, Viewer } from "@react-pdf-viewer/core";
 import { defaultLayoutPlugin } from "@react-pdf-viewer/default-layout";
 import { Textarea } from "~/components/ui/textarea";
+import { useAuthenticityToken } from "remix-utils/csrf/react";
 
 // Import styles
 import "@react-pdf-viewer/core/lib/styles/index.css";
 import "@react-pdf-viewer/default-layout/lib/styles/index.css";
+import invariant from "tiny-invariant";
 
-export async function loader({ params }: LoaderFunctionArgs) {
-  const car = await prisma.car.findUnique({
-    where: { id: params.carId },
+export async function loader({ request, params }: LoaderFunctionArgs) {
+  await requireAdminWithRedirect(request);
+
+  const { carId, ownerId } = params;
+
+  invariant(carId, "Car ID is required");
+  invariant(ownerId, "Owner ID is required");
+
+  const car = await prisma.car.findFirst({
+    where: { id: carId, ownerId },
     include: {
       owner: {
         select: {
@@ -42,10 +51,11 @@ export async function loader({ params }: LoaderFunctionArgs) {
     throw new Response("Not Found", { status: 404 });
   }
 
-  return json({ car });
+  return { car };
 }
 
 export async function action({ request, params }: ActionFunctionArgs) {
+  await validateCSRF(request);
   await requireAdminWithRedirect(request);
 
   const formData = await request.formData();
@@ -53,22 +63,25 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
   if (action === "approve") {
     await prisma.car.update({
-      where: { id: params.carId },
+      where: { id: params.carId, ownerId: params.ownerId },
       data: {
         approvalStatus: "APPROVED",
       },
     });
-    return json({ success: true });
+    return { success: true };
   }
 
-  return json({ success: false });
+  return data({ success: false, error: "Invalid action" }, { status: 400 });
 }
 
 export default function CarDetails() {
   const { car } = useLoaderData<typeof loader>();
   const submit = useSubmit();
+  const csrfToken = useAuthenticityToken();
   const [selectedImage, setSelectedImage] = useState<{ url: string; id: string } | null>(null);
-  const [selectedPdf, setSelectedPdf] = useState<{ url: string; title: string } | null>(null);
+  const [selectedPdf, setSelectedPdf] = useState<{ url: string; title: string; id: string } | null>(
+    null,
+  );
   const defaultLayoutPluginInstance = defaultLayoutPlugin();
   const [rejectionModal, setRejectionModal] = useState<{
     open: boolean;
@@ -82,7 +95,10 @@ export default function CarDetails() {
 
   const handleApprove = () => {
     if (window.confirm("Are you sure you want to approve this car?")) {
-      submit({ action: "approve" }, { method: "POST" });
+      const formData = new FormData();
+      formData.append("action", "approve");
+      formData.append("csrf", csrfToken);
+      submit(formData, { method: "POST" });
     }
   };
 
@@ -98,11 +114,16 @@ export default function CarDetails() {
     REJECTED: "Rejected",
   };
 
-  // const images = car.images.filter((doc) => doc.status === "APPROVED");
   const motCertificate = car.documents.find((doc) => doc.documentType === "MOT_CERTIFICATE");
   const insuranceCertificate = car.documents.find(
     (doc) => doc.documentType === "INSURANCE_CERTIFICATE",
   );
+
+  const getStatusBadgeClass = (status: CarApprovalStatus) => {
+    if (status === CarApprovalStatus.APPROVED) return "bg-green-100 text-green-800";
+    if (status === CarApprovalStatus.REJECTED) return "bg-red-100 text-red-800";
+    return "bg-yellow-100 text-yellow-800";
+  };
 
   return (
     <div className="container mx-auto p-4">
@@ -128,10 +149,12 @@ export default function CarDetails() {
       <div className="w-full">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {car.images.map((image, index) => (
-            <div
-              key={image.url}
+            <button
+              type="button"
+              key={image.id}
               className="relative aspect-square cursor-pointer hover:opacity-90 transition-opacity"
               onClick={() => setSelectedImage({ url: image.url, id: image.id })}
+              aria-label={`View ${car.make} ${car.model} image ${index + 1}`}
             >
               <img
                 src={image.url}
@@ -139,17 +162,11 @@ export default function CarDetails() {
                 className="object-cover w-full h-full"
               />
               <div
-                className={`absolute top-2 right-2 px-2 py-1 rounded-full text-xs font-medium ${
-                  image.status === "APPROVED"
-                    ? "bg-green-100 text-green-800"
-                    : image.status === "REJECTED"
-                      ? "bg-red-100 text-red-800"
-                      : "bg-yellow-100 text-yellow-800"
-                }`}
+                className={`absolute top-2 right-2 px-2 py-1 rounded-full text-xs font-medium ${getStatusBadgeClass(image.status)}`}
               >
                 {image.status}
               </div>
-            </div>
+            </button>
           ))}
         </div>
 
@@ -168,6 +185,7 @@ export default function CarDetails() {
                 onClick={() =>
                   setSelectedPdf({
                     url: `/api/proxy-pdf/${motCertificate.id}`,
+                    id: motCertificate.id,
                     title: "MOT Certificate",
                   })
                 }
@@ -189,6 +207,7 @@ export default function CarDetails() {
                 onClick={() =>
                   setSelectedPdf({
                     url: `/api/proxy-pdf/${insuranceCertificate.id}`,
+                    id: insuranceCertificate.id,
                     title: "Insurance Certificate",
                   })
                 }
@@ -226,7 +245,7 @@ export default function CarDetails() {
                       setSelectedImage(null);
                       setRejectionModal({
                         open: true,
-                        type: "document",
+                        type: "image",
                         id: selectedImage.id,
                       });
                       setRejectionReason("");
@@ -242,9 +261,12 @@ export default function CarDetails() {
                         const response = await fetch(
                           `/admin/vehicle-images/${selectedImage.id}/approve`,
                           {
+                            headers: { "X-CSRF-Token": csrfToken },
+                            credentials: "same-origin",
                             method: "POST",
                           },
                         );
+
                         if (response.ok) {
                           setSelectedImage(null);
                           navigate(".", { replace: true });
@@ -291,12 +313,12 @@ export default function CarDetails() {
                   <Button
                     variant="destructive"
                     onClick={() => {
-                      const documentId = selectedPdf.url.split("/").pop();
+                      const documentId = selectedPdf.id;
                       setSelectedPdf(null);
                       setRejectionModal({
                         open: true,
                         type: "document",
-                        id: documentId!,
+                        id: documentId,
                       });
                       setRejectionReason("");
                     }}
@@ -305,10 +327,12 @@ export default function CarDetails() {
                   </Button>
                   <Button
                     onClick={async () => {
-                      const documentId = selectedPdf.url.split("/").pop();
+                      const documentId = selectedPdf.id;
                       try {
                         const response = await fetch(`/admin/documents/${documentId}/approve`, {
                           method: "POST",
+                          headers: { "X-CSRF-Token": csrfToken },
+                          credentials: "same-origin",
                         });
                         if (response.ok) {
                           setSelectedPdf(null);
@@ -357,8 +381,11 @@ export default function CarDetails() {
                     const formData = new FormData(e.currentTarget);
                     const response = await fetch(e.currentTarget.action, {
                       method: "POST",
+                      headers: { "X-CSRF-Token": csrfToken },
+                      credentials: "same-origin",
                       body: formData,
                     });
+
                     if (response.ok) {
                       setRejectionModal(null);
                       setRejectionReason("");

@@ -1,14 +1,16 @@
-import { json, type ActionFunctionArgs, redirect } from "@remix-run/node";
+import { type ActionFunctionArgs, data } from "@remix-run/node";
 import { prisma } from "~/modules/db/db.server";
 import { requireAdminOrStaffWithRedirect } from "~/modules/auth/auth.server";
-import { DocumentStatus } from "@prisma/client";
+import { CarApprovalStatus, DocumentStatus } from "@prisma/client";
+import { validateCSRF } from "~/utils/csrf-action.server";
 
 export async function action({ request, params }: ActionFunctionArgs) {
+  await validateCSRF(request);
   const { user } = await requireAdminOrStaffWithRedirect(request);
   const imageId = params.imageId;
 
   if (!imageId) {
-    throw new Error("Image ID is required");
+    return data({ success: false, error: "Image ID is required" }, { status: 400 });
   }
 
   const image = await prisma.vehicleImage.update({
@@ -18,36 +20,34 @@ export async function action({ request, params }: ActionFunctionArgs) {
       approvedById: user.id,
       approvedAt: new Date(),
     },
-    include: {
-      car: true,
-    },
   });
 
   // Check if all documents and images for this car are approved
-  const [pendingDocuments, pendingImages] = await Promise.all([
-    prisma.documentApproval.findMany({
+  const [pendingDocumentCount, pendingImageCount] = await Promise.all([
+    prisma.documentApproval.count({
       where: {
-        carId: image.car.id,
+        carId: image.carId,
         status: DocumentStatus.PENDING,
       },
     }),
-    prisma.vehicleImage.findMany({
+    prisma.vehicleImage.count({
       where: {
-        carId: image.car.id,
+        carId: image.carId,
         status: DocumentStatus.PENDING,
       },
     }),
   ]);
 
   // Only approve the car if all documents and images are approved
-  if (pendingDocuments.length === 0 && pendingImages.length === 0) {
+  if (pendingDocumentCount === 0 && pendingImageCount === 0) {
     await prisma.car.update({
-      where: { id: image.car.id },
+      where: { id: image.carId },
       data: {
-        approvalStatus: "APPROVED",
+        approvalStatus: CarApprovalStatus.APPROVED,
+        approvalNotes: null,
       },
     });
   }
 
-  return json({ success: true, image });
+  return { success: true, image };
 }

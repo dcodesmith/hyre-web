@@ -1,11 +1,11 @@
-import { json, type LoaderFunctionArgs } from "@remix-run/node";
-import { useLoaderData } from "@remix-run/react";
+import { type LoaderFunctionArgs, data } from "@remix-run/node";
+import { Link, useLoaderData } from "@remix-run/react";
 import { requireAdminOrStaffWithRedirect } from "~/modules/auth/auth.server";
 import { prisma } from "~/modules/db/db.server";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  const { user, isStaff, isAdmin } = await requireAdminOrStaffWithRedirect(request);
+  const { user, isAdmin } = await requireAdminOrStaffWithRedirect(request);
 
   // Get dashboard statistics
   const [
@@ -14,6 +14,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     totalCars,
     totalBookings,
     pendingDocuments,
+    approvedDocuments,
     totalDocuments,
   ] = await Promise.all([
     prisma.user.count({
@@ -42,12 +43,16 @@ export async function loader({ request }: LoaderFunctionArgs) {
         status: "PENDING",
       },
     }),
+    prisma.documentApproval.count({
+      where: {
+        status: "APPROVED",
+      },
+    }),
     prisma.documentApproval.count(),
   ]);
 
-  return json({
+  const response = {
     user,
-    isStaff,
     isAdmin,
     stats: {
       onboardedFleetOwners,
@@ -55,13 +60,18 @@ export async function loader({ request }: LoaderFunctionArgs) {
       totalCars,
       totalBookings,
       pendingDocuments,
+      approvedDocuments,
       totalDocuments,
     },
+  };
+
+  return data(response, {
+    headers: { "Cache-Control": "no-store, private, must-revalidate", Vary: "Cookie" },
   });
 }
 
 export default function AdminDashboard() {
-  const { user, isStaff, isAdmin, stats } = useLoaderData<typeof loader>();
+  const { user, isAdmin, stats } = useLoaderData<typeof loader>();
 
   return (
     <div>
@@ -109,7 +119,7 @@ export default function AdminDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {stats.totalDocuments - stats.pendingDocuments}/{stats.totalDocuments}
+              {stats.approvedDocuments}/{stats.totalDocuments}
             </div>
             <p className="text-xs text-muted-foreground">Approved documents</p>
           </CardContent>
@@ -125,9 +135,13 @@ export default function AdminDashboard() {
             <CardContent>
               <p className="text-muted-foreground">
                 You have {stats.pendingDocuments} document(s) pending approval.{" "}
-                <a href="/admin/documents" className="text-primary hover:underline">
+                <Link
+                  to="/admin/documents"
+                  className="text-primary hover:underline"
+                  prefetch="intent"
+                >
                   Review them now
-                </a>
+                </Link>
               </p>
             </CardContent>
           </Card>

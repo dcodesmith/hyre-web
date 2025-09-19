@@ -18,10 +18,11 @@ import {
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "../ui/sheet";
+import { useAuthenticityToken } from "remix-utils/csrf/react";
 
 type EditChauffeurFormProps = {
-  chauffeur: SerializedChauffeur;
-  setIsEditOpen: Dispatch<SetStateAction<boolean>>;
+  readonly chauffeur: SerializedChauffeur;
+  readonly setIsEditOpen: Dispatch<SetStateAction<boolean>>;
 };
 
 const chauffeurSchema = z.object({
@@ -51,12 +52,13 @@ const chauffeurSchema = z.object({
 });
 
 interface DataTableRowActionsProps {
-  row: Row<SerializedChauffeur>;
+  readonly row: Row<SerializedChauffeur>;
 }
 
 function EditChauffeurForm({ chauffeur, setIsEditOpen }: EditChauffeurFormProps) {
   const fetcher = useFetcher<{ success: boolean; error?: string }>();
   const { toast } = useToast();
+  const csrfToken = useAuthenticityToken();
   const [form, { name, email, phoneNumber, address }] = useForm({
     id: "edit-chauffeur",
     defaultValue: {
@@ -97,6 +99,7 @@ function EditChauffeurForm({ chauffeur, setIsEditOpen }: EditChauffeurFormProps)
       {...getFormProps(form)}
       className="space-y-4"
     >
+      <input type="hidden" name="csrf" value={csrfToken} />
       {fetcher.data?.error && <p className="text-sm text-red-500">{fetcher.data.error}</p>}
       <div className="space-y-1">
         <Label htmlFor={name.id}>Name</Label>
@@ -126,7 +129,7 @@ function EditChauffeurForm({ chauffeur, setIsEditOpen }: EditChauffeurFormProps)
       <input type="hidden" name="intent" value="edit" />
 
       <Button type="submit" disabled={isSubmitting} className="w-full">
-        {isSubmitting ? "Saving..." : "Save changes"}
+        {isSubmitting ? "Saving..." : "Save Changes"}
       </Button>
     </fetcher.Form>
   );

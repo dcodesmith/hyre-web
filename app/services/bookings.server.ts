@@ -481,6 +481,7 @@ export async function activateBooking(
   bookingId: string,
   paymentId: string,
 ): Promise<BookingWithRelations> {
+  logger.info(`Activating booking ${bookingId} with payment ID ${paymentId}`);
   return prisma.$transaction(async (transaction) => {
     // Update the booking
     const booking = await transaction.booking.update({
@@ -774,7 +775,12 @@ export async function getBooking(bookingId: string) {
   try {
     const booking = await prisma.booking.findUnique({
       where: { id: bookingId },
-      include: { car: { include: { owner: true } }, chauffeur: true },
+      include: {
+        car: { include: { owner: true } },
+        chauffeur: true,
+        user: true,
+        legs: { include: { extensions: true } },
+      },
     });
 
     if (!booking) {
@@ -791,18 +797,34 @@ export async function getBooking(bookingId: string) {
 export async function getBookingsByStatus(userId: string, isGuest = false) {
   const bookings = await getUserBookings(userId, isGuest);
 
-  return bookings.reduce(
+  if (bookings.length === 0) {
+    return null;
+  }
+
+  const serializedBookings = bookings.map((booking) => ({
+    ...booking,
+    totalAmount: booking.totalAmount?.toNumber() ?? 0,
+    netTotal: booking.netTotal?.toNumber() ?? 0,
+    vatAmount: booking.vatAmount?.toNumber() ?? 0,
+    platformCustomerServiceFeeAmount: booking.platformCustomerServiceFeeAmount?.toNumber() ?? 0,
+    fuelUpgradeCost: booking.fuelUpgradeCost?.toNumber() ?? 0,
+    securityDetailCost: booking.securityDetailCost?.toNumber() ?? 0,
+  }));
+
+  return serializedBookings.reduce(
     (acc, booking) => {
       const status = booking.status;
+
       if (!acc[status]) {
         acc[status] = [];
       }
+
       acc[status].push(booking);
       // Sort bookings by date/time, most recent first
-      acc[status].sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
+      // acc[status].sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
       return acc;
     },
-    {} as Record<keyof typeof BookingStatus, typeof bookings>,
+    {} as Record<keyof typeof BookingStatus, typeof serializedBookings>,
   );
 }
 

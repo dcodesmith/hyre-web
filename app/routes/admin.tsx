@@ -1,6 +1,6 @@
 import { Outlet, Link, useLocation } from "@remix-run/react";
 import { ScrollArea } from "~/components/ui/scroll-area";
-import { json, LoaderFunctionArgs } from "@remix-run/node";
+import { LoaderFunctionArgs, data } from "@remix-run/node";
 import { requireAdminOrStaffWithRedirect } from "~/modules/auth/auth.server";
 import { useLoaderData } from "@remix-run/react";
 
@@ -44,12 +44,12 @@ export async function loader({ request }: LoaderFunctionArgs) {
   // Skip authentication for login route
   const url = new URL(request.url);
   if (url.pathname === "/admin/login" || url.pathname === "/admin/verify") {
-    return json({ isStaff: false, isAdmin: false });
+    return { isStaff: false, isAdmin: false };
   }
 
-  const { user, isStaff, isAdmin } = await requireAdminOrStaffWithRedirect(request);
+  const { isStaff, isAdmin } = await requireAdminOrStaffWithRedirect(request);
 
-  return json({ isStaff, isAdmin });
+  return { isStaff, isAdmin };
 }
 
 export default function AdminLayout() {

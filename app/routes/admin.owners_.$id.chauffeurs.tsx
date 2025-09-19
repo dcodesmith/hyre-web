@@ -1,11 +1,10 @@
 import { ChauffeurApprovalStatus, User } from "@prisma/client";
-import { type ActionFunctionArgs, type LoaderFunctionArgs, json } from "@remix-run/node";
-import { useActionData, useLoaderData, useNavigation } from "@remix-run/react";
-import { Link } from "@remix-run/react";
-import { Form } from "@remix-run/react";
+import { type ActionFunctionArgs, type LoaderFunctionArgs, data } from "@remix-run/node";
+import { Link, useActionData, useLoaderData, useNavigation } from "@remix-run/react";
 import { createColumnHelper } from "@tanstack/react-table";
 import { MoreHorizontal } from "lucide-react";
 import { useEffect } from "react";
+import { Form } from "~/components/CSRFForm";
 import { ColumnHeader } from "~/components/Table/ColumnHeader";
 import { Table } from "~/components/Table/Table";
 import { Badge } from "~/components/ui/badge";
@@ -21,6 +20,7 @@ import { cn } from "~/lib/utils";
 import { requireAdminOrStaffWithRedirect } from "~/modules/auth/auth.server";
 import { prisma } from "~/modules/db/db.server";
 import { ChauffeurStatus } from "~/types";
+import { validateCSRF } from "~/utils/csrf-action.server";
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
   await requireAdminOrStaffWithRedirect(request);
@@ -46,39 +46,39 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     throw new Response("Not Found", { status: 404 });
   }
 
-  return json({ owner });
+  return { owner };
 }
 
-export async function action({ request }: ActionFunctionArgs) {
+export async function action({ request, params }: ActionFunctionArgs) {
+  await validateCSRF(request);
   await requireAdminOrStaffWithRedirect(request);
 
   const formData = await request.formData();
   const intent = String(formData.get("intent"));
   const chauffeurId = String(formData.get("chauffeurId"));
-  const status = String(formData.get("status")) as "APPROVED" | "REJECTED" | "PENDING";
+
+  const validStatuses = ["APPROVED", "REJECTED", "PENDING"] as const;
+  const statusValue = formData.get("status");
+  const status = validStatuses.includes(statusValue as (typeof validStatuses)[number])
+    ? (statusValue as (typeof validStatuses)[number])
+    : null;
 
   if (intent !== "updateApprovalStatus" || !chauffeurId || !status) {
-    return json({ success: false, error: "Invalid request" }, { status: 400 });
+    return data({ success: false, error: "Invalid request" }, { status: 400 });
   }
 
   try {
     await prisma.user.update({
-      where: { id: chauffeurId },
+      where: { id: chauffeurId, fleetOwnerId: params.id },
       data: { chauffeurApprovalStatus: status },
     });
 
-    return json({ success: true });
+    return { success: true };
   } catch (error) {
     console.error("Error updating chauffeur approval status:", error);
-    return json({ success: false, error: "Failed to update status" }, { status: 500 });
+    return data({ success: false, error: "Failed to update status" }, { status: 500 });
   }
 }
-
-const statusColors: Record<ChauffeurApprovalStatus, string> = {
-  PENDING: "bg-yellow-50 ring-yellow-600/10 text-yellow-600",
-  APPROVED: "bg-green-50 ring-green-600/10 text-green-600",
-  REJECTED: "bg-red-50 ring-red-600/10 text-red-600",
-};
 
 const chauffeurApprovalStatusOptions: Record<ChauffeurApprovalStatus, string> = {
   [ChauffeurApprovalStatus.PENDING]: "Pending",
@@ -91,12 +91,6 @@ const chauffeurApprovalStatusColors: Record<ChauffeurApprovalStatus, string> = {
   [ChauffeurApprovalStatus.APPROVED]: "bg-green-50 ring-green-600/10 text-green-600",
   [ChauffeurApprovalStatus.REJECTED]: "bg-red-50 ring-red-600/10 text-red-600",
 };
-
-// const approvalStatusOptions = {
-//   PENDING: "Pending",
-//   APPROVED: "Approved",
-//   REJECTED: "Rejected",
-// };
 
 const chauffeurStatusColors: Record<ChauffeurStatus, string> = {
   ON_TRIP: "bg-blue-50 ring-blue-600/10 text-blue-600",

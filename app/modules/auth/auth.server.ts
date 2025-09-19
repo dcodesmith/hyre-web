@@ -110,7 +110,7 @@ export async function requireSessionUser(
 
   if (!sessionUser) {
     if (!redirectTo) {
-      throw redirect("/logout");
+      throw redirect("/auth");
     }
 
     throw redirect(safeRedirect(redirectTo, "/logout"));
@@ -123,25 +123,43 @@ export async function requireUser(
   request: Request,
   { redirectTo }: { redirectTo?: string | null } = {},
 ) {
-  const sessionUser = await authenticator.isAuthenticated(request);
+  try {
+    const sessionUser = await authenticator.isAuthenticated(request);
 
-  const user = sessionUser?.id
-    ? await prisma.user.findUnique({
-        where: { id: sessionUser.id },
-        include: {
-          roles: { select: { name: true } },
-        },
-      })
-    : null;
+    const user = sessionUser?.id
+      ? await prisma.user.findUnique({
+          where: { id: sessionUser.id },
+          include: {
+            roles: { select: { name: true } },
+          },
+        })
+      : null;
 
-  if (!user) {
-    if (!redirectTo) {
+    // If session exists but user doesn't exist in DB, clear the invalid session
+    if (sessionUser && !user) {
+      logger.warn(
+        `Session exists for user ${sessionUser.id} but user not found in database. Clearing session.`,
+      );
       throw redirect("/logout");
     }
+
+    if (!user) {
+      if (!redirectTo) {
+        throw redirect("/auth");
+      }
+      throw redirect(safeRedirect(redirectTo, "/logout"));
+    }
+
+    return user;
+  } catch (error) {
+    // If there's any error with session validation, clear it and redirect to auth
+    if (error instanceof Response) {
+      throw error; // Re-throw redirect responses
+    }
+
+    logger.error("Error in requireUser:", error);
     throw redirect(safeRedirect(redirectTo, "/logout"));
   }
-
-  return user;
 }
 
 /**
@@ -163,24 +181,35 @@ export async function requireAdminWithRedirect(request: Request) {
 
 /**
  * Gets the current user from the session without redirecting
- * Returns null if no user is logged in
+ * Returns null if no user is logged in or if session is invalid
  */
 export async function getSessionUser(request: Request) {
-  const userId = await getUserId(request);
-  if (!userId) return null;
+  try {
+    const userId = await getUserId(request);
+    if (!userId) return null;
 
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    include: {
-      roles: {
-        select: {
-          name: true,
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        roles: {
+          select: {
+            name: true,
+          },
         },
       },
-    },
-  });
+    });
 
-  return user;
+    // If session exists but user doesn't exist in DB, the session is stale
+    if (userId && !user) {
+      logger.warn(`Session exists for user ${userId} but user not found in database.`);
+      return null;
+    }
+
+    return user;
+  } catch (error) {
+    logger.error("Error in getSessionUser:", error);
+    return null;
+  }
 }
 
 export async function requireUserWithRole(request: Request, role: string) {

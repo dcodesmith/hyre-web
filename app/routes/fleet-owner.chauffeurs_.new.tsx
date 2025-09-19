@@ -2,7 +2,7 @@ import { getFormProps, useForm } from "@conform-to/react";
 import { parseWithZod } from "@conform-to/zod";
 import { CogIcon } from "@heroicons/react/24/outline";
 import type { ActionFunctionArgs } from "@remix-run/node";
-import { json, redirect } from "@remix-run/node";
+import { data, redirect } from "@remix-run/node";
 import {
   unstable_createMemoryUploadHandler,
   unstable_parseMultipartFormData,
@@ -71,7 +71,7 @@ export async function action({ request }: ActionFunctionArgs) {
   });
 
   if (submission.status !== "success") {
-    return json(submission.reply());
+    return data(submission.reply());
   }
 
   try {
@@ -89,7 +89,7 @@ export async function action({ request }: ActionFunctionArgs) {
   } catch (error) {
     console.error("Error creating new chauffeur:", error);
 
-    return json(
+    return data(
       {
         error: { errors: ["Failed to create new chauffeur"] },
       },

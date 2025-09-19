@@ -1,5 +1,6 @@
 import { parseWithZod } from "@conform-to/zod";
-import { ActionFunctionArgs, json } from "@remix-run/node";
+import { ActionFunctionArgs, data } from "@remix-run/node";
+import logger from "~/lib/logger.server";
 import { authenticator } from "~/modules/auth/auth.server";
 import { prisma } from "~/modules/db/db.server";
 import { profileFormSchema } from "~/schemas/user";
@@ -19,7 +20,7 @@ export async function action({ request }: ActionFunctionArgs) {
     const submission = parseWithZod(formData, { schema: profileFormSchema });
 
     if (submission.status !== "success") {
-      return json(submission.reply());
+      return data(submission.reply());
     }
 
     try {
@@ -28,11 +29,12 @@ export async function action({ request }: ActionFunctionArgs) {
         data: submission.value,
       });
 
-      return json({ success: true });
+      return { success: true };
     } catch (error) {
-      return json({ success: false, error: "Failed to update profile" }, { status: 500 });
+      logger.error("Failed to update profile", { error });
+      return data({ success: false, error: "Failed to update profile" }, { status: 500 });
     }
   }
 
-  return json({ error: "Invalid intent" }, { status: 400 });
+  return data({ error: "Invalid intent" }, { status: 400 });
 }

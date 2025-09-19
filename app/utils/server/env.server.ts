@@ -3,6 +3,7 @@ import { z } from "zod";
 const schema = z.object({
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
   SESSION_SECRET: z.string(),
+  SESSION_SECRETS: z.string().optional(),
   ENCRYPTION_SECRET: z.string().optional(),
   DATABASE_URL: z.string().optional(),
   DEV_HOST_URL: z.string().optional(),
@@ -35,11 +36,6 @@ const schema = z.object({
   DOMAIN: z.string().optional(),
 });
 
-// declare global {
-//   namespace NodeJS {
-//     interface ProcessEnv extends z.infer<typeof schema> {}
-//   }
-// }
 let validatedEnv: z.infer<typeof schema>; // module-level cache
 
 export function initEnvs() {

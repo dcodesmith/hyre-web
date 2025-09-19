@@ -1,4 +1,4 @@
-import { ActionFunction, json } from "@remix-run/node";
+import { ActionFunction, data } from "@remix-run/node";
 import { totpAuthenticator } from "../modules/auth/totp.server";
 
 export const action: ActionFunction = async ({ request }) => {
@@ -8,6 +8,9 @@ export const action: ActionFunction = async ({ request }) => {
       failureRedirect: "/root",
     });
   } catch (error) {
-    return json({ error: "Invalid verification code" }, { status: 400 });
+    return data(
+      { error: "Invalid verification code" },
+      { status: 400, headers: { "Cache-Control": "no-store, private" } },
+    );
   }
 };

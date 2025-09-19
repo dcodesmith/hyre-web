@@ -1,4 +1,4 @@
-import { json, type LoaderFunctionArgs } from "@remix-run/node";
+import { type LoaderFunctionArgs, data } from "@remix-run/node";
 import { useLoaderData, useFetcher } from "@remix-run/react";
 import { useState, useEffect } from "react";
 import { prisma } from "~/modules/db/db.server";
@@ -24,6 +24,15 @@ const DocumentType = {
   VEHICLE_IMAGES: "VEHICLE_IMAGES",
   CERTIFICATE_OF_INCORPORATION: "CERTIFICATE_OF_INCORPORATION",
 } as const;
+
+const documentTypeMap: Record<(typeof DocumentType)[keyof typeof DocumentType], string> = {
+  [DocumentType.MOT_CERTIFICATE]: "MOT Certificate",
+  [DocumentType.INSURANCE_CERTIFICATE]: "Insurance Certificate",
+  [DocumentType.NIN]: "National Identification Number (NIN)",
+  [DocumentType.DRIVERS_LICENSE]: "Driver's License",
+  [DocumentType.VEHICLE_IMAGES]: "Vehicle Images",
+  [DocumentType.CERTIFICATE_OF_INCORPORATION]: "Certificate of Incorporation",
+};
 
 export async function loader({ request }: LoaderFunctionArgs) {
   await requireAdminOrStaffWithRedirect(request);
@@ -80,17 +89,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
     }),
   ]);
 
-  return json({ pendingDocuments, pendingVehicleImages });
+  return { pendingDocuments, pendingVehicleImages };
 }
-
-const documentTypeMap: Record<(typeof DocumentType)[keyof typeof DocumentType], string> = {
-  [DocumentType.MOT_CERTIFICATE]: "MOT Certificate",
-  [DocumentType.INSURANCE_CERTIFICATE]: "Insurance Certificate",
-  [DocumentType.NIN]: "National Identification Number (NIN)",
-  [DocumentType.DRIVERS_LICENSE]: "Driver's License",
-  [DocumentType.VEHICLE_IMAGES]: "Vehicle Images",
-  [DocumentType.CERTIFICATE_OF_INCORPORATION]: "Certificate of Incorporation",
-};
 
 export default function AdminDocumentsPage() {
   const { pendingDocuments, pendingVehicleImages } = useLoaderData<typeof loader>();
@@ -204,14 +204,21 @@ export default function AdminDocumentsPage() {
                         {/* Document Header */}
                         <div className="space-y-2">
                           <h3 className="text-base font-medium">
-                            {documentTypeMap[doc.documentType]}{" "}
-                            {doc.documentType === DocumentType.NIN ||
-                            doc.documentType === DocumentType.DRIVERS_LICENSE
-                              ? `for ${doc.user?.name || "Unknown User"}`
-                              : doc.documentType === DocumentType.MOT_CERTIFICATE ||
-                                  doc.documentType === DocumentType.INSURANCE_CERTIFICATE
-                                ? `for car [${doc.car?.registrationNumber.trim()}]`
-                                : `for ${doc.car?.make} ${doc.car?.model}`}
+                            {documentTypeMap[doc.documentType]} {(() => {
+                              if (
+                                doc.documentType === DocumentType.NIN ||
+                                doc.documentType === DocumentType.DRIVERS_LICENSE
+                              ) {
+                                return `for ${doc.user?.name || "Unknown User"}`;
+                              }
+                              if (
+                                doc.documentType === DocumentType.MOT_CERTIFICATE ||
+                                doc.documentType === DocumentType.INSURANCE_CERTIFICATE
+                              ) {
+                                return `for car [${doc.car.registrationNumber.trim()}]`;
+                              }
+                              return `for ${doc.car?.make} ${doc.car?.model}`;
+                            })()}
                           </h3>
                           <p className="text-sm text-gray-600">
                             Submitted on {new Date(doc.createdAt).toLocaleDateString("en-GB")} by{" "}

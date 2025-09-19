@@ -1,14 +1,16 @@
-import { json, type ActionFunctionArgs, redirect } from "@remix-run/node";
-import { prisma } from "~/modules/db/db.server";
+import { CarApprovalStatus, DocumentStatus } from "@prisma/client";
+import { type ActionFunctionArgs, data } from "@remix-run/node";
 import { requireAdminOrStaffWithRedirect } from "~/modules/auth/auth.server";
-import { DocumentStatus, CarApprovalStatus } from "@prisma/client";
+import { prisma } from "~/modules/db/db.server";
+import { validateCSRF } from "~/utils/csrf-action.server";
 
 export async function action({ request, params }: ActionFunctionArgs) {
+  await validateCSRF(request);
   const { user } = await requireAdminOrStaffWithRedirect(request);
   const imageId = params.imageId;
 
   if (!imageId) {
-    throw new Error("Image ID is required");
+    return data({ success: false, error: "Image ID is required" }, { status: 400 });
   }
 
   const formData = await request.formData();
@@ -22,14 +24,11 @@ export async function action({ request, params }: ActionFunctionArgs) {
       approvedAt: new Date(),
       notes,
     },
-    include: {
-      car: true,
-    },
   });
 
   // Update car's approval status to PENDING with action note
   await prisma.car.update({
-    where: { id: image.car.id },
+    where: { id: image.carId },
     data: {
       approvalStatus: CarApprovalStatus.PENDING,
       approvalNotes:
@@ -37,5 +36,5 @@ export async function action({ request, params }: ActionFunctionArgs) {
     },
   });
 
-  return redirect("/admin/documents");
+  return { success: true, image };
 }

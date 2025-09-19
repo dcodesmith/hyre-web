@@ -1,4 +1,4 @@
-import { ActionFunctionArgs, LoaderFunctionArgs, json } from "@remix-run/node";
+import { ActionFunctionArgs, LoaderFunctionArgs, data } from "@remix-run/node";
 import { Link, redirect, useLoaderData, useSearchParams } from "@remix-run/react";
 import invariant from "tiny-invariant";
 import BookingCard from "~/components/booking/BookingCard";
@@ -45,10 +45,14 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   // Only check availability if dates are provided
   let isAvailable = true;
   if (fromDate && toDate) {
-    isAvailable = await isCarAvailable(carId, new Date(fromDate), new Date(toDate));
+    const from = new Date(fromDate);
+    const to = new Date(toDate);
+    if (!Number.isNaN(from.getTime()) && !Number.isNaN(to.getTime())) {
+      isAvailable = await isCarAvailable(carId, from, to);
+    }
   }
 
-  return json({
+  return {
     car,
     isAvailable,
     user: user
@@ -60,8 +64,8 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
       : null,
     vatRate: rates.vatRatePercent.toNumber(),
     platformServiceFeeRate: rates.platformCustomerServiceFeeRatePercent.toNumber(),
-    securityDetailRate: rates.securityDetailRate,
-  });
+    securityDetailRate: rates.securityDetailRate.toNumber(),
+  };
 };
 
 export default function CarDetails() {

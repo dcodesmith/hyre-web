@@ -1,6 +1,6 @@
 import type { Booking, Prisma } from "@prisma/client";
 import type { LoaderFunctionArgs, SerializeFrom } from "@remix-run/node";
-import { json } from "@remix-run/node";
+import { data } from "@remix-run/node";
 import { Link, useFetcher, useLoaderData } from "@remix-run/react";
 import { useEffect, useState } from "react";
 import { Button } from "~/components/ui/button";
@@ -52,7 +52,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   if (!txRef) {
     initialError = "Transaction reference (tx_ref) is missing from the URL.";
     logger.warn("[PaymentStatus Loader] tx_ref missing");
-    return json(
+    return data(
       {
         txRef: null,
         fwStatus,
@@ -70,7 +70,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   if (!transactionType) {
     initialError = "Transaction type (transactionType) is missing from the URL.";
     logger.warn("[PaymentStatus Loader] transactionType missing");
-    return json(
+    return data(
       {
         txRef,
         fwStatus,
@@ -108,7 +108,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     logger.warn("[PaymentStatus Loader] Invalid transactionType", { transactionType });
   }
 
-  return json({
+  return {
     txRef,
     fwStatus,
     flutterwaveTransactionId,
@@ -117,11 +117,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
     extensionData,
     initialError,
     bookingNotFoundInDb: bookingData === null && extensionData === null && !initialError,
-  });
+  };
 }
-
-// Type for our loader data
-type LoaderData = SerializeFrom<typeof loader>;
 
 const MAX_POLLING_ATTEMPTS = 20; // Approx 1 minute if 3s interval
 const POLLING_INTERVAL = 3000; // 3 seconds

@@ -5,8 +5,8 @@ import { requireUserWithRole } from "~/utils/server/permissions.server";
 import { redirect } from "@remix-run/node";
 
 interface NavLinkProps {
-  to: string;
-  children: React.ReactNode;
+  readonly to: string;
+  readonly children: React.ReactNode;
 }
 
 function NavLink({ to, children }: NavLinkProps) {

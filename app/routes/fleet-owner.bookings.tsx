@@ -1,6 +1,6 @@
 import { BookingStatus, PaymentStatus } from "@prisma/client";
 import type { LoaderFunctionArgs } from "@remix-run/node";
-import { json } from "@remix-run/node";
+import { data } from "@remix-run/node";
 import { Link, useLoaderData } from "@remix-run/react";
 import { ColumnDef } from "@tanstack/react-table";
 import { MoreHorizontal } from "lucide-react";
@@ -17,67 +17,7 @@ import {
 import { cn, formatDate } from "~/lib/utils";
 import { requireUser } from "~/modules/auth/auth.server";
 import { prisma } from "~/modules/db/db.server";
-
-// const carSchema = z.object({
-//   make: z
-//     .string({
-//       required_error: "Make is required.",
-//     })
-//     .min(1),
-//   model: z
-//     .string({
-//       required_error: "Model is required.",
-//     })
-//     .min(1),
-//   year: z
-//     .number({
-//       required_error: "Year is required.",
-//     })
-//     .int()
-//     .min(2000, "Year must be 2000 or later")
-//     .max(new Date().getFullYear() + 1, "Year cannot be in the future"),
-//   price: z
-//     .number({
-//       required_error: "Price is required.",
-//     })
-//     .positive("Price must be positive"),
-//   status: z.nativeEnum(Status, {
-//     required_error: "Status is required.",
-//   }),
-// });
-
-// export async function action({ request }: ActionFunctionArgs) {
-//   const user = await requireUser(request);
-
-//   const formData = await request.formData();
-
-//   const submission = parseWithZod(formData, { schema: carSchema });
-
-//   if (submission.status !== "success") {
-//     return json(submission.reply());
-//   }
-
-//   const { make, model, year, price, status } = submission.value;
-
-//   try {
-//     await prisma.car.create({
-//       data: {
-//         make,
-//         model,
-//         year,
-//         price,
-//         color: "Red",
-//         status,
-//         ownerId: user.id,
-//       },
-//     });
-
-//     return redirect("/fleet-owner/cars");
-//   } catch (error) {
-//     console.error("Error creating new car:", error);
-//     return json({ error: "Failed to create new car" }, { status: 500 });
-//   }
-// }
+import { BookingWithRelations } from "~/types";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const user = await requireUser(request);
@@ -97,7 +37,15 @@ export async function loader({ request }: LoaderFunctionArgs) {
     },
   });
 
-  return json({ bookings });
+  const serializedBookings = bookings.map((booking) => ({
+    ...booking,
+    totalAmount: booking.totalAmount.toNumber(),
+    netTotal: booking.netTotal?.toNumber() ?? 0,
+    vatAmount: booking.vatAmount?.toNumber(),
+    platformCustomerServiceFeeAmount: booking.platformCustomerServiceFeeAmount?.toNumber(),
+  }));
+
+  return { bookings: serializedBookings };
 }
 
 const bookingStatusColors: Record<BookingStatus, string> = {
@@ -136,167 +84,169 @@ const paymentStatusOptions: Record<PaymentStatus, string> = {
   REFUND_FAILED: "Refund Failed",
 };
 
-export default function BookingsPage() {
-  const { bookings } = useLoaderData<typeof loader>();
+type SerializedBooking = Awaited<ReturnType<typeof loader>>["bookings"][number];
 
-  const columns: ColumnDef<(typeof bookings)[number]>[] = [
-    {
-      accessorKey: "bookingReference",
-      header: ({ column }) => <ColumnHeader column={column} title="Booking Reference" />,
-      cell: ({ row }) => <div className="w-[150px]">{row.original.bookingReference}</div>,
-    },
-    {
-      accessorKey: "car",
-      accessorFn: ({ car }) => `${car.make} ${car.model}`,
-      header: ({ column }) => <ColumnHeader column={column} title="Car" />,
-      cell: ({ row }) => (
-        <div className="w-[200px] text-wrap">
-          {`${row.original.car.make} ${row.original.car.model} (${row.original.car.year})`}
+const columns: ColumnDef<SerializedBooking>[] = [
+  {
+    accessorKey: "bookingReference",
+    header: ({ column }) => <ColumnHeader column={column} title="Booking Reference" />,
+    cell: ({ row }) => <div className="w-[150px]">{row.original.bookingReference}</div>,
+  },
+  {
+    accessorKey: "car",
+    accessorFn: ({ car }) => `${car.make} ${car.model}`,
+    header: ({ column }) => <ColumnHeader column={column} title="Car" />,
+    cell: ({ row }) => (
+      <div className="w-[200px] text-wrap">
+        {`${row.original.car.make} ${row.original.car.model} (${row.original.car.year})`}
+      </div>
+    ),
+  },
+  {
+    accessorKey: "customer",
+    accessorFn: ({ user }) => `${user?.name || user?.email || user?.username}`,
+    header: ({ column }) => <ColumnHeader column={column} title="Customer" />,
+    cell: ({ row }) => {
+      const { user, guestUser } = row.original;
+      return (
+        <div className="w-[150px]">
+          {user?.name || user?.email || user?.username || guestUser?.email}
         </div>
-      ),
+      );
     },
-    {
-      accessorKey: "customer",
-      accessorFn: ({ user }) => `${user?.name || user?.email || user?.username}`,
-      header: ({ column }) => <ColumnHeader column={column} title="Customer" />,
-      cell: ({ row }) => {
-        const { user, guestUser } = row.original;
-        return (
-          <div className="w-[150px]">
-            {user?.name || user?.email || user?.username || guestUser?.email}
-          </div>
-        );
-      },
+  },
+  {
+    accessorKey: "chauffeur",
+    accessorFn: ({ chauffeur }) => `${chauffeur?.name}`,
+    header: ({ column }) => <ColumnHeader column={column} title="Chauffeur" />,
+    cell: ({ row }) => {
+      const chauffeur = row.original.chauffeur;
+      return <div className="w-[130px] text-wrap">{chauffeur?.name || "Not Assigned"}</div>;
     },
-    {
-      accessorKey: "chauffeur",
-      accessorFn: ({ chauffeur }) => `${chauffeur?.name}`,
-      header: ({ column }) => <ColumnHeader column={column} title="Chauffeur" />,
-      cell: ({ row }) => {
-        const chauffeur = row.original.chauffeur;
-        return <div className="w-[130px] text-wrap">{chauffeur?.name || "Not Assigned"}</div>;
-      },
-    },
-    {
-      accessorKey: "startDate",
-      enableColumnFilter: false,
-      header: ({ column }) => <ColumnHeader column={column} title="Start Date" />,
-      cell: ({ row }) => <div className="w-[185px]">{formatDate(row.original.startDate)}</div>,
-    },
-    {
-      accessorKey: "endDate",
-      enableColumnFilter: false,
-      header: ({ column }) => <ColumnHeader column={column} title="End Date" />,
-      cell: ({ row }) => <div className="w-[185px]">{formatDate(row.original.endDate)}</div>,
-    },
-    {
-      accessorKey: "Booking Status",
-      accessorFn: ({ status }) => bookingStatusOptions[status],
-      header: ({ column }) => <ColumnHeader column={column} title="Status" />,
-      cell: ({ row }) => (
-        <div className="w-[100px]">
-          <Badge
-            variant="outline"
-            className={cn(
-              bookingStatusColors[row.original.status],
-              "rounded border-none ring-1 ring-inset",
-            )}
-          >
-            {bookingStatusOptions[row.original.status]}
-          </Badge>
-        </div>
-      ),
-    },
-    {
-      accessorKey: "Payment Status",
-      accessorFn: ({ paymentStatus }) => paymentStatusOptions[paymentStatus],
-      header: ({ column }) => <ColumnHeader column={column} title="Payment Status" />,
-      cell: ({ row }) => (
-        <div className="w-[100px]">
-          <Badge
-            variant="outline"
-            className={cn(
-              paymentStatusColors[row.original.paymentStatus],
-              "rounded border-none ring-1 ring-inset",
-            )}
-          >
-            {paymentStatusOptions[row.original.paymentStatus]}
-          </Badge>
-        </div>
-      ),
-    },
-    {
-      accessorKey: "Net Total",
-      enableColumnFilter: false,
-      header: ({ column }) => <ColumnHeader column={column} title="Net Total" />,
-      cell: ({ row }) => (
-        <div className="w-[130px]">
-          {typeof row.original.netTotal === "number" || typeof row.original.netTotal === "string"
-            ? new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN" }).format(
-                Number(row.original.netTotal),
-              )
-            : "-"}
-        </div>
-      ),
-    },
-    {
-      accessorKey: "fleetOwnerPayoutAmountNet",
-      enableColumnFilter: false,
-      header: ({ column }) => <ColumnHeader column={column} title="Payout Amount" />,
-      cell: ({ row }) => (
-        <div className="w-[130px]">
-          {typeof row.original.fleetOwnerPayoutAmountNet === "number" ||
-          typeof row.original.fleetOwnerPayoutAmountNet === "string"
-            ? new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN" }).format(
-                Number(row.original.fleetOwnerPayoutAmountNet),
-              )
-            : "-"}
-        </div>
-      ),
-    },
-    {
-      id: "actions",
-      header: () => null,
-      enableHiding: false,
-      cell: ({ row }) => {
-        const booking = row.original;
-        const showAssignChauffeur = !booking.chauffeur && booking.status === "CONFIRMED";
-        const showRefund = booking.status === "CANCELLED" && booking.paymentStatus !== "REFUNDED";
+  },
+  {
+    accessorKey: "startDate",
+    enableColumnFilter: false,
+    header: ({ column }) => <ColumnHeader column={column} title="Start Date" />,
+    cell: ({ row }) => <div className="w-[185px]">{formatDate(row.original.startDate)}</div>,
+  },
+  {
+    accessorKey: "endDate",
+    enableColumnFilter: false,
+    header: ({ column }) => <ColumnHeader column={column} title="End Date" />,
+    cell: ({ row }) => <div className="w-[185px]">{formatDate(row.original.endDate)}</div>,
+  },
+  {
+    accessorKey: "Booking Status",
+    accessorFn: ({ status }) => bookingStatusOptions[status],
+    header: ({ column }) => <ColumnHeader column={column} title="Status" />,
+    cell: ({ row }) => (
+      <div className="w-[100px]">
+        <Badge
+          variant="outline"
+          className={cn(
+            bookingStatusColors[row.original.status],
+            "rounded border-none ring-1 ring-inset",
+          )}
+        >
+          {bookingStatusOptions[row.original.status]}
+        </Badge>
+      </div>
+    ),
+  },
+  {
+    accessorKey: "Payment Status",
+    accessorFn: ({ paymentStatus }) => paymentStatusOptions[paymentStatus],
+    header: ({ column }) => <ColumnHeader column={column} title="Payment Status" />,
+    cell: ({ row }) => (
+      <div className="w-[100px]">
+        <Badge
+          variant="outline"
+          className={cn(
+            paymentStatusColors[row.original.paymentStatus],
+            "rounded border-none ring-1 ring-inset",
+          )}
+        >
+          {paymentStatusOptions[row.original.paymentStatus]}
+        </Badge>
+      </div>
+    ),
+  },
+  {
+    accessorKey: "Net Total",
+    enableColumnFilter: false,
+    header: ({ column }) => <ColumnHeader column={column} title="Net Total" />,
+    cell: ({ row }) => (
+      <div className="w-[130px]">
+        {row.original.netTotal
+          ? new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN" }).format(
+              row.original.netTotal,
+            )
+          : "-"}
+      </div>
+    ),
+  },
+  // {
+  //   accessorKey: "fleetOwnerPayoutAmountNet",
+  //   enableColumnFilter: false,
+  //   header: ({ column }) => <ColumnHeader column={column} title="Payout Amount" />,
+  //   cell: ({ row }) => (
+  //     <div className="w-[130px]">
+  //       {typeof row.original.fleetOwnerPayoutAmountNet === "number" ||
+  //       typeof row.original.fleetOwnerPayoutAmountNet === "string"
+  //         ? new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN" }).format(
+  //             Number(row.original.fleetOwnerPayoutAmountNet),
+  //           )
+  //         : "-"}
+  //     </div>
+  //   ),
+  // },
+  {
+    id: "actions",
+    header: () => null,
+    enableHiding: false,
+    cell: ({ row }) => {
+      const booking = row.original;
+      const showAssignChauffeur = !booking.chauffeur && booking.status === "CONFIRMED";
+      const showRefund = booking.status === "CANCELLED" && booking.paymentStatus !== "REFUNDED";
 
-        return (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="h-8 w-8 p-0">
-                <span className="sr-only">Open menu</span>
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
+      return (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" className="h-8 w-8 p-0">
+              <span className="sr-only">Open menu</span>
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem asChild>
+              <Link to={`/fleet-owner/bookings/${booking.id}?startDate=${booking.startDate}`}>
+                View details
+              </Link>
+            </DropdownMenuItem>
+
+            {showAssignChauffeur && (
               <DropdownMenuItem asChild>
                 <Link to={`/fleet-owner/bookings/${booking.id}?startDate=${booking.startDate}`}>
-                  View details
+                  Assign chauffeur
                 </Link>
               </DropdownMenuItem>
+            )}
 
-              {showAssignChauffeur && (
-                <DropdownMenuItem asChild>
-                  <Link to={`/fleet-owner/bookings/${booking.id}?startDate=${booking.startDate}`}>
-                    Assign chauffeur
-                  </Link>
-                </DropdownMenuItem>
-              )}
-
-              {showRefund && (
-                <DropdownMenuItem asChild>
-                  <Link to={`/fleet-owner/bookings/${booking.id}/refund`}>Process refund</Link>
-                </DropdownMenuItem>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        );
-      },
+            {showRefund && (
+              <DropdownMenuItem asChild>
+                <Link to={`/fleet-owner/bookings/${booking.id}/refund`}>Process refund</Link>
+              </DropdownMenuItem>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      );
     },
-  ];
+  },
+];
+
+export default function BookingsPage() {
+  const { bookings } = useLoaderData<typeof loader>();
 
   return (
     <div className="container mx-auto">
