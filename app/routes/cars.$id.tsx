@@ -87,7 +87,7 @@ export default function CarDetails() {
   };
 
   return (
-    <div className="max-w-6xl py-4 space-y-4 -mx-4 md:mx-0">
+    <div className="max-w-6xl py-4 space-y-4 -mx-4 md:mx-auto">
       <Link
         to={`/?${searchParams.toString()}`}
         className=" hover:underline mb-1 px-4 md:block hidden"
