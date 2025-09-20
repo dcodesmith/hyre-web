@@ -197,7 +197,7 @@ export async function action({ request }: ActionFunctionArgs) {
       return data({ error: "Car not found" }, { status: 404 });
     }
 
-    const clientTotalAmount = formData.get("totalAmount");
+    const clientTotalAmount = formData.get("totalAmount")?.toString() || "";
 
     const { totalAmount: totalCost } = await calculateBookingCost({
       car,

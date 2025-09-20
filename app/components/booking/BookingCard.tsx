@@ -3,7 +3,7 @@ import { parseWithZod } from "@conform-to/zod";
 import type { Car, User } from "@prisma/client";
 import { useNavigate, useNavigation, useSearchParams, useSubmit } from "@remix-run/react";
 import { eachDayOfInterval, format, isAfter, parseISO, startOfDay } from "date-fns";
-import { CreditCard, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { DateRange } from "react-day-picker";
 import { useAuthenticityToken } from "remix-utils/csrf/react";
@@ -542,18 +542,13 @@ export default function BookingCard({
       <Card className="rounded sticky top-4 shadow-xl inset-shadow-sm">
         <CardHeader>
           <CardTitle>
-            <span className="text-lg">
-              {totalDays > 0 ? (
-                <>
-                  {formatCurrency(currentCarPrice)}
-                  <span className="text-sm text-gray-500 font-normal">
-                    {" "}
-                    per {BOOKING_TYPE_LABELS[bookingType].perUnit}
-                  </span>
-                </>
-              ) : (
-                "Select dates"
-              )}
+            <span className="text-lg" aria-live="polite">
+              {formatCurrency(totalDays > 0 ? currentCarPrice * totalDays : currentCarPrice)}
+
+              <span className=" text-sm text-gray-500 font-normal">
+                {" "}
+                per {BOOKING_TYPE_LABELS[bookingType].perUnit}
+              </span>
             </span>
           </CardTitle>
         </CardHeader>
@@ -721,7 +716,8 @@ export default function BookingCard({
                     onCheckedChange={(checked) => setIncludeSecurityDetail(!!checked)}
                   />
                   <Label htmlFor="includeSecurityDetail" className="cursor-pointer">
-                    Add security detail (+{formatCurrency(securityDetailRate)} / day)
+                    Add security detail (+{formatCurrency(securityDetailRate)} /{" "}
+                    {BOOKING_TYPE_LABELS[bookingType].perUnit})
                   </Label>
                 </div>
               </div>
