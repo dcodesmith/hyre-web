@@ -13,15 +13,18 @@ import {
 } from "@remix-run/react";
 import { Analytics } from "@vercel/analytics/remix";
 import { SpeedInsights } from "@vercel/speed-insights/react";
+import { useState } from "react";
 import { AuthenticityTokenProvider } from "remix-utils/csrf/react";
 import tailwindStyles from "~/tailwind.css?url";
 import { csrf } from "~/utils/csrf.server";
 import Forbidden from "./components/layout/Forbidden";
+import { MobileBottomNav } from "./components/layout/MobileBottomNav";
 import { UserNav } from "./components/layout/UserNav";
 import { Toaster } from "./components/ui/toaster";
 import { getSessionUser } from "./modules/auth/auth.server";
 import { touchSession } from "./modules/auth/session.server";
 import { env } from "./utils/server/env.server";
+import { ProfileFormSheet } from "./components/forms/ProfileFormSheet";
 
 export const links: LinksFunction = () => [
   ...(cssBundleHref ? [{ rel: "stylesheet", href: cssBundleHref }] : []),
@@ -81,6 +84,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
 function AppContent() {
   const { user, ENV } = useLoaderData<typeof loader>();
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
 
   return (
     <html lang="en" className="h-full">
@@ -95,7 +99,8 @@ function AppContent() {
         <Analytics />
 
         <div className="flex flex-col min-h-screen">
-          <header className="p-4 flex container mx-auto justify-between items-center z-10">
+          {/* Desktop header - hidden on mobile */}
+          <header className="hidden md:flex p-4 container mx-auto justify-between items-center z-10">
             <Link
               to={
                 user?.roles?.some((role) => role.name === "admin")
@@ -113,13 +118,25 @@ function AppContent() {
             </div>
           </header>
 
-          <main className="flex-grow container mx-auto px-4 pb-4 text-sm">
+          <main className="flex-grow container mx-auto px-4 pb-20 md:pb-4 text-sm">
             <Outlet />
           </main>
 
           <footer className="text-sm text-black py-4 text-center">
             © {new Date().getFullYear()} {ENV.APP_NAME}. All rights reserved.
           </footer>
+        </div>
+
+        {/* Mobile bottom navigation */}
+        <MobileBottomNav
+          user={user}
+          appName={ENV.APP_NAME}
+          onProfileOpen={() => setIsProfileOpen(true)}
+        />
+
+        {/* Mobile profile sheet */}
+        <div className="md:hidden">
+          <ProfileFormSheet open={isProfileOpen} onOpenChange={setIsProfileOpen} user={user} />
         </div>
 
         <Toaster />

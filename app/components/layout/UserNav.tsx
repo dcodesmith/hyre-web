@@ -1,4 +1,4 @@
-import { Role, User } from "@prisma/client";
+import type { Role, User } from "@prisma/client";
 import { Link, useLocation } from "@remix-run/react";
 import { useState } from "react";
 import { Button } from "~/components/ui/button";
@@ -12,7 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "~/components/ui/dropdown-menu";
 import { userHasRole } from "~/utils/client/misc";
-import { ProfileForm } from "../forms/ProfileForm";
+import { ProfileFormModal } from "../forms/ProfileFormModal";
 import { Form } from "~/components/CSRFForm";
 
 type AuthSectionProps = {
@@ -144,7 +144,12 @@ export function UserNav({ user }: UserNavProps) {
           )
         )}
       </div>
-      {isProfileOpen && <ProfileForm onOpenChange={setIsProfileOpen} user={user} />}
+      {/* Only render ProfileForm on desktop - mobile uses MobileProfileSheet */}
+      {isProfileOpen && (
+        <div className="hidden md:block">
+          <ProfileFormModal onOpenChange={setIsProfileOpen} user={user} />
+        </div>
+      )}
     </>
   );
 }
