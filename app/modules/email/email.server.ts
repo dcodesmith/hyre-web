@@ -67,12 +67,11 @@ export async function sendEmail(options: SendEmailOptions) {
 type AuthEmailOptions = {
   email: string;
   code: string;
-  magicLink?: string | null;
   intent: "registration" | "login";
 };
 
-export async function sendAuthEmail({ email, code, magicLink, intent }: AuthEmailOptions) {
-  const html = await renderAuthEmail({ code, magicLink, intent });
+export async function sendAuthEmail({ email, code, intent }: AuthEmailOptions) {
+  const html = await renderAuthEmail({ code, intent });
 
   await sendEmail({
     to: email,

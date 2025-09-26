@@ -1,7 +1,15 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { faker } from "@faker-js/faker";
-import { AddonType, DocumentStatus, DocumentType, PlatformFeeType, Status } from "@prisma/client";
+import {
+  AddonType,
+  CarApprovalStatus,
+  DocumentStatus,
+  DocumentType,
+  FleetOwnerStatus,
+  PlatformFeeType,
+  Status,
+} from "@prisma/client";
 import { uploadFileToS3 } from "../app/services/s3.server";
 import { vehicles } from "../app/data/vehicles";
 import { prisma } from "../app/modules/db/db.server";
@@ -159,10 +167,10 @@ export async function seed() {
     });
 
     const fleetOwners = [
-      {
-        name: "Cool FleetOwner",
-        email: "cool.fleetowner@dcodesmith.com",
-      },
+      // {
+      //   name: "Cool FleetOwner",
+      //   email: "cool.fleetowner@dcodesmith.com",
+      // },
       {
         name: "Nerdy FleetOwner",
         email: "nerdy.fleetowner@dcodesmith.com",
@@ -202,6 +210,8 @@ export async function seed() {
           username: fleetOwner.name,
           name: fleetOwner.name,
           roles: { connect: [{ name: "fleetOwner" }] },
+          fleetOwnerStatus: FleetOwnerStatus.APPROVED,
+          hasOnboarded: true,
         },
       });
 
@@ -238,28 +248,31 @@ export async function seed() {
         });
 
         // Create document approvals directly
+        const ninUrl = ninFile
+          ? await uploadFileToS3(
+              ninFile,
+              `${createdFleetOwner.id}/${createdChauffeur.id}-${ninFile.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`,
+            )
+          : "";
+        const dlUrl = drivingLicenseFile
+          ? await uploadFileToS3(
+              drivingLicenseFile,
+              `${createdFleetOwner.id}/${createdChauffeur.id}-${drivingLicenseFile.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`,
+            )
+          : "";
+
         await prisma.documentApproval.createMany({
           data: [
             {
               documentType: DocumentType.NIN,
-              documentUrl: ninFile
-                ? await uploadFileToS3(
-                    ninFile,
-                    `${createdFleetOwner.id}/${createdChauffeur.id}-${ninFile.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`,
-                  )
-                : "",
-              status: DocumentStatus.PENDING,
+              documentUrl: ninUrl,
+              status: ninUrl ? DocumentStatus.APPROVED : DocumentStatus.PENDING,
               userId: createdChauffeur.id,
             },
             {
               documentType: DocumentType.DRIVERS_LICENSE,
-              documentUrl: drivingLicenseFile
-                ? await uploadFileToS3(
-                    drivingLicenseFile,
-                    `${createdFleetOwner.id}/${createdChauffeur.id}-${drivingLicenseFile.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`,
-                  )
-                : "",
-              status: DocumentStatus.PENDING,
+              documentUrl: dlUrl,
+              status: dlUrl ? DocumentStatus.APPROVED : DocumentStatus.PENDING,
               userId: createdChauffeur.id,
             },
           ],
@@ -277,7 +290,7 @@ export async function seed() {
         hourlyRate: faker.helpers.arrayElement([80, 100, 120, 140]),
         nightRate: faker.helpers.arrayElement([800, 850, 900]),
         fuelUpgradeRate: faker.helpers.arrayElement([1500, 1800, 2000, 2200, 2500]),
-        status: faker.helpers.arrayElement(Object.values(Status)),
+        status: Status.AVAILABLE,
         ownerId: createdFleetOwner.id,
         registrationNumber: `${faker.helpers.arrayElement([
           "LAG",
@@ -290,6 +303,7 @@ export async function seed() {
           min: 100,
           max: 999,
         })} ${faker.helpers.arrayElement(["AA", "AB", "AC", "AD", "AE", "AF", "AG", "AH"])}`,
+        approvalStatus: CarApprovalStatus.APPROVED,
       }));
 
       const createdCars = await prisma.car.createManyAndReturn({
@@ -325,14 +339,18 @@ export async function seed() {
 
         const motCertificateFile = await getDocument("mot.pdf");
         const insuranceCertificateFile = await getDocument("insurance.pdf");
-        const motCertificateUrl = await uploadFileToS3(
-          motCertificateFile!,
-          `${car.ownerId}/${car.id}-${timestamp}-${motCertificateFile?.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`,
-        );
-        const insuranceCertificateUrl = await uploadFileToS3(
-          insuranceCertificateFile!,
-          `${car.ownerId}/${car.id}-${timestamp}-${insuranceCertificateFile?.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`,
-        );
+        const motCertificateUrl = motCertificateFile
+          ? await uploadFileToS3(
+              motCertificateFile,
+              `${car.ownerId}/${car.id}-${timestamp}-${motCertificateFile?.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`,
+            )
+          : "";
+        const insuranceCertificateUrl = insuranceCertificateFile
+          ? await uploadFileToS3(
+              insuranceCertificateFile,
+              `${car.ownerId}/${car.id}-${timestamp}-${insuranceCertificateFile?.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`,
+            )
+          : "";
 
         // Create document approvals for MOT and Insurance
         await prisma.documentApproval.createMany({
@@ -341,26 +359,15 @@ export async function seed() {
               documentType: DocumentType.MOT_CERTIFICATE,
               documentUrl: motCertificateUrl,
               carId: car.id,
-              status: DocumentStatus.PENDING,
+              status: motCertificateUrl ? DocumentStatus.APPROVED : DocumentStatus.PENDING,
             },
             {
               documentType: DocumentType.INSURANCE_CERTIFICATE,
               documentUrl: insuranceCertificateUrl,
               carId: car.id,
-              status: DocumentStatus.PENDING,
+              status: insuranceCertificateUrl ? DocumentStatus.APPROVED : DocumentStatus.PENDING,
             },
           ],
-        });
-
-        await prisma.car.update({
-          where: { id: car.id },
-          data: {
-            status: Status.AVAILABLE,
-          },
-          include: {
-            documents: true,
-            images: true,
-          },
         });
       }
     }

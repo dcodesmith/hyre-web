@@ -18,8 +18,7 @@ export const authenticator = new Authenticator<User>(sessionStorage, {
 const totpStrategy = new TOTPStrategy(
   {
     secret: env.ENCRYPTION_SECRET || "NOT_A_STRONG_SECRET",
-    magicLinkPath: "/magic-link",
-    sendTOTP: async ({ email, code, magicLink, context }) => {
+    sendTOTP: async ({ email, code, context }) => {
       const role = context?.role as RoleName;
 
       const user = await prisma.user.findUnique({
@@ -46,7 +45,6 @@ const totpStrategy = new TOTPStrategy(
       await sendAuthEmail({
         email,
         code,
-        magicLink,
         intent: user ? "login" : "registration",
       });
     },

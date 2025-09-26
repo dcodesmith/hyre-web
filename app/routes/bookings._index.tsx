@@ -329,7 +329,7 @@ export default function BookingsPage() {
 
   const guestEmail = searchParams.get("email");
 
-  if (!Object.keys(bookings).length && !guestEmail && !user) {
+  if (!Object.keys(bookings ?? {}).length && !guestEmail && !user) {
     return (
       <div className="max-w-md mx-auto mt-8">
         <h2 className="text-2xl font-bold mb-4">Find Your Bookings</h2>
@@ -347,7 +347,7 @@ export default function BookingsPage() {
   }
 
   return (
-    <div className="flex justify-center">
+    <div className="flex pt-2 sm:p-4 md:p-6">
       <div className="w-full max-w-4xl">
         <h2 className="text-2xl font-bold mb-4">Your Bookings</h2>
 

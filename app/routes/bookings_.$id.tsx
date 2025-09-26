@@ -53,6 +53,7 @@ import { refundPayment } from "~/services/payment.server";
 import { BookingLegWithRelations, BookingWithRelations } from "~/types";
 import { validateCSRF } from "~/utils/csrf-action.server";
 import { env } from "~/utils/server/env.server";
+import { ArrowLeftIcon } from "@heroicons/react/24/outline";
 
 type Booking = ReturnType<typeof useLoaderData<typeof loader>>["booking"];
 
@@ -581,7 +582,7 @@ const BookingLegTimeline = ({
     if (extendedDuration > 0) {
       return `${format(legEndTime, "h:mm a")} (Extended)`;
     }
-    return format(bookingEndDateObject, "h:mm a");
+    return format(legEndTime, "h:mm a");
   };
 
   const getFullDayReturnText = () => {
@@ -639,7 +640,7 @@ const BookingLegTimeline = ({
         </div>
       </div>
 
-      {extendedDuration > 0 ? (
+      {extendedDuration > 0 && booking.type === "DAY" ? (
         <Alert
           className={`${
             isLegStarted ? "border-amber-200 bg-amber-50" : "border-slate-200 bg-slate-100"
@@ -672,34 +673,69 @@ function BookingHeader({ booking }: { booking: Booking }) {
   };
 
   return (
-    <div className="flex flex-row justify-between items-end gap-3">
-      <p className="text-base flex sm:flex-row flex-col gap-2">
-        <span className="font-semibold items-end">
-          {booking.car.make} {booking.car.model} - {booking.car.year}
-        </span>
-        <span className="text-sm items-end">({booking.bookingReference})</span>
-      </p>
-      <div className="flex flex-wrap items-end gap-2">
-        <Badge
-          variant="outline"
-          className={`text-sm rounded-sm capitalize ${
-            booking.status === "CANCELLED"
-              ? "bg-red-100 text-red-800 border-red-200"
-              : "bg-green-100 text-green-800 border-green-200"
-          }`}
-        >
-          <CheckCircle className="w-3 h-3 mr-1" />
-          {booking.status.toLowerCase()}
-        </Badge>
-        <Badge
-          variant="outline"
-          className={`text-sm rounded-sm capitalize ${getPaymentStatusClass()}`}
-        >
-          <CreditCard className="w-3 h-3 mr-1" />
-          {booking.paymentStatus.toLowerCase()}
-        </Badge>
+    <>
+      {/* Mobile layout - stacked */}
+      <div className="flex flex-col gap-3 md:hidden">
+        <div className="flex flex-col gap-1">
+          <span className="text-base font-semibold">
+            {booking.car.make} {booking.car.model} - {booking.car.year}
+          </span>
+          <span className="text-sm text-gray-600">
+            Booking Reference: {booking.bookingReference}
+          </span>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Badge
+            variant="outline"
+            className={`text-sm rounded-sm capitalize ${
+              booking.status === "CANCELLED"
+                ? "bg-red-100 text-red-800 border-red-200"
+                : "bg-green-100 text-green-800 border-green-200"
+            }`}
+          >
+            <CheckCircle className="w-3 h-3 mr-1" />
+            {booking.status.toLowerCase()}
+          </Badge>
+          <Badge
+            variant="outline"
+            className={`text-sm rounded-sm capitalize ${getPaymentStatusClass()}`}
+          >
+            <CreditCard className="w-3 h-3 mr-1" />
+            {booking.paymentStatus.toLowerCase()}
+          </Badge>
+        </div>
       </div>
-    </div>
+
+      {/* Desktop layout - horizontal */}
+      <div className="hidden md:flex flex-row justify-between items-end gap-3">
+        <p className="text-base flex sm:flex-row flex-col gap-2">
+          <span className="font-semibold items-end">
+            {booking.car.make} {booking.car.model} - {booking.car.year}
+          </span>
+          <span className="text-sm items-end">Booking Reference: {booking.bookingReference}</span>
+        </p>
+        <div className="flex flex-wrap items-end gap-2">
+          <Badge
+            variant="outline"
+            className={`text-sm rounded-sm capitalize ${
+              booking.status === "CANCELLED"
+                ? "bg-red-100 text-red-800 border-red-200"
+                : "bg-green-100 text-green-800 border-green-200"
+            }`}
+          >
+            <CheckCircle className="w-3 h-3 mr-1" />
+            {booking.status.toLowerCase()}
+          </Badge>
+          <Badge
+            variant="outline"
+            className={`text-sm rounded-sm capitalize ${getPaymentStatusClass()}`}
+          >
+            <CreditCard className="w-3 h-3 mr-1" />
+            {booking.paymentStatus.toLowerCase()}
+          </Badge>
+        </div>
+      </div>
+    </>
   );
 }
 
@@ -838,7 +874,19 @@ export default function BookingDetails() {
   return (
     <div className="min-h-screen p-2 sm:p-4 md:p-6">
       <div className="max-w-4xl mx-auto space-y-4">
-        <div className="flex items-center gap-2">
+        {/* Mobile-only back button with circular icon */}
+        <div className="flex items-center gap-2 md:hidden">
+          <Link
+            to="/bookings"
+            className="bg-muted bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-75 transition-opacity"
+            aria-label="Back to Bookings"
+          >
+            <ArrowLeftIcon className="w-5 h-5 text-black" />
+          </Link>
+        </div>
+
+        {/* Desktop-only back link */}
+        <div className="items-center gap-2 hidden md:flex">
           <Link to="/bookings" className="text-sm flex hover:underline">
             &larr; Back to Bookings
           </Link>
