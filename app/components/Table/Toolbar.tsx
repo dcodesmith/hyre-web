@@ -82,7 +82,16 @@ export function Toolbar({ table, isAdmin = false }: ToolbarProps<SerializedCar>)
         </div>
       )}
 
-      {showReset && (
+      {!isAdmin && (
+        <DateRangePicker
+          className="w-64"
+          date={dateRange}
+          onDateChange={handleDateRangeChange}
+          singleDateMode={false}
+        />
+      )}
+
+      {showReset ? (
         <Button
           variant="ghost"
           onClick={() => {
@@ -92,17 +101,13 @@ export function Toolbar({ table, isAdmin = false }: ToolbarProps<SerializedCar>)
           }}
           className="h-8 px-2 lg:px-3"
         >
-          <span className="hidden sm:block">Reset</span>
+          <span className="hidden sm:block">Clear filters</span>
           <XCircleIcon className="ml-2 h-4 w-4" />
         </Button>
-      )}
-
-      {!isAdmin && (
-        <DateRangePicker
-          className="w-64"
-          date={dateRange}
-          onDateChange={handleDateRangeChange}
-          singleDateMode={false}
+      ) : (
+        <div
+          className="h-8 px-2 lg:px-3 inline-flex items-center invisible select-none"
+          aria-hidden="true"
         />
       )}
     </div>

@@ -414,7 +414,7 @@ export default function IndexPage() {
     <div className="max-w-8xl mx-auto space-y-2 -mt-16">
       <div className="grid grid-cols-1 lg:grid-cols-3 md:grid-cols-2 gap-2">
         <div className="flex flex-col col-span-1">
-          <div className="mx-auto gap-2 flex py-12 md:py-20 flex-col mt-12">
+          <div className="mx-auto gap-2 flex py-12 md:py-20 flex-col md:mt-4 mt-12">
             <div className="w-64 text-3xl font-semibold">
               Comfort. Safety. Professional. Every Ride.
             </div>
