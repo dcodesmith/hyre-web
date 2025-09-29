@@ -5,7 +5,6 @@ import {
   Head,
   Hr,
   Html,
-  Img,
   Link,
   Preview,
   Section,
@@ -17,17 +16,16 @@ import tailwindConfig from "tailwind.config";
 import { env } from "~/utils/server/env.server";
 
 // Sourcing company details from environment variables for a Remix app (server-side)
-const COMPANY_NAME = env.APP_NAME || "Your Company Name";
-const COMPANY_LOGO_URL = "https://via.placeholder.com/150x50?text=Your+Logo";
+const COMPANY_NAME = env.APP_NAME || "Tripdly";
 const COMPANY_ADDRESS = "Lagos, Nigeria";
-const WEBSITE_URL = env.WEBSITE_URL || env.DOMAIN || "https://dcodesmith.com";
-const SUPPORT_EMAIL = env.SUPPORT_EMAIL || "support@dcodesmith.com";
+const WEBSITE_URL = env.WEBSITE_URL || env.DOMAIN || "https://hyre-neon.vercel.app";
+const SUPPORT_EMAIL = env.SUPPORT_EMAIL || "support@tripdly.com";
 const CURRENT_YEAR = new Date().getFullYear();
 
 interface EmailTemplateProps {
-  children: React.ReactNode;
-  previewText: string;
-  pageTitle?: string;
+  readonly children: React.ReactNode;
+  readonly previewText: string;
+  readonly pageTitle?: string;
 }
 
 export function EmailTemplate({ children, previewText, pageTitle }: EmailTemplateProps) {
@@ -48,18 +46,23 @@ export function EmailTemplate({ children, previewText, pageTitle }: EmailTemplat
             fontWeight={400}
             fontStyle="normal"
           />
+          <style>
+            {`@import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&display=swap');`}
+          </style>
           <Preview>{previewText}</Preview>
         </Head>
-        <Body className="bg-gray-100 text-gray-800 font-sans text-base leading-relaxed">
+        <Body
+          className="bg-gray-100 text-gray-800 font-sans text-base leading-relaxed"
+          style={{ fontFamily: '"Nunito Sans", Arial, sans-serif' }}
+        >
           <Container className="bg-white border border-gray-200 rounded-md shadow-sm mx-auto my-8 p-6 sm:p-8 max-w-xl">
             <Section className="mb-6 text-center">
-              <Img
-                src={COMPANY_LOGO_URL}
-                alt={`${COMPANY_NAME} Logo`}
-                width="150"
-                height="auto"
-                className="mx-auto mb-4"
-              />
+              <Text
+                style={{ fontFamily: '"Dancing Script", cursive' }}
+                className="mx-auto mb-4 text-4xl leading-tight text-gray-900"
+              >
+                Tripdly
+              </Text>
             </Section>
 
             <Section>{children}</Section>

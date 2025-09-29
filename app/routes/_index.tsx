@@ -18,7 +18,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { ShieldCheck } from "lucide-react";
+import { Fingerprint, LocateFixed, ShieldCheck, Star } from "lucide-react";
 import { useRef, useState } from "react";
 import Carousel from "~/components/Carousel";
 import { columns } from "~/components/Table/Columns";
@@ -430,16 +430,16 @@ export default function IndexPage() {
               Book now
             </Button>
             <div className="flex flex-col mt-4 gap-2">
-              <div className="flex justify-item gap-2">
-                <ShieldCheck className="h-4 w-4" />
+              <div className="flex items-center gap-2">
+                <LocateFixed className="h-4 w-4 text-blue-600" />
                 <span>Real-time Location Tracking</span>
               </div>
-              <div className="flex justify-item gap-2">
-                <ShieldCheck className="h-4 w-4" />
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="h-4 w-4 text-orange-500" />
                 <span>Vetted Chauffeurs</span>
               </div>
               <div className="flex items-center gap-2">
-                <ShieldCheck className="h-4 w-4" />
+                <Fingerprint className="h-4 w-4 text-green-600" />
                 <span>Secure Online Booking</span>
               </div>
             </div>
@@ -481,10 +481,13 @@ export default function IndexPage() {
                 />
 
                 <div className="space-y-1 font-semibold flex flex-col">
-                  <div className="flex justify-between">
+                  <div className="flex justify-between items-center">
                     <h2 className="text-base">
                       {row.original.make} {row.original.model} ({row.original.year})
                     </h2>
+                    <div className="flex items-center gap-1">
+                      <Star className="h-4 w-4 text-gray-400" />
+                    </div>
                   </div>
 
                   <div>

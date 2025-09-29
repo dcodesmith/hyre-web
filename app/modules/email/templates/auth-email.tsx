@@ -11,13 +11,12 @@ type AuthEmailOptions = {
 export function renderAuthEmail({ code, intent }: AuthEmailOptions) {
   return render(
     <EmailTemplate previewText={`Your ${env.APP_NAME} ${intent} code`}>
-      <Heading className="text-2xl font-medium text-gray-800">
+      <Heading className="text-xl font-medium text-gray-800">
         Your {intent === "registration" ? "registration" : "login"} code for {env.APP_NAME}
       </Heading>
 
-      <Text className="text-base text-gray-800">
-        This code will only be valid for the next 60 seconds. Use the {intent} verification code
-        below:
+      <Text className="text-sm text-gray-800">
+        Use the {intent} verification code below. It is only valid for 60 seconds.
       </Text>
       <code className="text-xl font-semibold">{code}</code>
     </EmailTemplate>,
