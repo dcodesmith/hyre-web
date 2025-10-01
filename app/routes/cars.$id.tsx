@@ -88,21 +88,18 @@ export default function CarDetails() {
 
   return (
     <div className="max-w-6xl md:py-4 space-y-4 -mx-4 md:mx-auto -mt-4 md:mt-0">
-      <Link
-        to={`/?${searchParams.toString()}`}
-        className=" hover:underline mb-1 px-4 md:block hidden"
-      >
+      <Link to={`/?${searchParams.toString()}`} className=" hover:underline mb-1 md:block hidden">
         &larr; Back to search results
       </Link>
 
-      <h2 className="text-2xl sm:text-3xl font-bold mb-4 px-4 hidden md:block">
-        {car.make} {car.model}
+      <h2 className="text-2xl sm:text-3xl font-bold mb-4 hidden md:block">
+        {car.make} {car.model} - {car.year}
       </h2>
-      <h2 className="sr-only md:hidden px-4">
-        {car.make} {car.model}
+      <h2 className="sr-only md:hidden">
+        {car.make} {car.model} - {car.year}
       </h2>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[65%,35%] gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-[60%,40%] gap-4">
         <div className="flex flex-col gap-4">
           <div className="relative">
             <CarCarousel
