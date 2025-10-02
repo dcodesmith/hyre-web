@@ -14,7 +14,7 @@
 		"vercel-build": "npx prisma migrate deploy && npx prisma generate && remix vite:build"
 	},
 	"dependencies": {
-		"@aws-sdk/client-s3": "^3.705.0",
+		"@aws-sdk/client-s3": "^3.884.0",
 		"@conform-to/react": "^1.2.2",
 		"@conform-to/zod": "^1.2.2",
 		"@edgefirst-dev/batcher": "^1.0.1",
