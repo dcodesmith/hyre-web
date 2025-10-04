@@ -1,8 +1,9 @@
 import type { Booking, Prisma } from "@prisma/client";
-import type { LoaderFunctionArgs, SerializeFrom } from "@remix-run/node";
+import type { LoaderFunctionArgs } from "@remix-run/node";
 import { data } from "@remix-run/node";
 import { Link, useFetcher, useLoaderData } from "@remix-run/react";
 import { useEffect, useState } from "react";
+import { ArrowPathIcon } from "@heroicons/react/24/outline";
 import { Button } from "~/components/ui/button";
 import logger from "~/lib/logger.server";
 import { formatCurrency } from "~/lib/utils";
@@ -120,9 +121,19 @@ export async function loader({ request }: LoaderFunctionArgs) {
   };
 }
 
-const MAX_POLLING_ATTEMPTS = 20; // Approx 1 minute if 3s interval
 const POLLING_INTERVAL = 3000; // 3 seconds
 
+function extractEmailFromJson(value: unknown): string | undefined {
+  if (value && typeof value === "object") {
+    const maybe = value as { email?: unknown };
+    if (typeof maybe.email === "string") {
+      return maybe.email;
+    }
+  }
+  return undefined;
+}
+
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: UI state machine with many branches
 export default function BookingPaymentStatusPage() {
   const initialLoaderData = useLoaderData<typeof loader>();
   const fetcher = useFetcher<typeof loader>();
@@ -140,7 +151,6 @@ export default function BookingPaymentStatusPage() {
   } = currentData;
 
   const [pollingStopped, setPollingStopped] = useState(false);
-  const [pollingCount, setPollingCount] = useState(0);
 
   useEffect(() => {
     // Determine if polling should stop based on current data
@@ -150,8 +160,7 @@ export default function BookingPaymentStatusPage() {
       fwStatus === "cancelled" ||
       fwStatus === "failed" ||
       (transactionType === "booking_creation" && currentBookingData?.status === "CONFIRMED") ||
-      (transactionType === "booking_extension" && currentExtensionData?.paymentStatus === "PAID") ||
-      pollingCount >= MAX_POLLING_ATTEMPTS
+      (transactionType === "booking_extension" && currentExtensionData?.paymentStatus === "PAID")
     ) {
       shouldStopPolling = true;
     }
@@ -173,7 +182,6 @@ export default function BookingPaymentStatusPage() {
       if (fetcher.state === "idle") {
         const searchParams = new URLSearchParams(window.location.search);
         fetcher.load(`${window.location.pathname}?${searchParams.toString()}`);
-        setPollingCount((prev) => prev + 1);
       }
     }, POLLING_INTERVAL);
 
@@ -184,7 +192,6 @@ export default function BookingPaymentStatusPage() {
     transactionType,
     currentBookingData,
     currentExtensionData,
-    pollingCount, // dependency for MAX_POLLING_ATTEMPTS check
     fetcher, // fetcher.state is used
     pollingStopped, // if pollingStopped becomes true elsewhere, this effect should re-evaluate
   ]);
@@ -215,8 +222,8 @@ export default function BookingPaymentStatusPage() {
     const paymentIdToDisplay = successfulData?.paymentId || flutterwaveTransactionId;
 
     const guestEmail =
-      currentBookingData?.guestUser?.email ||
-      currentExtensionData?.bookingLeg.booking.guestUser?.email;
+      extractEmailFromJson(currentBookingData?.guestUser) ||
+      extractEmailFromJson(currentExtensionData?.bookingLeg.booking.guestUser);
 
     return (
       <div className="max-w-lg mx-auto mt-8 p-6 bg-green-50 border border-green-200 rounded-lg text-center">
@@ -322,68 +329,14 @@ export default function BookingPaymentStatusPage() {
         <h1 className="text-xl font-semibold text-blue-700 mb-3">Verifying Payment...</h1>
         <p className="text-blue-600 mb-5">
           Please wait while we confirm your transaction (Ref: {txRef || "N/A"}). This page will
-          update automatically. Polling attempt: {pollingCount + 1} / {MAX_POLLING_ATTEMPTS}.
+          update automatically.
         </p>
-        <svg
-          className="animate-spin h-8 w-8 text-blue-600 mx-auto"
-          xmlns="http://www.w3.org/2000/svg"
-          fill="none"
-          viewBox="0 0 24 24"
-        >
-          <title>Loading spinner</title>
-          <circle
-            className="opacity-25"
-            cx="12"
-            cy="12"
-            r="10"
-            stroke="currentColor"
-            strokeWidth="4"
-          />
-          <path
-            className="opacity-75"
-            fill="currentColor"
-            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-          />
-        </svg>
+        <ArrowPathIcon className="animate-spin h-8 w-8 text-blue-600 mx-auto" />
       </div>
     );
   }
 
-  // Polling timed out OR (record not found AND polling stopped)
-  if (pollingStopped) {
-    const bookingIdForLink =
-      transactionType === "booking_creation"
-        ? currentBookingData?.id
-        : currentExtensionData?.bookingLeg.booking.id;
-    let linkTarget = "/";
-    let linkText = "Return to Home";
-
-    if (bookingIdForLink) {
-      linkTarget = `/bookings/${bookingIdForLink}`;
-      linkText = "Check Booking Status";
-    } else if (transactionType === "booking_creation") {
-      linkTarget = "/bookings";
-      linkText = "Back to Bookings";
-    }
-
-    return (
-      <div className="max-w-lg mx-auto mt-8 p-6 bg-yellow-50 border border-yellow-300 rounded-lg text-center">
-        <h1 className="text-xl font-semibold text-yellow-700 mb-3">Payment Verification Pending</h1>
-        <p className="text-yellow-600 mb-5">
-          We are still verifying your payment for transaction reference:{" "}
-          <strong>{txRef || "N/A"}</strong>. This can sometimes take a few moments. Please check
-          your booking details shortly. If the status doesn't update soon, (
-          {currentBookingNotFoundInDb
-            ? "transaction not found in our records yet"
-            : "status still processing"}
-          ), please contact support.
-        </p>
-        <Link to={linkTarget}>
-          <Button variant="outline">{linkText}</Button>
-        </Link>
-      </div>
-    );
-  }
+  // Removed timeout-based pending UI; polling continues until a terminal state is reached.
 
   // Fallback: Should ideally not be reached if logic above is comprehensive.
   // This could be if fwStatus is something unexpected, or a combination of states not explicitly handled.
