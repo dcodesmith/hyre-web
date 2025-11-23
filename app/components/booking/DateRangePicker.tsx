@@ -1,5 +1,5 @@
-import { CalendarIcon } from "@heroicons/react/24/outline";
-import { addDays, format, startOfToday, startOfTomorrow, parseISO, startOfDay } from "date-fns";
+import { addDays, format, startOfDay, startOfToday } from "date-fns";
+import { fromZonedTime, toZonedTime } from "date-fns-tz";
 import { ChevronsDownUp, ChevronsUpDown } from "lucide-react";
 import { useState } from "react";
 import { DateRange } from "react-day-picker";
@@ -7,6 +7,7 @@ import { Button } from "~/components/ui/button";
 import { Calendar } from "~/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "~/components/ui/popover";
 import { cn } from "~/lib/utils";
+import { LAGOS_TIMEZONE, getLagosHour } from "~/utils/timezone";
 
 interface DateRangePickerProps {
   readonly date: DateRange;
@@ -16,6 +17,7 @@ interface DateRangePickerProps {
   readonly isFullDayBooking?: boolean;
   readonly onOpenChange?: (open: boolean) => void;
   readonly singleDateMode?: boolean; // New prop to enable single date selection
+  readonly alwaysAllowToday?: boolean; // Force allowing today selection regardless of time of day
 }
 
 export function DateRangePicker({
@@ -26,6 +28,7 @@ export function DateRangePicker({
   isFullDayBooking,
   onOpenChange,
   singleDateMode = false,
+  alwaysAllowToday = false,
 }: DateRangePickerProps) {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -40,16 +43,27 @@ export function DateRangePicker({
     to: date.to ? new Date(date.to) : undefined,
   };
 
+  // Get current hour in Lagos timezone for consistent date picker behavior
+  const currentLagosHour = getLagosHour();
+
+  // Determine if the Lagos cutoff means "tomorrow" based on Lagos business rules
+  const lagosCutoffIsTomorrow = isNightBooking
+    ? currentLagosHour >= 23
+    : isFullDayBooking
+      ? false // FULL_DAY bookings can always select today
+      : currentLagosHour >= 12;
+
+  // Convert Lagos day decision to a local Date boundary for the Calendar
+  // Get start of day in Lagos timezone
+  const lagosNow = toZonedTime(new Date(), LAGOS_TIMEZONE);
+  const lagosStartOfDay = startOfDay(lagosNow);
+  const lagosBoundary = lagosCutoffIsTomorrow ? addDays(lagosStartOfDay, 1) : lagosStartOfDay;
+
+  // Convert that Lagos instant to user's local timezone for the Calendar component
+  const boundaryLocal = fromZonedTime(lagosBoundary, LAGOS_TIMEZONE);
+
   const disabledDays = {
-    before: isNightBooking
-      ? new Date().getHours() >= 23
-        ? startOfTomorrow()
-        : startOfToday()
-      : isFullDayBooking
-        ? startOfToday() // FULL_DAY bookings can always select today
-        : new Date().getHours() >= 12
-          ? startOfTomorrow()
-          : startOfToday(),
+    before: alwaysAllowToday ? startOfToday() : boundaryLocal,
   };
 
   const handleDateChange = (range: DateRange | undefined) => {
@@ -128,20 +142,29 @@ export function DateRangePicker({
         </PopoverTrigger>
         <PopoverContent className="w-auto p-0" align="start">
           <div className="flex flex-col w-auto">
-            <Calendar
-              initialFocus
-              mode={singleDateMode ? "single" : "range"}
-              selected={singleDateMode ? normalizedDate.from : normalizedDate}
-              defaultMonth={addDays(new Date(), 1)}
-              onSelect={
-                singleDateMode
-                  ? (date: Date | undefined) =>
-                      handleDateChange(date ? { from: date, to: date } : undefined)
-                  : handleDateChange
-              }
-              numberOfMonths={singleDateMode ? 1 : 2}
-              disabled={disabledDays}
-            />
+            {singleDateMode ? (
+              <Calendar
+                initialFocus
+                mode="single"
+                selected={normalizedDate.from}
+                defaultMonth={addDays(new Date(), 1)}
+                onSelect={(date: Date | undefined) =>
+                  handleDateChange(date ? { from: date, to: date } : undefined)
+                }
+                numberOfMonths={1}
+                disabled={disabledDays}
+              />
+            ) : (
+              <Calendar
+                initialFocus
+                mode="range"
+                selected={normalizedDate}
+                defaultMonth={addDays(new Date(), 1)}
+                onSelect={handleDateChange}
+                numberOfMonths={2}
+                disabled={disabledDays}
+              />
+            )}
             <div className="flex justify-between items-center flex-col sm:flex-row gap-2 p-2 w-full border-t">
               <div className="text-sm h-10 items-center flex font-semibold">
                 {normalizedDate?.from ? (

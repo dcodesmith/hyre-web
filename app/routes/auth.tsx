@@ -43,6 +43,12 @@ export const LoginSchema = z.object({
       required_error: "You need to select a user type.",
     })
     .default("user"),
+  referralCode: z
+    .string()
+    .length(8, "Referral code must be exactly 8 characters")
+    .regex(/^[123456789ABCDEFGHJKLMNPQRSTUVWXYZ]+$/, "Invalid referral code format")
+    .optional()
+    .or(z.literal("")),
 });
 
 export async function loader({ request }: LoaderFunctionArgs) {
@@ -67,7 +73,7 @@ export async function action({ request }: ActionFunctionArgs) {
   await validateCSRF(request);
 
   const formData = await request.clone().formData();
-  // const role = (formData.get("role") as string | null) ?? "user"; // Default to least privileged role
+  const url = new URL(request.url);
 
   // Validate the form data
   const submission = parseWithZod(formData, { schema: LoginSchema });
@@ -75,19 +81,29 @@ export async function action({ request }: ActionFunctionArgs) {
     return data(submission.reply(), { status: 400 });
   }
 
-  const url = new URL(request.url);
   const pathname = url.pathname;
   const redirectTo = safeRedirect(url.searchParams.get("redirectTo"), "");
+  const referralCodeFromUrl = url.searchParams.get("ref");
 
-  const { role } = submission.value;
+  const { role, referralCode } = submission.value;
+
+  // Use referral code from form or URL parameter
+  const finalReferralCodeRaw = referralCode ?? referralCodeFromUrl ?? "";
+  const finalReferralCode = finalReferralCodeRaw.trim().toUpperCase() || undefined;
 
   try {
     // Build the verify URL with appropriate parameters
     const verifyParams = new URLSearchParams();
+
     if (redirectTo) {
       verifyParams.set("redirectTo", redirectTo);
     }
+
     verifyParams.set("role", role);
+
+    if (finalReferralCode) {
+      verifyParams.set("ref", finalReferralCode);
+    }
 
     const response = await authenticator.authenticate("TOTP", request, {
       successRedirect: `/verify?${verifyParams.toString()}`,
@@ -123,9 +139,12 @@ export default function Login() {
 
   const defaultRole = roleFromRedirect || searchParams.get("role") || "user";
 
-  const [form, { email, role }] = useForm({
+  const referralCodeFromUrl = searchParams.get("ref") || "";
+
+  const [form, { email, role, referralCode }] = useForm({
     defaultValue: {
       role: defaultRole,
+      referralCode: referralCodeFromUrl,
     },
     constraint: getZodConstraint(LoginSchema),
     onValidate({ formData }) {
@@ -207,6 +226,31 @@ export default function Login() {
                   <div className="text-destructive text-sm">{email.errors.join(", ")}</div>
                 )}
               </div>
+
+              {/* Referral Code Input - only show if not prefilled from URL */}
+              {!referralCodeFromUrl && (
+                <div className="space-y-1">
+                  <Input
+                    className={`bg-transparent ${
+                      referralCode.errors ? "border-destructive focus-visible:ring-destructive" : ""
+                    }`}
+                    {...getInputProps(referralCode, { type: "text" })}
+                    placeholder="Referral code (optional)"
+                  />
+                  {referralCode.errors && (
+                    <div className="text-destructive text-sm">{referralCode.errors.join(", ")}</div>
+                  )}
+                </div>
+              )}
+
+              {/* Show referral info if code is from URL */}
+              {referralCodeFromUrl && (
+                <div className="text-sm text-muted-foreground p-3 bg-green-50 rounded-md border border-green-200">
+                  🎉 You're signing up with referral code:{" "}
+                  <span className="font-semibold">{referralCodeFromUrl}</span>
+                  <input type="hidden" name="referralCode" value={referralCodeFromUrl} />
+                </div>
+              )}
 
               {!authEmail && actionData?.error && (
                 <span className="mb-2 text-sm text-destructive dark:text-destructive-foreground">

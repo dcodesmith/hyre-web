@@ -6,10 +6,15 @@ import invariant from "tiny-invariant";
 import logger from "~/lib/logger.server";
 import { prisma } from "~/modules/db/db.server";
 import { sendAuthEmail } from "~/modules/email/email.server";
+import {
+  createReferralCodeForUser,
+  handleReferralAttribution,
+  validateReferralCode,
+} from "~/services/referral.server";
 import { RoleName, userHasRole } from "~/utils/client/misc";
-import { sessionStorage } from "./session.server";
-import { env } from "~/utils/server/env.server";
 import { safeRedirect } from "~/utils/safe-redirect";
+import { env } from "~/utils/server/env.server";
+import { sessionStorage } from "./session.server";
 
 export const authenticator = new Authenticator<User>(sessionStorage, {
   sessionErrorKey: "my-error-key",
@@ -17,7 +22,7 @@ export const authenticator = new Authenticator<User>(sessionStorage, {
 
 const totpStrategy = new TOTPStrategy(
   {
-    secret: env.ENCRYPTION_SECRET || "NOT_A_STRONG_SECRET",
+    secret: env.ENCRYPTION_SECRET,
     sendTOTP: async ({ email, code, context }) => {
       const role = context?.role as RoleName;
 
@@ -30,9 +35,9 @@ const totpStrategy = new TOTPStrategy(
         throw new Error("Did you sign up with a different role?");
       }
 
-      logger.info(`OTP code: ${code}`);
-
       if (process.env.NODE_ENV === "development") {
+        logger.info(`OTP code: ${code}`);
+
         if (
           email.endsWith("@admin.com") ||
           email.startsWith("cool.fleetowner") ||
@@ -54,6 +59,7 @@ const totpStrategy = new TOTPStrategy(
     const url = new URL(request.url);
     const redirectToUrl = url.searchParams.get("redirectTo");
     let role = url.searchParams.get("role");
+    const referralCode = url.searchParams.get("ref");
 
     // If redirectTo contains a role parameter, use that, otherwise keep the role from URL params
     if (redirectToUrl) {
@@ -75,6 +81,10 @@ const totpStrategy = new TOTPStrategy(
     });
 
     if (!user) {
+      if (referralCode && referralCode.trim().length > 0) {
+        await validateReferralCode(referralCode.trim(), email);
+      }
+      // Create new user
       user = await prisma.user.create({
         data: {
           email,
@@ -82,6 +92,29 @@ const totpStrategy = new TOTPStrategy(
           hasOnboarded: role === "fleetOwner",
           ...(role === "fleetOwner" && { fleetOwnerStatus: "APPROVED" }),
         },
+        include: { roles: true },
+      });
+
+      // Generate referral code only for regular users with "user" role
+      if (role === "user") {
+        try {
+          await createReferralCodeForUser(user.id);
+        } catch (error) {
+          logger.error("Failed to generate referral code for user", {
+            userId: user.id,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+      }
+
+      // Handle referral attribution if referral code is provided
+      if (role === "user" && referralCode && referralCode.trim().length > 0) {
+        await handleReferralAttribution(user.id, referralCode.trim(), request);
+      }
+
+      // Reload user to get updated referral info
+      user = await prisma.user.findUnique({
+        where: { id: user.id },
         include: { roles: true },
       });
     }
@@ -200,7 +233,7 @@ export async function getSessionUser(request: Request) {
     // If session exists but user doesn't exist in DB, the session is stale
     if (userId && !user) {
       logger.warn(`Session exists for user ${userId} but user not found in database.`);
-      return null;
+      throw redirect("/logout");
     }
 
     return user;

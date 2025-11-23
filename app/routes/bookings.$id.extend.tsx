@@ -15,7 +15,7 @@ import {
 import Decimal from "decimal.js";
 import { Calendar, Car, Clock, CreditCard } from "lucide-react";
 import crypto from "node:crypto";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import invariant from "tiny-invariant";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
@@ -55,13 +55,36 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
     throw new Response("Booking not found", { status: 404 });
   }
 
+  const hourlyRate = Number(bookingData.car.hourlyRate);
+
+  // Validate domain invariant: hourlyRate must exist and be positive
+  if (!hourlyRate || hourlyRate <= 0) {
+    logger.error(
+      `Invalid hourly rate for car ${bookingData.car.id}: ${bookingData.car.hourlyRate}`,
+    );
+    throw new Response("Car hourly rate is not configured properly. Cannot extend booking.", {
+      status: 500,
+    });
+  }
+
   const booking = {
     ...bookingData,
     startDate: new Date(bookingData.startDate),
     endDate: new Date(bookingData.endDate),
+    platformCustomerServiceFeeRatePercent: Number(
+      bookingData.platformCustomerServiceFeeRatePercent,
+    ),
+    car: {
+      ...bookingData.car,
+      hourlyRate,
+      dayRate: Number(bookingData.car.dayRate),
+      nightRate: Number(bookingData.car.nightRate),
+      fullDayRate: Number(bookingData.car.fullDayRate),
+    },
   };
 
-  const { vatRatePercent } = await getRates();
+  const rates = await getRates();
+  const vatRatePercent = Number(rates.vatRatePercent);
 
   const overallBookingStartDate = booking.startDate;
   const overallBookingEndDate = booking.endDate;
@@ -199,6 +222,7 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
   logger.info(
     `Loader finished successfully for booking ${booking.id}. Max hours: ${validMaxHours}`,
   );
+
   return {
     booking: {
       ...booking,
@@ -247,6 +271,16 @@ export async function action({ request, params }: ActionFunctionArgs) {
     if (!booking || !booking.car) {
       logger.error(`Booking not found: ${params.id}`);
       return data({ error: "Booking not found" }, { status: 404 });
+    }
+
+    // Validate domain invariant: hourlyRate must exist and be positive
+    const hourlyRate = Number(booking.car.hourlyRate);
+    if (!hourlyRate || hourlyRate <= 0) {
+      logger.error(`Invalid hourly rate for car ${booking.car.id}: ${booking.car.hourlyRate}`);
+      return data(
+        { error: "Car hourly rate is not configured properly. Cannot extend booking." },
+        { status: 500 },
+      );
     }
 
     // Authorization: mirror loader behavior
@@ -321,7 +355,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
     logger.info(`No PENDING extension. Creating new one for leg ${todaysLeg.id}.`);
 
     const financials = await calculateExtensionFinancials(
-      booking.car.hourlyRate,
+      hourlyRate,
       hours,
       platformCustomerServiceFeeRatePercent,
       platformFleetOwnerCommissionRatePercent,
@@ -382,17 +416,46 @@ export default function ExtendBookingPage() {
   const csrfToken = useAuthenticityToken();
   const [hours, setHours] = useState(maxHours >= 1 ? 1 : 0);
 
-  // Ensure calculations handle potentially 0 hours selected
-  const hourlyRate = booking.car.hourlyRate ?? 0; // Handle potential null/undefined rate
-  const total = hourlyRate * hours;
-  const platformServiceFeeRate = Number(booking.platformCustomerServiceFeeRatePercent ?? 0);
-  const platformServiceFee = new Decimal(total)
-    .mul(Math.max(platformServiceFeeRate, 0))
-    .div(100)
-    .toNumber();
-  const subtotalBeforeVat = total + platformServiceFee;
-  const vatAmount = new Decimal(subtotalBeforeVat).mul(Number(vatRatePercent)).div(100).toNumber();
-  const totalWithVat = subtotalBeforeVat + vatAmount;
+  // Financial calculations using Decimal end-to-end with consistent precision
+  const calculations = useMemo(() => {
+    const hourlyRate = booking.car.hourlyRate;
+    const platformServiceFeeRate = booking.platformCustomerServiceFeeRatePercent ?? 0;
+    const vatRate = vatRatePercent ?? 0;
+
+    // All calculations in Decimal, no mixed number arithmetic
+    const total = new Decimal(hourlyRate).mul(hours);
+    const platformServiceFee = total.mul(Math.max(platformServiceFeeRate, 0)).div(100);
+    const subtotalBeforeVat = total.plus(platformServiceFee);
+    const vatAmount = subtotalBeforeVat.mul(vatRate).div(100);
+    const totalWithVat = subtotalBeforeVat.plus(vatAmount);
+
+    // Apply consistent rounding policy: 2 decimal places for currency precision
+    return {
+      hourlyRate,
+      total: total.toDecimalPlaces(2).toNumber(),
+      platformServiceFeeRate,
+      platformServiceFee: platformServiceFee.toDecimalPlaces(2).toNumber(),
+      subtotalBeforeVat: subtotalBeforeVat.toDecimalPlaces(2).toNumber(),
+      vatRate,
+      vatAmount: vatAmount.toDecimalPlaces(2).toNumber(),
+      totalWithVat: totalWithVat.toDecimalPlaces(2).toNumber(),
+    };
+  }, [
+    booking.car.hourlyRate,
+    booking.platformCustomerServiceFeeRatePercent,
+    hours,
+    vatRatePercent,
+  ]);
+
+  const {
+    hourlyRate,
+    total,
+    platformServiceFeeRate,
+    platformServiceFee,
+    vatRate,
+    vatAmount,
+    totalWithVat,
+  } = calculations;
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -495,9 +558,7 @@ export default function ExtendBookingPage() {
                 )}
 
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">
-                    VAT ({Number(vatRatePercent).toString()}%)
-                  </span>
+                  <span className="text-muted-foreground">VAT ({vatRate.toString()}%)</span>
                   <span className="font-medium">{formatCurrency(vatAmount)}</span>
                 </div>
 

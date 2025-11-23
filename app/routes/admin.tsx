@@ -29,6 +29,7 @@ const adminNavLinks = [
   { to: "/admin", label: "Dashboard" },
   { to: "/admin/owners", label: "Fleet Owners" },
   { to: "/admin/documents", label: "Documents" },
+  { to: "/admin/referrals", label: "Referrals" },
   { to: "/admin/staff", label: "Staff" },
   { to: "/admin/fees", label: "Fees" },
   { to: "/admin/addon-rates", label: "Addon Rates" },
@@ -38,6 +39,7 @@ const staffNavLinks = [
   { to: "/admin", label: "Dashboard" },
   { to: "/admin/owners", label: "Fleet Owners" },
   { to: "/admin/documents", label: "Documents" },
+  { to: "/admin/referrals", label: "Referrals" },
 ] as const;
 
 export async function loader({ request }: LoaderFunctionArgs) {

@@ -1,28 +1,22 @@
 import { BookingStatus, PaymentStatus } from "@prisma/client";
-import { type ActionFunctionArgs, type LoaderFunctionArgs, data } from "@remix-run/node";
-import { redirect, useFetcher, useLoaderData } from "@remix-run/react";
-import { useAuthenticityToken } from "remix-utils/csrf/react";
-import { useState } from "react";
+import { type ActionFunctionArgs, type LoaderFunctionArgs, data, redirect } from "@remix-run/node";
+import { useLoaderData } from "@remix-run/react";
+import { format } from "date-fns";
 import invariant from "tiny-invariant";
-import { Button } from "~/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "~/components/ui/select";
+import { ChauffeurSection } from "~/components/booking/ChauffeurSection";
+import logger from "~/lib/logger.server";
 import { formatCurrency, getCustomerDetails, normaliseBookingDetails } from "~/lib/utils";
+import { requireUser } from "~/modules/auth/auth.server";
 import { prisma } from "~/modules/db/db.server";
 import { sendEmail } from "~/modules/email/email.server";
 import { renderChauffeurAssignedEmail } from "~/modules/email/templates/booking-notification";
-import { format } from "date-fns";
-import logger from "~/lib/logger.server";
-import { sendMessage, Template } from "~/modules/messaging/messaging.server";
+import { Template, sendMessage } from "~/modules/messaging/messaging.server";
 import { validateCSRF } from "~/utils/csrf-action.server";
 
 export const action = async ({ request, params }: ActionFunctionArgs) => {
   await validateCSRF(request);
+
+  const user = await requireUser(request);
 
   try {
     if (request.method !== "PATCH") {
@@ -32,7 +26,12 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
     invariant(params.id, "Booking ID is required");
 
     const formData = await request.formData();
-    const chauffeurId = String(formData.get("chauffeurId"));
+    const chauffeurIdRaw = formData.get("chauffeurId");
+
+    if (typeof chauffeurIdRaw !== "string" || !chauffeurIdRaw) {
+      return data({ error: "chauffeurId is required" }, { status: 400 });
+    }
+    const chauffeurId = chauffeurIdRaw;
 
     const existing = await prisma.booking.findUnique({
       where: { id: params.id },
@@ -41,6 +40,10 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
 
     if (!existing) {
       return data({ error: "Booking not found" }, { status: 404 });
+    }
+
+    if (existing.car.ownerId !== user.id) {
+      return data({ error: "Booking does not belong to this fleet owner" }, { status: 403 });
     }
 
     const validChauffeur = await prisma.user.findFirst({
@@ -62,7 +65,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
       where: { id: params.id },
       data: { chauffeurId },
       include: {
-        car: { include: { owner: true } },
+        car: { include: { owner: { include: { chauffeurs: true } } } },
         legs: { include: { extensions: true } },
         user: true,
         chauffeur: true,
@@ -123,10 +126,13 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
   }
 };
 
-export async function loader({ params }: LoaderFunctionArgs) {
+export async function loader({ request, params }: LoaderFunctionArgs) {
+  const user = await requireUser(request);
+
   const booking = await prisma.booking.findUnique({
     where: {
       id: params.id,
+      car: { ownerId: user.id },
       status: {
         in: [BookingStatus.CONFIRMED, BookingStatus.ACTIVE],
       },
@@ -178,14 +184,15 @@ export async function loader({ params }: LoaderFunctionArgs) {
     throw data({ error: "Booking not found" }, { status: 404 });
   }
 
+  if (booking.car.ownerId !== user.id) {
+    throw data({ error: "Forbidden" }, { status: 403 });
+  }
+
   return { booking };
 }
 
 export default function BookingDetails() {
   const { booking } = useLoaderData<typeof loader>();
-  const fetcher = useFetcher();
-  const [showForm, setShowForm] = useState(false);
-  const csrfToken = useAuthenticityToken();
 
   return (
     <div className="max-w-3xl mx-auto p-6 space-y-2">
@@ -229,60 +236,7 @@ export default function BookingDetails() {
 
           <div>
             <h3 className="text-gray-500">Chauffeur</h3>
-            {booking.status === "CONFIRMED" ? (
-              booking.chauffeur && !showForm ? (
-                <div>
-                  <p className="font-medium">{booking.chauffeur.name}</p>
-                  <Button
-                    type="button"
-                    variant="link"
-                    className="underline pl-0"
-                    onClick={() => setShowForm(true)}
-                  >
-                    Change Chauffeur
-                  </Button>
-                </div>
-              ) : (
-                <fetcher.Form method="patch">
-                  <input type="hidden" name="csrf" value={csrfToken} />
-                  {fetcher.data?.error && (
-                    <div className="text-sm text-red-600 mb-2">{fetcher.data.error}</div>
-                  )}
-                  <Select name="chauffeurId">
-                    <SelectTrigger>
-                      <SelectValue placeholder={booking.chauffeur?.name || "Select a chauffeur"} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {booking.car.owner.chauffeurs.map((chauffeur) => (
-                        <SelectItem key={chauffeur.id} value={chauffeur.id}>
-                          {chauffeur.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-
-                  <div className="flex items-center mt-2 gap-2">
-                    <Button type="submit" disabled={fetcher.state !== "idle"}>
-                      {fetcher.state !== "idle" ? "Assigning..." : "Assign Chauffeur"}
-                    </Button>
-                    {booking.chauffeurId && (
-                      <Button
-                        type="button"
-                        variant="link"
-                        className="underline"
-                        onClick={() => setShowForm(false)}
-                      >
-                        Cancel
-                      </Button>
-                    )}
-                  </div>
-                </fetcher.Form>
-              )
-            ) : booking.chauffeur ? (
-              <p className="font-medium">{booking.chauffeur.name}</p>
-            ) : (
-              <p className="font-medium text-gray-500">Not assigned</p>
-            )}
+            <ChauffeurSection booking={booking} />
           </div>
         </div>
       </div>

@@ -8,7 +8,8 @@ import {
   useSearchParams,
 } from "@remix-run/react";
 import { Decimal } from "@prisma/client/runtime/library";
-import { format, isToday } from "date-fns";
+import { isSameDay } from "date-fns";
+import { format, toZonedTime } from "date-fns-tz";
 import { Calendar, CheckCircle, CreditCard, Loader2, MapPin, User } from "lucide-react";
 import { useEffect, useState } from "react";
 import invariant from "tiny-invariant";
@@ -428,6 +429,8 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     platformCustomerServiceFeeRatePercent:
       booking.platformCustomerServiceFeeRatePercent?.toNumber() ?? 0,
     securityDetailCost: booking.securityDetailCost?.toNumber() ?? 0,
+    referralCreditsUsed: booking.referralCreditsUsed?.toNumber() ?? 0,
+    referralCreditsReserved: booking.referralCreditsReserved?.toNumber() ?? 0,
   };
 
   return data({ booking: serializedBooking, paymentSummary, extendableDuration }, { status: 200 });
@@ -440,6 +443,7 @@ function createPaymentSummary(booking: BookingWithRelations) {
   const baseBookingServiceFee = new Decimal(booking.platformCustomerServiceFeeAmount ?? 0);
   const baseBookingVat = new Decimal(booking.vatAmount ?? 0);
   const fuelUpgradeCost = new Decimal(booking.fuelUpgradeCost ?? 0);
+  const referralDiscountAmount = new Decimal(booking.referralDiscountAmount ?? 0);
 
   // Step 1: Sum up the net total and duration from all active extensions.
   // Using flatMap + reduce is more direct than nested reduce calls.
@@ -465,6 +469,7 @@ function createPaymentSummary(booking: BookingWithRelations) {
       totalExtendedHours: new Decimal(0).toNumber(),
       vatAmount: baseBookingVat.toNumber(),
       fuelUpgradeCost: fuelUpgradeCost.toNumber(),
+      referralDiscountAmount: referralDiscountAmount.toNumber(),
       totalAmount: new Decimal(booking.totalAmount ?? 0).toNumber(),
     };
   }
@@ -491,6 +496,7 @@ function createPaymentSummary(booking: BookingWithRelations) {
     totalExtendedHours: new Decimal(extensionSummary.totalHours).toNumber(),
     vatAmount: finalVat.toNumber(),
     fuelUpgradeCost: fuelUpgradeCost.toNumber(),
+    referralDiscountAmount: referralDiscountAmount.toNumber(),
     totalAmount: finalGrossTotal.toNumber(),
   };
 }
@@ -536,15 +542,18 @@ const BookingLegTimeline = ({
   index: number;
   booking: BookingWithRelations;
 }) => {
-  const legDate = new Date(leg.legDate);
-  const legEndTime = new Date(leg.legEndTime);
-  const legStartTime = new Date(leg.legStartTime);
-  const bookingEndDateObject = new Date(booking.endDate);
-  const now = new Date();
+  const LAGOS_TZ = "Africa/Lagos";
+
+  // Convert dates to Lagos timezone for consistent display
+  const legDate = toZonedTime(new Date(leg.legDate), LAGOS_TZ);
+  const legEndTime = toZonedTime(new Date(leg.legEndTime), LAGOS_TZ);
+  const legStartTime = toZonedTime(new Date(leg.legStartTime), LAGOS_TZ);
+  const bookingEndDateObject = toZonedTime(new Date(booking.endDate), LAGOS_TZ);
+  const now = toZonedTime(new Date(), LAGOS_TZ);
 
   // --- Status Flags ---
   // Defines if the leg is active right now, on today's date
-  const isLegStarted = isToday(legDate) && now >= legStartTime && now < legEndTime;
+  const isLegStarted = isSameDay(legDate, now) && now >= legStartTime && now < legEndTime;
   // Defines if the leg's scheduled end time has passed
   const isLegCompleted = now >= legEndTime;
   // Logic for "Upcoming" status assigned to a variable:
@@ -966,6 +975,30 @@ export default function BookingDetails() {
                       <span className="text-sm text-slate-600">Fuel Upgrade</span>
                       <span className="text-sm font-medium">
                         {formatCurrency(Number(paymentSummary.fuelUpgradeCost))}
+                      </span>
+                    </div>
+                  )}
+                  {Number(paymentSummary.referralDiscountAmount) > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-sm text-green-600">Referral Discount</span>
+                      <span className="text-sm font-medium text-green-600">
+                        -{formatCurrency(Number(paymentSummary.referralDiscountAmount))}
+                      </span>
+                    </div>
+                  )}
+                  {Number(booking.referralCreditsUsed) > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-sm text-green-600">Referral Credits Used</span>
+                      <span className="text-sm font-medium text-green-600">
+                        -{formatCurrency(Number(booking.referralCreditsUsed))}
+                      </span>
+                    </div>
+                  )}
+                  {Number(booking.referralCreditsReserved) > 0 && booking.paymentStatus !== "PAID" && (
+                    <div className="flex justify-between">
+                      <span className="text-sm text-orange-600">Referral Credits (Pending Payment)</span>
+                      <span className="text-sm font-medium text-orange-600">
+                        -{formatCurrency(Number(booking.referralCreditsReserved))}
                       </span>
                     </div>
                   )}

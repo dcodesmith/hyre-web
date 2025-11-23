@@ -15,9 +15,23 @@ import {
 } from "~/components/ui/dropdown-menu";
 import { cn } from "~/lib/utils";
 
+interface SortIconProps {
+  readonly sortDirection: false | "asc" | "desc";
+}
+
+function SortIcon({ sortDirection }: SortIconProps) {
+  if (sortDirection === "asc") {
+    return <ArrowUpIcon className="ml-2 h-4 w-4" />;
+  }
+  if (sortDirection === "desc") {
+    return <ArrowDownIcon className="ml-2 h-4 w-4" />;
+  }
+  return <ChevronUpDownIcon className="ml-2 h-4 w-4" />;
+}
+
 interface ColumnHeaderProps<TData, TValue> extends React.HTMLAttributes<HTMLDivElement> {
-  column: Column<TData, TValue>;
-  title: string;
+  readonly column: Column<TData, TValue>;
+  readonly title: string;
 }
 
 export function ColumnHeader<TData, TValue>({
@@ -34,13 +48,7 @@ export function ColumnHeader<TData, TValue>({
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="h-8 justify-start data-[state=open]:bg-accent rounded">
           {title}
-          {column.getIsSorted() === "asc" ? (
-            <ArrowUpIcon className="ml-2 h-4 w-4" />
-          ) : column.getIsSorted() === "desc" ? (
-            <ArrowDownIcon className="ml-2 h-4 w-4" />
-          ) : (
-            <ChevronUpDownIcon className="ml-2 h-4 w-4" />
-          )}
+          <SortIcon sortDirection={column.getIsSorted()} />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start">

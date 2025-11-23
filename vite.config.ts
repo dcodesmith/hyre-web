@@ -31,4 +31,11 @@ export default defineConfig({
     }),
     tsconfigPaths(),
   ],
+  test: {
+    environment: "node",
+    coverage: {
+      provider: "v8",
+    },
+    include: ["app/**/*.{test,spec}.{ts,tsx}"],
+  },
 });

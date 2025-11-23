@@ -53,6 +53,13 @@ model User {
   chauffeurApprovalStatus ChauffeurApprovalStatus? @default(PENDING)
   hasOnboarded            Boolean                  @default(false)
   bankDetailsId           String?
+  // Referral fields
+  referralCode            String?                  @unique
+  referredByUserId        String?
+  referralAttributionSource ReferralAttributionSource?
+  referralSignupAt        DateTime?
+  referralDiscountUsed    Boolean                  @default(false)
+  
   bankDetails             BankDetails?             @relation("UserBankDetails")
   bookingsAsChauffeur     Booking[]                @relation("BookingChauffeur")
   bookings                Booking[]                @relation("BookingCustomer")
@@ -64,11 +71,22 @@ model User {
   chauffeurs              User[]                   @relation("FleetOwnerChauffeurs")
   approvedVehicleImages   VehicleImage[]           @relation("ApprovedVehicleImages")
   roles                   Role[]                   @relation("RoleToUser")
+  // Referral relations
+  referredBy              User?                    @relation("UserReferrals", fields: [referredByUserId], references: [id])
+  referrals               User[]                   @relation("UserReferrals")
+  referralStats           UserReferralStats?
+  referralAttribution     ReferralAttribution?     @relation("RefereeAttribution")
+  referralAttributions    ReferralAttribution[]    @relation("ReferrerAttributions")
+  referralRewardsEarned   ReferralReward[]         @relation("ReferrerRewards")
+  referralRewardsFrom     ReferralReward[]         @relation("RefereeRewards")
+  bookingReferrals        Booking[]                @relation("BookingReferrals")
 
   @@index([fleetOwnerId])
   @@index([fleetOwnerStatus, hasOnboarded])
   @@index([hasOnboarded])
   @@index([id, email])
+  @@index([referralCode])
+  @@index([referredByUserId])
 }
 
 model Role {
@@ -114,12 +132,21 @@ model Booking {
   bookingReference                        String                   @unique
   securityDetailCost                      Decimal?                 @db.Decimal(10, 2)
   fuelUpgradeCost                         Decimal?                 @db.Decimal(10, 2)
+  // Referral fields
+  referralReferrerUserId                  String?
+  referralDiscountAmount                  Decimal                  @db.Decimal(10, 2) @default(0)
+  referralStatus                          BookingReferralStatus    @default(NONE)
+  referralCreditsUsed                     Decimal                  @db.Decimal(10, 2) @default(0)
+  referralCreditsReserved                 Decimal                  @db.Decimal(10, 2) @default(0)
+  
   car                                     Car                      @relation(fields: [carId], references: [id])
   chauffeur                               User?                    @relation("BookingChauffeur", fields: [chauffeurId], references: [id])
   user                                    User?                    @relation("BookingCustomer", fields: [userId], references: [id])
+  referralReferrer                        User?                    @relation("BookingReferrals", fields: [referralReferrerUserId], references: [id])
   legs                                    BookingLeg[]
   customerPayments                        Payment[]                @relation("BookingCustomerPayments")
   payoutTransactions                      PayoutTransaction[]      @relation("BookingPayouts")
+  referralRewards                         ReferralReward[]
 
   @@index([bookingReference])
   @@index([carId])
@@ -133,6 +160,10 @@ model Booking {
   @@index([chauffeurId, status, startDate, endDate])
   @@index([carId, paymentStatus, status, startDate, endDate])
   @@index([type, endDate])
+  @@index([referralStatus])
+  @@index([referralStatus, status])
+  @@index([userId, paymentStatus, referralCreditsUsed])
+  @@index([userId, paymentStatus, referralCreditsReserved])
 }
 
 model BookingLeg {
@@ -437,4 +468,92 @@ enum PlatformFeeType {
 
 enum AddonType {
   SECURITY_DETAIL
+}
+
+enum ReferralAttributionSource {
+  LINK
+  MANUAL
+  IMPORT
+}
+
+enum ReferralRewardStatus {
+  PENDING
+  RELEASED
+  REVERSED
+}
+
+enum ReferralReleaseCondition {
+  PAID
+  COMPLETED
+}
+
+
+enum BookingReferralStatus {
+  NONE
+  APPLIED
+  REWARDED
+  REVERSED
+}
+
+model UserReferralStats {
+  id                  String    @id @default(cuid())
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  userId              String    @unique
+  totalReferrals      Int       @default(0)
+  totalRewardsGranted Decimal   @db.Decimal(10, 2) @default(0)
+  totalRewardsPending Decimal   @db.Decimal(10, 2) @default(0)
+  lastReferralAt      DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ReferralAttribution {
+  id            String                    @id @default(cuid())
+  createdAt     DateTime                  @default(now())
+  refereeUserId String                    @unique
+  referrerUserId String
+  referralCode  String
+  source        ReferralAttributionSource
+  ipAddress     String?
+  userAgent     String?
+  sessionId     String?
+  securityFlags Json?
+
+  referee  User @relation("RefereeAttribution", fields: [refereeUserId], references: [id], onDelete: Cascade)
+  referrer User @relation("ReferrerAttributions", fields: [referrerUserId], references: [id], onDelete: Cascade)
+
+  @@index([referrerUserId])
+}
+
+model ReferralReward {
+  id                 String                      @id @default(cuid())
+  createdAt          DateTime                    @default(now())
+  updatedAt          DateTime                    @updatedAt
+  referrerUserId     String
+  refereeUserId      String
+  bookingId          String
+  amount             Decimal                     @db.Decimal(10, 2)
+  status             ReferralRewardStatus        @default(PENDING)
+  releaseCondition   ReferralReleaseCondition
+  reason             String?
+  processedAt        DateTime?
+
+  referrer User    @relation("ReferrerRewards", fields: [referrerUserId], references: [id], onDelete: Cascade)
+  referee  User    @relation("RefereeRewards", fields: [refereeUserId], references: [id], onDelete: Cascade)
+  booking  Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([referrerUserId])
+  @@index([refereeUserId])
+  @@index([bookingId])
+  @@index([status, createdAt])
+  @@index([status, bookingId])
+  @@index([status, processedAt])
+}
+
+model ReferralProgramConfig {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+  updatedBy String?
 }

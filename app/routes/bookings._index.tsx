@@ -8,8 +8,10 @@ import {
   useNavigate,
   useSearchParams,
 } from "@remix-run/react";
-import { format, differenceInCalendarDays, addHours } from "date-fns";
+import { differenceInCalendarDays, addHours } from "date-fns";
+import { format, toZonedTime } from "date-fns-tz";
 import { ChevronRight } from "lucide-react";
+import { getLagosTime, LAGOS_TIMEZONE } from "~/utils/timezone";
 import crypto from "node:crypto";
 import { Fragment, useEffect, useState } from "react";
 import invariant from "tiny-invariant";
@@ -40,6 +42,7 @@ import {
   getBookingsByStatus,
   calculateBookingCost,
 } from "~/services/bookings.server";
+import { isCarAvailable } from "~/services/cars.server";
 import { createPaymentIntent } from "~/services/payment.server";
 import { env } from "~/utils/server/env.server";
 import { useAuthenticityToken } from "remix-utils/csrf/react";
@@ -94,7 +97,8 @@ export async function action({ request }: ActionFunctionArgs) {
     invariant(startDate, "From Date is required");
     invariant(endDate, "To Date is required");
 
-    const now = new Date();
+    // Get current time in Lagos timezone for accurate comparison
+    const now = getLagosTime();
 
     if (new Date(endDate) < new Date(startDate)) {
       return data({ error: "End date cannot be before start date" }, { status: 400 });
@@ -135,7 +139,9 @@ export async function action({ request }: ActionFunctionArgs) {
     const [timePart, period] = pickupTime.toUpperCase().split(" ");
     const [hourStr] = timePart.split(":");
 
-    const startDateTime = new Date(startDate);
+    // Parse the start date and convert to Lagos timezone
+    // This ensures all booking times are interpreted in Lagos time
+    const startDateTime = toZonedTime(new Date(startDate), LAGOS_TIMEZONE);
 
     // Convert 12-hour format to 24-hour
     let hour = Number.parseInt(hourStr, 10);
@@ -154,7 +160,8 @@ export async function action({ request }: ActionFunctionArgs) {
     startDateTime.setMilliseconds(0);
 
     // Set end date time based on booking type
-    const endDateTime = new Date(endDate);
+    // Parse the end date and convert to Lagos timezone
+    const endDateTime = toZonedTime(new Date(endDate), LAGOS_TIMEZONE);
 
     if (bookingType === "NIGHT") {
       // For night bookings, end time should be 5am on the end date
@@ -172,16 +179,19 @@ export async function action({ request }: ActionFunctionArgs) {
     endDateTime.setSeconds(0);
     endDateTime.setMilliseconds(0);
 
+    // Validate booking time (all times are now in Lagos timezone)
+    // This ensures that "past" is relative to Lagos time, not server time
+    if (startDateTime < now) {
+      return data({ error: "Booking time cannot be in the past" }, { status: 400 });
+    }
+
+    // For DAY bookings made on the same day, prevent booking if current time is at or after 11am (Lagos time)
     if (
-      startDateTime < now ||
-      (bookingType === "DAY" &&
-        startDateTime.toDateString() === now.toDateString() &&
-        now.getHours() >= 12)
+      bookingType === "DAY" &&
+      startDateTime.toDateString() === now.toDateString() &&
+      now.getHours() >= 11
     ) {
-      return data(
-        { error: "Day bookings cannot be made at or after 12pm of the current day" },
-        { status: 400 },
-      );
+      return data({ error: "Same-day bookings cannot be made at or after 11am" }, { status: 400 });
     }
 
     const pickupLocation = pickupAddress;
@@ -197,20 +207,51 @@ export async function action({ request }: ActionFunctionArgs) {
       return data({ error: "Car not found" }, { status: 404 });
     }
 
-    const clientTotalAmount = formData.get("totalAmount")?.toString() || "";
+    // Check car availability before proceeding
+    const carIsAvailable = await isCarAvailable(carId, startDateTime, endDateTime);
+    if (!carIsAvailable) {
+      return data(
+        {
+          error:
+            "This car is no longer available for the selected dates and times. Please choose different dates or another car.",
+        },
+        { status: 409 },
+      );
+    }
 
-    const { totalAmount: totalCost } = await calculateBookingCost({
+    const clientTotalAmount = formData.get("totalAmount")?.toString() || "";
+    const useCreditsValue = Number(formData.get("useCredits")) || 0;
+
+    logger.info(
+      `Booking calculation inputs: useCredits=${useCreditsValue}, user.id=${"id" in (user || {}) ? (user as User).id : "N/A"}, includeSecurityDetail=${includeSecurityDetail}, requiresFullTank=${requiresFullTank}`,
+    );
+    logger.info(
+      `Car rates: dayRate=${car.dayRate}, nightRate=${car.nightRate}, fullDayRate=${car.fullDayRate}, fuelUpgradeRate=${car.fuelUpgradeRate}`,
+    );
+    logger.info(
+      `Booking dates: ${startDateTime.toISOString()} to ${endDateTime.toISOString()}, type=${bookingType}`,
+    );
+
+    const calculationResult = await calculateBookingCost({
       car,
       startDate: startDateTime,
       endDate: endDateTime,
       type: bookingType as BookingType,
       includeSecurityDetail,
       requiresFullTank,
+      useCredits: useCreditsValue,
+      user,
     });
+
+    const { totalAmount: totalCost } = calculationResult;
+
+    logger.info(
+      `Server calculation breakdown: netTotal=${calculationResult.netTotal}, platformFee=${calculationResult.platformCustomerServiceFeeAmount}, subtotalBeforeDiscounts=${calculationResult.subtotalBeforeDiscounts}, referralDiscount=${calculationResult.referralDiscountAmount}, creditsUsed=${calculationResult.bookingCreditsUsed}, subtotalAfterDiscounts=${calculationResult.subtotalAfterDiscounts}, VAT=${calculationResult.vatAmount}, finalTotal=${totalCost}`,
+    );
 
     if (clientTotalAmount && Number(clientTotalAmount) !== totalCost.toNumber()) {
       logger.error(
-        `Client total amount ${clientTotalAmount} does not match server-calculated amount ${totalCost}. Trusting server amount.`,
+        `Client total amount ${clientTotalAmount} does not match server-calculated amount ${totalCost}. Trusting server amount. useCredits=${useCreditsValue}`,
       );
       // Optional: uncomment the line below to block the transaction if prices mismatch
       return data({ error: "Price mismatch. Please try again." }, { status: 400 });
@@ -243,13 +284,14 @@ export async function action({ request }: ActionFunctionArgs) {
         startDate: startDateTime,
         endDate: endDateTime,
         car,
-        user,
         pickupLocation,
         returnLocation,
         paymentIntent: paymentIntentId,
         type: bookingType as BookingType,
         includeSecurityDetail,
         requiresFullTank,
+        useCredits: Number(formData.get("useCredits")) || 0,
+        user,
       });
 
       logger.info(`Created pending booking ${booking.id} with payment intent ${paymentIntentId}`);
@@ -314,6 +356,7 @@ export default function BookingsPage() {
   const [bookingToCancel, setBookingToCancel] = useState<BookingWithRelations | null>(null);
   const editFetcher = useFetcher<{ success: boolean }>();
   const csrfToken = useAuthenticityToken();
+  const LAGOS_TZ = "Africa/Lagos";
 
   useEffect(() => {
     if (editFetcher.data?.success) {
@@ -347,8 +390,8 @@ export default function BookingsPage() {
   }
 
   return (
-    <div className="flex pt-2 sm:p-4 md:p-6">
-      <div className="w-full max-w-4xl">
+    <div className="flex justify-center pt-2 sm:p-4 md:p-6">
+      <div className="w-full max-w-4xl mx-auto">
         <h2 className="text-2xl font-bold mb-4">Your Bookings</h2>
 
         <Tabs defaultValue={status} className="w-full">
@@ -404,12 +447,12 @@ export default function BookingsPage() {
                             </h3>
                             <div className="text-sm text-pretty text-gray-600 space-y-1">
                               <p className="sm:block hidden">
-                                {format(booking.startDate, "PPPp")} to{" "}
-                                {format(booking.endDate, "PPPp")}
+                                {format(toZonedTime(new Date(booking.startDate), LAGOS_TZ), "PPPp")} to{" "}
+                                {format(toZonedTime(new Date(booking.endDate), LAGOS_TZ), "PPPp")}
                               </p>
 
-                              <p className="sm:hidden block">{format(booking.startDate, "PPPp")}</p>
-                              <p className="sm:hidden block">{format(booking.endDate, "PPPp")}</p>
+                              <p className="sm:hidden block">{format(toZonedTime(new Date(booking.startDate), LAGOS_TZ), "PPPp")}</p>
+                              <p className="sm:hidden block">{format(toZonedTime(new Date(booking.endDate), LAGOS_TZ), "PPPp")}</p>
 
                               <p className="text-pretty text-sm font-semibold">
                                 {formatCurrency(Number(booking.totalAmount))}

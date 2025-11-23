@@ -1,19 +1,16 @@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
+import { getLagosTime } from "~/utils/timezone";
 
 const hasTimePassed = (selectedDate: Date, hour: number) => {
-  const now = new Date();
-  const selectedDateStart = new Date(selectedDate);
-  selectedDateStart.setHours(0, 0, 0, 0);
-  const nowDateStart = new Date(now);
-  nowDateStart.setHours(0, 0, 0, 0);
-
-  const isSameDay = selectedDateStart.getTime() === nowDateStart.getTime();
-  if (!isSameDay) return false;
-
-  const targetTime = new Date(selectedDate);
-  targetTime.setHours(hour, 0, 0, 0);
-
-  return now >= targetTime;
+  // Use Lagos-local clock consistently
+  const nowLagos = getLagosTime();
+  const selectedLagos = getLagosTime(selectedDate);
+  const sameDay =
+    nowLagos.getFullYear() === selectedLagos.getFullYear() &&
+    nowLagos.getMonth() === selectedLagos.getMonth() &&
+    nowLagos.getDate() === selectedLagos.getDate();
+  if (!sameDay) return false;
+  return nowLagos.getHours() >= hour;
 };
 
 function getPickupTimes(date: Date, bookingType = "DAY", startHour = 7, endHour = 11) {
@@ -35,7 +32,6 @@ function getPickupTimes(date: Date, bookingType = "DAY", startHour = 7, endHour 
       }
     }
   } else {
-    // For regular day bookings, use existing logic with 30-minute intervals
     for (let hour = startHour; hour <= endHour; hour++) {
       const timeLabel = new Date(2000, 0, 1, hour).toLocaleTimeString("en-US", {
         hour: "numeric",
@@ -59,6 +55,7 @@ interface BookingTimeSelectProps {
   readonly defaultValue?: string;
   readonly className?: string;
   readonly bookingType?: string;
+  readonly onValueChange?: (value: string) => void;
 }
 
 export function BookingTimeSelect({
@@ -66,9 +63,10 @@ export function BookingTimeSelect({
   defaultValue,
   className,
   bookingType = "DAY",
+  onValueChange,
 }: BookingTimeSelectProps) {
   return (
-    <Select name="pickupTime" defaultValue={defaultValue}>
+    <Select name="pickupTime" defaultValue={defaultValue} onValueChange={onValueChange}>
       <SelectTrigger className={`w-full rounded ${className}`}>
         <SelectValue placeholder="Select pickup time" />
       </SelectTrigger>

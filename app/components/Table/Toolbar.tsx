@@ -88,6 +88,7 @@ export function Toolbar({ table, isAdmin = false }: ToolbarProps<SerializedCar>)
           date={dateRange}
           onDateChange={handleDateRangeChange}
           singleDateMode={false}
+          alwaysAllowToday
         />
       )}
 

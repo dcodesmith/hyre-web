@@ -1,4 +1,4 @@
-import { BookingStatus } from "@prisma/client";
+import { BookingStatus, BookingType, type Booking, type Car } from "@prisma/client";
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { data } from "@remix-run/node";
 import { Link, useLoaderData, useSearchParams } from "@remix-run/react";
@@ -22,12 +22,14 @@ import { Fingerprint, LocateFixed, ShieldCheck, Star } from "lucide-react";
 import { useRef, useState } from "react";
 import Carousel from "~/components/Carousel";
 import { columns } from "~/components/Table/Columns";
+import { AvailabilityHint } from "~/components/AvailabilityHint";
 import { Pagination } from "~/components/Table/Pagination";
 import { Toolbar } from "~/components/Table/Toolbar";
 import { Button } from "~/components/ui/button";
 
 import logger from "~/lib/logger.server";
 import { prisma } from "~/modules/db/db.server";
+import { availabilityByType } from "~/services/availability-engine.server";
 
 import type { SerializedCar } from "~/types";
 
@@ -157,70 +159,26 @@ export async function loader({ request }: LoaderFunctionArgs) {
       : [];
 
     const fleetOwnerQueryTime = Date.now() - startTime;
-    logger.info(`Fleet owners query completed in ${fleetOwnerQueryTime}ms`);
+    logger.info("fleet owners query completed", { ms: fleetOwnerQueryTime });
 
     const carQueryStartTime = Date.now();
 
-    // Optimized query with reduced includes for better performance
+    // Always fetch cars by default (no booking overlap filters)
     const cars = await prisma.car.findMany({
       where: {
         AND: [
           {
-            // Your existing conditions for owner, approvalStatus, etc. should remain
             ...(fleetOwnersToExclude.length > 0 && {
-              ownerId: {
-                notIn: fleetOwnersToExclude,
-              },
+              ownerId: { notIn: fleetOwnersToExclude },
             }),
             approvalStatus: "APPROVED",
-            owner: {
-              fleetOwnerStatus: "APPROVED",
-              hasOnboarded: true,
-            },
+            owner: { fleetOwnerStatus: "APPROVED", hasOnboarded: true },
           },
-          // Only add booking conflict check if dates are provided
-          ...(from && to
-            ? [
-                {
-                  NOT: {
-                    bookings: {
-                      some: {
-                        status: { in: [BookingStatus.CONFIRMED, BookingStatus.ACTIVE] },
-                        AND: [
-                          {
-                            startDate: {
-                              lt: new Date(`${to}T23:59:59.999Z`),
-                            },
-                          },
-                          {
-                            endDate: {
-                              gt: new Date(`${from}T00:00:00.000Z`),
-                            },
-                          },
-                        ],
-                      },
-                    },
-                  },
-                },
-              ]
-            : []),
         ],
       },
       include: {
-        // Minimal owner info for better performance
-        owner: {
-          select: {
-            username: true,
-            name: true,
-          },
-        },
-        // Reduced image selection for faster loading
-        images: {
-          select: { url: true },
-          orderBy: { createdAt: "asc" },
-          take: 4, // Reduced from 8 to 4 for faster loading
-        },
-        // Keep minimal documents for type compatibility
+        owner: { select: { username: true, name: true } },
+        images: { select: { url: true }, orderBy: { createdAt: "asc" }, take: 4 },
         documents: {
           select: {
             id: true,
@@ -235,22 +193,77 @@ export async function loader({ request }: LoaderFunctionArgs) {
             updatedAt: true,
             approvedAt: true,
           },
-          take: 1, // Only take first document for performance
+          take: 1,
         },
       },
-      // Optimize ordering for better performance
       orderBy: [{ updatedAt: "desc" }, { dayRate: "asc" }],
-      // Add reasonable limit to prevent excessive data loading
-      take: 100, // Reduced from 200 to 100 for faster initial load
+      take: 100,
     });
+
+    // Build availability per carId for booking types (DAY, NIGHT, FULL_DAY)
+    const availabilityByCarId: Record<
+      string,
+      {
+        available: Array<BookingType>;
+        unavailable: Array<BookingType>;
+      }
+    > = {};
+
+    let filteredCars = cars;
+
+    if (from && to && cars.length > 0) {
+      const carIds = cars.map((c) => c.id);
+
+      // Define a superset window that covers DAY/NIGHT/FULL_DAY overlaps across [from..to]
+      const fromStart = new Date(`${from}T00:00:00.000Z`);
+      const toStart = new Date(`${to}T00:00:00.000Z`);
+      const endWindow = new Date(toStart);
+      endWindow.setUTCDate(endWindow.getUTCDate() + 1); // include last night spillover
+      endWindow.setUTCHours(5, 0, 0, 0); // up to 05:00 of the day after 'to'
+
+      const bookings = await prisma.booking.findMany({
+        where: {
+          carId: { in: carIds },
+          status: { in: [BookingStatus.PENDING, BookingStatus.CONFIRMED, BookingStatus.ACTIVE] },
+          AND: [{ startDate: { lt: endWindow } }, { endDate: { gt: fromStart } }],
+        },
+        select: { carId: true, type: true, startDate: true, endDate: true, status: true },
+      });
+
+      const carsForEngine = cars.map((c) => ({ id: c.id })) as unknown as Car[];
+      const bookingsForEngine = bookings as unknown as Booking[];
+      const byType = availabilityByType(carsForEngine, bookingsForEngine, {
+        from: fromStart,
+        to: toStart,
+      });
+
+      for (const entry of byType) {
+        const flags = entry.available;
+        const ALL: Array<BookingType> = [BookingType.DAY, BookingType.NIGHT, BookingType.FULL_DAY];
+        const available = ALL.filter((t) => flags[t]);
+        availabilityByCarId[entry.carId] = {
+          available,
+          unavailable: ALL.filter((t) => !flags[t]),
+        };
+      }
+
+      // Filter cars down to only those with at least one available type
+      const availableCarIds = new Set(
+        Object.entries(availabilityByCarId)
+          .filter(([, v]) => v.available.length > 0)
+          .map(([k]) => k),
+      );
+      // Build filtered list (do not reassign const)
+      filteredCars = cars.filter((c) => availableCarIds.has(c.id));
+    }
 
     const carQueryTime = Date.now() - carQueryStartTime;
     const totalTime = Date.now() - startTime;
-    logger.info(`Cars query completed in ${carQueryTime}ms`);
-    logger.info(`Total loader execution time: ${totalTime}ms`);
+    logger.info("cars query completed", { ms: carQueryTime });
+    logger.info("availability loader total time", { ms: totalTime });
 
     return data(
-      { cars },
+      { cars: filteredCars, availabilityByCarId },
       {
         // Enhanced caching headers for better performance
         headers: {
@@ -264,7 +277,10 @@ export async function loader({ request }: LoaderFunctionArgs) {
     logger.error("Error in loader:", error instanceof Error ? error.message : "Unknown error");
     // Return empty cars array instead of error object to maintain expected interface
 
-    return data({ cars: [] }, { status: 500, headers: { "Cache-Control": "no-store" } });
+    return data(
+      { cars: [], availabilityByCarId: {} },
+      { status: 500, headers: { "Cache-Control": "no-store" } },
+    );
   }
 }
 
@@ -310,8 +326,19 @@ const parseSearchParamsToTableState = (urlSearchParams: URLSearchParams) => {
   return { columnFilters, sorting };
 };
 
+type LoaderData = {
+  cars: SerializedCar[];
+  availabilityByCarId: Record<
+    string,
+    {
+      available: Array<"DAY" | "NIGHT" | "FULL_DAY">;
+      unavailable: Array<"DAY" | "NIGHT" | "FULL_DAY">;
+    }
+  >;
+};
+
 export default function IndexPage() {
-  const { cars } = useLoaderData<typeof loader>();
+  const { cars, availabilityByCarId } = useLoaderData<LoaderData>();
   const [searchParams, setSearchParams] = useSearchParams();
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const from = searchParams.get("from");
@@ -482,9 +509,15 @@ export default function IndexPage() {
 
                 <div className="space-y-1 font-semibold flex flex-col">
                   <div className="flex justify-between items-center">
-                    <h2 className="text-base">
+                    <h3 className="text-base">
                       {row.original.make} {row.original.model} ({row.original.year})
-                    </h2>
+                    </h3>
+                    {from && to && (
+                      <AvailabilityHint
+                        totalDays={calculateTotalDays()}
+                        status={availabilityByCarId?.[row.original.id]}
+                      />
+                    )}
                     <div className="flex items-center gap-1">
                       <Star className="h-4 w-4 text-gray-400" />
                     </div>

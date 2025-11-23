@@ -25,6 +25,11 @@ import { getSessionUser } from "./modules/auth/auth.server";
 import { touchSession } from "./modules/auth/session.server";
 import { env } from "./utils/server/env.server";
 import { ProfileFormSheet } from "./components/forms/ProfileFormSheet";
+import { userHasRole } from "./utils/client/misc";
+import { Button } from "./components/ui/button";
+import { GiftIcon } from "@heroicons/react/24/outline";
+import { getReferralConfig } from "./services/referral.server";
+import { formatCurrency } from "./lib/utils";
 
 export const links: LinksFunction = () => [
   ...(cssBundleHref ? [{ rel: "stylesheet", href: cssBundleHref }] : []),
@@ -55,6 +60,9 @@ export async function loader({ request }: LoaderFunctionArgs) {
     GOOGLE_MAPS_API_KEY: env.GOOGLE_MAPS_API_KEY,
   };
 
+  // Fetch referral config for the UI
+  const referralConfig = await getReferralConfig();
+
   // Touch session to extend expiry (rolling expiry)
   const sessionCookie = await touchSession(request);
 
@@ -77,13 +85,14 @@ export async function loader({ request }: LoaderFunctionArgs) {
       user,
       ENV,
       csrfToken,
+      referralDiscountAmount: referralConfig.REFERRAL_DISCOUNT_AMOUNT,
     },
     { headers },
   );
 }
 
 function AppContent() {
-  const { user, ENV } = useLoaderData<typeof loader>();
+  const { user, ENV, referralDiscountAmount } = useLoaderData<typeof loader>();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
 
   return (
@@ -114,6 +123,16 @@ function AppContent() {
               {ENV.APP_NAME}
             </Link>
             <div className="flex items-center gap-2 mr-2">
+              {userHasRole(user, "user") && (
+                <Button variant="outline" asChild className="text-sm">
+                  <Link to="/referrals">
+                    <span className="flex items-center gap-2">
+                      Earn {formatCurrency(referralDiscountAmount)}
+                      <GiftIcon className="w-4 h-4 text-green-600 font-medium" />
+                    </span>
+                  </Link>
+                </Button>
+              )}
               <UserNav user={user} />
             </div>
           </header>

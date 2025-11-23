@@ -1,4 +1,5 @@
 import {
+  BookingReferralStatus,
   BookingStatus,
   BookingType,
   Car,
@@ -12,10 +13,7 @@ import {
 import {
   addDays,
   addHours,
-  differenceInMinutes,
   eachDayOfInterval,
-  endOfDay,
-  isSameDay,
   setHours,
   startOfDay,
   subMilliseconds,
@@ -24,6 +22,16 @@ import { Decimal } from "decimal.js";
 import { customAlphabet } from "nanoid";
 import logger from "~/lib/logger.server";
 import { prisma } from "~/modules/db/db.server";
+import {
+  sendReferralDiscountAppliedNotification,
+  sendReferralRewardEarnedNotification,
+} from "~/services/referral-notifications.server";
+import {
+  calculateMaxCreditForBooking,
+  checkReferralEligibility,
+  getReferralConfig,
+  releaseReferralReward,
+} from "~/services/referral.server";
 import { BookingWithRelations } from "~/types";
 
 export type CreateBookingParams = {
@@ -123,6 +131,8 @@ export async function calculateBookingCost({
   includeSecurityDetail,
   requiresFullTank,
   prismaInstance = prisma,
+  user,
+  useCredits,
 }: {
   car: {
     dayRate: number;
@@ -137,7 +147,9 @@ export async function calculateBookingCost({
   type: BookingType;
   includeSecurityDetail?: boolean;
   requiresFullTank?: boolean;
+  useCredits?: number;
   prismaInstance?: Prisma.TransactionClient | typeof prisma;
+  user?: { id: string; email: string; name?: string | null; phoneNumber?: string | null } | null;
 }) {
   let effectiveEndDateForLegGeneration = endDate;
 
@@ -153,6 +165,13 @@ export async function calculateBookingCost({
     effectiveEndDateForLegGeneration = subMilliseconds(endDate, 1);
   }
 
+  logger.debug(
+    `From calculateBookingCost: startDate: ${startDate.toISOString()}, endDate: ${endDate.toISOString()}`,
+  );
+  logger.debug(
+    `From calculateBookingCost: effectiveEndDateForLegGeneration: ${effectiveEndDateForLegGeneration.toISOString()}`,
+  );
+
   const bookingDates = generateBookingDates(
     type,
     startDate,
@@ -165,7 +184,7 @@ export async function calculateBookingCost({
   const endHours = endDate.getHours();
 
   logger.debug(`From calculateBookingCost: startHours: ${startHours}, endHours: ${endHours}`);
-  logger.debug(`From calculateBookingCost: bookingDates: ${bookingDates}`);
+  logger.debug(`From calculateBookingCost: bookingDates: ${bookingDates.length}`);
 
   // Temporary booking object shape for price calculation
   const tempBookingDataForPricing = { startDate, endDate, type };
@@ -265,19 +284,11 @@ export async function calculateBookingCost({
     .div(100);
   logger.debug(`Platform Service Fee Amount: ${platformCustomerServiceFeeAmount.toString()}`);
 
-  // Calculate subtotal before VAT
-  const subtotalBeforeVat = netTotalWithSecurityAndFuel.plus(platformCustomerServiceFeeAmount);
-  logger.debug(`Subtotal Before VAT: ${subtotalBeforeVat.toString()}`);
-
-  // Calculate VAT
-  const vatRatePercent = new Decimal(vatRate.ratePercent.toString());
-  logger.debug(`VAT Rate: ${vatRatePercent.toString()}%`);
-  const vatAmount = subtotalBeforeVat.mul(vatRatePercent).div(100);
-  logger.debug(`VAT Amount: ${vatAmount.toString()}`);
-
-  // Calculate total amount (gross)
-  const totalAmount = subtotalBeforeVat.plus(vatAmount);
-  logger.debug(`Total Amount (Gross): ${totalAmount.toString()}`);
+  // Calculate subtotal before discounts (before VAT)
+  const subtotalBeforeDiscounts = netTotalWithSecurityAndFuel.plus(
+    platformCustomerServiceFeeAmount,
+  );
+  logger.debug(`Subtotal Before Discounts: ${subtotalBeforeDiscounts.toString()}`);
 
   // Calculate fleet owner commission and payout
   const platformFleetOwnerCommissionRatePercent = new Decimal(
@@ -296,6 +307,61 @@ export async function calculateBookingCost({
   const fleetOwnerPayoutAmountNet = platformFeeBase.minus(platformFleetOwnerCommissionAmount);
   logger.debug(`Fleet Owner Payout Amount (Net): ${fleetOwnerPayoutAmountNet.toString()}`);
 
+  // Check for referral discount eligibility and calculate discount
+  let referralDiscountAmount = new Decimal(0);
+  if (user?.id) {
+    try {
+      const eligibility = await checkReferralEligibility(
+        user.id,
+        subtotalBeforeDiscounts.toNumber(),
+        type,
+      );
+
+      if (eligibility.eligible && eligibility.discountAmount) {
+        referralDiscountAmount = new Decimal(
+          Math.min(eligibility.discountAmount, subtotalBeforeDiscounts.toNumber()),
+        );
+        logger.debug(`Referral discount calculated: ${referralDiscountAmount.toString()}`);
+      }
+    } catch (error) {
+      logger.error("Failed to check referral eligibility during cost calculation", { error });
+      // Do not fail the calculation if referral check fails
+    }
+  }
+
+  // Apply booking credits if specified
+  let bookingCreditsUsed = new Decimal(0);
+  if (useCredits && useCredits > 0 && user?.id) {
+    try {
+      const maxCredit = await calculateMaxCreditForBooking(
+        user.id,
+        subtotalBeforeDiscounts.toNumber(),
+      );
+      const actualCreditToUse = Math.min(useCredits, maxCredit);
+      bookingCreditsUsed = new Decimal(actualCreditToUse);
+      logger.debug(`Booking credits applied: ${bookingCreditsUsed.toString()}`);
+    } catch (error) {
+      logger.error("Failed to calculate booking credits", { error });
+      // Do not fail the calculation if credit check fails
+    }
+  }
+
+  // Calculate subtotal after discounts
+  const subtotalAfterDiscounts = subtotalBeforeDiscounts
+    .minus(referralDiscountAmount)
+    .minus(bookingCreditsUsed);
+  logger.debug(`Subtotal After Discounts: ${subtotalAfterDiscounts.toString()}`);
+
+  // Calculate VAT on the discounted amount
+  const vatRatePercent = new Decimal(vatRate.ratePercent.toString());
+  logger.debug(`VAT Rate: ${vatRatePercent.toString()}%`);
+  const vatAmount = subtotalAfterDiscounts.mul(vatRatePercent).div(100);
+  logger.debug(`VAT Amount: ${vatAmount.toString()}`);
+
+  // Calculate final total amount (gross)
+  const finalTotalAmountWithCredits = subtotalAfterDiscounts.plus(vatAmount);
+  logger.debug(`Final Total Amount (Gross): ${finalTotalAmountWithCredits.toString()}`);
+
   // Log the complete breakdown
   logger.debug(`Complete Calculation Breakdown:
       Net Total: ${netTotal.toString()}
@@ -304,19 +370,24 @@ export async function calculateBookingCost({
       Net Total with Security and Fuel: ${netTotalWithSecurityAndFuel.toString()}
       Platform Fee Base (Net + Fuel): ${platformFeeBase.toString()}
       Platform Service Fee (${platformCustomerServiceFeeRatePercent.toString()}%): ${platformCustomerServiceFeeAmount.toString()}
-      Subtotal Before VAT: ${subtotalBeforeVat.toString()}
+      Subtotal Before Discounts: ${subtotalBeforeDiscounts.toString()}
+      Referral Discount: ${referralDiscountAmount.toString()}
+      Booking Credits Used: ${bookingCreditsUsed.toString()}
+      Subtotal After Discounts: ${subtotalAfterDiscounts.toString()}
       VAT (${vatRatePercent.toString()}%): ${vatAmount.toString()}
-      Total Amount (Gross): ${totalAmount.toString()}
+      Final Total Amount (Gross): ${finalTotalAmountWithCredits.toString()}
       Fleet Owner Commission (${platformFleetOwnerCommissionRatePercent.toString()}%): ${platformFleetOwnerCommissionAmount.toString()}
       Fleet Owner Payout (Net): ${fleetOwnerPayoutAmountNet.toString()}
     `);
 
   return {
-    totalAmount,
+    totalAmount: finalTotalAmountWithCredits,
     netTotal,
     platformCustomerServiceFeeRatePercent,
     platformCustomerServiceFeeAmount,
-    subtotalBeforeVat,
+    subtotalBeforeVat: subtotalBeforeDiscounts, // Keep old name for compatibility
+    subtotalBeforeDiscounts,
+    subtotalAfterDiscounts,
     vatRatePercent,
     vatAmount,
     platformFleetOwnerCommissionRatePercent,
@@ -324,6 +395,8 @@ export async function calculateBookingCost({
     fleetOwnerPayoutAmountNet,
     securityDetailCost,
     fuelUpgradeCost,
+    referralDiscountAmount,
+    bookingCreditsUsed,
     bookingDates,
     startHours,
     endHours,
@@ -337,6 +410,7 @@ export async function createPendingBooking({
   endDate,
   car,
   user,
+  useCredits,
   pickupLocation,
   returnLocation,
   specialRequests,
@@ -347,8 +421,14 @@ export async function createPendingBooking({
 }: Omit<CreateBookingParams, "paymentId" | "status" | "paymentStatus"> & {
   paymentIntent: string;
   requiresFullTank?: boolean;
+  useCredits?: number;
 }) {
   const bookingReference = await generateUniqueBookingReference();
+
+  // Track referral outside of transaction for post-transaction notifications
+  let didApplyReferral = false;
+  let appliedReferrerUserId: string | null = null;
+  let appliedDiscountAmount = 0;
 
   const booking = await prisma.$transaction(async (transaction) => {
     const {
@@ -364,6 +444,8 @@ export async function createPendingBooking({
       fleetOwnerPayoutAmountNet,
       securityDetailCost,
       fuelUpgradeCost,
+      referralDiscountAmount,
+      bookingCreditsUsed,
       bookingDates,
       startHours,
       endHours,
@@ -376,7 +458,53 @@ export async function createPendingBooking({
       includeSecurityDetail,
       requiresFullTank,
       prismaInstance: transaction,
+      user: "id" in user ? user : null,
+      useCredits,
     });
+
+    // Handle referral discount atomic reservation
+    // referralDiscountAmount is already calculated in calculateBookingCost
+    let referralReferrerUserId: string | null = null;
+    let referralStatus: BookingReferralStatus = BookingReferralStatus.NONE;
+
+    if ("id" in user && referralDiscountAmount.gt(0)) {
+      try {
+        // Check if discount is still available (don't mark as used yet)
+        const userWithReferral = await transaction.user.findUnique({
+          where: { id: user.id },
+          select: { referralDiscountUsed: true, referredByUserId: true },
+        });
+
+        if (userWithReferral?.referralDiscountUsed) {
+          logger.warn("Referral discount already used", {
+            userId: user.id,
+            bookingReference,
+          });
+          // Don't apply referral discount for this booking
+        } else if (userWithReferral?.referredByUserId) {
+          // Successfully validated the discount availability
+
+          referralReferrerUserId = userWithReferral?.referredByUserId || null;
+          referralStatus = BookingReferralStatus.APPLIED;
+          didApplyReferral = true;
+          appliedReferrerUserId = referralReferrerUserId;
+          appliedDiscountAmount = referralDiscountAmount.toNumber();
+
+          logger.info("Referral discount reserved and applied", {
+            userId: user.id,
+            bookingReference,
+            discountAmount: referralDiscountAmount.toNumber(),
+            referrerId: referralReferrerUserId,
+          });
+        }
+      } catch (error) {
+        logger.error("Failed to reserve referral discount", {
+          userId: user.id,
+          error: error instanceof Error ? error.message : "Unknown error",
+        });
+        // Note: In production, might want to handle this by recalculating
+      }
+    }
 
     const query = {
       data: {
@@ -407,6 +535,13 @@ export async function createPendingBooking({
         fleetOwnerPayoutAmountNet,
         securityDetailCost,
         fuelUpgradeCost,
+        referralDiscountAmount,
+        // Referral fields
+        referralReferrerUserId,
+        referralStatus,
+        // Reserve credits at booking creation, will be moved to "used" on payment success
+        referralCreditsUsed: 0,
+        referralCreditsReserved: bookingCreditsUsed,
         legs: {
           create: bookingDates.map((legDate, index) => {
             // Calculate the net value for this leg (base price before fees)
@@ -458,9 +593,97 @@ export async function createPendingBooking({
 
     const newBooking = await transaction.booking.create(query);
 
-    logger.debug("From createPendingBooking: newBooking:", newBooking);
+    // Handle referral reward and user discount marking if discount was applied
+    if (
+      referralStatus === BookingReferralStatus.APPLIED &&
+      referralReferrerUserId &&
+      "id" in user
+    ) {
+      try {
+        // Create pending reward within the same transaction
+        // Use direct query to avoid transaction nesting issues
+        const configResult = await transaction.referralProgramConfig.findUnique({
+          where: { key: "REFERRAL_RELEASE_CONDITION" },
+        });
+        const releaseCondition = configResult?.value ?? "PAID";
+
+        await transaction.referralReward.create({
+          data: {
+            referrerUserId: referralReferrerUserId,
+            refereeUserId: user.id,
+            bookingId: newBooking.id,
+            amount: referralDiscountAmount,
+            status: "PENDING",
+            releaseCondition: releaseCondition as "PAID" | "COMPLETED",
+          },
+        });
+        // Track pending rewards in referrer stats
+        await transaction.userReferralStats.upsert({
+          where: { userId: referralReferrerUserId },
+          create: {
+            userId: referralReferrerUserId,
+            totalReferrals: 0,
+            totalRewardsGranted: 0,
+            totalRewardsPending: referralDiscountAmount.toNumber(),
+          },
+          update: { totalRewardsPending: { increment: referralDiscountAmount.toNumber() } },
+        });
+
+        // Note: User's discount will be marked as used only after successful payment in activateBooking()
+
+        logger.info("Referral reward created", {
+          bookingId: newBooking.id,
+          userId: user.id,
+          referrerId: referralReferrerUserId,
+          rewardAmount: referralDiscountAmount.toNumber(),
+        });
+      } catch (error) {
+        logger.error("Failed to apply referral discount after booking creation", {
+          bookingId: newBooking.id,
+          error: error instanceof Error ? error.message : "Unknown error",
+        });
+        // Don't fail the booking creation if referral processing fails
+      }
+    }
+
     return newBooking;
   });
+
+  // Send referral discount applied notification outside transaction (async, non-blocking)
+  if (didApplyReferral && appliedReferrerUserId && "id" in user && car) {
+    const [customerUser, referrerUser] = await Promise.all([
+      prisma.user.findUnique({
+        where: { id: user.id },
+        select: { id: true, name: true, email: true, phoneNumber: true },
+      }),
+      prisma.user.findUnique({
+        where: { id: appliedReferrerUserId },
+        select: { id: true, name: true, email: true, phoneNumber: true },
+      }),
+    ]);
+
+    if (customerUser && referrerUser && booking) {
+      sendReferralDiscountAppliedNotification(
+        {
+          id: booking.id,
+          bookingReference: booking.bookingReference,
+          carName: `${car.make} ${car.model}`,
+          discountAmount: appliedDiscountAmount,
+          originalAmount: booking.totalAmount.toNumber() + appliedDiscountAmount,
+          finalAmount: booking.totalAmount.toNumber(),
+        },
+        customerUser,
+        referrerUser,
+      ).catch((error) => {
+        logger.error("Failed to send referral discount applied notification", {
+          error: error instanceof Error ? error.message : String(error),
+          bookingId: booking.id,
+          userId: user.id,
+          referrerId: appliedReferrerUserId,
+        });
+      });
+    }
+  }
 
   return booking;
 }
@@ -483,6 +706,17 @@ export async function activateBooking(
 ): Promise<BookingWithRelations> {
   logger.info(`Activating booking ${bookingId} with payment ID ${paymentId}`);
   return prisma.$transaction(async (transaction) => {
+    // First, get the current booking to retrieve reserved credits
+    const currentBooking = await transaction.booking.findUnique({
+      where: { id: bookingId },
+      select: {
+        referralCreditsReserved: true,
+      },
+    });
+
+    // Move reserved credits to used credits on payment success
+    const reservedAmount = currentBooking?.referralCreditsReserved || 0;
+
     // Update the booking
     const booking = await transaction.booking.update({
       where: { id: bookingId },
@@ -490,6 +724,10 @@ export async function activateBooking(
         status: BookingStatus.CONFIRMED,
         paymentStatus: PaymentStatus.PAID,
         paymentId,
+        // Move reserved credits to used
+        referralCreditsUsed: reservedAmount,
+        // Clear reserved credits
+        referralCreditsReserved: 0,
       },
       include: {
         car: { include: { owner: true } },
@@ -499,11 +737,46 @@ export async function activateBooking(
       },
     });
 
+    logger.info(`Moved ${reservedAmount} credits from reserved to used for booking ${bookingId}`);
+
     // Update car status to BOOKED
     await transaction.car.update({
       where: { id: booking.carId },
       data: { status: Status.BOOKED },
     });
+
+    // Release referral reward if payment is the release condition
+    try {
+      const config = await getReferralConfig();
+      if (
+        config.REFERRAL_RELEASE_CONDITION === "PAID" &&
+        booking.referralStatus === BookingReferralStatus.APPLIED
+      ) {
+        // For "PAID" release condition: mark discount as used immediately after payment
+        if (booking.userId) {
+          await transaction.user.update({
+            where: { id: booking.userId },
+            data: { referralDiscountUsed: true },
+          });
+          logger.info("Referral discount marked as used after payment", {
+            bookingId: booking.id,
+            userId: booking.userId,
+          });
+        }
+
+        await releaseReferralReward(booking.id);
+        logger.info("Referral reward released on payment", { bookingId: booking.id });
+      }
+
+      // Note: For "COMPLETED" release condition, discount should be marked as used in completeBooking()
+      // However, completeBooking() is currently never called, so "COMPLETED" mode doesn't work
+    } catch (error) {
+      logger.error("Failed to release referral reward on payment", {
+        bookingId: booking.id,
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+      // Don't fail the booking activation if referral processing fails
+    }
 
     return booking;
   });
@@ -537,12 +810,8 @@ function calculateBookingLegPrice(
   booking: { startDate: Date; endDate: Date; type: BookingType },
   legDate: Date,
 ): number {
-  const { dayRate, nightRate, hourlyRate, fullDayRate } = car;
-  const { startDate, endDate, type } = booking;
-
-  // Minimum chargeable unit, e.g., 1 hour.
-  // This could also be a global constant or configurable.
-  const MINIMUM_CHARGEABLE_HOURS = 1;
+  const { dayRate, nightRate, fullDayRate } = car;
+  const { type } = booking;
 
   if (type === BookingType.NIGHT) {
     // For NIGHT bookings, charge the flat nightRate for any leg.
@@ -557,82 +826,19 @@ function calculateBookingLegPrice(
   }
 
   // BookingType.DAY calculations
-  const bookingStartDateTime = startDate;
-  const bookingEndDateTime = endDate;
-
-  const legStartDateTime = startOfDay(legDate);
-  const legEndDateTime = endOfDay(legDate);
-
-  const isFirstLeg = isSameDay(legDate, bookingStartDateTime);
-  const isLastLeg = isSameDay(legDate, bookingEndDateTime);
-
-  // Determine the actual service start and end times for *this specific leg*
-  const actualServiceStartTimeOnLeg = isFirstLeg ? bookingStartDateTime : legStartDateTime;
-  const actualServiceEndTimeOnLeg = isLastLeg ? bookingEndDateTime : legEndDateTime;
-
-  // Calculate duration of service on this leg in hours
-  const minutes = differenceInMinutes(actualServiceEndTimeOnLeg, actualServiceStartTimeOnLeg);
-  let durationHours = Math.ceil(minutes / 60);
-
-  // Ensure a minimum duration for calculation if there's any overlap
-  if (durationHours <= 0 && actualServiceEndTimeOnLeg > actualServiceStartTimeOnLeg) {
-    durationHours = MINIMUM_CHARGEABLE_HOURS; // if less than 1 hr but there is service, charge for 1hr.
-  } else if (durationHours < 0) {
-    durationHours = 0; // Should not happen if dates are logical
-  }
-
-  // Ensure duration does not exceed 24 hours for a single leg calculation
-  durationHours = Math.min(durationHours, 24);
-
-  // Handle cases based on leg position and booking duration
-
-  // Case 1: Single-day DAY booking (first leg and last leg are the same)
-  if (isFirstLeg && isLastLeg) {
-    if (hourlyRate > 0) {
-      // If hourly rate is defined, calculate cost based on hours, up to the daily rate.
-      // Apply a minimum charge equivalent to MINIMUM_CHARGEABLE_HOURS.
-      const hourlyCost = Math.max(durationHours, MINIMUM_CHARGEABLE_HOURS) * hourlyRate;
-      return Math.min(hourlyCost, dayRate);
-    }
-    // If no hourly rate, or if it's a full day anyway, charge the full day rate.
-    return dayRate;
-  }
-
-  // Case 2: Multi-day DAY booking - First leg (partial day)
-  if (isFirstLeg) {
-    if (hourlyRate > 0) {
-      // Calculate cost based on actual hours on this first day.
-      // Example: Booking starts at 2 PM. legDate is for this first day.
-      // durationHours would be from 2 PM to midnight (approx 10 hours).
-      // Apply a minimum charge.
-      const hourlyCost = Math.max(durationHours, MINIMUM_CHARGEABLE_HOURS) * hourlyRate;
-      return Math.min(hourlyCost, dayRate); // Cap at the full dayRate
-    }
-    // If no hourly rate, charge full day rate for the first partial day.
-    return dayRate;
-  }
-
-  // Case 3: Multi-day DAY booking - Last leg (partial day)
-  if (isLastLeg) {
-    if (hourlyRate > 0) {
-      // Calculate cost based on actual hours on this last day.
-      // Example: Booking ends at 10 AM. legDate is for this last day.
-      // durationHours would be from midnight to 10 AM (approx 10 hours).
-      // Apply a minimum charge.
-      const hourlyCost = Math.max(durationHours, MINIMUM_CHARGEABLE_HOURS) * hourlyRate;
-      return Math.min(hourlyCost, dayRate); // Cap at the full dayRate
-    }
-    // If no hourly rate, charge full day rate for the last partial day.
-    return dayRate;
-  }
-
-  // Case 4: Full intermediate day in a multi-day DAY booking
-  // This leg is neither the first nor the last, so it's a full 24-hour period within the booking.
+  // For DAY bookings, always charge the flat dayRate per leg (12-hour period)
+  // Hourly rate is only used for booking extensions, not for regular bookings
   return dayRate;
 }
 
 export async function cancelBooking(bookingId: string, reason: string) {
   return prisma.$transaction(async (transaction) => {
+    // First fetch the booking to check its current payment status
+    const existingBooking = await transaction.booking.findUnique({
+      where: { id: bookingId },
+      select: { paymentStatus: true },
+    });
+
     const booking = await transaction.booking.update({
       where: {
         id: bookingId,
@@ -640,9 +846,17 @@ export async function cancelBooking(bookingId: string, reason: string) {
       },
       data: {
         status: BookingStatus.CANCELLED,
-        paymentStatus: PaymentStatus.REFUNDED, // TODO: if payment status is PAID, we should refund the payment and update status, if not, we should not change it
+        // Only mark as REFUNDED if it was actually PAID, otherwise keep original status
+        paymentStatus:
+          existingBooking?.paymentStatus === PaymentStatus.PAID
+            ? PaymentStatus.REFUNDED
+            : existingBooking?.paymentStatus || PaymentStatus.UNPAID,
         cancelledAt: new Date(),
         cancellationReason: reason,
+        // Clear reserved credits and used credits on cancellation
+        referralCreditsReserved: 0,
+        // If booking was paid and is now refunded, clear used credits too
+        referralCreditsUsed: existingBooking?.paymentStatus === PaymentStatus.PAID ? 0 : undefined,
       },
       include: {
         user: true,
@@ -657,6 +871,277 @@ export async function cancelBooking(bookingId: string, reason: string) {
       where: { id: booking.carId },
       data: { status: Status.AVAILABLE },
     });
+
+    // Handle referral reversal if applicable
+    if (booking.referralStatus === BookingReferralStatus.APPLIED && booking.userId) {
+      try {
+        // Find the referral reward
+        const reward = await transaction.referralReward.findFirst({
+          where: { bookingId: booking.id },
+        });
+
+        if (reward) {
+          if (reward.status === "RELEASED") {
+            // Reverse the reward
+            await transaction.referralReward.update({
+              where: { id: reward.id },
+              data: {
+                status: "REVERSED",
+                reason: `Booking cancelled: ${reason}`,
+              },
+            });
+
+            // Update referrer stats
+            await transaction.userReferralStats.update({
+              where: { userId: reward.referrerUserId },
+              data: {
+                totalRewardsGranted: { decrement: reward.amount },
+              },
+            });
+
+            logger.info("Referral reward reversed due to cancellation", {
+              bookingId: booking.id,
+              rewardId: reward.id,
+              amount: reward.amount,
+            });
+          } else if (reward.status === "PENDING") {
+            // Cancel the pending reward
+            await transaction.referralReward.update({
+              where: { id: reward.id },
+              data: {
+                status: "REVERSED",
+                reason: `Booking cancelled before reward release: ${reason}`,
+              },
+            });
+
+            // Give user back their referral discount eligibility
+            await transaction.user.update({
+              where: { id: booking.userId },
+              data: { referralDiscountUsed: false },
+            });
+
+            logger.info("Pending referral reward cancelled, discount eligibility restored", {
+              bookingId: booking.id,
+              userId: booking.userId,
+            });
+          }
+        }
+
+        // Update booking referral status
+        await transaction.booking.update({
+          where: { id: booking.id },
+          data: { referralStatus: BookingReferralStatus.REVERSED },
+        });
+      } catch (error) {
+        logger.error("Failed to handle referral reversal on cancellation", {
+          bookingId: booking.id,
+          error: error instanceof Error ? error.message : "Unknown error",
+        });
+        // Don't fail the cancellation if referral processing fails
+      }
+    }
+
+    return booking;
+  });
+}
+
+// Complete a booking and release referral rewards if condition is "COMPLETED"
+export async function completeBooking(bookingId: string) {
+  return prisma.$transaction(async (transaction) => {
+    const booking = await transaction.booking.update({
+      where: { id: bookingId },
+      data: { status: BookingStatus.COMPLETED },
+      include: {
+        user: true,
+        car: { include: { owner: true } },
+      },
+    });
+
+    // Process all referral conditions when booking is completed
+    try {
+      // Step 1: Get referral configuration to determine when rewards should be released
+      const config = await getReferralConfig();
+
+      // Step 2: Check if referral system is enabled globally
+      if (!config.REFERRAL_ENABLED) {
+        logger.info("Referral system disabled, skipping referral processing", {
+          bookingId: booking.id,
+        });
+        return booking;
+      }
+
+      // Step 3: Check if this booking should trigger referral processing
+      const shouldProcessReferral =
+        config.REFERRAL_RELEASE_CONDITION === "COMPLETED" &&
+        booking.referralStatus === BookingReferralStatus.APPLIED &&
+        booking.userId &&
+        booking.referralReferrerUserId;
+
+      if (!shouldProcessReferral) {
+        logger.info("No referral processing needed for this booking", {
+          bookingId: booking.id,
+          releaseCondition: config.REFERRAL_RELEASE_CONDITION,
+          referralStatus: booking.referralStatus,
+        });
+        return booking;
+      }
+
+      logger.info("Processing referral completion for booking", {
+        bookingId: booking.id,
+        userId: booking.userId,
+        referrerId: booking.referralReferrerUserId,
+        discountAmount: booking.referralDiscountAmount,
+      });
+
+      // Step 4: Check for idempotency - prevent double-processing
+      const existingReleasedReward = await transaction.referralReward.findFirst({
+        where: {
+          bookingId: booking.id,
+          status: "RELEASED",
+        },
+      });
+
+      if (existingReleasedReward) {
+        logger.warn("Referral reward already released for this booking", {
+          bookingId: booking.id,
+          rewardId: existingReleasedReward.id,
+        });
+        return booking;
+      }
+
+      // Step 5: Validate that the user hasn't already used their discount elsewhere
+      const userReferralInfo = await transaction.user.findUnique({
+        where: { id: booking.userId! },
+        select: {
+          referralDiscountUsed: true,
+          referralSignupAt: true,
+          referredByUserId: true,
+        },
+      });
+
+      // Step 6: Check referral expiry if configured
+      if (config.REFERRAL_EXPIRY_DAYS > 0 && userReferralInfo?.referralSignupAt) {
+        const daysSinceSignup = Math.floor(
+          (Date.now() - userReferralInfo.referralSignupAt.getTime()) / (1000 * 60 * 60 * 24),
+        );
+
+        if (daysSinceSignup > config.REFERRAL_EXPIRY_DAYS) {
+          logger.warn("Referral has expired, not processing reward", {
+            bookingId: booking.id,
+            userId: booking.userId,
+            daysSinceSignup,
+            expiryDays: config.REFERRAL_EXPIRY_DAYS,
+          });
+          return booking;
+        }
+      }
+
+      // Step 7: Mark the referee's one-time discount as permanently used
+      // This should only happen once when the service is successfully completed
+      if (!userReferralInfo?.referralDiscountUsed) {
+        await transaction.user.update({
+          where: { id: booking.userId! },
+          data: { referralDiscountUsed: true },
+        });
+
+        logger.info("Referral discount marked as used after service completion", {
+          bookingId: booking.id,
+          userId: booking.userId,
+          discountAmount: booking.referralDiscountAmount,
+        });
+      } else {
+        logger.warn("User's referral discount was already marked as used", {
+          bookingId: booking.id,
+          userId: booking.userId,
+        });
+      }
+
+      // Step 8: Release the referral reward (this handles the referrer's reward)
+      // This function updates the reward status from PENDING -> RELEASED
+      const releasedReward = await releaseReferralReward(booking.id);
+
+      if (releasedReward) {
+        logger.info("Referral reward successfully released on completion", {
+          bookingId: booking.id,
+          rewardId: releasedReward.id,
+          rewardAmount: releasedReward.amount,
+          referrerId: releasedReward.referrerUserId,
+        });
+
+        // Step 9: Update booking referral status to indicate reward has been processed
+        await transaction.booking.update({
+          where: { id: booking.id },
+          data: { referralStatus: BookingReferralStatus.REWARDED },
+        });
+
+        // Step 10: Send notification to referrer about their earned reward
+        try {
+          const referrer = await transaction.user.findUnique({
+            where: { id: booking.referralReferrerUserId! },
+            select: { email: true, name: true },
+          });
+
+          const referee = await transaction.user.findUnique({
+            where: { id: booking.userId! },
+            select: { name: true, email: true },
+          });
+
+          if (referrer && referee) {
+            await sendReferralRewardEarnedNotification(
+              {
+                id: releasedReward.id,
+                amount: Number(releasedReward.amount),
+                bookingReference: booking.bookingReference,
+              },
+              {
+                id: booking.referralReferrerUserId!,
+                name: referrer.name,
+                email: referrer.email,
+              },
+              {
+                id: booking.userId!,
+                name: referee.name,
+                email: referee.email,
+              },
+            );
+
+            logger.info("Referral reward notification sent", {
+              bookingId: booking.id,
+              referrerEmail: referrer.email,
+              rewardAmount: releasedReward.amount,
+            });
+          }
+        } catch (notificationError) {
+          logger.error("Failed to send referral reward notification", {
+            bookingId: booking.id,
+            error: notificationError instanceof Error ? notificationError.message : "Unknown error",
+          });
+          // Don't fail the completion if notification fails
+        }
+      } else {
+        logger.warn("No referral reward was released - may have already been processed", {
+          bookingId: booking.id,
+        });
+      }
+
+      // Step 11: Log completion for audit trail
+      logger.info("Referral completion processing finished successfully", {
+        bookingId: booking.id,
+        userId: booking.userId,
+        referrerId: booking.referralReferrerUserId,
+        rewardReleased: !!releasedReward,
+        discountMarkedAsUsed: true,
+      });
+    } catch (error) {
+      logger.error("Failed to process referral completion", {
+        bookingId: booking.id,
+        error: error instanceof Error ? error.message : "Unknown error",
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+
+      // Don't fail the entire booking completion if referral processing fails
+      // This ensures booking completion isn't blocked by referral issues
+    }
 
     return booking;
   });
@@ -731,41 +1216,15 @@ export async function getActiveBookings() {
 }
 
 export async function isCarAvailableForDates(carId: string, from: Date, to: Date) {
-  // Find any overlapping bookings
+  // Precise overlap: existing.start < to AND existing.end > from
   const overlappingBookings = await prisma.booking.findFirst({
     where: {
       carId,
-      // Check that car is available
-      car: {
-        status: "AVAILABLE",
-      },
-      // Check for date overlap
-      OR: [
-        // Case 1: Booking starts during requested period
-        {
-          startDate: {
-            gte: from,
-            lte: to,
-          },
-        },
-        // Case 2: Booking ends during requested period
-        {
-          endDate: {
-            gte: from,
-            lte: to,
-          },
-        },
-        // Case 3: Booking encompasses requested period
-        {
-          startDate: {
-            lte: from,
-          },
-          endDate: {
-            gte: to,
-          },
-        },
-      ],
+      paymentStatus: "PAID",
+      status: { in: ["CONFIRMED", "ACTIVE"] },
+      AND: [{ startDate: { lt: to } }, { endDate: { gt: from } }],
     },
+    select: { id: true },
   });
 
   return overlappingBookings === null;

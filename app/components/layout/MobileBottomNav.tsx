@@ -1,6 +1,6 @@
 import type { Role, User } from "@prisma/client";
 import { Link, useLocation } from "@remix-run/react";
-import { Calendar, Home, LogIn, LogOut, User as UserIcon } from "lucide-react";
+import { Calendar, Gift, Home, LogIn, LogOut, User as UserIcon } from "lucide-react";
 import { Form } from "~/components/CSRFForm";
 import { userHasRole } from "~/utils/client/misc";
 
@@ -110,7 +110,7 @@ export function MobileBottomNav({ user, appName, onProfileOpen }: MobileBottomNa
 
   const isHomeActive = location.pathname === "/";
   const isBookingsActive = location.pathname.startsWith("/bookings");
-  // const isReferralsActive = location.pathname.startsWith("/referrals");
+  const isReferralsActive = location.pathname.startsWith("/referrals");
   const isFleetOwnerActive = location.pathname.startsWith("/fleet-owner");
 
   if (user) {
@@ -126,13 +126,13 @@ export function MobileBottomNav({ user, appName, onProfileOpen }: MobileBottomNa
             label={userHasRole(user, "fleetOwner") ? "Dashboard" : "Bookings"}
             isActive={userHasRole(user, "fleetOwner") ? isFleetOwnerActive : isBookingsActive}
           />
-          {/* 
+
           <NavItem
             to="/referrals"
             icon={<Gift size={18} />}
             label="Referrals"
             isActive={isReferralsActive}
-          /> */}
+          />
 
           <NavItem
             icon={<UserIcon size={18} />}

@@ -4,7 +4,7 @@ const schema = z.object({
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
   SESSION_SECRET: z.string(),
   SESSION_SECRETS: z.string().optional(),
-  ENCRYPTION_SECRET: z.string().optional(),
+  ENCRYPTION_SECRET: z.string(),
   DATABASE_URL: z.string().optional(),
   DEV_HOST_URL: z.string().optional(),
   PROD_HOST_URL: z.string().optional(),

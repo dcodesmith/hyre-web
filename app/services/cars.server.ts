@@ -4,20 +4,20 @@ import {
   DocumentStatus,
   DocumentType,
   Status,
-  BookingType,
   CarApprovalStatus,
 } from "@prisma/client";
 import { prisma } from "~/modules/db/db.server";
-import { uploadFileToS3 } from "./s3.server";
+import { deleteFileFromS3, uploadFileToS3 } from "./s3.server";
+import logger from "~/lib/logger.server";
 
-export async function isCarAvailable(
-  carId: string,
-  startDate: Date,
-  endDate: Date,
-): Promise<boolean> {
+export async function isCarAvailable(carId: string, startDate: Date, endDate: Date) {
+  if (startDate >= endDate) {
+    throw new Error("startDate must be before endDate");
+  }
+
   // First check if the car exists and is available
   const car = await prisma.car.findUnique({
-    where: { id: carId },
+    where: { id: carId, status: Status.AVAILABLE },
     select: { id: true, status: true },
   });
 
@@ -26,50 +26,13 @@ export async function isCarAvailable(
   }
 
   // Use a count query instead of fetching all bookings for better performance
+  // Overlap rule (precise to datetime): existing.start < newEnd AND existing.end > newStart
   const conflictingBookingsCount = await prisma.booking.count({
     where: {
       carId,
       paymentStatus: "PAID",
-      // Only check active or confirmed bookings
-      status: {
-        in: ["CONFIRMED", "ACTIVE"],
-      },
-      // Check for any date overlap or if it ends 3hrs before a night booking starts
-      OR: [
-        // New booking starts during an existing booking
-        {
-          startDate: {
-            lte: (() => {
-              const d = new Date(endDate);
-              d.setHours(23, 59, 59, 999);
-              return d;
-            })(),
-          },
-          endDate: {
-            gte: (() => {
-              const d = new Date(startDate);
-              d.setHours(0, 0, 0, 0);
-              return d;
-            })(),
-          },
-        },
-        // New night booking starts 3 hours after an existing booking ends
-        {
-          type: BookingType.NIGHT,
-          endDate: {
-            gte: (() => {
-              const d = new Date(startDate);
-              d.setHours(20, 0, 0, 0);
-              return d;
-            })(),
-            lt: (() => {
-              const d = new Date(startDate);
-              d.setHours(23, 0, 0, 0);
-              return d;
-            })(),
-          },
-        },
-      ],
+      status: { in: ["CONFIRMED", "ACTIVE"] },
+      AND: [{ startDate: { lt: endDate } }, { endDate: { gt: startDate } }],
     },
   });
 
@@ -98,12 +61,19 @@ export async function createCar({
   // Step 1: Create the car record
   const car = await prisma.car.create({ data });
 
+  const uploadedKeys: string[] = [];
+  const track = async (p: Promise<string>) => {
+    const url = await p;
+    uploadedKeys.push(new URL(url).pathname.slice(1)); // depends on uploadFileToS3 return
+    return url;
+  };
+
   try {
     // Step 2: Perform file uploads concurrently
     const [imageUrls, motCertificateUrl, insuranceCertificateUrl] = await Promise.all([
-      Promise.all(images.map((image) => uploadFileToS3(image, getKey(car, image)))),
-      uploadFileToS3(motCertificate, getKey(car, motCertificate)),
-      uploadFileToS3(insuranceCertificate, getKey(car, insuranceCertificate)),
+      Promise.all(images.map((image) => track(uploadFileToS3(image, getKey(car, image))))),
+      track(uploadFileToS3(motCertificate, getKey(car, motCertificate))),
+      track(uploadFileToS3(insuranceCertificate, getKey(car, insuranceCertificate))),
     ]);
 
     // Steps 3–5: persist in a single transaction for consistency
@@ -147,7 +117,17 @@ export async function createCar({
     // best-effort cleanup; ignore if already removed or blocked
     try {
       await prisma.car.delete({ where: { id: car.id } });
-    } catch {}
+      // Best-effort S3 cleanup (ignore failures)
+      for (const key of uploadedKeys) {
+        try {
+          await deleteFileFromS3(key);
+        } catch (error) {
+          logger.error("Failed to delete file from S3", { error });
+        }
+      }
+    } catch (error) {
+      logger.error("Failed to delete car", { error });
+    }
     throw new Error("Failed to create car and related assets", { cause: error as Error });
   }
 }

@@ -11,7 +11,9 @@
 		"start": "remix-serve ./build/server/index.js",
 		"typecheck": "tsc",
 		"postinstall": "npx prisma generate && npx tsx migrate-deploy-seed.ts",
-		"vercel-build": "npx prisma migrate deploy && npx prisma generate && remix vite:build"
+		"vercel-build": "npx prisma migrate deploy && npx prisma generate && remix vite:build",
+		"test": "vitest run",
+		"test:watch": "vitest"
 	},
 	"dependencies": {
 		"@aws-sdk/client-s3": "^3.884.0",
@@ -37,6 +39,7 @@
 		"@radix-ui/react-select": "^2.2.6",
 		"@radix-ui/react-separator": "^1.1.0",
 		"@radix-ui/react-slot": "^1.1.0",
+		"@radix-ui/react-switch": "^1.2.6",
 		"@radix-ui/react-tabs": "^1.1.13",
 		"@radix-ui/react-toast": "^1.2.15",
 		"@radix-ui/react-toggle": "^1.1.1",
@@ -61,6 +64,7 @@
 		"clsx": "^2.1.1",
 		"cmdk": "^1.0.4",
 		"date-fns": "^3.6.0",
+		"date-fns-tz": "^3.2.0",
 		"decimal.js": "^10.5.0",
 		"express": "^4.21.2",
 		"intl-parse-accept-language": "^1.0.0",
@@ -101,16 +105,18 @@
 		"@types/react": "^18.3.14",
 		"@types/react-dom": "^18.3.2",
 		"@vercel/node": "^5.1.14",
+		"@vitest/coverage-v8": "^3.2.4",
 		"autoprefixer": "^10.4.20",
 		"dotenv": "^17.2.1",
 		"pino-pretty": "^13.0.0",
 		"postcss": "^8.4.49",
-		"prisma": "^6.6.0",
+		"prisma": "^6.16.3",
 		"tailwindcss": "^3.4.16",
 		"ts-node": "^10.9.2",
 		"typescript": "^5.7.2",
 		"vite": "^5.4.19",
-		"vite-tsconfig-paths": "^4.3.2"
+		"vite-tsconfig-paths": "^4.3.2",
+		"vitest": "^3.2.4"
 	},
 	"engines": {
 		"node": ">=20.0.0"

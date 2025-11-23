@@ -205,6 +205,28 @@ export async function generatePdfWithPdfKit(booking: BookingWithRelations): Prom
     );
   }
 
+  if (Number(booking.referralDiscountAmount ?? 0) > 0) {
+    twoColumnText(
+      "Referral Discount",
+      `-${formatCurrency(Number(booking.referralDiscountAmount))}`,
+    );
+  }
+
+  if (Number(booking.referralCreditsUsed ?? 0) > 0) {
+    twoColumnText(
+      "Referral Credits Used",
+      `-${formatCurrency(Number(booking.referralCreditsUsed))}`,
+    );
+  }
+
+  // Show reserved credits for pending bookings
+  if (Number(booking.referralCreditsReserved ?? 0) > 0 && booking.paymentStatus !== "PAID") {
+    twoColumnText(
+      "Referral Credits (Pending)",
+      `-${formatCurrency(Number(booking.referralCreditsReserved))}`,
+    );
+  }
+
   twoColumnText(`VAT (${booking.vatRatePercent}%)`, formatCurrency(Number(booking.vatAmount ?? 0)));
 
   doc.moveDown(0.5);

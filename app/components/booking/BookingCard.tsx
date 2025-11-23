@@ -2,9 +2,17 @@ import { type FieldMetadata, getFormProps, getInputProps, useForm } from "@confo
 import { parseWithZod } from "@conform-to/zod";
 import type { Car, User } from "@prisma/client";
 import { useNavigate, useNavigation, useSearchParams, useSubmit } from "@remix-run/react";
-import { eachDayOfInterval, format, isAfter, parseISO, startOfDay } from "date-fns";
+import {
+  differenceInCalendarDays,
+  eachDayOfInterval,
+  format,
+  isAfter,
+  parseISO,
+  startOfDay,
+  subDays,
+} from "date-fns";
 import { Loader2 } from "lucide-react";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DateRange } from "react-day-picker";
 import { useAuthenticityToken } from "remix-utils/csrf/react";
 import { z } from "zod";
@@ -17,19 +25,11 @@ import { Checkbox } from "../ui/checkbox";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { RadioGroup, RadioGroupItem } from "../ui/radio-group";
+import { Switch } from "../ui/switch";
 import { BookingTimeSelect } from "./BookingTimeSelect";
 import { DateRangePicker } from "./DateRangePicker";
 
 const ERROR_RING_CLASSES = "border-red-500 focus-visible:ring-red-500 focus-visible:ring-2";
-
-type BookingCardProps = {
-  readonly car: Car & { fuelUpgradeRate: number };
-  readonly isAvailable: boolean;
-  readonly user: (User & { roles: { name: string }[]; phoneNumber?: string | null }) | null;
-  readonly vatRate: number;
-  readonly platformServiceFeeRate: number;
-  readonly securityDetailRate: number;
-};
 
 const DAY_BOOKING_TYPE = "DAY" as const;
 const NIGHT_BOOKING_TYPE = "NIGHT" as const;
@@ -38,6 +38,16 @@ const FULL_DAY_BOOKING_TYPE = "FULL_DAY" as const;
 const BOOKING_TYPE_OPTIONS = [DAY_BOOKING_TYPE, NIGHT_BOOKING_TYPE, FULL_DAY_BOOKING_TYPE] as const;
 
 type BookingType = (typeof BOOKING_TYPE_OPTIONS)[number];
+
+type BookingCardProps = {
+  readonly car: Car & { fuelUpgradeRate: number };
+  readonly isAvailable: boolean;
+  readonly user: (User & { roles: { name: string }[]; phoneNumber?: string | null }) | null;
+  readonly vatRate: number;
+  readonly platformServiceFeeRate: number;
+  readonly securityDetailRate: number;
+  readonly unavailableBookingTypes?: BookingType[];
+};
 
 const BOOKING_TYPE_LABELS = {
   [DAY_BOOKING_TYPE]: { singular: "day", plural: "days", perUnit: "12-hour day" },
@@ -141,14 +151,11 @@ const calculateTotalDays = (
 
   // For night bookings, calculate the number of nights (each night spans 2 calendar days)
   if (bookingType === NIGHT_BOOKING_TYPE) {
-    const start = startOfDay(from);
-    const end = startOfDay(to);
-    const daysDiff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
-
-    // For night bookings, each night spans from one day to the next
-    // So if user selects 1st and 2nd, that's 1 night
-    // If user selects 1st and 3rd, that's 2 nights
-    return Math.max(1, daysDiff);
+    // Number of nights = difference in calendar days
+    // Oct 26 to Oct 27 = 1 night
+    // Oct 26 to Oct 28 = 2 nights
+    const nights = differenceInCalendarDays(to, from);
+    return Math.max(1, nights);
   }
 
   // For FULL_DAY bookings, calculate the number of 24-hour periods
@@ -262,6 +269,12 @@ function GuestInfoFields({ nameField, emailField, phoneNumberField }: GuestInfoF
   );
 }
 
+interface BookingCredits {
+  availableCredits: number;
+  totalEarned: number;
+  maxCreditsPerBooking: number;
+}
+
 export default function BookingCard({
   car,
   isAvailable = false,
@@ -269,14 +282,30 @@ export default function BookingCard({
   vatRate,
   platformServiceFeeRate,
   securityDetailRate,
+  unavailableBookingTypes = [],
 }: BookingCardProps) {
   const navigate = useNavigate();
   const submit = useSubmit();
   const csrfToken = useAuthenticityToken();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [bookingType, setBookingType] = useState<BookingType>(
-    (searchParams.get("bookingType") as BookingType | null) || DAY_BOOKING_TYPE,
+  const availableBookingTypes = useMemo(
+    () => BOOKING_TYPE_OPTIONS.filter((t) => !unavailableBookingTypes.includes(t)),
+    [unavailableBookingTypes],
   );
+
+  const initialTypeFromParams =
+    (searchParams.get("bookingType") as BookingType | null) || DAY_BOOKING_TYPE;
+
+  const safeInitialBookingType: BookingType = (
+    availableBookingTypes as readonly BookingType[]
+  ).includes(initialTypeFromParams)
+    ? initialTypeFromParams
+    : (availableBookingTypes[0] ?? DAY_BOOKING_TYPE);
+
+  const [bookingType, setBookingType] = useState<BookingType>(safeInitialBookingType);
+  // Do not auto-switch booking type if current selection becomes unavailable.
+  // Keep user's selection and surface a message below.
+
   const navigation = useNavigation();
   const isPending = navigation.state === "submitting" && navigation.formMethod === "POST";
 
@@ -285,6 +314,12 @@ export default function BookingCard({
   );
   const [includeSecurityDetail, setIncludeSecurityDetail] = useState(false);
   const [requiresFullTank, setRequiresFullTank] = useState(false);
+  const [referralDiscount, setReferralDiscount] = useState<{
+    eligible: boolean;
+    discountAmount: number;
+  } | null>(null);
+  const [bookingCredits, setBookingCredits] = useState<BookingCredits | null>(null);
+  const [useCreditsAmount, setUseCreditsAmount] = useState(0);
   const fallbackDateRef = useRef<Date>(startOfDay(new Date()));
 
   const initialDateRange = useMemo(() => {
@@ -373,16 +408,103 @@ export default function BookingCard({
     [totalDays, requiresFullTank, bookingType],
   );
 
-  const subtotalBeforeVat = useMemo(() => subtotal + platformFee, [subtotal, platformFee]);
+  const subtotalBeforeDiscounts = useMemo(() => subtotal + platformFee, [subtotal, platformFee]);
 
-  const vat = useMemo(() => subtotalBeforeVat * (vatRate / 100), [subtotalBeforeVat, vatRate]);
+  const referralDiscountAmount = useMemo(() => {
+    if (!user || !referralDiscount?.eligible) return 0;
+    return Math.min(referralDiscount.discountAmount || 0, subtotalBeforeDiscounts);
+  }, [user, referralDiscount, subtotalBeforeDiscounts]);
 
-  const finalTotalCost = useMemo(() => subtotalBeforeVat + vat, [subtotalBeforeVat, vat]);
+  const subtotalAfterDiscounts = useMemo(
+    () => Math.max(0, subtotalBeforeDiscounts - referralDiscountAmount - useCreditsAmount),
+    [subtotalBeforeDiscounts, referralDiscountAmount, useCreditsAmount],
+  );
+
+  const vat = useMemo(
+    () => subtotalAfterDiscounts * (vatRate / 100),
+    [subtotalAfterDiscounts, vatRate],
+  );
+
+  const finalTotalCost = useMemo(() => subtotalAfterDiscounts + vat, [subtotalAfterDiscounts, vat]);
 
   const carIsAvailableToBook = useMemo(
     () => !!dateRange.from && !!dateRange.to && totalDays > 0 && isAvailable,
     [dateRange.from, dateRange.to, totalDays, isAvailable],
   );
+
+  // Check referral eligibility when booking details change
+  useEffect(() => {
+    if (!user || !carIsAvailableToBook || subtotalBeforeDiscounts <= 0) {
+      setReferralDiscount(null);
+      return;
+    }
+
+    const controller = new AbortController();
+
+    const checkEligibility = async () => {
+      try {
+        const response = await fetch(
+          `/api/referrals/eligibility?amount=${subtotalBeforeDiscounts}&type=${bookingType}`,
+          { signal: controller.signal },
+        );
+
+        if (response.ok) {
+          const data = await response.json();
+          setReferralDiscount(data);
+        } else {
+          setReferralDiscount(null);
+        }
+      } catch (error) {
+        // Ignore abort errors (expected when component unmounts or deps change)
+        if (error instanceof Error && error.name === "AbortError") {
+          return;
+        }
+        console.error("Failed to check referral eligibility:", error);
+        setReferralDiscount(null);
+      }
+    };
+
+    checkEligibility();
+
+    return () => controller.abort();
+  }, [user, carIsAvailableToBook, subtotalBeforeDiscounts, bookingType]);
+
+  // Fetch user's available booking credits
+  useEffect(() => {
+    if (!user) {
+      setBookingCredits(null);
+      return;
+    }
+
+    const controller = new AbortController();
+
+    const fetchCredits = async () => {
+      try {
+        const response = await fetch("/api/referrals/user", { signal: controller.signal });
+        if (response.ok) {
+          const data = await response.json();
+          setBookingCredits({
+            availableCredits: data.stats?.availableCredits || 0,
+            totalEarned: data.stats?.totalEarned || 0,
+            maxCreditsPerBooking: data.stats?.maxCreditsPerBooking,
+          });
+        } else {
+          setBookingCredits(null);
+        }
+      } catch (error) {
+        // Ignore abort errors (expected when component unmounts or deps change)
+        if (error instanceof Error && error.name === "AbortError") {
+          return;
+        }
+        console.error("Failed to fetch booking credits:", error);
+        setBookingCredits(null);
+      }
+    };
+
+    fetchCredits();
+
+    return () => controller.abort();
+  }, [user]);
 
   const [form, fields] = useForm({
     id: `booking-form-${car.id}`,
@@ -397,10 +519,15 @@ export default function BookingCard({
       pickupAddress: searchParams.get("pickupAddress") || undefined,
       dropOffAddress: searchParams.get("dropOffAddress") || undefined,
       sameLocation: sameLocationChecked ? "true" : "false",
-      email: user?.email ?? searchParams.get("email") ?? "",
-      name: user?.name ?? searchParams.get("name") ?? "",
-      phoneNumber: user?.phoneNumber ?? searchParams.get("phoneNumber") ?? "",
       bookingType,
+      // Only include guest fields if user is not logged in
+      ...(user
+        ? {}
+        : {
+            email: searchParams.get("email") ?? "",
+            name: searchParams.get("name") ?? "",
+            phoneNumber: searchParams.get("phoneNumber") ?? "",
+          }),
     },
     onValidate({ formData }) {
       const intent = formData.get("intent") as "guest" | "auth" | null;
@@ -521,16 +648,63 @@ export default function BookingCard({
     [searchParams, setSearchParams],
   );
 
+  const handlePickupTimeChange = useCallback(
+    (value: string) => {
+      if (value && (bookingType === DAY_BOOKING_TYPE || bookingType === FULL_DAY_BOOKING_TYPE)) {
+        const newSearchParams = new URLSearchParams(searchParams);
+        newSearchParams.set("pickupTime", value);
+        setSearchParams(newSearchParams, { replace: true, preventScrollReset: true });
+      }
+    },
+    [bookingType, searchParams, setSearchParams],
+  );
+
   const nightBookingHelperText = useMemo(() => {
     if (bookingType !== NIGHT_BOOKING_TYPE || !dateRange.from || !dateRange.to || totalDays <= 0) {
       return null;
     }
 
     const nights = totalDays;
-    const daysArr = eachDayOfInterval({ start: dateRange.from, end: dateRange.to });
+    // For night bookings, only show the start dates (not the end date which is just the morning)
+    // e.g., Oct 26 to Oct 27 = 1 night (the night of Oct 26), so only show "Oct 26th"
+
+    const endForList =
+      differenceInCalendarDays(dateRange.to, dateRange.from) > 0
+        ? subDays(dateRange.to, 1)
+        : dateRange.from;
+    const daysArr = eachDayOfInterval({
+      start: dateRange.from,
+      end: endForList,
+    });
+
     const daysStr = daysArr.map((d) => `${format(d, "MMM")} ${getOrdinal(d.getDate())}`).join(", ");
     return `All overnight bookings start at 11pm and end at 5am. Booking for ${nights} night${nights > 1 ? "s" : ""} (${daysStr}).`;
   }, [bookingType, dateRange.from, dateRange.to, totalDays]);
+
+  const handleSecurityDetailChange = useCallback((checked: boolean) => {
+    setIncludeSecurityDetail(!!checked);
+  }, []);
+
+  const handleFullTankChange = useCallback((checked: boolean) => {
+    setRequiresFullTank(!!checked);
+  }, []);
+
+  const handleUseCreditsChange = useCallback(
+    (checked: boolean, bookingCredits: BookingCredits) => {
+      if (checked) {
+        setUseCreditsAmount(
+          Math.min(
+            bookingCredits.availableCredits,
+            subtotalBeforeDiscounts - referralDiscountAmount,
+            bookingCredits.maxCreditsPerBooking,
+          ),
+        );
+      } else {
+        setUseCreditsAmount(0);
+      }
+    },
+    [subtotalBeforeDiscounts, referralDiscountAmount],
+  );
 
   return (
     <Form {...getFormProps(form)} method="POST" autoComplete="off">
@@ -538,8 +712,9 @@ export default function BookingCard({
       <input type="hidden" name="totalAmount" value={finalTotalCost} />
       <input type="hidden" name="includeSecurityDetail" value={String(includeSecurityDetail)} />
       <input type="hidden" name="requiresFullTank" value={String(requiresFullTank)} />
+      <input type="hidden" name="useCredits" value={useCreditsAmount} />
 
-      <Card className="rounded sticky top-4 shadow-xl inset-shadow-sm">
+      <Card className="rounded sticky top-4 shadow-xl inset-shadow-sm transform-gpu">
         <CardHeader>
           <CardTitle>
             <span className="text-lg" aria-live="polite">
@@ -562,22 +737,29 @@ export default function BookingCard({
               className="space-x-2 grid grid-cols-3"
               {...getInputProps(fields.bookingType, { type: "radio", value: bookingType })}
             >
-              {BOOKING_TYPE_OPTIONS.map((type) => (
-                <Label
-                  key={type}
-                  className="flex items-center space-x-2 cursor-pointer p-2 border rounded has-[:checked]:bg-muted has-[:checked]:border-primary transition-colors"
-                >
-                  <RadioGroupItem
-                    value={type}
-                    id={`booking-type-${type}`}
-                    className="sr-only" // This hides the radio button visually but keeps it accessible
-                  />
-                  {BOOKING_TYPE_OPTIONS_MAP[type]}
-                </Label>
-              ))}
+              {BOOKING_TYPE_OPTIONS.map((type) => {
+                const isUnavailableType = unavailableBookingTypes.includes(type);
+                return (
+                  <Label
+                    key={type}
+                    className={`flex items-center space-x-2 p-2 border rounded has-[:checked]:bg-muted has-[:checked]:border-primary transition-colors ${
+                      isUnavailableType
+                        ? "opacity-60 bg-gray-100"
+                        : "cursor-pointer hover:border-gray-400"
+                    }`}
+                  >
+                    <RadioGroupItem
+                      value={type}
+                      id={`booking-type-${type}`}
+                      disabled={isUnavailableType}
+                      className="sr-only" // This hides the radio button visually but keeps it accessible
+                    />
+                    <span>{BOOKING_TYPE_OPTIONS_MAP[type]}</span>
+                  </Label>
+                );
+              })}
             </RadioGroup>
           </div>
-
           <div className="space-y-1">
             <Label htmlFor={`${form.id}-daterange`} className="font-semibold">
               Select Dates
@@ -590,14 +772,18 @@ export default function BookingCard({
               onOpenChange={setIsDatePickerOpen}
             />
           </div>
-
-          {totalDays > 0 && !isAvailable && (
+          {dateRange.from && !dateRange.to && unavailableBookingTypes.includes(bookingType) && (
             <div className="text-red-600 p-2 bg-red-50 border border-red-200 rounded-md text-sm text-center">
-              Car not available for the selected dates.{" "}
+              Car not available for the selected date.
             </div>
           )}
-
-          {carIsAvailableToBook && (
+          {(dateRange.from && dateRange.to && unavailableBookingTypes.includes(bookingType)) ||
+          (totalDays > 0 && !isAvailable) ? (
+            <div className="text-red-600 p-2 bg-red-50 border border-red-200 rounded-md text-sm text-center">
+              Car not available for the selected date.
+            </div>
+          ) : null}
+          {carIsAvailableToBook && !unavailableBookingTypes.includes(bookingType) && (
             <div className="w-full space-y-4">
               {bookingType !== NIGHT_BOOKING_TYPE ? (
                 <div className="space-y-1">
@@ -609,6 +795,7 @@ export default function BookingCard({
                     bookingType={bookingType}
                     {...getInputProps(fields.pickupTime, { type: "text", ariaAttributes: true })}
                     className={fields.pickupTime.errors ? ERROR_RING_CLASSES : ""}
+                    onValueChange={handlePickupTimeChange}
                   />
                   <FieldError errors={fields.pickupTime.errors} />
                 </div>
@@ -699,7 +886,7 @@ export default function BookingCard({
                     <Checkbox
                       id="requiresFullTank"
                       checked={requiresFullTank}
-                      onCheckedChange={(checked) => setRequiresFullTank(!!checked)}
+                      onCheckedChange={handleFullTankChange}
                     />
                     <Label htmlFor="requiresFullTank" className="cursor-pointer">
                       Upgrade to full tank (+{formatCurrency(Number(car.fuelUpgradeRate))})
@@ -713,7 +900,7 @@ export default function BookingCard({
                   <Checkbox
                     id="includeSecurityDetail"
                     checked={includeSecurityDetail}
-                    onCheckedChange={(checked) => setIncludeSecurityDetail(!!checked)}
+                    onCheckedChange={handleSecurityDetailChange}
                   />
                   <Label htmlFor="includeSecurityDetail" className="cursor-pointer">
                     Add security detail (+{formatCurrency(securityDetailRate)} /{" "}
@@ -721,19 +908,60 @@ export default function BookingCard({
                   </Label>
                 </div>
               </div>
+
+              {/* Booking Credits Section */}
+              {user && bookingCredits && bookingCredits.availableCredits > 0 && (
+                <div className="space-y-2 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm font-medium text-blue-800">
+                      Available Credit: {formatCurrency(bookingCredits.availableCredits)}
+                    </div>
+                    {bookingCredits.availableCredits > bookingCredits.maxCreditsPerBooking && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-blue-600">
+                          (Max per booking: {formatCurrency(bookingCredits.maxCreditsPerBooking)})
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex items-center justify-between pt-1 border-t border-blue-200">
+                    <Label
+                      htmlFor="applyCredits"
+                      className="text-sm text-blue-700 cursor-pointer font-bold"
+                    >
+                      Apply{" "}
+                      {formatCurrency(
+                        Math.min(
+                          bookingCredits.availableCredits,
+                          subtotalBeforeDiscounts - referralDiscountAmount,
+                          bookingCredits.maxCreditsPerBooking,
+                        ),
+                      )}{" "}
+                      credit
+                    </Label>
+                    <Switch
+                      id="applyCredits"
+                      checked={useCreditsAmount > 0}
+                      onCheckedChange={(checked) => handleUseCreditsChange(checked, bookingCredits)}
+                      disabled={bookingCredits.availableCredits === 0}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </CardContent>
 
-        {carIsAvailableToBook && (
+        {carIsAvailableToBook && !unavailableBookingTypes.includes(bookingType) && (
           <CardFooter className="flex flex-col items-stretch space-y-4 bg-gray-50 p-4 border-t">
             <div className="w-full">
               <h3 className="text-base flex items-center space-x-2 gap-2 font-medium mb-2">
                 {/* <CreditCard className="h-5 w-5 text-blue-600" /> */}
                 Cost Breakdown
               </h3>
-              <dl className="space-y-1.5 text-sm">
-                <div className="flex justify-between">
+              <dl className="text-sm transition-all duration-200">
+                <div className="flex justify-between mb-1.5">
                   <dt className="text-gray-600">
                     {formatCurrency(currentCarPrice)} &times; {totalDays}
                     {` ${
@@ -744,29 +972,71 @@ export default function BookingCard({
                   </dt>
                   <dd className="text-gray-800">{formatCurrency(baseTotal)}</dd>
                 </div>
-                {includeSecurityDetail && (
-                  <div className="flex justify-between">
-                    <dt className="text-gray-600">
-                      Security Detail &times; {totalDays} {totalDays === 1 ? "day" : "days"}
-                    </dt>
-                    <dd className="text-gray-800">{formatCurrency(securityDetailTotalCost)}</dd>
-                  </div>
-                )}
-                {fuelUpgradeCost > 0 && (
-                  <div className="flex justify-between">
-                    <dt className="text-gray-600">Fuel Upgrade to Full Tank</dt>
-                    <dd className="text-gray-800">{formatCurrency(fuelUpgradeCost)}</dd>
-                  </div>
-                )}
+                <div
+                  className={`flex justify-between transition-all duration-200 ease-out ${
+                    includeSecurityDetail
+                      ? "opacity-100 h-6 mb-1.5"
+                      : "opacity-0 h-0 mb-0 overflow-hidden"
+                  }`}
+                >
+                  <dt className="text-gray-600">
+                    + Security Detail &times; {totalDays}{" "}
+                    {totalDays === 1
+                      ? BOOKING_TYPE_LABELS[bookingType].singular
+                      : BOOKING_TYPE_LABELS[bookingType].plural}
+                  </dt>
+                  <dd className="text-gray-800">{formatCurrency(securityDetailTotalCost)}</dd>
+                </div>
+                <div
+                  className={`flex justify-between transition-all duration-200 ease-out ${
+                    fuelUpgradeCost > 0
+                      ? "opacity-100 h-6 mb-1.5"
+                      : "opacity-0 h-0 mb-0 overflow-hidden"
+                  }`}
+                >
+                  <dt className="text-gray-600">Fuel Upgrade to Full Tank</dt>
+                  <dd className="text-gray-800">{formatCurrency(fuelUpgradeCost)}</dd>
+                </div>
                 {platformFee > 0 && (
-                  <div className="flex justify-between">
+                  <div className="flex justify-between mb-1.5">
                     <dt className="text-gray-600">
                       Platform Fee ({platformServiceFeeRate.toFixed(1)}%)
                     </dt>
                     <dd className="text-gray-800">{formatCurrency(platformFee)}</dd>
                   </div>
                 )}
-                <div className="flex justify-between">
+                {/* <hr className="border-t border-gray-200 my-2" /> */}
+                {/* <div className="flex justify-between mb-1.5">
+                  <dt className="text-gray-600">Subtotal Before Discounts</dt>
+                  <dd className="text-gray-800">{formatCurrency(subtotalBeforeDiscounts)}</dd>
+                </div> */}
+                <div
+                  className={`flex justify-between transition-all duration-200 ease-out ${
+                    referralDiscountAmount > 0
+                      ? "opacity-100 h-6 mb-1.5"
+                      : "opacity-0 h-0 mb-0 overflow-hidden"
+                  }`}
+                >
+                  <dt className="text-green-600">Referral Discount</dt>
+                  <dd className="text-green-600 font-medium">
+                    -{formatCurrency(referralDiscountAmount)}
+                  </dd>
+                </div>
+                <div
+                  className={`flex justify-between transition-all duration-200 ease-out ${
+                    useCreditsAmount > 0
+                      ? "opacity-100 h-6 mb-1.5"
+                      : "opacity-0 h-0 mb-0 overflow-hidden"
+                  }`}
+                >
+                  <dt className="text-blue-600">Booking Credits</dt>
+                  <dd className="text-blue-600 font-medium">-{formatCurrency(useCreditsAmount)}</dd>
+                </div>
+                {/* <div className="flex justify-between mb-1.5">
+                  <dt className="text-gray-600">Subtotal After Discounts</dt>
+                  <dd className="text-gray-800">{formatCurrency(subtotalAfterDiscounts)}</dd>
+                </div> */}
+                <div className="flex justify-between mb-1.5">
                   <dt className="text-gray-600">VAT ({vatRate.toFixed(1)}%)</dt>
                   <dd className="text-gray-800">{formatCurrency(vat)}</dd>
                 </div>
@@ -783,13 +1053,13 @@ export default function BookingCard({
                 ["fleetOwner", "admin", "staff"].includes(role.name),
               )) && (
               <div className="space-y-4 pt-4 border-t">
-                {!user && (
+                {!user && "name" in fields && "email" in fields && "phoneNumber" in fields && (
                   <>
                     <h3 className="text-md font-semibold">Guest Details</h3>
                     <GuestInfoFields
-                      nameField={fields.name}
-                      emailField={fields.email}
-                      phoneNumberField={fields.phoneNumber}
+                      nameField={fields.name as FieldMetadata<string>}
+                      emailField={fields.email as FieldMetadata<string>}
+                      phoneNumberField={fields.phoneNumber as FieldMetadata<string>}
                     />
                   </>
                 )}
@@ -844,7 +1114,11 @@ export default function BookingCard({
                               currentParams.set("dropOffAddress", fields.dropOffAddress.value);
                             }
 
-                            if (fields.pickupTime.value && bookingType === DAY_BOOKING_TYPE) {
+                            if (
+                              fields.pickupTime.value &&
+                              (bookingType === DAY_BOOKING_TYPE ||
+                                bookingType === FULL_DAY_BOOKING_TYPE)
+                            ) {
                               currentParams.set("pickupTime", fields.pickupTime.value);
                             }
 

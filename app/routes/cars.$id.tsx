@@ -1,6 +1,8 @@
 import { ArrowLeftIcon } from "@heroicons/react/24/outline";
+import { BookingStatus } from "@prisma/client";
 import { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { Link, redirect, useLoaderData, useSearchParams } from "@remix-run/react";
+import { addHours, differenceInCalendarDays } from "date-fns";
 import invariant from "tiny-invariant";
 import CarCarousel from "~/components/Carousel";
 import BookingCard from "~/components/booking/BookingCard";
@@ -32,9 +34,10 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   const fromDate = url.searchParams.get("from");
   const toDate = url.searchParams.get("to");
   const bookingType = url.searchParams.get("bookingType");
+  const pickupTime = url.searchParams.get("pickupTime");
 
   // Run all independent queries in parallel for better performance
-  const [user, car, rates] = await Promise.all([
+  const [user, car, rates, overlappingBookings] = await Promise.all([
     getSessionUser(request),
     prisma.car.findUnique({
       where: { id: carId },
@@ -43,7 +46,58 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
       },
     }),
     getRates(),
+    // Fetch booking types that are already taken for the selected date range
+    fromDate && toDate
+      ? prisma.booking.findMany({
+          where: {
+            carId,
+            paymentStatus: "PAID",
+            status: { in: [BookingStatus.CONFIRMED, BookingStatus.ACTIVE] },
+            AND: [
+              { startDate: { lt: new Date(`${toDate}T23:59:59.999Z`) } },
+              { endDate: { gt: new Date(`${fromDate}T00:00:00.000Z`) } },
+            ],
+          },
+          select: { type: true, startDate: true, endDate: true },
+        })
+      : Promise.resolve([]),
   ]);
+
+  // Derive effective unavailability rules across types with better NIGHT handling
+  const effectiveUnavailable = new Set<string>();
+  if (fromDate && toDate) {
+    // Base taken set by type (for DAY and FULL_DAY inference)
+    const takenBookingTypes = new Set(overlappingBookings.map((b) => b.type));
+    if (takenBookingTypes.has("DAY")) {
+      effectiveUnavailable.add("DAY");
+      effectiveUnavailable.add("FULL_DAY");
+    }
+    if (takenBookingTypes.has("FULL_DAY")) {
+      effectiveUnavailable.add("FULL_DAY");
+      effectiveUnavailable.add("DAY");
+      effectiveUnavailable.add("NIGHT");
+    }
+
+    // NIGHT should only be unavailable if it overlaps the specific NIGHT window (23:00 -> 05:00 next day)
+    const nightStart = new Date(fromDate);
+    nightStart.setHours(23, 0, 0, 0);
+    const nightEnd = new Date(toDate);
+    nightEnd.setHours(5, 0, 0, 0);
+
+    if (nightEnd <= nightStart) {
+      nightEnd.setDate(nightEnd.getDate() + 1);
+    }
+
+    const nightBlocked = overlappingBookings.some((b) => {
+      return new Date(b.startDate) < nightEnd && new Date(b.endDate) > nightStart;
+    });
+    if (nightBlocked) {
+      effectiveUnavailable.add("NIGHT");
+      // Business rule: a night booking on the selected date blocks DAY and FULL_DAY as well
+      effectiveUnavailable.add("DAY");
+      effectiveUnavailable.add("FULL_DAY");
+    }
+  }
 
   if (!car) {
     throw redirect("/");
@@ -51,17 +105,41 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
 
   // Only check availability if dates are provided
   let isAvailable = true;
-  if (fromDate && toDate) {
-    const from = new Date(fromDate);
-    const to = new Date(toDate);
-    if (!Number.isNaN(from.getTime()) && !Number.isNaN(to.getTime())) {
-      isAvailable = await isCarAvailable(carId, from, to);
+
+  // Only check if we have booking type and time
+  if (fromDate && toDate && bookingType && pickupTime) {
+    // Parse pickupTime (e.g., "7 AM")
+    const [timePart, period] = pickupTime.toUpperCase().split(" ");
+    let hour = Number.parseInt(timePart);
+    if (period === "PM" && hour !== 12) hour += 12;
+    if (period === "AM" && hour === 12) hour = 0;
+
+    const startDateTime = new Date(fromDate);
+    startDateTime.setHours(bookingType === "NIGHT" ? 23 : hour);
+    startDateTime.setMinutes(0, 0, 0);
+
+    const endDateTime = new Date(toDate);
+    if (bookingType === "NIGHT") {
+      endDateTime.setHours(5, 0, 0, 0);
+      // If end time is before or equal to start time, increment to next day
+      if (endDateTime <= startDateTime) {
+        endDateTime.setDate(endDateTime.getDate() + 1);
+      }
+    } else if (bookingType === "DAY") {
+      endDateTime.setHours(startDateTime.getHours() + 12, 0, 0, 0);
+    } else if (bookingType === "FULL_DAY") {
+      // Calculate based on 24hr blocks
+      const daySpan = Math.max(1, differenceInCalendarDays(endDateTime, startDateTime));
+      endDateTime.setTime(addHours(startDateTime, 24 * daySpan).getTime());
     }
+
+    isAvailable = await isCarAvailable(carId, startDateTime, endDateTime);
   }
 
   return {
     car,
     isAvailable,
+    unavailableBookingTypes: Array.from(effectiveUnavailable),
     user: user
       ? {
           ...user,
@@ -76,8 +154,15 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
 };
 
 export default function CarDetails() {
-  const { car, isAvailable, user, vatRate, platformServiceFeeRate, securityDetailRate } =
-    useLoaderData<typeof loader>();
+  const {
+    car,
+    isAvailable,
+    user,
+    vatRate,
+    platformServiceFeeRate,
+    securityDetailRate,
+    unavailableBookingTypes,
+  } = useLoaderData<typeof loader>();
   const [searchParams] = useSearchParams();
 
   const carWithDates = {
@@ -209,6 +294,7 @@ export default function CarDetails() {
             vatRate={vatRate}
             platformServiceFeeRate={platformServiceFeeRate}
             securityDetailRate={securityDetailRate}
+            unavailableBookingTypes={unavailableBookingTypes}
           />
         </div>
       </div>
