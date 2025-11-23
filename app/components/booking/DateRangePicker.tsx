@@ -17,7 +17,7 @@ interface DateRangePickerProps {
   readonly isFullDayBooking?: boolean;
   readonly onOpenChange?: (open: boolean) => void;
   readonly singleDateMode?: boolean; // New prop to enable single date selection
-  readonly alwaysAllowToday?: boolean; // Force allowing today selection regardless of time of day
+  readonly disableToday?: boolean; // Disable today's date selection
 }
 
 export function DateRangePicker({
@@ -28,7 +28,7 @@ export function DateRangePicker({
   isFullDayBooking,
   onOpenChange,
   singleDateMode = false,
-  alwaysAllowToday = false,
+  disableToday = false,
 }: DateRangePickerProps) {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -62,8 +62,9 @@ export function DateRangePicker({
   // Convert that Lagos instant to user's local timezone for the Calendar component
   const boundaryLocal = fromZonedTime(lagosBoundary, LAGOS_TIMEZONE);
 
+  // If disableToday is true, start from tomorrow; otherwise use the boundary logic
   const disabledDays = {
-    before: alwaysAllowToday ? startOfToday() : boundaryLocal,
+    before: disableToday ? addDays(startOfToday(), 1) : boundaryLocal,
   };
 
   const handleDateChange = (range: DateRange | undefined) => {

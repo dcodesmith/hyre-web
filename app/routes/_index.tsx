@@ -1,37 +1,25 @@
-import { BookingStatus, BookingType, type Booking, type Car } from "@prisma/client";
+import {
+  type Booking,
+  BookingStatus,
+  BookingType,
+  type Car,
+  CarApprovalStatus,
+  Status,
+} from "@prisma/client";
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { data } from "@remix-run/node";
 import { Link, useLoaderData, useSearchParams } from "@remix-run/react";
-import {
-  ColumnFilter,
-  ColumnFiltersState,
-  ColumnSort,
-  InitialTableState,
-  PaginationState,
-  SortingState,
-  VisibilityState,
-  getCoreRowModel,
-  getFacetedRowModel,
-  getFacetedUniqueValues,
-  getFilteredRowModel,
-  getPaginationRowModel,
-  getSortedRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
 import { Fingerprint, LocateFixed, ShieldCheck, Star } from "lucide-react";
-import { useRef, useState } from "react";
-import Carousel from "~/components/Carousel";
-import { columns } from "~/components/Table/Columns";
 import { AvailabilityHint } from "~/components/AvailabilityHint";
-import { Pagination } from "~/components/Table/Pagination";
-import { Toolbar } from "~/components/Table/Toolbar";
-import { Button } from "~/components/ui/button";
+import Carousel from "~/components/Carousel";
+import { BookingSearch } from "~/components/BookingSearch";
 
 import logger from "~/lib/logger.server";
 import { prisma } from "~/modules/db/db.server";
 import { availabilityByType } from "~/services/availability-engine.server";
 
 import type { SerializedCar } from "~/types";
+import { useCallback, useMemo } from "react";
 
 // Preload hero image only for home page - use WebP with responsive fallback
 export const links = () => [
@@ -149,6 +137,10 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const url = new URL(request.url);
   const from = url.searchParams.get("from");
   const to = url.searchParams.get("to");
+  const bookingType = url.searchParams.get("bookingType");
+  const pickupTime = url.searchParams.get("pickupTime");
+
+  logger.info({ from, to, bookingType, pickupTime });
 
   try {
     // Performance logging
@@ -171,7 +163,10 @@ export async function loader({ request }: LoaderFunctionArgs) {
             ...(fleetOwnersToExclude.length > 0 && {
               ownerId: { notIn: fleetOwnersToExclude },
             }),
-            approvalStatus: "APPROVED",
+            status: {
+              in: [Status.AVAILABLE, Status.BOOKED],
+            },
+            approvalStatus: { in: [CarApprovalStatus.APPROVED] },
             owner: { fleetOwnerStatus: "APPROVED", hasOnboarded: true },
           },
         ],
@@ -284,48 +279,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
   }
 }
 
-const PAGE_SIZE = 12;
-
-// Utility to convert table state to search params
-const convertTableStateToSearchParams = (tableState: InitialTableState) => {
-  const params = new URLSearchParams();
-  // Persist column filters
-  if (tableState.columnFilters && tableState.columnFilters.length > 0) {
-    for (const filter of tableState.columnFilters) {
-      params.set(`filter.${filter.id}`, filter.value as string);
-    }
-  }
-
-  // Persist sorting
-  if (tableState.sorting && tableState.sorting.length > 0) {
-    for (const sort of tableState.sorting) {
-      params.set(`sort.${sort.id}`, sort.desc ? "desc" : "asc");
-    }
-  }
-
-  return params;
-};
-
-// Utility to parse search params back to table state
-const parseSearchParamsToTableState = (urlSearchParams: URLSearchParams) => {
-  const columnFilters: ColumnFilter[] = [];
-  const sorting: ColumnSort[] = [];
-
-  for (const [key, value] of urlSearchParams.entries()) {
-    if (key.startsWith("filter.")) {
-      const columnId = key.replace("filter.", "");
-      columnFilters.push({ id: columnId, value: value.split(",") });
-    }
-
-    if (key.startsWith("sort.")) {
-      const columnId = key.replace("sort.", "");
-      sorting.push({ id: columnId, desc: value === "desc" });
-    }
-  }
-
-  return { columnFilters, sorting };
-};
-
 type LoaderData = {
   cars: SerializedCar[];
   availabilityByCarId: Record<
@@ -339,88 +292,30 @@ type LoaderData = {
 
 export default function IndexPage() {
   const { cars, availabilityByCarId } = useLoaderData<LoaderData>();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
+  const [searchParams] = useSearchParams();
   const from = searchParams.get("from");
   const to = searchParams.get("to");
+  const validBookingTypes = [BookingType.DAY, BookingType.NIGHT, BookingType.FULL_DAY];
+  const bookingTypeParam = searchParams.get("bookingType");
+  const isValidBookingType = (value: string | null): value is BookingType =>
+    !!value && validBookingTypes.includes(value as BookingType);
+  const bookingType = isValidBookingType(bookingTypeParam) ? bookingTypeParam : BookingType.DAY;
 
-  const carsRef = useRef<HTMLDivElement>(null);
-
-  // Initialize table state from URL search params
-  const initialTableState = parseSearchParamsToTableState(searchParams);
-  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>(
-    initialTableState.columnFilters,
-  );
-  const [sorting, setSorting] = useState<SortingState>(initialTableState.sorting);
-
-  const [pagination, setPagination] = useState<PaginationState>({
-    pageIndex: 0,
-    pageSize: PAGE_SIZE,
-  });
-
-  function mergeSearchParams(
-    prev: URLSearchParams,
-    next: URLSearchParams,
-    prefixesToClear: string[],
-  ) {
-    const existing = new URLSearchParams(prev);
-    for (const key of existing.keys()) {
-      if (prefixesToClear.some((p) => key.startsWith(p))) {
-        existing.delete(key);
+  const getRateForBookingType = useCallback(
+    (car: SerializedCar) => {
+      switch (bookingType) {
+        case BookingType.NIGHT:
+          return car.nightRate;
+        case BookingType.FULL_DAY:
+          return car.fullDayRate;
+        default:
+          return car.dayRate;
       }
-    }
-    for (const [k, v] of next) {
-      existing.set(k, v);
-    }
-    return existing;
-  }
-
-  const table = useReactTable<SerializedCar>({
-    data: cars,
-    columns,
-    state: {
-      sorting,
-      columnVisibility,
-      columnFilters,
-      pagination,
     },
-    getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFacetedUniqueValues: getFacetedUniqueValues(),
-    getFacetedRowModel: getFacetedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
+    [bookingType],
+  );
 
-    onSortingChange: (updater) => {
-      const newSorting = typeof updater === "function" ? updater(sorting) : updater;
-
-      setSorting(newSorting);
-
-      // Update URL search params when sorting changes
-      const params = convertTableStateToSearchParams({
-        columnFilters,
-        sorting: newSorting,
-      });
-
-      setSearchParams((prev) => mergeSearchParams(prev, params, ["sort."]), { replace: true });
-    },
-    onColumnFiltersChange: (updater) => {
-      const newFilters = typeof updater === "function" ? updater(columnFilters) : updater;
-
-      setColumnFilters(newFilters);
-
-      const params = convertTableStateToSearchParams({
-        columnFilters: newFilters,
-        sorting,
-      });
-
-      setSearchParams((prev) => mergeSearchParams(prev, params, ["filter."]), { replace: true });
-    },
-    onColumnVisibilityChange: setColumnVisibility,
-    onPaginationChange: setPagination,
-  });
-
-  const calculateTotalDays = () => {
+  const totalDays = useMemo(() => {
     if (!from || !to) {
       return 1;
     }
@@ -435,7 +330,7 @@ export default function IndexPage() {
       Math.ceil((new Date(to).getTime() - new Date(from).getTime()) / (1000 * 3600 * 24)) + 1;
 
     return days;
-  };
+  }, [from, to]);
 
   return (
     <div className="max-w-8xl mx-auto space-y-2 -mt-16">
@@ -446,16 +341,8 @@ export default function IndexPage() {
               Comfort. Safety. Professional. Every Ride.
             </div>
 
-            <div className="w-64">
-              <Toolbar table={table} />
-            </div>
+            <BookingSearch />
 
-            <Button
-              className="w-64"
-              onClick={() => carsRef.current?.scrollIntoView({ behavior: "smooth" })}
-            >
-              Book now
-            </Button>
             <div className="flex flex-col mt-4 gap-2">
               <div className="flex items-center gap-2">
                 <LocateFixed className="h-4 w-4 text-blue-600" />
@@ -490,32 +377,25 @@ export default function IndexPage() {
         </div>
       </div>
 
-      {table.getRowModel().rows.length ? (
-        <div
-          ref={carsRef}
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-2 gap-y-6"
-        >
-          {table.getRowModel().rows.map((row, index) => (
-            <Link key={row.original.id} to={`/cars/${row.original.id}?${searchParams.toString()}`}>
+      {cars.length ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-2 gap-y-6">
+          {cars.map((car, index) => (
+            <Link key={car.id} to={`/cars/${car.id}?${searchParams.toString()}`}>
               <div className="overflow-hidden space-y-2">
                 <Carousel
-                  images={
-                    row.original.images.length
-                      ? row.original.images.map(({ url }) => url)
-                      : undefined
-                  }
+                  images={car.images.length ? car.images.map(({ url }) => url) : undefined}
                   priority={index < 3} // Only first 3 cars are above-the-fold
                 />
 
                 <div className="space-y-1 font-semibold flex flex-col">
                   <div className="flex justify-between items-center">
                     <h3 className="text-base">
-                      {row.original.make} {row.original.model} ({row.original.year})
+                      {car.make} {car.model} ({car.year})
                     </h3>
                     {from && to && (
                       <AvailabilityHint
-                        totalDays={calculateTotalDays()}
-                        status={availabilityByCarId?.[row.original.id]}
+                        totalDays={totalDays}
+                        status={availabilityByCarId?.[car.id]}
                       />
                     )}
                     <div className="flex items-center gap-1">
@@ -529,7 +409,7 @@ export default function IndexPage() {
                         {new Intl.NumberFormat("en-NG", {
                           style: "currency",
                           currency: "NGN",
-                        }).format(row.original.dayRate)}
+                        }).format(getRateForBookingType(car))}
                       </span>
                     ) : (
                       <>
@@ -538,7 +418,7 @@ export default function IndexPage() {
                           {new Intl.NumberFormat("en-NG", {
                             style: "currency",
                             currency: "NGN",
-                          }).format(row.original.dayRate * calculateTotalDays())}
+                          }).format(getRateForBookingType(car) * totalDays)}
                         </span>
                       </>
                     )}
@@ -550,10 +430,6 @@ export default function IndexPage() {
         </div>
       ) : (
         <div>No cars matching your search criteria.</div>
-      )}
-
-      {table.getFilteredRowModel().rows.length > PAGE_SIZE && (
-        <Pagination range={[PAGE_SIZE, PAGE_SIZE * 2, PAGE_SIZE * 3]} table={table} />
       )}
     </div>
   );

@@ -82,3 +82,48 @@ body {
   color: hsl(var(--secondary-foreground));
   background-color: hsl(var(--accent));
 }
+
+@layer components {
+  /* Tab list with sliding background for 3 tabs */
+  .tabs-list-slider-3 {
+    @apply relative flex w-full items-center justify-between p-1;
+  }
+
+  /* Sliding "active tab" background */
+  .tabs-list-slider-3::before {
+    content: "";
+    position: absolute;
+    top: 0.25rem; /* match p-1 padding */
+    bottom: 0.25rem;
+    left: 0.25rem;
+    /* inner width = 100% - 0.5rem (left+right padding), divided by 3 */
+    width: calc((100% - 0.5rem) / 3);
+    /* keep it blocky; add a small radius if you want like shadcn */
+    border-radius: 0; /* change to 0.375rem if you want a slight round */
+    background-color: hsl(var(--background));
+    /* box-shadow: 0 1px 2px rgb(0 0 0 / 0.05); */
+    transition: transform 200ms ease-out;
+    transform: translateX(0); /* first tab */
+    box-shadow: none;
+  }
+
+  /* When 2nd tab is active */
+  .tabs-list-slider-3:has(button:nth-child(2)[data-state="active"])::before {
+    transform: translateX(100%);
+    box-shadow: none;
+  }
+
+  /* When 3rd tab is active */
+  .tabs-list-slider-3:has(button:nth-child(3)[data-state="active"])::before {
+    transform: translateX(200%);
+    box-shadow: none;
+  }
+
+  /* Triggers: keep them flat, let the ::before act as background */
+  .tabs-trigger-slider {
+    @apply relative z-10 flex-1 bg-transparent text-sm font-medium
+      text-muted-foreground transition-colors;
+    @apply data-[state=active]:bg-transparent data-[state=active]:shadow-none
+      data-[state=active]:text-foreground;
+  }
+}

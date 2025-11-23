@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { ChartContainer } from "~/components/ui/chart";
 import { ToggleGroup, ToggleGroupItem } from "~/components/ui/toggle-group";
 import logger from "~/lib/logger.server";
-import { formatDate } from "~/lib/utils";
+import { formatCurrency, formatDate } from "~/lib/utils";
 import { prisma } from "~/modules/db/db.server";
 import { Prisma, BookingStatus, PaymentStatus } from "@prisma/client";
 import { getMonthToDateBookingsValue } from "~/services/bookings.server";
@@ -324,7 +324,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
       completedBookings: todayCompletedBookings,
       cancelledBookings: todayCancelledBookings,
       confirmedBookings: todayConfirmedBookings,
-      projectedRevenue: ownerRevenueToday,
+      projectedRevenue: ownerRevenueToday.toNumber(),
     },
   };
 }
@@ -488,10 +488,7 @@ function WelcomeMessage({
           <p>
             With a projected revenue of{" "}
             <span className="font-bold text-green-800 italic underline">
-              {new Intl.NumberFormat("en-NG", {
-                style: "currency",
-                currency: "NGN",
-              }).format(stats.projectedRevenue)}
+              {formatCurrency(stats.projectedRevenue)}
             </span>{" "}
             for the day, your business is on track for continued success.{" "}
           </p>
