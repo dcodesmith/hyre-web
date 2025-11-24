@@ -1,11 +1,20 @@
 import { Booking, Car, BookingType, BookingStatus } from "@prisma/client";
+import { toZonedTime } from "date-fns-tz";
 
-const ACTIVE_STATUSES = new Set<BookingStatus>([
-  BookingStatus.PENDING,
-  BookingStatus.CONFIRMED,
-  BookingStatus.ACTIVE,
-]);
+const ACTIVE_STATUSES = new Set<BookingStatus>([BookingStatus.CONFIRMED, BookingStatus.ACTIVE]);
 export const HOUR = 60 * 60 * 1000;
+
+// Buffer time between bookings (in hours) - gives time for car prep, driver swap, and travel to pickup
+export const BOOKING_BUFFER_HOURS = 2;
+
+// Lagos timezone (WAT = UTC+1)
+const LAGOS_TIMEZONE = "Africa/Lagos";
+
+// Get the hour in Lagos timezone from a UTC date
+function getLagosHourFromDate(date: Date): number {
+  const lagosDate = toZonedTime(date, LAGOS_TIMEZONE);
+  return lagosDate.getHours();
+}
 
 export function setHMS(d: Date, h: number, m = 0, s = 0, ms = 0) {
   const x = new Date(d);
@@ -23,10 +32,11 @@ export function buildRequestInterval(input: {
   const from = new Date(input.from);
 
   if (bookingType === BookingType.DAY) {
-    const startHour = from.getUTCHours();
+    const lagosHour = getLagosHourFromDate(from);
 
-    if (startHour < 7 || startHour > 11) {
-      throw new Error("12-hr DAY bookings must start between 07:00 and 11:00.");
+    // Valid range is 7-11 AM Lagos time
+    if (lagosHour < 7 || lagosHour > 11) {
+      throw new Error("12-hr DAY bookings must start between 07:00 and 11:00 Lagos time");
     }
 
     const start = from;
@@ -35,8 +45,8 @@ export function buildRequestInterval(input: {
   }
 
   if (bookingType === BookingType.NIGHT) {
-    const start = setHMS(from, 23);
-    const end = new Date(+start + 6 * HOUR); // 23:00 → 05:00 next day
+    const start = setHMS(from, 22); // 22:00 UTC = 23:00 Lagos
+    const end = new Date(+start + 6 * HOUR); // 22:00 → 04:00 UTC next day (23:00 → 05:00 Lagos)
     return { start, end };
   }
 
@@ -46,16 +56,44 @@ export function buildRequestInterval(input: {
   return { start, end };
 }
 
-// Standard half-open overlap: [a.start,a.end) vs [b.start,b.end)
-export function intervalsOverlap(a: { start: Date; end: Date }, b: { start: Date; end: Date }) {
-  return a.start < b.end && a.end > b.start;
+/**
+ * Determines if two time intervals overlap.
+ *
+ * This function supports applying a buffer period (in hours) around the second interval 'b',
+ * typically used to enforce a minimum gap between bookings (such as for car preparation, cleaning, etc).
+ *
+ * @param a - The first interval to compare, with 'start' and 'end' as Date objects (half-open: [start, end)).
+ * @param b - The existing/other interval to compare, with 'start' and 'end' as Date objects.
+ * @param bufferHours - Optional number of hours to extend 'b' interval (applies symmetrically to both sides). Default is 0 (no buffer).
+ * @returns True if the intervals overlap (accounting for optional buffer); otherwise, false.
+ */
+export function intervalsOverlap(
+  a: { start: Date; end: Date },
+  b: { start: Date; end: Date },
+  bufferHours = 0,
+) {
+  if (bufferHours <= 0) {
+    // No buffer: standard half-open interval overlap (common in scheduling systems)
+    return a.start < b.end && a.end > b.start;
+  }
+
+  // Buffer in milliseconds
+  const bufferMs = bufferHours * HOUR;
+
+  // Extend the 'b' interval by buffer on both sides
+  const bufferedStart = new Date(+b.start - bufferMs);
+  const bufferedEnd = new Date(+b.end + bufferMs);
+
+  // Check overlap against the buffered interval
+  return a.start < bufferedEnd && a.end > bufferedStart;
 }
 
 export function buildAllWindowsFrom(from: Date) {
-  // Caller should supply an anchor hour in [07..11] if they want DAY to pass validation.
+  // Caller should supply an anchor hour in [07..11] Lagos time if they want DAY to pass validation.
   const day = (() => {
-    const h = from.getUTCHours();
-    const anchor = h >= 7 && h <= 11 ? from : setHMS(from, 7);
+    const lagosHour = getLagosHourFromDate(from);
+    // If Lagos hour is in valid range (7-11), use the provided time; otherwise default to 6 UTC (7 AM Lagos)
+    const anchor = lagosHour >= 7 && lagosHour <= 11 ? from : setHMS(from, 6);
     return buildRequestInterval({ bookingType: BookingType.DAY, from: anchor });
   })();
   const night = buildRequestInterval({ bookingType: BookingType.NIGHT, from });
@@ -83,16 +121,16 @@ function buildAllWindowsForRange(from: Date, to: Date) {
   const fullDayWindows: Array<{ start: Date; end: Date }> = [];
 
   for (let cursor = new Date(start); +cursor <= +end; cursor = addUtcDays(cursor, 1)) {
-    // DAY: 07:00 → 19:00 for each day
-    const dayStart = setHMS(cursor, 7);
+    // DAY: 06:00 → 18:00 UTC (07:00 → 19:00 Lagos) for each day
+    const dayStart = setHMS(cursor, 6);
     dayWindows.push({ start: dayStart, end: new Date(+dayStart + 12 * HOUR) });
 
-    // NIGHT: 23:00 → 05:00 next day for each day
-    const nightStart = setHMS(cursor, 23);
+    // NIGHT: 22:00 → 04:00 UTC (23:00 → 05:00 Lagos) for each day
+    const nightStart = setHMS(cursor, 22);
     nightWindows.push({ start: nightStart, end: new Date(+nightStart + 6 * HOUR) });
 
-    // FULL_DAY: 00:00 → 24:00 for each day
-    const fullStart = setHMS(cursor, 0);
+    // FULL_DAY: 05:00 → 05:00 UTC (06:00 → 06:00 Lagos) for each day (earliest valid start)
+    const fullStart = setHMS(cursor, 5);
     fullDayWindows.push({ start: fullStart, end: new Date(+fullStart + 24 * HOUR) });
   }
 
@@ -120,10 +158,11 @@ export function availabilityByType(
   const byCar = groupByCar(bookings);
 
   // Helper to check if any of the candidate windows overlap with any booking interval
+  // Applies buffer to existing bookings to enforce minimum gap between bookings
   const overlapsAnyInList = (
     candidates: Array<{ start: Date; end: Date }>,
     list: Array<{ start: Date; end: Date }>,
-  ) => candidates.some((w) => list.some((o) => intervalsOverlap(w, o)));
+  ) => candidates.some((w) => list.some((o) => intervalsOverlap(w, o, BOOKING_BUFFER_HOURS)));
 
   // Single-day (legacy) behavior
   if (!opts.to) {
@@ -167,7 +206,7 @@ export function availableCarsForSpecificRequest(
   return cars
     .filter((c) => {
       const list = byCar.get(c.id) ?? [];
-      return !list.some((o) => intervalsOverlap(window, o));
+      return !list.some((o) => intervalsOverlap(window, o, BOOKING_BUFFER_HOURS));
     })
     .map((c) => c.id);
 }

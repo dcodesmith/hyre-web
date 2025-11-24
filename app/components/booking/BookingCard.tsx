@@ -1,9 +1,8 @@
 import { type FieldMetadata, getFormProps, getInputProps, useForm } from "@conform-to/react";
 import { parseWithZod } from "@conform-to/zod";
 import type { Car, User } from "@prisma/client";
-import { useNavigate, useNavigation, useSearchParams, useSubmit } from "@remix-run/react";
+import { Link, useNavigate, useNavigation, useSearchParams, useSubmit } from "@remix-run/react";
 import {
-  differenceInCalendarDays,
   eachDayOfInterval,
   format,
   isAfter,
@@ -18,13 +17,13 @@ import { useAuthenticityToken } from "remix-utils/csrf/react";
 import { z } from "zod";
 import { Form } from "~/components/CSRFForm";
 import { formatCurrency } from "~/lib/utils";
+import { calculateBookingUnits } from "~/lib/booking-utils";
 import { AutocompleteAddress } from "../AutocompleteAddress";
 import { Button } from "../ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "../ui/card";
 import { Checkbox } from "../ui/checkbox";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
-import { RadioGroup, RadioGroupItem } from "../ui/radio-group";
 import { Switch } from "../ui/switch";
 import { BookingTimeSelect } from "./BookingTimeSelect";
 import { DateRangePicker } from "./DateRangePicker";
@@ -46,7 +45,6 @@ type BookingCardProps = {
   readonly vatRate: number;
   readonly platformServiceFeeRate: number;
   readonly securityDetailRate: number;
-  readonly unavailableBookingTypes?: BookingType[];
 };
 
 const BOOKING_TYPE_LABELS = {
@@ -55,23 +53,6 @@ const BOOKING_TYPE_LABELS = {
   [FULL_DAY_BOOKING_TYPE]: { singular: "full day", plural: "full days", perUnit: "24-hour day" },
 } as const;
 
-const BOOKING_TYPE_OPTIONS_MAP = {
-  [DAY_BOOKING_TYPE]: (
-    <span className="font-medium text-sm">
-      Day <span className="text-xs text-gray-600">(12hr)</span>
-    </span>
-  ),
-  [NIGHT_BOOKING_TYPE]: (
-    <span className="font-medium text-sm">
-      Night <span className="text-xs text-gray-600">(6hr)</span>
-    </span>
-  ),
-  [FULL_DAY_BOOKING_TYPE]: (
-    <span className="font-medium text-sm">
-      Full Day <span className="text-xs text-gray-600">(24hr)</span>
-    </span>
-  ),
-} as const;
 
 const coreBookingFields = z.object({
   carId: z.string(),
@@ -140,35 +121,6 @@ const getBookingSchema = (isGuestBooking: boolean) => {
   });
 };
 
-const calculateTotalDays = (
-  from: Date | undefined,
-  to: Date | undefined,
-  bookingType?: BookingType,
-): number => {
-  if (!from || !to || isAfter(from, to)) {
-    return 0;
-  }
-
-  // For night bookings, calculate the number of nights (each night spans 2 calendar days)
-  if (bookingType === NIGHT_BOOKING_TYPE) {
-    // Number of nights = difference in calendar days
-    // Oct 26 to Oct 27 = 1 night
-    // Oct 26 to Oct 28 = 2 nights
-    const nights = differenceInCalendarDays(to, from);
-    return Math.max(1, nights);
-  }
-
-  // For FULL_DAY bookings, calculate the number of 24-hour periods
-  if (bookingType === FULL_DAY_BOOKING_TYPE) {
-    const totalHours = Math.abs(to.getTime() - from.getTime()) / (1000 * 60 * 60);
-    return Math.max(1, Math.ceil(totalHours / 24));
-  }
-
-  // For day bookings, use the existing logic
-  const start = startOfDay(from);
-  const end = startOfDay(to);
-  return Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-};
 
 function getOrdinal(n: number): string {
   if (n > 3 && n < 21) {
@@ -282,29 +234,20 @@ export default function BookingCard({
   vatRate,
   platformServiceFeeRate,
   securityDetailRate,
-  unavailableBookingTypes = [],
 }: BookingCardProps) {
   const navigate = useNavigate();
   const submit = useSubmit();
   const csrfToken = useAuthenticityToken();
   const [searchParams, setSearchParams] = useSearchParams();
-  const availableBookingTypes = useMemo(
-    () => BOOKING_TYPE_OPTIONS.filter((t) => !unavailableBookingTypes.includes(t)),
-    [unavailableBookingTypes],
-  );
 
-  const initialTypeFromParams =
-    (searchParams.get("bookingType") as BookingType | null) || DAY_BOOKING_TYPE;
+  // Type guard for BookingType validation
+  const isValidBookingType = (value: string | null): value is BookingType =>
+    !!value && BOOKING_TYPE_OPTIONS.includes(value as BookingType);
 
-  const safeInitialBookingType: BookingType = (
-    availableBookingTypes as readonly BookingType[]
-  ).includes(initialTypeFromParams)
-    ? initialTypeFromParams
-    : (availableBookingTypes[0] ?? DAY_BOOKING_TYPE);
+  const bookingTypeParam = searchParams.get("bookingType");
+  const hasValidBookingType = isValidBookingType(bookingTypeParam);
 
-  const [bookingType, setBookingType] = useState<BookingType>(safeInitialBookingType);
-  // Do not auto-switch booking type if current selection becomes unavailable.
-  // Keep user's selection and surface a message below.
+  const bookingType: BookingType = hasValidBookingType ? bookingTypeParam : DAY_BOOKING_TYPE;
 
   const navigation = useNavigation();
   const isPending = navigation.state === "submitting" && navigation.formMethod === "POST";
@@ -357,7 +300,7 @@ export default function BookingCard({
   const [_, setIsDatePickerOpen] = useState(false);
 
   const totalDays = useMemo(
-    () => calculateTotalDays(dateRange.from, dateRange.to, bookingType),
+    () => calculateBookingUnits(dateRange.from, dateRange.to, bookingType),
     [dateRange.from, dateRange.to, bookingType],
   );
 
@@ -633,20 +576,6 @@ export default function BookingCard({
     [searchParams, setSearchParams],
   );
 
-  const handleBookingTypeChange = useCallback(
-    (value: BookingType) => {
-      setBookingType(value);
-      const newSearchParams = new URLSearchParams(searchParams);
-      newSearchParams.set("bookingType", value);
-
-      if (value === NIGHT_BOOKING_TYPE) {
-        newSearchParams.delete("pickupTime");
-      }
-
-      setSearchParams(newSearchParams, { replace: true, preventScrollReset: true });
-    },
-    [searchParams, setSearchParams],
-  );
 
   const handlePickupTimeChange = useCallback(
     (value: string) => {
@@ -728,38 +657,22 @@ export default function BookingCard({
           </CardTitle>
         </CardHeader>
 
+        {!hasValidBookingType ? (
+          <CardContent className="space-y-4">
+            <div className="text-red-600 p-4 bg-red-50 border border-red-200 rounded-md text-sm text-center">
+              <p className="font-medium mb-2">Invalid booking type</p>
+              <p>
+                Please{" "}
+                <Link to="/" className="underline font-medium hover:text-red-800">
+                  select a car from the home page
+                </Link>{" "}
+                to continue.
+              </p>
+            </div>
+          </CardContent>
+        ) : (
         <CardContent className="space-y-4">
-          <div className="space-y-1">
-            <Label className="font-semibold">Booking Type</Label>
-            <RadioGroup
-              value={bookingType}
-              onValueChange={handleBookingTypeChange}
-              className="space-x-2 grid grid-cols-3"
-              {...getInputProps(fields.bookingType, { type: "radio", value: bookingType })}
-            >
-              {BOOKING_TYPE_OPTIONS.map((type) => {
-                const isUnavailableType = unavailableBookingTypes.includes(type);
-                return (
-                  <Label
-                    key={type}
-                    className={`flex items-center space-x-2 p-2 border rounded has-[:checked]:bg-muted has-[:checked]:border-primary transition-colors ${
-                      isUnavailableType
-                        ? "opacity-60 bg-gray-100"
-                        : "cursor-pointer hover:border-gray-400"
-                    }`}
-                  >
-                    <RadioGroupItem
-                      value={type}
-                      id={`booking-type-${type}`}
-                      disabled={isUnavailableType}
-                      className="sr-only" // This hides the radio button visually but keeps it accessible
-                    />
-                    <span>{BOOKING_TYPE_OPTIONS_MAP[type]}</span>
-                  </Label>
-                );
-              })}
-            </RadioGroup>
-          </div>
+          <input type="hidden" name="bookingType" value={bookingType} />
           <div className="space-y-1">
             <Label htmlFor={`${form.id}-daterange`} className="font-semibold">
               Select Dates
@@ -772,18 +685,12 @@ export default function BookingCard({
               onOpenChange={setIsDatePickerOpen}
             />
           </div>
-          {dateRange.from && !dateRange.to && unavailableBookingTypes.includes(bookingType) && (
+          {totalDays > 0 && !isAvailable && (
             <div className="text-red-600 p-2 bg-red-50 border border-red-200 rounded-md text-sm text-center">
               Car not available for the selected date.
             </div>
           )}
-          {(dateRange.from && dateRange.to && unavailableBookingTypes.includes(bookingType)) ||
-          (totalDays > 0 && !isAvailable) ? (
-            <div className="text-red-600 p-2 bg-red-50 border border-red-200 rounded-md text-sm text-center">
-              Car not available for the selected date.
-            </div>
-          ) : null}
-          {carIsAvailableToBook && !unavailableBookingTypes.includes(bookingType) && (
+          {carIsAvailableToBook && (
             <div className="w-full space-y-4">
               {bookingType !== NIGHT_BOOKING_TYPE ? (
                 <div className="space-y-1">
@@ -952,8 +859,9 @@ export default function BookingCard({
             </div>
           )}
         </CardContent>
+        )}
 
-        {carIsAvailableToBook && !unavailableBookingTypes.includes(bookingType) && (
+        {hasValidBookingType && carIsAvailableToBook && (
           <CardFooter className="flex flex-col items-stretch space-y-4 bg-gray-50 p-4 border-t">
             <div className="w-full">
               <h3 className="text-base flex items-center space-x-2 gap-2 font-medium mb-2">

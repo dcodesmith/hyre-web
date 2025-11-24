@@ -1,5 +1,4 @@
 import { addDays, format, startOfDay, startOfToday } from "date-fns";
-import { fromZonedTime, toZonedTime } from "date-fns-tz";
 import { ChevronsDownUp, ChevronsUpDown } from "lucide-react";
 import { useState } from "react";
 import { DateRange } from "react-day-picker";
@@ -7,7 +6,7 @@ import { Button } from "~/components/ui/button";
 import { Calendar } from "~/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "~/components/ui/popover";
 import { cn } from "~/lib/utils";
-import { LAGOS_TIMEZONE, getLagosHour } from "~/utils/timezone";
+import { getLagosHour } from "~/utils/timezone";
 
 interface DateRangePickerProps {
   readonly date: DateRange;
@@ -53,18 +52,15 @@ export function DateRangePicker({
       ? false // FULL_DAY bookings can always select today
       : currentLagosHour >= 12;
 
-  // Convert Lagos day decision to a local Date boundary for the Calendar
-  // Get start of day in Lagos timezone
-  const lagosNow = toZonedTime(new Date(), LAGOS_TIMEZONE);
-  const lagosStartOfDay = startOfDay(lagosNow);
-  const lagosBoundary = lagosCutoffIsTomorrow ? addDays(lagosStartOfDay, 1) : lagosStartOfDay;
+  // Get start of today in local timezone
+  const today = startOfToday();
 
-  // Convert that Lagos instant to user's local timezone for the Calendar component
-  const boundaryLocal = fromZonedTime(lagosBoundary, LAGOS_TIMEZONE);
+  // If cutoff has passed, earliest selectable date is tomorrow; otherwise today
+  const earliestDate = lagosCutoffIsTomorrow ? addDays(today, 1) : today;
 
-  // If disableToday is true, start from tomorrow; otherwise use the boundary logic
+  // If disableToday is true, start from tomorrow; otherwise use the cutoff logic
   const disabledDays = {
-    before: disableToday ? addDays(startOfToday(), 1) : boundaryLocal,
+    before: disableToday ? addDays(today, 1) : earliestDate,
   };
 
   const handleDateChange = (range: DateRange | undefined) => {
@@ -87,8 +83,8 @@ export function DateRangePicker({
       return;
     }
 
-    // For night bookings, enforce that start and end dates must be different
-    if (isNightBooking && normalizedRange.from && normalizedRange.to) {
+    // For night and full day bookings, enforce that start and end dates must be different
+    if ((isNightBooking || isFullDayBooking) && normalizedRange.from && normalizedRange.to) {
       const startDate = startOfDay(normalizedRange.from);
       const endDate = startOfDay(normalizedRange.to);
 

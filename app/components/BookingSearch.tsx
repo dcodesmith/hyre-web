@@ -1,8 +1,7 @@
 import { useSearchParams } from "@remix-run/react";
 import { format } from "date-fns";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useState } from "react";
 import { DateRange } from "react-day-picker";
-import { getLagosTime } from "~/utils/timezone";
 import { DateRangePicker } from "./booking/DateRangePicker";
 
 import { BookingTimeSelect } from "./booking/BookingTimeSelect";
@@ -86,14 +85,6 @@ export function BookingSearch() {
     setPickupTime(value);
   }, []);
 
-  const disableToday = useMemo(() => {
-    if (bookingType === DAY_BOOKING_TYPE) {
-      const nowLagos = getLagosTime();
-      return nowLagos.getHours() > 11;
-    }
-    return false;
-  }, [bookingType]);
-
   const handleDateRangeChange = (dateRange: DateRange) => {
     setDateRange(dateRange);
   };
@@ -109,8 +100,10 @@ export function BookingSearch() {
     if (dateRange.to) {
       newSearchParams.set("to", format(dateRange.to, "yyyy-MM-dd"));
     }
-    if (pickupTime && bookingType !== NIGHT_BOOKING_TYPE) {
-      newSearchParams.set("pickupTime", pickupTime);
+    // Always send pickupTime - use "11 PM" for NIGHT bookings (fixed start time)
+    const effectivePickupTime = bookingType === NIGHT_BOOKING_TYPE ? "11 PM" : pickupTime;
+    if (effectivePickupTime) {
+      newSearchParams.set("pickupTime", effectivePickupTime);
     }
 
     setSearchParams(newSearchParams, { replace: true, preventScrollReset: true });
@@ -151,7 +144,8 @@ export function BookingSearch() {
         date={dateRange}
         onDateChange={handleDateRangeChange}
         singleDateMode={false}
-        disableToday={disableToday}
+        isNightBooking={bookingType === NIGHT_BOOKING_TYPE}
+        isFullDayBooking={bookingType === FULL_DAY_BOOKING_TYPE}
       />
 
       {bookingType === NIGHT_BOOKING_TYPE ? (

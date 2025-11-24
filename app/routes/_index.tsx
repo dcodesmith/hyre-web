@@ -10,16 +10,19 @@ import type { LoaderFunctionArgs } from "@remix-run/node";
 import { data } from "@remix-run/node";
 import { Link, useLoaderData, useSearchParams } from "@remix-run/react";
 import { Fingerprint, LocateFixed, ShieldCheck, Star } from "lucide-react";
-import { AvailabilityHint } from "~/components/AvailabilityHint";
+import { fromZonedTime } from "date-fns-tz";
 import Carousel from "~/components/Carousel";
 import { BookingSearch } from "~/components/BookingSearch";
 
 import logger from "~/lib/logger.server";
+import { LAGOS_TIMEZONE } from "~/utils/timezone";
 import { prisma } from "~/modules/db/db.server";
-import { availabilityByType } from "~/services/availability-engine.server";
+import { availableCarsForSpecificRequest } from "~/services/availability-engine.server";
 
 import type { SerializedCar } from "~/types";
 import { useCallback, useMemo } from "react";
+import { formatCurrency } from "~/lib/utils";
+import { calculateBookingUnits } from "~/lib/booking-utils";
 
 // Preload hero image only for home page - use WebP with responsive fallback
 export const links = () => [
@@ -195,18 +198,9 @@ export async function loader({ request }: LoaderFunctionArgs) {
       take: 100,
     });
 
-    // Build availability per carId for booking types (DAY, NIGHT, FULL_DAY)
-    const availabilityByCarId: Record<
-      string,
-      {
-        available: Array<BookingType>;
-        unavailable: Array<BookingType>;
-      }
-    > = {};
-
     let filteredCars = cars;
 
-    if (from && to && cars.length > 0) {
+    if (from && to && cars.length > 0 && bookingType) {
       const carIds = cars.map((c) => c.id);
 
       // Define a superset window that covers DAY/NIGHT/FULL_DAY overlaps across [from..to]
@@ -219,7 +213,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
       const bookings = await prisma.booking.findMany({
         where: {
           carId: { in: carIds },
-          status: { in: [BookingStatus.PENDING, BookingStatus.CONFIRMED, BookingStatus.ACTIVE] },
+          status: { in: [BookingStatus.CONFIRMED, BookingStatus.ACTIVE] },
           AND: [{ startDate: { lt: endWindow } }, { endDate: { gt: fromStart } }],
         },
         select: { carId: true, type: true, startDate: true, endDate: true, status: true },
@@ -227,29 +221,55 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
       const carsForEngine = cars.map((c) => ({ id: c.id })) as unknown as Car[];
       const bookingsForEngine = bookings as unknown as Booking[];
-      const byType = availabilityByType(carsForEngine, bookingsForEngine, {
-        from: fromStart,
-        to: toStart,
-      });
 
-      for (const entry of byType) {
-        const flags = entry.available;
-        const ALL: Array<BookingType> = [BookingType.DAY, BookingType.NIGHT, BookingType.FULL_DAY];
-        const available = ALL.filter((t) => flags[t]);
-        availabilityByCarId[entry.carId] = {
-          available,
-          unavailable: ALL.filter((t) => !flags[t]),
-        };
+      // Parse pickup time (e.g., "10 AM" or "2 PM") and create specific request time
+      const timeMatch = pickupTime?.match(/^(\d+)\s*(AM|PM)$/i);
+      if (pickupTime && !timeMatch) {
+        logger.warn("Invalid pickup time format", { pickupTime });
+      }
+      let hours = timeMatch ? Number.parseInt(timeMatch[1], 10) : 7;
+      const isPM = timeMatch ? timeMatch[2].toUpperCase() === "PM" : false;
+
+      // Convert to 24-hour format
+      if (isPM && hours !== 12) {
+        hours += 12;
+      } else if (!isPM && hours === 12) {
+        hours = 0;
       }
 
-      // Filter cars down to only those with at least one available type
-      const availableCarIds = new Set(
-        Object.entries(availabilityByCarId)
-          .filter(([, v]) => v.available.length > 0)
-          .map(([k]) => k),
+      // Create a date string in Lagos timezone and convert to UTC
+      // fromStart is already the correct date, we just need to set the Lagos time
+      const lagosDateString = `${from}T${hours.toString().padStart(2, "0")}:00:00`;
+      const specificFrom = fromZonedTime(lagosDateString, LAGOS_TIMEZONE);
+
+      logger.info("Availability check with specific pickup time", {
+        pickupTime,
+        parsedHours: hours,
+        specificFrom: specificFrom.toISOString(),
+        toStart: toStart.toISOString(),
+        bookingType,
+        bookingsCount: bookingsForEngine.length,
+        bookings: bookingsForEngine.map((b) => ({
+          carId: b.carId,
+          start: b.startDate.toISOString(),
+          end: b.endDate.toISOString(),
+        })),
+      });
+
+      const availableCarIdsList = availableCarsForSpecificRequest(
+        carsForEngine,
+        bookingsForEngine,
+        {
+          bookingType: bookingType as BookingType,
+          from: specificFrom,
+          to: toStart,
+        },
       );
-      // Build filtered list (do not reassign const)
-      filteredCars = cars.filter((c) => availableCarIds.has(c.id));
+
+      logger.info("Available cars after filtering", { availableCarIdsList });
+
+      const availableCarIdsSet = new Set(availableCarIdsList);
+      filteredCars = cars.filter((c) => availableCarIdsSet.has(c.id));
     }
 
     const carQueryTime = Date.now() - carQueryStartTime;
@@ -258,7 +278,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     logger.info("availability loader total time", { ms: totalTime });
 
     return data(
-      { cars: filteredCars, availabilityByCarId },
+      { cars: filteredCars },
       {
         // Enhanced caching headers for better performance
         headers: {
@@ -272,26 +292,16 @@ export async function loader({ request }: LoaderFunctionArgs) {
     logger.error("Error in loader:", error instanceof Error ? error.message : "Unknown error");
     // Return empty cars array instead of error object to maintain expected interface
 
-    return data(
-      { cars: [], availabilityByCarId: {} },
-      { status: 500, headers: { "Cache-Control": "no-store" } },
-    );
+    return data({ cars: [] }, { status: 500, headers: { "Cache-Control": "no-store" } });
   }
 }
 
 type LoaderData = {
   cars: SerializedCar[];
-  availabilityByCarId: Record<
-    string,
-    {
-      available: Array<"DAY" | "NIGHT" | "FULL_DAY">;
-      unavailable: Array<"DAY" | "NIGHT" | "FULL_DAY">;
-    }
-  >;
 };
 
 export default function IndexPage() {
-  const { cars, availabilityByCarId } = useLoaderData<LoaderData>();
+  const { cars } = useLoaderData<LoaderData>();
   const [searchParams] = useSearchParams();
   const from = searchParams.get("from");
   const to = searchParams.get("to");
@@ -315,22 +325,10 @@ export default function IndexPage() {
     [bookingType],
   );
 
-  const totalDays = useMemo(() => {
-    if (!from || !to) {
-      return 1;
-    }
-
-    // If both dates are the same day, return 1
-    if (new Date(from).toLocaleDateString() === new Date(to).toLocaleDateString()) {
-      return 1;
-    }
-
-    // Add 1 to include both the start and end dates
-    const days =
-      Math.ceil((new Date(to).getTime() - new Date(from).getTime()) / (1000 * 3600 * 24)) + 1;
-
-    return days;
-  }, [from, to]);
+  const totalUnits = useMemo(
+    () => calculateBookingUnits(from, to, bookingType),
+    [from, to, bookingType]
+  );
 
   return (
     <div className="max-w-8xl mx-auto space-y-2 -mt-16">
@@ -392,12 +390,6 @@ export default function IndexPage() {
                     <h3 className="text-base">
                       {car.make} {car.model} ({car.year})
                     </h3>
-                    {from && to && (
-                      <AvailabilityHint
-                        totalDays={totalDays}
-                        status={availabilityByCarId?.[car.id]}
-                      />
-                    )}
                     <div className="flex items-center gap-1">
                       <Star className="h-4 w-4 text-gray-400" />
                     </div>
@@ -406,21 +398,12 @@ export default function IndexPage() {
                   <div>
                     {!from || !to ? (
                       <span className="font-bold text-base">
-                        {new Intl.NumberFormat("en-NG", {
-                          style: "currency",
-                          currency: "NGN",
-                        }).format(getRateForBookingType(car))}
+                        {formatCurrency(getRateForBookingType(car))}
                       </span>
                     ) : (
-                      <>
-                        Booking total:{" "}
-                        <span className="font-bold underline">
-                          {new Intl.NumberFormat("en-NG", {
-                            style: "currency",
-                            currency: "NGN",
-                          }).format(getRateForBookingType(car) * totalDays)}
-                        </span>
-                      </>
+                      <span className="font-bold text-base">
+                        {formatCurrency(getRateForBookingType(car) * totalUnits)}
+                      </span>
                     )}
                   </div>
                 </div>
