@@ -305,18 +305,20 @@ export default function IndexPage() {
   const [searchParams] = useSearchParams();
   const from = searchParams.get("from");
   const to = searchParams.get("to");
-  const validBookingTypes = [BookingType.DAY, BookingType.NIGHT, BookingType.FULL_DAY];
+  // Use string literals instead of Prisma enum to avoid client-side hydration issues
+  const validBookingTypes = ["DAY", "NIGHT", "FULL_DAY"] as const;
+  type ClientBookingType = (typeof validBookingTypes)[number];
   const bookingTypeParam = searchParams.get("bookingType");
-  const isValidBookingType = (value: string | null): value is BookingType =>
-    !!value && validBookingTypes.includes(value as BookingType);
-  const bookingType = isValidBookingType(bookingTypeParam) ? bookingTypeParam : BookingType.DAY;
+  const isValidBookingType = (value: string | null): value is ClientBookingType =>
+    !!value && (validBookingTypes as readonly string[]).includes(value);
+  const bookingType = isValidBookingType(bookingTypeParam) ? bookingTypeParam : "DAY";
 
   const getRateForBookingType = useCallback(
     (car: SerializedCar) => {
       switch (bookingType) {
-        case BookingType.NIGHT:
+        case "NIGHT":
           return car.nightRate;
-        case BookingType.FULL_DAY:
+        case "FULL_DAY":
           return car.fullDayRate;
         default:
           return car.dayRate;

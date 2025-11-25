@@ -1,5 +1,10 @@
-import { BookingType } from "@prisma/client";
-import { differenceInCalendarDays, isAfter, startOfDay } from "date-fns";
+import { differenceInCalendarDays, isAfter } from "date-fns";
+
+/**
+ * Booking type as string literals to avoid Prisma client-side hydration issues.
+ * This matches the Prisma BookingType enum values but works on both client and server.
+ */
+export type BookingTypeValue = "DAY" | "NIGHT" | "FULL_DAY";
 
 /**
  * Calculates the number of booking units (days/nights) for a given date range and booking type.
@@ -12,7 +17,7 @@ import { differenceInCalendarDays, isAfter, startOfDay } from "date-fns";
 export function calculateBookingUnits(
   from: Date | string | undefined | null,
   to: Date | string | undefined | null,
-  bookingType: BookingType = BookingType.DAY,
+  bookingType?: BookingTypeValue | string,
 ): number {
   if (!from || !to) {
     return 1;
@@ -37,24 +42,24 @@ export function calculateBookingUnits(
   // For NIGHT bookings: number of nights = difference in calendar days
   // Oct 26 to Oct 27 = 1 night
   // Oct 26 to Oct 28 = 2 nights
-  if (bookingType === BookingType.NIGHT) {
+  if (bookingType === "NIGHT") {
     return Math.max(1, differenceInDays);
   }
 
   // For FULL_DAY bookings: number of 24-hour periods = difference in calendar days
   // Oct 26 to Oct 27 = 1 full day
   // Oct 26 to Oct 28 = 2 full days
-  if (bookingType === BookingType.FULL_DAY) {
+  if (bookingType === "FULL_DAY") {
     return Math.max(1, differenceInDays);
   }
 
   // For DAY bookings: include both start and end dates
   // Oct 26 to Oct 26 = 1 day
   // Oct 26 to Oct 27 = 2 days
-  if (bookingType === BookingType.DAY) {
+  if (bookingType === "DAY") {
     return Math.max(1, differenceInDays + 1);
   }
 
-  // Default fallback
+  // Default fallback (assume DAY booking)
   return 1;
 }
