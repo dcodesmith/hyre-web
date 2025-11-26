@@ -206,7 +206,7 @@ export async function action({ request }: ActionFunctionArgs) {
         drivingLicenceFile: drivingLicenceFile as File,
         roles: { connect: [{ name: "chauffeur" }] },
         fleetOwner: { connect: { id: user.id } },
-        autoApprove: true,
+        autoApprove: false,
       });
 
       return { success: true, error: null };

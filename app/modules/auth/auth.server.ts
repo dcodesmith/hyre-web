@@ -89,8 +89,6 @@ const totpStrategy = new TOTPStrategy(
         data: {
           email,
           roles: { connect: [{ name: role }] },
-          hasOnboarded: role === "fleetOwner",
-          ...(role === "fleetOwner" && { fleetOwnerStatus: "APPROVED" }),
         },
         include: { roles: true },
       });

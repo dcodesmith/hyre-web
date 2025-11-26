@@ -83,7 +83,7 @@ export async function action({ request }: ActionFunctionArgs) {
         owner: { connect: { id: user.id } },
         motCertificate: motCertificate as File,
         insuranceCertificate: insuranceCertificate as File,
-        autoApprove: true,
+        autoApprove: false,
       });
     }
 

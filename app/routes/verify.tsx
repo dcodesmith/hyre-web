@@ -1,6 +1,5 @@
 import { getFormProps, getInputProps, useForm } from "@conform-to/react";
 import { getZodConstraint, parseWithZod } from "@conform-to/zod";
-import { User } from "@prisma/client";
 import { ActionFunctionArgs, LoaderFunctionArgs, data, redirect } from "@remix-run/node";
 import { useLoaderData, useNavigate, useSearchParams } from "@remix-run/react";
 import { Form } from "~/components/CSRFForm";
@@ -17,9 +16,9 @@ import {
 import { Input } from "~/components/ui/input";
 import { authenticator } from "~/modules/auth/auth.server";
 import { commitSession, getSession } from "~/modules/auth/session.server";
-import { userHasRole } from "~/utils/client/misc";
 import { validateCSRF } from "~/utils/csrf-action.server";
 import { safeRedirect } from "~/utils/safe-redirect";
+import logger from "~/lib/logger.server";
 
 export const VerifySchema = z.object({
   code: z
@@ -54,44 +53,35 @@ export async function loader({ request }: LoaderFunctionArgs) {
   );
 }
 
+function getRoleFromParams(redirectTo: string, role: string | null): string | null {
+  if (!redirectTo) return role;
+
+  const queryStringIndex = redirectTo.indexOf("?");
+  if (queryStringIndex === -1) return role;
+
+  try {
+    const queryString = redirectTo.slice(queryStringIndex + 1);
+    const params = new URLSearchParams(queryString);
+    return params.get("role") || role;
+  } catch (error) {
+    logger.error("Failed to parse role from redirectTo:", { error });
+    return role;
+  }
+}
+
 export async function action({ request }: ActionFunctionArgs) {
   await validateCSRF(request);
 
   const url = new URL(request.url);
   const currentPath = url.pathname;
   const redirectTo = safeRedirect(url.searchParams.get("redirectTo"), "");
-  let role = url.searchParams.get("role");
-
-  // If redirectTo contains a role parameter, use that, otherwise keep the role from URL params
-  if (redirectTo) {
-    const roleFromRedirectTo = new URL(redirectTo, "https://dummy.com").searchParams.get("role");
-    if (roleFromRedirectTo) {
-      role = roleFromRedirectTo;
-    }
-  }
-
-  let user: User | null = null;
+  const role = getRoleFromParams(redirectTo, url.searchParams.get("role"));
 
   try {
-    const successRedirect = role === "fleetOwner" ? "/fleet-owner" : redirectTo ? redirectTo : "/";
-
-    user = await authenticator.authenticate("TOTP", request, {
-      successRedirect,
+    await authenticator.authenticate("TOTP", request, {
+      successRedirect: role === "fleetOwner" ? "/fleet-owner" : redirectTo || "/",
       failureRedirect: currentPath,
     });
-
-    // If authentication is successful and the user is a fleet owner, check onboarding status
-    // const user = await authenticator.isAuthenticated(request);
-    // if (user && role === "fleetOwner") {
-    //   const fleetOwner = await prisma.user.findUnique({
-    //     where: { id: user.id },
-    //     select: { hasOnboarded: true },
-    //   });
-
-    //   if (fleetOwner && !fleetOwner.hasOnboarded) {
-    //     return redirect("/fleet-owner/onboarding");
-    //   }
-    // }
   } catch (error) {
     if (error instanceof AuthorizationError) {
       return data({ error: error.message }, { status: 401 });
@@ -100,10 +90,6 @@ export async function action({ request }: ActionFunctionArgs) {
     if (error instanceof Response) {
       return error;
     }
-  }
-
-  if (user && userHasRole(user, "fleetOwner")) {
-    return redirect("/fleet-owner");
   }
 
   return redirect("/");
