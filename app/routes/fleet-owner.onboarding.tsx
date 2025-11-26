@@ -7,11 +7,9 @@ import {
 } from "@conform-to/react";
 import { parseWithZod } from "@conform-to/zod";
 import { CogIcon } from "@heroicons/react/24/outline";
-import { DocumentStatus, DocumentType } from "@prisma/client";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { data } from "@remix-run/node";
 import {
-  json,
   redirect,
   unstable_createMemoryUploadHandler,
   unstable_parseMultipartFormData,
@@ -29,7 +27,6 @@ import { banks } from "~/lib/banks";
 import logger from "~/lib/logger.server";
 import { useIsPending } from "~/lib/utils";
 import { prisma } from "~/modules/db/db.server";
-import { uploadFileToS3 } from "~/services/s3.server";
 import { requireUserWithRole } from "~/utils/server/permissions.server";
 import { env } from "~/utils/server/env.server";
 import { validateCSRF } from "~/utils/csrf-action.server";
@@ -61,12 +58,6 @@ const independentDriverSchema = baseSchema.extend({
 
 const fleetOwnerSchema = baseSchema.extend({
   independentDriver: z.literal("false"),
-  // Validate based on the presence and size of the file, not instanceof File directly
-  certificateOfIncorporation: z
-    .any()
-    .refine((file) => file && file.size > 0, "Certificate of Incorporation is required")
-    .refine((file) => file.size <= 5 * 1024 * 1024, "File must be less than 5MB")
-    .refine((file) => file?.type === "application/pdf", "File must be a PDF"),
   bankCode: z
     .string({ required_error: "Bank is required" })
     .refine((code) => banks.some((b) => b.code === code), {
@@ -182,19 +173,15 @@ export async function action({ request }: ActionFunctionArgs) {
     }
   }
 
-  // Create the user profile and document approval record in a transaction
+  // Create the user profile and bank details in a transaction
   await prisma.$transaction(async (tx) => {
-    const certificateFile = !value.independentDriver
-      ? (value as z.infer<typeof fleetOwnerSchema>).certificateOfIncorporation
-      : null;
-
     // Create Bank Details if fleet owner
     if (value.independentDriver === "false") {
       const { bankCode, accountNumber, accountName } = value;
       const bank = banks.find((bank) => bank.code === bankCode);
 
       if (bank) {
-        const bankDetails = await tx.bankDetails.create({
+        await tx.bankDetails.create({
           data: {
             userId: user.id,
             bankName: bank.name,
@@ -216,24 +203,6 @@ export async function action({ request }: ActionFunctionArgs) {
           },
         });
       }
-    }
-
-    // Create document approval record for Certificate of Incorporation
-    if (certificateFile) {
-      const timestamp = Date.now();
-      const safeFilename = `${timestamp}-${certificateFile.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`;
-      const key = `${user.id}/cac-${safeFilename}`;
-
-      const documentUrl = await uploadFileToS3(certificateFile, key);
-
-      await tx.documentApproval.create({
-        data: {
-          documentType: DocumentType.CERTIFICATE_OF_INCORPORATION,
-          documentUrl,
-          status: DocumentStatus.PENDING,
-          userId: user.id,
-        },
-      });
     }
   });
 
@@ -332,7 +301,6 @@ export default function FleetOwnerOnboarding() {
       address,
       // lasdriCard,
       // driversLicense,
-      certificateOfIncorporation,
       bankCode,
       accountNumber,
       accountName,
@@ -473,24 +441,11 @@ export default function FleetOwnerOnboarding() {
             </div>
           </>
         ) : ( */}
-        <>
-          <div className="space-y-1">
-            <Label htmlFor={certificateOfIncorporation.id}>Certificate of Incorporation</Label>
-            <Input
-              {...getInputProps(certificateOfIncorporation, { type: "file" })}
-              accept="application/pdf"
-              className={certificateOfIncorporation.errors ? "border-red-500" : ""}
-            />
-            {certificateOfIncorporation.errors && (
-              <p className="text-red-500 text-sm">{certificateOfIncorporation.errors}</p>
-            )}
-          </div>
-          <BankDetailsFields
-            bankCode={bankCode}
-            accountNumber={accountNumber}
-            accountName={accountName}
-          />
-        </>
+        <BankDetailsFields
+          bankCode={bankCode}
+          accountNumber={accountNumber}
+          accountName={accountName}
+        />
 
         <Button className="w-full" type="submit" disabled={isPending}>
           {isPending ? <CogIcon className="h-5 w-5 animate-spin" /> : "Complete Onboarding"}
