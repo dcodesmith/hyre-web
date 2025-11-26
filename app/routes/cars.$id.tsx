@@ -1,8 +1,8 @@
 import { ArrowLeftIcon } from "@heroicons/react/24/outline";
-import { BookingStatus } from "@prisma/client";
+import { Booking, BookingStatus, BookingType, Car } from "@prisma/client";
 import { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { Link, redirect, useLoaderData, useSearchParams } from "@remix-run/react";
-import { addHours, differenceInCalendarDays } from "date-fns";
+import { fromZonedTime } from "date-fns-tz";
 import invariant from "tiny-invariant";
 import CarCarousel from "~/components/Carousel";
 import BookingCard from "~/components/booking/BookingCard";
@@ -12,10 +12,12 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "~/components/ui/accordion";
+import logger from "~/lib/logger.server";
 import { getSessionUser, requireUser } from "~/modules/auth/auth.server";
 import { prisma } from "~/modules/db/db.server";
-import { isCarAvailable } from "~/services/cars.server";
+import { availableCarsForSpecificRequest } from "~/services/availability-engine.server";
 import { getRates } from "~/services/extensions.server";
+import { LAGOS_TIMEZONE } from "~/utils/timezone";
 import { validateCSRF } from "~/utils/csrf-action.server";
 
 export async function action({ request, params }: ActionFunctionArgs) {
@@ -37,7 +39,7 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   const pickupTime = url.searchParams.get("pickupTime");
 
   // Run all independent queries in parallel for better performance
-  const [user, car, rates, overlappingBookings] = await Promise.all([
+  const [user, car, rates] = await Promise.all([
     getSessionUser(request),
     prisma.car.findUnique({
       where: { id: carId },
@@ -46,58 +48,7 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
       },
     }),
     getRates(),
-    // Fetch booking types that are already taken for the selected date range
-    fromDate && toDate
-      ? prisma.booking.findMany({
-          where: {
-            carId,
-            paymentStatus: "PAID",
-            status: { in: [BookingStatus.CONFIRMED, BookingStatus.ACTIVE] },
-            AND: [
-              { startDate: { lt: new Date(`${toDate}T23:59:59.999Z`) } },
-              { endDate: { gt: new Date(`${fromDate}T00:00:00.000Z`) } },
-            ],
-          },
-          select: { type: true, startDate: true, endDate: true },
-        })
-      : Promise.resolve([]),
   ]);
-
-  // Derive effective unavailability rules across types with better NIGHT handling
-  const effectiveUnavailable = new Set<string>();
-  if (fromDate && toDate) {
-    // Base taken set by type (for DAY and FULL_DAY inference)
-    const takenBookingTypes = new Set(overlappingBookings.map((b) => b.type));
-    if (takenBookingTypes.has("DAY")) {
-      effectiveUnavailable.add("DAY");
-      effectiveUnavailable.add("FULL_DAY");
-    }
-    if (takenBookingTypes.has("FULL_DAY")) {
-      effectiveUnavailable.add("FULL_DAY");
-      effectiveUnavailable.add("DAY");
-      effectiveUnavailable.add("NIGHT");
-    }
-
-    // NIGHT should only be unavailable if it overlaps the specific NIGHT window (23:00 -> 05:00 next day)
-    const nightStart = new Date(fromDate);
-    nightStart.setHours(23, 0, 0, 0);
-    const nightEnd = new Date(toDate);
-    nightEnd.setHours(5, 0, 0, 0);
-
-    if (nightEnd <= nightStart) {
-      nightEnd.setDate(nightEnd.getDate() + 1);
-    }
-
-    const nightBlocked = overlappingBookings.some((b) => {
-      return new Date(b.startDate) < nightEnd && new Date(b.endDate) > nightStart;
-    });
-    if (nightBlocked) {
-      effectiveUnavailable.add("NIGHT");
-      // Business rule: a night booking on the selected date blocks DAY and FULL_DAY as well
-      effectiveUnavailable.add("DAY");
-      effectiveUnavailable.add("FULL_DAY");
-    }
-  }
 
   if (!car) {
     throw redirect("/");
@@ -106,40 +57,127 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   // Only check availability if dates are provided
   let isAvailable = true;
 
-  // Only check if we have booking type and time
-  if (fromDate && toDate && bookingType && pickupTime) {
-    // Parse pickupTime (e.g., "7 AM")
-    const [timePart, period] = pickupTime.toUpperCase().split(" ");
-    let hour = Number.parseInt(timePart);
-    if (period === "PM" && hour !== 12) hour += 12;
-    if (period === "AM" && hour === 12) hour = 0;
+  // Only check if we have booking type and dates
+  if (fromDate && toDate && bookingType) {
+    // Derive effective pickup time: for NIGHT bookings, default to "11 PM" if missing
+    // For DAY and FULL_DAY, pickupTime must be explicitly provided
+    const effectivePickupTime =
+      bookingType === BookingType.NIGHT && !pickupTime
+        ? "11 PM"
+        : pickupTime;
 
-    const startDateTime = new Date(fromDate);
-    startDateTime.setHours(bookingType === "NIGHT" ? 23 : hour);
-    startDateTime.setMinutes(0, 0, 0);
+    // Strict requirement: DAY and FULL_DAY must have explicit pickupTime
+    if (!effectivePickupTime) {
+      logger.warn(
+        `Missing pickupTime for ${bookingType} booking. Marking car as unavailable and returning early.`,
+        { fromDate, toDate, bookingType },
+      );
+      isAvailable = false;
 
-    const endDateTime = new Date(toDate);
-    if (bookingType === "NIGHT") {
-      endDateTime.setHours(5, 0, 0, 0);
-      // If end time is before or equal to start time, increment to next day
-      if (endDateTime <= startDateTime) {
-        endDateTime.setDate(endDateTime.getDate() + 1);
-      }
-    } else if (bookingType === "DAY") {
-      endDateTime.setHours(startDateTime.getHours() + 12, 0, 0, 0);
-    } else if (bookingType === "FULL_DAY") {
-      // Calculate based on 24hr blocks
-      const daySpan = Math.max(1, differenceInCalendarDays(endDateTime, startDateTime));
-      endDateTime.setTime(addHours(startDateTime, 24 * daySpan).getTime());
+      return {
+        car,
+        isAvailable,
+        user: user
+          ? {
+              ...user,
+              createdAt: user.createdAt.toISOString(),
+              updatedAt: user.updatedAt.toISOString(),
+            }
+          : null,
+        vatRate: rates.vatRatePercent.toNumber(),
+        platformServiceFeeRate: rates.platformCustomerServiceFeeRatePercent.toNumber(),
+        securityDetailRate: rates.securityDetailRate.toNumber(),
+      };
     }
 
-    isAvailable = await isCarAvailable(carId, startDateTime, endDateTime);
+    // Normalize and validate pickup time format (e.g., "7 AM", "11:30 PM")
+    const normalizedPickupTime = effectivePickupTime.trim().toUpperCase();
+    const timeRegex = /^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)$/i;
+    const timeMatch = normalizedPickupTime.match(timeRegex);
+
+    if (!timeMatch) {
+      // Invalid pickup time format - mark as unavailable and return early
+      logger.warn(
+        `Invalid pickupTime format: "${effectivePickupTime}". Marking car as unavailable and returning early.`,
+        { fromDate, toDate, bookingType },
+      );
+      isAvailable = false;
+
+      return {
+        car,
+        isAvailable,
+        user: user
+          ? {
+              ...user,
+              createdAt: user.createdAt.toISOString(),
+              updatedAt: user.updatedAt.toISOString(),
+            }
+          : null,
+        vatRate: rates.vatRatePercent.toNumber(),
+        platformServiceFeeRate: rates.platformCustomerServiceFeeRatePercent.toNumber(),
+        securityDetailRate: rates.securityDetailRate.toNumber(),
+      };
+    }
+
+    // Parse the validated time
+    let hours = Number.parseInt(timeMatch[1]);
+    const period = timeMatch[3];
+
+    if (period === "PM" && hours !== 12) hours += 12;
+    if (period === "AM" && hours === 12) hours = 0;
+
+    // Define a superset window that covers DAY/NIGHT/FULL_DAY overlaps across [from..to]
+    const fromStart = new Date(`${fromDate}T00:00:00.000Z`);
+    const toStart = new Date(`${toDate}T00:00:00.000Z`);
+    const endWindow = new Date(toStart);
+    endWindow.setUTCDate(endWindow.getUTCDate() + 1); // include last night spillover
+    endWindow.setUTCHours(5, 0, 0, 0); // up to 05:00 of the day after 'to'
+
+    // Fetch only bookings for this car with date range filter
+    const bookings = await prisma.booking.findMany({
+      where: {
+        carId: carId,
+        status: { in: [BookingStatus.CONFIRMED, BookingStatus.ACTIVE] },
+        AND: [{ startDate: { lt: endWindow } }, { endDate: { gt: fromStart } }],
+      },
+      select: { carId: true, type: true, startDate: true, endDate: true, status: true },
+    });
+
+    // Create a date string in Lagos timezone and convert to UTC
+    const lagosDateString = `${fromDate}T${hours.toString().padStart(2, "0")}:00:00`;
+    const specificFrom = fromZonedTime(lagosDateString, LAGOS_TIMEZONE);
+
+    logger.debug("Car details availability check with specific pickup time", {
+      carId,
+      pickupTime,
+      parsedHours: hours,
+      specificFrom: specificFrom.toISOString(),
+      fromDate,
+      toDate,
+      bookingType,
+      bookingsCount: bookings.length,
+      bookings: bookings.map((b) => ({
+        carId: b.carId,
+        start: b.startDate.toISOString(),
+        end: b.endDate.toISOString(),
+      })),
+    });
+
+    const availableCarIds = availableCarsForSpecificRequest(
+      [{ id: carId }] as Car[],
+      bookings as Booking[],
+      {
+        bookingType: bookingType as BookingType,
+        from: specificFrom,
+      },
+    );
+
+    isAvailable = availableCarIds.includes(carId);
   }
 
   return {
     car,
     isAvailable,
-    unavailableBookingTypes: Array.from(effectiveUnavailable),
     user: user
       ? {
           ...user,
@@ -154,15 +192,8 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
 };
 
 export default function CarDetails() {
-  const {
-    car,
-    isAvailable,
-    user,
-    vatRate,
-    platformServiceFeeRate,
-    securityDetailRate,
-    unavailableBookingTypes,
-  } = useLoaderData<typeof loader>();
+  const { car, isAvailable, user, vatRate, platformServiceFeeRate, securityDetailRate } =
+    useLoaderData<typeof loader>();
   const [searchParams] = useSearchParams();
 
   const carWithDates = {
@@ -294,7 +325,6 @@ export default function CarDetails() {
             vatRate={vatRate}
             platformServiceFeeRate={platformServiceFeeRate}
             securityDetailRate={securityDetailRate}
-            unavailableBookingTypes={unavailableBookingTypes}
           />
         </div>
       </div>

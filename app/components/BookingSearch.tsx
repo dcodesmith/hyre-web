@@ -1,58 +1,55 @@
-import { useSearchParams } from "@remix-run/react";
+import { useNavigation, useSearchParams } from "@remix-run/react";
 import { format } from "date-fns";
-import { useCallback, useState } from "react";
+import { Loader2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { DateRange } from "react-day-picker";
 import { DateRangePicker } from "./booking/DateRangePicker";
 
 import { BookingTimeSelect } from "./booking/BookingTimeSelect";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { Button } from "./ui/button";
-
-const DAY_BOOKING_TYPE = "DAY" as const;
-const NIGHT_BOOKING_TYPE = "NIGHT" as const;
-const FULL_DAY_BOOKING_TYPE = "FULL_DAY" as const;
-
-const BOOKING_TYPE_OPTIONS = [DAY_BOOKING_TYPE, NIGHT_BOOKING_TYPE, FULL_DAY_BOOKING_TYPE] as const;
-
-type BookingType = (typeof BOOKING_TYPE_OPTIONS)[number];
-
-// Map tab values back to booking types
-const TAB_VALUE_TO_BOOKING_TYPE: Record<string, BookingType> = {
-  day: DAY_BOOKING_TYPE,
-  night: NIGHT_BOOKING_TYPE,
-  "full-day": FULL_DAY_BOOKING_TYPE,
-};
-
-const BOOKING_TYPE_OPTIONS_MAP = {
-  [DAY_BOOKING_TYPE]: {
-    label: "Day",
-    duration: "12 hours",
-    value: "day",
-  },
-  [NIGHT_BOOKING_TYPE]: {
-    label: "Night",
-    duration: "6 hours",
-    value: "night",
-  },
-  [FULL_DAY_BOOKING_TYPE]: {
-    label: "Full Day",
-    duration: "24 hours",
-    value: "full-day",
-  },
-} as const;
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
+import {
+  BookingType,
+  BOOKING_TYPE_OPTIONS,
+  DAY_BOOKING_TYPE,
+  NIGHT_BOOKING_TYPE,
+  FULL_DAY_BOOKING_TYPE,
+  TAB_VALUE_TO_BOOKING_TYPE,
+  BOOKING_TYPE_OPTIONS_MAP,
+} from "./bookingTypes";
 
 export function BookingSearch() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const bookingTypeParam = searchParams.get("bookingType");
-  const isValidBookingType = (value: string | null): value is BookingType =>
-    !!value && (BOOKING_TYPE_OPTIONS as readonly string[]).includes(value);
-  const initialBookingType: BookingType = isValidBookingType(bookingTypeParam)
-    ? bookingTypeParam
+  const navigation = useNavigation();
+  const [isSearchClicked, setIsSearchClicked] = useState(false);
+
+  // Check if page is loading/searching - only show loading if user clicked Search button
+  const isSearching = navigation.state === "loading" && isSearchClicked;
+
+  // Reset search clicked state when navigation completes
+  useEffect(() => {
+    if (navigation.state === "idle") {
+      setIsSearchClicked(false);
+    }
+  }, [navigation.state]);
+
+  // Helper to validate booking type
+  const isValidBookingType = useCallback(
+    (value: string | null): value is BookingType =>
+      !!value && (BOOKING_TYPE_OPTIONS as readonly string[]).includes(value),
+    [],
+  );
+
+  // Get initial values from URL params
+  const urlBookingTypeParam = searchParams.get("bookingType");
+  const initialBookingType: BookingType = isValidBookingType(urlBookingTypeParam)
+    ? urlBookingTypeParam
     : DAY_BOOKING_TYPE;
   const initialFrom = searchParams.get("from");
   const initialTo = searchParams.get("to");
   const initialPickupTime = searchParams.get("pickupTime") || undefined;
 
+  // Use local state for form inputs (only sync to URL on Search button click or booking type change)
   const [bookingType, setBookingType] = useState<BookingType>(initialBookingType);
   const [dateRange, setDateRange] = useState<DateRange>({
     from: initialFrom ? new Date(`${initialFrom}T00:00:00Z`) : undefined,
@@ -60,36 +57,57 @@ export function BookingSearch() {
   });
   const [pickupTime, setPickupTime] = useState<string | undefined>(initialPickupTime);
 
+  // Sync state when URL changes (e.g., navigating back from car details page)
+  useEffect(() => {
+    const urlBookingType = searchParams.get("bookingType");
+    const urlFrom = searchParams.get("from");
+    const urlTo = searchParams.get("to");
+    const urlPickupTime = searchParams.get("pickupTime");
+
+    if (urlBookingType && isValidBookingType(urlBookingType)) {
+      setBookingType(urlBookingType);
+    }
+
+    setDateRange({
+      from: urlFrom ? new Date(`${urlFrom}T00:00:00Z`) : undefined,
+      to: urlTo ? new Date(`${urlTo}T00:00:00Z`) : undefined,
+    });
+
+    setPickupTime(urlPickupTime || undefined);
+  }, [searchParams, isValidBookingType]);
+
   const handleBookingTypeChange = useCallback(
     (tabValue: string) => {
       const newBookingType = TAB_VALUE_TO_BOOKING_TYPE[tabValue];
       if (newBookingType) {
         setBookingType(newBookingType);
-        // Reset selected dates and pickup time when booking type changes
+        // Reset dates and pickup time when booking type changes
         setDateRange({ from: undefined, to: undefined });
         setPickupTime(undefined);
 
-        // Update URL immediately so other components can react to booking type change
-        const newSearchParams = new URLSearchParams(searchParams);
+        // Update URL immediately for booking type only
+        const newSearchParams = new URLSearchParams();
         newSearchParams.set("bookingType", newBookingType);
-        newSearchParams.delete("from");
-        newSearchParams.delete("to");
-        newSearchParams.delete("pickupTime");
         setSearchParams(newSearchParams, { replace: true, preventScrollReset: true });
       }
     },
-    [searchParams, setSearchParams],
+    [setSearchParams],
   );
 
   const handlePickupTimeChange = useCallback((value: string) => {
+    // Update local state only, don't update URL yet
     setPickupTime(value);
   }, []);
 
-  const handleDateRangeChange = (dateRange: DateRange) => {
-    setDateRange(dateRange);
-  };
+  const handleDateRangeChange = useCallback((newDateRange: DateRange) => {
+    // Update local state only, don't update URL yet
+    setDateRange(newDateRange);
+  }, []);
 
   const handleSearch = useCallback(() => {
+    // Set flag to show loading indicator
+    setIsSearchClicked(true);
+
     const newSearchParams = new URLSearchParams();
 
     newSearchParams.set("bookingType", bookingType);
@@ -131,12 +149,6 @@ export function BookingSearch() {
             );
           })}
         </TabsList>
-        {BOOKING_TYPE_OPTIONS.map((type) => (
-          <TabsContent
-            key={BOOKING_TYPE_OPTIONS_MAP[type].value}
-            value={BOOKING_TYPE_OPTIONS_MAP[type].value}
-          />
-        ))}
       </Tabs>
 
       <DateRangePicker
@@ -157,12 +169,20 @@ export function BookingSearch() {
           key={bookingType}
           date={dateRange.from ?? new Date()}
           bookingType={bookingType}
+          defaultValue={pickupTime}
           onValueChange={handlePickupTimeChange}
         />
       )}
 
-      <Button className="w-full" onClick={handleSearch}>
-        Search
+      <Button className="w-full" onClick={handleSearch} disabled={isSearching}>
+        {isSearching ? (
+          <>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            Searching...
+          </>
+        ) : (
+          "Search"
+        )}
       </Button>
     </div>
   );
