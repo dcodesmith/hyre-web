@@ -7,6 +7,7 @@ import {
 } from "@conform-to/react";
 import { parseWithZod } from "@conform-to/zod";
 import { CogIcon } from "@heroicons/react/24/outline";
+import { DocumentStatus, DocumentType } from "@prisma/client";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { data } from "@remix-run/node";
 import {
@@ -23,10 +24,12 @@ import { Button } from "~/components/ui/button";
 import { Combobox } from "~/components/ui/combobox";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "~/components/ui/radio-group";
 import { banks } from "~/lib/banks";
 import logger from "~/lib/logger.server";
 import { useIsPending } from "~/lib/utils";
 import { prisma } from "~/modules/db/db.server";
+import { uploadFileToS3 } from "~/services/s3.server";
 import { requireUserWithRole } from "~/utils/server/permissions.server";
 import { env } from "~/utils/server/env.server";
 import { validateCSRF } from "~/utils/csrf-action.server";
@@ -41,23 +44,6 @@ const baseSchema = z.object({
       "Phone number must be a valid Nigerian number (e.g., +2349012341234)",
     ),
   address: z.string({ required_error: "Address is required" }),
-});
-
-const independentDriverSchema = baseSchema.extend({
-  independentDriver: z.literal("true"),
-  // Validate based on the presence and size of the file, not instanceof File directly
-  lasdriCard: z
-    .any()
-    .refine((file) => file && file.size > 0, "LASDRI card is required")
-    .refine((file) => file.size <= 5 * 1024 * 1024, "File must be less than 5MB"),
-  driversLicense: z
-    .any()
-    .refine((file) => file && file.size > 0, "Driver's license is required")
-    .refine((file) => file.size <= 5 * 1024 * 1024, "File must be less than 5MB"),
-});
-
-const fleetOwnerSchema = baseSchema.extend({
-  independentDriver: z.literal("false"),
   bankCode: z
     .string({ required_error: "Bank is required" })
     .refine((code) => banks.some((b) => b.code === code), {
@@ -67,6 +53,47 @@ const fleetOwnerSchema = baseSchema.extend({
     .string({ required_error: "Account number is required" })
     .regex(/^\d{10}$/, "Account number must be exactly 10 digits"),
   accountName: z.string({ required_error: "Account name is required" }),
+});
+
+const independentDriverSchema = baseSchema.extend({
+  independentDriver: z.literal("true"),
+  // Validate based on the presence and size of the file, not instanceof File directly
+  ninFile: z
+    .any()
+    .refine((file) => file && file.size > 0, "NIN is required")
+    .refine((file) => file.size <= 5 * 1024 * 1024, "File must be less than 5MB")
+    .refine(
+      (file) =>
+        !file || ["image/jpeg", "image/png", "image/webp", "application/pdf"].includes(file.type),
+      "File must be a JPEG, PNG, WebP or PDF",
+    ),
+  driversLicense: z
+    .any()
+    .refine((file) => file && file.size > 0, "Driver's license is required")
+    .refine((file) => file.size <= 5 * 1024 * 1024, "File must be less than 5MB")
+    .refine(
+      (file) =>
+        !file || ["image/jpeg", "image/png", "image/webp", "application/pdf"].includes(file.type),
+      "File must be a JPEG, PNG, WebP or PDF",
+    ),
+  lasdriCard: z
+    .any()
+    .optional()
+    .refine(
+      (file) => !file || file.size === 0 || file.size <= 5 * 1024 * 1024,
+      "File must be less than 5MB",
+    )
+    .refine(
+      (file) =>
+        !file ||
+        file.size === 0 ||
+        ["image/jpeg", "image/png", "image/webp", "application/pdf"].includes(file.type),
+      "File must be a JPEG, PNG, WebP or PDF",
+    ),
+});
+
+const fleetOwnerSchema = baseSchema.extend({
+  independentDriver: z.literal("false"),
 });
 
 const onboardingSchema = z.discriminatedUnion("independentDriver", [
@@ -106,105 +133,214 @@ export async function action({ request }: ActionFunctionArgs) {
 
   const { value } = submission;
 
-  // If fleet owner, verify bank details first
-  if (value.independentDriver === "false") {
-    const { accountNumber, bankCode, accountName } = value;
+  // Verify bank details for both fleet owners and owner-drivers
+  const { accountNumber, bankCode, accountName } = value;
 
-    const masked = accountNumber.replace(/\d(?=\d{4})/g, "•");
-    logger.info(`Verifying bank account: ${masked} for bank: ${bankCode}`);
+  const masked = accountNumber.replace(/\d(?=\d{4})/g, "•");
+  logger.info(`Verifying bank account: ${masked} for bank: ${bankCode}`);
+
+  try {
+    const response = await axios.post(
+      "https://api.flutterwave.com/v3/accounts/resolve",
+      {
+        account_number: accountNumber,
+        account_bank: bankCode,
+      },
+      {
+        headers: {
+          accept: "application/json",
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${env.FLUTTERWAVE_SECRET_KEY}`,
+        },
+        timeout: 15000,
+      },
+    );
+
+    const result = response.data;
+
+    if (result.status !== "success") {
+      return data(submission.reply({ formErrors: ["Could not verify bank account."] }), {
+        status: 400,
+      });
+    }
+
+    const verifiedAccountName = result.data.account_name;
+
+    if (verifiedAccountName.trim().toLowerCase() !== accountName.trim().toLowerCase()) {
+      return data(
+        submission.reply({
+          fieldErrors: {
+            accountName: ["Account name does not match the provided account number."],
+          },
+        }),
+        { status: 400 },
+      );
+    }
+  } catch (error) {
+    logger.error(
+      `Flutterwave API Error: ${error instanceof Error ? error.message : String(error)}`,
+    );
+
+    let errorMessage = "An error occurred during verification. Please try again later.";
+    if (axios.isAxiosError(error) && error.response) {
+      const { status, statusText, data } = error.response;
+      logger.error("Flutterwave error", {
+        status,
+        statusText,
+        message: data?.message,
+        code: data?.code,
+      });
+      errorMessage = `Verification failed: ${data?.message || "Unknown API error"}`;
+    } else if (error instanceof Error) {
+      errorMessage = error.message;
+    }
+
+    return data(
+      submission.reply({
+        formErrors: [errorMessage],
+      }),
+    );
+  }
+
+  // Upload documents to S3 BEFORE the transaction (if owner-driver)
+  let uploadedDocuments: { ninUrl?: string; licenseUrl?: string; lasdriUrl?: string } = {};
+
+  if (value.independentDriver === "true") {
+    const { ninFile, driversLicense, lasdriCard } = value as z.infer<
+      typeof independentDriverSchema
+    >;
+    const timestamp = Date.now();
 
     try {
-      const response = await axios.post(
-        "https://api.flutterwave.com/v3/accounts/resolve",
-        {
-          account_number: accountNumber,
-          account_bank: bankCode,
-        },
-        {
-          headers: {
-            accept: "application/json",
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${env.FLUTTERWAVE_SECRET_KEY}`,
-          },
-        },
-      );
+      const uploadPromises: Promise<string>[] = [];
 
-      const result = response.data;
+      // Upload NIN
+      const ninFilename = `${timestamp}-${ninFile.name.replaceAll(/[^a-zA-Z0-9.-]/g, "_")}`;
+      const ninKey = `${user.id}/nin-${ninFilename}`;
+      uploadPromises.push(uploadFileToS3(ninFile, ninKey));
 
-      if (result.status !== "success") {
-        return data(submission.reply({ formErrors: ["Could not verify bank account."] }));
+      // Upload Driver's License
+      const licenseFilename = `${timestamp}-${driversLicense.name.replaceAll(/[^a-zA-Z0-9.-]/g, "_")}`;
+      const licenseKey = `${user.id}/license-${licenseFilename}`;
+      uploadPromises.push(uploadFileToS3(driversLicense, licenseKey));
+
+      // Upload LASDRI Card if provided (optional)
+      if (lasdriCard && lasdriCard.size > 0) {
+        const lasdriFilename = `${timestamp}-${lasdriCard.name.replaceAll(/[^a-zA-Z0-9.-]/g, "_")}`;
+        const lasdriKey = `${user.id}/lasdri-${lasdriFilename}`;
+        uploadPromises.push(uploadFileToS3(lasdriCard, lasdriKey));
       }
-
-      const verifiedAccountName = result.data.account_name;
-
-      if (verifiedAccountName.trim().toLowerCase() !== accountName.trim().toLowerCase()) {
-        return data(
-          submission.reply({
-            fieldErrors: {
-              accountName: ["Account name does not match the provided account number."],
-            },
-          }),
-        );
-      }
+      const [ninUrl, licenseUrl, lasdriUrl] = await Promise.all(uploadPromises);
+      uploadedDocuments = { ninUrl, licenseUrl, lasdriUrl: lasdriUrl || undefined };
     } catch (error) {
-      logger.error(
-        `Flutterwave API Error: ${error instanceof Error ? error.message : String(error)}`,
-      );
-
-      let errorMessage = "An error occurred during verification. Please try again later.";
-      if (axios.isAxiosError(error) && error.response) {
-        const { status, statusText, data } = error.response;
-        logger.error("Flutterwave error", {
-          status,
-          statusText,
-          message: data?.message,
-          code: data?.code,
-        });
-        errorMessage = `Verification failed: ${data?.message || "Unknown API error"}`;
-      } else if (error instanceof Error) {
-        errorMessage = error.message;
-      }
+      logger.error("Failed to upload documents to S3", {
+        error: error instanceof Error ? error.message : String(error),
+        userId: user.id,
+      });
 
       return data(
         submission.reply({
-          formErrors: [errorMessage],
+          formErrors: [
+            "Failed to upload your documents. Please check your internet connection and try again.",
+          ],
         }),
+        { status: 500 },
       );
     }
   }
 
   // Create the user profile and bank details in a transaction
-  await prisma.$transaction(async (tx) => {
-    // Create Bank Details if fleet owner
-    if (value.independentDriver === "false") {
+  try {
+    await prisma.$transaction(async (tx) => {
       const { bankCode, accountNumber, accountName } = value;
       const bank = banks.find((bank) => bank.code === bankCode);
 
-      if (bank) {
-        await tx.bankDetails.create({
-          data: {
-            userId: user.id,
-            bankName: bank.name,
-            bankCode,
-            accountNumber,
-            accountName,
-            isVerified: true,
-          },
-        });
-
-        // Update user profile
-        await tx.user.update({
-          where: { id: user.id },
-          data: {
-            name: value.name,
-            phoneNumber: value.phoneNumber,
-            address: value.address,
-            hasOnboarded: true,
-          },
-        });
+      if (!bank) {
+        throw new Error("Invalid bank code. Please select a valid bank.");
       }
-    }
-  });
+
+      // Create Bank Details for both fleet owners and owner-drivers
+      await tx.bankDetails.create({
+        data: {
+          userId: user.id,
+          bankName: bank.name,
+          bankCode,
+          accountNumber,
+          accountName,
+          isVerified: true,
+        },
+      });
+
+      // Update user profile
+      await tx.user.update({
+        where: { id: user.id },
+        data: {
+          name: value.name,
+          phoneNumber: value.phoneNumber,
+          address: value.address,
+          hasOnboarded: true,
+          isOwnerDriver: value.independentDriver === "true",
+          // If owner-driver, set chauffeur approval status to PENDING
+          ...(value.independentDriver === "true" && {
+            chauffeurApprovalStatus: "PENDING",
+          }),
+        },
+      });
+
+      // If owner-driver, create document approval records
+      if (value.independentDriver === "true") {
+        // Create NIN document record
+        if (uploadedDocuments.ninUrl) {
+          await tx.documentApproval.create({
+            data: {
+              documentType: DocumentType.NIN,
+              documentUrl: uploadedDocuments.ninUrl,
+              status: DocumentStatus.PENDING,
+              userId: user.id,
+            },
+          });
+        }
+
+        // Create Driver's License document record
+        if (uploadedDocuments.licenseUrl) {
+          await tx.documentApproval.create({
+            data: {
+              documentType: DocumentType.DRIVERS_LICENSE,
+              documentUrl: uploadedDocuments.licenseUrl,
+              status: DocumentStatus.PENDING,
+              userId: user.id,
+            },
+          });
+        }
+
+        // Create LASDRI Card document record (if uploaded)
+        if (uploadedDocuments.lasdriUrl) {
+          await tx.documentApproval.create({
+            data: {
+              documentType: DocumentType.LASDRI,
+              documentUrl: uploadedDocuments.lasdriUrl,
+              status: DocumentStatus.PENDING,
+              userId: user.id,
+            },
+          });
+        }
+      }
+    });
+  } catch (error) {
+    logger.error("Failed to create user profile and bank details", {
+      error: error instanceof Error ? error.message : String(error),
+      userId: user.id,
+    });
+
+    return data(
+      submission.reply({
+        formErrors: [
+          "Failed to complete onboarding. Please try again or contact support if the issue persists.",
+        ],
+      }),
+      { status: 500 },
+    );
+  }
 
   return redirect("/fleet-owner");
 }
@@ -215,10 +351,109 @@ const roleOptions = {
     description: "You have a fleet of vehicles",
   },
   independentDriver: {
-    label: "Independent Driver",
+    label: "Owner-Driver",
     description: "You drive for yourself",
   },
 };
+
+function RoleSelectionField({
+  independentDriver,
+  onValueChange,
+}: {
+  readonly independentDriver: FieldMetadata<string>;
+  readonly onValueChange: (value: string) => void;
+}) {
+  return (
+    <div className="space-y-1">
+      <Label className="text-base font-semibold">Account Type</Label>
+      <RadioGroup
+        onValueChange={onValueChange}
+        defaultValue="fleetOwner"
+        className="grid grid-cols-2 gap-4"
+      >
+        {Object.entries(roleOptions).map(([value, { label, description }]) => (
+          <div key={value}>
+            <RadioGroupItem value={value} id={value} className="peer sr-only" aria-label={label} />
+            <Label
+              htmlFor={value}
+              className={`flex flex-col items-center justify-between rounded-md border-2 p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer ${
+                independentDriver.errors ? "border-red-500 focus-visible:ring-red-500" : ""
+              }`}
+            >
+              <span className="text-sm font-semibold mb-1">{label}</span>
+              <span className="text-xs text-muted-foreground text-center">{description}</span>
+            </Label>
+          </div>
+        ))}
+      </RadioGroup>
+      {independentDriver.errors && (
+        <p className="text-red-500 text-sm">{independentDriver.errors}</p>
+      )}
+    </div>
+  );
+}
+
+function OwnerDriverDocuments({
+  ninFile,
+  driversLicense,
+  lasdriCard,
+  getInputProps,
+}: {
+  readonly ninFile: FieldMetadata<any>;
+  readonly driversLicense: FieldMetadata<any>;
+  readonly lasdriCard: FieldMetadata<any>;
+  readonly getInputProps: any;
+}) {
+  return (
+    <>
+      <div className="space-y-1">
+        <Label htmlFor={ninFile.id}>NIN (National Identification Number)</Label>
+        <Input
+          {...getInputProps(ninFile, { type: "file" })}
+          key={ninFile.key}
+          accept="image/*,application/pdf"
+          className={ninFile.errors ? "border-red-500" : ""}
+        />
+        {ninFile.errors?.map((error) => (
+          <p key={error} className="text-red-500 text-sm">
+            {error}
+          </p>
+        ))}
+      </div>
+      <div className="space-y-1">
+        <Label htmlFor={driversLicense.id}>Driver's License</Label>
+        <Input
+          {...getInputProps(driversLicense, { type: "file" })}
+          key={driversLicense.key}
+          accept="image/*,application/pdf"
+          className={driversLicense.errors ? "border-red-500" : ""}
+        />
+        {driversLicense.errors?.map((error) => (
+          <p key={error} className="text-red-500 text-sm">
+            {error}
+          </p>
+        ))}
+      </div>
+      <div className="space-y-1">
+        <Label htmlFor={lasdriCard.id}>LASDRI Card (Optional)</Label>
+        <Input
+          {...getInputProps(lasdriCard, { type: "file" })}
+          key={lasdriCard.key}
+          accept="image/*,application/pdf"
+          className={lasdriCard.errors ? "border-red-500" : ""}
+        />
+        {lasdriCard.errors?.map((error) => (
+          <p key={error} className="text-red-500 text-sm">
+            {error}
+          </p>
+        ))}
+        <p className="text-xs text-muted-foreground">
+          Lagos State Drivers' Refresher Institute Card
+        </p>
+      </div>
+    </>
+  );
+}
 
 function BankDetailsFields({
   bankCode,
@@ -299,8 +534,9 @@ export default function FleetOwnerOnboarding() {
       name,
       phoneNumber,
       address,
-      // lasdriCard,
-      // driversLicense,
+      ninFile,
+      driversLicense,
+      lasdriCard,
       bankCode,
       accountNumber,
       accountName,
@@ -319,6 +555,12 @@ export default function FleetOwnerOnboarding() {
     shouldRevalidate: "onInput",
   });
 
+  // Handle role change - reset form when switching between roles
+  const handleRoleChange = (value: string) => {
+    setIsIndependentDriver(value === "independentDriver");
+    form.reset();
+  };
+
   return (
     <div className="mx-auto mt-8 max-w-md rounded border border-gray-200 bg-white p-6 shadow-xl inset-shadow-sm">
       <h1 className="mb-6 text-2xl font-bold">Complete Your Profile</h1>
@@ -332,43 +574,10 @@ export default function FleetOwnerOnboarding() {
         className="space-y-4"
         encType="multipart/form-data"
       >
-        {/* <div className="space-y-1">
-          <RadioGroup
-            onValueChange={(value) => {
-              const isDriver = value === "independentDriver";
-              setIsIndependentDriver(isDriver);
-              form.reset();
-              form.update({
-                [independentDriver.name]: isDriver ? "true" : "false",
-              });
-            }}
-            defaultValue="fleetOwner"
-            className="grid grid-cols-2"
-          >
-            {Object.entries(roleOptions).map(([value, { label, description }]) => (
-              <div key={value}>
-                <RadioGroupItem
-                  value={value}
-                  id={value}
-                  className="peer sr-only"
-                  aria-label={label}
-                />
-                <Label
-                  htmlFor={value}
-                  className={`flex flex-col items-center justify-between rounded-md border p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary ${
-                    independentDriver.errors ? "border-red-500 focus-visible:ring-red-500" : ""
-                  }`}
-                >
-                  <span className="text-sm font-medium">{label}</span>
-                  <span className="text-xs text-muted-foreground">{description}</span>
-                </Label>
-              </div>
-            ))}
-          </RadioGroup>
-          {independentDriver.errors && (
-            <p className="text-red-500 text-sm">{independentDriver.errors}</p>
-          )}
-        </div> */}
+        <RoleSelectionField
+          independentDriver={independentDriver}
+          onValueChange={handleRoleChange}
+        />
 
         <input
           type="hidden"
@@ -415,32 +624,15 @@ export default function FleetOwnerOnboarding() {
           {address.errors && <p className="text-red-500 text-sm">{address.errors}</p>}
         </div>
 
-        {/* {isIndependentDriver ? (
-          <>
-            <div className="space-y-1">
-              <Label htmlFor={lasdriCard.id}>LASDRI Card</Label>
-              <Input
-                {...getInputProps(lasdriCard, { type: "file" })}
-                key={undefined}
-                accept="image/*"
-                className={lasdriCard.errors ? "border-red-500" : ""}
-              />
-              {lasdriCard.errors && <p className="text-red-500 text-sm">{lasdriCard.errors}</p>}
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor={driversLicense.id}>Driver's License</Label>
-              <Input
-                {...getInputProps(driversLicense, { type: "file" })}
-                key={undefined}
-                accept="image/*"
-                className={driversLicense.errors ? "border-red-500" : ""}
-              />
-              {driversLicense.errors && (
-                <p className="text-red-500 text-sm">{driversLicense.errors}</p>
-              )}
-            </div>
-          </>
-        ) : ( */}
+        {isIndependentDriver && (
+          <OwnerDriverDocuments
+            ninFile={ninFile}
+            driversLicense={driversLicense}
+            lasdriCard={lasdriCard}
+            getInputProps={getInputProps}
+          />
+        )}
+
         <BankDetailsFields
           bankCode={bankCode}
           accountNumber={accountNumber}

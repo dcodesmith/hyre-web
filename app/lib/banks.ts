@@ -48,10 +48,6 @@ export const banks = [
     code: "090561",
   },
   {
-    name: "ALAT by WEMA",
-    code: "035",
-  },
-  {
     name: "Amegy Microfinance Bank",
     code: "090629",
   },
@@ -648,7 +644,7 @@ export const banks = [
     code: "51355",
   },
   {
-    name: "Wema Bank",
+    name: "Wema Bank (& ALAT)",
     code: "035",
   },
   {

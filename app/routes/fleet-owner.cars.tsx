@@ -69,6 +69,24 @@ export async function action({ request }: ActionFunctionArgs) {
 
   try {
     if (intent === "create") {
+      // Enforce 1-car limit for owner-drivers
+      if (user.isOwnerDriver) {
+        const existingCars = await prisma.car.count({
+          where: { ownerId: user.id },
+        });
+
+        if (existingCars >= 1) {
+          return data(
+            {
+              success: false,
+              error:
+                "Owner-drivers can only have 1 car. Please delete your existing car first or contact support to upgrade to a fleet owner account.",
+            },
+            { status: 400 },
+          );
+        }
+      }
+
       const submission = parseWithZod(formData, { schema: carSchema });
 
       if (submission.status !== "success") {
@@ -134,7 +152,10 @@ export async function loader({ request }: LoaderFunctionArgs) {
     },
   });
 
-  return { cars };
+  // Check if owner-driver can add more cars (max 1)
+  const canAddCar = user.isOwnerDriver ? cars.length === 0 : true;
+
+  return { cars, canAddCar, isOwnerDriver: user.isOwnerDriver };
 }
 
 const formatPrice = (price: number) => {
@@ -244,7 +265,7 @@ export const columns: ColumnDef<SerializedCar>[] = [
 ];
 
 export default function CarsPage() {
-  const { cars } = useLoaderData<typeof loader>();
+  const { cars, canAddCar, isOwnerDriver } = useLoaderData<typeof loader>();
   const [isOpen, setIsOpen] = useState(false);
   const fetcher = useFetcher<ActionResponse>({ key: "new-car" });
   const { toast } = useToast();
@@ -260,16 +281,27 @@ export default function CarsPage() {
     }
   }, [fetcher.state, fetcher.data, toast]);
 
+  useEffect(() => {
+    if (fetcher.state === "idle" && fetcher.data?.error) {
+      toast({
+        title: "Error",
+        description: fetcher.data.error,
+        variant: "destructive",
+      });
+    }
+  }, [fetcher.state, fetcher.data, toast]);
+
   return (
     <div className="container mx-auto">
       <div className="flex justify-between items-center mb-2">
-        <Sheet open={isOpen} onOpenChange={setIsOpen}>
-          <SheetTrigger asChild>
-            <Button className="sm:w-auto w-full ml-auto">
-              <PlusCircle className="mr-2 h-4 w-4" />
-              Add Car
-            </Button>
-          </SheetTrigger>
+        {canAddCar ? (
+          <Sheet open={isOpen} onOpenChange={setIsOpen}>
+            <SheetTrigger asChild>
+              <Button className="sm:w-auto w-full ml-auto">
+                <PlusCircle className="mr-2 h-4 w-4" />
+                Add Car
+              </Button>
+            </SheetTrigger>
           <SheetContent className="sm:max-w-[400px] w-full px-8 overflow-y-auto">
             <SheetHeader>
               <SheetTitle>Add New Car</SheetTitle>
@@ -282,6 +314,13 @@ export default function CarsPage() {
             </div>
           </SheetContent>
         </Sheet>
+        ) : (
+          <div className="ml-auto text-sm text-muted-foreground">
+            {isOwnerDriver && cars.length > 0 && (
+              <p>Owner-drivers can only have 1 car. Delete your existing car to add a different one.</p>
+            )}
+          </div>
+        )}
       </div>
 
       <Table data={cars} columns={columns} />

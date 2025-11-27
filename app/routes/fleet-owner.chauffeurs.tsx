@@ -6,6 +6,7 @@ import {
   type ActionFunctionArgs,
   type LoaderFunctionArgs,
   data,
+  redirect,
   unstable_createMemoryUploadHandler,
   unstable_parseMultipartFormData,
 } from "@remix-run/node";
@@ -93,6 +94,16 @@ const chauffeurStatusOptions: Record<ChauffeurStatus, string> = {
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const user = await requireUserWithRole(request, "fleetOwner");
+
+  // Check if owner-driver and redirect
+  const fullUser = await prisma.user.findUnique({
+    where: { id: user.id },
+    select: { isOwnerDriver: true },
+  });
+
+  if (fullUser?.isOwnerDriver) {
+    return redirect("/fleet-owner/cars");
+  }
 
   const chauffeurs = await prisma.user.findMany({
     where: {

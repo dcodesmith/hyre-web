@@ -21,6 +21,7 @@ const DocumentType = {
   INSURANCE_CERTIFICATE: "INSURANCE_CERTIFICATE",
   NIN: "NIN",
   DRIVERS_LICENSE: "DRIVERS_LICENSE",
+  LASDRI: "LASDRI",
   VEHICLE_IMAGES: "VEHICLE_IMAGES",
   CERTIFICATE_OF_INCORPORATION: "CERTIFICATE_OF_INCORPORATION",
 } as const;
@@ -30,6 +31,7 @@ const documentTypeMap: Record<(typeof DocumentType)[keyof typeof DocumentType], 
   [DocumentType.INSURANCE_CERTIFICATE]: "Insurance Certificate",
   [DocumentType.NIN]: "National Identification Number (NIN)",
   [DocumentType.DRIVERS_LICENSE]: "Driver's License",
+  [DocumentType.LASDRI]: "LASDRI Card (Lagos State Drivers' Refresher Institute)",
   [DocumentType.VEHICLE_IMAGES]: "Vehicle Images",
   [DocumentType.CERTIFICATE_OF_INCORPORATION]: "Certificate of Incorporation",
 };
@@ -207,7 +209,8 @@ export default function AdminDocumentsPage() {
                             {documentTypeMap[doc.documentType]} {(() => {
                               if (
                                 doc.documentType === DocumentType.NIN ||
-                                doc.documentType === DocumentType.DRIVERS_LICENSE
+                                doc.documentType === DocumentType.DRIVERS_LICENSE ||
+                                doc.documentType === DocumentType.LASDRI
                               ) {
                                 return `for ${doc.user?.name || "Unknown User"}`;
                               }

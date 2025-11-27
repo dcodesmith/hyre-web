@@ -1,7 +1,7 @@
 import { getFormProps, useForm } from "@conform-to/react";
 import { parseWithZod } from "@conform-to/zod";
 import { CogIcon } from "@heroicons/react/24/outline";
-import type { ActionFunctionArgs } from "@remix-run/node";
+import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { data, redirect } from "@remix-run/node";
 import {
   unstable_createMemoryUploadHandler,
@@ -14,6 +14,7 @@ import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
 import { requireUserWithRole } from "~/modules/auth/auth.server";
+import { prisma } from "~/modules/db/db.server";
 import { createUser } from "~/services/users.server";
 import { validateCSRF } from "~/utils/csrf-action.server";
 
@@ -57,9 +58,29 @@ const chauffeurSchema = z.object({
     ),
 });
 
+export async function loader({ request }: LoaderFunctionArgs) {
+  const user = await requireUserWithRole(request, "fleetOwner");
+
+  if (user.isOwnerDriver) {
+    return redirect("/fleet-owner/cars");
+  }
+
+  return null;
+}
+
 export async function action({ request }: ActionFunctionArgs) {
   await validateCSRF(request);
   const user = await requireUserWithRole(request, "fleetOwner");
+
+  // Check if owner-driver and redirect
+  const fullUser = await prisma.user.findUnique({
+    where: { id: user.id },
+    select: { isOwnerDriver: true },
+  });
+
+  if (fullUser?.isOwnerDriver) {
+    return redirect("/fleet-owner/cars");
+  }
 
   const uploadHandler = unstable_createMemoryUploadHandler({
     maxPartSize: 10 * 1024 * 1024, // 10MB limit

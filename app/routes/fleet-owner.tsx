@@ -1,5 +1,5 @@
 import type { LoaderFunctionArgs } from "@remix-run/node";
-import { Link, Outlet, useLocation } from "@remix-run/react";
+import { Link, Outlet, useLocation, useLoaderData } from "@remix-run/react";
 import { ScrollArea, ScrollBar } from "~/components/ui/scroll-area";
 import { requireUserWithRole } from "~/utils/server/permissions.server";
 import { redirect } from "@remix-run/node";
@@ -48,16 +48,23 @@ export async function loader({ request }: LoaderFunctionArgs) {
     return redirect("/fleet-owner/onboarding");
   }
 
-  return null;
+  return { isOwnerDriver: user.isOwnerDriver };
 }
 
 export default function Dashboard() {
+  const { isOwnerDriver } = useLoaderData<typeof loader>();
+
+  // Filter out chauffeurs link for owner-drivers
+  const filteredNavLinks = navLinks.filter(
+    (link) => !(isOwnerDriver && link.to === "/fleet-owner/chauffeurs")
+  );
+
   return (
     <>
       <div className="relative">
         <ScrollArea className="max-w-[600px] lg:max-w-none">
           <nav className="mb-4 flex items-center">
-            {navLinks.map((link) => (
+            {filteredNavLinks.map((link) => (
               <NavLink key={link.to} to={link.to}>
                 {link.label}
               </NavLink>

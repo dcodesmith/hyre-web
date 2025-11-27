@@ -373,7 +373,13 @@ export async function initiatePayout(booking: BookingWithRelations) {
   }
 
   const fleetOwner = booking.car.owner;
-  if (!fleetOwner.bankDetailsId) {
+
+  // Fetch bank details separately
+  const bankDetails = await prisma.bankDetails.findUnique({
+    where: { userId: fleetOwner.id },
+  });
+
+  if (!bankDetails) {
     logger.warn("Fleet owner has no bank details. Cannot process payout for booking", {
       fleetOwnerId: fleetOwner.id,
       bookingId: booking.id,
@@ -381,18 +387,13 @@ export async function initiatePayout(booking: BookingWithRelations) {
     return;
   }
 
-  const bankDetails = await prisma.bankDetails.findUnique({
-    where: { id: fleetOwner.bankDetailsId },
-  });
-
-  if (!bankDetails || !bankDetails.isVerified) {
+  if (!bankDetails.isVerified) {
     logger.warn(
-      "Bank details for fleet owner not found or not verified. Cannot process payout for booking",
+      "Bank details for fleet owner not verified. Cannot process payout for booking",
       {
         fleetOwnerId: fleetOwner.id,
         bookingId: booking.id,
-        detailsFound: !!bankDetails,
-        isVerified: bankDetails?.isVerified,
+        isVerified: bankDetails.isVerified,
       },
     );
     return;

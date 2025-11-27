@@ -52,6 +52,7 @@ model User {
   fleetOwnerStatus        FleetOwnerStatus?        @default(PROCESSING)
   chauffeurApprovalStatus ChauffeurApprovalStatus? @default(PENDING)
   hasOnboarded            Boolean                  @default(false)
+  isOwnerDriver           Boolean                  @default(false)
   // Referral fields
   referralCode            String?                  @unique
   referredByUserId        String?
@@ -454,6 +455,7 @@ enum DocumentStatus {
 enum DocumentType {
   NIN
   DRIVERS_LICENSE
+  LASDRI
   MOT_CERTIFICATE
   INSURANCE_CERTIFICATE
   VEHICLE_IMAGES
