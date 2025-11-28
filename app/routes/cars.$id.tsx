@@ -54,125 +54,83 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
     throw redirect("/");
   }
 
-  // Only check availability if dates are provided
+  // Only check availability if all required search parameters are provided
   let isAvailable = true;
 
-  // Only check if we have booking type and dates
-  if (fromDate && toDate && bookingType) {
+  // Only check availability if we have all required parameters including pickup time
+  // Exception: NIGHT bookings can default to "11 PM" if no pickup time is specified
+  if (fromDate && toDate && bookingType && (pickupTime || bookingType === BookingType.NIGHT)) {
     // Derive effective pickup time: for NIGHT bookings, default to "11 PM" if missing
-    // For DAY and FULL_DAY, pickupTime must be explicitly provided
     const effectivePickupTime =
-      bookingType === BookingType.NIGHT && !pickupTime
-        ? "11 PM"
-        : pickupTime;
-
-    // Strict requirement: DAY and FULL_DAY must have explicit pickupTime
-    if (!effectivePickupTime) {
-      logger.warn(
-        `Missing pickupTime for ${bookingType} booking. Marking car as unavailable and returning early.`,
-        { fromDate, toDate, bookingType },
-      );
-      isAvailable = false;
-
-      return {
-        car,
-        isAvailable,
-        user: user
-          ? {
-              ...user,
-              createdAt: user.createdAt.toISOString(),
-              updatedAt: user.updatedAt.toISOString(),
-            }
-          : null,
-        vatRate: rates.vatRatePercent.toNumber(),
-        platformServiceFeeRate: rates.platformCustomerServiceFeeRatePercent.toNumber(),
-        securityDetailRate: rates.securityDetailRate.toNumber(),
-      };
-    }
+      bookingType === BookingType.NIGHT && !pickupTime ? "11 PM" : pickupTime;
 
     // Normalize and validate pickup time format (e.g., "7 AM", "11:30 PM")
-    const normalizedPickupTime = effectivePickupTime.trim().toUpperCase();
+    const normalizedPickupTime = effectivePickupTime?.trim().toUpperCase();
     const timeRegex = /^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)$/i;
-    const timeMatch = normalizedPickupTime.match(timeRegex);
+    const timeMatch = normalizedPickupTime?.match(timeRegex);
 
-    if (!timeMatch) {
-      // Invalid pickup time format - mark as unavailable and return early
+    if (timeMatch) {
+      // Parse the validated time
+      let hours = Number.parseInt(timeMatch[1]);
+      const period = timeMatch[3];
+
+      if (period === "PM" && hours !== 12) hours += 12;
+      if (period === "AM" && hours === 12) hours = 0;
+
+      // Define a superset window that covers DAY/NIGHT/FULL_DAY overlaps across [from..to]
+      const fromStart = new Date(`${fromDate}T00:00:00.000Z`);
+      const toStart = new Date(`${toDate}T00:00:00.000Z`);
+      const endWindow = new Date(toStart);
+      endWindow.setUTCDate(endWindow.getUTCDate() + 1); // include last night spillover
+      endWindow.setUTCHours(5, 0, 0, 0); // up to 05:00 of the day after 'to'
+
+      // Fetch only bookings for this car with date range filter
+      const bookings = await prisma.booking.findMany({
+        where: {
+          carId: carId,
+          status: { in: [BookingStatus.CONFIRMED, BookingStatus.ACTIVE] },
+          AND: [{ startDate: { lt: endWindow } }, { endDate: { gt: fromStart } }],
+        },
+        select: { carId: true, type: true, startDate: true, endDate: true, status: true },
+      });
+
+      // Create a date string in Lagos timezone and convert to UTC
+      const lagosDateString = `${fromDate}T${hours.toString().padStart(2, "0")}:00:00`;
+      const specificFrom = fromZonedTime(lagosDateString, LAGOS_TIMEZONE);
+
+      logger.debug("Car details availability check with specific pickup time", {
+        carId,
+        pickupTime,
+        parsedHours: hours,
+        specificFrom: specificFrom.toISOString(),
+        fromDate,
+        toDate,
+        bookingType,
+        bookingsCount: bookings.length,
+        bookings: bookings.map((b) => ({
+          carId: b.carId,
+          start: b.startDate.toISOString(),
+          end: b.endDate.toISOString(),
+        })),
+      });
+
+      const availableCarIds = availableCarsForSpecificRequest(
+        [{ id: carId }] as Car[],
+        bookings as Booking[],
+        {
+          bookingType: bookingType as BookingType,
+          from: specificFrom,
+        },
+      );
+
+      isAvailable = availableCarIds.includes(carId);
+    } else {
+      // Invalid pickup time format - skip availability check and show car as available
       logger.warn(
-        `Invalid pickupTime format: "${effectivePickupTime}". Marking car as unavailable and returning early.`,
+        `Invalid pickupTime format: "${effectivePickupTime}". Skipping availability check.`,
         { fromDate, toDate, bookingType },
       );
-      isAvailable = false;
-
-      return {
-        car,
-        isAvailable,
-        user: user
-          ? {
-              ...user,
-              createdAt: user.createdAt.toISOString(),
-              updatedAt: user.updatedAt.toISOString(),
-            }
-          : null,
-        vatRate: rates.vatRatePercent.toNumber(),
-        platformServiceFeeRate: rates.platformCustomerServiceFeeRatePercent.toNumber(),
-        securityDetailRate: rates.securityDetailRate.toNumber(),
-      };
     }
-
-    // Parse the validated time
-    let hours = Number.parseInt(timeMatch[1]);
-    const period = timeMatch[3];
-
-    if (period === "PM" && hours !== 12) hours += 12;
-    if (period === "AM" && hours === 12) hours = 0;
-
-    // Define a superset window that covers DAY/NIGHT/FULL_DAY overlaps across [from..to]
-    const fromStart = new Date(`${fromDate}T00:00:00.000Z`);
-    const toStart = new Date(`${toDate}T00:00:00.000Z`);
-    const endWindow = new Date(toStart);
-    endWindow.setUTCDate(endWindow.getUTCDate() + 1); // include last night spillover
-    endWindow.setUTCHours(5, 0, 0, 0); // up to 05:00 of the day after 'to'
-
-    // Fetch only bookings for this car with date range filter
-    const bookings = await prisma.booking.findMany({
-      where: {
-        carId: carId,
-        status: { in: [BookingStatus.CONFIRMED, BookingStatus.ACTIVE] },
-        AND: [{ startDate: { lt: endWindow } }, { endDate: { gt: fromStart } }],
-      },
-      select: { carId: true, type: true, startDate: true, endDate: true, status: true },
-    });
-
-    // Create a date string in Lagos timezone and convert to UTC
-    const lagosDateString = `${fromDate}T${hours.toString().padStart(2, "0")}:00:00`;
-    const specificFrom = fromZonedTime(lagosDateString, LAGOS_TIMEZONE);
-
-    logger.debug("Car details availability check with specific pickup time", {
-      carId,
-      pickupTime,
-      parsedHours: hours,
-      specificFrom: specificFrom.toISOString(),
-      fromDate,
-      toDate,
-      bookingType,
-      bookingsCount: bookings.length,
-      bookings: bookings.map((b) => ({
-        carId: b.carId,
-        start: b.startDate.toISOString(),
-        end: b.endDate.toISOString(),
-      })),
-    });
-
-    const availableCarIds = availableCarsForSpecificRequest(
-      [{ id: carId }] as Car[],
-      bookings as Booking[],
-      {
-        bookingType: bookingType as BookingType,
-        from: specificFrom,
-      },
-    );
-
-    isAvailable = availableCarIds.includes(carId);
   }
 
   return {

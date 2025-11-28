@@ -53,6 +53,10 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
 export default function Dashboard() {
   const { isOwnerDriver } = useLoaderData<typeof loader>();
+  const location = useLocation();
+
+  // Don't show navigation on onboarding page
+  const isOnboardingPage = location.pathname.endsWith("/onboarding");
 
   // Filter out chauffeurs link for owner-drivers
   const filteredNavLinks = navLinks.filter(
@@ -61,19 +65,21 @@ export default function Dashboard() {
 
   return (
     <>
-      <div className="relative">
-        <ScrollArea className="max-w-[600px] lg:max-w-none">
-          <nav className="mb-4 mt-4 flex items-center lg:mt-0">
-            {filteredNavLinks.map((link) => (
-              <NavLink key={link.to} to={link.to}>
-                {link.label}
-              </NavLink>
-            ))}
-          </nav>
+      {!isOnboardingPage && (
+        <div className="relative">
+          <ScrollArea className="max-w-[600px] lg:max-w-none">
+            <nav className="mb-4 mt-4 flex items-center lg:mt-0">
+              {filteredNavLinks.map((link) => (
+                <NavLink key={link.to} to={link.to}>
+                  {link.label}
+                </NavLink>
+              ))}
+            </nav>
 
-          <ScrollBar orientation="horizontal" className="invisible" />
-        </ScrollArea>
-      </div>
+            <ScrollBar orientation="horizontal" className="invisible" />
+          </ScrollArea>
+        </div>
+      )}
       <Outlet />
     </>
   );

@@ -39,30 +39,30 @@ function WelcomeMessage({ name, activeBookingCount, weeklyEarnings }: WelcomeMes
           <span className="font-semibold text-foreground">
             {activeBookingCount} active {activeBookingCount === 1 ? "booking" : "bookings"}
           </span>
-          {weeklyEarnings > 0 && (
+          {weeklyEarnings > 0 ? (
             <>
               {" "}
               and you're on track to earn{" "}
               <span className="font-semibold text-green-700 dark:text-green-400">
                 {formatCurrency(weeklyEarnings)}
               </span>{" "}
-              this week
+              this week.
             </>
+          ) : (
+            "."
           )}
-          .
         </p>
       ) : (
         <p className="text-sm md:text-base text-muted-foreground">
           {weeklyEarnings > 0 && (
             <>
-              . You've earned{" "}
+              You've earned{" "}
               <span className="font-semibold text-green-700 dark:text-green-400">
                 {formatCurrency(weeklyEarnings)}
               </span>{" "}
-              this week
+              this week.
             </>
           )}
-          .
         </p>
       )}
     </div>

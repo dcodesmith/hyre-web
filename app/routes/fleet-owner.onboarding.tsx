@@ -24,8 +24,14 @@ import { Button } from "~/components/ui/button";
 import { Combobox } from "~/components/ui/combobox";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "~/components/ui/radio-group";
+import { Tabs, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import { banks } from "~/lib/banks";
+import {
+  ACCOUNT_TYPE_OPTIONS,
+  ACCOUNT_TYPE_OPTIONS_MAP,
+  FLEET_OWNER_TYPE,
+  OWNER_DRIVER_TYPE,
+} from "~/components/accountTypes";
 import logger from "~/lib/logger.server";
 import { useIsPending } from "~/lib/utils";
 import { prisma } from "~/modules/db/db.server";
@@ -55,8 +61,8 @@ const baseSchema = z.object({
   accountName: z.string({ required_error: "Account name is required" }),
 });
 
-const independentDriverSchema = baseSchema.extend({
-  independentDriver: z.literal("true"),
+const ownerDriverSchema = baseSchema.extend({
+  ownerDriver: z.literal("true"),
   // Validate based on the presence and size of the file, not instanceof File directly
   ninFile: z
     .any()
@@ -93,13 +99,10 @@ const independentDriverSchema = baseSchema.extend({
 });
 
 const fleetOwnerSchema = baseSchema.extend({
-  independentDriver: z.literal("false"),
+  ownerDriver: z.literal("false"),
 });
 
-const onboardingSchema = z.discriminatedUnion("independentDriver", [
-  fleetOwnerSchema,
-  independentDriverSchema,
-]);
+const onboardingSchema = z.discriminatedUnion("ownerDriver", [fleetOwnerSchema, ownerDriverSchema]);
 
 // This prevents the parent loader from running for this route
 export function shouldRevalidate() {
@@ -205,10 +208,8 @@ export async function action({ request }: ActionFunctionArgs) {
   // Upload documents to S3 BEFORE the transaction (if owner-driver)
   let uploadedDocuments: { ninUrl?: string; licenseUrl?: string; lasdriUrl?: string } = {};
 
-  if (value.independentDriver === "true") {
-    const { ninFile, driversLicense, lasdriCard } = value as z.infer<
-      typeof independentDriverSchema
-    >;
+  if (value.ownerDriver === "true") {
+    const { ninFile, driversLicense, lasdriCard } = value as z.infer<typeof ownerDriverSchema>;
     const timestamp = Date.now();
 
     try {
@@ -279,16 +280,16 @@ export async function action({ request }: ActionFunctionArgs) {
           phoneNumber: value.phoneNumber,
           address: value.address,
           hasOnboarded: true,
-          isOwnerDriver: value.independentDriver === "true",
+          isOwnerDriver: value.ownerDriver === "true",
           // If owner-driver, set chauffeur approval status to PENDING
-          ...(value.independentDriver === "true" && {
+          ...(value.ownerDriver === "true" && {
             chauffeurApprovalStatus: "PENDING",
           }),
         },
       });
 
       // If owner-driver, create document approval records
-      if (value.independentDriver === "true") {
+      if (value.ownerDriver === "true") {
         // Create NIN document record
         if (uploadedDocuments.ninUrl) {
           await tx.documentApproval.create({
@@ -345,50 +346,33 @@ export async function action({ request }: ActionFunctionArgs) {
   return redirect("/fleet-owner");
 }
 
-const roleOptions = {
-  fleetOwner: {
-    label: "Fleet Owner",
-    description: "I own a fleet of vehicles",
-  },
-  independentDriver: {
-    label: "Owner-Driver",
-    description: "I drive my own vehicle",
-  },
-};
-
 function RoleSelectionField({
-  independentDriver,
+  currentValue,
   onValueChange,
 }: {
-  readonly independentDriver: FieldMetadata<string>;
+  readonly currentValue: string;
   readonly onValueChange: (value: string) => void;
 }) {
   return (
     <div className="space-y-1">
-      <Label className="text-base font-semibold">Account Type</Label>
-      <RadioGroup
-        onValueChange={onValueChange}
-        defaultValue="fleetOwner"
-        className="grid grid-cols-2 gap-4"
-      >
-        {Object.entries(roleOptions).map(([value, { label, description }]) => (
-          <div key={value}>
-            <RadioGroupItem value={value} id={value} className="peer sr-only" aria-label={label} />
-            <Label
-              htmlFor={value}
-              className={`flex flex-col items-center justify-between rounded-md border-2 p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer ${
-                independentDriver.errors ? "border-red-500 focus-visible:ring-red-500" : ""
-              }`}
-            >
-              <span className="text-sm font-semibold mb-1">{label}</span>
-              <span className="text-xs text-muted-foreground text-center">{description}</span>
-            </Label>
-          </div>
-        ))}
-      </RadioGroup>
-      {independentDriver.errors && (
-        <p className="text-red-500 text-sm">{independentDriver.errors}</p>
-      )}
+      <Label className="text-base font-semibold">Select your account type</Label>
+      <Tabs value={currentValue} onValueChange={onValueChange} className="w-full">
+        <TabsList className="py-4 gap-2 tabs-list-slider w-full h-auto before:w-[calc((100%-0.5rem)/2)]">
+          {ACCOUNT_TYPE_OPTIONS.map((type) => {
+            const option = ACCOUNT_TYPE_OPTIONS_MAP[type];
+            return (
+              <TabsTrigger
+                key={option.value}
+                value={option.value}
+                className="flex flex-col data-[state=active]:shadow-none tabs-trigger-slider data-[state=active]:bg-transparent"
+              >
+                <span className="text-sm font-bold">{option.label}</span>
+                <span className="text-xs text-muted-foreground">{option.description}</span>
+              </TabsTrigger>
+            );
+          })}
+        </TabsList>
+      </Tabs>
     </div>
   );
 }
@@ -525,12 +509,12 @@ export default function FleetOwnerOnboarding() {
   const isPending = useIsPending();
   const lastResult = useActionData<typeof action>();
   const { user } = useLoaderData<typeof loader>();
-  const [isIndependentDriver, setIsIndependentDriver] = useState(false);
+  const [isOwnerDriver, setIsOwnerDriver] = useState(false);
 
   const [
     form,
     {
-      independentDriver,
+      ownerDriver,
       name,
       phoneNumber,
       address,
@@ -557,12 +541,12 @@ export default function FleetOwnerOnboarding() {
 
   // Handle role change - reset form when switching between roles
   const handleRoleChange = (value: string) => {
-    setIsIndependentDriver(value === "independentDriver");
+    setIsOwnerDriver(value === OWNER_DRIVER_TYPE);
     form.reset();
   };
 
   return (
-    <div className="mx-auto mt-8 max-w-md rounded border border-gray-200 bg-white p-6 shadow-xl inset-shadow-sm">
+    <div className="mx-auto mt-4 max-w-md rounded border border-gray-200 p-6 shadow-xl inset-shadow-sm">
       <h1 className="mb-6 text-2xl font-bold">Complete Your Profile</h1>
       <p className="mb-6 text-gray-600">
         Please provide the following information to complete your registration.
@@ -575,21 +559,17 @@ export default function FleetOwnerOnboarding() {
         encType="multipart/form-data"
       >
         <RoleSelectionField
-          independentDriver={independentDriver}
+          currentValue={isOwnerDriver ? OWNER_DRIVER_TYPE : FLEET_OWNER_TYPE}
           onValueChange={handleRoleChange}
         />
 
-        <input
-          type="hidden"
-          name={independentDriver.name}
-          value={isIndependentDriver ? "true" : "false"}
-        />
+        <input type="hidden" name={ownerDriver.name} value={isOwnerDriver ? "true" : "false"} />
 
         <div className="space-y-1">
-          <Label htmlFor={name.id}>{isIndependentDriver ? "Name" : "Business Name"}</Label>
+          <Label htmlFor={name.id}>{isOwnerDriver ? "Name" : "Business Name"}</Label>
           <Input
             {...getInputProps(name, { type: "text" })}
-            placeholder={isIndependentDriver ? "Your name" : "Your business name"}
+            placeholder={isOwnerDriver ? "Your name" : "Your business name"}
             className={name.errors ? "border-red-500 focus-visible:ring-red-500" : ""}
           />
           {name.errors && <p className="text-red-500 text-sm">{name.errors}</p>}
@@ -606,15 +586,13 @@ export default function FleetOwnerOnboarding() {
         </div>
 
         <div className="space-y-1">
-          <Label htmlFor={address.id}>{isIndependentDriver ? "Address" : "Business Address"}</Label>
+          <Label htmlFor={address.id}>{isOwnerDriver ? "Address" : "Business Address"}</Label>
           <AutocompleteAddress
             id="address"
             inputProps={{
               name: address.name,
               id: address.id,
-              placeholder: isIndependentDriver
-                ? "Enter your address"
-                : "Enter your business address",
+              placeholder: isOwnerDriver ? "Enter your address" : "Enter your business address",
             }}
             onSelect={(place) => {
               // Handle place selection if needed
@@ -624,7 +602,7 @@ export default function FleetOwnerOnboarding() {
           {address.errors && <p className="text-red-500 text-sm">{address.errors}</p>}
         </div>
 
-        {isIndependentDriver && (
+        {isOwnerDriver && (
           <OwnerDriverDocuments
             ninFile={ninFile}
             driversLicense={driversLicense}

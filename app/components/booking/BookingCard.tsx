@@ -490,7 +490,7 @@ export default function BookingCard({
       <input type="hidden" name="useCredits" value={useCreditsAmount} />
 
       <Card className="rounded sticky top-4 shadow-xl inset-shadow-sm transform-gpu">
-        <CardHeader>
+        <CardHeader className="px-6 py-4">
           <CardTitle>
             <span className="text-lg" aria-live="polite">
               {formatCurrency(totalDays > 0 ? currentCarPrice * totalDays : currentCarPrice)}
@@ -520,7 +520,6 @@ export default function BookingCard({
           <CardContent className="space-y-4">
             <input type="hidden" name="bookingType" value={bookingType} />
 
-            {/* Booking Type Selector */}
             <div className="space-y-1">
               <Label className="font-semibold">Booking Type</Label>
               <Tabs
@@ -528,14 +527,14 @@ export default function BookingCard({
                 onValueChange={handleBookingTypeChange}
                 className="w-full"
               >
-                <TabsList className="p-2 gap-2 tabs-list-slider-3 w-full h-auto">
+                <TabsList className="p-2 gap-2 tabs-list-slider w-full h-auto before:w-[calc((100%-0.5rem)/3)]">
                   {BOOKING_TYPE_OPTIONS.map((type) => {
                     const option = BOOKING_TYPE_OPTIONS_MAP[type];
                     return (
                       <TabsTrigger
                         key={option.value}
                         value={option.value}
-                        className="flex flex-col data-[state=active]:shadow-none tabs-trigger-slider"
+                        className="flex flex-col data-[state=active]:shadow-none tabs-trigger-slider data-[state=active]:bg-transparent"
                       >
                         <span className="text-sm font-semibold">{option.label}</span>
                         <span className="text-xs text-gray-600">{option.duration}</span>

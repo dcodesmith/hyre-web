@@ -68,12 +68,15 @@ async function getFleetOwnersWithNoChauffeursOrAllChauffeursBusy(
   const endDateAtTargetDate = new Date(Date.UTC(year, month, day, 23, 59, 59, 999));
 
   // Find fleet owners who either have no chauffeurs or all chauffeurs are busy
+  // Note: Owner-drivers (isOwnerDriver: true) are excluded because they drive themselves
   const fleetOwnersWithNoChauffeursOrAllChauffeursBusy = await prisma.user.findMany({
     where: {
       // Condition: The user must be a fleet owner (i.e., owns at least one car)
       cars: {
         some: {},
       },
+      // Exclude owner-drivers - they drive their own vehicles
+      isOwnerDriver: false,
       // Condition: User is unavailable if one of the following is true:
       OR: [
         {
@@ -200,7 +203,9 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
     let filteredCars = cars;
 
-    if (from && to && cars.length > 0 && bookingType) {
+    // Only filter by availability if user has provided all search parameters including pickup time
+    // Exception: NIGHT bookings can default to "11 PM" if no pickup time is specified
+    if (from && to && cars.length > 0 && bookingType && (pickupTime || bookingType === BookingType.NIGHT)) {
       const carIds = cars.map((c) => c.id);
 
       // Define a superset window that covers DAY/NIGHT/FULL_DAY overlaps across [from..to]
@@ -222,10 +227,15 @@ export async function loader({ request }: LoaderFunctionArgs) {
       const carsForEngine = cars.map((c) => ({ id: c.id })) as unknown as Car[];
       const bookingsForEngine = bookings as unknown as Booking[];
 
+      // Derive effective pickup time: for NIGHT bookings, default to "11 PM" if missing
+      const effectivePickupTime =
+        bookingType === BookingType.NIGHT && !pickupTime ? "11 PM" : (pickupTime as string);
+
       // Parse pickup time (e.g., "10 AM" or "2 PM") and create specific request time
-      const timeMatch = pickupTime?.match(/^(\d+)\s*(AM|PM)$/i);
-      if (pickupTime && !timeMatch) {
-        logger.warn("Invalid pickup time format", { pickupTime });
+      const timeRegex = /^(\d+)\s*(AM|PM)$/i;
+      const timeMatch = timeRegex.exec(effectivePickupTime);
+      if (!timeMatch) {
+        logger.warn("Invalid pickup time format", { pickupTime: effectivePickupTime });
       }
       let hours = timeMatch ? Number.parseInt(timeMatch[1], 10) : 7;
       const isPM = timeMatch ? timeMatch[2].toUpperCase() === "PM" : false;
@@ -266,7 +276,10 @@ export async function loader({ request }: LoaderFunctionArgs) {
         },
       );
 
-      logger.info("Available cars after filtering", { availableCarIdsList });
+      logger.debug("Available cars after filtering", {
+        availableCarIdsList,
+        filteredOutCount: carsForEngine.length - availableCarIdsList.length,
+      });
 
       const availableCarIdsSet = new Set(availableCarIdsList);
       filteredCars = cars.filter((c) => availableCarIdsSet.has(c.id));
@@ -329,7 +342,7 @@ export default function IndexPage() {
 
   const totalUnits = useMemo(
     () => calculateBookingUnits(from, to, bookingType),
-    [from, to, bookingType]
+    [from, to, bookingType],
   );
 
   return (

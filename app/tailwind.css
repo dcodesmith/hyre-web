@@ -100,38 +100,32 @@ body {
 }
 
 @layer components {
-  /* Tab list with sliding background for 3 tabs */
-  .tabs-list-slider-3 {
+  .tabs-list-slider {
     @apply relative flex w-full items-center justify-between p-1;
   }
 
-  /* Sliding "active tab" background */
-  .tabs-list-slider-3::before {
-    content: "";
-    position: absolute;
-    top: 0.25rem; /* match p-1 padding */
-    bottom: 0.25rem;
-    left: 0.25rem;
-    /* inner width = 100% - 0.5rem (left+right padding), divided by 3 */
-    width: calc((100% - 0.5rem) / 3);
-    /* keep it blocky; add a small radius if you want like shadcn */
-    border-radius: 0; /* change to 0.375rem if you want a slight round */
-    background-color: hsl(var(--background));
-    /* box-shadow: 0 1px 2px rgb(0 0 0 / 0.05); */
-    transition: transform 200ms ease-out;
-    transform: translateX(0); /* first tab */
-    box-shadow: none;
-  }
-
-  /* When 2nd tab is active */
-  .tabs-list-slider-3:has(button:nth-child(2)[data-state="active"])::before {
+  .tabs-list-slider:has(button:nth-child(2)[data-state="active"])::before {
     transform: translateX(100%);
     box-shadow: none;
   }
 
   /* When 3rd tab is active */
-  .tabs-list-slider-3:has(button:nth-child(3)[data-state="active"])::before {
+  .tabs-list-slider:has(button:nth-child(3)[data-state="active"])::before {
     transform: translateX(200%);
+    box-shadow: none;
+  }
+
+  /* Sliding "active tab" background */
+  .tabs-list-slider::before {
+    content: "";
+    position: absolute;
+    top: 0.25rem; /* match p-1 padding */
+    bottom: 0.25rem;
+    left: 0.25rem;
+    border-radius: 0; /* change to 0.375rem if you want a slight round */
+    background-color: hsl(var(--background));
+    transition: transform 200ms ease-out;
+    transform: translateX(0); /* first tab */
     box-shadow: none;
   }
 

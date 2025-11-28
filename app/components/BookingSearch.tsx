@@ -134,13 +134,13 @@ export function BookingSearch() {
         value={BOOKING_TYPE_OPTIONS_MAP[bookingType].value}
         onValueChange={handleBookingTypeChange}
       >
-        <TabsList className="p-2 gap-2 tabs-list-slider-3 w-full h-auto">
+        <TabsList className="p-2 gap-2 tabs-list-slider w-full h-auto before:w-[calc((100%-0.5rem)/3)]">
           {BOOKING_TYPE_OPTIONS.map((type) => {
             const option = BOOKING_TYPE_OPTIONS_MAP[type];
             return (
               <TabsTrigger
                 key={option.value}
-                className="flex flex-col data-[state=active]:shadow-none tabs-trigger-slider"
+                className="flex flex-col data-[state=active]:shadow-none tabs-trigger-slider data-[state=active]:bg-transparent"
                 value={option.value}
               >
                 <span className="text-sm font-semibold">{option.label}</span>
