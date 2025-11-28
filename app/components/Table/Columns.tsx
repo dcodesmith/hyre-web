@@ -1,18 +1,10 @@
 import type { Status } from "@prisma/client";
 import { ColumnDef } from "@tanstack/react-table";
-import { cn } from "~/lib/utils";
+import { cn, formatCurrency } from "~/lib/utils";
 import type { SerializedCar } from "~/types";
 import { Badge } from "../ui/badge";
 import { ColumnHeader } from "./ColumnHeader";
 import { RowActions } from "./RowActions";
-
-const formatPrice = (price: number) => {
-  return new Intl.NumberFormat("en-NG", {
-    style: "currency",
-    currency: "NGN",
-    minimumFractionDigits: 2,
-  }).format(price);
-};
 
 const statusColors: Record<Status, string> = {
   AVAILABLE: "bg-green-600",
@@ -44,12 +36,12 @@ export const columns: ColumnDef<SerializedCar>[] = [
   {
     accessorKey: "dayRate",
     header: ({ column }) => <ColumnHeader column={column} title="Day Rate" />,
-    cell: ({ row }) => <div className="w-[150px]">{formatPrice(row.original.dayRate)}</div>,
+    cell: ({ row }) => <div className="w-[150px]">{formatCurrency(row.original.dayRate)}</div>,
   },
   {
     accessorKey: "fullDayRate",
     header: ({ column }) => <ColumnHeader column={column} title="24hr Rate" />,
-    cell: ({ row }) => <div className="w-[150px]">{formatPrice(row.original.fullDayRate)}</div>,
+    cell: ({ row }) => <div className="w-[150px]">{formatCurrency(row.original.fullDayRate)}</div>,
   },
   {
     accessorKey: "status",

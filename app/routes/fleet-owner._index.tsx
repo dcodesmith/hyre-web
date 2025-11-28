@@ -1,25 +1,44 @@
+import { BookingStatus, PaymentStatus } from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/library";
 import type { LoaderFunctionArgs } from "@remix-run/node";
-import { data } from "@remix-run/node";
-import { Link, useLoaderData } from "@remix-run/react";
-import { useMemo, useState } from "react";
-import { Bar, BarChart, CartesianGrid, Tooltip, XAxis, YAxis } from "recharts";
-import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
-import { ChartContainer } from "~/components/ui/chart";
-import { ToggleGroup, ToggleGroupItem } from "~/components/ui/toggle-group";
+import { useLoaderData } from "@remix-run/react";
+import { subDays } from "date-fns";
+import {
+  KeyMetrics,
+  QuickActions,
+  RevenueAtRisk,
+  RevenueChart,
+  UnassignedBookingsTable,
+} from "~/components/dashboard/fleet-owner";
+import { OwnerDriverDashboard } from "~/components/dashboard/owner-driver";
+import type { OwnerDriverDashboardData } from "~/components/dashboard/owner-driver/types";
 import logger from "~/lib/logger.server";
-import { formatCurrency, formatDate } from "~/lib/utils";
+import { formatCurrency } from "~/lib/utils";
 import { prisma } from "~/modules/db/db.server";
-import { Prisma, BookingStatus, PaymentStatus } from "@prisma/client";
 import { getMonthToDateBookingsValue } from "~/services/bookings.server";
+import {
+  getOwnerDriverDashboardData,
+  getTodaysLegsFleetOwnerEarningSum,
+} from "~/services/owner-driver-dashboard.server";
 import { requireUserWithRole } from "~/utils/server/permissions.server";
-import { startOfDay, endOfDay, subDays, format } from "date-fns";
 
-type TimeRange = "week" | "month" | "year";
+// Type guard to narrow owner-driver data using discriminated union
+function isOwnerDriverData(data: { dashboardType: string }): data is {
+  dashboardType: "owner-driver";
+} & OwnerDriverDashboardData {
+  return data.dashboardType === "owner-driver";
+}
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const fleetOwner = await requireUserWithRole(request, "fleetOwner");
 
+  // If owner-driver, return simplified dashboard data
+  if (fleetOwner.isOwnerDriver) {
+    const ownerDriverData = await getOwnerDriverDashboardData(fleetOwner.id, fleetOwner.name);
+    return { dashboardType: "owner-driver" as const, ...ownerDriverData };
+  }
+
+  // Otherwise, continue with fleet owner dashboard
   const carCount = await prisma.car.count({
     where: { ownerId: fleetOwner.id },
   });
@@ -94,19 +113,18 @@ export async function loader({ request }: LoaderFunctionArgs) {
         status: "AVAILABLE",
       },
     }),
-    // Cars under maintenance
-    prisma.car.count({
-      where: {
-        ownerId: fleetOwner.id,
-        status: "IN_SERVICE",
-      },
-    }),
-
     // Booked cars
     prisma.car.count({
       where: {
         ownerId: fleetOwner.id,
         status: "BOOKED",
+      },
+    }),
+    // Maintenance cars (IN_SERVICE or HOLD)
+    prisma.car.count({
+      where: {
+        ownerId: fleetOwner.id,
+        status: { in: ["IN_SERVICE", "HOLD"] },
       },
     }),
     // Available chauffeurs (not assigned to active bookings)
@@ -123,6 +141,20 @@ export async function loader({ request }: LoaderFunctionArgs) {
         },
       },
     }),
+    // On-duty chauffeurs (assigned to active bookings)
+    prisma.user.count({
+      where: {
+        fleetOwnerId: fleetOwner.id,
+        roles: { some: { name: "chauffeur" } },
+        bookingsAsChauffeur: {
+          some: {
+            status: {
+              in: ["ACTIVE", "CONFIRMED"],
+            },
+          },
+        },
+      },
+    }),
   ]);
 
   const [
@@ -130,32 +162,13 @@ export async function loader({ request }: LoaderFunctionArgs) {
     completedBookingsCount,
     cancelledBookingsCount,
     availableCarsCount,
-    carsInMaintenanceCount,
     bookedCarsCount,
+    maintenanceCarsCount,
     availableChauffeursCount,
+    onDutyChauffeursCount,
   ] = stats;
 
   const today = new Date();
-
-  const last30Days = new Date(today);
-  last30Days.setDate(today.getDate() - 29); // -29 to include today
-
-  // Get completed bookings for the month
-  const monthlyBookings = await prisma.booking.findMany({
-    where: {
-      car: { ownerId: fleetOwner.id },
-      status: "COMPLETED",
-      startDate: {
-        gte: last30Days,
-        lte: today,
-      },
-    },
-    select: {
-      endDate: true,
-      startDate: true,
-      totalAmount: true,
-    },
-  });
 
   const todayUtcYear = today.getUTCFullYear(); // Native Date method
   const todayUtcMonth = today.getUTCMonth(); // Native Date method (0-indexed)
@@ -165,9 +178,41 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const startOfToday = new Date(Date.UTC(todayUtcYear, todayUtcMonth, todayUtcDay, 0, 0, 0, 0));
   const endOfToday = new Date(Date.UTC(todayUtcYear, todayUtcMonth, todayUtcDay, 23, 59, 59, 999));
 
+  // Calculate 7-day fleet utilization
+  const last7DaysStart = subDays(startOfToday, 6); // 6 days ago + today = 7 days
+
+  // Get all booking legs for the fleet owner in the last 7 days
+  const utilizationLegs = await prisma.bookingLeg.findMany({
+    where: {
+      legDate: { gte: last7DaysStart, lte: endOfToday },
+      booking: {
+        car: { ownerId: fleetOwner.id },
+        status: { in: [BookingStatus.ACTIVE, BookingStatus.COMPLETED, BookingStatus.CONFIRMED] },
+      },
+    },
+    select: {
+      legDate: true,
+      booking: {
+        select: {
+          carId: true,
+        },
+      },
+    },
+  });
+
+  // Count unique car-days (a car booked on a specific day = 1 car-day)
+  const carDaysBooked = new Set(
+    utilizationLegs.map((leg) => `${leg.booking.carId}-${leg.legDate.toISOString().slice(0, 10)}`),
+  ).size;
+
+  // Total possible car-days = total cars × 7 days
+  const totalCarDays = carCount * 7;
+  const fleetUtilizationRate =
+    totalCarDays > 0 ? Math.round((carDaysBooked / totalCarDays) * 100) : 0;
+
   const legs = await prisma.bookingLeg.findMany({
     where: {
-      legDate: { gte: subDays(startOfToday, 29), lte: endOfToday },
+      legDate: { gte: subDays(startOfToday, 89), lte: endOfToday },
       booking: {
         car: { ownerId: fleetOwner.id },
         status: { in: [BookingStatus.ACTIVE, BookingStatus.COMPLETED] },
@@ -184,7 +229,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     const prev = daily.get(key) ?? new Decimal(0);
     daily.set(key, prev.add(l.fleetOwnerEarningForLeg));
   }
-  const dailyRevenue = Array.from({ length: 30 }, (_, i) => {
+  const dailyRevenue = Array.from({ length: 90 }, (_, i) => {
     const date = subDays(startOfToday, i);
     const key = date.toISOString().slice(0, 10);
     const v = daily.get(key) ?? new Decimal(0);
@@ -192,74 +237,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
   }).reverse();
 
   logger.info(`Booking legs fetched: ${legs.length}`);
-  // const revenueByDay = Array.from({ length: 30 }, (_, i) => {
-  //   const date = subDays(startOfToday, i);
-  //   const key = date.toISOString().slice(0, 10); // YYYY-MM-DD
-  //   const daySum = legs
-  //     .filter((l) => l.legDate.toISOString().startsWith(key))
-  //     .reduce((acc, l) => acc.add(l.fleetOwnerEarningForLeg), new Decimal(0));
-  //   return { date, revenue: daySum };
-  // }).reverse();
-
-  // const dailyRevenue = dailyRev.slice().reverse();
-
-  async function getTodaysLegsFleetOwnerEarningSum(
-    fleetOwnerIdInput?: string,
-    dateInput: Date = new Date(),
-  ): Promise<Decimal> {
-    // Determine the start and end of the given date in UTC
-    const todayUtcYear = dateInput.getUTCFullYear();
-    const todayUtcMonth = dateInput.getUTCMonth(); // 0-indexed (January is 0)
-    const todayUtcDay = dateInput.getUTCDate();
-
-    // Start of the day in UTC
-    const startOfTodayUTC = new Date(
-      Date.UTC(todayUtcYear, todayUtcMonth, todayUtcDay, 0, 0, 0, 0),
-    );
-    // End of the day in UTC
-    const endOfTodayUTC = new Date(
-      Date.UTC(todayUtcYear, todayUtcMonth, todayUtcDay, 23, 59, 59, 999),
-    );
-
-    // Construct the where clause for the related Booking entity
-    const bookingWhereClause: Prisma.BookingWhereInput = {
-      status: BookingStatus.ACTIVE,
-      paymentStatus: PaymentStatus.PAID,
-      chauffeurId: { not: null }, // Ensure a chauffeur is assigned
-    };
-
-    // Conditionally add filter for fleet owner if provided
-    if (fleetOwnerIdInput) {
-      bookingWhereClause.car = {
-        ownerId: fleetOwnerIdInput,
-      };
-    }
-
-    // Construct the main where clause for BookingLeg
-    const bookingLegWhereClause: Prisma.BookingLegWhereInput = {
-      legDate: {
-        gte: startOfTodayUTC, // Leg date is on or after the start of today (UTC)
-        lte: endOfTodayUTC, // Leg date is on or before the end of today (UTC)
-      },
-      booking: bookingWhereClause, // Apply filters on the related booking
-      totalDailyPrice: { gt: 0 }, // Consider only legs with a positive total daily price
-      // No explicit filter on fleetOwnerEarningForLeg itself, sum whatever value is present (positive, zero, or negative)
-    };
-
-    // Perform aggregation directly in the database
-    const aggregationResult = await prisma.bookingLeg.aggregate({
-      where: bookingLegWhereClause,
-      _sum: {
-        fleetOwnerEarningForLeg: true, // Sum this field
-      },
-    });
-
-    // The result of _sum can be null if no records match the criteria
-    const totalSum = aggregationResult._sum.fleetOwnerEarningForLeg;
-
-    // Return the sum, or Decimal(0) if the sum is null
-    return totalSum ?? new Decimal(0);
-  }
 
   const ownerRevenueToday = await getTodaysLegsFleetOwnerEarningSum(fleetOwner.id);
 
@@ -286,16 +263,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
     bookingCount("CONFIRMED"),
   ]);
 
-  const todayRevenue = await prisma.booking.aggregate({
-    where: {
-      status: { in: [BookingStatus.ACTIVE, BookingStatus.COMPLETED, BookingStatus.CONFIRMED] },
-      paymentStatus: PaymentStatus.PAID,
-      car: { ownerId: fleetOwner.id },
-      AND: [dateRangeFilter],
-    },
-    _sum: { totalAmount: true },
-  });
-
   const [
     todayActiveBookings,
     todayCompletedBookings,
@@ -304,6 +271,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   ] = todayStats;
 
   return {
+    dashboardType: "fleet-owner" as const,
     carCount: carCount,
     bookingsValue: bookingsValue,
     confirmedUnassignedBookings: serializedConfirmedUnassignedBookings,
@@ -313,9 +281,11 @@ export async function loader({ request }: LoaderFunctionArgs) {
       completedBookingsCount,
       cancelledBookingsCount,
       availableCarsCount,
-      carsInMaintenanceCount,
       bookedCarsCount,
+      maintenanceCarsCount,
       availableChauffeursCount,
+      onDutyChauffeursCount,
+      fleetUtilizationRate,
     },
     dailyRevenue,
     fleetOwnerName: fleetOwner.name,
@@ -334,87 +304,6 @@ const getOrdinal = (n: number): string => {
   const v = n % 100;
   return n + (s[(v - 20) % 10] || s[v] || s[0]);
 };
-
-function RevenueChart({
-  data,
-  timeRange,
-}: {
-  readonly data: Array<{ date: Date; revenue: number }>;
-  readonly timeRange: TimeRange;
-}) {
-  const chartConfig = {
-    revenue: {
-      label: "Daily Revenue",
-      theme: {
-        light: "hsl(220 80% 50%)",
-        dark: "hsl(220 80% 60%)",
-      },
-    },
-  };
-
-  // Filter data based on timeRange only
-  const filteredData = useMemo(() => {
-    return timeRange === "week" ? data.slice(-7) : data.slice(-30);
-  }, [data, timeRange]);
-
-  return (
-    <ChartContainer className="h-[400px] w-full" config={chartConfig}>
-      <BarChart data={filteredData} margin={{ top: 20, bottom: 20 }}>
-        <CartesianGrid strokeDasharray="3 3" />
-        <XAxis
-          dataKey={timeRange === "year" ? "month" : "date"}
-          tickFormatter={(value) => getOrdinal(new Date(value).getDate())}
-          interval={0}
-          className="text-xs [&_.recharts-cartesian-axis-tick]:md:block [&_.recharts-cartesian-axis-tick]:data-[value='0']:md:hidden [&_.recharts-cartesian-axis-tick]:data-[value='0']:hidden"
-          padding={{ left: 0, right: 0 }}
-        />
-        <YAxis
-          tickFormatter={(value) =>
-            new Intl.NumberFormat("en-NG", {
-              notation: "compact",
-              style: "currency",
-              currency: "NGN",
-            }).format(value)
-          }
-          width={70}
-        />
-        <Tooltip
-          content={({ active, payload, label }) => {
-            if (!active || !payload?.length || payload[0].value === 0) return null;
-            const formattedDate = new Date(label).toLocaleDateString("en-NG", {
-              weekday: "short",
-              month: "short",
-              day: "numeric",
-              year: "numeric",
-            });
-
-            // Insert the ordinal day
-            const day = new Date(label).getDate();
-            const dateWithOrdinal = formattedDate.replace(/\b\d+\b/, getOrdinal(day));
-
-            return (
-              <div className="rounded border border-neutral-200 bg-white p-3 shadow-xl">
-                <div className="grid gap-2">
-                  <div className="font-medium">{dateWithOrdinal}</div>
-                  <div className="flex items-center gap-2">
-                    <div className="h-2 w-2 rounded-full bg-[var(--color-revenue)]" />
-                    <div>
-                      {new Intl.NumberFormat("en-NG", {
-                        style: "currency",
-                        currency: "NGN",
-                      }).format(payload[0].value as number)}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            );
-          }}
-        />
-        <Bar dataKey="revenue" fill="var(--color-revenue)" radius={[4, 4, 0, 0]} maxBarSize={50} />
-      </BarChart>
-    </ChartContainer>
-  );
-}
 
 function WelcomeMessage({
   name,
@@ -500,6 +389,28 @@ function WelcomeMessage({
 }
 
 export default function FleetOwnerDashboard() {
+  const data = useLoaderData<typeof loader>();
+
+  // If owner-driver, show simplified dashboard with type-safe validation
+  if (isOwnerDriverData(data)) {
+    // Type guard ensures data conforms to OwnerDriverDashboardData
+    // Explicit prop mapping for compile-time type safety
+    const { name, currentOrNextBooking, upcomingBookings, recentBookings, car, earnings, nextPayout } = data;
+
+    return (
+      <OwnerDriverDashboard
+        name={name}
+        currentOrNextBooking={currentOrNextBooking}
+        upcomingBookings={upcomingBookings}
+        recentBookings={recentBookings}
+        car={car}
+        earnings={earnings}
+        nextPayout={nextPayout}
+      />
+    );
+  }
+
+  // Fleet owner dashboard - all fields are guaranteed by the loader
   const {
     fleetOwnerName,
     todayStats,
@@ -509,221 +420,69 @@ export default function FleetOwnerDashboard() {
     dashboardStats,
     dailyRevenue,
     chauffeurs,
-  } = useLoaderData<typeof loader>();
-  const [timeRange, setTimeRange] = useState<TimeRange>("week");
+  } = data;
+
+  // TypeScript safety check - this should never happen at runtime
+  if (
+    !todayStats ||
+    !confirmedUnassignedBookings ||
+    !dashboardStats ||
+    !dailyRevenue ||
+    !chauffeurs
+  ) {
+    return (
+      <div className="p-6">
+        <p className="text-red-600">Unable to load dashboard data. Please refresh the page.</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-6 sm:p-4">
+    <div className="@container/main space-y-6 p-4 md:p-6 max-w-[1600px] mx-auto">
       <WelcomeMessage
         name={fleetOwnerName || "Fleet Owner"}
         stats={{ ...todayStats, projectedRevenue: Number(todayStats.projectedRevenue) }}
       />
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <StatsCard
-          title="Fleet Overview"
-          stats={[
-            { label: "Total Cars", value: carCount },
-            { label: "Available Cars", value: dashboardStats.availableCarsCount },
-            { label: "In Maintenance", value: dashboardStats.carsInMaintenanceCount },
-            { label: "Booked Cars", value: dashboardStats.bookedCarsCount },
-          ]}
-        />
-
-        <StatsCard
-          title="Bookings Overview"
-          stats={[
-            { label: "Active Bookings", value: dashboardStats.activeBookingsCount },
-            { label: "Completed Bookings", value: dashboardStats.completedBookingsCount },
-            { label: "Cancelled Bookings", value: dashboardStats.cancelledBookingsCount },
-            {
-              label: "Month Revenue",
-              value: new Intl.NumberFormat("en-NG", {
-                style: "currency",
-                currency: "NGN",
-              }).format(Number(bookingsValue)),
-            },
-          ]}
-        />
-
-        <StatsCard
-          title="Chauffeur Overview"
-          stats={[
-            { label: "Total Chauffeurs", value: chauffeurs.length },
-            { label: "Available Chauffeurs", value: dashboardStats.availableChauffeursCount },
-            {
-              label: "On Duty",
-              value: chauffeurs.length - dashboardStats.availableChauffeursCount,
-            },
-          ]}
-        />
-
-        <StatsCard
-          title="Unassigned Bookings"
-          stats={[
-            { label: "Total Unassigned", value: confirmedUnassignedBookings.length },
-            { label: "Available Chauffeurs", value: dashboardStats.availableChauffeursCount },
-            {
-              label: "On Duty",
-              value: chauffeurs.length - dashboardStats.availableChauffeursCount,
-            },
-          ]}
-        />
-      </div>
-
-      <div className="rounded border bg-white p-4">
-        <div className="flex justify-between items-center mb-6">
-          <div>
-            <h3 className="font-semibold text-gray-900">
-              {timeRange === "week"
-                ? "Week to Date"
-                : timeRange === "month"
-                  ? "Month to Date"
-                  : "Year to Date"}{" "}
-              Revenue Breakdown
-            </h3>
-            <p className="text-sm text-gray-600">
-              Total:{" "}
-              {new Intl.NumberFormat("en-NG", {
-                style: "currency",
-                currency: "NGN",
-              }).format(
-                dailyRevenue
-                  .slice(timeRange === "week" ? -7 : -30)
-                  .reduce((sum, day) => sum + day.revenue, 0),
-              )}
-            </p>
-          </div>
-          <ToggleGroup
-            type="single"
-            value={timeRange}
-            onValueChange={(value) => {
-              if (value) setTimeRange(value as TimeRange);
-            }}
-          >
-            <ToggleGroupItem title="Week to Date" value="week">
-              WTD
-            </ToggleGroupItem>
-            <ToggleGroupItem title="Month to Date" value="month" className="hidden sm:block">
-              MTD
-            </ToggleGroupItem>
-            <ToggleGroupItem title="Year to Date" disabled value="year" className="hidden sm:block">
-              YTD
-            </ToggleGroupItem>
-          </ToggleGroup>
-        </div>
-        <RevenueChart
-          data={dailyRevenue.map((item) => ({
-            ...item,
-            date: new Date(item.date),
-            revenue: item.revenue,
+      {confirmedUnassignedBookings.length > 0 && (
+        <RevenueAtRisk
+          unassignedBookings={confirmedUnassignedBookings.map((booking) => ({
+            id: booking.id,
+            startDate: booking.startDate,
+            totalAmount: booking.totalAmount,
           }))}
-          timeRange={timeRange}
         />
-      </div>
+      )}
 
-      <div className="rounded border">
-        <div className="p-4">
-          <h2 className="text-base font-semibold">Confirmed Unassigned Bookings</h2>
-        </div>
-        <div className="divide-y">
-          {confirmedUnassignedBookings.length > 0 ? (
-            confirmedUnassignedBookings.map((booking) => (
-              <div key={booking.id} className="p-4">
-                <div className="grid grid-cols-2 md:grid-cols-8 gap-2">
-                  <div>
-                    <div className="text-sm text-gray-500">Car</div>
-                    <div>
-                      {booking.car.make} {booking.car.model}
-                    </div>
-                  </div>
+      <KeyMetrics
+        carCount={carCount}
+        availableCarsCount={dashboardStats.availableCarsCount}
+        bookedCarsCount={dashboardStats.bookedCarsCount}
+        maintenanceCarsCount={dashboardStats.maintenanceCarsCount}
+        activeBookingsCount={dashboardStats.activeBookingsCount}
+        completedBookingsCount={dashboardStats.completedBookingsCount}
+        cancelledBookingsCount={dashboardStats.cancelledBookingsCount}
+        chauffeurCount={chauffeurs.length}
+        availableChauffeursCount={dashboardStats.availableChauffeursCount}
+        onDutyChauffeursCount={dashboardStats.onDutyChauffeursCount}
+        monthlyRevenue={Number(bookingsValue)}
+        todayStats={todayStats}
+      />
 
-                  <div>
-                    <div className="text-sm text-gray-500">Booking Status</div>
-                    <div>{booking.status}</div>
-                  </div>
+      <QuickActions
+        unassignedBookingsCount={confirmedUnassignedBookings.length}
+        availableChauffeursCount={dashboardStats.availableChauffeursCount}
+      />
 
-                  <div>
-                    <div className="text-sm text-gray-500">Payment Status</div>
-                    <div>{booking.paymentStatus}</div>
-                  </div>
+      <RevenueChart
+        data={dailyRevenue.map((item) => ({
+          ...item,
+          date: new Date(item.date),
+          revenue: item.revenue,
+        }))}
+      />
 
-                  <div>
-                    <div className="text-sm text-gray-500">Net Total Amount</div>
-                    <div>
-                      {new Intl.NumberFormat("en-NG", {
-                        style: "currency",
-                        currency: "NGN",
-                      }).format(Number(booking.netTotal))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="text-sm text-gray-500">Fleet Owner Payout</div>
-                    <div>
-                      {new Intl.NumberFormat("en-NG", {
-                        style: "currency",
-                        currency: "NGN",
-                      }).format(Number(booking.fleetOwnerPayoutAmountNet))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="text-sm text-gray-500">Start Date</div>
-                    <div>{formatDate(booking.startDate)}</div>
-                  </div>
-
-                  <div>
-                    <div className="text-sm text-gray-500">End Date</div>
-                    <div>{formatDate(booking.endDate)}</div>
-                  </div>
-
-                  <div>
-                    <div className="text-sm text-gray-500">Chauffeur</div>
-                    {booking.chauffeur ? (
-                      <div title={booking.chauffeur.email}>{booking.chauffeur.name}</div>
-                    ) : booking.status === "CONFIRMED" ? (
-                      <Link
-                        to={`/fleet-owner/bookings/${booking.id}?startDate=${booking.startDate}`}
-                      >
-                        Assign Chauffeur
-                      </Link>
-                    ) : null}
-                  </div>
-                </div>
-              </div>
-            ))
-          ) : (
-            <div className="p-4">No confirmed unassigned bookings</div>
-          )}
-        </div>
-      </div>
+      <UnassignedBookingsTable bookings={confirmedUnassignedBookings} />
     </div>
-  );
-}
-
-function StatsCard({
-  title,
-  stats,
-}: {
-  readonly title: string;
-  readonly stats: Array<{ label: string; value: string | number }>;
-}) {
-  return (
-    <Card className="rounded">
-      <CardHeader className="px-4 py-2">
-        <CardTitle className="text-base">{title}</CardTitle>
-      </CardHeader>
-      <CardContent className="p-4 pt-0">
-        <div className="space-y-1 text-sm">
-          {stats.map(({ label, value }) => (
-            <div key={label} className="flex justify-between items-center">
-              <span className="text-gray-600">{label}</span>
-              <span className="font-medium">{value}</span>
-            </div>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
   );
 }

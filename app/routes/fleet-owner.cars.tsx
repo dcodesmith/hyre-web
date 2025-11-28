@@ -23,7 +23,7 @@ import {
   SheetTrigger,
 } from "~/components/ui/sheet";
 import { useToast } from "~/hooks/use-toast";
-import { cn } from "~/lib/utils";
+import { cn, formatCurrency } from "~/lib/utils";
 import { requireUserWithRole } from "~/modules/auth/auth.server";
 import { prisma } from "~/modules/db/db.server";
 import { createCar } from "~/services/cars.server";
@@ -158,14 +158,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
   return { cars, canAddCar, isOwnerDriver: user.isOwnerDriver };
 }
 
-const formatPrice = (price: number) => {
-  return new Intl.NumberFormat("en-NG", {
-    style: "currency",
-    currency: "NGN",
-    minimumFractionDigits: 2,
-  }).format(price);
-};
-
 const statusColors: Record<(typeof Status)[keyof typeof Status], string> = {
   AVAILABLE: "bg-green-50 ring-green-600/10 text-green-600",
   BOOKED: "bg-blue-50 ring-blue-600/10 text-blue-600",
@@ -216,31 +208,33 @@ export const columns: ColumnDef<SerializedCar>[] = [
     accessorKey: "dayRate",
     enableColumnFilter: false,
     header: ({ column }) => <ColumnHeader column={column} title="Daily Rate" />,
-    cell: ({ row }) => <div className="w-[150px]">{formatPrice(row.original.dayRate)}</div>,
+    cell: ({ row }) => <div className="w-[150px]">{formatCurrency(row.original.dayRate)}</div>,
   },
   {
     accessorKey: "hourlyRate",
     enableColumnFilter: false,
     header: ({ column }) => <ColumnHeader column={column} title="Hourly Rate" />,
-    cell: ({ row }) => <div className="w-[150px]">{formatPrice(row.original.hourlyRate)}</div>,
+    cell: ({ row }) => <div className="w-[150px]">{formatCurrency(row.original.hourlyRate)}</div>,
   },
   {
     accessorKey: "nightRate",
     enableColumnFilter: false,
     header: ({ column }) => <ColumnHeader column={column} title="Nightly Rate" />,
-    cell: ({ row }) => <div className="w-[150px]">{formatPrice(row.original.nightRate)}</div>,
+    cell: ({ row }) => <div className="w-[150px]">{formatCurrency(row.original.nightRate)}</div>,
   },
   {
     accessorKey: "fullDayRate",
     enableColumnFilter: false,
     header: ({ column }) => <ColumnHeader column={column} title="24-Hour Rate" />,
-    cell: ({ row }) => <div className="w-[150px]">{formatPrice(row.original.fullDayRate)}</div>,
+    cell: ({ row }) => <div className="w-[150px]">{formatCurrency(row.original.fullDayRate)}</div>,
   },
   {
     accessorKey: "fuelUpgradeRate",
     enableColumnFilter: false,
     header: ({ column }) => <ColumnHeader column={column} title="Fuel Upgrade Rate" />,
-    cell: ({ row }) => <div className="w-[150px]">{formatPrice(row.original.fuelUpgradeRate)}</div>,
+    cell: ({ row }) => (
+      <div className="w-[150px]">{formatCurrency(row.original.fuelUpgradeRate)}</div>
+    ),
   },
   {
     accessorKey: "status",
@@ -302,22 +296,24 @@ export default function CarsPage() {
                 Add Car
               </Button>
             </SheetTrigger>
-          <SheetContent className="sm:max-w-[400px] w-full px-8 overflow-y-auto">
-            <SheetHeader>
-              <SheetTitle>Add New Car</SheetTitle>
-              <SheetDescription>
-                Fill in the details to add a new car to your fleet.
-              </SheetDescription>
-            </SheetHeader>
-            <div className="mt-4">
-              <NewCarForm />
-            </div>
-          </SheetContent>
-        </Sheet>
+            <SheetContent className="sm:max-w-[400px] w-full px-8 overflow-y-auto">
+              <SheetHeader>
+                <SheetTitle>Add New Car</SheetTitle>
+                <SheetDescription>
+                  Fill in the details to add a new car to your fleet.
+                </SheetDescription>
+              </SheetHeader>
+              <div className="mt-4">
+                <NewCarForm />
+              </div>
+            </SheetContent>
+          </Sheet>
         ) : (
           <div className="ml-auto text-sm text-muted-foreground">
             {isOwnerDriver && cars.length > 0 && (
-              <p>Owner-drivers can only have 1 car. Delete your existing car to add a different one.</p>
+              <p>
+                Owner-drivers can only have 1 car. Delete your existing car to add a different one.
+              </p>
             )}
           </div>
         )}

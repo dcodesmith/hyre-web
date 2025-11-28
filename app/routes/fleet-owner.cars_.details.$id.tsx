@@ -2,6 +2,7 @@ import type { LoaderFunctionArgs } from "@remix-run/node";
 import { Outlet, useLoaderData } from "@remix-run/react";
 import invariant from "tiny-invariant";
 import CarCarousel from "~/components/Carousel";
+import { formatCurrency } from "~/lib/utils";
 import { prisma } from "~/modules/db/db.server";
 
 export const loader = async ({ params }: LoaderFunctionArgs) => {
@@ -46,10 +47,7 @@ export default function CarDetails() {
             <div className="px-4 py-3 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">
               <dt className="text-sm font-medium leading-6 text-gray-900">Price per Day</dt>
               <dd className="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
-                {new Intl.NumberFormat("en-NG", {
-                  style: "currency",
-                  currency: "NGN",
-                }).format(car?.dayRate ?? 0)}
+                {formatCurrency(car?.dayRate ?? 0)}
               </dd>
             </div>
             <div className="px-4 py-3 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">

@@ -115,24 +115,28 @@ export function MobileBottomNav({ user, appName, onProfileOpen }: MobileBottomNa
 
   if (user) {
     // Authenticated user navigation
+    const isFleetOwner = userHasRole(user, "fleetOwner");
+
     return (
       <div className="md:hidden fixed bottom-0 left-0 right-0 bg-background border-t border-border z-40">
         <div className="flex items-center justify-around max-w-full mx-auto px-2 pb-[env(safe-area-inset-bottom)] min-h-[56px]">
           <NavItem to="/" icon={<Home size={18} />} label={appName} isActive={isHomeActive} />
 
           <NavItem
-            to={userHasRole(user, "fleetOwner") ? "/fleet-owner" : "/bookings"}
+            to={isFleetOwner ? "/fleet-owner" : "/bookings"}
             icon={<Calendar size={18} />}
-            label={userHasRole(user, "fleetOwner") ? "Dashboard" : "Bookings"}
-            isActive={userHasRole(user, "fleetOwner") ? isFleetOwnerActive : isBookingsActive}
+            label={isFleetOwner ? "Dashboard" : "Bookings"}
+            isActive={isFleetOwner ? isFleetOwnerActive : isBookingsActive}
           />
 
-          <NavItem
-            to="/referrals"
-            icon={<Gift size={18} />}
-            label="Referrals"
-            isActive={isReferralsActive}
-          />
+          {!isFleetOwner && (
+            <NavItem
+              to="/referrals"
+              icon={<Gift size={18} />}
+              label="Referrals"
+              isActive={isReferralsActive}
+            />
+          )}
 
           <NavItem
             icon={<UserIcon size={18} />}

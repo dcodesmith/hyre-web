@@ -2,6 +2,7 @@ import type { PaymentAttemptStatus, Prisma } from "@prisma/client";
 import { type ActionFunctionArgs } from "@remix-run/node";
 import logger from "~/lib/logger.server";
 import {
+  formatCurrency,
   getCustomerDetails,
   normaliseBookingDetails,
   normaliseExtensionDetails,
@@ -593,10 +594,7 @@ async function handleTransferCompleted(payload: FlutterwaveTransferCompletedPayl
 
   if (finalStatus === "PAID_OUT" && payoutTransaction?.booking?.car?.owner) {
     const owner = payoutTransaction.booking.car.owner;
-    const formattedAmount = new Intl.NumberFormat("en-NG", {
-      style: "currency",
-      currency: "NGN",
-    }).format(amount);
+    const formattedAmount = formatCurrency(amount);
 
     await emailQueue.add(async () => {
       const html = await renderPayoutNotificationEmail({

@@ -1,6 +1,6 @@
 import { Heading, Hr, Link, Section, Text } from "@react-email/components";
 import { render } from "@react-email/render";
-import { NormalisedBookingDetails, NormalisedExtensionDetails } from "~/lib/utils";
+import { formatCurrency, NormalisedBookingDetails, NormalisedExtensionDetails } from "~/lib/utils";
 import { EmailTemplate } from "./EmailTemplate";
 import { env } from "~/utils/server/env.server";
 
@@ -22,11 +22,7 @@ function DetailListItem({
   let displayValue: string | number = value;
 
   if (isCurrency) {
-    displayValue = new Intl.NumberFormat("en-NG", {
-      // Consider making locale dynamic if needed
-      style: "currency",
-      currency: currencyCode,
-    }).format(Number(value));
+    displayValue = formatCurrency(Number(value));
   }
 
   return (

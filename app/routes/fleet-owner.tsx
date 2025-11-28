@@ -63,7 +63,7 @@ export default function Dashboard() {
     <>
       <div className="relative">
         <ScrollArea className="max-w-[600px] lg:max-w-none">
-          <nav className="mb-4 flex items-center">
+          <nav className="mb-4 mt-4 flex items-center lg:mt-0">
             {filteredNavLinks.map((link) => (
               <NavLink key={link.to} to={link.to}>
                 {link.label}

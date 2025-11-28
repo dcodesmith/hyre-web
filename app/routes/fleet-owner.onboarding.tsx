@@ -348,11 +348,11 @@ export async function action({ request }: ActionFunctionArgs) {
 const roleOptions = {
   fleetOwner: {
     label: "Fleet Owner",
-    description: "You have a fleet of vehicles",
+    description: "I own a fleet of vehicles",
   },
   independentDriver: {
     label: "Owner-Driver",
-    description: "You drive for yourself",
+    description: "I drive my own vehicle",
   },
 };
 
