@@ -33,7 +33,7 @@ interface EarningsSnapshotProps {
 
 export function EarningsSnapshot({ earnings }: EarningsSnapshotProps) {
   return (
-    <div className="@xl/main:grid-cols-2 @5xl/main:grid-cols-3 grid grid-cols-1 gap-4">
+    <div className="@md/main:grid-cols-3 @3xl/main:grid-cols-3 grid grid-cols-1 gap-4">
       <EarningsCard
         label="Today"
         amount={earnings.today}

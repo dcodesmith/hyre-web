@@ -77,11 +77,20 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const serializedConfirmedUnassignedBookings = confirmedUnassignedBookings.map((booking) => ({
     ...booking,
     totalAmount: booking.totalAmount.toNumber(),
-    netTotal: booking.netTotal?.toNumber(),
+    netTotal: booking.netTotal?.toNumber() ?? 0,
     vatAmount: booking.vatAmount?.toNumber(),
     platformCustomerServiceFeeAmount: booking.platformCustomerServiceFeeAmount?.toNumber(),
     fuelUpgradeCost: booking.fuelUpgradeCost?.toNumber(),
     securityDetailCost: booking.securityDetailCost?.toNumber(),
+    vatRatePercent: booking.vatRatePercent?.toNumber() ?? 0,
+    platformCustomerServiceFeeRatePercent:
+      booking.platformCustomerServiceFeeRatePercent?.toNumber() ?? 0,
+    platformFleetOwnerCommissionRatePercent:
+      booking.platformFleetOwnerCommissionRatePercent?.toNumber() ?? 0,
+    platformFleetOwnerCommissionAmount: booking.platformFleetOwnerCommissionAmount?.toNumber() ?? 0,
+    referralDiscountAmount: booking.referralDiscountAmount?.toNumber() ?? 0,
+    subtotalBeforeVat: booking.subtotalBeforeVat?.toNumber() ?? 0,
+    fleetOwnerPayoutAmountNet: booking.fleetOwnerPayoutAmountNet?.toNumber() ?? 0,
   }));
 
   const stats = await prisma.$transaction([
@@ -395,14 +404,26 @@ export default function FleetOwnerDashboard() {
   if (isOwnerDriverData(data)) {
     // Type guard ensures data conforms to OwnerDriverDashboardData
     // Explicit prop mapping for compile-time type safety
-    const { name, currentOrNextBooking, upcomingBookings, recentBookings, car, earnings, nextPayout } = data;
+    const {
+      name,
+      pendingApprovalBookings,
+      liveBookings,
+      upcomingBookings,
+      recentBookings,
+      personalDocuments,
+      car,
+      earnings,
+      nextPayout,
+    } = data;
 
     return (
       <OwnerDriverDashboard
         name={name}
-        currentOrNextBooking={currentOrNextBooking}
+        pendingApprovalBookings={pendingApprovalBookings}
+        liveBookings={liveBookings}
         upcomingBookings={upcomingBookings}
         recentBookings={recentBookings}
+        personalDocuments={personalDocuments}
         car={car}
         earnings={earnings}
         nextPayout={nextPayout}

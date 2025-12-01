@@ -1,8 +1,9 @@
 import type { Role, User } from "@prisma/client";
 import { Link, useLocation } from "@remix-run/react";
-import { Calendar, Gift, Home, LogIn, LogOut, User as UserIcon } from "lucide-react";
+import { Calendar, Gift, Home, LogIn, LogOut, User as UserIcon, Car, LayoutDashboard, Users } from "lucide-react";
 import { Form } from "~/components/CSRFForm";
 import { userHasRole } from "~/utils/client/misc";
+import { NairaIcon } from "~/components/icons/NairaIcon";
 
 type MobileBottomNavProps = {
   readonly user: (User & { roles: Pick<Role, "name">[] }) | null;
@@ -116,10 +117,73 @@ export function MobileBottomNav({ user, appName, onProfileOpen }: MobileBottomNa
   if (user) {
     // Authenticated user navigation
     const isFleetOwner = userHasRole(user, "fleetOwner");
+    const isOwnerDriver = user.isOwnerDriver;
 
+    // Fleet owner specific routes
+    const isDashboardActive = location.pathname === "/fleet-owner";
+    const isCarsActive = location.pathname.startsWith("/fleet-owner/cars");
+    const isChauffeursActive = location.pathname.startsWith("/fleet-owner/chauffeurs");
+    const isFleetBookingsActive = location.pathname.startsWith("/fleet-owner/bookings");
+    const isPayoutActive = location.pathname.startsWith("/fleet-owner/payout-transactions");
+
+    // If fleet owner is on fleet-owner routes, show fleet-specific navigation
+    if (isFleetOwner && isFleetOwnerActive) {
+      return (
+        <div className="md:hidden fixed bottom-0 left-0 right-0 bg-background border-t border-border z-40">
+          <div className="absolute inset-x-0 top-0 h-8 bg-gradient-to-b from-background/0 to-background pointer-events-none -z-10" />
+          <div className="flex items-center justify-around max-w-full mx-auto px-2 pb-[env(safe-area-inset-bottom)] min-h-[56px] relative z-10">
+            <NavItem
+              to="/fleet-owner"
+              icon={<LayoutDashboard size={18} />}
+              label="Dashboard"
+              isActive={isDashboardActive}
+            />
+
+            <NavItem
+              to="/fleet-owner/cars"
+              icon={<Car size={18} />}
+              label="Cars"
+              isActive={isCarsActive}
+            />
+
+            {!isOwnerDriver && (
+              <NavItem
+                to="/fleet-owner/chauffeurs"
+                icon={<Users size={18} />}
+                label="Chauffeurs"
+                isActive={isChauffeursActive}
+              />
+            )}
+
+            <NavItem
+              to="/fleet-owner/bookings"
+              icon={<Calendar size={18} />}
+              label="Bookings"
+              isActive={isFleetBookingsActive}
+            />
+
+            <NavItem
+              to="/fleet-owner/payout-transactions"
+              icon={<NairaIcon size={18} />}
+              label="Payouts"
+              isActive={isPayoutActive}
+            />
+
+            <NavItem
+              icon={<UserIcon size={18} />}
+              label="Profile"
+              onClick={() => onProfileOpen?.()}
+            />
+          </div>
+        </div>
+      );
+    }
+
+    // Default navigation for all other users (including fleet owners on non-fleet routes)
     return (
       <div className="md:hidden fixed bottom-0 left-0 right-0 bg-background border-t border-border z-40">
-        <div className="flex items-center justify-around max-w-full mx-auto px-2 pb-[env(safe-area-inset-bottom)] min-h-[56px]">
+        <div className="absolute inset-x-0 top-0 h-8 bg-gradient-to-b from-background/0 to-background pointer-events-none -z-10" />
+        <div className="flex items-center justify-around max-w-full mx-auto px-2 pb-[env(safe-area-inset-bottom)] min-h-[56px] relative z-10">
           <NavItem to="/" icon={<Home size={18} />} label={appName} isActive={isHomeActive} />
 
           <NavItem
@@ -165,7 +229,8 @@ export function MobileBottomNav({ user, appName, onProfileOpen }: MobileBottomNa
   // Unauthenticated user navigation
   return (
     <div className="md:hidden fixed bottom-0 left-0 right-0 bg-background border-t border-border z-40">
-      <div className="flex items-center justify-center max-w-md mx-auto px-24 pb-[env(safe-area-inset-bottom)] min-h-[56px]">
+      <div className="absolute inset-x-0 top-0 h-8 bg-gradient-to-b from-background/0 to-background pointer-events-none -z-10" />
+      <div className="flex items-center justify-center max-w-md mx-auto px-24 pb-[env(safe-area-inset-bottom)] min-h-[56px] relative z-10">
         <NavItem to="/" icon={<Home size={18} />} label={appName} isActive={isHomeActive} />
 
         <NavItem to="/auth" icon={<LogIn size={18} />} label="Log in" />

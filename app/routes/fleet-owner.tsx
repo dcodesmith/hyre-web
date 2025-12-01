@@ -66,7 +66,7 @@ export default function Dashboard() {
   return (
     <>
       {!isOnboardingPage && (
-        <div className="relative">
+        <div className="relative hidden md:block">
           <ScrollArea className="max-w-[600px] lg:max-w-none">
             <nav className="mb-4 mt-4 flex items-center lg:mt-0">
               {filteredNavLinks.map((link) => (
@@ -80,7 +80,9 @@ export default function Dashboard() {
           </ScrollArea>
         </div>
       )}
-      <Outlet />
+      <div className="md:mt-0 mt-4">
+        <Outlet />
+      </div>
     </>
   );
 }

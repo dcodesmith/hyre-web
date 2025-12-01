@@ -1,9 +1,11 @@
-import { NowCard } from "./NowCard";
 import { EarningsSnapshot } from "./EarningsSnapshot";
-import { UpcomingTimeline } from "./UpcomingTimeline";
+import { UpcomingBookingsCard } from "./UpcomingTimeline";
 import { CarStatusCard } from "./CarStatusCard";
 import { NextPayoutCard } from "./NextPayoutCard";
 import { RecentActivity } from "./RecentActivity";
+import { PendingApprovalCard } from "./PendingApprovalCard";
+import { LiveBookingsCard } from "./LiveBookingsCard";
+import { PersonalDocumentsCard } from "./PersonalDocumentsCard";
 import type { OwnerDriverDashboardData } from "./types";
 import { format } from "date-fns";
 import { formatCurrency } from "~/lib/utils";
@@ -71,35 +73,49 @@ function WelcomeMessage({ name, activeBookingCount, weeklyEarnings }: WelcomeMes
 
 export function OwnerDriverDashboard({
   name,
-  currentOrNextBooking,
+  pendingApprovalBookings,
+  liveBookings,
   upcomingBookings,
   recentBookings,
+  personalDocuments,
   car,
   earnings,
   nextPayout,
 }: OwnerDriverDashboardData) {
-  const activeBookingCount = currentOrNextBooking?.status === "ACTIVE" ? 1 : 0;
+  const activeBookingCount = liveBookings.length;
 
   return (
-    <div className="@container/main space-y-6 p-4 md:p-6 max-w-7xl mx-auto">
+    <div className="@container/main space-y-6 p-2 md:p-6 max-w-7xl mx-auto">
       <WelcomeMessage
         name={name}
         activeBookingCount={activeBookingCount}
         weeklyEarnings={earnings.thisWeek.amount}
       />
 
-      <NowCard booking={currentOrNextBooking} todayEarnings={earnings.today} />
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <PendingApprovalCard bookings={pendingApprovalBookings} />
+
+        <LiveBookingsCard bookings={liveBookings} />
+
+        <UpcomingBookingsCard bookings={upcomingBookings} />
+      </div>
 
       <EarningsSnapshot earnings={earnings} />
 
-      <UpcomingTimeline bookings={upcomingBookings} />
-
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <CarStatusCard car={car} />
+        <RecentActivity bookings={recentBookings} />
+
         <NextPayoutCard payout={nextPayout} />
       </div>
 
-      <RecentActivity bookings={recentBookings} />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <CarStatusCard car={car} />
+        <PersonalDocumentsCard
+          documents={
+            personalDocuments || { nin: undefined, driversLicense: undefined, lasdri: undefined }
+          }
+        />
+      </div>
     </div>
   );
 }

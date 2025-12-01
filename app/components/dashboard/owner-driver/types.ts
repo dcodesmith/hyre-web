@@ -10,6 +10,7 @@ export interface CarInfo {
   readonly status: Status;
   readonly motCertificate?: DocumentApproval;
   readonly insuranceCertificate?: DocumentApproval;
+  readonly lasdriCertificate?: DocumentApproval;
 }
 
 export interface EarningsData {
@@ -31,11 +32,19 @@ export interface NextPayoutInfo {
   readonly scheduledDate: Date;
 }
 
+export interface PersonalDocuments {
+  readonly nin?: DocumentApproval;
+  readonly driversLicense?: DocumentApproval;
+  readonly lasdri?: DocumentApproval;
+}
+
 export interface OwnerDriverDashboardData {
   readonly name: string;
-  readonly currentOrNextBooking?: BookingWithRelations;
+  readonly pendingApprovalBookings: BookingWithRelations[];
+  readonly liveBookings: BookingWithRelations[];
   readonly upcomingBookings: BookingWithRelations[];
   readonly recentBookings: BookingWithRelations[];
+  readonly personalDocuments?: PersonalDocuments;
   readonly car?: CarInfo;
   readonly earnings: EarningsData;
   readonly nextPayout?: NextPayoutInfo;

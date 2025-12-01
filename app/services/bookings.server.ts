@@ -862,7 +862,7 @@ export async function cancelBooking(bookingId: string, reason: string) {
         user: true,
         chauffeur: true,
         legs: { include: { extensions: true } },
-        car: { include: { owner: true } },
+        car: { include: { owner: { include: { chauffeurs: true } } } },
       },
     });
 
@@ -1197,7 +1197,7 @@ export async function getUserBookings(email: string, isGuest = false) {
       chauffeur: true,
       legs: { include: { extensions: true } },
     },
-    orderBy: { createdAt: "desc" },
+    orderBy: { startDate: "asc" },
   });
 }
 
@@ -1235,7 +1235,7 @@ export async function getBooking(bookingId: string) {
     const booking = await prisma.booking.findUnique({
       where: { id: bookingId },
       include: {
-        car: { include: { owner: true } },
+        car: { include: { owner: { include: { chauffeurs: true } } } },
         chauffeur: true,
         user: true,
         legs: { include: { extensions: true } },

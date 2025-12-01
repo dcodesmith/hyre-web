@@ -1,3 +1,4 @@
+import { ArrowLeftIcon } from "@heroicons/react/24/outline";
 import type { Prisma, User as PrismaUser } from "@prisma/client";
 import { type ActionFunctionArgs, type LoaderFunctionArgs, data } from "@remix-run/node";
 import {
@@ -7,15 +8,13 @@ import {
   useNavigation,
   useSearchParams,
 } from "@remix-run/react";
-import { Decimal } from "@prisma/client/runtime/library";
-import { isSameDay } from "date-fns";
-import { format, toZonedTime } from "date-fns-tz";
 import { Calendar, CheckCircle, CreditCard, Loader2, MapPin, User } from "lucide-react";
 import { useEffect, useState } from "react";
 import invariant from "tiny-invariant";
 import { AutocompleteAddress } from "~/components/AutocompleteAddress";
-import { BookingTimeSelect } from "~/components/booking/BookingTimeSelect";
 import { Form } from "~/components/CSRFForm";
+import { BookingLegTimeline } from "~/components/booking/BookingLegTimeline";
+import { BookingTimeSelect } from "~/components/booking/BookingTimeSelect";
 import { Alert, AlertDescription } from "~/components/ui/alert";
 import { Avatar, AvatarFallback, AvatarImage } from "~/components/ui/avatar";
 import { Badge } from "~/components/ui/badge";
@@ -32,6 +31,7 @@ import {
 } from "~/components/ui/dialog";
 import { Label } from "~/components/ui/label";
 import { Separator } from "~/components/ui/separator";
+import { createPaymentSummary } from "~/lib/booking-utils";
 import logger from "~/lib/logger.server";
 import {
   formatCurrency,
@@ -54,7 +54,6 @@ import { refundPayment } from "~/services/payment.server";
 import { BookingLegWithRelations, BookingWithRelations } from "~/types";
 import { validateCSRF } from "~/utils/csrf-action.server";
 import { env } from "~/utils/server/env.server";
-import { ArrowLeftIcon } from "@heroicons/react/24/outline";
 
 type Booking = ReturnType<typeof useLoaderData<typeof loader>>["booking"];
 
@@ -197,7 +196,7 @@ async function handleBookingUpdate(
       data: updateData,
       include: {
         user: true,
-        car: { include: { owner: true } },
+        car: { include: { owner: { include: { chauffeurs: true } } } },
         chauffeur: true,
         legs: { include: { extensions: true } },
       },
@@ -435,244 +434,6 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 
   return data({ booking: serializedBooking, paymentSummary, extendableDuration }, { status: 200 });
 }
-
-function createPaymentSummary(booking: BookingWithRelations) {
-  // Use schema field names for clarity; map them from your original `netTotal` if different.
-  // Example: const baseBookingNetTotal = new Decimal(booking.netTotal ?? 0);
-  const baseBookingNetTotal = new Decimal(booking.netTotal ?? 0);
-  const baseBookingServiceFee = new Decimal(booking.platformCustomerServiceFeeAmount ?? 0);
-  const baseBookingVat = new Decimal(booking.vatAmount ?? 0);
-  const fuelUpgradeCost = new Decimal(booking.fuelUpgradeCost ?? 0);
-  const referralDiscountAmount = new Decimal(booking.referralDiscountAmount ?? 0);
-
-  // Step 1: Sum up the net total and duration from all active extensions.
-  // Using flatMap + reduce is more direct than nested reduce calls.
-  const extensionSummary = booking.legs
-    .flatMap((leg) => leg.extensions) // Get all extensions into a single array
-    // .filter(ext => ext.status !== 'CANCELLED') // Optional: Exclude cancelled extensions
-    .reduce(
-      (acc, ext) => {
-        // Using extension netTotal (sum of confirmed/paid extensions).
-        acc.netTotal = acc.netTotal.plus(ext.netTotal ?? 0);
-        acc.totalHours += ext.extendedDurationHours ?? 0;
-        return acc;
-      },
-      { netTotal: new Decimal(0), totalHours: 0 },
-    );
-
-  // If there are no extensions, return the base booking's summary.
-  if (extensionSummary.totalHours === 0) {
-    return {
-      netTotal: baseBookingNetTotal.toNumber(),
-      platformCustomerServiceFeeAmount: baseBookingServiceFee.toNumber(),
-      extensionNetTotal: new Decimal(0).toNumber(),
-      totalExtendedHours: new Decimal(0).toNumber(),
-      vatAmount: baseBookingVat.toNumber(),
-      fuelUpgradeCost: fuelUpgradeCost.toNumber(),
-      referralDiscountAmount: referralDiscountAmount.toNumber(),
-      totalAmount: new Decimal(booking.totalAmount ?? 0).toNumber(),
-    };
-  }
-
-  // Step 2: Calculate the service fee and VAT for the *extensions only*.
-  const feeRatePercent = new Decimal(booking.platformCustomerServiceFeeRatePercent ?? 0).div(100);
-  const vatRatePercent = new Decimal(booking.vatRatePercent ?? 0).div(100);
-
-  const extensionServiceFee = extensionSummary.netTotal.mul(feeRatePercent);
-  const extensionSubtotalBeforeVat = extensionSummary.netTotal.plus(extensionServiceFee);
-  const extensionVat = extensionSubtotalBeforeVat.mul(vatRatePercent);
-
-  // Step 3: Calculate the final grand totals by ADDING the base and extension components.
-  const finalServiceFee = baseBookingServiceFee.plus(extensionServiceFee);
-  const finalVat = baseBookingVat.plus(extensionVat);
-  const finalNetTotal = baseBookingNetTotal.plus(extensionSummary.netTotal);
-  const finalGrossTotal = finalNetTotal.plus(finalServiceFee).plus(finalVat);
-
-  // Step 4: Return the final summary object, matching your original structure.
-  return {
-    netTotal: baseBookingNetTotal.toNumber(),
-    platformCustomerServiceFeeAmount: finalServiceFee.toNumber(),
-    extensionNetTotal: extensionSummary.netTotal.toNumber(),
-    totalExtendedHours: new Decimal(extensionSummary.totalHours).toNumber(),
-    vatAmount: finalVat.toNumber(),
-    fuelUpgradeCost: fuelUpgradeCost.toNumber(),
-    referralDiscountAmount: referralDiscountAmount.toNumber(),
-    totalAmount: finalGrossTotal.toNumber(),
-  };
-}
-
-const TimePointRow = ({
-  label,
-  timeText,
-  labelColorClassWhenStarted,
-  isLegStarted,
-}: {
-  label: string;
-  timeText: string;
-  labelColorClassWhenStarted: string;
-  isLegStarted: boolean;
-}) => (
-  <div>
-    <div className="flex items-center gap-2 mb-1">
-      <span
-        className={`text-sm font-medium ${
-          isLegStarted ? labelColorClassWhenStarted : "text-slate-400"
-        }`}
-      >
-        {label}
-      </span>
-      <Badge
-        variant="outline"
-        className={`text-sm font-semibold rounded-sm ${
-          isLegStarted ? "" : "border-slate-200 text-slate-400"
-        }`}
-      >
-        {timeText}
-      </Badge>
-    </div>
-  </div>
-);
-
-const BookingLegTimeline = ({
-  leg,
-  index,
-  booking,
-}: {
-  leg: BookingLegWithRelations;
-  index: number;
-  booking: BookingWithRelations;
-}) => {
-  const LAGOS_TZ = "Africa/Lagos";
-
-  // Convert dates to Lagos timezone for consistent display
-  const legDate = toZonedTime(new Date(leg.legDate), LAGOS_TZ);
-  const legEndTime = toZonedTime(new Date(leg.legEndTime), LAGOS_TZ);
-  const legStartTime = toZonedTime(new Date(leg.legStartTime), LAGOS_TZ);
-  const bookingEndDateObject = toZonedTime(new Date(booking.endDate), LAGOS_TZ);
-  const now = toZonedTime(new Date(), LAGOS_TZ);
-
-  // --- Status Flags ---
-  // Defines if the leg is active right now, on today's date
-  const isLegStarted = isSameDay(legDate, now) && now >= legStartTime && now < legEndTime;
-  // Defines if the leg's scheduled end time has passed
-  const isLegCompleted = now >= legEndTime;
-  // Logic for "Upcoming" status assigned to a variable:
-  // A leg is "Upcoming" for the badge if it's not 'isLegStarted' and not 'isLegCompleted'.
-  const isLegUpcoming = !isLegStarted && !isLegCompleted;
-
-  // --- Extended Duration ---
-  const extendedDuration = leg.extensions.reduce(
-    (acc, { extendedDurationHours }) => acc + extendedDurationHours,
-    0,
-  );
-
-  const statusBadge = (() => {
-    if (booking.status === "CANCELLED") {
-      return { text: "Cancelled", styleClass: "bg-red-50 text-red-700 border-red-200" };
-    }
-
-    if (isLegStarted) {
-      return { text: "Active", styleClass: "bg-blue-50 text-blue-700 border-blue-200" };
-    }
-
-    if (isLegCompleted) {
-      return { text: "Completed", styleClass: "bg-green-50 text-green-700 border-green-200" };
-    }
-
-    if (isLegUpcoming) {
-      return { text: "Upcoming", styleClass: "bg-slate-50 text-slate-700 border-slate-200" };
-    }
-
-    console.error("BookingLegTimeline: Unreachable status condition for badge determination.");
-    return { text: "Error", styleClass: "bg-red-50 text-red-700 border-red-200" };
-  })();
-
-  const getReturnTimeText = () => {
-    if (extendedDuration > 0) {
-      return `${format(legEndTime, "h:mm a")} (Extended)`;
-    }
-    return format(legEndTime, "h:mm a");
-  };
-
-  const getFullDayReturnText = () => {
-    if (extendedDuration > 0) {
-      return `${format(legEndTime, "h:mm a - MMM do")} (Extended)`;
-    }
-    return format(legEndTime, "h:mm a - MMM do");
-  };
-
-  const getServiceTypeText = () => {
-    if (booking.type === "FULL_DAY") return "Standard 24-hour service";
-    if (booking.type === "NIGHT") return "Standard 6-hour service";
-    return "Standard 12-hour service";
-  };
-
-  return (
-    <div key={leg.id} className="space-y-3">
-      <div className="flex items-center gap-2">
-        <h4
-          className={`text-sm font-semibold ${isLegStarted ? "text-slate-700" : "text-slate-400"}`}
-        >
-          Day {index + 1} - {format(legDate, "EEEE, MMMM do, yyyy")}
-        </h4>
-        <Badge variant="outline" className={`text-xs rounded-sm ${statusBadge.styleClass}`}>
-          {statusBadge.text}
-        </Badge>
-      </div>
-
-      <div className="flex items-start gap-4">
-        <div className="flex flex-col mt-1 items-center">
-          <div
-            className={`w-3 h-3 rounded-full ${isLegStarted ? "bg-green-500" : "bg-slate-300"}`}
-          />
-          <div className={`w-px h-8 ${isLegStarted ? "bg-slate-200" : "bg-slate-100"}`} />
-          <div className={`w-3 h-3 rounded-full ${isLegStarted ? "bg-red-500" : "bg-slate-300"}`} />
-        </div>
-
-        <div className="flex-1 space-y-3">
-          <TimePointRow
-            label="Pickup"
-            timeText={
-              booking.type === "FULL_DAY"
-                ? format(legStartTime, "h:mm a - MMM do")
-                : format(legStartTime, "h:mm a")
-            }
-            labelColorClassWhenStarted="text-green-600"
-            isLegStarted={isLegStarted}
-          />
-          <TimePointRow
-            label="Return"
-            timeText={booking.type === "FULL_DAY" ? getFullDayReturnText() : getReturnTimeText()}
-            labelColorClassWhenStarted="text-red-600"
-            isLegStarted={isLegStarted}
-          />
-        </div>
-      </div>
-
-      {extendedDuration > 0 && booking.type === "DAY" ? (
-        <Alert
-          className={`${
-            isLegStarted ? "border-amber-200 bg-amber-50" : "border-slate-200 bg-slate-100"
-          } rounded-sm`}
-        >
-          <AlertDescription
-            className={`text-sm ${isLegStarted ? "text-amber-800" : "text-slate-600 line-through"}`}
-          >
-            Your drop-off time
-            {isLegStarted ? " has been" : " was"} extended by {extendedDuration}{" "}
-            {extendedDuration === 1 ? "hour" : "hours"} from {format(bookingEndDateObject, "p")} to{" "}
-            {format(legEndTime, "p")}
-          </AlertDescription>
-        </Alert>
-      ) : (
-        <p className={`text-sm ${isLegStarted ? "text-slate-600" : "text-slate-400"}`}>
-          {getServiceTypeText()}
-        </p>
-      )}
-      {index < booking.legs.length - 1 && <Separator />}
-    </div>
-  );
-};
 
 function BookingHeader({ booking }: { booking: Booking }) {
   const getPaymentStatusClass = () => {
@@ -994,14 +755,17 @@ export default function BookingDetails() {
                       </span>
                     </div>
                   )}
-                  {Number(booking.referralCreditsReserved) > 0 && booking.paymentStatus !== "PAID" && (
-                    <div className="flex justify-between">
-                      <span className="text-sm text-orange-600">Referral Credits (Pending Payment)</span>
-                      <span className="text-sm font-medium text-orange-600">
-                        -{formatCurrency(Number(booking.referralCreditsReserved))}
-                      </span>
-                    </div>
-                  )}
+                  {Number(booking.referralCreditsReserved) > 0 &&
+                    booking.paymentStatus !== "PAID" && (
+                      <div className="flex justify-between">
+                        <span className="text-sm text-orange-600">
+                          Referral Credits (Pending Payment)
+                        </span>
+                        <span className="text-sm font-medium text-orange-600">
+                          -{formatCurrency(Number(booking.referralCreditsReserved))}
+                        </span>
+                      </div>
+                    )}
                   {Number(paymentSummary.platformCustomerServiceFeeAmount) > 0 && (
                     <div className="flex justify-between">
                       <span className="text-sm text-slate-600">
@@ -1014,7 +778,7 @@ export default function BookingDetails() {
                   )}
                   <div className="flex justify-between">
                     <span className="text-sm text-slate-600">
-                      VAT ({booking.vatRatePercent.toString()}%)
+                      VAT ({paymentSummary.vatRatePercent}%)
                     </span>
                     <span className="text-sm font-medium">
                       {formatCurrency(Number(paymentSummary.vatAmount))}

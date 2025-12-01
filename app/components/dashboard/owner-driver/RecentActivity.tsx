@@ -5,13 +5,15 @@ import { Button } from "~/components/ui/button";
 import { formatCurrency } from "~/lib/utils";
 import type { BookingWithRelations } from "~/types";
 import { formatDistanceToNow, format } from "date-fns";
+import { toZonedTime } from "date-fns-tz";
+import { LAGOS_TIMEZONE } from "~/utils/timezone";
 
 interface RecentActivityProps {
   readonly bookings: BookingWithRelations[];
 }
 
 function ActivityItem({ booking }: { readonly booking: BookingWithRelations }) {
-  const endDate = new Date(booking.endDate);
+  const endDate = toZonedTime(new Date(booking.endDate), LAGOS_TIMEZONE);
   const timeAgo = formatDistanceToNow(endDate, { addSuffix: true });
   const dateLabel = format(endDate, "MMM d");
 
@@ -43,7 +45,7 @@ function ActivityItem({ booking }: { readonly booking: BookingWithRelations }) {
             <Clock className="h-3 w-3" />
             <span>{dateLabel}</span>
             <span>•</span>
-            <span>{timeAgo}</span>
+            <span suppressHydrationWarning>{timeAgo}</span>
           </div>
         </div>
 

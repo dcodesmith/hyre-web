@@ -15,14 +15,18 @@ export async function isCarAvailable(carId: string, startDate: Date, endDate: Da
     throw new Error("startDate must be before endDate");
   }
 
-  // First check if the car exists and is available
+  // Check if the car exists and is approved (don't check status - car can be BOOKED but still available for other time slots)
   const car = await prisma.car.findUnique({
-    where: { id: carId, status: Status.AVAILABLE },
+    where: {
+      id: carId,
+      approvalStatus: CarApprovalStatus.APPROVED, // Must be approved
+      // Don't filter by status - a car with status BOOKED can still be available for non-overlapping times
+    },
     select: { id: true, status: true },
   });
 
   if (!car) {
-    throw new Error("Car not found");
+    throw new Error("Car not found or not approved");
   }
 
   // Use a count query instead of fetching all bookings for better performance

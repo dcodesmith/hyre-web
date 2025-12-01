@@ -5,13 +5,138 @@ import { format } from "date-fns";
 import invariant from "tiny-invariant";
 import { ChauffeurSection } from "~/components/booking/ChauffeurSection";
 import logger from "~/lib/logger.server";
-import { formatCurrency, getCustomerDetails, normaliseBookingDetails } from "~/lib/utils";
+import {
+  formatCurrency,
+  getCustomerDetails,
+  normaliseBookingDetails,
+  NormalisedBookingDetails,
+} from "~/lib/utils";
 import { requireUser } from "~/modules/auth/auth.server";
 import { prisma } from "~/modules/db/db.server";
 import { sendEmail } from "~/modules/email/email.server";
 import { renderChauffeurAssignedEmail } from "~/modules/email/templates/booking-notification";
 import { Template, sendMessage } from "~/modules/messaging/messaging.server";
+import { BookingWithRelations } from "~/types";
 import { validateCSRF } from "~/utils/csrf-action.server";
+
+async function checkTimeConflicts(
+  chauffeurId: string,
+  bookingId: string,
+  startDate: Date,
+  endDate: Date,
+): Promise<boolean> {
+  const conflictingBookings = await prisma.booking.count({
+    where: {
+      chauffeurId,
+      status: { in: [BookingStatus.CONFIRMED, BookingStatus.ACTIVE] },
+      id: { not: bookingId },
+      startDate: { lte: endDate },
+      endDate: { gte: startDate },
+    },
+  });
+  return conflictingBookings > 0;
+}
+
+async function validateOwnerDriverAssignment(
+  chauffeurId: string,
+  carId: string,
+): Promise<{ valid: boolean; error?: string }> {
+  const ownerDriver = await prisma.user.findFirst({
+    where: {
+      id: chauffeurId,
+      isOwnerDriver: true,
+      cars: { some: { id: carId } },
+    },
+  });
+
+  if (!ownerDriver) {
+    return {
+      valid: false,
+      error: "You do not own this car or are not registered as an owner-driver",
+    };
+  }
+  return { valid: true };
+}
+
+async function validateChauffeurAssignment(
+  chauffeurId: string,
+  fleetOwnerId: string,
+): Promise<{ valid: boolean; error?: string }> {
+  const validChauffeur = await prisma.user.findFirst({
+    where: {
+      id: chauffeurId,
+      fleetOwnerId,
+      roles: { some: { name: "chauffeur" } },
+    },
+  });
+
+  if (!validChauffeur) {
+    return { valid: false, error: "Invalid chauffeur for this booking" };
+  }
+  return { valid: true };
+}
+
+async function sendBookingNotifications(
+  booking: BookingWithRelations,
+  bookingDetails: NormalisedBookingDetails,
+  email: string,
+  isOwnerDriverSelfAssignment: boolean,
+): Promise<void> {
+  try {
+    if (bookingDetails.customerPhoneNumber) {
+      await sendMessage({
+        templateKey: Template.ChauffeurAssigned,
+        to: bookingDetails.customerPhoneNumber,
+        variables: {
+          "1": bookingDetails.customerName,
+          "2": bookingDetails.carName,
+          "3": bookingDetails.chauffeurName,
+          "4": bookingDetails.chauffeurPhoneNumber,
+          "5": bookingDetails.startDate,
+          "6": bookingDetails.endDate,
+          "7": bookingDetails.pickupLocation,
+          "8": bookingDetails.returnLocation,
+          "9": bookingDetails.totalAmount,
+        },
+      });
+    }
+  } catch (error) {
+    logger.error("Failed to send customer SMS notification", { error, bookingId: booking.id });
+  }
+
+  try {
+    const chauffeurPhone = booking.chauffeur?.phoneNumber;
+    if (chauffeurPhone && !isOwnerDriverSelfAssignment) {
+      await sendMessage({
+        templateKey: Template.ChauffeurBookingNotification,
+        to: chauffeurPhone,
+        variables: {
+          "1": bookingDetails.chauffeurName,
+          "2": bookingDetails.carName,
+          "3": bookingDetails.startDate,
+          "4": bookingDetails.endDate,
+          "5": bookingDetails.pickupLocation,
+          "6": bookingDetails.returnLocation,
+        },
+      });
+    }
+  } catch (error) {
+    logger.error("Failed to send chauffeur SMS notification", { error, bookingId: booking.id });
+  }
+
+  try {
+    await sendEmail({
+      to: email,
+      subject: "A chauffeur has been assigned to your booking",
+      html: await renderChauffeurAssignedEmail(bookingDetails),
+    });
+  } catch (error) {
+    logger.error("Failed to send customer email notification for chauffeur assignment", {
+      error,
+      bookingId: booking.id,
+    });
+  }
+}
 
 export const action = async ({ request, params }: ActionFunctionArgs) => {
   await validateCSRF(request);
@@ -46,19 +171,33 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
       return data({ error: "Booking does not belong to this fleet owner" }, { status: 403 });
     }
 
-    const validChauffeur = await prisma.user.findFirst({
-      where: {
-        id: chauffeurId,
-        fleetOwnerId: existing.car.ownerId,
-        roles: { some: { name: "chauffeur" } },
-        bookingsAsChauffeur: {
-          none: { status: { in: [BookingStatus.CONFIRMED, BookingStatus.ACTIVE] } },
-        },
-      },
-    });
+    const isOwnerDriverSelfAssignment = chauffeurId === existing.car.ownerId;
 
-    if (!validChauffeur) {
-      return data({ error: "Invalid chauffeur for this booking" }, { status: 400 });
+    // Validate eligibility FIRST (before checking conflicts for clearer error messages)
+    if (isOwnerDriverSelfAssignment) {
+      const validation = await validateOwnerDriverAssignment(chauffeurId, existing.carId);
+      if (!validation.valid) {
+        return data({ error: validation.error }, { status: 400 });
+      }
+    } else {
+      const validation = await validateChauffeurAssignment(chauffeurId, existing.car.ownerId);
+      if (!validation.valid) {
+        return data({ error: validation.error }, { status: 400 });
+      }
+    }
+
+    // Check for time conflicts AFTER eligibility validation
+    const hasConflicts = await checkTimeConflicts(
+      chauffeurId,
+      params.id,
+      existing.startDate,
+      existing.endDate,
+    );
+    if (hasConflicts) {
+      return data(
+        { error: "This chauffeur has a conflicting booking during this time" },
+        { status: 400 },
+      );
     }
 
     const booking = await prisma.booking.update({
@@ -72,51 +211,9 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
       },
     });
 
-    if (!booking) {
-      return data({ error: "Booking not found" }, { status: 404 });
-    }
-
     const { email } = getCustomerDetails(booking);
     const bookingDetails = normaliseBookingDetails(booking);
-
-    if (bookingDetails.customerPhoneNumber) {
-      await sendMessage({
-        templateKey: Template.ChauffeurAssigned,
-        to: bookingDetails.customerPhoneNumber,
-        variables: {
-          "1": bookingDetails.customerName,
-          "2": bookingDetails.carName,
-          "3": bookingDetails.chauffeurName,
-          "4": bookingDetails.chauffeurPhoneNumber,
-          "5": bookingDetails.startDate,
-          "6": bookingDetails.endDate,
-          "7": bookingDetails.pickupLocation,
-          "8": bookingDetails.returnLocation,
-          "9": bookingDetails.totalAmount,
-        },
-      });
-    }
-
-    if (booking.chauffeur?.phoneNumber) {
-      await sendMessage({
-        templateKey: Template.ChauffeurBookingNotification,
-        to: booking.chauffeur.phoneNumber,
-        variables: {
-          "1": bookingDetails.chauffeurName,
-          "2": bookingDetails.carName,
-          "3": bookingDetails.startDate,
-          "4": bookingDetails.endDate,
-          "5": bookingDetails.pickupLocation,
-          "6": bookingDetails.returnLocation,
-        },
-      });
-    }
-
-    await sendEmail({
-      to: email,
-      subject: "A chauffeur has been assigned to your booking",
-      html: await renderChauffeurAssignedEmail(bookingDetails),
-    });
+    await sendBookingNotifications(booking, bookingDetails, email, isOwnerDriverSelfAssignment);
 
     return redirect("/fleet-owner");
   } catch (error) {

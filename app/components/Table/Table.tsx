@@ -85,7 +85,7 @@ export function Table<T extends object>({
                 <AdjustmentsVerticalIcon className="h-5 w-5" />
               </div>
             )}
-            <div className="flex gap-2 w-full">
+            <div className="flex flex-col sm:flex-row gap-2 w-full">
               {filterableColumns.map((column) => (
                 <FacetedFilter
                   key={column.id}

@@ -42,7 +42,7 @@ import {
   getBookingsByStatus,
   calculateBookingCost,
 } from "~/services/bookings.server";
-import { isCarAvailable } from "~/services/cars.server";
+import { availableCarsForSpecificRequest } from "~/services/availability-engine.server";
 import { createPaymentIntent } from "~/services/payment.server";
 import { env } from "~/utils/server/env.server";
 import { useAuthenticityToken } from "remix-utils/csrf/react";
@@ -207,9 +207,32 @@ export async function action({ request }: ActionFunctionArgs) {
       return data({ error: "Car not found" }, { status: 404 });
     }
 
-    // Check car availability before proceeding
-    const carIsAvailable = await isCarAvailable(carId, startDateTime, endDateTime);
-    if (!carIsAvailable) {
+    // Check car availability before proceeding using the same logic as search
+    // This ensures consistency between what users see in search and what they can book
+    const existingBookings = await prisma.booking.findMany({
+      where: {
+        carId,
+        paymentStatus: "PAID",
+        status: { in: ["CONFIRMED", "ACTIVE"] },
+      },
+      select: {
+        id: true,
+        carId: true,
+        startDate: true,
+        endDate: true,
+        status: true,
+        type: true,
+        paymentStatus: true,
+      },
+    });
+
+    const availableCarIds = availableCarsForSpecificRequest([car], existingBookings, {
+      bookingType: bookingType as BookingType,
+      from: startDateTime,
+      to: endDateTime,
+    });
+
+    if (availableCarIds.length === 0) {
       return data(
         {
           error:
@@ -447,12 +470,17 @@ export default function BookingsPage() {
                             </h3>
                             <div className="text-sm text-pretty text-gray-600 space-y-1">
                               <p className="sm:block hidden">
-                                {format(toZonedTime(new Date(booking.startDate), LAGOS_TZ), "PPPp")} to{" "}
+                                {format(toZonedTime(new Date(booking.startDate), LAGOS_TZ), "PPPp")}{" "}
+                                to{" "}
                                 {format(toZonedTime(new Date(booking.endDate), LAGOS_TZ), "PPPp")}
                               </p>
 
-                              <p className="sm:hidden block">{format(toZonedTime(new Date(booking.startDate), LAGOS_TZ), "PPPp")}</p>
-                              <p className="sm:hidden block">{format(toZonedTime(new Date(booking.endDate), LAGOS_TZ), "PPPp")}</p>
+                              <p className="sm:hidden block">
+                                {format(toZonedTime(new Date(booking.startDate), LAGOS_TZ), "PPPp")}
+                              </p>
+                              <p className="sm:hidden block">
+                                {format(toZonedTime(new Date(booking.endDate), LAGOS_TZ), "PPPp")}
+                              </p>
 
                               <p className="text-pretty text-sm font-semibold">
                                 {formatCurrency(Number(booking.totalAmount))}

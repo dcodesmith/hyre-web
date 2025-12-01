@@ -1,15 +1,15 @@
 import { Link } from "@remix-run/react";
 import { differenceInHours, differenceInMinutes, format } from "date-fns";
-import { CheckCircle2, Clock, DollarSign, ExternalLink, MapPin, Phone, User } from "lucide-react";
+import { toZonedTime } from "date-fns-tz";
+import { CheckCircle2, Clock, ExternalLink, MapPin, Phone, User } from "lucide-react";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
-import { formatCurrency } from "~/lib/utils";
+import { Card, CardContent, CardHeader } from "~/components/ui/card";
 import type { BookingWithRelations } from "~/types";
+import { LAGOS_TIMEZONE } from "~/utils/timezone";
 
 interface NowCardProps {
   readonly booking?: BookingWithRelations;
-  readonly todayEarnings: number;
 }
 
 function EmptyNowCard() {
@@ -46,13 +46,15 @@ function getTimeRemaining(endDate: Date): string {
   return `${hours}h ${minutes}min`;
 }
 
-export function NowCard({ booking, todayEarnings }: NowCardProps) {
+export function NowCard({ booking }: NowCardProps) {
   if (!booking) {
     return <EmptyNowCard />;
   }
 
   const isActive = booking.status === "ACTIVE";
-  const timeRemaining = getTimeRemaining(new Date(booking.endDate));
+  const startDate = toZonedTime(new Date(booking.startDate), LAGOS_TIMEZONE);
+  const endDate = toZonedTime(new Date(booking.endDate), LAGOS_TIMEZONE);
+  const timeRemaining = getTimeRemaining(endDate);
 
   // Handle guestUser as JSON field
   const guestUser = booking.guestUser as { email?: string; phoneNumber?: string } | null;
@@ -62,11 +64,7 @@ export function NowCard({ booking, todayEarnings }: NowCardProps) {
   return (
     <Card className="border-blue-200 bg-gradient-to-br from-blue-50/50 to-white dark:from-blue-950/20 dark:to-background">
       <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-2">
-            <div className="h-2 w-2 rounded-full bg-blue-500 animate-pulse" />
-            Right Now
-          </CardTitle>
+        <div className="flex items-center justify-end">
           <Button asChild variant="ghost" size="sm">
             <Link to={`/fleet-owner/bookings/${booking.id}`}>
               <span className="sr-only">View details</span>
@@ -85,7 +83,7 @@ export function NowCard({ booking, todayEarnings }: NowCardProps) {
           <span className="text-sm font-medium text-blue-600 dark:text-blue-400">
             {isActive
               ? `Ends in ${timeRemaining}`
-              : `Starts ${format(new Date(booking.startDate), "MMM d, h:mm a")}`}
+              : `Starts ${format(startDate, "MMM d, h:mm a")}`}
           </span>
         </div>
 
@@ -128,8 +126,8 @@ export function NowCard({ booking, todayEarnings }: NowCardProps) {
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Clock className="h-4 w-4" />
             <span>
-              {format(new Date(booking.startDate), "MMM d, h:mm a")} -{" "}
-              {format(new Date(booking.endDate), "MMM d, h:mm a")}
+              {format(startDate, "MMM d, h:mm a")} -{" "}
+              {format(endDate, "MMM d, h:mm a")}
             </span>
           </div>
         </div>
@@ -139,23 +137,6 @@ export function NowCard({ booking, todayEarnings }: NowCardProps) {
           <p className="text-xs text-muted-foreground">
             Ref: <span className="font-mono">{booking.bookingReference}</span>
           </p>
-        </div>
-
-        {/* Today's Earnings */}
-        <div className="rounded-lg bg-green-50 dark:bg-green-950/20 p-4 border border-green-200 dark:border-green-900">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-medium text-green-700 dark:text-green-400 uppercase tracking-wide mb-1">
-                Today's Earnings
-              </p>
-              <p className="text-2xl md:text-3xl font-bold text-green-900 dark:text-green-50">
-                {formatCurrency(todayEarnings)}
-              </p>
-            </div>
-            <div className="rounded-full bg-green-100 dark:bg-green-900/30 p-3">
-              <DollarSign className="h-6 w-6 text-green-600 dark:text-green-400" />
-            </div>
-          </div>
         </div>
       </CardContent>
     </Card>
