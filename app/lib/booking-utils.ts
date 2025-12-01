@@ -1,9 +1,10 @@
 import {
   differenceInCalendarDays,
-  differenceInDays,
   differenceInHours,
   differenceInMinutes,
   isAfter,
+  isSameDay,
+  startOfDay,
 } from "date-fns";
 import { toZonedTime } from "date-fns-tz";
 import type { BookingWithRelations } from "~/types";
@@ -200,4 +201,162 @@ export function getTimeUntilBooking(booking: BookingWithRelations): string | nul
   }
 
   return `${minutes}min`;
+}
+
+/**
+ * Calculates the time remaining for a live booking, considering the current leg and any subsequent legs.
+ *
+ * For live bookings, this function:
+ * - Finds today's leg (the leg that falls on the current day in Lagos timezone)
+ * - If today's leg is still active, returns the time remaining until it ends
+ * - If today's leg has ended and there's a next leg, returns the time until the next leg starts
+ * - If today's leg has ended and there's no next leg, indicates the booking has ended
+ *
+ * All time calculations are performed in Lagos timezone (Africa/Lagos) for consistency.
+ *
+ * @param booking - The booking with relations, including legs and extensions
+ * @returns An object containing:
+ *   - `time`: Formatted time string (e.g., "2h 30min", "45min", or "Ended")
+ *   - `isNextLeg`: `true` if the time represents time until the next leg starts, `false` otherwise
+ *   - `isEnded`: `true` if the booking has completely ended (no more legs), `false` otherwise
+ *
+ * Returns `null` if:
+ *   - The booking has no legs
+ *   - No leg is found for today's date
+ *
+ * @example
+ * // Active leg with 2 hours remaining
+ * getTimeRemainingForLiveBooking(booking)
+ * // => { time: "2h 0min", isNextLeg: false, isEnded: false }
+ *
+ * // Today's leg ended, next leg starts in 3 hours
+ * getTimeRemainingForLiveBooking(booking)
+ * // => { time: "3h 0min", isNextLeg: true, isEnded: false }
+ *
+ * // All legs completed
+ * getTimeRemainingForLiveBooking(booking)
+ * // => { time: "Ended", isNextLeg: false, isEnded: true }
+ */
+export function getTimeRemainingForLiveBooking(
+  booking: BookingWithRelations,
+): { time: string; isNextLeg: boolean; isEnded: boolean } | null {
+  if (!booking.legs || booking.legs.length === 0) {
+    return null;
+  }
+
+  let time: string;
+
+  const now = toZonedTime(new Date(), LAGOS_TIMEZONE);
+  const today = startOfDay(now);
+
+  // Sort legs by start time to ensure correct order
+  const sortedLegs = [...booking.legs].sort((a, b) => {
+    const aStart = new Date(a.legStartTime).getTime();
+    const bStart = new Date(b.legStartTime).getTime();
+    return aStart - bStart;
+  });
+
+  // Find today's leg
+  const todaysLegIndex = sortedLegs.findIndex((leg) => {
+    const legDate = toZonedTime(new Date(leg.legDate), LAGOS_TIMEZONE);
+    return isSameDay(legDate, today);
+  });
+
+  if (todaysLegIndex === -1) {
+    return null;
+  }
+
+  const todaysLeg = sortedLegs[todaysLegIndex];
+
+  // Get effective end time considering extensions
+  const effectiveEndTime = getEffectiveLegEndTime(todaysLeg);
+  const endTimeZoned = toZonedTime(effectiveEndTime, LAGOS_TIMEZONE);
+
+  // If today's leg has ended, check for next leg
+  if (endTimeZoned <= now) {
+    // Check if there's a next leg
+    const nextLeg = sortedLegs[todaysLegIndex + 1];
+    if (nextLeg) {
+      // Calculate time until next leg starts
+      const nextLegStartTime = toZonedTime(new Date(nextLeg.legStartTime), LAGOS_TIMEZONE);
+      const hours = differenceInHours(nextLegStartTime, now);
+      const minutes = differenceInMinutes(nextLegStartTime, now) % 60;
+
+      if (hours < 1) {
+        time = `${minutes}min`;
+      } else {
+        time = `${hours}h ${minutes}min`;
+      }
+      return { time, isNextLeg: true, isEnded: false };
+    }
+    // No next leg, booking has ended
+    return { time: "Ended", isNextLeg: false, isEnded: true };
+  }
+
+  // Today's leg is still active, show time remaining
+  const hours = differenceInHours(endTimeZoned, now);
+  const minutes = differenceInMinutes(endTimeZoned, now) % 60;
+
+  // let timeStr: string;
+  if (hours < 1) {
+    time = `${minutes}min`;
+  } else {
+    time = `${hours}h ${minutes}min`;
+  }
+  return { time, isNextLeg: false, isEnded: false };
+}
+
+/**
+ * Calculates the effective end time of a booking leg, taking into account any active extensions.
+ *
+ * A leg's effective end time is the later of:
+ * - The leg's original end time
+ * - The latest end time from any active extensions (status: "CONFIRMED" or "ACTIVE")
+ *
+ * This ensures that if a booking has been extended, the effective end time reflects
+ * the extended duration rather than the original end time.
+ *
+ * @param leg - The booking leg object containing:
+ *   - `legEndTime`: The original end time of the leg
+ *   - `extensions`: Array of extension objects, each with:
+ *     - `status`: Extension status (only "CONFIRMED" or "ACTIVE" are considered)
+ *     - `extensionEndTime`: The end time of the extension
+ *
+ * @returns The effective end time as a Date object. If no active extensions exist or
+ *   all extension end times are before the original leg end time, returns the original
+ *   leg end time. Otherwise, returns the latest extension end time.
+ *
+ * @example
+ * // Leg ends at 6pm, no extensions
+ * getEffectiveLegEndTime({ legEndTime: new Date("2024-01-01T18:00:00Z"), extensions: [] })
+ * // => Date("2024-01-01T18:00:00Z")
+ *
+ * // Leg ends at 6pm, extension until 8pm
+ * getEffectiveLegEndTime({
+ *   legEndTime: new Date("2024-01-01T18:00:00Z"),
+ *   extensions: [{ status: "ACTIVE", extensionEndTime: new Date("2024-01-01T20:00:00Z") }]
+ * })
+ * // => Date("2024-01-01T20:00:00Z")
+ */
+export function getEffectiveLegEndTime(leg: {
+  legEndTime: Date;
+  extensions: Array<{ status: string; extensionEndTime: Date }>;
+}): Date {
+  let effectiveEndTime = new Date(leg.legEndTime);
+  const activeExtensionStatuses = new Set(["CONFIRMED", "ACTIVE"]);
+
+  const activeExtensions = leg.extensions.filter((ext) => activeExtensionStatuses.has(ext.status));
+
+  if (activeExtensions.length > 0) {
+    const latestExtensionEndTime = activeExtensions.reduce((latestDate, currentExt) => {
+      const currentEndTime = new Date(currentExt.extensionEndTime);
+      return new Date(Math.max(currentEndTime.getTime(), latestDate.getTime()));
+    }, new Date(0));
+
+    if (latestExtensionEndTime.getTime() > effectiveEndTime.getTime()) {
+      effectiveEndTime = latestExtensionEndTime;
+    }
+  }
+
+  return effectiveEndTime;
 }

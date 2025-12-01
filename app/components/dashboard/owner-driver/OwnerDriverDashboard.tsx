@@ -9,21 +9,24 @@ import { PersonalDocumentsCard } from "./PersonalDocumentsCard";
 import type { OwnerDriverDashboardData } from "./types";
 import { format } from "date-fns";
 import { formatCurrency } from "~/lib/utils";
-
+import { toZonedTime } from "date-fns-tz";
+import { LAGOS_TIMEZONE } from "~/utils/timezone";
 interface WelcomeMessageProps {
   readonly name: string;
   readonly activeBookingCount: number;
   readonly weeklyEarnings: number;
 }
 
-function WelcomeMessage({ name, activeBookingCount, weeklyEarnings }: WelcomeMessageProps) {
-  const greeting = (() => {
-    const hour = new Date().getHours();
-    if (hour < 12) return "Good morning";
-    if (hour < 18) return "Good afternoon";
-    return "Good evening";
-  })();
+function getGreeting() {
+  const lagosNow = toZonedTime(new Date(), LAGOS_TIMEZONE);
+  const hour = lagosNow.getHours();
+  if (hour < 12) return "Good morning";
+  if (hour < 18) return "Good afternoon";
+  return "Good evening";
+}
 
+function WelcomeMessage({ name, activeBookingCount, weeklyEarnings }: WelcomeMessageProps) {
+  const greeting = getGreeting();
   const today = format(new Date(), "EEEE, MMMM d");
 
   return (

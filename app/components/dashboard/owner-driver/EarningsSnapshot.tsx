@@ -12,7 +12,7 @@ interface EarningsCardProps {
 
 function EarningsCard({ label, amount, subtitle, icon }: EarningsCardProps) {
   return (
-    <Card className="@container/card bg-gradient-to-t from-primary/5 to-card shadow-xs dark:bg-card">
+    <Card className="@container/card rounded-sm bg-gradient-to-t from-primary/5 to-card shadow-xs dark:bg-card">
       <CardHeader className="relative">
         <CardDescription>{label}</CardDescription>
         <CardTitle className="@[250px]/card:text-3xl text-2xl font-semibold tabular-nums">

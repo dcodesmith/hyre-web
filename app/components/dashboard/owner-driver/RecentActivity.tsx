@@ -59,7 +59,7 @@ function ActivityItem({ booking }: { readonly booking: BookingWithRelations }) {
 export function RecentActivity({ bookings }: RecentActivityProps) {
   if (bookings.length === 0) {
     return (
-      <Card>
+      <Card className="rounded-sm">
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
             <CheckCircle2 className="h-5 w-5" />
@@ -85,7 +85,7 @@ export function RecentActivity({ bookings }: RecentActivityProps) {
   }
 
   return (
-    <Card>
+    <Card className="rounded-sm">
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg flex items-center gap-2">

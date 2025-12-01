@@ -11,7 +11,7 @@ interface PersonalDocumentsCardProps {
 
 export function PersonalDocumentsCard({ documents }: PersonalDocumentsCardProps) {
   return (
-    <Card className="@container/card bg-gradient-to-t from-primary/5 to-card shadow-xs dark:bg-card">
+    <Card className="@container/card rounded-sm bg-gradient-to-t from-primary/5 to-card shadow-xs dark:bg-card">
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg flex items-center gap-2">

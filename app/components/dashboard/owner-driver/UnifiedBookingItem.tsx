@@ -1,14 +1,14 @@
-import { format, isSameDay, differenceInHours, differenceInMinutes, startOfDay } from "date-fns";
-import { toZonedTime } from "date-fns-tz";
-import { Calendar, MapPin, User, Clock } from "lucide-react";
-import { useState } from "react";
 import { useFetcher } from "@remix-run/react";
+import { format } from "date-fns";
+import { toZonedTime } from "date-fns-tz";
+import { Calendar, Clock, MapPin, User } from "lucide-react";
+import { useState } from "react";
 import { useAuthenticityToken } from "remix-utils/csrf/react";
 import { Button } from "~/components/ui/button";
-import type { BookingWithRelations } from "~/types";
+import { getTimeRemainingForLiveBooking, getTimeUntilBooking } from "~/lib/booking-utils";
 import { formatCurrency } from "~/lib/utils";
+import type { BookingWithRelations } from "~/types";
 import { LAGOS_TIMEZONE } from "~/utils/timezone";
-import { getTimeUntilBooking } from "~/lib/booking-utils";
 import { BookingDetailsSheet } from "./BookingDetailsSheet";
 
 export type BookingStatusType = "action-required" | "live" | "upcoming";
@@ -18,62 +18,21 @@ interface UnifiedBookingItemProps {
   readonly statusType: BookingStatusType;
 }
 
-function getEffectiveLegEndTime(leg: {
-  legEndTime: Date;
-  extensions: Array<{ status: string; extensionEndTime: Date }>;
-}): Date {
-  let effectiveEndTime = new Date(leg.legEndTime);
-  const activeExtensionStatuses = new Set(["CONFIRMED", "ACTIVE"]);
+type BookingTimeInfo = {
+  readonly time: string;
+  readonly isNextLeg: boolean;
+  readonly isEnded: boolean;
+};
 
-  const activeExtensions = leg.extensions.filter((ext) => activeExtensionStatuses.has(ext.status));
-
-  if (activeExtensions.length > 0) {
-    const latestExtensionEndTime = activeExtensions.reduce((latestDate, currentExt) => {
-      const currentEndTime = new Date(currentExt.extensionEndTime);
-      return new Date(Math.max(currentEndTime.getTime(), latestDate.getTime()));
-    }, new Date(0));
-
-    if (latestExtensionEndTime.getTime() > effectiveEndTime.getTime()) {
-      effectiveEndTime = latestExtensionEndTime;
-    }
-  }
-
-  return effectiveEndTime;
-}
-
-function getTimeRemainingForLiveBooking(booking: BookingWithRelations): string | null {
-  if (!booking.legs || booking.legs.length === 0) {
-    return null;
-  }
-
-  const now = toZonedTime(new Date(), LAGOS_TIMEZONE);
-  const today = startOfDay(now);
-
-  // Find today's leg
-  const todaysLeg = booking.legs.find((leg) => {
-    const legDate = toZonedTime(new Date(leg.legDate), LAGOS_TIMEZONE);
-    return isSameDay(legDate, today);
-  });
-
-  if (!todaysLeg) {
-    return null;
-  }
-
-  // Get effective end time considering extensions
-  const effectiveEndTime = getEffectiveLegEndTime(todaysLeg);
-  const endTimeZoned = toZonedTime(effectiveEndTime, LAGOS_TIMEZONE);
-
-  if (endTimeZoned <= now) {
-    return "Ended";
-  }
-
-  const hours = differenceInHours(endTimeZoned, now);
-  const minutes = differenceInMinutes(endTimeZoned, now) % 60;
-
-  if (hours < 1) {
-    return `${minutes}min`;
-  }
-  return `${hours}h ${minutes}min`;
+function getTimeDisplayText(
+  timeInfo: BookingTimeInfo | null,
+  timeRemaining: string,
+  statusType: BookingStatusType,
+): string {
+  if (timeInfo?.isEnded) return "Ended";
+  if (timeInfo?.isNextLeg) return `${timeRemaining} till next leg starts`;
+  if (statusType === "live") return `${timeRemaining} remaining`;
+  return `in ${timeRemaining}`;
 }
 
 export function UnifiedBookingItem({ booking, statusType }: UnifiedBookingItemProps) {
@@ -90,8 +49,10 @@ export function UnifiedBookingItem({ booking, statusType }: UnifiedBookingItemPr
 
   // Get time remaining for live bookings or time until upcoming/action-required bookings
   let timeRemaining: string | null = null;
+  let timeInfo: BookingTimeInfo | null = null;
   if (statusType === "live") {
-    timeRemaining = getTimeRemainingForLiveBooking(booking);
+    timeInfo = getTimeRemainingForLiveBooking(booking);
+    timeRemaining = timeInfo?.time ?? null;
   } else if (statusType === "upcoming" || statusType === "action-required") {
     timeRemaining = getTimeUntilBooking(booking);
   }
@@ -140,12 +101,7 @@ export function UnifiedBookingItem({ booking, statusType }: UnifiedBookingItemPr
             textClassName += "text-slate-600 dark:text-slate-400";
           }
 
-          const displayText =
-            timeRemaining === "Ended"
-              ? "Ended"
-              : statusType === "live"
-                ? `${timeRemaining} remaining`
-                : `in ${timeRemaining}`;
+          const displayText = getTimeDisplayText(timeInfo, timeRemaining, statusType);
 
           return (
             <div className="flex items-center gap-2 text-sm">

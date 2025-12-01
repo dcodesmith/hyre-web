@@ -16,7 +16,7 @@ interface NextPayoutCardProps {
 export function NextPayoutCard({ payout }: NextPayoutCardProps) {
   if (!payout) {
     return (
-      <Card className="@container/card bg-gradient-to-t from-primary/5 to-card shadow-xs dark:bg-card">
+      <Card className="@container/card rounded-sm bg-gradient-to-t from-primary/5 to-card shadow-xs dark:bg-card">
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
             <Wallet className="h-5 w-5" />
@@ -59,7 +59,7 @@ export function NextPayoutCard({ payout }: NextPayoutCardProps) {
   const statusLabel = statusLabels[payout.status] || "Pending";
 
   return (
-    <Card className="@container/card shadow-sm rounded-sm border p-4 space-y-3 bg-gradient-to-t from-emerald-50 to-green-50 dark:from-emerald-950/30 dark:to-green-950/30 border-emerald-200 dark:border-emerald-900">
+    <Card className="@container/card rounded-sm shadow-sm border p-4 space-y-3 bg-gradient-to-t from-emerald-50 to-green-50 dark:from-emerald-950/30 dark:to-green-950/30 border-emerald-200 dark:border-emerald-900">
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg flex items-center gap-2">
