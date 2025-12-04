@@ -54,18 +54,28 @@ export async function action({ request }: ActionFunctionArgs) {
       },
     });
 
+    // Prevent user enumeration by using the same error message for both cases
     if (!user) {
-      return data({ error: "Invalid credentials" }, { status: 401 });
+      logger.warn("Admin login attempt for non-existent user", { email });
+      return data(
+        { error: "We couldn't start the login process. Please check your details and try again." },
+        { status: 400 },
+      );
     }
 
     const isAdmin = userHasRole(user, "admin");
     const isStaff = userHasRole(user, "staff");
 
     if (!isAdmin && !isStaff) {
-      logger.warn(
-        `Unauthorized access attempt: ${email}, roles=[${user.roles.map((r) => r.name).join(",")}]`,
+      // Log security event without revealing information to the user
+      logger.warn("User attempted admin login with wrong role", {
+        email,
+        actualRoles: user.roles.map((r) => r.name),
+      });
+      return data(
+        { error: "We couldn't start the login process. Please check your details and try again." },
+        { status: 400 },
       );
-      return data({ error: "Invalid credentials" }, { status: 401 });
     }
 
     const role = isAdmin ? ("admin" as const) : ("staff" as const);

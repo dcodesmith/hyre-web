@@ -92,7 +92,16 @@ export async function action({ request }: ActionFunctionArgs) {
     });
 
     if (existingUser && !userHasRole(existingUser, role)) {
-      return data({ error: "Did you sign up with a different role?" }, { status: 400 });
+      // Log security event without revealing information to the user
+      logger.warn("User attempted customer login with wrong role", {
+        email,
+        attemptedRole: role,
+        actualRoles: existingUser.roles.map((r) => r.name),
+      });
+      return data(
+        { error: "We couldn't start the login process. Please check your details and try again." },
+        { status: 400 },
+      );
     }
 
     // Send OTP and redirect to verify page
@@ -136,9 +145,9 @@ export default function Login() {
         <div className="flex flex-col gap-6">
           <Card>
             <CardHeader>
-              <CardTitle>Login to your account</CardTitle>
+              <CardTitle>Login or sign up to your account</CardTitle>
               <CardDescription>
-                Enter your email below to login or create your account
+                Enter your email below to login or sign up to your account
               </CardDescription>
             </CardHeader>
             <CardContent>

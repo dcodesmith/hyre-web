@@ -76,8 +76,17 @@ export async function action({ request }: ActionFunctionArgs) {
       include: { roles: true },
     });
 
-    if (existingUser && !userHasRole(existingUser, role as RoleName)) {
-      return data({ error: "Did you sign up with a different role?" }, { status: 400 });
+    if (existingUser && !userHasRole(existingUser, role)) {
+      // Log security event without revealing information to the user
+      logger.warn("User attempted fleet owner login with wrong role", {
+        email,
+        attemptedRole: role,
+        actualRoles: existingUser.roles.map((r) => r.name),
+      });
+      return data(
+        { error: "We couldn't start the login process. Please check your details and try again." },
+        { status: 400 },
+      );
     }
 
     // Send OTP and redirect to verify page

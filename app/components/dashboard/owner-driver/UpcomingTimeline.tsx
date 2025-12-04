@@ -11,6 +11,7 @@ interface UpcomingBookingsCardProps {
 
 export function UpcomingBookingsCard({ bookings }: UpcomingBookingsCardProps) {
   const nextBooking = bookings[0];
+  const hasMultipleBookings = bookings.length > 1;
   const timeUntilBooking = nextBooking ? getTimeUntilBooking(nextBooking) : null;
 
   return (
@@ -27,10 +28,12 @@ export function UpcomingBookingsCard({ bookings }: UpcomingBookingsCardProps) {
               </div>
             )}
           </div>
-          <Link className="flex items-center gap-1" to="/fleet-owner/bookings">
-            View All
-            <ArrowRight className="h-4 w-4 ml-1" />
-          </Link>
+          {hasMultipleBookings && (
+            <Link className="flex items-center gap-1" to="/fleet-owner/bookings">
+              View All
+              <ArrowRight className="h-4 w-4 ml-1" />
+            </Link>
+          )}
         </div>
       </CardHeader>
       <CardContent className="flex flex-col flex-1 space-y-4 px-0 pb-0">
