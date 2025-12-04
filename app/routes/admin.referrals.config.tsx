@@ -18,20 +18,12 @@ import {
   CheckCircleIcon,
 } from "@heroicons/react/24/outline";
 import { getFormProps, getInputProps, useForm } from "@conform-to/react";
-import { getZodConstraint, parseWithZod } from "@conform-to/zod";
+import { getZodConstraint, parseWithZod } from "@conform-to/zod/v4";
 import { z } from "zod";
 import { ReferralReleaseCondition } from "@prisma/client";
 import { CheckedState } from "@radix-ui/react-checkbox";
 import logger from "~/lib/logger.server";
-
-const ConfigSchema = z.object({
-  REFERRAL_ENABLED: z.coerce.boolean().default(false),
-  REFERRAL_DISCOUNT_AMOUNT: z.coerce.number().min(0).default(0),
-  REFERRAL_MIN_BOOKING_AMOUNT: z.coerce.number().min(0).default(0),
-  REFERRAL_ELIGIBLE_TYPES: z.array(z.enum(["DAY", "NIGHT", "FULL_DAY"])).default([]),
-  REFERRAL_RELEASE_CONDITION: z.enum(["PAID", "COMPLETED"]).default("COMPLETED"),
-  REFERRAL_EXPIRY_DAYS: z.coerce.number().min(0).default(0),
-});
+import { ConfigSchema } from "~/schemas/admin.schema";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   await requireAdminWithRedirect(request);

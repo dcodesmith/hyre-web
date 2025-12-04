@@ -1,5 +1,5 @@
 import { getFormProps, useForm } from "@conform-to/react";
-import { parseWithZod } from "@conform-to/zod";
+import { parseWithZod } from "@conform-to/zod/v4";
 import { CogIcon } from "@heroicons/react/24/outline";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { data, redirect } from "@remix-run/node";
@@ -8,8 +8,8 @@ import {
   unstable_parseMultipartFormData,
 } from "@remix-run/node";
 import { useActionData, useNavigation } from "@remix-run/react";
-import { z } from "zod";
 import { Form } from "~/components/CSRFForm";
+import { chauffeurSchema } from "~/schemas/chauffeur.schema";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
@@ -17,46 +17,6 @@ import { requireUserWithRole } from "~/utils/server/permissions.server";
 import { prisma } from "~/modules/db/db.server";
 import { createUser } from "~/services/users.server";
 import { validateCSRF } from "~/utils/csrf-action.server";
-
-const chauffeurSchema = z.object({
-  email: z
-    .string({
-      required_error: "Email is required.",
-    })
-    .min(1),
-  name: z
-    .string({
-      required_error: "Name is required.",
-    })
-    .min(1),
-  phoneNumber: z
-    .string({
-      required_error: "Phone number is required.",
-    })
-    .regex(
-      /^\+234[789][01]\d{8}$/,
-      "Phone number must be a valid Nigerian number (e.g., +2349012341234)",
-    ),
-  address: z.string({
-    required_error: "Address is required.",
-  }),
-  ninFile: z
-    .any()
-    .refine((file) => file && file.size > 0, "Please select a file")
-    .refine((file) => file.size <= 5 * 1024 * 1024, "File must be less than 5MB")
-    .refine(
-      (file) => ["image/jpeg", "image/png"].includes(file.type),
-      "File must be a JPEG or PNG",
-    ),
-  drivingLicenceFile: z
-    .any()
-    .refine((file) => file && file.size > 0, "Please select a file")
-    .refine((file) => file.size <= 5 * 1024 * 1024, "File must be less than 5MB")
-    .refine(
-      (file) => ["image/jpeg", "image/png"].includes(file.type),
-      "File must be a JPEG or PNG",
-    ),
-});
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const user = await requireUserWithRole(request, "fleetOwner");
@@ -92,7 +52,7 @@ export async function action({ request }: ActionFunctionArgs) {
   });
 
   if (submission.status !== "success") {
-    return data(submission.reply());
+    return data(submission.reply(), { status: 400 });
   }
 
   try {

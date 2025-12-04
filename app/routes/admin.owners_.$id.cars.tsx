@@ -5,7 +5,7 @@ import { createColumnHelper } from "@tanstack/react-table";
 import { AlertCircle } from "lucide-react";
 import { useAuthenticityToken } from "remix-utils/csrf/react";
 import { z } from "zod";
-import { parseWithZod } from "@conform-to/zod";
+import { parseWithZod } from "@conform-to/zod/v4";
 import { AdminCarRowActions } from "~/components/Table/AdminRowActions";
 import { ColumnHeader } from "~/components/Table/ColumnHeader";
 import { Table } from "~/components/Table/Table";
@@ -14,24 +14,7 @@ import { Button } from "~/components/ui/button";
 import { requireAdminOrStaffWithRedirect } from "~/modules/auth/auth.server";
 import { prisma } from "~/modules/db/db.server";
 import { validateCSRF } from "~/utils/csrf-action.server";
-
-// Validation schemas
-const updateCarStatusSchema = z.object({
-  intent: z.literal("updateCarStatus"),
-  carId: z.string().min(1, "Car ID is required"),
-  status: z.nativeEnum(CarApprovalStatus, {
-    required_error: "Car approval status is required",
-    invalid_type_error: "Invalid car approval status",
-  }),
-});
-
-const updateOwnerStatusSchema = z.object({
-  intent: z.literal("updateOwnerStatus"),
-  status: z.nativeEnum(FleetOwnerStatus, {
-    required_error: "Fleet owner status is required",
-    invalid_type_error: "Invalid fleet owner status",
-  }),
-});
+import { updateCarStatusSchema, updateOwnerStatusSchema } from "~/schemas/admin.schema";
 
 const actionSchema = z.discriminatedUnion("intent", [
   updateCarStatusSchema,

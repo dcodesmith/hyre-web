@@ -5,7 +5,7 @@ import {
   useForm,
   useInputControl,
 } from "@conform-to/react";
-import { parseWithZod } from "@conform-to/zod";
+import { parseWithZod } from "@conform-to/zod/v4";
 import { CogIcon } from "@heroicons/react/24/outline";
 import { DocumentStatus, DocumentType } from "@prisma/client";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
@@ -20,6 +20,7 @@ import axios from "axios";
 import { useState } from "react";
 import { z } from "zod";
 import { AutocompleteAddress } from "~/components/AutocompleteAddress";
+import { onboardingSchema, ownerDriverSchema } from "~/schemas/onboarding.schema";
 import { Button } from "~/components/ui/button";
 import { Combobox } from "~/components/ui/combobox";
 import { Input } from "~/components/ui/input";
@@ -40,69 +41,6 @@ import { requireUserWithRole } from "~/utils/server/permissions.server";
 import { env } from "~/utils/server/env.server";
 import { validateCSRF } from "~/utils/csrf-action.server";
 import { Form } from "~/components/CSRFForm";
-
-const baseSchema = z.object({
-  name: z.string({ required_error: "Name is required" }),
-  phoneNumber: z
-    .string({ required_error: "Phone number is required" })
-    .regex(
-      /^\+234[789][01]\d{8}$/,
-      "Phone number must be a valid Nigerian number (e.g., +2349012341234)",
-    ),
-  address: z.string({ required_error: "Address is required" }),
-  bankCode: z
-    .string({ required_error: "Bank is required" })
-    .refine((code) => banks.some((b) => b.code === code), {
-      message: "Select a valid bank.",
-    }),
-  accountNumber: z
-    .string({ required_error: "Account number is required" })
-    .regex(/^\d{10}$/, "Account number must be exactly 10 digits"),
-  accountName: z.string({ required_error: "Account name is required" }),
-});
-
-const ownerDriverSchema = baseSchema.extend({
-  ownerDriver: z.literal("true"),
-  // Validate based on the presence and size of the file, not instanceof File directly
-  ninFile: z
-    .any()
-    .refine((file) => file && file.size > 0, "NIN is required")
-    .refine((file) => file.size <= 5 * 1024 * 1024, "File must be less than 5MB")
-    .refine(
-      (file) =>
-        !file || ["image/jpeg", "image/png", "image/webp", "application/pdf"].includes(file.type),
-      "File must be a JPEG, PNG, WebP or PDF",
-    ),
-  driversLicense: z
-    .any()
-    .refine((file) => file && file.size > 0, "Driver's license is required")
-    .refine((file) => file.size <= 5 * 1024 * 1024, "File must be less than 5MB")
-    .refine(
-      (file) =>
-        !file || ["image/jpeg", "image/png", "image/webp", "application/pdf"].includes(file.type),
-      "File must be a JPEG, PNG, WebP or PDF",
-    ),
-  lasdriCard: z
-    .any()
-    .optional()
-    .refine(
-      (file) => !file || file.size === 0 || file.size <= 5 * 1024 * 1024,
-      "File must be less than 5MB",
-    )
-    .refine(
-      (file) =>
-        !file ||
-        file.size === 0 ||
-        ["image/jpeg", "image/png", "image/webp", "application/pdf"].includes(file.type),
-      "File must be a JPEG, PNG, WebP or PDF",
-    ),
-});
-
-const fleetOwnerSchema = baseSchema.extend({
-  ownerDriver: z.literal("false"),
-});
-
-const onboardingSchema = z.discriminatedUnion("ownerDriver", [fleetOwnerSchema, ownerDriverSchema]);
 
 // This prevents the parent loader from running for this route
 export function shouldRevalidate() {

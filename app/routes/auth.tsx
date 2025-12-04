@@ -1,10 +1,10 @@
 import { getFormProps, getInputProps, useForm } from "@conform-to/react";
-import { getZodConstraint, parseWithZod } from "@conform-to/zod";
+import { getZodConstraint, parseWithZod } from "@conform-to/zod/v4";
 import { CogIcon } from "@heroicons/react/24/outline";
 import { ActionFunctionArgs, LoaderFunctionArgs, data, redirect } from "@remix-run/node";
 import { Outlet, useActionData, useLoaderData, useSearchParams } from "@remix-run/react";
-import { z } from "zod";
 import { Form } from "~/components/CSRFForm";
+import { LoginSchema } from "~/schemas/auth.schema";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
 import { Input } from "~/components/ui/input";
@@ -17,22 +17,6 @@ import { userHasRole } from "~/utils/shared/roles";
 import { validateCSRF } from "~/utils/csrf-action.server";
 import { safeRedirect } from "~/utils/safe-redirect";
 import { sendOTPAndRedirect } from "~/utils/server/auth-helpers.server";
-
-export const LoginSchema = z.object({
-  email: z
-    .string({
-      required_error: "Email is required.",
-    })
-    .trim()
-    .max(60)
-    .email("Email address is not valid."),
-  referralCode: z
-    .string()
-    .length(8, "Referral code must be exactly 8 characters")
-    .regex(/^[123456789ABCDEFGHJKLMNPQRSTUVWXYZ]+$/, "Invalid referral code format")
-    .optional()
-    .or(z.literal("")),
-});
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const user = await getSessionUser(request);

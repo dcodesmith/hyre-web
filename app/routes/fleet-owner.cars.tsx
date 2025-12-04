@@ -1,4 +1,4 @@
-import { parseWithZod } from "@conform-to/zod";
+import { parseWithZod } from "@conform-to/zod/v4";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import {
   data,
@@ -28,7 +28,8 @@ import { requireUserWithRole } from "~/utils/server/permissions.server";
 import { prisma } from "~/modules/db/db.server";
 import { createCar, hasReachedOwnerDriverCarLimit } from "~/services/cars.server";
 import { validateCSRF } from "~/utils/csrf-action.server";
-import { NewCarForm, carSchema } from "./fleet-owner.cars_.new";
+import { NewCarForm } from "./fleet-owner.cars_.new";
+import { carSchema } from "~/schemas/car.schema";
 import { SerializedCar } from "~/types";
 import logger from "~/lib/logger.server";
 import { User } from "@prisma/client";

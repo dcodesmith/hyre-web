@@ -16,15 +16,9 @@ import {
   UserPlusIcon,
 } from "@heroicons/react/24/outline";
 import { getFormProps, getInputProps, useForm } from "@conform-to/react";
-import { getZodConstraint, parseWithZod } from "@conform-to/zod";
-import { z } from "zod";
+import { getZodConstraint, parseWithZod } from "@conform-to/zod/v4";
 import logger from "~/lib/logger.server";
-
-const ManualAttributionSchema = z.object({
-  refereeEmail: z.string().email("Invalid email address"),
-  referrerEmail: z.string().email("Invalid email address"),
-  reason: z.string().min(1, "Reason is required"),
-});
+import { ManualAttributionSchema } from "~/schemas/admin.schema";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   await requireAdminWithRedirect(request);

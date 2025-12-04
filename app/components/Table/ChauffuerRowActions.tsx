@@ -1,5 +1,5 @@
 import { getFormProps, getInputProps, useForm } from "@conform-to/react";
-import { parseWithZod } from "@conform-to/zod";
+import { parseWithZod } from "@conform-to/zod/v4";
 import { useFetcher } from "@remix-run/react";
 import { Row } from "@tanstack/react-table";
 import { MoreHorizontal } from "lucide-react";
@@ -19,37 +19,12 @@ import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "../ui/sheet";
 import { useAuthenticityToken } from "remix-utils/csrf/react";
+import { chauffeurUpdateSchema } from "~/schemas/chauffeur.schema";
 
 type EditChauffeurFormProps = {
   readonly chauffeur: SerializedChauffeur;
   readonly setIsEditOpen: Dispatch<SetStateAction<boolean>>;
 };
-
-const chauffeurSchema = z.object({
-  name: z
-    .string({
-      required_error: "Name is required.",
-    })
-    .min(1),
-  email: z
-    .string({
-      required_error: "Email is required.",
-    })
-    .email("Invalid email address"),
-  phoneNumber: z
-    .string({
-      required_error: "Phone number is required.",
-    })
-    .regex(
-      /^\+234[789][01]\d{8}$/,
-      "Phone number must be a valid Nigerian number (e.g., +2349012341234)",
-    ),
-  address: z
-    .string({
-      required_error: "Address is required.",
-    })
-    .min(1),
-});
 
 interface DataTableRowActionsProps {
   readonly row: Row<SerializedChauffeur>;
@@ -70,7 +45,7 @@ function EditChauffeurForm({ chauffeur, setIsEditOpen }: EditChauffeurFormProps)
     shouldValidate: "onInput",
     shouldRevalidate: "onInput",
     onValidate({ formData }) {
-      return parseWithZod(formData, { schema: chauffeurSchema });
+      return parseWithZod(formData, { schema: chauffeurUpdateSchema });
     },
   });
 

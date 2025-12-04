@@ -1,10 +1,10 @@
 import { getFormProps, getInputProps, useForm } from "@conform-to/react";
-import { parseWithZod } from "@conform-to/zod";
+import { parseWithZod } from "@conform-to/zod/v4";
 import { CogIcon } from "@heroicons/react/24/outline";
 import { useFetcher } from "@remix-run/react";
 import { useAuthenticityToken } from "remix-utils/csrf/react";
-import { z } from "zod";
 import { Button } from "~/components/ui/button";
+import { carSchema } from "~/schemas/car.schema";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
 import {
@@ -21,139 +21,6 @@ const Status = {
   HOLD: "HOLD",
   IN_SERVICE: "IN_SERVICE",
 } as const;
-
-export const carSchema = z.object({
-  make: z
-    .string({
-      required_error: "Make is required.",
-    })
-    .min(1),
-
-  model: z
-    .string({
-      required_error: "Model is required.",
-    })
-    .min(1),
-
-  year: z
-    .number({
-      required_error: "Year is required.",
-    })
-    .int()
-    .min(2000, "Year must be 2000 or later")
-    .max(new Date().getFullYear() + 1, "Year cannot be in the future"),
-
-  registrationNumber: z
-    .string({
-      required_error: "Registration number is required.",
-    })
-    .min(1)
-    .transform((val) => val.toUpperCase())
-    .pipe(
-      z.string().refine(
-        (val) => {
-          const plate = val.replace(/\s+/g, "");
-          const stateFormat = /^[A-Z]{3}[-]?\d{3}[A-Z]{2}$/;
-          const federalFormat = /^[A-Z]{2}\d{3}[A-Z]{2}$/;
-
-          return stateFormat.test(plate) || federalFormat.test(plate);
-        },
-        {
-          message:
-            "Invalid Nigerian number plate format. Use formats like 'ABC-123XX', 'ABC123XX', or 'XX123XX'",
-        },
-      ),
-    ),
-
-  dayRate: z
-    .number({
-      required_error: "Price is required.",
-    })
-    .positive("Price must be positive"),
-
-  status: z.nativeEnum(Status, {
-    required_error: "Status is required.",
-  }),
-
-  hourlyRate: z
-    .number({
-      required_error: "Hourly rate is required.",
-    })
-    .int()
-    .positive("Hourly rate must be positive"),
-
-  nightRate: z
-    .number({
-      required_error: "Nightly rate is required.",
-    })
-    .int()
-    .positive("Nightly rate must be positive"),
-
-  fullDayRate: z
-    .number({
-      required_error: "24-hour rate is required.",
-    })
-    .int()
-    .positive("24-hour rate must be positive"),
-
-  fuelUpgradeRate: z
-    .number({
-      required_error: "Fuel upgrade rate is required.",
-    })
-    .int()
-    .positive("Fuel upgrade rate must be positive"),
-
-  // images: z.preprocess(
-  //   (files) => {
-  //     // If the input is a FileList, convert it to an array
-  //     if (files instanceof FileList) return Array.from(files);
-  //     return files;
-  //   },
-  //   z
-  //     .array(z.instanceof(File, { message: "File is required" }))
-  //     .min(1, "At least one file is required")
-  //     .max(5, "You can upload up to 5 files")
-  //     .refine(
-  //       (files) => files.every((file) => file.size < 5 * 1024 * 1024),
-  //       "Each file must be less than 5MB",
-  //     )
-  //     .refine(
-  //       (files) =>
-  //         files.every((file) => ["image/jpeg", "image/png", "image/webp"].includes(file.type)),
-  //       "Files must be JPEG, PNG or WebP",
-  //     ),
-  // ),
-  images: z
-    .any()
-    .array()
-    .min(1, "At least one file is required")
-    .max(5, "You can upload up to 5 files")
-    .refine(
-      (files) => Array.isArray(files) && files.every((file) => file && file.size > 0),
-      "Pictures are required",
-    )
-    .refine(
-      (files) => files.every((file) => file.size <= 5 * 1024 * 1024),
-      "Each file must be less than 5MB",
-    )
-    .refine(
-      (files) =>
-        files.every((file) => ["image/jpeg", "image/png", "image/webp"].includes(file.type)),
-      "Files must be JPEG, PNG or WebP",
-    ),
-
-  motCertificate: z
-    .any()
-    .refine((file) => file && file.size > 0, "MOT certificate is required")
-    .refine((file) => file.size <= 5 * 1024 * 1024, "File must be less than 5MB")
-    .refine((file) => file.type === "application/pdf", "File must be a PDF"),
-
-  insuranceCertificate: z
-    .any()
-    .refine((file) => file && file.size > 0, "Insurance certificate is required")
-    .refine((file) => file.size <= 5 * 1024 * 1024, "File must be less than 5MB")
-    .refine((file) => file.type === "application/pdf", "File must be a PDF"),
-});
 
 const statusMap: Record<Exclude<(typeof Status)[keyof typeof Status], "BOOKED">, string> = {
   AVAILABLE: "Available",

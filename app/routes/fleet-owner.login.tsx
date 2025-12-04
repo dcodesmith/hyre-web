@@ -1,10 +1,10 @@
 import { getFormProps, getInputProps, useForm } from "@conform-to/react";
-import { getZodConstraint, parseWithZod } from "@conform-to/zod";
+import { getZodConstraint, parseWithZod } from "@conform-to/zod/v4";
 import { CogIcon } from "@heroicons/react/24/outline";
 import { ActionFunctionArgs, LoaderFunctionArgs, data, redirect } from "@remix-run/node";
 import { useActionData, useLoaderData } from "@remix-run/react";
-import { z } from "zod";
 import { Form } from "~/components/CSRFForm";
+import { LoginSchema } from "~/schemas/auth.schema";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
 import { Input } from "~/components/ui/input";
@@ -13,20 +13,10 @@ import { useIsPending } from "~/lib/utils";
 import { getSessionUser } from "~/modules/auth/auth.server";
 import { commitSession, getSession } from "~/modules/auth/session.server";
 import { prisma } from "~/modules/db/db.server";
-import { RoleName, userHasRole } from "~/utils/shared/roles";
+import { userHasRole } from "~/utils/shared/roles";
 import { validateCSRF } from "~/utils/csrf-action.server";
 import { safeRedirect } from "~/utils/safe-redirect";
 import { sendOTPAndRedirect } from "~/utils/server/auth-helpers.server";
-
-export const FleetOwnerLoginSchema = z.object({
-  email: z
-    .string({
-      required_error: "Email is required.",
-    })
-    .trim()
-    .max(60)
-    .email("Email address is not valid."),
-});
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const user = await getSessionUser(request);
@@ -60,7 +50,7 @@ export async function action({ request }: ActionFunctionArgs) {
   const url = new URL(request.url);
 
   // Validate the form data
-  const submission = parseWithZod(formData, { schema: FleetOwnerLoginSchema });
+  const submission = parseWithZod(formData, { schema: LoginSchema });
   if (submission.status !== "success") {
     return data(submission.reply(), { status: 400 });
   }
@@ -112,9 +102,9 @@ export default function FleetOwnerLogin() {
     defaultValue: {
       email: authEmail || "",
     },
-    constraint: getZodConstraint(FleetOwnerLoginSchema),
+    constraint: getZodConstraint(LoginSchema),
     onValidate({ formData }) {
-      return parseWithZod(formData, { schema: FleetOwnerLoginSchema });
+      return parseWithZod(formData, { schema: LoginSchema });
     },
     shouldValidate: "onSubmit",
     shouldRevalidate: "onInput",

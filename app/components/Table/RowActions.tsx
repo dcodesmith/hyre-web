@@ -1,13 +1,13 @@
 import { getFormProps, getInputProps, useForm } from "@conform-to/react";
-import { parseWithZod } from "@conform-to/zod";
+import { parseWithZod } from "@conform-to/zod/v4";
 import { EllipsisHorizontalIcon } from "@heroicons/react/24/outline";
 import { Car } from "@prisma/client";
 import { useFetcher, useNavigate } from "@remix-run/react";
 import { Row } from "@tanstack/react-table";
 import { Dispatch, SetStateAction, useEffect, useState } from "react";
 import { useAuthenticityToken } from "remix-utils/csrf/react";
-import { z } from "zod";
 import { useToast } from "~/hooks/use-toast";
+import { carUpdateSchema, STATUSES } from "~/schemas/car.schema";
 import { Button } from "../ui/button";
 import {
   DropdownMenu,
@@ -20,79 +20,6 @@ import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "../ui/sheet";
-
-const STATUSES = ["AVAILABLE", "HOLD", "IN_SERVICE"] as const;
-
-const carSchema = z.object({
-  make: z
-    .string({
-      required_error: "Make is required.",
-    })
-    .min(1),
-  model: z
-    .string({
-      required_error: "Model is required.",
-    })
-    .min(1),
-  year: z
-    .number({
-      required_error: "Year is required.",
-    })
-    .int()
-    .min(2000, "Year must be 2000 or later")
-    .max(new Date().getFullYear() + 1, "Year cannot be in the future"),
-  registrationNumber: z
-    .string({
-      required_error: "Registration number is required.",
-    })
-    .min(1)
-    .transform((val) => val.toUpperCase())
-    .pipe(
-      z.string().refine(
-        (val) => {
-          const plate = val.replace(/\s+/g, "");
-          const stateFormat = /^[A-Z]{3}[-]?\d{3}[A-Z]{2}$/;
-          const federalFormat = /^[A-Z]{2}\d{3}[A-Z]{2}$/;
-          return stateFormat.test(plate) || federalFormat.test(plate);
-        },
-        {
-          message:
-            "Invalid Nigerian number plate format. Use formats like 'ABC-123XX', 'ABC123XX', or 'XX123XX'",
-        },
-      ),
-    ),
-  dayRate: z
-    .number({
-      required_error: "Day rate is required.",
-    })
-    .positive("Day rate must be positive"),
-  status: z.enum(STATUSES),
-
-  hourlyRate: z
-    .number({
-      required_error: "Hourly rate is required.",
-    })
-    .positive("Hourly rate must be positive"),
-
-  nightRate: z
-    .number({
-      required_error: "Nightly rate is required.",
-    })
-    .positive("Nightly rate must be positive"),
-
-  fullDayRate: z
-    .number({
-      required_error: "24-hour rate is required.",
-    })
-    .int()
-    .positive("24-hour rate must be positive"),
-  fuelUpgradeRate: z
-    .number({
-      required_error: "Fuel upgrade rate is required.",
-    })
-    .int()
-    .positive("Fuel upgrade rate must be positive"),
-});
 
 const statusMap: Record<(typeof STATUSES)[number], string> = {
   AVAILABLE: "Available",
@@ -137,7 +64,7 @@ function EditCarForm({ car, setIsEditOpen }: EditCarFormProps) {
   ] = useForm({
     defaultValue: car,
     onValidate({ formData }) {
-      return parseWithZod(formData, { schema: carSchema });
+      return parseWithZod(formData, { schema: carUpdateSchema });
     },
     shouldValidate: "onInput",
     shouldRevalidate: "onInput",

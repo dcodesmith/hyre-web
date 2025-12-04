@@ -1,24 +1,7 @@
-import { z } from "zod";
 import { renderAuthEmail } from "./templates/auth-email";
 import logger from "~/lib/logger.server";
 import { env } from "~/utils/server/env.server";
-
-const ResendErrorSchema = z.union([
-  z.object({
-    name: z.string(),
-    message: z.string(),
-    statusCode: z.number(),
-  }),
-  z.object({
-    name: z.literal("UnknownError"),
-    message: z.literal("Unknown Error"),
-    statusCode: z.literal(500),
-    cause: z.any(),
-  }),
-]);
-const ResendSuccessSchema = z.object({
-  id: z.string(),
-});
+import { ResendErrorSchema, ResendSuccessSchema } from "~/schemas/email.schema";
 
 export type SendEmailOptions = {
   to: string | string[];

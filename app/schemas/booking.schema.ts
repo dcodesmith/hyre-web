@@ -1,28 +1,46 @@
 import { z } from "zod";
-import { BOOKING_TYPE_OPTIONS, DAY_BOOKING_TYPE, FULL_DAY_BOOKING_TYPE } from "../bookingTypes";
+import {
+  BOOKING_TYPE_OPTIONS,
+  DAY_BOOKING_TYPE,
+  FULL_DAY_BOOKING_TYPE,
+} from "~/components/bookingTypes";
 
 const coreBookingFields = z.object({
-  carId: z.string(),
+  carId: z
+    .string({
+      error: "Car ID is required and must be a string.",
+    })
+    .min(1, "Car ID cannot be empty"),
   pickupTime: z.string().optional(),
   pickupAddress: z
-    .string({ required_error: "Pickup address is required" })
-    .min(1, "Pickup address is required"),
-  bookingType: z.enum(BOOKING_TYPE_OPTIONS),
+    .string({
+      error: "Pickup address is required and must be a string.",
+    })
+    .min(1, "Pickup address cannot be empty"),
+  bookingType: z.enum(BOOKING_TYPE_OPTIONS, {
+    error: "Booking type is required and must be valid.",
+  }),
 });
 
 const dropOffSchema = z.object({
   dropOffAddress: z
-    .string({ required_error: "Drop-off address is required" })
-    .min(1, "Drop-off address is required"),
+    .string({
+      error: "Drop-off address is required and must be a string.",
+    })
+    .min(1, "Drop-off address cannot be empty"),
 });
 
 const guestInfoSchema = z.object({
-  email: z.string({ required_error: "Email is required" }).email("Invalid email address"),
+  email: z.email("Email address is not valid."),
   name: z
-    .string({ required_error: "Name is required" })
+    .string({
+      error: "Name is required and must be a string.",
+    })
     .min(2, "Name must be at least 2 characters"),
   phoneNumber: z
-    .string({ required_error: "Phone number is required" })
+    .string({
+      error: "Phone number is required and must be a string.",
+    })
     .min(10, "Phone must be at least 10 digits"),
 });
 
@@ -56,16 +74,16 @@ const guestUserBookingSchema = z.discriminatedUnion("sameLocation", [
 export function getBookingSchema(isGuestBooking: boolean) {
   const baseSchema = isGuestBooking ? guestUserBookingSchema : loggedInUserBookingSchema;
 
-  return baseSchema.superRefine((data, ctx) => {
-    if (
-      (data.bookingType === DAY_BOOKING_TYPE || data.bookingType === FULL_DAY_BOOKING_TYPE) &&
-      (!data.pickupTime || data.pickupTime.trim() === "")
-    ) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Pickup time is required for daytime and full day bookings",
-        path: ["pickupTime"],
-      });
-    }
-  });
+  return baseSchema.refine(
+    (data) => {
+      if (data.bookingType === DAY_BOOKING_TYPE || data.bookingType === FULL_DAY_BOOKING_TYPE) {
+        return data.pickupTime && data.pickupTime.trim() !== "";
+      }
+      return true;
+    },
+    {
+      error: "Pickup time is required for daytime and full day bookings.",
+      path: ["pickupTime"],
+    },
+  );
 }

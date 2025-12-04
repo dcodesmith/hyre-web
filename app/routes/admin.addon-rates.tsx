@@ -1,4 +1,4 @@
-import { parseWithZod } from "@conform-to/zod";
+import { parseWithZod } from "@conform-to/zod/v4";
 import { ActionFunctionArgs, type LoaderFunctionArgs, redirect, data } from "@remix-run/node";
 import { useActionData, useLoaderData } from "@remix-run/react";
 import { AddonType } from "~/types";
@@ -21,13 +21,7 @@ import {
 } from "~/components/ui/select";
 import { formatCurrency } from "~/lib/utils";
 import logger from "~/lib/logger.server";
-
-const createAddonRateSchema = z.object({
-  addonType: z.nativeEnum(AddonType),
-  rateAmount: z.coerce.number().positive("Rate amount must be a positive number"),
-  description: z.string().optional(),
-  effectiveSince: z.coerce.date(),
-});
+import { createAddonRateSchema } from "~/schemas/admin.schema";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   await requireAdminOrStaffWithRedirect(request);

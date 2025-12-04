@@ -1,8 +1,8 @@
-import { parseWithZod } from "@conform-to/zod";
+import { parseWithZod } from "@conform-to/zod/v4";
 import { type ActionFunctionArgs, type LoaderFunctionArgs, data, redirect } from "@remix-run/node";
 import { useActionData } from "@remix-run/react";
-import { z } from "zod";
 import { Form } from "~/components/CSRFForm";
+import { LoginSchema } from "~/schemas/auth.schema";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import logger from "~/lib/logger.server";
@@ -12,10 +12,6 @@ import { userHasRole } from "~/utils/shared/roles";
 import { validateCSRF } from "~/utils/csrf-action.server";
 import { safeRedirect } from "~/utils/safe-redirect";
 import { sendOTPAndRedirect } from "~/utils/server/auth-helpers.server";
-
-const AdminLoginSchema = z.object({
-  email: z.string().email("Please enter a valid email address"),
-});
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const user = await getSessionUser(request);
@@ -31,7 +27,7 @@ export async function action({ request }: ActionFunctionArgs) {
   await validateCSRF(request);
 
   const formData = await request.clone().formData();
-  const submission = parseWithZod(formData, { schema: AdminLoginSchema });
+  const submission = parseWithZod(formData, { schema: LoginSchema });
 
   if (submission.status !== "success") {
     return data({ error: "Invalid form data", submission: submission.reply() }, { status: 400 });

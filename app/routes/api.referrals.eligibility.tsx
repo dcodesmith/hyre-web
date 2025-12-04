@@ -3,13 +3,7 @@ import { z } from "zod";
 import logger from "~/lib/logger.server";
 import { requireUserWithRole } from "~/utils/server/permissions.server";
 import { checkReferralEligibility } from "~/services/referral.server";
-
-const EligibilitySchema = z.object({
-  amount: z.coerce.number().min(1, "Amount must be greater than 0"),
-  type: z.enum(["DAY", "NIGHT", "FULL_DAY"], {
-    errorMap: () => ({ message: "Invalid booking type" }),
-  }),
-});
+import { EligibilitySchema } from "~/schemas/admin.schema";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   try {

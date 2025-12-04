@@ -1,4 +1,4 @@
-import { parseWithZod } from "@conform-to/zod";
+import { parseWithZod } from "@conform-to/zod/v4";
 import { FleetOwnerStatus, User } from "@prisma/client";
 import { type ActionFunctionArgs, type LoaderFunctionArgs, data } from "@remix-run/node";
 import { Link, useLoaderData, useSubmit } from "@remix-run/react";
@@ -12,16 +12,7 @@ import { Badge } from "~/components/ui/badge";
 import { requireAdminOrStaffWithRedirect } from "~/modules/auth/auth.server";
 import { prisma } from "~/modules/db/db.server";
 import { validateCSRF } from "~/utils/csrf-action.server";
-
-const UpdateOwnerStatusSchema = z.object({
-  ownerId: z.string().min(1, "Owner ID is required"),
-  status: z.nativeEnum(FleetOwnerStatus, {
-    errorMap: () => ({ message: "Invalid status" }),
-  }),
-  intent: z.literal("updateOwnerStatus", {
-    errorMap: () => ({ message: "Invalid intent" }),
-  }),
-});
+import { UpdateOwnerStatusSchema } from "~/schemas/admin.schema";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   await requireAdminOrStaffWithRedirect(request);

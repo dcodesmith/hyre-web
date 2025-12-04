@@ -1,10 +1,10 @@
 import { getFormProps, getInputProps, useForm } from "@conform-to/react";
-import { getZodConstraint, parseWithZod } from "@conform-to/zod";
+import { getZodConstraint, parseWithZod } from "@conform-to/zod/v4";
 import { ActionFunctionArgs, LoaderFunctionArgs, data, redirect } from "@remix-run/node";
 import { useActionData, useLoaderData } from "@remix-run/react";
 import { Form } from "~/components/CSRFForm";
-import { z } from "zod";
 import { Button } from "~/components/ui/button";
+import { VerifySchema } from "~/schemas/otp.schema";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
 import { Input } from "~/components/ui/input";
 import logger from "~/lib/logger.server";
@@ -24,12 +24,6 @@ import {
   signInWithOTP,
   verifyUserHasRole,
 } from "~/utils/server/auth-helpers.server";
-
-export const VerifySchema = z.object({
-  code: z
-    .string({ required_error: "Code is required." })
-    .regex(/^\d{6}$/, "Code must be exactly 6 digits."),
-});
 
 export async function loader({ request }: LoaderFunctionArgs) {
   // Redirect to admin if already authenticated

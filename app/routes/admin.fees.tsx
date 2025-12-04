@@ -1,5 +1,5 @@
 import { getFormProps, getInputProps, useForm } from "@conform-to/react";
-import { parseWithZod } from "@conform-to/zod";
+import { parseWithZod } from "@conform-to/zod/v4";
 import { type ActionFunctionArgs, type LoaderFunctionArgs, data } from "@remix-run/node";
 import { useActionData, useLoaderData } from "@remix-run/react";
 import { format } from "date-fns";
@@ -14,79 +14,11 @@ import logger from "~/lib/logger.server";
 import { requireAdminOrStaffWithRedirect } from "~/modules/auth/auth.server";
 import { prisma } from "~/modules/db/db.server";
 import { validateCSRF } from "~/utils/csrf-action.server";
+import { vatRateSchema, platformFeeSchema } from "~/schemas/admin.schema";
 
 const PLATFORM_FEE_TYPES = ["PLATFORM_SERVICE_FEE", "FLEET_OWNER_COMMISSION"] as const;
 
 const ERROR_RING_CLASSES = "border-red-500 focus-visible:ring-red-500 focus-visible:ring-2";
-
-// Validation schemas
-const vatRateSchema = z
-  .object({
-    ratePercent: z
-      .string({ required_error: "Rate percentage is required" })
-      .min(1, "Rate percentage is required")
-      .transform((val) => Number.parseFloat(val))
-      .refine((val) => val >= 0 && val <= 100, "Rate must be between 0 and 100%"),
-    effectiveSince: z
-      .string({ required_error: "Effective date is required" })
-      .min(1, "Effective date is required")
-      .transform((val) => new Date(val))
-      .refine((date) => !Number.isNaN(date.getTime()), "Invalid effective date"),
-    effectiveUntil: z
-      .string()
-      .optional()
-      .transform((val) => (val ? new Date(val) : null))
-      .refine((date) => !date || !Number.isNaN(date.getTime()), "Invalid end date"),
-    description: z.string().optional(),
-  })
-  .refine(
-    (data) => {
-      if (data.effectiveUntil && data.effectiveSince) {
-        return data.effectiveUntil > data.effectiveSince;
-      }
-      return true;
-    },
-    {
-      message: "End date must be after start date",
-      path: ["effectiveUntil"],
-    },
-  );
-
-const platformFeeSchema = z
-  .object({
-    feeType: z.enum(PLATFORM_FEE_TYPES, {
-      required_error: "Fee type is required",
-      invalid_type_error: "Invalid fee type selected",
-    }),
-    ratePercent: z
-      .string({ required_error: "Rate percentage is required" })
-      .min(1, "Rate percentage is required")
-      .transform((val) => Number.parseFloat(val))
-      .refine((val) => val >= 0 && val <= 100, "Rate must be between 0 and 100%"),
-    effectiveSince: z
-      .string({ required_error: "Effective date is required" })
-      .min(1, "Effective date is required")
-      .transform((val) => new Date(val))
-      .refine((date) => !Number.isNaN(date.getTime()), "Invalid effective date"),
-    effectiveUntil: z
-      .string()
-      .optional()
-      .transform((val) => (val ? new Date(val) : null))
-      .refine((date) => !date || !Number.isNaN(date.getTime()), "Invalid end date"),
-    description: z.string().optional(),
-  })
-  .refine(
-    (data) => {
-      if (data.effectiveUntil && data.effectiveSince) {
-        return data.effectiveUntil > data.effectiveSince;
-      }
-      return true;
-    },
-    {
-      message: "End date must be after start date",
-      path: ["effectiveUntil"],
-    },
-  );
 
 export async function loader({ request }: LoaderFunctionArgs) {
   await requireAdminOrStaffWithRedirect(request);

@@ -1,5 +1,5 @@
 import { type FieldMetadata, getFormProps, useForm } from "@conform-to/react";
-import { parseWithZod } from "@conform-to/zod";
+import { parseWithZod } from "@conform-to/zod/v4";
 import type { Car, User } from "@prisma/client";
 import { Link, useNavigate, useNavigation, useSearchParams, useSubmit } from "@remix-run/react";
 import {
@@ -36,7 +36,7 @@ import { BookingCostBreakdown } from "./BookingCostBreakdown";
 import { BookingFormFields } from "./BookingFormFields";
 import { DateRangePicker } from "./DateRangePicker";
 import { getFuelTankNote, getOrdinal } from "./helpers";
-import { getBookingSchema } from "./bookingSchemas";
+import { getBookingSchema } from "~/schemas/booking.schema";
 
 const ERROR_RING_CLASSES = "border-red-500 focus-visible:ring-red-500 focus-visible:ring-2";
 

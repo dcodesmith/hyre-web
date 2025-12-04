@@ -1,5 +1,5 @@
 import { getFormProps, getInputProps, useForm } from "@conform-to/react";
-import { parseWithZod } from "@conform-to/zod";
+import { parseWithZod } from "@conform-to/zod/v4";
 import { CheckBadgeIcon, CogIcon } from "@heroicons/react/24/outline";
 import { BookingStatus } from "@prisma/client";
 import {
@@ -14,7 +14,6 @@ import { useActionData, useLoaderData, useNavigation } from "@remix-run/react";
 import { ColumnDef } from "@tanstack/react-table";
 import { PlusCircle } from "lucide-react";
 import { useEffect, useState } from "react";
-import { z } from "zod";
 import { Form } from "~/components/CSRFForm";
 import { ChauffeurRowActions } from "~/components/Table/ChauffuerRowActions";
 import { ColumnHeader } from "~/components/Table/ColumnHeader";
@@ -39,46 +38,7 @@ import { prisma } from "~/modules/db/db.server";
 import { createUser } from "~/services/users.server";
 import type { ChauffeurStatus, SerializedChauffeur } from "~/types";
 import { validateCSRF } from "~/utils/csrf-action.server";
-
-const chauffeurSchema = z.object({
-  email: z
-    .string({
-      required_error: "Email is required.",
-    })
-    .min(1),
-  name: z
-    .string({
-      required_error: "Name is required.",
-    })
-    .min(1),
-  phoneNumber: z
-    .string({
-      required_error: "Phone number is required.",
-    })
-    .regex(
-      /^\+234[789][01]\d{8}$/,
-      "Phone number must be a valid Nigerian number (e.g., +2349012341234)",
-    ),
-  address: z.string({
-    required_error: "Address is required.",
-  }),
-  ninFile: z
-    .any()
-    .refine((file) => file && file.size > 0, "Please select a file")
-    .refine((file) => file.size <= 5 * 1024 * 1024, "File must be less than 5MB")
-    .refine(
-      (file) => ["image/jpeg", "image/png"].includes(file.type),
-      "File must be a JPEG or PNG",
-    ),
-  drivingLicenceFile: z
-    .any()
-    .refine((file) => file && file.size > 0, "Please select a file")
-    .refine((file) => file.size <= 5 * 1024 * 1024, "File must be less than 5MB")
-    .refine(
-      (file) => ["image/jpeg", "image/png"].includes(file.type),
-      "File must be a JPEG or PNG",
-    ),
-});
+import { chauffeurSchema, chauffeurUpdateSchema } from "~/schemas/chauffeur.schema";
 
 const statusColors: Record<ChauffeurStatus, string> = {
   ON_TRIP: "bg-blue-50 ring-blue-600/10 text-blue-600",
@@ -229,7 +189,7 @@ export async function action({ request }: ActionFunctionArgs) {
       const chauffeurId = typeof chauffeurIdValue === "string" ? chauffeurIdValue : "";
 
       const submission = parseWithZod(formData, {
-        schema: chauffeurSchema.omit({ ninFile: true, drivingLicenceFile: true }),
+        schema: chauffeurUpdateSchema,
       });
 
       if (submission.status !== "success") {

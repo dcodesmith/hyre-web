@@ -1,7 +1,7 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, data } from "@remix-run/node";
 import { useLoaderData, useFetcher } from "@remix-run/react";
 import { z } from "zod";
-import { parseWithZod } from "@conform-to/zod";
+import { parseWithZod } from "@conform-to/zod/v4";
 import { getFormProps, getInputProps, useForm } from "@conform-to/react";
 import { requireAdminWithRedirect } from "~/modules/auth/auth.server";
 import { prisma } from "~/modules/db/db.server";
@@ -25,12 +25,7 @@ import { useAuthenticityToken } from "remix-utils/csrf/react";
 import { validateCSRF } from "~/utils/csrf-action.server";
 import { Prisma } from "@prisma/client";
 import logger from "~/lib/logger.server";
-
-const staffSchema = z.object({
-  name: z.string().min(2, "Name must be at least 2 characters"),
-  email: z.string().email("Invalid email address"),
-  phoneNumber: z.string().min(10, "Phone number must be at least 10 digits"),
-});
+import { staffSchema } from "~/schemas/admin.schema";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   await requireAdminWithRedirect(request);

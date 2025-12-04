@@ -1,10 +1,10 @@
 import { getFormProps, getInputProps, useForm } from "@conform-to/react";
-import { getZodConstraint, parseWithZod } from "@conform-to/zod";
+import { getZodConstraint, parseWithZod } from "@conform-to/zod/v4";
 import { ActionFunctionArgs, LoaderFunctionArgs, data, redirect } from "@remix-run/node";
 import { useActionData, useLoaderData } from "@remix-run/react";
 import { Form } from "~/components/CSRFForm";
-import { z } from "zod";
 import { Button } from "~/components/ui/button";
+import { VerifySchema } from "~/schemas/otp.schema";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
 import { Input } from "~/components/ui/input";
 import { getSessionUser } from "~/modules/auth/auth.server";
@@ -30,12 +30,6 @@ import {
   signInWithOTP,
 } from "~/utils/server/auth-helpers.server";
 import { useResendOTP } from "~/hooks/use-resend-otp";
-
-export const VerifySchema = z.object({
-  code: z
-    .string({ required_error: "Code is required." })
-    .regex(/^\d{6}$/, "Code must be exactly 6 digits."),
-});
 
 function redirectAuthenticatedUser(user: User & { roles: { name: string }[] }, redirectTo: string) {
   if (userHasRole(user, "user")) {
