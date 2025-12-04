@@ -1,6 +1,6 @@
 import type { User } from "@prisma/client";
 import { redirect } from "@remix-run/node";
-import { betterAuth } from "better-auth";
+import { betterAuth, type BetterAuthOptions } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { emailOTP } from "better-auth/plugins";
 import logger from "~/lib/logger.server";
@@ -24,9 +24,44 @@ const config = {
   }),
   secret: env.SESSION_SECRET,
   baseURL: env.DOMAIN ?? "http://localhost:5173",
+  trustedOrigins: env.DOMAIN ? [env.DOMAIN] : undefined,
   session: {
     // 60 * 60 * 24 * 7 = 604800 seconds (7 days)
     expiresIn: 60 * 60 * 24 * 7,
+  },
+  rateLimit: {
+    /**
+     * Rate Limiting Configuration
+     *
+     * Protects against brute force attacks and abuse by limiting request frequency.
+     *
+     * - enabled: true in production, explicitly enabled in development for testing
+     * - window: 60 seconds - time window for counting requests
+     * - max: 100 - maximum requests allowed per window per IP
+     * - storage: "database" - persists rate limit data in PostgreSQL
+     *
+     * Custom rules for emailOTP plugin endpoints:
+     * - send-verification-otp: 5 attempts per 60 seconds (prevent OTP spam)
+     * - check-verification-otp: 10 attempts per 60 seconds (allow typos)
+     *
+     * When rate limit is exceeded:
+     * - Returns 429 (Too Many Requests) status
+     * - Includes X-Retry-After header with seconds until retry
+     */
+    enabled: true,
+    window: 60,
+    max: 100,
+    storage: "database",
+    customRules: {
+      "/email-otp/send-verification-otp": {
+        window: 60,
+        max: 5,
+      },
+      "/email-otp/check-verification-otp": {
+        window: 60,
+        max: 10,
+      },
+    },
   },
   advanced: {
     /**
@@ -74,13 +109,20 @@ const config = {
   plugins: [
     emailOTP({
       /**
-       * OTP Expiry Configuration
+       * OTP Security Configuration
        *
        * expiresIn: Time in seconds before the OTP code expires.
        * Default: 300 seconds (5 minutes)
        * Set to 600 seconds (10 minutes) for better UX while maintaining security.
        *
+       * allowedAttempts: Maximum number of failed verification attempts per OTP.
+       * Default: 5 attempts
+       * After this limit, the OTP becomes invalid and user must request a new code.
+       * This prevents brute force attacks even if rate limiting is bypassed.
+       *
        */
+      expiresIn: 600,
+      allowedAttempts: 5,
       async sendVerificationOTP({ email, otp, type }) {
         try {
           const user = await prisma.user.findUnique({
@@ -117,7 +159,7 @@ const config = {
       },
     }),
   ],
-};
+} satisfies BetterAuthOptions;
 
 export const auth = betterAuth(config);
 

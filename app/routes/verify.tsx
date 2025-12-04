@@ -27,16 +27,14 @@ import {
   ensureUserHasRole,
   getAuthContext,
   redirectToLoginForRole,
-  resendOTP,
   signInWithOTP,
 } from "~/utils/server/auth-helpers.server";
+import { useResendOTP } from "~/hooks/use-resend-otp";
 
 export const VerifySchema = z.object({
   code: z
-    .string({
-      required_error: "Code is required.",
-    })
-    .length(6, "Code must be exactly 6 characters."),
+    .string({ required_error: "Code is required." })
+    .regex(/^\d{6}$/, "Code must be exactly 6 digits."),
 });
 
 function redirectAuthenticatedUser(user: User & { roles: { name: string }[] }, redirectTo: string) {
@@ -218,12 +216,6 @@ export async function action({ request }: ActionFunctionArgs) {
   }
 
   const formData = await request.formData();
-  const intent = formData.get("intent");
-
-  // Handle "Request New Code" - resend OTP
-  if (intent === "resend") {
-    return resendOTP(request, session, authEmail);
-  }
 
   // Validate OTP code using schema (single source of truth)
   const submission = parseWithZod(formData, {
@@ -231,17 +223,7 @@ export async function action({ request }: ActionFunctionArgs) {
   });
 
   if (submission.status !== "success") {
-    const codeErrors = submission.error?.code;
-    const errorMessage =
-      Array.isArray(codeErrors) && codeErrors.length > 0
-        ? codeErrors[0]
-        : "Invalid verification code.";
-    return data(
-      {
-        error: errorMessage,
-      },
-      { status: 400 },
-    );
+    return submission.reply();
   }
 
   const { code } = submission.value;
@@ -271,7 +253,10 @@ export async function action({ request }: ActionFunctionArgs) {
 export default function Verify() {
   const { authEmail, authError } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
+  const { onResendOTP, isResending, hasResentSuccessfully } = useResendOTP(authEmail, actionData);
+
   const [codeForm, { code }] = useForm({
+    lastResult: actionData && "status" in actionData ? actionData : null,
     constraint: getZodConstraint(VerifySchema),
     onValidate({ formData }) {
       return parseWithZod(formData, { schema: VerifySchema });
@@ -290,7 +275,6 @@ export default function Verify() {
           </CardHeader>
           <CardContent>
             <Form method="post" {...getFormProps(codeForm)}>
-              <input type="hidden" name="intent" value="verify" />
               <div className="flex flex-col gap-4">
                 <div className="space-y-2">
                   <label htmlFor={code.id} className="text-sm font-medium">
@@ -299,6 +283,7 @@ export default function Verify() {
                   <Input
                     maxLength={6}
                     required
+                    inputMode="numeric"
                     autoComplete="one-time-code"
                     placeholder="000000"
                     className={`bg-transparent ${
@@ -317,14 +302,13 @@ export default function Verify() {
                       {code.errors.join(" ")}
                     </span>
                   )}
-                  {/* Prioritize actionData.error for same-route failures, fallback to authError for cross-route errors */}
-                  {(() => {
-                    const error =
-                      (actionData && "error" in actionData ? actionData.error : null) || authError;
-                    if (!error) return null;
-                    const message = typeof error === "string" ? error : error?.message;
-                    return <div className="text-red-500 text-sm text-center">{message}</div>;
-                  })()}
+                  {/* Show authError for backend OTP mismatches (from cross-route or backend errors) */}
+                  {/* Hide errors after successful resend to prevent contradictory feedback */}
+                  {!hasResentSuccessfully && authError && (
+                    <span className="mb-2 text-sm text-destructive dark:text-destructive-foreground">
+                      {typeof authError === "string" ? authError : authError?.message}
+                    </span>
+                  )}
                 </div>
 
                 <Button type="submit" className="w-full">
@@ -333,15 +317,20 @@ export default function Verify() {
               </div>
             </Form>
 
-            <Form method="post" className="mt-4 space-y-2">
-              <input type="hidden" name="intent" value="resend" />
+            <div className="mt-4 space-y-2">
               <p className="text-center text-sm font-normal text-primary/60">
                 Did not receive the code?
               </p>
-              <Button type="submit" variant="ghost" className="w-full hover:bg-transparent">
-                Request New Code
+              <Button
+                type="button"
+                variant="ghost"
+                className="w-full hover:bg-transparent"
+                onClick={onResendOTP}
+                disabled={isResending}
+              >
+                {isResending ? "Sending..." : "Request New Code"}
               </Button>
-            </Form>
+            </div>
           </CardContent>
         </Card>
       </div>

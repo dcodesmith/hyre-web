@@ -33,7 +33,7 @@ const schema = z.object({
 
   SUPPORT_EMAIL: z.string().optional(),
   WEBSITE_URL: z.string().optional(),
-  DOMAIN: z.string().optional(),
+  DOMAIN: z.string(),
 });
 
 let validatedEnv: z.infer<typeof schema>; // module-level cache
@@ -69,6 +69,7 @@ export function getSharedEnvs() {
     PROD_HOST_URL: env.PROD_HOST_URL,
     APP_NAME: env.APP_NAME,
     GOOGLE_MAPS_API_KEY: env.GOOGLE_MAPS_API_KEY,
+    DOMAIN: env.DOMAIN,
   };
 }
 

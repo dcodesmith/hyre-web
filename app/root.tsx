@@ -59,6 +59,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const ENV = {
     APP_NAME: env.APP_NAME,
     GOOGLE_MAPS_API_KEY: env.GOOGLE_MAPS_API_KEY,
+    DOMAIN: env.DOMAIN,
   };
 
   // Fetch referral config for the UI

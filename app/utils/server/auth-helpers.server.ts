@@ -83,50 +83,6 @@ export function redirectToLoginForRole(role: RoleName | null, redirectTo?: strin
 }
 
 /**
- * Resend OTP code
- */
-export async function resendOTP(
-  request: Request,
-  session: Awaited<ReturnType<typeof getSession>>,
-  email: string,
-) {
-  try {
-    await auth.api.sendVerificationOTP({
-      body: {
-        email,
-        type: "sign-in",
-      },
-      headers: request.headers,
-    });
-    // Clear any existing auth:error when resending succeeds
-    session.unset("auth:error");
-    return data(
-      { message: "New code sent" },
-      {
-        headers: {
-          "Set-Cookie": await commitSession(session),
-          "Cache-Control": "no-store",
-        },
-      },
-    );
-  } catch (error) {
-    logger.error("Error resending OTP", { error });
-    // For same-route failures, only return actionData.error
-    // Don't set auth:error cookie to avoid duplication and stale state
-    return data(
-      { error: "Failed to resend code" },
-      {
-        status: 500,
-        headers: {
-          "Set-Cookie": await commitSession(session),
-          "Cache-Control": "no-store",
-        },
-      },
-    );
-  }
-}
-
-/**
  * Sign in with OTP and extract session cookie
  */
 export async function signInWithOTP(email: string, otp: string, request: Request) {
@@ -188,8 +144,17 @@ export async function createAuthErrorResponse(
 ) {
   const errorMessage = error instanceof Error ? error.message : defaultMessage;
 
+  // Detect "too many attempts" error and provide helpful guidance
+  const isTooManyAttempts =
+    errorMessage.toLowerCase().includes("too many attempts") ||
+    errorMessage.toLowerCase().includes("maximum attempts");
+
+  const userMessage = isTooManyAttempts
+    ? "You've used all verification attempts for this code. Please request a new code to continue."
+    : errorMessage;
+
   return data(
-    { error: errorMessage },
+    { error: userMessage },
     {
       status: 401,
       headers: {
