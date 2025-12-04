@@ -86,10 +86,18 @@ const phoneNumberValidation = z
   );
 
 export const profileFormSchema = z.object({
-  name: z.string().min(2, "Name must be at least 2 characters"),
+  name: z
+    .string({
+      error: "Name is required",
+    })
+    .min(2, "Name must be at least 2 characters"),
   email: z.email("Invalid email address"),
   phoneNumber: phoneNumberValidation,
-  address: z.string().min(1, "Address cannot be empty"),
+  address: z
+    .string({
+      error: "Address is required",
+    })
+    .min(1, "Address cannot be empty"),
 });
 
 export type ProfileFormValues = z.infer<typeof profileFormSchema>;

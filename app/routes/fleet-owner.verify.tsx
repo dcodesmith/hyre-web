@@ -18,11 +18,11 @@ import {
   clearAuthSession,
   createAuthErrorResponse,
   createAuthRedirectResponse,
+  ensureUserHasRole,
   getAuthContext,
   getDashboardUrlForRole,
   getLoginUrlForRole,
   signInWithOTP,
-  verifyUserHasRole,
 } from "~/utils/server/auth-helpers.server";
 
 export async function loader({ request }: LoaderFunctionArgs) {
@@ -106,7 +106,7 @@ export async function action({ request }: ActionFunctionArgs) {
   });
 
   if (submission.status !== "success") {
-    return submission.reply();
+    return data(submission.reply(), { status: 400 });
   }
 
   const { code } = submission.value;
@@ -114,9 +114,10 @@ export async function action({ request }: ActionFunctionArgs) {
   try {
     const { userId, cookie } = await signInWithOTP(authEmail, code, request);
 
-    // Strictly verify user has fleetOwner role (do NOT grant roles)
-    // This prevents TOCTOU vulnerabilities and unauthorized role escalation
-    await verifyUserHasRole(userId, "fleetOwner");
+    // Ensure user has fleetOwner role (grants role if missing for new users)
+    // This is safe because we've verified they came through the fleet-owner login flow
+    // with the correct role stored in the session (authRole === "fleetOwner")
+    await ensureUserHasRole(userId, "fleetOwner");
 
     // Clear auth session data
     clearAuthSession(session);

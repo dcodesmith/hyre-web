@@ -6,7 +6,11 @@ const PLATFORM_FEE_TYPES = ["PLATFORM_SERVICE_FEE", "FLEET_OWNER_COMMISSION"] as
 // Shared field definitions
 const emailField = z.email("Email address is not valid.");
 
-const descriptionField = z.string().optional();
+const descriptionField = z
+  .string({
+    error: "Description is required.",
+  })
+  .optional();
 
 const ratePercentField = z
   .string({
