@@ -149,7 +149,6 @@ export default function Login() {
                       Email
                     </label>
                     <Input
-                      defaultValue={authEmail ?? ""}
                       className={`bg-transparent ${
                         email.errors ? "border-destructive focus-visible:ring-destructive" : ""
                       }`}

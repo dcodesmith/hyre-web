@@ -150,7 +150,7 @@ export async function requireUser(
         throw redirect("/auth");
       }
 
-      throw redirect(safeRedirect(redirectTo, "/logout"));
+      throw redirect(safeRedirect(redirectTo, "/auth"));
     }
 
     const user = await prisma.user.findUnique({
@@ -175,8 +175,10 @@ export async function requireUser(
       throw error;
     }
 
-    logger.error("Error in requireUser:", error);
-    throw redirect(safeRedirect(redirectTo, "/logout"));
+    logger.error("Unexpected error in requireUser:", error);
+    // Rethrow unexpected errors so error boundaries can handle them
+    // rather than masking server issues behind a logout redirect
+    throw error;
   }
 }
 

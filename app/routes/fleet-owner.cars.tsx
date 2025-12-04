@@ -138,14 +138,12 @@ export async function action({ request }: ActionFunctionArgs) {
 
   try {
     if (intent === "create") {
-      const result = await handleCreateCar(formData, user);
-      if (result) return result;
-    } else if (intent === "edit") {
-      const result = await handleEditCar(formData, user);
-      if (result) return result;
+      return await handleCreateCar(formData, user);
     }
 
-    return data({ success: true }, { status: 200 });
+    if (intent === "edit") {
+      return await handleEditCar(formData, user);
+    }
   } catch (error) {
     logger.error({ error }, `Failed to ${intent} car`);
     return data(
