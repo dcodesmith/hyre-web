@@ -10,38 +10,18 @@ import { prisma } from "~/modules/db/db.server";
 import { deleteFileFromS3, uploadFileToS3 } from "./s3.server";
 import logger from "~/lib/logger.server";
 
-export async function isCarAvailable(carId: string, startDate: Date, endDate: Date) {
-  if (startDate >= endDate) {
-    throw new Error("startDate must be before endDate");
-  }
-
-  // Check if the car exists and is approved (don't check status - car can be BOOKED but still available for other time slots)
-  const car = await prisma.car.findUnique({
-    where: {
-      id: carId,
-      approvalStatus: CarApprovalStatus.APPROVED, // Must be approved
-      // Don't filter by status - a car with status BOOKED can still be available for non-overlapping times
-    },
-    select: { id: true, status: true },
+/**
+ * Checks if an owner-driver has reached their car limit (1 car max).
+ * This is a pure business rule function that returns a boolean.
+ * @param userId - The user ID to check
+ * @returns true if the user has reached the limit (has 1 or more cars), false otherwise
+ */
+export async function hasReachedOwnerDriverCarLimit(userId: string): Promise<boolean> {
+  const existingCars = await prisma.car.count({
+    where: { ownerId: userId },
   });
 
-  if (!car) {
-    throw new Error("Car not found or not approved");
-  }
-
-  // Use a count query instead of fetching all bookings for better performance
-  // Overlap rule (precise to datetime): existing.start < newEnd AND existing.end > newStart
-  const conflictingBookingsCount = await prisma.booking.count({
-    where: {
-      carId,
-      paymentStatus: "PAID",
-      status: { in: ["CONFIRMED", "ACTIVE"] },
-      AND: [{ startDate: { lt: endDate } }, { endDate: { gt: startDate } }],
-    },
-  });
-
-  // Car is available if it has no overlapping bookings
-  return conflictingBookingsCount === 0;
+  return existingCars >= 1;
 }
 
 const getKey = (car: Car, file: File) => {

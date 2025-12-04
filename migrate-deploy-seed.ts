@@ -19,6 +19,15 @@ const execPromise = (command: string): Promise<string> => {
 };
 
 const runMigrationsAndSeed = async () => {
+  // Check if DATABASE_URL is available
+  if (!process.env.DATABASE_URL) {
+    console.info(
+      "⚠️  DATABASE_URL not found. Skipping migrations and seeding.",
+      "This is normal during package installation when database is not available.",
+    );
+    return;
+  }
+
   const prisma = new PrismaClient();
 
   try {

@@ -1,7 +1,7 @@
 import { parseWithZod } from "@conform-to/zod";
 import { ActionFunctionArgs, data } from "@remix-run/node";
 import logger from "~/lib/logger.server";
-import { authenticator } from "~/modules/auth/auth.server";
+import { requireUser } from "~/modules/auth/auth.server";
 import { prisma } from "~/modules/db/db.server";
 import { profileFormSchema } from "~/schemas/user";
 import { validateCSRF } from "~/utils/csrf-action.server";
@@ -9,12 +9,13 @@ import { validateCSRF } from "~/utils/csrf-action.server";
 export async function action({ request }: ActionFunctionArgs) {
   await validateCSRF(request);
 
-  const user = await authenticator.isAuthenticated(request, {
-    failureRedirect: "/auth",
+  const user = await requireUser(request, {
+    redirectTo: "/auth",
   });
 
   const formData = await request.formData();
-  const intent = String(formData.get("intent"));
+  const intentValue = formData.get("intent");
+  const intent = typeof intentValue === "string" ? intentValue : "";
 
   if (intent === "update") {
     const submission = parseWithZod(formData, { schema: profileFormSchema });

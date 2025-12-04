@@ -2,7 +2,7 @@ import type { Role, User } from "@prisma/client";
 import { Link, useLocation } from "@remix-run/react";
 import { Calendar, Gift, Home, LogIn, LogOut, User as UserIcon, Car, LayoutDashboard, Users } from "lucide-react";
 import { Form } from "~/components/CSRFForm";
-import { userHasRole } from "~/utils/client/misc";
+import { userHasRole } from "~/utils/shared/roles";
 import { NairaIcon } from "~/components/icons/NairaIcon";
 
 type MobileBottomNavProps = {

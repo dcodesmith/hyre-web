@@ -1,10 +1,8 @@
-import { type LoaderFunctionArgs, data } from "@remix-run/node";
-import { useLoaderData, useFetcher } from "@remix-run/react";
-import { useState, useEffect } from "react";
-import { prisma } from "~/modules/db/db.server";
-import { requireAdminOrStaffWithRedirect } from "~/modules/auth/auth.server";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
-import { FileText, Car } from "lucide-react";
+import { type LoaderFunctionArgs } from "@remix-run/node";
+import { useFetcher, useLoaderData } from "@remix-run/react";
+import { Car, FileText } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Button } from "~/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -13,8 +11,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "~/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import { Textarea } from "~/components/ui/textarea";
-import { Button } from "~/components/ui/button";
+import { requireAdminOrStaffWithRedirect } from "~/modules/auth/auth.server";
+import { prisma } from "~/modules/db/db.server";
 
 const DocumentType = {
   MOT_CERTIFICATE: "MOT_CERTIFICATE",

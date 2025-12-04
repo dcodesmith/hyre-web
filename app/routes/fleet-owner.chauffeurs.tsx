@@ -34,7 +34,7 @@ import {
 import { useToast } from "~/hooks/use-toast";
 import logger from "~/lib/logger.server";
 import { cn, useIsPending } from "~/lib/utils";
-import { requireUserWithRole } from "~/modules/auth/auth.server";
+import { requireUserWithRole } from "~/utils/server/permissions.server";
 import { prisma } from "~/modules/db/db.server";
 import { createUser } from "~/services/users.server";
 import type { ChauffeurStatus, SerializedChauffeur } from "~/types";
@@ -196,7 +196,8 @@ export async function action({ request }: ActionFunctionArgs) {
     maxPartSize: 10 * 1024 * 1024, // 10MB limit
   });
   const formData = await unstable_parseMultipartFormData(request, uploadHandler);
-  const intent = formData.get("intent")?.toString() ?? "";
+  const intentValue = formData.get("intent");
+  const intent = typeof intentValue === "string" ? intentValue : "";
 
   if (!["create", "edit"].includes(intent)) {
     return data({ success: false, error: "Invalid intent" }, { status: 400 });
@@ -224,7 +225,8 @@ export async function action({ request }: ActionFunctionArgs) {
     }
 
     if (intent === "edit") {
-      const chauffeurId = String(formData.get("chauffeurId"));
+      const chauffeurIdValue = formData.get("chauffeurId");
+      const chauffeurId = typeof chauffeurIdValue === "string" ? chauffeurIdValue : "";
 
       const submission = parseWithZod(formData, {
         schema: chauffeurSchema.omit({ ninFile: true, drivingLicenceFile: true }),

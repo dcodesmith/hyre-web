@@ -1,10 +1,9 @@
 import { LoaderFunctionArgs } from "@remix-run/node";
 import { prisma } from "~/modules/db/db.server";
-import { requireUserWithRole } from "~/modules/auth/auth.server";
+import { requireAdminWithRedirect } from "~/modules/auth/auth.server";
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
-  // Ensure user is authorized
-  await requireUserWithRole(request, "admin");
+  await requireAdminWithRedirect(request);
 
   const documentId = params.documentId;
 

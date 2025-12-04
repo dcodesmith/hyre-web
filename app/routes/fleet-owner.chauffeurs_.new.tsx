@@ -13,7 +13,7 @@ import { Form } from "~/components/CSRFForm";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
-import { requireUserWithRole } from "~/modules/auth/auth.server";
+import { requireUserWithRole } from "~/utils/server/permissions.server";
 import { prisma } from "~/modules/db/db.server";
 import { createUser } from "~/services/users.server";
 import { validateCSRF } from "~/utils/csrf-action.server";

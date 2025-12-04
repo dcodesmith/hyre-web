@@ -36,19 +36,8 @@ export function useUser() {
 
   return optionalUser;
 }
-/**
- * Permissions.
- * Implementation based on github.com/epicweb-dev/epic-stack
- */
-export type RoleName = "user" | "fleetOwner" | "admin" | "chauffeur" | "staff";
 
-export function userHasRole(
-  user: Pick<ReturnType<typeof useUser>, "roles"> | null,
-  roleName: RoleName,
-) {
-  if (!user) {
-    return false;
-  }
-
-  return user.roles.some((role) => role.name === roleName);
-}
+// Re-export role utilities from shared module for backward compatibility
+// New code should import directly from ~/utils/shared/roles
+export type { RoleName } from "~/utils/shared/roles";
+export { userHasRole } from "~/utils/shared/roles";

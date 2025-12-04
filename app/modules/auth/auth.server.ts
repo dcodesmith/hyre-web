@@ -1,189 +1,178 @@
 import type { User } from "@prisma/client";
 import { redirect } from "@remix-run/node";
-import { Authenticator } from "remix-auth";
-import { TOTPStrategy } from "remix-auth-totp";
-import invariant from "tiny-invariant";
+import { betterAuth } from "better-auth";
+import { prismaAdapter } from "better-auth/adapters/prisma";
+import { emailOTP } from "better-auth/plugins";
 import logger from "~/lib/logger.server";
 import { prisma } from "~/modules/db/db.server";
 import { sendAuthEmail } from "~/modules/email/email.server";
-import {
-  createReferralCodeForUser,
-  handleReferralAttribution,
-  validateReferralCode,
-} from "~/services/referral.server";
-import { RoleName, userHasRole } from "~/utils/client/misc";
+import { userHasRole } from "~/utils/shared/roles";
 import { safeRedirect } from "~/utils/safe-redirect";
 import { env } from "~/utils/server/env.server";
-import { sessionStorage } from "./session.server";
 
-export const authenticator = new Authenticator<User>(sessionStorage, {
-  sessionErrorKey: "my-error-key",
-});
+type SessionUser = {
+  id: string;
+};
 
-const totpStrategy = new TOTPStrategy(
-  {
-    secret: env.ENCRYPTION_SECRET,
-    sendTOTP: async ({ email, code, context }) => {
-      const role = context?.role as RoleName;
+type BetterAuthSession = {
+  user: SessionUser | null;
+};
 
-      const user = await prisma.user.findUnique({
-        where: { email },
-        include: { roles: true },
-      });
+const config = {
+  database: prismaAdapter(prisma, {
+    provider: "postgresql",
+  }),
+  secret: env.SESSION_SECRET,
+  baseURL: env.DOMAIN ?? "http://localhost:5173",
+  session: {
+    // 60 * 60 * 24 * 7 = 604800 seconds (7 days)
+    expiresIn: 60 * 60 * 24 * 7,
+  },
+  advanced: {
+    /**
+     * Cookie Security Configuration
+     *
+     * useSecureCookies: Enables Secure flag in production (HTTPS only)
+     *
+     * cookiePrefix: Uses __Host- prefix in production for enhanced security.
+     * The __Host- prefix enforces:
+     * - Cookie must have Secure flag (enforced by useSecureCookies)
+     * - Cookie must NOT have a Domain attribute (domain-bound to exact host)
+     * - Cookie Path must be "/" (applies to entire host)
+     *
+     * This prevents cookie theft via subdomain attacks and ensures cookies
+     * are only accessible on the exact host domain, not subdomains.
+     *
+     * Reference: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie#cookie_prefixes
+     */
+    useSecureCookies: env.NODE_ENV === "production",
+    cookiePrefix: env.NODE_ENV === "production" ? "__Host-" : "",
 
-      if (user && !userHasRole(user, role)) {
-        throw new Error("Did you sign up with a different role?");
-      }
-
-      if (process.env.NODE_ENV === "development") {
-        logger.info(`OTP code: ${code}`);
-
-        if (
-          email.endsWith("@admin.com") ||
-          email.startsWith("cool.fleetowner") ||
-          email.startsWith("nerdy.fleetowner")
-        ) {
-          return;
-        }
-      }
-
-      await sendAuthEmail({
-        email,
-        code,
-        intent: user ? "login" : "registration",
-      });
+    /**
+     * Default Cookie Attributes
+     *
+     * Explicitly sets security attributes for all cookies created by better-auth:
+     * - httpOnly: true - Prevents client-side JavaScript access (XSS protection)
+     * - secure: true in production - Ensures cookies only sent over HTTPS
+     * - sameSite: "lax" - Balances security and usability:
+     *   * Allows cookies on same-site requests
+     *   * Allows cookies on top-level navigation GET requests (better UX)
+     *   * Blocks cookies on cross-site POST requests (CSRF protection)
+     *
+     * Note: sameSite: "strict" provides maximum security but may break
+     * OAuth flows and external redirects. "lax" is recommended for most apps.
+     */
+    defaultCookieAttributes: {
+      httpOnly: true,
+      secure: env.NODE_ENV === "production",
+      sameSite: "lax" as const,
     },
-    validateEmail: async () => true,
   },
-  async ({ email, request }) => {
-    const url = new URL(request.url);
-    const redirectToUrl = url.searchParams.get("redirectTo");
-    let role = url.searchParams.get("role");
-    const referralCode = url.searchParams.get("ref");
-
-    // If redirectTo contains a role parameter, use that, otherwise keep the role from URL params
-    if (redirectToUrl) {
-      const roleFromRedirectTo = new URL(redirectToUrl, "https://dummy.com").searchParams.get(
-        "role",
-      );
-      if (roleFromRedirectTo) {
-        role = roleFromRedirectTo;
-      }
-    }
-
-    invariant(role, "role is required");
-
-    let user = await prisma.user.findUnique({
-      where: { email },
-      include: {
-        roles: { select: { name: true } },
-      },
-    });
-
-    if (!user) {
-      if (referralCode && referralCode.trim().length > 0) {
-        await validateReferralCode(referralCode.trim(), email);
-      }
-      // Create new user
-      user = await prisma.user.create({
-        data: {
-          email,
-          roles: { connect: [{ name: role }] },
-        },
-        include: { roles: true },
-      });
-
-      // Generate referral code only for regular users with "user" role
-      if (role === "user") {
+  telemetry: {
+    enabled: env.NODE_ENV === "production",
+  },
+  plugins: [
+    emailOTP({
+      /**
+       * OTP Expiry Configuration
+       *
+       * expiresIn: Time in seconds before the OTP code expires.
+       * Default: 300 seconds (5 minutes)
+       * Set to 600 seconds (10 minutes) for better UX while maintaining security.
+       *
+       */
+      async sendVerificationOTP({ email, otp, type }) {
         try {
-          await createReferralCodeForUser(user.id);
-        } catch (error) {
-          logger.error("Failed to generate referral code for user", {
-            userId: user.id,
-            error: error instanceof Error ? error.message : String(error),
+          const user = await prisma.user.findUnique({
+            where: { email },
+            include: { roles: true },
           });
+
+          const intent: "login" | "registration" = user ? "login" : "registration";
+
+          if (process.env.NODE_ENV === "development") {
+            logger.info(`OTP code: ${otp}`);
+
+            if (
+              email.endsWith("@admin.com") ||
+              email.startsWith("cool.fleetowner") ||
+              email.startsWith("nerdy.fleetowner")
+            ) {
+              return;
+            }
+          }
+
+          await sendAuthEmail({
+            email,
+            code: otp,
+            intent,
+          });
+        } catch (error) {
+          logger.error("Failed to send verification OTP", {
+            type,
+            error,
+          });
+          throw error;
         }
-      }
+      },
+    }),
+  ],
+};
 
-      // Handle referral attribution if referral code is provided
-      if (role === "user" && referralCode && referralCode.trim().length > 0) {
-        await handleReferralAttribution(user.id, referralCode.trim(), request);
-      }
+export const auth = betterAuth(config);
 
-      // Reload user to get updated referral info
-      user = await prisma.user.findUnique({
-        where: { id: user.id },
-        include: { roles: true },
-      });
-    }
-
-    return user;
-  },
-);
-
-authenticator.use(totpStrategy);
-
-/**
- * Utilities.
- */
-async function getUserId(request: Request) {
-  const user = await authenticator.isAuthenticated(request);
-  return user?.id;
+async function getSession(request: Request): Promise<BetterAuthSession | null> {
+  try {
+    const session = await auth.api.getSession({
+      headers: request.headers,
+    });
+    return session;
+  } catch (error) {
+    logger.error("Error getting session", { error });
+    return null;
+  }
 }
 
-export async function requireSessionUser(
-  request: Request,
-  { redirectTo }: { redirectTo?: string | null } = {},
-) {
-  const sessionUser = await authenticator.isAuthenticated(request);
-
-  if (!sessionUser) {
-    if (!redirectTo) {
-      throw redirect("/auth");
-    }
-
-    throw redirect(safeRedirect(redirectTo, "/logout"));
-  }
-
-  return sessionUser;
+async function getSessionUserId(request: Request): Promise<string | null> {
+  const session = await getSession(request);
+  return session?.user?.id ?? null;
 }
 
 export async function requireUser(
   request: Request,
   { redirectTo }: { redirectTo?: string | null } = {},
-) {
+): Promise<User & { roles: { name: string }[] }> {
   try {
-    const sessionUser = await authenticator.isAuthenticated(request);
+    const userId = await getSessionUserId(request);
 
-    const user = sessionUser?.id
-      ? await prisma.user.findUnique({
-          where: { id: sessionUser.id },
-          include: {
-            roles: { select: { name: true } },
-          },
-        })
-      : null;
+    if (!userId) {
+      if (!redirectTo) {
+        throw redirect("/auth");
+      }
 
-    // If session exists but user doesn't exist in DB, clear the invalid session
-    if (sessionUser && !user) {
+      throw redirect(safeRedirect(redirectTo, "/logout"));
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        roles: {
+          select: { name: true },
+        },
+      },
+    });
+
+    if (!user) {
       logger.warn(
-        `Session exists for user ${sessionUser.id} but user not found in database. Clearing session.`,
+        `Session exists for user ${userId} but user not found in database. Clearing session.`,
       );
       throw redirect("/logout");
     }
 
-    if (!user) {
-      if (!redirectTo) {
-        throw redirect("/auth");
-      }
-      throw redirect(safeRedirect(redirectTo, "/logout"));
-    }
-
     return user;
   } catch (error) {
-    // If there's any error with session validation, clear it and redirect to auth
     if (error instanceof Response) {
-      throw error; // Re-throw redirect responses
+      throw error;
     }
 
     logger.error("Error in requireUser:", error);
@@ -191,47 +180,25 @@ export async function requireUser(
   }
 }
 
-/**
- * Require admin user and redirect to admin login if not authenticated
- */
-export async function requireAdminWithRedirect(request: Request) {
-  const user = await requireUser(request, {
-    redirectTo: `/admin/login?${new URLSearchParams({
-      redirectTo: new URL(request.url).pathname,
-    })}`,
-  });
-
-  if (!userHasRole(user, "admin")) {
-    throw redirect("/admin/login");
-  }
-
-  return user;
-}
-
-/**
- * Gets the current user from the session without redirecting
- * Returns null if no user is logged in or if session is invalid
- */
-export async function getSessionUser(request: Request) {
+export async function getSessionUser(
+  request: Request,
+): Promise<(User & { roles: { name: string }[] }) | null> {
   try {
-    const userId = await getUserId(request);
+    const userId = await getSessionUserId(request);
     if (!userId) return null;
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
       include: {
         roles: {
-          select: {
-            name: true,
-          },
+          select: { name: true },
         },
       },
     });
 
-    // If session exists but user doesn't exist in DB, the session is stale
-    if (userId && !user) {
+    if (!user) {
       logger.warn(`Session exists for user ${userId} but user not found in database.`);
-      throw redirect("/logout");
+      return null;
     }
 
     return user;
@@ -241,20 +208,19 @@ export async function getSessionUser(request: Request) {
   }
 }
 
-export async function requireUserWithRole(request: Request, role: string) {
-  const user = await requireUser(request);
+export async function requireAdminWithRedirect(request: Request) {
+  const currentPath = new URL(request.url).pathname;
+  const user = await requireUser(request, {
+    redirectTo: `/admin/login?redirectTo=${encodeURIComponent(currentPath)}`,
+  });
 
-  const hasRole = user.roles.some((userRole) => userRole.name === role);
-  if (!hasRole) {
-    throw new Response("Unauthorized", { status: 403 });
+  if (!userHasRole(user, "admin")) {
+    throw redirect("/admin/login");
   }
 
   return user;
 }
 
-/**
- * Require admin or staff user and redirect to admin login if not authenticated
- */
 export async function requireAdminOrStaffWithRedirect(request: Request) {
   const user = await requireUser(request, {
     redirectTo: `/admin/login?${new URLSearchParams({

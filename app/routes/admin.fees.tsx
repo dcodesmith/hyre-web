@@ -3,7 +3,6 @@ import { parseWithZod } from "@conform-to/zod";
 import { type ActionFunctionArgs, type LoaderFunctionArgs, data } from "@remix-run/node";
 import { useActionData, useLoaderData } from "@remix-run/react";
 import { format } from "date-fns";
-import { useAuthenticityToken } from "remix-utils/csrf/react";
 import { z } from "zod";
 import { Form } from "~/components/CSRFForm";
 import { Alert, AlertDescription } from "~/components/ui/alert";
@@ -12,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
 import logger from "~/lib/logger.server";
-import { requireAdminWithRedirect } from "~/modules/auth/auth.server";
+import { requireAdminOrStaffWithRedirect } from "~/modules/auth/auth.server";
 import { prisma } from "~/modules/db/db.server";
 import { validateCSRF } from "~/utils/csrf-action.server";
 
@@ -90,7 +89,7 @@ const platformFeeSchema = z
   );
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  await requireAdminWithRedirect(request);
+  await requireAdminOrStaffWithRedirect(request);
 
   const [currentVatRate, currentPlatformServiceFee, currentFleetOwnerCommission] =
     await Promise.all([
@@ -134,7 +133,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
 export async function action({ request }: ActionFunctionArgs) {
   await validateCSRF(request);
-  await requireAdminWithRedirect(request);
+  await requireAdminOrStaffWithRedirect(request);
 
   const formData = await request.formData();
   const intent = formData.get("intent");
@@ -239,7 +238,6 @@ export default function AdminFees() {
   const { currentVatRate, currentPlatformServiceFee, currentFleetOwnerCommission } =
     useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
-  const csrfToken = useAuthenticityToken();
 
   const [
     vatForm,

@@ -1,9 +1,8 @@
 import type { ActionFunctionArgs } from "@remix-run/node";
 import { data } from "@remix-run/node";
-import invariant from "tiny-invariant";
-import { requireUserWithRole } from "~/modules/auth/auth.server";
 import { prisma } from "~/modules/db/db.server";
 import { validateCSRF } from "~/utils/csrf-action.server";
+import { requireUserWithRole } from "~/utils/server/permissions.server";
 
 export async function action({ request, params }: ActionFunctionArgs) {
   if (request.method !== "DELETE") {

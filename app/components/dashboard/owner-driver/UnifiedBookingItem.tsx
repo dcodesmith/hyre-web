@@ -150,13 +150,19 @@ export function UnifiedBookingItem({ booking, statusType }: UnifiedBookingItemPr
               type="submit"
               variant="default"
               className="w-full sm:w-auto"
+              size="sm"
               disabled={isSubmitting}
             >
               {isSubmitting ? "Accepting..." : "Accept Booking"}
             </Button>
           </fetcher.Form>
         )}
-        <Button variant="outline" className="w-full sm:w-auto" onClick={() => setIsSheetOpen(true)}>
+        <Button
+          variant="outline"
+          className="w-full sm:w-auto"
+          size="sm"
+          onClick={() => setIsSheetOpen(true)}
+        >
           View Details
         </Button>
       </div>

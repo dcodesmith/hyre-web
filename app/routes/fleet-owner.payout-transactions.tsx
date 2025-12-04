@@ -15,13 +15,13 @@ import {
   DropdownMenuTrigger,
 } from "~/components/ui/dropdown-menu";
 import { cn, formatCurrency, formatDate } from "~/lib/utils";
-import { requireUser } from "~/modules/auth/auth.server";
 import { prisma } from "~/modules/db/db.server";
+import { requireUserWithRole } from "~/utils/server/permissions.server";
 
 type Transaction = ReturnType<typeof useLoaderData<typeof loader>>["transactions"][number];
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  const user = await requireUser(request);
+  const user = await requireUserWithRole(request, "fleetOwner");
   const transactions = await prisma.payoutTransaction.findMany({
     where: {
       fleetOwnerId: user.id,

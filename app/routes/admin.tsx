@@ -1,8 +1,7 @@
-import { Outlet, Link, useLocation } from "@remix-run/react";
+import { LoaderFunctionArgs } from "@remix-run/node";
+import { Link, Outlet, useLoaderData, useLocation } from "@remix-run/react";
 import { ScrollArea } from "~/components/ui/scroll-area";
-import { LoaderFunctionArgs, data } from "@remix-run/node";
 import { requireAdminOrStaffWithRedirect } from "~/modules/auth/auth.server";
-import { useLoaderData } from "@remix-run/react";
 
 interface NavLinkProps {
   to: string;

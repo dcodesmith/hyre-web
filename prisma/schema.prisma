@@ -1,9 +1,11 @@
 generator client {
   provider = "prisma-client-js"
+  skipDefaultValidation = true
 }
 
 datasource db {
   provider = "postgresql"
+  // Note: In Prisma 7+, move this to prisma.config.ts
   url      = env("DATABASE_URL")
 }
 
@@ -41,7 +43,9 @@ model Car {
 model User {
   id                      String                   @id @default(cuid())
   email                   String                   @unique
+  emailVerified            Boolean                  @default(false)
   username                String?                  @unique
+  image                    String?
   createdAt               DateTime                 @default(now())
   updatedAt               DateTime                 @updatedAt
   address                 String?
@@ -80,6 +84,7 @@ model User {
   referralRewardsEarned   ReferralReward[]         @relation("ReferrerRewards")
   referralRewardsFrom     ReferralReward[]         @relation("RefereeRewards")
   bookingReferrals        Booking[]                @relation("BookingReferrals")
+  sessions                Session[]
 
   @@index([fleetOwnerId])
   @@index([fleetOwnerStatus, hasOnboarded])
@@ -557,4 +562,34 @@ model ReferralProgramConfig {
   value     Json
   updatedAt DateTime @updatedAt
   updatedBy String?
+}
+
+// Better-auth required tables
+model Session {
+  id        String   @id @default(cuid())
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+  @@map("session")
+}
+
+model Verification {
+  id         String   @id @default(cuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@index([value])
+  @@map("verification")
 }

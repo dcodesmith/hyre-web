@@ -1,25 +1,26 @@
 import { parseWithZod } from "@conform-to/zod";
 import { type ActionFunctionArgs, type LoaderFunctionArgs, data, redirect } from "@remix-run/node";
 import { useActionData } from "@remix-run/react";
-import { AuthorizationError } from "remix-auth";
 import { z } from "zod";
 import { Form } from "~/components/CSRFForm";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import logger from "~/lib/logger.server";
-import { authenticator } from "~/modules/auth/auth.server";
+import { getSessionUser } from "~/modules/auth/auth.server";
 import { prisma } from "~/modules/db/db.server";
+import { userHasRole } from "~/utils/shared/roles";
 import { validateCSRF } from "~/utils/csrf-action.server";
 import { safeRedirect } from "~/utils/safe-redirect";
+import { sendOTPAndRedirect } from "~/utils/server/auth-helpers.server";
 
 const AdminLoginSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
 });
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  const user = await authenticator.isAuthenticated(request);
+  const user = await getSessionUser(request);
 
-  if (user) {
+  if (user && (userHasRole(user, "admin") || userHasRole(user, "staff"))) {
     return redirect("/admin");
   }
 
@@ -57,39 +58,30 @@ export async function action({ request }: ActionFunctionArgs) {
       return data({ error: "Invalid credentials" }, { status: 401 });
     }
 
-    const isAdmin = user.roles.some((role) => role.name === "admin");
-    const isStaff = user.roles.some((role) => role.name === "staff");
+    const isAdmin = userHasRole(user, "admin");
+    const isStaff = userHasRole(user, "staff");
 
     if (!isAdmin && !isStaff) {
       logger.warn(
-        `Unauthorized access: ${email}, roles=[${user.roles.map((r) => r.name).join(",")}]`,
+        `Unauthorized access attempt: ${email}, roles=[${user.roles.map((r) => r.name).join(",")}]`,
       );
+      return data({ error: "Invalid credentials" }, { status: 401 });
     }
 
-    // Build the verify URL with appropriate parameters
-    const verifyParams = new URLSearchParams();
-    if (redirectTo) {
-      verifyParams.set("redirectTo", redirectTo);
-    }
-    verifyParams.set("role", isAdmin ? "admin" : "staff");
+    const role = isAdmin ? ("admin" as const) : ("staff" as const);
+    logger.info(`Authenticating admin/staff, email: ${email}, role: ${role}`);
 
-    logger.info(`Authenticating admin/staff, email: ${email}`);
-    return authenticator.authenticate("TOTP", request, {
-      successRedirect: `/admin/verify?${verifyParams.toString()}`,
-      failureRedirect: "/admin/login",
-      context: { role: isAdmin ? "admin" : "staff" },
-    });
+    // Send OTP and redirect to verify page
+    return sendOTPAndRedirect(request, email, role, redirectTo);
   } catch (error) {
-    if (error instanceof AuthorizationError) {
-      return data({ error: error.message }, { status: 401 });
-    }
-
-    if (error instanceof Response) {
-      return error;
-    }
-
     logger.error({ error }, "Admin login failed");
-    return data({ error: "Something went wrong" }, { status: 500 });
+
+    // For same-route failures, only return actionData.error
+    // Don't set auth:error cookie to avoid duplication and stale state
+    return data(
+      { error: error instanceof Error ? error.message : "Something went wrong" },
+      { status: 500 },
+    );
   }
 }
 

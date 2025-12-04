@@ -40,32 +40,46 @@ export function shouldRevalidate() {
 }
 
 export async function loader({ request }: LoaderFunctionArgs) {
+  const url = new URL(request.url);
+  const pathname = url.pathname;
+
+  // Skip auth check for login/verify pages - they should be public
+  const isPublicPage = pathname.includes("/login") || pathname.includes("/verify");
+  if (isPublicPage) {
+    return { isOwnerDriver: false, isPublicPage };
+  }
+
   const user = await requireUserWithRole(request, "fleetOwner");
 
-  const url = new URL(request.url);
   // Don't redirect if we're already on the onboarding page
-  if (!user.hasOnboarded && !url.pathname.endsWith("/onboarding")) {
+  if (!user.hasOnboarded && !pathname.endsWith("/onboarding")) {
     return redirect("/fleet-owner/onboarding");
   }
 
-  return { isOwnerDriver: user.isOwnerDriver };
+  return { isOwnerDriver: user.isOwnerDriver, isPublicPage: false };
 }
 
 export default function Dashboard() {
-  const { isOwnerDriver } = useLoaderData<typeof loader>();
+  const { isOwnerDriver, isPublicPage } = useLoaderData<typeof loader>();
   const location = useLocation();
 
-  // Don't show navigation on onboarding page
+  // Don't show navigation on onboarding, login, or verify pages
   const isOnboardingPage = location.pathname.endsWith("/onboarding");
+  const shouldShowNav = !isOnboardingPage && !isPublicPage;
 
   // Filter out chauffeurs link for owner-drivers
   const filteredNavLinks = navLinks.filter(
-    (link) => !(isOwnerDriver && link.to === "/fleet-owner/chauffeurs")
+    (link) => !(isOwnerDriver && link.to === "/fleet-owner/chauffeurs"),
   );
+
+  // For public pages (login/verify), render without layout
+  if (isPublicPage) {
+    return <Outlet />;
+  }
 
   return (
     <>
-      {!isOnboardingPage && (
+      {shouldShowNav && (
         <div className="relative hidden md:block">
           <ScrollArea className="max-w-[600px] lg:max-w-none">
             <nav className="mb-4 mt-4 flex items-center lg:mt-0">

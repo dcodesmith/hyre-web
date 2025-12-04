@@ -1,31 +1,57 @@
-import { useActionData, useLoaderData } from "@remix-run/react";
 import { ActionFunctionArgs, LoaderFunctionArgs, data, redirect } from "@remix-run/node";
-import { authenticator } from "~/modules/auth/auth.server";
-import { AuthorizationError } from "remix-auth";
-import { commitSession, getSession } from "~/modules/auth/session.server";
-import { Button } from "~/components/ui/button";
-import { safeRedirect } from "~/utils/safe-redirect";
-import { validateCSRF } from "~/utils/csrf-action.server";
+import { useActionData, useLoaderData } from "@remix-run/react";
 import { Form } from "~/components/CSRFForm";
+import { Button } from "~/components/ui/button";
+import logger from "~/lib/logger.server";
+import { getSessionUser } from "~/modules/auth/auth.server";
+import { commitSession, getSession } from "~/modules/auth/session.server";
+import { userHasRole } from "~/utils/shared/roles";
+import { validateCSRF } from "~/utils/csrf-action.server";
+import { safeRedirect } from "~/utils/safe-redirect";
+import {
+  clearAuthSession,
+  createAuthErrorResponse,
+  createAuthRedirectResponse,
+  getAuthContext,
+  getDashboardUrlForRole,
+  getLoginUrlForRole,
+  resendOTP,
+  signInWithOTP,
+  verifyUserHasRole,
+} from "~/utils/server/auth-helpers.server";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   // Redirect to admin if already authenticated
   const url = new URL(request.url);
   const redirectTo = safeRedirect(url.searchParams.get("redirectTo"));
 
-  await authenticator.isAuthenticated(request, {
-    successRedirect: redirectTo || "/admin",
-  });
+  const user = await getSessionUser(request);
+  if (user && (userHasRole(user, "admin") || userHasRole(user, "staff"))) {
+    throw redirect(redirectTo || "/admin");
+  }
 
   const cookie = await getSession(request.headers.get("Cookie"));
   const authEmail = cookie.get("auth:email");
-  const authError = cookie.get(authenticator.sessionErrorKey);
+  const authError = cookie.get("auth:error");
+  const authRole = cookie.get("auth:role");
 
-  if (cookie.has(authenticator.sessionErrorKey)) {
-    cookie.unset(authenticator.sessionErrorKey);
+  // Clear auth:error after reading to prevent stale state
+  if (authError) {
+    cookie.unset("auth:error");
   }
 
-  if (!authEmail) return redirect("/admin/login");
+  // Security check: require authEmail
+  if (!authEmail) {
+    return redirect("/admin/login");
+  }
+
+  // Security check: require authRole to be explicitly set and valid
+  if (!authRole || (authRole !== "admin" && authRole !== "staff")) {
+    logger.warn("Admin verification loader accessed with missing or invalid role", {
+      role: authRole,
+    });
+    return redirect("/admin/login");
+  }
 
   return data(
     { authEmail, authError },
@@ -43,29 +69,53 @@ export async function action({ request }: ActionFunctionArgs) {
 
   const url = new URL(request.url);
   const redirectTo = safeRedirect(url.searchParams.get("redirectTo"));
-  const role = url.searchParams.get("role");
+
+  const { session, authEmail, authRole } = await getAuthContext(request);
+
+  // Security check: require authEmail
+  if (!authEmail) {
+    logger.warn("Admin verification attempted without email in session");
+    return redirect(getLoginUrlForRole("admin", redirectTo));
+  }
+
+  // Security check: require authRole to be explicitly set and valid
+  if (!authRole || (authRole !== "admin" && authRole !== "staff")) {
+    logger.warn("Admin verification attempted with missing or invalid role", {
+      role: authRole,
+    });
+    return redirect(getLoginUrlForRole("admin", redirectTo));
+  }
+
+  const formData = await request.formData();
+  const codeValue = formData.get("code");
+  const code = typeof codeValue === "string" ? codeValue : undefined;
+
+  // Handle "Request New Code" - resend OTP
+  if (!code) {
+    return resendOTP(request, session, authEmail);
+  }
+
+  if (code.length < 6) {
+    return data({ error: "Code must be at least 6 characters" }, { status: 400 });
+  }
 
   try {
-    return await authenticator.authenticate("TOTP", request, {
-      successRedirect: redirectTo || "/admin",
-      failureRedirect: role ? `/admin/verify?role=${role}` : "/admin/verify",
-    });
+    const { userId, cookie } = await signInWithOTP(authEmail, code, request);
+
+    // Strictly verify user has admin or staff role (do NOT grant roles)
+    // This prevents TOCTOU vulnerabilities and unauthorized role escalation
+    await verifyUserHasRole(userId, authRole);
+
+    // Clear auth session data
+    clearAuthSession(session);
+
+    // Redirect to admin dashboard
+    const finalRedirect = redirectTo || getDashboardUrlForRole(authRole);
+
+    return createAuthRedirectResponse(finalRedirect, session, cookie);
   } catch (error) {
-    if (error instanceof AuthorizationError) {
-      return data(
-        { error: error.message },
-        { status: 401, headers: { "Cache-Control": "no-store" } },
-      );
-    }
-
-    if (error instanceof Response) {
-      return error;
-    }
-
-    return data(
-      { error: "Invalid verification code" },
-      { status: 400, headers: { "Cache-Control": "no-store" } },
-    );
+    logger.error("Error verifying OTP for admin/staff", { error });
+    return createAuthErrorResponse(error, session, "Invalid verification code");
   }
 }
 
@@ -101,15 +151,22 @@ export default function AdminVerify() {
             Verify
           </Button>
 
-          {authError && (
+          {/* Prioritize actionData.error for same-route failures, fallback to authError for cross-route errors */}
+          {((actionData && "error" in actionData && actionData.error) || authError) && (
             <div className="text-red-500 text-sm text-center">
-              {typeof authError === "string" ? authError : authError?.message}
+              {(actionData && "error" in actionData ? actionData.error : null) ||
+                (typeof authError === "string" ? authError : authError?.message)}
             </div>
           )}
+        </Form>
 
-          {actionData?.error && (
-            <div className="text-red-500 text-sm text-center">{actionData.error}</div>
-          )}
+        <Form method="post" className="mt-4 space-y-2">
+          <p className="text-center text-sm font-normal text-primary/60">
+            Did not receive the code?
+          </p>
+          <Button type="submit" variant="ghost" className="w-full hover:bg-transparent">
+            Request New Code
+          </Button>
         </Form>
       </div>
     </div>

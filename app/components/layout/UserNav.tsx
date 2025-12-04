@@ -11,7 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "~/components/ui/dropdown-menu";
-import { userHasRole } from "~/utils/client/misc";
+import { userHasRole } from "~/utils/shared/roles";
 import { ProfileFormModal } from "../forms/ProfileFormModal";
 import { Form } from "~/components/CSRFForm";
 
@@ -97,7 +97,8 @@ function getInitials(user: (User & { roles: Pick<Role, "name">[] }) | null): str
       .filter((part) => part.length > 0);
 
     if (nameParts.length > 1) {
-      return (nameParts[0][0] + nameParts[nameParts.length - 1][0]).toUpperCase();
+      const lastPart = nameParts.at(-1);
+      return (nameParts[0][0] + (lastPart?.[0] ?? "")).toUpperCase();
     }
 
     if (nameParts.length > 0) {

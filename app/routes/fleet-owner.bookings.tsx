@@ -1,6 +1,5 @@
 import { BookingStatus, PaymentStatus } from "@prisma/client";
 import type { LoaderFunctionArgs } from "@remix-run/node";
-import { data } from "@remix-run/node";
 import { Link, useLoaderData } from "@remix-run/react";
 import { ColumnDef } from "@tanstack/react-table";
 import { MoreHorizontal } from "lucide-react";
@@ -17,7 +16,6 @@ import {
 import { cn, formatDate } from "~/lib/utils";
 import { requireUser } from "~/modules/auth/auth.server";
 import { prisma } from "~/modules/db/db.server";
-import { BookingWithRelations } from "~/types";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const user = await requireUser(request);

@@ -1215,21 +1215,6 @@ export async function getActiveBookings() {
   });
 }
 
-export async function isCarAvailableForDates(carId: string, from: Date, to: Date) {
-  // Precise overlap: existing.start < to AND existing.end > from
-  const overlappingBookings = await prisma.booking.findFirst({
-    where: {
-      carId,
-      paymentStatus: "PAID",
-      status: { in: ["CONFIRMED", "ACTIVE"] },
-      AND: [{ startDate: { lt: to } }, { endDate: { gt: from } }],
-    },
-    select: { id: true },
-  });
-
-  return overlappingBookings === null;
-}
-
 export async function getBooking(bookingId: string) {
   try {
     const booking = await prisma.booking.findUnique({

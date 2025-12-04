@@ -30,12 +30,12 @@ import {
 import { Separator } from "~/components/ui/separator";
 import logger from "~/lib/logger.server";
 import { formatCurrency, getCustomerDetails } from "~/lib/utils";
-import { requireUserWithRole } from "~/modules/auth/auth.server";
 import { prisma } from "~/modules/db/db.server";
 import { calculateExtensionFinancials, getRates } from "~/services/extensions.server";
 import { createPaymentIntent } from "~/services/payment.server";
 import { validateCSRF } from "~/utils/csrf-action.server";
 import { env } from "~/utils/server/env.server";
+import { requireUserWithRole } from "~/utils/server/permissions.server";
 
 export async function loader({ params, request }: LoaderFunctionArgs) {
   invariant(params.id, "Booking ID route parameter is required");

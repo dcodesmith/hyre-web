@@ -9,6 +9,7 @@ import {
   ScrollRestoration,
   isRouteErrorResponse,
   useLoaderData,
+  useLocation,
   useRouteError,
 } from "@remix-run/react";
 import { Analytics } from "@vercel/analytics/remix";
@@ -25,7 +26,7 @@ import { getSessionUser } from "./modules/auth/auth.server";
 import { touchSession } from "./modules/auth/session.server";
 import { env } from "./utils/server/env.server";
 import { ProfileFormSheet } from "./components/forms/ProfileFormSheet";
-import { userHasRole } from "./utils/client/misc";
+import { userHasRole } from "./utils/shared/roles";
 import { Button } from "./components/ui/button";
 import { GiftIcon } from "@heroicons/react/24/outline";
 import { getReferralConfig } from "./services/referral.server";
@@ -94,6 +95,19 @@ export async function loader({ request }: LoaderFunctionArgs) {
 function AppContent() {
   const { user, ENV, referralDiscountAmount } = useLoaderData<typeof loader>();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const location = useLocation();
+
+  const authRoutes = [
+    "/auth",
+    "/verify",
+    "/admin/login",
+    "/admin/verify",
+    "/fleet-owner/login",
+    "/fleet-owner/verify",
+  ];
+  const isAuthPage = authRoutes.some(
+    (route) => location.pathname === route || location.pathname.startsWith(`${route}/`),
+  );
 
   return (
     <html lang="en" className="h-full">
@@ -108,50 +122,58 @@ function AppContent() {
         <Analytics />
 
         <div className="flex flex-col min-h-screen">
-          {/* Desktop header - hidden on mobile */}
-          <header className="hidden md:flex p-4 container mx-auto justify-between items-center z-10">
-            <Link
-              to={
-                user?.roles?.some((role) => role.name === "admin")
-                  ? "/admin"
-                  : user?.roles?.some((role) => role.name === "fleetOwner")
-                    ? "/fleet-owner"
-                    : "/"
-              }
-              className="text-2xl md:text-3xl font-bold font-dancingscript"
-            >
-              {ENV.APP_NAME}
-            </Link>
-            <div className="flex items-center gap-2 mr-2">
-              {userHasRole(user, "user") && (
-                <Button variant="outline" asChild className="text-sm">
-                  <Link to="/referrals">
-                    <span className="flex items-center gap-2">
-                      Earn {formatCurrency(referralDiscountAmount)}
-                      <GiftIcon className="w-4 h-4 text-green-600 font-medium" />
-                    </span>
-                  </Link>
-                </Button>
-              )}
-              <UserNav user={user} />
-            </div>
-          </header>
+          {/* Desktop header - hidden on mobile and login/verify pages */}
+          {!isAuthPage && (
+            <header className="hidden md:flex p-4 container mx-auto justify-between items-center z-10">
+              <Link
+                to={
+                  user?.roles?.some((role) => role.name === "admin")
+                    ? "/admin"
+                    : user?.roles?.some((role) => role.name === "fleetOwner")
+                      ? "/fleet-owner"
+                      : "/"
+                }
+                className="text-2xl md:text-3xl font-bold font-dancingscript"
+              >
+                {ENV.APP_NAME}
+              </Link>
+              <div className="flex items-center gap-2 mr-2">
+                {userHasRole(user, "user") && (
+                  <Button variant="outline" asChild className="text-sm">
+                    <Link to="/referrals">
+                      <span className="flex items-center gap-2">
+                        Earn {formatCurrency(referralDiscountAmount)}
+                        <GiftIcon className="w-4 h-4 text-green-600 font-medium" />
+                      </span>
+                    </Link>
+                  </Button>
+                )}
+                <UserNav user={user} />
+              </div>
+            </header>
+          )}
 
-          <main className="flex-grow container mx-auto px-4 pb-20 md:pb-4 text-sm">
+          <main
+            className={`flex-grow ${isAuthPage ? "" : "container mx-auto px-4"} pb-20 md:pb-4 text-sm`}
+          >
             <Outlet />
           </main>
 
-          <footer className="text-sm text-black py-4 text-center">
-            © {new Date().getFullYear()} {ENV.APP_NAME}. All rights reserved.
-          </footer>
+          {!isAuthPage && (
+            <footer className="text-sm text-black py-4 text-center">
+              © {new Date().getFullYear()} {ENV.APP_NAME}. All rights reserved.
+            </footer>
+          )}
         </div>
 
-        {/* Mobile bottom navigation */}
-        <MobileBottomNav
-          user={user}
-          appName={ENV.APP_NAME}
-          onProfileOpen={() => setIsProfileOpen(true)}
-        />
+        {/* Mobile bottom navigation - hidden on login/verify pages */}
+        {!isAuthPage && (
+          <MobileBottomNav
+            user={user}
+            appName={ENV.APP_NAME}
+            onProfileOpen={() => setIsProfileOpen(true)}
+          />
+        )}
 
         {/* Mobile profile sheet */}
         <div className="md:hidden">
@@ -238,9 +260,11 @@ export function ErrorBoundary() {
           </div>
           <div className="flex items-center justify-center">
             <p className="text-4xl font-bold">Something went wrong!</p>
-            <p className="text-2xl font-bold">
-              {error.status} - {error.statusText}
-            </p>
+            {isRouteErrorResponse(error) && (
+              <p className="text-2xl font-bold">
+                {error.status} - {error.statusText}
+              </p>
+            )}
           </div>
         </main>
         <Scripts />

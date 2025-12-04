@@ -24,13 +24,14 @@ import {
 } from "~/components/ui/sheet";
 import { useToast } from "~/hooks/use-toast";
 import { cn, formatCurrency } from "~/lib/utils";
-import { requireUserWithRole } from "~/modules/auth/auth.server";
+import { requireUserWithRole } from "~/utils/server/permissions.server";
 import { prisma } from "~/modules/db/db.server";
-import { createCar } from "~/services/cars.server";
+import { createCar, hasReachedOwnerDriverCarLimit } from "~/services/cars.server";
 import { validateCSRF } from "~/utils/csrf-action.server";
 import { NewCarForm, carSchema } from "./fleet-owner.cars_.new";
 import { SerializedCar } from "~/types";
 import logger from "~/lib/logger.server";
+import { User } from "@prisma/client";
 
 const Status = {
   AVAILABLE: "AVAILABLE",
@@ -41,6 +42,73 @@ const Status = {
 
 type ActionResponse = { success: boolean; error?: string | null } | undefined;
 
+/**
+ * Thin wrapper that converts the business rule check into a Remix response.
+ * This keeps the domain rule (hasReachedOwnerDriverCarLimit) independent of Remix.
+ */
+async function checkOwnerDriverCarLimitResponse(userId: string) {
+  const hasReachedLimit = await hasReachedOwnerDriverCarLimit(userId);
+
+  if (hasReachedLimit) {
+    return data(
+      {
+        success: false,
+        error:
+          "Owner-drivers can only have 1 car. Please delete your existing car first or contact support to upgrade to a fleet owner account.",
+      },
+      { status: 400 },
+    );
+  }
+
+  return null;
+}
+
+async function handleCreateCar(formData: FormData, user: User & { roles: { name: string }[] }) {
+  // Enforce 1-car limit for owner-drivers
+  if (user.isOwnerDriver) {
+    const limitCheck = await checkOwnerDriverCarLimitResponse(user.id);
+    if (limitCheck) return limitCheck;
+  }
+
+  const submission = parseWithZod(formData, { schema: carSchema });
+
+  if (submission.status !== "success") {
+    return data(submission.reply(), { status: 400 });
+  }
+
+  const { motCertificate, insuranceCertificate, ...rest } = submission.value;
+
+  await createCar({
+    ...rest,
+    color: "",
+    owner: { connect: { id: user.id } },
+    motCertificate: motCertificate as File,
+    insuranceCertificate: insuranceCertificate as File,
+    autoApprove: false,
+  });
+
+  return data({ success: true }, { status: 200 });
+}
+
+async function handleEditCar(formData: FormData, user: User & { roles: { name: string }[] }) {
+  const carId = String(formData.get("carId"));
+
+  const submission = parseWithZod(formData, {
+    schema: carSchema.omit({ images: true, motCertificate: true, insuranceCertificate: true }),
+  });
+
+  if (submission.status !== "success") {
+    return data(submission.reply(), { status: 400 });
+  }
+
+  await prisma.car.update({
+    where: { id: carId, ownerId: user.id },
+    data: submission.value,
+  });
+
+  return data({ success: true }, { status: 200 });
+}
+
 export async function action({ request }: ActionFunctionArgs) {
   await validateCSRF(request);
 
@@ -49,7 +117,8 @@ export async function action({ request }: ActionFunctionArgs) {
   // Clone the request to peek at the intent without consuming the stream
   const clonedRequest = request.clone();
   const tempFormData = await clonedRequest.formData();
-  const intent = String(tempFormData.get("intent"));
+  const intentValue = tempFormData.get("intent");
+  const intent = typeof intentValue === "string" ? intentValue : "";
 
   if (!["create", "edit"].includes(intent)) {
     return data({ success: false, error: "Invalid intent" }, { status: 400 });
@@ -69,60 +138,14 @@ export async function action({ request }: ActionFunctionArgs) {
 
   try {
     if (intent === "create") {
-      // Enforce 1-car limit for owner-drivers
-      if (user.isOwnerDriver) {
-        const existingCars = await prisma.car.count({
-          where: { ownerId: user.id },
-        });
-
-        if (existingCars >= 1) {
-          return data(
-            {
-              success: false,
-              error:
-                "Owner-drivers can only have 1 car. Please delete your existing car first or contact support to upgrade to a fleet owner account.",
-            },
-            { status: 400 },
-          );
-        }
-      }
-
-      const submission = parseWithZod(formData, { schema: carSchema });
-
-      if (submission.status !== "success") {
-        return data(submission.reply(), { status: 400 });
-      }
-
-      const { motCertificate, insuranceCertificate, ...rest } = submission.value;
-
-      await createCar({
-        ...rest,
-        color: "",
-        owner: { connect: { id: user.id } },
-        motCertificate: motCertificate as File,
-        insuranceCertificate: insuranceCertificate as File,
-        autoApprove: false,
-      });
+      const result = await handleCreateCar(formData, user);
+      if (result) return result;
+    } else if (intent === "edit") {
+      const result = await handleEditCar(formData, user);
+      if (result) return result;
     }
 
-    if (intent === "edit") {
-      const carId = String(formData.get("carId"));
-
-      const submission = parseWithZod(formData, {
-        schema: carSchema.omit({ images: true, motCertificate: true, insuranceCertificate: true }),
-      });
-
-      if (submission.status !== "success") {
-        return data(submission.reply(), { status: 400 });
-      }
-
-      await prisma.car.update({
-        where: { id: carId, ownerId: user.id },
-        data: submission.value,
-      });
-    }
-
-    return { success: true, error: null };
+    return data({ success: true }, { status: 200 });
   } catch (error) {
     logger.error({ error }, `Failed to ${intent} car`);
     return data(
@@ -153,7 +176,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   });
 
   // Check if owner-driver can add more cars (max 1)
-  const canAddCar = user.isOwnerDriver ? cars.length === 0 : true;
+  const canAddCar = !user.isOwnerDriver || !(await hasReachedOwnerDriverCarLimit(user.id));
 
   return { cars, canAddCar, isOwnerDriver: user.isOwnerDriver };
 }
