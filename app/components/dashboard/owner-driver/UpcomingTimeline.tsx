@@ -2,7 +2,7 @@ import { Calendar, ArrowRight, Clock } from "lucide-react";
 import { Link } from "@remix-run/react";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import type { BookingWithRelations } from "~/types";
-import { UnifiedBookingItem } from "./UnifiedBookingItem";
+import { UnifiedBookingItem } from "../shared";
 import { getTimeUntilBooking } from "~/lib/booking-utils";
 
 interface UpcomingBookingsCardProps {

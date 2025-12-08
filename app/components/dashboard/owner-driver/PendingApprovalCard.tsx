@@ -3,7 +3,7 @@ import { Link } from "@remix-run/react";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Button } from "~/components/ui/button";
 import type { BookingWithRelations } from "~/types";
-import { UnifiedBookingItem } from "./UnifiedBookingItem";
+import { UnifiedBookingItem } from "../shared";
 
 interface PendingApprovalCardProps {
   readonly bookings: BookingWithRelations[];

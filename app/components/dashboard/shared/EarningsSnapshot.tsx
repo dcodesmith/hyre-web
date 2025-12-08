@@ -1,7 +1,7 @@
 import { TrendingUp, Calendar, Wallet } from "lucide-react";
 import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from "~/components/ui/card";
 import { formatCurrency } from "~/lib/utils";
-import type { EarningsData } from "./types";
+import type { EarningsData } from "../owner-driver/types";
 
 interface EarningsCardProps {
   readonly label: string;

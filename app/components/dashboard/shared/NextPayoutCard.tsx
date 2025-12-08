@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Button } from "~/components/ui/button";
 import { Badge } from "~/components/ui/badge";
 import { formatCurrency } from "~/lib/utils";
-import type { NextPayoutInfo } from "./types";
+import type { NextPayoutInfo } from "../owner-driver/types";
 import { format } from "date-fns";
 import { toZonedTime } from "date-fns-tz";
 import { LAGOS_TIMEZONE } from "~/utils/timezone";

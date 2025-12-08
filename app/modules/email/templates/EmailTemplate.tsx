@@ -61,7 +61,7 @@ export function EmailTemplate({ children, previewText, pageTitle }: EmailTemplat
                 style={{ fontFamily: '"Dancing Script", cursive' }}
                 className="mx-auto mb-4 text-4xl leading-tight text-gray-900"
               >
-                Tripdly
+                {COMPANY_NAME}
               </Text>
             </Section>
 

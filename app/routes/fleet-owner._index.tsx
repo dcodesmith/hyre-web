@@ -3,23 +3,19 @@ import { Decimal } from "@prisma/client/runtime/library";
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { useLoaderData } from "@remix-run/react";
 import { subDays } from "date-fns";
-import {
-  KeyMetrics,
-  QuickActions,
-  RevenueAtRisk,
-  RevenueChart,
-  UnassignedBookingsTable,
-} from "~/components/dashboard/fleet-owner";
+import { FleetOwnerDashboard } from "~/components/dashboard/fleet-owner";
 import { OwnerDriverDashboard } from "~/components/dashboard/owner-driver";
 import type { OwnerDriverDashboardData } from "~/components/dashboard/owner-driver/types";
 import logger from "~/lib/logger.server";
-import { formatCurrency } from "~/lib/utils";
 import { prisma } from "~/modules/db/db.server";
 import { getMonthToDateBookingsValue } from "~/services/bookings.server";
 import {
   getOwnerDriverDashboardData,
   getTodaysLegsFleetOwnerEarningSum,
-} from "~/services/owner-driver-dashboard.server";
+  getFleetOwnerEarnings,
+  getFleetOwnerRecentBookings,
+  getFleetOwnerNextPayout,
+} from "~/services/dashboard.server";
 import { requireUserWithRole } from "~/utils/server/permissions.server";
 
 // Type guard to narrow owner-driver data using discriminated union
@@ -279,6 +275,13 @@ export async function loader({ request }: LoaderFunctionArgs) {
     todayConfirmedBookings,
   ] = todayStats;
 
+  // Fetch shared dashboard data (earnings, recent bookings, next payout)
+  const [earnings, recentBookings, nextPayout] = await Promise.all([
+    getFleetOwnerEarnings(fleetOwner.id),
+    getFleetOwnerRecentBookings(fleetOwner.id, 3),
+    getFleetOwnerNextPayout(fleetOwner.id),
+  ]);
+
   return {
     dashboardType: "fleet-owner" as const,
     carCount: carCount,
@@ -305,99 +308,13 @@ export async function loader({ request }: LoaderFunctionArgs) {
       confirmedBookings: todayConfirmedBookings,
       projectedRevenue: ownerRevenueToday.toNumber(),
     },
+    earnings,
+    recentBookings,
+    nextPayout,
   };
 }
 
-const getOrdinal = (n: number): string => {
-  const s = ["th", "st", "nd", "rd"];
-  const v = n % 100;
-  return n + (s[(v - 20) % 10] || s[v] || s[0]);
-};
-
-function WelcomeMessage({
-  name,
-  stats,
-}: {
-  readonly name: string;
-  readonly stats: {
-    activeBookings: number;
-    completedBookings: number;
-    cancelledBookings: number;
-    confirmedBookings: number;
-    projectedRevenue: number;
-  };
-}) {
-  const {
-    activeBookings,
-    completedBookings,
-    cancelledBookings,
-    confirmedBookings,
-    projectedRevenue,
-  } = stats;
-  const today = new Date();
-
-  const formattedDate = today.toLocaleDateString("en-NG", {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-
-  const day = new Date().getDate();
-  const dateWithOrdinal = formattedDate.replace(/\b\d+\b/, getOrdinal(day));
-
-  const formatBookingCount = (count: number, label: string) => {
-    if (count === 0) return `no ${label} bookings`;
-    return (
-      <>
-        <span className="font-bold">{count}</span> {label} {count === 1 ? "booking" : "bookings"}
-      </>
-    );
-  };
-
-  const hasAnyBookings =
-    activeBookings > 0 || completedBookings > 0 || cancelledBookings > 0 || confirmedBookings > 0;
-
-  if (!hasAnyBookings) {
-    return (
-      <div className="text-sm text-gray-700 mb-6">
-        <p>
-          Hello {name}, welcome to a new day! Your fleet is ready and waiting for new bookings. Keep
-          up the great work in maintaining your excellent service standards. Here's to a successful
-          day ahead!
-        </p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="text-sm text-gray-700 mb-6">
-      Welcome {name.trim()},
-      <div className="my-4">
-        <p>
-          For today <span className="font-bold">{dateWithOrdinal}</span> you have{" "}
-          {formatBookingCount(stats.activeBookings, "active")},{" "}
-          {formatBookingCount(stats.confirmedBookings, "upcoming")},{" "}
-          {formatBookingCount(stats.completedBookings, "completed")}, and{" "}
-          {formatBookingCount(stats.cancelledBookings, "cancelled")}.
-        </p>
-        <p>Your fleet is in excellent condition and fully prepared for new reservations.</p>
-        {(stats.activeBookings || stats.completedBookings) > 0 && (
-          <p>
-            With a projected revenue of{" "}
-            <span className="font-bold text-green-800 italic underline">
-              {formatCurrency(stats.projectedRevenue)}
-            </span>{" "}
-            for the day, your business is on track for continued success.{" "}
-          </p>
-        )}
-      </div>
-      Wishing you a productive day ahead!
-    </div>
-  );
-}
-
-export default function FleetOwnerDashboard() {
+export default function FleetOwnerDashboardRoute() {
   const data = useLoaderData<typeof loader>();
 
   // If owner-driver, show simplified dashboard with type-safe validation
@@ -441,6 +358,9 @@ export default function FleetOwnerDashboard() {
     dashboardStats,
     dailyRevenue,
     chauffeurs,
+    earnings,
+    recentBookings,
+    nextPayout,
   } = data;
 
   // TypeScript safety check - this should never happen at runtime
@@ -449,7 +369,9 @@ export default function FleetOwnerDashboard() {
     !confirmedUnassignedBookings ||
     !dashboardStats ||
     !dailyRevenue ||
-    !chauffeurs
+    !chauffeurs ||
+    !earnings ||
+    !recentBookings
   ) {
     return (
       <div className="p-6">
@@ -459,51 +381,18 @@ export default function FleetOwnerDashboard() {
   }
 
   return (
-    <div className="@container/main space-y-6 p-4 md:p-6 max-w-[1600px] mx-auto">
-      <WelcomeMessage
-        name={fleetOwnerName || "Fleet Owner"}
-        stats={{ ...todayStats, projectedRevenue: Number(todayStats.projectedRevenue) }}
-      />
-
-      {confirmedUnassignedBookings.length > 0 && (
-        <RevenueAtRisk
-          unassignedBookings={confirmedUnassignedBookings.map((booking) => ({
-            id: booking.id,
-            startDate: booking.startDate,
-            totalAmount: booking.totalAmount,
-          }))}
-        />
-      )}
-
-      <KeyMetrics
-        carCount={carCount}
-        availableCarsCount={dashboardStats.availableCarsCount}
-        bookedCarsCount={dashboardStats.bookedCarsCount}
-        maintenanceCarsCount={dashboardStats.maintenanceCarsCount}
-        activeBookingsCount={dashboardStats.activeBookingsCount}
-        completedBookingsCount={dashboardStats.completedBookingsCount}
-        cancelledBookingsCount={dashboardStats.cancelledBookingsCount}
-        chauffeurCount={chauffeurs.length}
-        availableChauffeursCount={dashboardStats.availableChauffeursCount}
-        onDutyChauffeursCount={dashboardStats.onDutyChauffeursCount}
-        monthlyRevenue={Number(bookingsValue)}
-        todayStats={todayStats}
-      />
-
-      <QuickActions
-        unassignedBookingsCount={confirmedUnassignedBookings.length}
-        availableChauffeursCount={dashboardStats.availableChauffeursCount}
-      />
-
-      <RevenueChart
-        data={dailyRevenue.map((item) => ({
-          ...item,
-          date: new Date(item.date),
-          revenue: item.revenue,
-        }))}
-      />
-
-      <UnassignedBookingsTable bookings={confirmedUnassignedBookings} />
-    </div>
+    <FleetOwnerDashboard
+      fleetOwnerName={fleetOwnerName || "Fleet Owner"}
+      todayStats={todayStats}
+      carCount={carCount}
+      bookingsValue={bookingsValue}
+      confirmedUnassignedBookings={confirmedUnassignedBookings}
+      dashboardStats={dashboardStats}
+      dailyRevenue={dailyRevenue}
+      chauffeurs={chauffeurs}
+      earnings={earnings}
+      recentBookings={recentBookings}
+      nextPayout={nextPayout}
+    />
   );
 }

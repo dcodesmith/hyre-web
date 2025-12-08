@@ -1,6 +1,8 @@
 import { prisma } from "~/modules/db/db.server";
 import { addDays } from "date-fns";
 import type { OwnerDriverDashboardData } from "~/components/dashboard/owner-driver/types";
+import type { EarningsData, NextPayoutInfo } from "~/components/dashboard/owner-driver/types";
+import type { BookingWithRelations } from "~/types";
 import { BookingStatus, PaymentStatus, Prisma } from "@prisma/client";
 import Decimal from "decimal.js";
 
@@ -90,6 +92,11 @@ const serializeBooking = <T extends BookingWithDecimals>(
   securityDetailCost: booking.securityDetailCost?.toNumber() ?? null,
   fleetOwnerPayoutAmountNet: booking.fleetOwnerPayoutAmountNet?.toNumber() ?? null,
 });
+
+/**
+ * Dashboard service functions for fleet owners (both owner-drivers and fleet owners).
+ * Provides data fetching for earnings, bookings, payouts, and dashboard metrics.
+ */
 
 /**
  * Fetches comprehensive dashboard data for an owner-driver.
@@ -352,4 +359,147 @@ export async function getTodaysLegsFleetOwnerEarningSum(
 
   // Return the sum, or Decimal(0) if the sum is null
   return totalSum ?? new Decimal(0);
+}
+
+/**
+ * Fetches earnings data for a fleet owner (Today, This Week, This Month).
+ * Uses BookingLeg for accurate daily calculation across all cars in the fleet.
+ *
+ * @param fleetOwnerId - The ID of the fleet owner
+ * @returns Promise resolving to earnings data
+ */
+export async function getFleetOwnerEarnings(fleetOwnerId: string): Promise<EarningsData> {
+  const now = new Date();
+  const { start: startOfToday, end: endOfToday } = getUtcDayBoundaries(now);
+  const todayUtcYear = now.getUTCFullYear();
+  const todayUtcMonth = now.getUTCMonth();
+  const todayUtcDay = now.getUTCDate();
+
+  // Calculate last 7 days (6 days ago + today = 7 days) in UTC
+  const last7DaysStart = new Date(
+    Date.UTC(todayUtcYear, todayUtcMonth, todayUtcDay - (DAYS_IN_WEEK - 1), 0, 0, 0, 0),
+  );
+
+  // Calculate last 30 days (29 days ago + today = 30 days) in UTC
+  const last30DaysStart = new Date(
+    Date.UTC(todayUtcYear, todayUtcMonth, todayUtcDay - (DAYS_IN_MONTH - 1), 0, 0, 0, 0),
+  );
+
+  const whereWeek: Prisma.BookingLegWhereInput = {
+    legDate: { gte: last7DaysStart, lte: endOfToday },
+    booking: {
+      car: { ownerId: fleetOwnerId },
+      status: { in: ["ACTIVE", "COMPLETED"] },
+      paymentStatus: "PAID",
+    },
+  };
+
+  const whereMonth: Prisma.BookingLegWhereInput = {
+    legDate: { gte: last30DaysStart, lte: endOfToday },
+    booking: {
+      car: { ownerId: fleetOwnerId },
+      status: { in: ["ACTIVE", "COMPLETED"] },
+      paymentStatus: "PAID",
+    },
+  };
+
+  // Fetch earnings and booking counts in parallel
+  const [todayLegs, weekLegs, monthLegs, weekBookings, monthBookings] = await Promise.all([
+    prisma.bookingLeg.aggregate({
+      where: {
+        legDate: { gte: startOfToday, lte: endOfToday },
+        booking: {
+          car: { ownerId: fleetOwnerId },
+          status: { in: ["ACTIVE", "COMPLETED"] },
+          paymentStatus: "PAID",
+        },
+      },
+      _sum: { fleetOwnerEarningForLeg: true },
+    }),
+    prisma.bookingLeg.aggregate({
+      where: whereWeek,
+      _sum: { fleetOwnerEarningForLeg: true },
+    }),
+    prisma.bookingLeg.aggregate({
+      where: whereMonth,
+      _sum: { fleetOwnerEarningForLeg: true },
+    }),
+    // Get distinct bookingIds for week to avoid inflating count
+    prisma.bookingLeg.findMany({
+      where: whereWeek,
+      distinct: ["bookingId"],
+      select: { bookingId: true },
+    }),
+    // Get distinct bookingIds for month to avoid inflating count
+    prisma.bookingLeg.findMany({
+      where: whereMonth,
+      distinct: ["bookingId"],
+      select: { bookingId: true },
+    }),
+  ]);
+
+  return {
+    today: todayLegs._sum.fleetOwnerEarningForLeg?.toNumber() ?? 0,
+    thisWeek: {
+      amount: weekLegs._sum.fleetOwnerEarningForLeg?.toNumber() ?? 0,
+      bookingCount: weekBookings.length,
+    },
+    thisMonth: {
+      amount: monthLegs._sum.fleetOwnerEarningForLeg?.toNumber() ?? 0,
+      bookingCount: monthBookings.length,
+    },
+  };
+}
+
+/**
+ * Fetches recent completed bookings for a fleet owner.
+ *
+ * @param fleetOwnerId - The ID of the fleet owner
+ * @param limit - Maximum number of bookings to return (default: 5)
+ * @returns Promise resolving to array of recent bookings
+ */
+export async function getFleetOwnerRecentBookings(
+  fleetOwnerId: string,
+  limit = 5,
+): Promise<BookingWithRelations[]> {
+  const recentBookings = await prisma.booking.findMany({
+    where: {
+      car: { ownerId: fleetOwnerId },
+      status: "COMPLETED",
+    },
+    include: bookingIncludeWithRelations,
+    orderBy: { endDate: "desc" },
+    take: limit,
+  });
+
+  return recentBookings.map(serializeBooking);
+}
+
+/**
+ * Fetches the next pending payout for a fleet owner.
+ *
+ * @param fleetOwnerId - The ID of the fleet owner
+ * @returns Promise resolving to next payout info or undefined
+ */
+export async function getFleetOwnerNextPayout(
+  fleetOwnerId: string,
+): Promise<NextPayoutInfo | undefined> {
+  const nextPayout = await prisma.payoutTransaction.findFirst({
+    where: {
+      fleetOwnerId,
+      status: { in: ["PENDING_APPROVAL", "PENDING_DISBURSEMENT", "PROCESSING"] },
+    },
+    orderBy: { initiatedAt: "desc" },
+  });
+
+  if (!nextPayout) {
+    return undefined;
+  }
+
+  return {
+    id: nextPayout.id,
+    amount: nextPayout.amountToPay.toNumber(),
+    status: nextPayout.status,
+    scheduledDate: nextPayout.processedAt || nextPayout.initiatedAt,
+  };
 }
