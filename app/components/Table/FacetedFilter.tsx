@@ -104,7 +104,7 @@ export function FacetedFilter<TData, TValue>({
         </Button>
       </PopoverTrigger>
 
-      <PopoverContent className="w-64 p-0" align="start">
+      <PopoverContent className="w-96 p-0" align="start">
         <Command>
           <CommandInput className="capitalize" placeholder={title} />
 

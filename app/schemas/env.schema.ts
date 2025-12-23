@@ -34,6 +34,10 @@ export const envSchema = z.object({
   APP_NAME: z.string(),
 
   GOOGLE_MAPS_API_KEY: z.string(),
+  GOOGLE_DISTANCE_MATRIX_API_KEY: z.string(),
+
+  FLIGHTAWARE_API_KEY: z.string(),
+  FLIGHTAWARE_WEBHOOK_SECRET: z.string(),
 
   SUPPORT_EMAIL: z.string().optional(),
   WEBSITE_URL: z.url().optional(),

@@ -380,6 +380,89 @@ async function handleChargeCompleted(payload: FlutterwaveChargeCompletedPayload)
   }
 }
 
+/**
+ * Reverses a referral reward when a refund is processed.
+ */
+async function reverseReferralReward(bookingId: string): Promise<void> {
+  const reward = await prisma.referralReward.findFirst({
+    where: { bookingId },
+  });
+
+  if (!reward) {
+    return;
+  }
+
+  // Idempotency check - already reversed
+  if (reward.status === "REVERSED") {
+    logger.info("[Unified Webhook] Reward already reversed, skipping", {
+      rewardId: reward.id,
+      bookingId,
+    });
+    return;
+  }
+
+  if (reward.status === "RELEASED") {
+    await prisma.$transaction([
+      prisma.referralReward.update({
+        where: { id: reward.id },
+        data: { status: "REVERSED", reason: "Refund completed" },
+      }),
+      prisma.userReferralStats.update({
+        where: { userId: reward.referrerUserId },
+        data: { totalRewardsGranted: { decrement: reward.amount } },
+      }),
+      prisma.user.update({
+        where: { id: reward.refereeUserId },
+        data: { referralDiscountUsed: false },
+      }),
+      prisma.booking.update({
+        where: { id: bookingId },
+        data: { referralStatus: "REVERSED" },
+      }),
+    ]);
+    logger.info("[Unified Webhook] Referral reversal completed for RELEASED reward", {
+      rewardId: reward.id,
+      bookingId,
+      refereeUserId: reward.refereeUserId,
+      referrerUserId: reward.referrerUserId,
+      amount: reward.amount,
+    });
+    return;
+  }
+
+  if (reward.status === "PENDING") {
+    await prisma.$transaction([
+      prisma.referralReward.update({
+        where: { id: reward.id },
+        data: { status: "REVERSED", reason: "Refund completed" },
+      }),
+      prisma.user.update({
+        where: { id: reward.refereeUserId },
+        data: { referralDiscountUsed: false },
+      }),
+      prisma.userReferralStats.update({
+        where: { userId: reward.referrerUserId },
+        data: { totalRewardsPending: { decrement: reward.amount } },
+      }),
+      prisma.booking.update({
+        where: { id: bookingId },
+        data: { referralStatus: "REVERSED" },
+      }),
+    ]);
+    logger.info("[Unified Webhook] Referral reversal completed for PENDING reward", {
+      rewardId: reward.id,
+      bookingId,
+    });
+    return;
+  }
+
+  logger.warn("[Unified Webhook] Reward status not eligible for reversal", {
+    rewardId: reward.id,
+    status: reward.status,
+    bookingId,
+  });
+}
+
 async function handleRefundCompleted(payload: FlutterwaveRefundPayload) {
   const { status, FlwRef: flutterwaveReference } = payload;
 
@@ -399,7 +482,7 @@ async function handleRefundCompleted(payload: FlutterwaveRefundPayload) {
 
   try {
     const payment = await prisma.payment.findUnique({
-      where: { flutterwaveReference: String(flutterwaveReference) }, // Find payment by original tx_ref
+      where: { flutterwaveReference: String(flutterwaveReference) },
       include: { booking: true },
     });
 
@@ -432,87 +515,14 @@ async function handleRefundCompleted(payload: FlutterwaveRefundPayload) {
     );
 
     // Handle referral reversal on refund
-    try {
-      if (payment.booking.referralStatus !== "NONE") {
-        const reward = await prisma.referralReward.findFirst({
-          where: { bookingId: payment.booking.id },
+    if (payment.booking.referralStatus !== "NONE") {
+      try {
+        await reverseReferralReward(payment.booking.id);
+      } catch (e) {
+        logger.error("[Unified Webhook] Failed to reverse referral on refund", {
+          error: e instanceof Error ? e.message : e,
         });
-        if (reward) {
-          // Idempotency check
-          if (reward.status === "REVERSED") {
-            logger.info("[Unified Webhook] Reward already reversed, skipping", {
-              rewardId: reward.id,
-              bookingId: payment.booking.id,
-            });
-            return;
-          }
-
-          if (reward.status === "RELEASED") {
-            await prisma.$transaction([
-              prisma.referralReward.update({
-                where: { id: reward.id },
-                data: { status: "REVERSED", reason: "Refund completed" },
-              }),
-              prisma.userReferralStats.update({
-                where: { userId: reward.referrerUserId },
-                data: { totalRewardsGranted: { decrement: reward.amount } },
-              }),
-
-              // Consider resetting referralDiscountUsed for consistency
-              prisma.user.update({
-                where: { id: reward.refereeUserId },
-                data: { referralDiscountUsed: false },
-              }),
-
-              prisma.booking.update({
-                where: { id: payment.booking.id },
-                data: { referralStatus: "REVERSED" },
-              }),
-            ]);
-            logger.info("[Unified Webhook] Referral reversal completed for RELEASED reward", {
-              rewardId: reward.id,
-              bookingId: payment.booking.id,
-              refereeUserId: reward.refereeUserId,
-              referrerUserId: reward.referrerUserId,
-              amount: reward.amount,
-            });
-          } else if (reward.status === "PENDING") {
-            await prisma.$transaction([
-              prisma.referralReward.update({
-                where: { id: reward.id },
-                data: { status: "REVERSED", reason: "Refund completed" },
-              }),
-              prisma.user.update({
-                where: { id: reward.refereeUserId },
-                data: { referralDiscountUsed: false },
-              }),
-              prisma.userReferralStats.update({
-                where: { userId: reward.referrerUserId },
-                data: { totalRewardsPending: { decrement: reward.amount } },
-              }),
-              prisma.booking.update({
-                where: { id: payment.booking.id },
-                data: { referralStatus: "REVERSED" },
-              }),
-            ]);
-
-            logger.info("[Unified Webhook] Referral reversal completed for PENDING reward", {
-              rewardId: reward.id,
-              bookingId: payment.booking.id,
-            });
-          } else {
-            logger.warn("[Unified Webhook] Reward status not eligible for reversal", {
-              rewardId: reward.id,
-              status: reward.status,
-              bookingId: payment.booking.id,
-            });
-          }
-        }
       }
-    } catch (e) {
-      logger.error("[Unified Webhook] Failed to reverse referral on refund", {
-        error: e instanceof Error ? e.message : e,
-      });
     }
   } catch (error) {
     logger.error(`[Unified Webhook] Error processing refund: ${error}`);

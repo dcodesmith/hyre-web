@@ -4,17 +4,13 @@ import { formatCurrency, NormalisedBookingDetails, NormalisedExtensionDetails } 
 import { EmailTemplate } from "./EmailTemplate";
 import { env } from "~/utils/server/env.server";
 
-function DetailListItem({
-  label,
-  value,
-  isCurrency = false,
-  currencyCode = "NGN",
-}: {
-  label: string;
-  value: string | number | undefined | null;
-  isCurrency?: boolean;
-  currencyCode?: string;
-}) {
+type DetailListItemProps = {
+  readonly label: string;
+  readonly value: string | number | undefined | null;
+  readonly isCurrency?: boolean;
+};
+
+function DetailListItem({ label, value, isCurrency = false }: DetailListItemProps) {
   if (value === undefined || value === null || value === "") {
     return null;
   }

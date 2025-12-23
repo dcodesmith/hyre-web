@@ -14,7 +14,7 @@ import { LAGOS_TIMEZONE } from "~/utils/timezone";
  * Booking type as string literals to avoid Prisma client-side hydration issues.
  * This matches the Prisma BookingType enum values but works on both client and server.
  */
-export type BookingTypeValue = "DAY" | "NIGHT" | "FULL_DAY";
+export type BookingTypeValue = "DAY" | "NIGHT" | "FULL_DAY" | "AIRPORT_PICKUP";
 
 /**
  * Payment summary result type
@@ -166,6 +166,11 @@ export function calculateBookingUnits(
   // Oct 26 to Oct 27 = 2 days
   if (bookingType === "DAY") {
     return Math.max(1, differenceInDays + 1);
+  }
+
+  // For AIRPORT_PICKUP bookings: always 1 unit (one-way trip)
+  if (bookingType === "AIRPORT_PICKUP") {
+    return 1;
   }
 
   // Default fallback (assume DAY booking)

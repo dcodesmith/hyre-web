@@ -6,13 +6,13 @@ import { Input } from "./ui/input";
 import useGoogleMapsPlaces from "~/hooks/useGoogleMapsServices"; // Import the hook
 
 interface AutocompleteProps {
-  id: string;
-  onSelect: (address: string) => void;
-  inputProps?: React.InputHTMLAttributes<HTMLInputElement>;
-  placeholder?: string;
-  className?: string;
-  initialValue?: string;
-  countryRestriction?: string; // | string[]; // Allow array for multiple countries
+  readonly id: string;
+  readonly onSelect: (address: string) => void;
+  readonly inputProps?: React.InputHTMLAttributes<HTMLInputElement>;
+  readonly placeholder?: string;
+  readonly className?: string;
+  readonly initialValue?: string;
+  readonly countryRestriction?: string; // | string[]; // Allow array for multiple countries
 }
 
 export function AutocompleteAddress({
@@ -116,9 +116,10 @@ export function AutocompleteAddress({
           fields: ["displayName", "formattedAddress", "businessStatus"],
         });
 
-        let formattedQuery = place.formattedAddress || description;
-
-        formattedQuery = `${place.businessStatus ? `${place.displayName},` : ""} ${place?.formattedAddress?.replace(/,?\s+\d{5,6},\s+Lagos,\s+Nigeria$/, "")}`;
+        const displayNamePrefix = place.businessStatus ? `${place.displayName},` : "";
+        const cleanedAddress =
+          place?.formattedAddress?.replace(/(?:,? \d{5,6})?, Lagos, Nigeria$/, "") ?? "";
+        const formattedQuery = `${displayNamePrefix} ${cleanedAddress}`;
 
         setQuery(formattedQuery); // Update input with detailed address
         onSelect(formattedQuery); // Pass back the Place object and string
@@ -172,6 +173,7 @@ export function AutocompleteAddress({
       <PopoverTrigger asChild>
         <div className="relative">
           <Input
+            {...inputProps}
             ref={inputRef}
             value={query}
             onChange={handleInputChange}
@@ -186,9 +188,8 @@ export function AutocompleteAddress({
             }}
             placeholder={placeholder}
             className={cn("w-full placeholder-gray-400 rounded", className)}
-            autoComplete={inputProps?.autoComplete || "off"}
+            autoComplete={inputProps?.autoComplete ?? "off"}
             disabled={isLoadingApi || isFetchingDetails}
-            {...(inputProps ? (({ key: _, ...rest }) => rest)(inputProps as any) : {})}
           />
           {(isLoadingSuggestions || isFetchingDetails) && (
             <Loader2 className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-gray-500" />
@@ -201,19 +202,24 @@ export function AutocompleteAddress({
         onOpenAutoFocus={(event) => event.preventDefault()}
         // Consider default closing behavior for onInteractOutside
       >
-        <ul>
+        <div className="flex flex-col gap-1">
           {suggestions.map((prediction) => (
-            <li
+            <button
               key={prediction.placePrediction?.placeId}
-              className="flex items-center gap-2 p-2 cursor-pointer hover:bg-gray-100 rounded"
+              type="button"
+              className="flex items-center gap-2 p-2 cursor-pointer hover:bg-gray-100 rounded text-left w-full"
               onMouseDown={(event) => event.preventDefault()}
-              onClick={() => handleSelect(prediction)}
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                handleSelect(prediction);
+              }}
             >
               <MapPin className="w-4 h-4 items-center flex-shrink-0 text-gray-500" />
               <span>{`${prediction.placePrediction?.mainText?.text}, ${prediction.placePrediction?.secondaryText?.text}`}</span>
-            </li>
+            </button>
           ))}
-        </ul>
+        </div>
       </PopoverContent>
     </Popover>
   );

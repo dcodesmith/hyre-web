@@ -1,9 +1,9 @@
+import { User } from "@prisma/client";
 import { formatCurrency } from "~/lib/utils";
+import { AIRPORT_PICKUP_BOOKING_TYPE, BookingType, DAY_BOOKING_TYPE } from "../bookingTypes";
 import { Checkbox } from "../ui/checkbox";
 import { Label } from "../ui/label";
 import { Switch } from "../ui/switch";
-import { BookingType, DAY_BOOKING_TYPE, BOOKING_TYPE_LABELS } from "../bookingTypes";
-import { User } from "@prisma/client";
 
 interface BookingCredits {
   availableCredits: number;
@@ -16,11 +16,8 @@ interface BookingAddonsProps {
   readonly totalDays: number;
   readonly fuelNote: string | null;
   readonly fuelUpgradeRate: number;
-  readonly securityDetailRate: number;
   readonly requiresFullTank: boolean;
-  readonly includeSecurityDetail: boolean;
   readonly onFullTankChange: (checked: boolean) => void;
-  readonly onSecurityDetailChange: (checked: boolean) => void;
   readonly user: User | null;
   readonly bookingCredits: BookingCredits | null;
   readonly useCreditsAmount: number;
@@ -34,11 +31,8 @@ export function BookingAddons({
   totalDays,
   fuelNote,
   fuelUpgradeRate,
-  securityDetailRate,
   requiresFullTank,
-  includeSecurityDetail,
   onFullTankChange,
-  onSecurityDetailChange,
   user,
   bookingCredits,
   useCreditsAmount,
@@ -48,7 +42,7 @@ export function BookingAddons({
 }: BookingAddonsProps) {
   return (
     <>
-      {fuelNote && (
+      {fuelNote && bookingType !== AIRPORT_PICKUP_BOOKING_TYPE && (
         <div
           className="bg-green-50 border-l-4 border-green-400 text-green-800 p-2 text-sm"
           role="alert"
@@ -73,7 +67,7 @@ export function BookingAddons({
         </div>
       )}
 
-      <div className="space-y-1">
+      {/* <div className="space-y-1">
         <div className="flex items-center space-x-2">
           <Checkbox
             id="includeSecurityDetail"
@@ -85,7 +79,7 @@ export function BookingAddons({
             {BOOKING_TYPE_LABELS[bookingType].perUnit})
           </Label>
         </div>
-      </div>
+      </div> */}
 
       {/* Booking Credits Section */}
       {user && bookingCredits && bookingCredits.availableCredits > 0 && (

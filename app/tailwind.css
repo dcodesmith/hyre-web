@@ -115,6 +115,12 @@ body {
     box-shadow: none;
   }
 
+  /* When 4th tab is active */
+  .tabs-list-slider:has(button:nth-child(4)[data-state="active"])::before {
+    transform: translateX(300%);
+    box-shadow: none;
+  }
+
   /* Sliding "active tab" background */
   .tabs-list-slider::before {
     content: "";
@@ -131,7 +137,7 @@ body {
 
   /* Triggers: keep them flat, let the ::before act as background */
   .tabs-trigger-slider {
-    @apply relative z-10 flex-1 bg-transparent text-sm font-medium
+    @apply relative z-10 flex-1 min-w-0 bg-transparent text-sm font-medium
       text-muted-foreground transition-colors;
     @apply data-[state=active]:bg-transparent data-[state=active]:shadow-none
       data-[state=active]:text-foreground;

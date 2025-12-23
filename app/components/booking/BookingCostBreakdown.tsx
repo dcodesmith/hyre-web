@@ -1,13 +1,11 @@
 import { formatCurrency } from "~/lib/utils";
-import { BookingType, BOOKING_TYPE_LABELS } from "../bookingTypes";
+import { BookingType, BOOKING_TYPE_LABELS, AIRPORT_PICKUP_BOOKING_TYPE } from "../bookingTypes";
 
 interface BookingCostBreakdownProps {
   readonly currentCarPrice: number;
   readonly totalDays: number;
   readonly bookingType: BookingType;
   readonly baseTotal: number;
-  readonly includeSecurityDetail: boolean;
-  readonly securityDetailTotalCost: number;
   readonly fuelUpgradeCost: number;
   readonly platformFee: number;
   readonly platformServiceFeeRate: number;
@@ -23,8 +21,6 @@ export function BookingCostBreakdown({
   totalDays,
   bookingType,
   baseTotal,
-  includeSecurityDetail,
-  securityDetailTotalCost,
   fuelUpgradeCost,
   platformFee,
   platformServiceFeeRate,
@@ -49,7 +45,7 @@ export function BookingCostBreakdown({
           </dt>
           <dd className="text-gray-800">{formatCurrency(baseTotal)}</dd>
         </div>
-        <div
+        {/* <div
           className={`flex justify-between transition-all duration-200 ease-out ${
             includeSecurityDetail ? "opacity-100 h-6 mb-1.5" : "opacity-0 h-0 mb-0 overflow-hidden"
           }`}
@@ -61,15 +57,17 @@ export function BookingCostBreakdown({
               : BOOKING_TYPE_LABELS[bookingType].plural}
           </dt>
           <dd className="text-gray-800">{formatCurrency(securityDetailTotalCost)}</dd>
-        </div>
-        <div
-          className={`flex justify-between transition-all duration-200 ease-out ${
-            fuelUpgradeCost > 0 ? "opacity-100 h-6 mb-1.5" : "opacity-0 h-0 mb-0 overflow-hidden"
-          }`}
-        >
-          <dt className="text-gray-600">Fuel Upgrade to Full Tank</dt>
-          <dd className="text-gray-800">{formatCurrency(fuelUpgradeCost)}</dd>
-        </div>
+        </div> */}
+        {bookingType !== AIRPORT_PICKUP_BOOKING_TYPE && (
+          <div
+            className={`flex justify-between transition-all duration-200 ease-out ${
+              fuelUpgradeCost > 0 ? "opacity-100 h-6 mb-1.5" : "opacity-0 h-0 mb-0 overflow-hidden"
+            }`}
+          >
+            <dt className="text-gray-600">Fuel Upgrade to Full Tank</dt>
+            <dd className="text-gray-800">{formatCurrency(fuelUpgradeCost)}</dd>
+          </div>
+        )}
         <div
           className={`flex justify-between transition-all duration-200 ease-out ${
             platformFee > 0 ? "opacity-100 h-6 mb-1.5" : "opacity-0 h-0 mb-0 overflow-hidden"

@@ -14,6 +14,7 @@ interface DateRangePickerProps {
   readonly className?: string;
   readonly isNightBooking?: boolean;
   readonly isFullDayBooking?: boolean;
+  readonly isAirportPickup?: boolean; // New prop for airport pickup bookings
   readonly onOpenChange?: (open: boolean) => void;
   readonly singleDateMode?: boolean; // New prop to enable single date selection
   readonly disableToday?: boolean; // Disable today's date selection
@@ -25,6 +26,7 @@ export function DateRangePicker({
   className,
   isNightBooking,
   isFullDayBooking,
+  isAirportPickup,
   onOpenChange,
   singleDateMode = false,
   disableToday = false,
@@ -46,11 +48,13 @@ export function DateRangePicker({
   const currentLagosHour = getLagosHour();
 
   // Determine if the Lagos cutoff means "tomorrow" based on Lagos business rules
-  const lagosCutoffIsTomorrow = isNightBooking
-    ? currentLagosHour >= 23 // NIGHT bookings: after 11 PM, can't book for today
-    : isFullDayBooking
-      ? false // FULL_DAY bookings can always select today
-      : currentLagosHour >= 11; // DAY bookings: after 11 AM, can't book for today (booking window is 7-11 AM)
+  const lagosCutoffIsTomorrow = isAirportPickup
+    ? false // AIRPORT_PICKUP: always allow today (validation is based on 2-hour advance notice from flight time)
+    : isNightBooking
+      ? currentLagosHour >= 23 // NIGHT bookings: after 11 PM, can't book for today
+      : isFullDayBooking
+        ? false // FULL_DAY bookings can always select today
+        : currentLagosHour >= 11; // DAY bookings: after 11 AM, can't book for today (booking window is 7-11 AM)
 
   // Get start of today in local timezone
   const today = startOfToday();

@@ -8,13 +8,14 @@ import {
   useNavigation,
   useSearchParams,
 } from "@remix-run/react";
-import { Calendar, CheckCircle, CreditCard, Loader2, MapPin, User } from "lucide-react";
+import { Calendar, CheckCircle, CreditCard, Loader2, MapPin, Plane, User } from "lucide-react";
 import { useEffect, useState } from "react";
 import invariant from "tiny-invariant";
 import { AutocompleteAddress } from "~/components/AutocompleteAddress";
 import { Form } from "~/components/CSRFForm";
 import { BookingLegTimeline } from "~/components/booking/BookingLegTimeline";
 import { BookingTimeSelect } from "~/components/booking/BookingTimeSelect";
+import { AIRPORT_PICKUP_BOOKING_TYPE, NIGHT_BOOKING_TYPE } from "~/components/bookingTypes";
 import { Alert, AlertDescription } from "~/components/ui/alert";
 import { Avatar, AvatarFallback, AvatarImage } from "~/components/ui/avatar";
 import { Badge } from "~/components/ui/badge";
@@ -381,6 +382,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
       car: { include: { owner: true } },
       user: true,
       chauffeur: true,
+      flight: true, // Include flight data for AIRPORT_PICKUP bookings
       legs: {
         orderBy: { legDate: "asc" },
         include: {
@@ -600,6 +602,156 @@ function ChauffeurCard({ booking }: { booking: Booking }) {
   );
 }
 
+function FlightInfoCard({ booking }: { booking: Booking }) {
+  if (!booking.flight) {
+    return null;
+  }
+
+  const { flight } = booking;
+  const LAGOS_TZ = "Africa/Lagos";
+
+  const formatFlightTime = (date: string | null | undefined) => {
+    if (!date) return "TBD";
+    return new Date(date).toLocaleTimeString("en-GB", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+      timeZone: LAGOS_TZ,
+    });
+  };
+
+  const formatFlightDate = (date: string | null | undefined) => {
+    if (!date) return "TBD";
+    return new Date(date).toLocaleDateString("en-GB", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+      timeZone: LAGOS_TZ,
+    });
+  };
+
+  const getStatusBadgeClass = () => {
+    switch (flight.status) {
+      case "SCHEDULED":
+        return "bg-blue-100 text-blue-800 border-blue-200";
+      case "DEPARTED":
+        return "bg-cyan-100 text-cyan-800 border-cyan-200";
+      case "EN_ROUTE":
+        return "bg-green-100 text-green-800 border-green-200";
+      case "LANDED":
+        return "bg-slate-100 text-slate-800 border-slate-200";
+      case "CANCELLED":
+        return "bg-red-100 text-red-800 border-red-200";
+      case "DIVERTED":
+        return "bg-orange-100 text-orange-800 border-orange-200";
+      case "UNKNOWN":
+      default:
+        return "bg-gray-100 text-gray-800 border-gray-200";
+    }
+  };
+
+  const getStatusText = () => {
+    return flight.status.toLowerCase().replaceAll("_", " ");
+  };
+
+  return (
+    <Card className="rounded">
+      <CardHeader className="p-4">
+        <CardTitle className="flex items-center gap-2 text-base">
+          <Plane className="w-5 h-5 text-blue-600" />
+          Flight Information
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="p-4 pt-0">
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-lg font-bold text-slate-900">{flight.flightNumber}</p>
+              <p className="text-sm text-slate-600">{formatFlightDate(flight.flightDate)}</p>
+            </div>
+            <Badge
+              variant="outline"
+              className={`text-sm rounded-sm capitalize ${getStatusBadgeClass()}`}
+            >
+              {getStatusText()}
+            </Badge>
+          </div>
+
+          <Separator />
+
+          <div className="space-y-3">
+            <div>
+              <p className="text-xs font-medium text-slate-500 uppercase">From</p>
+              <p className="text-sm font-semibold text-slate-900">
+                {flight.originName || flight.originCode}
+              </p>
+              <p className="text-xs text-slate-600">
+                {flight.originCity && `${flight.originCity} • `}
+                {flight.originCodeIATA || flight.originCode}
+              </p>
+            </div>
+
+            <div>
+              <p className="text-xs font-medium text-slate-500 uppercase">To</p>
+              <p className="text-sm font-semibold text-slate-900">
+                {flight.destinationName || flight.destinationCode}
+              </p>
+              <p className="text-xs text-slate-600">
+                {flight.destinationCity && `${flight.destinationCity} • `}
+                {flight.destinationCodeIATA || flight.destinationCode}
+              </p>
+            </div>
+          </div>
+
+          <Separator />
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <p className="text-xs font-medium text-slate-500 uppercase">Scheduled Arrival</p>
+              <p className="text-sm font-semibold text-slate-900">
+                {formatFlightTime(flight.scheduledArrival)}
+              </p>
+            </div>
+            {flight.estimatedArrival && (
+              <div>
+                <p className="text-xs font-medium text-slate-500 uppercase">Estimated Arrival</p>
+                <p className="text-sm font-semibold text-slate-900">
+                  {formatFlightTime(flight.estimatedArrival)}
+                </p>
+              </div>
+            )}
+            {flight.actualArrival && (
+              <div>
+                <p className="text-xs font-medium text-slate-500 uppercase">Actual Arrival</p>
+                <p className="text-sm font-semibold text-slate-900">
+                  {formatFlightTime(flight.actualArrival)}
+                </p>
+              </div>
+            )}
+          </div>
+
+          {flight.delayMinutes && flight.delayMinutes > 0 && (
+            <Alert className="border-orange-200 bg-orange-50 rounded">
+              <AlertDescription className="text-sm text-orange-800">
+                Delayed by {flight.delayMinutes} minutes
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {flight.aircraftType && (
+            <div className="pt-2 border-t">
+              <p className="text-xs text-slate-500">
+                Aircraft: {flight.aircraftType}
+                {flight.registration && ` • ${flight.registration}`}
+              </p>
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function BookingDetails() {
   const { booking, paymentSummary, extendableDuration } = useLoaderData<typeof loader>();
   const [showDropoffFields, setShowDropoffFields] = useState(
@@ -630,12 +782,16 @@ export default function BookingDetails() {
   const shouldShowActionsCard = canBeModified || canBeExtended || isCompleted;
 
   const getBookingTypeDescription = () => {
-    if (booking.type === "DAY") {
+    if (booking.type === DAY_BOOKING_TYPE) {
       return "Each booking day is for a 12-hour duration ending 12 hours after the start time unless extended.";
     }
 
-    if (booking.type === "NIGHT") {
+    if (booking.type === NIGHT_BOOKING_TYPE) {
       return "Each night booking is for a 6-hour duration starting at 11pm.";
+    }
+
+    if (booking.type === AIRPORT_PICKUP_BOOKING_TYPE) {
+      return "Each airport pickup booking is for a one-way trip from the airport.";
     }
 
     return "Each full day booking is for a 24-hour duration ending 24 hours after the pickup time.";
@@ -692,6 +848,7 @@ export default function BookingDetails() {
 
           <div className="space-y-6">
             <ChauffeurCard booking={booking} />
+            {booking.type === AIRPORT_PICKUP_BOOKING_TYPE && <FlightInfoCard booking={booking} />}
 
             <Card className="rounded">
               <CardHeader className="p-4">

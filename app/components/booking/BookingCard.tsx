@@ -1,7 +1,7 @@
 import { type FieldMetadata, getFormProps, useForm } from "@conform-to/react";
 import { parseWithZod } from "@conform-to/zod/v4";
 import type { Car, User } from "@prisma/client";
-import { Link, useNavigate, useNavigation, useSearchParams, useSubmit } from "@remix-run/react";
+import { Link, useFetcher, useNavigate, useNavigation, useSearchParams } from "@remix-run/react";
 import {
   differenceInCalendarDays,
   eachDayOfInterval,
@@ -11,9 +11,11 @@ import {
   startOfDay,
   subDays,
 } from "date-fns";
+import { formatInTimeZone } from "date-fns-tz";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DateRange } from "react-day-picker";
 import { useAuthenticityToken } from "remix-utils/csrf/react";
+import { LAGOS_TIMEZONE } from "~/utils/timezone";
 import { Form } from "~/components/CSRFForm";
 import { calculateBookingUnits } from "~/lib/booking-utils";
 import { formatCurrency } from "~/lib/utils";
@@ -25,8 +27,10 @@ import {
   DAY_BOOKING_TYPE,
   FULL_DAY_BOOKING_TYPE,
   NIGHT_BOOKING_TYPE,
+  AIRPORT_PICKUP_BOOKING_TYPE,
   TAB_VALUE_TO_BOOKING_TYPE,
 } from "../bookingTypes";
+import type { ValidatedFlight } from "~/services/flight-validation.server";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "../ui/card";
 import { Label } from "../ui/label";
 import { Tabs, TabsList, TabsTrigger } from "../ui/tabs";
@@ -35,6 +39,7 @@ import { BookingAddons } from "./BookingAddons";
 import { BookingCostBreakdown } from "./BookingCostBreakdown";
 import { BookingFormFields } from "./BookingFormFields";
 import { DateRangePicker } from "./DateRangePicker";
+import { TripDetails } from "./TripDetails";
 import { getFuelTankNote, getOrdinal } from "./helpers";
 import { getBookingSchema } from "~/schemas/booking.schema";
 
@@ -61,12 +66,12 @@ export default function BookingCard({
   user,
   vatRate,
   platformServiceFeeRate,
-  securityDetailRate,
 }: BookingCardProps) {
   const navigate = useNavigate();
-  const submit = useSubmit();
   const csrfToken = useAuthenticityToken();
   const [searchParams, setSearchParams] = useSearchParams();
+  const bookingFetcher = useFetcher<{ error?: string; success?: boolean }>();
+  const [showFetcherError, setShowFetcherError] = useState(true);
 
   // Type guard for BookingType validation
   const isValidBookingType = (value: string | null): value is BookingType =>
@@ -78,13 +83,21 @@ export default function BookingCard({
   const bookingType: BookingType = hasValidBookingType ? bookingTypeParam : DAY_BOOKING_TYPE;
 
   const navigation = useNavigation();
-  const isPending = navigation.state === "submitting" && navigation.formMethod === "POST";
+  const isPending =
+    (navigation.state === "submitting" && navigation.formMethod === "POST") ||
+    bookingFetcher.state !== "idle";
 
   const [sameLocationChecked, setSameLocationChecked] = useState<boolean>(
     searchParams.get("sameLocation") !== "false",
   );
-  const [includeSecurityDetail, setIncludeSecurityDetail] = useState(false);
   const [requiresFullTank, setRequiresFullTank] = useState(false);
+  const [validatedFlight, setValidatedFlight] = useState<ValidatedFlight | null>(null);
+  const [tripDuration, setTripDuration] = useState<{
+    durationInMinutes: number;
+    durationText: string;
+    distanceText: string;
+    status: "success" | "fallback";
+  } | null>(null);
   const [referralDiscount, setReferralDiscount] = useState<{
     eligible: boolean;
     discountAmount: number;
@@ -92,6 +105,7 @@ export default function BookingCard({
   const [bookingCredits, setBookingCredits] = useState<BookingCredits | null>(null);
   const [useCreditsAmount, setUseCreditsAmount] = useState(0);
   const fallbackDateRef = useRef<Date>(startOfDay(new Date()));
+  const processedFlightRef = useRef<string | null>(null);
 
   const initialDateRange = useMemo(() => {
     const parseDateParam = (param: string | null) => {
@@ -125,7 +139,6 @@ export default function BookingCard({
   }, [searchParams]);
 
   const [dateRange, setDateRange] = useState<DateRange>(initialDateRange);
-  const [_, setIsDatePickerOpen] = useState(false);
 
   const totalDays = useMemo(
     () => calculateBookingUnits(dateRange.from, dateRange.to, bookingType),
@@ -141,20 +154,21 @@ export default function BookingCard({
       return car.fullDayRate;
     }
 
+    if (bookingType === AIRPORT_PICKUP_BOOKING_TYPE) {
+      return car.airportPickupRate; // Use dayRate for airport pickup (can be updated to use airportPickupRate if added to schema)
+    }
+
     return car.dayRate;
-  }, [bookingType, car.nightRate, car.fullDayRate, car.dayRate]);
+  }, [bookingType, car.nightRate, car.fullDayRate, car.dayRate, car.airportPickupRate]);
 
   const baseTotal = useMemo(() => currentCarPrice * totalDays, [currentCarPrice, totalDays]);
-  const securityDetailTotalCost = useMemo(
-    () => (includeSecurityDetail ? securityDetailRate * totalDays : 0),
-    [includeSecurityDetail, securityDetailRate, totalDays],
-  );
 
   const fuelUpgradeCost = useMemo(() => {
-    // FULL_DAY and NIGHT bookings don't have fuel upgrades
+    // FULL_DAY, NIGHT, and AIRPORT_PICKUP bookings don't have fuel upgrades
     if (
       bookingType === FULL_DAY_BOOKING_TYPE ||
       bookingType === NIGHT_BOOKING_TYPE ||
+      bookingType === AIRPORT_PICKUP_BOOKING_TYPE ||
       !requiresFullTank ||
       totalDays >= 3
     ) {
@@ -163,11 +177,7 @@ export default function BookingCard({
     return Number(car.fuelUpgradeRate);
   }, [bookingType, requiresFullTank, car.fuelUpgradeRate, totalDays]);
 
-  const subtotal = useMemo(
-    () => baseTotal + securityDetailTotalCost + fuelUpgradeCost,
-    [baseTotal, securityDetailTotalCost, fuelUpgradeCost],
-  );
-  // Per policy, platform fee excludes security detail
+  const subtotal = useMemo(() => baseTotal + fuelUpgradeCost, [baseTotal, fuelUpgradeCost]);
   const platformFeeBase = useMemo(() => baseTotal + fuelUpgradeCost, [baseTotal, fuelUpgradeCost]);
   const platformFee = useMemo(
     () => platformFeeBase * (platformServiceFeeRate / 100),
@@ -277,16 +287,25 @@ export default function BookingCard({
     return () => controller.abort();
   }, [user]);
 
+  // Compute default pickup time based on booking type
+  const getDefaultPickupTime = (): string | undefined => {
+    if (bookingType === NIGHT_BOOKING_TYPE) return "11:00 PM";
+    if (bookingType === AIRPORT_PICKUP_BOOKING_TYPE) return undefined;
+    return searchParams.get("pickupTime") || undefined;
+  };
+  const defaultPickupTime = getDefaultPickupTime();
+
   const [form, fields] = useForm({
     id: `booking-form-${car.id}`,
     shouldValidate: "onSubmit",
     shouldRevalidate: "onInput",
     defaultValue: {
       carId: car.id,
-      pickupTime:
-        bookingType === NIGHT_BOOKING_TYPE
-          ? "11:00 PM"
-          : searchParams.get("pickupTime") || undefined,
+      pickupTime: defaultPickupTime,
+      flightNumber:
+        bookingType === AIRPORT_PICKUP_BOOKING_TYPE
+          ? searchParams.get("flightNumber") || undefined
+          : undefined,
       pickupAddress: searchParams.get("pickupAddress") || undefined,
       dropOffAddress: searchParams.get("dropOffAddress") || undefined,
       sameLocation: sameLocationChecked ? "true" : "false",
@@ -318,7 +337,9 @@ export default function BookingCard({
           if (
             typeof value === "string" &&
             value &&
-            ["pickupTime", "pickupAddress", "dropOffAddress"].includes(key)
+            (bookingType === AIRPORT_PICKUP_BOOKING_TYPE
+              ? ["flightNumber", "pickupAddress", "dropOffAddress"].includes(key)
+              : ["pickupTime", "pickupAddress", "dropOffAddress"].includes(key))
           ) {
             currentParams.set(key, value);
           }
@@ -346,7 +367,10 @@ export default function BookingCard({
       }
 
       formData.append("csrf", csrfToken);
-      submit(formData, { method: "POST", action: `/bookings?${searchParams.toString()}` });
+      bookingFetcher.submit(formData, {
+        method: "POST",
+        action: `/bookings?${searchParams.toString()}`,
+      });
     },
   });
 
@@ -356,6 +380,24 @@ export default function BookingCard({
         from: range.from ? startOfDay(range.from) : undefined,
         to: range.to ? startOfDay(range.to) : undefined,
       };
+
+      // For airport pickup, only use the from date (single date selection)
+      if (bookingType === AIRPORT_PICKUP_BOOKING_TYPE) {
+        setDateRange({ from: normalizedRange.from, to: normalizedRange.from });
+        const newSearchParams = new URLSearchParams(searchParams);
+
+        if (normalizedRange.from) {
+          newSearchParams.set("from", format(normalizedRange.from, "yyyy-MM-dd"));
+          // Set to same as from for airport pickup (required for calculateBookingUnits)
+          newSearchParams.set("to", format(normalizedRange.from, "yyyy-MM-dd"));
+        } else {
+          newSearchParams.delete("from");
+          newSearchParams.delete("to");
+        }
+
+        setSearchParams(newSearchParams, { replace: true, preventScrollReset: true });
+        return;
+      }
 
       if (
         normalizedRange.from &&
@@ -386,7 +428,7 @@ export default function BookingCard({
         setSearchParams(newSearchParams, { replace: true, preventScrollReset: true });
       }
     },
-    [searchParams, setSearchParams],
+    [bookingType, searchParams, setSearchParams],
   );
 
   const handleSameLocationChange = useCallback(
@@ -444,21 +486,18 @@ export default function BookingCard({
         const newSearchParams = new URLSearchParams(searchParams);
         newSearchParams.set("bookingType", newBookingType);
 
-        // Reset dates and pickup time when changing booking type
+        // Reset dates, pickup time, and flight number when changing booking type
         setDateRange({ from: undefined, to: undefined });
         newSearchParams.delete("from");
         newSearchParams.delete("to");
         newSearchParams.delete("pickupTime");
+        newSearchParams.delete("flightNumber");
 
         setSearchParams(newSearchParams, { replace: true, preventScrollReset: true });
       }
     },
     [searchParams, setSearchParams],
   );
-
-  const handleSecurityDetailChange = useCallback((checked: boolean) => {
-    setIncludeSecurityDetail(!!checked);
-  }, []);
 
   const handleFullTankChange = useCallback((checked: boolean) => {
     setRequiresFullTank(!!checked);
@@ -481,11 +520,183 @@ export default function BookingCard({
     [subtotalBeforeDiscounts, referralDiscountAmount],
   );
 
+  // Clear booking errors when form values change
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Intentionally trigger on form value changes
+  useEffect(() => {
+    setShowFetcherError(false);
+  }, [bookingType, dateRange.from, dateRange.to, validatedFlight]);
+
+  // Show error when fetcher returns with new error data
+  useEffect(() => {
+    if (bookingFetcher.data?.error) {
+      setShowFetcherError(true);
+    }
+  }, [bookingFetcher.data?.error]);
+
+  // Auto-validate flight from URL on component mount
+  useEffect(() => {
+    const flightNumber = searchParams.get("flightNumber");
+    const from = searchParams.get("from");
+
+    if (bookingType === AIRPORT_PICKUP_BOOKING_TYPE && flightNumber && from && !validatedFlight) {
+      const controller = new AbortController();
+
+      // Validate the flight from the URL
+      const validateFlightFromUrl = async () => {
+        try {
+          const response = await fetch(
+            `/api/search-flight?flightNumber=${encodeURIComponent(flightNumber)}&date=${from}`,
+            { signal: controller.signal },
+          );
+
+          if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.flight && !controller.signal.aborted) {
+              setValidatedFlight(data.flight);
+            }
+          }
+        } catch (error) {
+          // Ignore abort errors (expected when component unmounts or deps change)
+          if (error instanceof Error && error.name === "AbortError") {
+            return;
+          }
+          console.error("Failed to validate flight from URL:", error);
+        }
+      };
+
+      validateFlightFromUrl();
+
+      return () => controller.abort();
+    }
+  }, [searchParams, bookingType, validatedFlight]);
+
+  // Handle validated flight - auto-fill pickup address with destination airport
+  useEffect(() => {
+    if (validatedFlight && bookingType === AIRPORT_PICKUP_BOOKING_TYPE) {
+      // Check if we've already processed this flight to avoid infinite loop
+      const flightId = validatedFlight.flightId;
+      if (processedFlightRef.current === flightId) {
+        return;
+      }
+
+      // Mark this flight as processed
+      processedFlightRef.current = flightId;
+
+      // Get airport name/code for pickup address
+      const airportAddress = validatedFlight.arrivalAddress
+        ? `${validatedFlight.arrivalAddress}`
+        : validatedFlight.destination;
+
+      // Update pickup address field
+      form.update({ name: "pickupAddress", value: airportAddress });
+
+      // Uncheck "same location" so drop-off field is shown
+      setSameLocationChecked(false);
+
+      // Update URL params
+      const newSearchParams = new URLSearchParams(searchParams);
+      newSearchParams.set("sameLocation", "false");
+      newSearchParams.set("pickupAddress", airportAddress);
+      setSearchParams(newSearchParams, { replace: true, preventScrollReset: true });
+    } else {
+      // Reset processed flight when there's no validated flight or booking type changes
+      processedFlightRef.current = null;
+    }
+  }, [validatedFlight, bookingType, form, searchParams, setSearchParams]);
+
+  // Calculate trip duration for AIRPORT_PICKUP bookings when drop-off address is selected
+  const handleDropOffAddressSelected = useCallback(
+    async (address: string) => {
+      if (bookingType !== AIRPORT_PICKUP_BOOKING_TYPE || !validatedFlight) {
+        return;
+      }
+
+      if (!address || address.trim().length === 0) {
+        setTripDuration(null);
+        return;
+      }
+
+      try {
+        const params = new URLSearchParams({
+          destination: address,
+        });
+
+        // If we have flight arrival time, use it for traffic estimation
+        if (validatedFlight.estimatedArrival) {
+          params.set("arrivalTime", validatedFlight.estimatedArrival);
+        }
+
+        const response = await fetch(`/api/calculate-trip-duration?${params.toString()}`);
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success) {
+            setTripDuration({
+              durationInMinutes: data.durationInMinutes,
+              durationText: data.durationText,
+              distanceText: data.distanceText,
+              status: data.status,
+            });
+          } else {
+            setTripDuration(null);
+          }
+        } else {
+          setTripDuration(null);
+        }
+      } catch (error) {
+        console.error("Failed to calculate trip duration:", error);
+        setTripDuration(null);
+      }
+    },
+    [bookingType, validatedFlight],
+  );
+
+  // Update URL params with calculated pickup date and time for AIRPORT_PICKUP bookings
+  useEffect(() => {
+    if (
+      bookingType === AIRPORT_PICKUP_BOOKING_TYPE &&
+      validatedFlight?.estimatedArrival &&
+      tripDuration
+    ) {
+      const arrivalDate = new Date(validatedFlight.estimatedArrival);
+      const pickupDateTime = new Date(arrivalDate.getTime() + 40 * 60 * 1000); // 40 min after arrival
+
+      // Add 20% buffer to drive time
+      const bufferedDriveMinutes = Math.ceil(tripDuration.durationInMinutes * 1.2);
+      const dropOffDateTime = new Date(pickupDateTime.getTime() + bufferedDriveMinutes * 60 * 1000);
+
+      // Format date as YYYY-MM-DD (like DAY/NIGHT/FULL_DAY bookings) using Lagos timezone
+      const pickupDateOnly = formatInTimeZone(pickupDateTime, LAGOS_TIMEZONE, "yyyy-MM-dd");
+      const dropOffDateOnly = formatInTimeZone(dropOffDateTime, LAGOS_TIMEZONE, "yyyy-MM-dd");
+
+      // Format time as "H:MM AM/PM" in Lagos timezone (like DAY/NIGHT/FULL_DAY bookings)
+      const pickupTimeFormatted = formatInTimeZone(
+        pickupDateTime,
+        LAGOS_TIMEZONE,
+        "h:mm a",
+      ).toUpperCase();
+
+      // Update URL search params
+      const newParams = new URLSearchParams(searchParams);
+      newParams.set("from", pickupDateOnly);
+      newParams.set("to", dropOffDateOnly);
+      newParams.set("pickupTime", pickupTimeFormatted);
+
+      // Only update if params have changed to avoid infinite loop
+      if (
+        newParams.get("from") !== searchParams.get("from") ||
+        newParams.get("to") !== searchParams.get("to") ||
+        newParams.get("pickupTime") !== searchParams.get("pickupTime")
+      ) {
+        setSearchParams(newParams, { replace: true });
+      }
+    }
+  }, [bookingType, validatedFlight, tripDuration, searchParams, setSearchParams]);
+
   return (
     <Form {...getFormProps(form)} method="POST" autoComplete="off">
       <input type="hidden" name="carId" value={car.id} />
       <input type="hidden" name="totalAmount" value={finalTotalCost} />
-      <input type="hidden" name="includeSecurityDetail" value={String(includeSecurityDetail)} />
       <input type="hidden" name="requiresFullTank" value={String(requiresFullTank)} />
       <input type="hidden" name="useCredits" value={useCreditsAmount} />
 
@@ -503,20 +714,7 @@ export default function BookingCard({
           </CardTitle>
         </CardHeader>
 
-        {!hasValidBookingType ? (
-          <CardContent className="space-y-4">
-            <div className="text-red-600 p-4 bg-red-50 border border-red-200 rounded-md text-sm text-center">
-              <p className="font-medium mb-2">Invalid booking type</p>
-              <p>
-                Please{" "}
-                <Link to="/" className="underline font-medium hover:text-red-800">
-                  select a car from the home page
-                </Link>{" "}
-                to continue.
-              </p>
-            </div>
-          </CardContent>
-        ) : (
+        {hasValidBookingType ? (
           <CardContent className="space-y-4">
             <input type="hidden" name="bookingType" value={bookingType} />
 
@@ -527,7 +725,7 @@ export default function BookingCard({
                 onValueChange={handleBookingTypeChange}
                 className="w-full"
               >
-                <TabsList className="p-2 gap-2 tabs-list-slider w-full h-auto before:w-[calc((100%-0.5rem)/3)]">
+                <TabsList className="p-2 gap-2 tabs-list-slider w-full h-auto before:w-[calc((100%-0.5rem)/4)]">
                   {BOOKING_TYPE_OPTIONS.map((type) => {
                     const option = BOOKING_TYPE_OPTIONS_MAP[type];
                     return (
@@ -552,9 +750,10 @@ export default function BookingCard({
               <DateRangePicker
                 isNightBooking={bookingType === NIGHT_BOOKING_TYPE}
                 isFullDayBooking={bookingType === FULL_DAY_BOOKING_TYPE}
+                isAirportPickup={bookingType === AIRPORT_PICKUP_BOOKING_TYPE}
+                singleDateMode={bookingType === AIRPORT_PICKUP_BOOKING_TYPE}
                 date={dateRange}
                 onDateChange={handleDateChange}
-                onOpenChange={setIsDatePickerOpen}
               />
             </div>
             {totalDays > 0 && !isAvailable && (
@@ -570,6 +769,7 @@ export default function BookingCard({
                   fallbackDate={fallbackDateRef.current}
                   fields={{
                     pickupTime: fields.pickupTime,
+                    flightNumber: fields.flightNumber,
                     pickupAddress: fields.pickupAddress,
                     dropOffAddress: fields.dropOffAddress,
                     sameLocation: fields.sameLocation,
@@ -580,7 +780,15 @@ export default function BookingCard({
                   nightBookingHelperText={nightBookingHelperText}
                   onPickupTimeChange={handlePickupTimeChange}
                   onSameLocationChange={handleSameLocationChange}
-                  onAddressUpdate={(name, value) => form.update({ name, value })}
+                  onAddressUpdate={(name, value) => {
+                    form.update({ name, value });
+                    // Calculate trip duration when drop-off address is selected
+                    if (name === "dropOffAddress" && bookingType === AIRPORT_PICKUP_BOOKING_TYPE) {
+                      handleDropOffAddressSelected(value);
+                    }
+                  }}
+                  validatedFlight={validatedFlight}
+                  onFlightValidated={setValidatedFlight}
                 />
 
                 <BookingAddons
@@ -588,11 +796,8 @@ export default function BookingCard({
                   totalDays={totalDays}
                   fuelNote={fuelNote}
                   fuelUpgradeRate={car.fuelUpgradeRate}
-                  securityDetailRate={securityDetailRate}
                   requiresFullTank={requiresFullTank}
-                  includeSecurityDetail={includeSecurityDetail}
                   onFullTankChange={handleFullTankChange}
-                  onSecurityDetailChange={handleSecurityDetailChange}
                   user={user}
                   bookingCredits={bookingCredits}
                   useCreditsAmount={useCreditsAmount}
@@ -603,17 +808,41 @@ export default function BookingCard({
               </div>
             )}
           </CardContent>
+        ) : (
+          <CardContent className="space-y-4">
+            <div className="text-red-600 p-4 bg-red-50 border border-red-200 rounded-md text-sm text-center">
+              <p className="font-medium mb-2">Invalid booking type</p>
+              <p>
+                Please{" "}
+                <Link to="/" className="underline font-medium hover:text-red-800">
+                  select a car from the home page
+                </Link>{" "}
+                to continue.
+              </p>
+            </div>
+          </CardContent>
         )}
 
         {hasValidBookingType && carIsAvailableToBook && (
           <CardFooter className="flex flex-col items-stretch space-y-4 bg-gray-50 p-4 border-t">
+            {/* Show trip duration for airport pickup bookings */}
+            {bookingType === AIRPORT_PICKUP_BOOKING_TYPE &&
+              validatedFlight?.estimatedArrival &&
+              tripDuration &&
+              fields.dropOffAddress.value && (
+                <TripDetails
+                  estimatedArrival={validatedFlight.estimatedArrival}
+                  durationInMinutes={tripDuration.durationInMinutes}
+                  distanceText={tripDuration.distanceText}
+                  status={tripDuration.status}
+                />
+              )}
+
             <BookingCostBreakdown
               currentCarPrice={currentCarPrice}
               totalDays={totalDays}
               bookingType={bookingType}
               baseTotal={baseTotal}
-              includeSecurityDetail={includeSecurityDetail}
-              securityDetailTotalCost={securityDetailTotalCost}
               fuelUpgradeCost={fuelUpgradeCost}
               platformFee={platformFee}
               platformServiceFeeRate={platformServiceFeeRate}
@@ -624,11 +853,15 @@ export default function BookingCard({
               finalTotalCost={finalTotalCost}
             />
 
+            {/* Display booking submission errors */}
+            {showFetcherError && bookingFetcher.data?.error && (
+              <div className="bg-red-50 border-l-4 border-red-400 text-red-800 p-3 text-sm">
+                {bookingFetcher.data.error}
+              </div>
+            )}
+
             {/* Only show booking section if user is not a fleet owner */}
-            {(user === null ||
-              !user.roles?.some((role) =>
-                ["fleetOwner", "admin", "staff"].includes(role.name),
-              )) && (
+            {!user?.roles?.some((role) => ["fleetOwner", "admin", "staff"].includes(role.name)) && (
               <BookingActions
                 user={user}
                 isPending={isPending}
@@ -662,6 +895,12 @@ export default function BookingCard({
                   }
 
                   if (
+                    bookingType === AIRPORT_PICKUP_BOOKING_TYPE &&
+                    "flightNumber" in fields &&
+                    fields.flightNumber?.value
+                  ) {
+                    currentParams.set("flightNumber", fields.flightNumber.value);
+                  } else if (
                     fields.pickupTime.value &&
                     (bookingType === DAY_BOOKING_TYPE || bookingType === FULL_DAY_BOOKING_TYPE)
                   ) {

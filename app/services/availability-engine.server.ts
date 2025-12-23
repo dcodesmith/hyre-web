@@ -31,6 +31,15 @@ export function buildRequestInterval(input: {
   const { bookingType } = input;
   const from = new Date(input.from);
 
+  // Handle AIRPORT_PICKUP as string (not yet in Prisma enum)
+  if (bookingType === BookingType.AIRPORT_PICKUP) {
+    // For airport pickup, use the provided times (pickup time + trip duration)
+    // If 'to' is provided, use it; otherwise fall back to conservative 3-hour window
+    const start = from;
+    const end = input.to && input.to > start ? new Date(input.to) : new Date(+start + 3 * HOUR);
+    return { start, end };
+  }
+
   if (bookingType === BookingType.DAY) {
     const lagosHour = getLagosHourFromDate(from);
 

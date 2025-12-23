@@ -19,6 +19,7 @@ import { availableCarsForSpecificRequest } from "~/services/availability-engine.
 import { getRates } from "~/services/extensions.server";
 import { LAGOS_TIMEZONE } from "~/utils/timezone";
 import { validateCSRF } from "~/utils/csrf-action.server";
+import { AIRPORT_PICKUP_BOOKING_TYPE } from "~/components/bookingTypes";
 
 export async function action({ request, params }: ActionFunctionArgs) {
   await validateCSRF(request);
@@ -37,6 +38,7 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   const toDate = url.searchParams.get("to");
   const bookingType = url.searchParams.get("bookingType");
   const pickupTime = url.searchParams.get("pickupTime");
+  const flightNumber = url.searchParams.get("flightNumber");
 
   // Run all independent queries in parallel for better performance
   const [user, car, rates] = await Promise.all([
@@ -59,10 +61,23 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
 
   // Only check availability if we have all required parameters including pickup time
   // Exception: NIGHT bookings can default to "11 PM" if no pickup time is specified
-  if (fromDate && toDate && bookingType && (pickupTime || bookingType === BookingType.NIGHT)) {
+  // Exception: AIRPORT_PICKUP bookings require flightNumber instead of pickupTime
+  if (
+    fromDate &&
+    toDate &&
+    bookingType &&
+    (pickupTime ||
+      bookingType === BookingType.NIGHT ||
+      (bookingType === BookingType.AIRPORT_PICKUP && flightNumber))
+  ) {
     // Derive effective pickup time: for NIGHT bookings, default to "11 PM" if missing
+    // For AIRPORT_PICKUP, use a default time (12 PM) for availability checks
     const effectivePickupTime =
-      bookingType === BookingType.NIGHT && !pickupTime ? "11 PM" : pickupTime;
+      bookingType === AIRPORT_PICKUP_BOOKING_TYPE
+        ? "12 PM" // Default time for airport pickup (can be adjusted based on flight schedules)
+        : bookingType === BookingType.NIGHT && !pickupTime
+          ? "11 PM"
+          : pickupTime;
 
     // Normalize and validate pickup time format (e.g., "7 AM", "11:30 PM")
     const normalizedPickupTime = effectivePickupTime?.trim().toUpperCase();
@@ -77,7 +92,8 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
       if (period === "PM" && hours !== 12) hours += 12;
       if (period === "AM" && hours === 12) hours = 0;
 
-      // Define a superset window that covers DAY/NIGHT/FULL_DAY overlaps across [from..to]
+      // Define a superset window that covers DAY/NIGHT/FULL_DAY/AIRPORT_PICKUP overlaps across [from..to]
+      // fromDate and toDate are date-only strings (e.g., "2025-12-13") for all booking types
       const fromStart = new Date(`${fromDate}T00:00:00.000Z`);
       const toStart = new Date(`${toDate}T00:00:00.000Z`);
       const endWindow = new Date(toStart);

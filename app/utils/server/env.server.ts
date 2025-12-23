@@ -13,7 +13,7 @@ export function initEnvs() {
   const parsed = schema.safeParse(process.env);
 
   if (!parsed.success) {
-    console.error("Invalid environment variables:", parsed.error.flatten().fieldErrors);
+    console.error("Invalid environment variables:", parsed.error.issues);
     throw new Error("Invalid environment variables.");
   }
 

@@ -23,6 +23,114 @@ import type { SerializedCar } from "~/types";
 import { useCallback, useMemo } from "react";
 import { formatCurrency } from "~/lib/utils";
 import { calculateBookingUnits } from "~/lib/booking-utils";
+import { validateFlight } from "~/services/flight-validation.server";
+import {
+  AIRPORT_PICKUP_BOOKING_TYPE,
+  FULL_DAY_BOOKING_TYPE,
+  NIGHT_BOOKING_TYPE,
+} from "~/components/bookingTypes";
+
+interface PickupTimeWindow {
+  specificFrom: Date;
+  specificTo: Date | undefined;
+}
+
+/**
+ * Parses a pickup time string (e.g., "10 AM" or "2 PM") and converts it to UTC.
+ */
+function parsePickupTimeToUTC(
+  effectivePickupTime: string,
+  fromDate: string,
+  toDate: Date,
+): PickupTimeWindow {
+  const timeRegex = /^(\d+)\s*(AM|PM)$/i;
+  const timeMatch = timeRegex.exec(effectivePickupTime);
+
+  if (!timeMatch) {
+    logger.warn("Invalid pickup time format", { pickupTime: effectivePickupTime });
+  }
+
+  let hours = timeMatch ? Number.parseInt(timeMatch[1], 10) : 7;
+  const isPM = timeMatch ? timeMatch[2].toUpperCase() === "PM" : false;
+
+  // Convert to 24-hour format
+  if (isPM && hours !== 12) {
+    hours += 12;
+  } else if (!isPM && hours === 12) {
+    hours = 0;
+  }
+
+  // Create a date string in Lagos timezone and convert to UTC
+  const lagosDateString = `${fromDate}T${hours.toString().padStart(2, "0")}:00:00`;
+  const specificFrom = fromZonedTime(lagosDateString, LAGOS_TIMEZONE);
+
+  return { specificFrom, specificTo: toDate };
+}
+
+/**
+ * Validates an airport pickup flight and calculates the pickup/dropoff window.
+ */
+/**
+ * Determines if availability filtering should be applied based on search params.
+ */
+function shouldFilterByAvailability(
+  from: string | null,
+  to: string | null,
+  carsCount: number,
+  bookingType: string | null,
+  pickupTime: string | null,
+  flightNumber: string | null,
+): boolean {
+  if (!from || !to || carsCount === 0 || !bookingType) {
+    return false;
+  }
+  return !!(
+    pickupTime ||
+    bookingType === NIGHT_BOOKING_TYPE ||
+    (bookingType === AIRPORT_PICKUP_BOOKING_TYPE && flightNumber)
+  );
+}
+
+async function getAirportPickupTimeWindow(
+  flightNumber: string,
+  fromDate: string,
+  fallbackFrom: Date,
+): Promise<PickupTimeWindow> {
+  try {
+    const result = await validateFlight(flightNumber, fromDate);
+
+    if (result.type === "success") {
+      const arrivalTimeStr =
+        result.flight.actualArrival ||
+        result.flight.estimatedArrival ||
+        result.flight.scheduledArrival;
+      const arrivalTime = new Date(arrivalTimeStr);
+
+      // Pickup time = arrival + 40 min buffer
+      const pickupTime = new Date(arrivalTime.getTime() + 40 * 60 * 1000);
+      // Conservative 3-hour window for availability check
+      const dropoffTime = new Date(pickupTime.getTime() + 3 * 60 * 60 * 1000);
+
+      logger.info("[AIRPORT_PICKUP] Availability check with flight times", {
+        flightNumber,
+        arrivalTime: arrivalTime.toISOString(),
+        pickupTime: pickupTime.toISOString(),
+        estimatedDropoff: dropoffTime.toISOString(),
+      });
+
+      return { specificFrom: pickupTime, specificTo: dropoffTime };
+    }
+
+    logger.warn("[AIRPORT_PICKUP] Flight validation failed, skipping availability check", {
+      flightNumber,
+      resultType: result.type,
+    });
+    return { specificFrom: fallbackFrom, specificTo: undefined };
+  } catch (error) {
+    logger.error("[AIRPORT_PICKUP] Error validating flight", { error, flightNumber });
+    return { specificFrom: fallbackFrom, specificTo: undefined };
+  }
+}
 
 // Preload hero image only for home page - use WebP with responsive fallback
 export const links = () => [
@@ -145,8 +253,9 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const to = url.searchParams.get("to");
   const bookingType = url.searchParams.get("bookingType");
   const pickupTime = url.searchParams.get("pickupTime");
+  const flightNumber = url.searchParams.get("flightNumber");
 
-  logger.info({ from, to, bookingType, pickupTime });
+  logger.info({ from, to, bookingType, pickupTime, flightNumber });
 
   try {
     // Performance logging
@@ -205,7 +314,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
     // Only filter by availability if user has provided all search parameters including pickup time
     // Exception: NIGHT bookings can default to "11 PM" if no pickup time is specified
-    if (from && to && cars.length > 0 && bookingType && (pickupTime || bookingType === BookingType.NIGHT)) {
+    // Exception: AIRPORT_PICKUP bookings require flightNumber instead of pickupTime
+    if (shouldFilterByAvailability(from, to, cars.length, bookingType, pickupTime, flightNumber)) {
       const carIds = cars.map((c) => c.id);
 
       // Define a superset window that covers DAY/NIGHT/FULL_DAY overlaps across [from..to]
@@ -227,37 +337,26 @@ export async function loader({ request }: LoaderFunctionArgs) {
       const carsForEngine = cars.map((c) => ({ id: c.id })) as unknown as Car[];
       const bookingsForEngine = bookings as unknown as Booking[];
 
-      // Derive effective pickup time: for NIGHT bookings, default to "11 PM" if missing
-      const effectivePickupTime =
-        bookingType === BookingType.NIGHT && !pickupTime ? "11 PM" : (pickupTime as string);
+      // Type assertions are safe here - shouldFilterByAvailability already validated these
+      const validFrom = from as string;
+      let timeWindow: PickupTimeWindow;
 
-      // Parse pickup time (e.g., "10 AM" or "2 PM") and create specific request time
-      const timeRegex = /^(\d+)\s*(AM|PM)$/i;
-      const timeMatch = timeRegex.exec(effectivePickupTime);
-      if (!timeMatch) {
-        logger.warn("Invalid pickup time format", { pickupTime: effectivePickupTime });
-      }
-      let hours = timeMatch ? Number.parseInt(timeMatch[1], 10) : 7;
-      const isPM = timeMatch ? timeMatch[2].toUpperCase() === "PM" : false;
-
-      // Convert to 24-hour format
-      if (isPM && hours !== 12) {
-        hours += 12;
-      } else if (!isPM && hours === 12) {
-        hours = 0;
+      if (bookingType === AIRPORT_PICKUP_BOOKING_TYPE && flightNumber) {
+        timeWindow = await getAirportPickupTimeWindow(flightNumber, validFrom, fromStart);
+      } else {
+        // For DAY/NIGHT/FULL_DAY bookings: use pickup time
+        const effectivePickupTime =
+          bookingType === NIGHT_BOOKING_TYPE && !pickupTime ? "11 PM" : (pickupTime as string);
+        timeWindow = parsePickupTimeToUTC(effectivePickupTime, validFrom, toStart);
       }
 
-      // Create a date string in Lagos timezone and convert to UTC
-      // fromStart is already the correct date, we just need to set the Lagos time
-      const lagosDateString = `${from}T${hours.toString().padStart(2, "0")}:00:00`;
-      const specificFrom = fromZonedTime(lagosDateString, LAGOS_TIMEZONE);
+      const { specificFrom, specificTo } = timeWindow;
 
-      logger.info("Availability check with specific pickup time", {
-        pickupTime,
-        parsedHours: hours,
-        specificFrom: specificFrom.toISOString(),
-        toStart: toStart.toISOString(),
+      logger.info("Availability check with specific times", {
         bookingType,
+        pickupTime,
+        specificFrom: specificFrom.toISOString(),
+        specificTo: specificTo?.toISOString(),
         bookingsCount: bookingsForEngine.length,
         bookings: bookingsForEngine.map((b) => ({
           carId: b.carId,
@@ -272,7 +371,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
         {
           bookingType: bookingType as BookingType,
           from: specificFrom,
-          to: toStart,
+          to: specificTo,
         },
       );
 
@@ -319,7 +418,7 @@ export default function IndexPage() {
   const from = searchParams.get("from");
   const to = searchParams.get("to");
   // Use string literals instead of Prisma enum to avoid client-side hydration issues
-  const validBookingTypes = ["DAY", "NIGHT", "FULL_DAY"] as const;
+  const validBookingTypes = ["DAY", "NIGHT", "FULL_DAY", "AIRPORT_PICKUP"] as const;
   type ClientBookingType = (typeof validBookingTypes)[number];
   const bookingTypeParam = searchParams.get("bookingType");
   const isValidBookingType = (value: string | null): value is ClientBookingType =>
@@ -329,10 +428,12 @@ export default function IndexPage() {
   const getRateForBookingType = useCallback(
     (car: SerializedCar) => {
       switch (bookingType) {
-        case "NIGHT":
+        case NIGHT_BOOKING_TYPE:
           return car.nightRate;
-        case "FULL_DAY":
+        case FULL_DAY_BOOKING_TYPE:
           return car.fullDayRate;
+        case AIRPORT_PICKUP_BOOKING_TYPE:
+          return car.airportPickupRate;
         default:
           return car.dayRate;
       }
@@ -349,21 +450,21 @@ export default function IndexPage() {
     <div className="max-w-8xl mx-auto space-y-2 -mt-16">
       <div className="grid grid-cols-1 lg:grid-cols-3 md:grid-cols-2 gap-2">
         <div className="flex flex-col col-span-1">
-          <div className="mx-auto gap-2 flex py-12 md:py-20 flex-col md:mt-4 mt-12">
+          <div className="mx-auto gap-2 flex py-12 md:pt-20 flex-col md:mt-4 mt-12">
             <div className="w-64 text-3xl font-semibold">
               Comfort. Safety. Professional. Every Ride.
             </div>
 
             <BookingSearch />
 
-            <div className="flex flex-col mt-4 gap-2">
+            <div className="flex flex-col justify-center mt-4 gap-2">
               <div className="flex items-center gap-2">
                 <LocateFixed className="h-4 w-4 text-blue-600" />
-                <span>Real-time Location Tracking</span>
+                <span>Real-time location tracking</span>
               </div>
               <div className="flex items-center gap-2">
                 <ShieldCheck className="h-4 w-4 text-orange-500" />
-                <span>Vetted Chauffeurs</span>
+                <span>Vetted chauffeurs</span>
               </div>
               <div className="flex items-center gap-2">
                 <Fingerprint className="h-4 w-4 text-green-600" />

@@ -1,0 +1,63 @@
+{
+  "lastUpdated": "2025-12-11T19:05:40.914Z",
+  "totalFlights": 8,
+  "airlinesCount": 27,
+  "curatedCount": 27,
+  "apiCount": 7,
+  "airlines": [
+    "9J",
+    "AF",
+    "AT",
+    "BA",
+    "DL",
+    "EK",
+    "ET",
+    "HG",
+    "KL",
+    "KQ",
+    "LH",
+    "MS",
+    "N2",
+    "OJ",
+    "P4",
+    "Q9",
+    "QI",
+    "QR",
+    "RW",
+    "SA",
+    "SV",
+    "TK",
+    "UA",
+    "VK",
+    "VM",
+    "VS",
+    "W3"
+  ],
+  "airports": [
+    {
+      "code": "LOS",
+      "icao": "DNMM",
+      "name": "Murtala Muhammed International Airport, Lagos"
+    },
+    {
+      "code": "ABV",
+      "icao": "DNAA",
+      "name": "Nnamdi Azikiwe International Airport, Abuja"
+    },
+    {
+      "code": "KAN",
+      "icao": "DNKN",
+      "name": "Mallam Aminu Kano International Airport, Kano"
+    },
+    {
+      "code": "PHC",
+      "icao": "DNPO",
+      "name": "Port Harcourt International Airport"
+    },
+    {
+      "code": "ENU",
+      "icao": "DNEN",
+      "name": "Akanu Ibiam International Airport, Enugu"
+    }
+  ]
+}

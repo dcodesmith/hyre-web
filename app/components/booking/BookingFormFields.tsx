@@ -1,15 +1,13 @@
 import { type FieldMetadata, getInputProps } from "@conform-to/react";
 import { type DateRange } from "react-day-picker";
+import type { ValidatedFlight } from "~/services/flight-validation.server";
 import { AutocompleteAddress } from "../AutocompleteAddress";
+import { AutocompleteFlight } from "../AutocompleteFlight";
+import { AIRPORT_PICKUP_BOOKING_TYPE, BookingType, NIGHT_BOOKING_TYPE } from "../bookingTypes";
 import { Checkbox } from "../ui/checkbox";
+import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { BookingTimeSelect } from "./BookingTimeSelect";
-import {
-  BookingType,
-  DAY_BOOKING_TYPE,
-  NIGHT_BOOKING_TYPE,
-  FULL_DAY_BOOKING_TYPE,
-} from "../bookingTypes";
 
 interface BookingFormFieldsProps {
   readonly bookingType: BookingType;
@@ -17,6 +15,7 @@ interface BookingFormFieldsProps {
   readonly fallbackDate: Date;
   readonly fields: {
     pickupTime: FieldMetadata<string>;
+    flightNumber?: FieldMetadata<string>;
     pickupAddress: FieldMetadata<string>;
     dropOffAddress: FieldMetadata<string>;
     sameLocation: FieldMetadata<string>;
@@ -28,6 +27,8 @@ interface BookingFormFieldsProps {
   readonly onPickupTimeChange: (value: string) => void;
   readonly onSameLocationChange: (checked: boolean) => void;
   readonly onAddressUpdate: (name: string, value: string) => void;
+  readonly validatedFlight?: ValidatedFlight | null;
+  readonly onFlightValidated?: (flight: ValidatedFlight | null) => void;
 }
 
 function FieldError({ errors }: { readonly errors?: readonly string[] }) {
@@ -35,6 +36,84 @@ function FieldError({ errors }: { readonly errors?: readonly string[] }) {
     return null;
   }
   return <p className="text-red-500 text-sm mt-1">{errors.join(", ")}</p>;
+}
+
+type TimeOrFlightFieldProps = Readonly<
+  Pick<
+    BookingFormFieldsProps,
+    | "bookingType"
+    | "dateRange"
+    | "fallbackDate"
+    | "fields"
+    | "errorRingClasses"
+    | "onPickupTimeChange"
+    | "onAddressUpdate"
+    | "onFlightValidated"
+  >
+>;
+
+function TimeOrFlightField({
+  bookingType,
+  dateRange,
+  fallbackDate,
+  fields,
+  errorRingClasses,
+  onPickupTimeChange,
+  onAddressUpdate,
+  onFlightValidated,
+}: TimeOrFlightFieldProps) {
+  // Airport pickup: show flight number field
+  if (bookingType === AIRPORT_PICKUP_BOOKING_TYPE && fields.flightNumber) {
+    return (
+      <div className="space-y-1">
+        <Label htmlFor={fields.flightNumber.id} className="font-semibold">
+          Flight Number
+        </Label>
+        <AutocompleteFlight
+          id={fields.flightNumber.id}
+          onSelect={(flightNumber) =>
+            onAddressUpdate(fields.flightNumber?.name ?? "flightNumber", flightNumber)
+          }
+          inputProps={getInputProps(fields.flightNumber, {
+            type: "text",
+            ariaAttributes: true,
+          })}
+          initialValue={fields.flightNumber.value}
+          className={fields.flightNumber.errors ? errorRingClasses : ""}
+          nigeriaOnly={true}
+          pickupDate={(dateRange.from || fallbackDate).toISOString().split("T")[0]}
+          onFlightValidated={(flight) => {
+            if (onFlightValidated) {
+              onFlightValidated(flight);
+            }
+          }}
+        />
+        <FieldError errors={fields.flightNumber.errors} />
+      </div>
+    );
+  }
+
+  // Night booking: hidden input with fixed time
+  if (bookingType === NIGHT_BOOKING_TYPE) {
+    return <input type="hidden" name="pickupTime" value="11:00 PM" />;
+  }
+
+  // Other booking types: show pickup time selector
+  return (
+    <div className="space-y-1">
+      <Label htmlFor={fields.pickupTime.id} className="font-semibold">
+        Pickup Time
+      </Label>
+      <BookingTimeSelect
+        date={dateRange.from ?? fallbackDate}
+        bookingType={bookingType}
+        {...getInputProps(fields.pickupTime, { type: "text", ariaAttributes: true })}
+        className={fields.pickupTime.errors ? errorRingClasses : ""}
+        onValueChange={onPickupTimeChange}
+      />
+      <FieldError errors={fields.pickupTime.errors} />
+    </div>
+  );
 }
 
 export function BookingFormFields({
@@ -49,26 +128,21 @@ export function BookingFormFields({
   onPickupTimeChange,
   onSameLocationChange,
   onAddressUpdate,
+  validatedFlight,
+  onFlightValidated,
 }: BookingFormFieldsProps) {
   return (
     <>
-      {bookingType !== NIGHT_BOOKING_TYPE ? (
-        <div className="space-y-1">
-          <Label htmlFor={fields.pickupTime.id} className="font-semibold">
-            Pickup Time
-          </Label>
-          <BookingTimeSelect
-            date={dateRange.from ?? fallbackDate}
-            bookingType={bookingType}
-            {...getInputProps(fields.pickupTime, { type: "text", ariaAttributes: true })}
-            className={fields.pickupTime.errors ? errorRingClasses : ""}
-            onValueChange={onPickupTimeChange}
-          />
-          <FieldError errors={fields.pickupTime.errors} />
-        </div>
-      ) : (
-        <input type="hidden" name="pickupTime" value="11:00 PM" />
-      )}
+      <TimeOrFlightField
+        bookingType={bookingType}
+        dateRange={dateRange}
+        fallbackDate={fallbackDate}
+        fields={fields}
+        errorRingClasses={errorRingClasses}
+        onPickupTimeChange={onPickupTimeChange}
+        onAddressUpdate={onAddressUpdate}
+        onFlightValidated={onFlightValidated}
+      />
 
       {bookingType === NIGHT_BOOKING_TYPE && nightBookingHelperText && (
         <div
@@ -83,37 +157,58 @@ export function BookingFormFields({
         <Label htmlFor={fields.pickupAddress.id} className="font-semibold">
           Pickup Address
         </Label>
-        <AutocompleteAddress
-          id={fields.pickupAddress.id}
-          onSelect={(address) => onAddressUpdate(fields.pickupAddress.name, address)}
-          inputProps={getInputProps(fields.pickupAddress, {
-            type: "text",
-            ariaAttributes: true,
-          })}
-          className={fields.pickupAddress.errors ? errorRingClasses : ""}
-        />
+        {bookingType === AIRPORT_PICKUP_BOOKING_TYPE && validatedFlight ? (
+          <Input
+            {...getInputProps(fields.pickupAddress, {
+              type: "text",
+              ariaAttributes: true,
+            })}
+            key={validatedFlight.flightId}
+            value={fields.pickupAddress.value || ""}
+            readOnly
+            className="bg-gray-50 cursor-not-allowed"
+          />
+        ) : (
+          <AutocompleteAddress
+            id={fields.pickupAddress.id}
+            onSelect={(address) => onAddressUpdate(fields.pickupAddress.name, address)}
+            inputProps={getInputProps(fields.pickupAddress, {
+              type: "text",
+              ariaAttributes: true,
+            })}
+            className={fields.pickupAddress.errors ? errorRingClasses : ""}
+          />
+        )}
         <FieldError errors={fields.pickupAddress.errors} />
       </div>
 
-      <div className="space-y-1">
-        <input
-          type="hidden"
-          name={fields.sameLocation.name}
-          value={sameLocationChecked ? "true" : "false"}
-        />
-        <div className="flex items-center space-x-2">
-          <Checkbox
-            id={`${fields.sameLocation.id}-ctrl`}
-            checked={sameLocationChecked}
-            onCheckedChange={onSameLocationChange}
-            aria-label="Drop-off location same as pickup"
+      {/* Hide "same location" checkbox for airport pickups - always different locations */}
+      {bookingType !== AIRPORT_PICKUP_BOOKING_TYPE && (
+        <div className="space-y-1">
+          <input
+            type="hidden"
+            name={fields.sameLocation.name}
+            value={sameLocationChecked ? "true" : "false"}
           />
-          <Label htmlFor={`${fields.sameLocation.id}-ctrl`} className="cursor-pointer">
-            Drop-off location same as pickup
-          </Label>
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id={`${fields.sameLocation.id}-ctrl`}
+              checked={sameLocationChecked}
+              onCheckedChange={onSameLocationChange}
+              aria-label="Drop-off location same as pickup"
+            />
+            <Label htmlFor={`${fields.sameLocation.id}-ctrl`} className="cursor-pointer">
+              Drop-off location same as pickup
+            </Label>
+          </div>
+          <FieldError errors={fields.sameLocation.errors} />
         </div>
-        <FieldError errors={fields.sameLocation.errors} />
-      </div>
+      )}
+
+      {/* For airport pickups, always include hidden field with value "false" */}
+      {bookingType === AIRPORT_PICKUP_BOOKING_TYPE && (
+        <input type="hidden" name={fields.sameLocation.name} value="false" />
+      )}
 
       {!sameLocationChecked && (
         <div className="space-y-1">

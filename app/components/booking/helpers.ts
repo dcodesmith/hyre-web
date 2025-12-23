@@ -1,4 +1,4 @@
-import { BookingType, FULL_DAY_BOOKING_TYPE, NIGHT_BOOKING_TYPE } from "../bookingTypes";
+import { BookingType, FULL_DAY_BOOKING_TYPE, NIGHT_BOOKING_TYPE, AIRPORT_PICKUP_BOOKING_TYPE } from "../bookingTypes";
 
 export function getOrdinal(n: number): string {
   const mod100 = n % 100;
@@ -35,6 +35,8 @@ export function getFuelTankNote(
     note = "24-hour booking comes with a full tank";
   } else if (bookingType === NIGHT_BOOKING_TYPE) {
     note = "Night booking comes with 1/3rd of a tank";
+  } else if (bookingType === AIRPORT_PICKUP_BOOKING_TYPE) {
+    note = "Airport pickup comes with a full tank";
   } else if (requiresFullTank && totalDays <= 2) {
     note = "Booking comes with a full tank";
   } else if (totalDays === 1) {

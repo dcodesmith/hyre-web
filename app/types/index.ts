@@ -12,6 +12,7 @@ export type SerializedCar = Omit<Car, "createdAt" | "updatedAt"> & {
   createdAt: string;
   updatedAt: string;
   fuelUpgradeRate: number;
+  airportPickupRate: number;
   owner: {
     username: string | null;
     name: string | null;

@@ -52,6 +52,7 @@ export function NewCarForm() {
       nightRate,
       fullDayRate,
       fuelUpgradeRate,
+      airportPickupRate,
     },
   ] = useForm({
     lastResult:
@@ -167,6 +168,21 @@ export function NewCarForm() {
         <p className="text-xs text-gray-500">
           Amount charged to customers who want to upgrade from partial tank (1/3 or 2/3) to full
           tank for 1-2 day bookings
+        </p>
+      </div>
+
+      <div className="space-y-0.5">
+        <Label htmlFor={airportPickupRate.id}>Airport Pickup Rate</Label>
+        <Input
+          {...getInputProps(airportPickupRate, { type: "number", step: "1000" })}
+          className={`rounded ${airportPickupRate.errors ? errorRingClasses : ""}`}
+          placeholder="Rate for airport pickup service"
+        />
+        {airportPickupRate.errors && (
+          <p className="text-red-500 text-sm">{airportPickupRate.errors.join(" ")}</p>
+        )}
+        <p className="text-xs text-gray-500">
+          Flat rate charged for airport pickup service (including flight tracking)
         </p>
       </div>
 

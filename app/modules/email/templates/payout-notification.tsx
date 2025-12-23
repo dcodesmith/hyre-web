@@ -3,9 +3,9 @@ import { render } from "@react-email/render";
 import { EmailTemplate } from "./EmailTemplate";
 
 interface PayoutNotificationProps {
-  name: string;
-  amount: string;
-  bookingReference: string;
+  readonly name: string;
+  readonly amount: string;
+  readonly bookingReference: string;
 }
 
 function PayoutNotification({ name, amount, bookingReference }: PayoutNotificationProps) {

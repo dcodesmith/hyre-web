@@ -32,6 +32,9 @@ import {
   getReferralConfig,
   releaseReferralReward,
 } from "~/services/referral.server";
+import { findOrCreateFlight, disableFlightAlertTracking } from "~/services/flight.server";
+import { getOrCreateFlightAlert, disableFlightAlert } from "~/services/flight-alert.server";
+import { validateFlight } from "~/services/flight-validation.server";
 import { BookingWithRelations } from "~/types";
 
 export type CreateBookingParams = {
@@ -48,6 +51,8 @@ export type CreateBookingParams = {
   status?: BookingStatus;
   paymentStatus?: PaymentStatus;
   includeSecurityDetail?: boolean;
+  flightNumber?: string;
+  estimatedDuration?: number;
 };
 
 // Define your alphabet (e.g., uppercase letters and numbers, avoiding ambiguous chars like 0/O, 1/I)
@@ -115,6 +120,12 @@ function generateBookingDates(
     }
     return dates;
   }
+  if (type === BookingType.AIRPORT_PICKUP) {
+    // For AIRPORT_PICKUP bookings, generate a single leg with the exact pickup time
+    // This is a one-time service, not a multi-day rental
+    // Use the actual startDate time (not start of day) to preserve pickup time
+    return [startDate];
+  }
   // For DAY bookings, generate legs based on 12-hour periods within calendar days
   // Use existing calendar-day logic but with 12-hour duration consideration
   return eachDayOfInterval({
@@ -140,6 +151,7 @@ export async function calculateBookingCost({
     hourlyRate: number;
     fullDayRate: number;
     fuelUpgradeRate: number;
+    airportPickupRate: number;
     id: string;
   };
   startDate: Date;
@@ -418,6 +430,8 @@ export async function createPendingBooking({
   type,
   includeSecurityDetail,
   requiresFullTank,
+  flightNumber,
+  estimatedDuration,
 }: Omit<CreateBookingParams, "paymentId" | "status" | "paymentStatus"> & {
   paymentIntent: string;
   requiresFullTank?: boolean;
@@ -429,6 +443,62 @@ export async function createPendingBooking({
   let didApplyReferral = false;
   let appliedReferrerUserId: string | null = null;
   let appliedDiscountAmount = 0;
+
+  // Validate and create/link flight if flightNumber provided (for AIRPORT_PICKUP bookings)
+  // Note: We validate and create the Flight record here, but only create the FlightAware alert
+  // when the booking is confirmed/paid (in activateBooking)
+  let flightId: string | null = null;
+  if (flightNumber && type === BookingType.AIRPORT_PICKUP) {
+    try {
+      // Extract just the date portion (YYYY-MM-DD) for flight validation
+      // The validateFlight function expects a date string, not a full ISO timestamp
+      const flightDateStr = startDate.toISOString().split("T")[0];
+
+      logger.info("Validating flight for booking", {
+        flightNumber,
+        flightDate: flightDateStr,
+        bookingReference,
+      });
+
+      const validationResult = await validateFlight(flightNumber, flightDateStr);
+
+      if (validationResult.type !== "success") {
+        let errorMessage: string;
+
+        if (validationResult.type === "alreadyLanded") {
+          errorMessage = `Flight ${validationResult.flightNumber} already landed at ${validationResult.landedTime}`;
+        } else if (validationResult.type === "notFound") {
+          errorMessage = `Flight ${flightNumber} not found`;
+        } else {
+          errorMessage = `Flight validation error: ${validationResult.message}`;
+        }
+
+        logger.error("Flight validation failed", {
+          flightNumber,
+          validationType: validationResult.type,
+          bookingReference,
+        });
+        throw new Error(errorMessage);
+      }
+
+      // Create or find existing flight record
+      const flight = await findOrCreateFlight(validationResult.flight, startDate);
+      flightId = flight.id;
+
+      logger.info("Flight validated and linked to booking", {
+        flightNumber,
+        flightId: flight.id,
+        bookingReference,
+      });
+    } catch (error) {
+      logger.error("Failed to validate/create flight", {
+        flightNumber,
+        error: error instanceof Error ? error.message : String(error),
+        bookingReference,
+      });
+      throw error;
+    }
+  }
 
   const booking = await prisma.$transaction(async (transaction) => {
     const {
@@ -536,6 +606,9 @@ export async function createPendingBooking({
         securityDetailCost,
         fuelUpgradeCost,
         referralDiscountAmount,
+        flightNumber,
+        estimatedDuration,
+        flightId, // Link to Flight record if validated
         // Referral fields
         referralReferrerUserId,
         referralStatus,
@@ -562,6 +635,10 @@ export async function createPendingBooking({
               // For FULL_DAY: each leg represents exactly 24 hours
               legStartTime = legDate; // legDate is already the start of this 24-hour period
               legEndTime = addHours(legDate, 24);
+            } else if (type === BookingType.AIRPORT_PICKUP) {
+              // For AIRPORT_PICKUP: use exact start and end times (preserve minutes)
+              legStartTime = startDate;
+              legEndTime = endDate;
             } else {
               // For DAY and NIGHT: existing logic
               legStartTime = setHours(legDate, startHours);
@@ -705,7 +782,7 @@ export async function activateBooking(
   paymentId: string,
 ): Promise<BookingWithRelations> {
   logger.info(`Activating booking ${bookingId} with payment ID ${paymentId}`);
-  return prisma.$transaction(async (transaction) => {
+  const booking = await prisma.$transaction(async (transaction) => {
     // First, get the current booking to retrieve reserved credits
     const currentBooking = await transaction.booking.findUnique({
       where: { id: bookingId },
@@ -780,6 +857,51 @@ export async function activateBooking(
 
     return booking;
   });
+
+  // Create FlightAware alert if booking has a linked flight (AIRPORT_PICKUP with flight)
+  // Fetch flightId and flightNumber from the booking (they're not in BookingWithRelations type)
+  const bookingWithFlight = await prisma.booking.findUnique({
+    where: { id: booking.id },
+    select: { flightId: true, flightNumber: true },
+  });
+
+  if (bookingWithFlight?.flightId && bookingWithFlight?.flightNumber) {
+    try {
+      logger.info("Creating FlightAware alert for booking", {
+        bookingId: booking.id,
+        flightId: bookingWithFlight.flightId,
+        flightNumber: bookingWithFlight.flightNumber,
+      });
+
+      // Get flight destination IATA code for the alert
+      const flight = await prisma.flight.findUnique({
+        where: { id: bookingWithFlight.flightId },
+        select: { destinationCodeIATA: true, flightNumber: true, flightDate: true },
+      });
+
+      if (flight) {
+        await getOrCreateFlightAlert(bookingWithFlight.flightId, {
+          flightNumber: flight.flightNumber,
+          flightDate: flight.flightDate,
+          destinationIATA: flight.destinationCodeIATA || undefined,
+        });
+
+        logger.info("FlightAware alert created successfully", {
+          bookingId: booking.id,
+          flightId: bookingWithFlight.flightId,
+        });
+      }
+    } catch (error) {
+      logger.error("Failed to create FlightAware alert", {
+        bookingId: booking.id,
+        flightId: bookingWithFlight.flightId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      // Don't fail the booking activation if alert creation fails
+    }
+  }
+
+  return booking;
 }
 
 // Clean up abandoned pending bookings
@@ -806,11 +928,11 @@ export async function cleanupPendingBookings(olderThan: Date) {
 
 // Calculate the price for a single booking leg
 function calculateBookingLegPrice(
-  car: { dayRate: number; nightRate: number; hourlyRate: number; fullDayRate: number },
+  car: { dayRate: number; nightRate: number; hourlyRate: number; fullDayRate: number; airportPickupRate: number },
   booking: { startDate: Date; endDate: Date; type: BookingType },
   legDate: Date,
 ): number {
-  const { dayRate, nightRate, fullDayRate } = car;
+  const { dayRate, nightRate, fullDayRate, airportPickupRate } = car;
   const { type } = booking;
 
   if (type === BookingType.NIGHT) {
@@ -825,6 +947,12 @@ function calculateBookingLegPrice(
     return fullDayRate;
   }
 
+  if (type === BookingType.AIRPORT_PICKUP) {
+    // For AIRPORT_PICKUP bookings, charge the flat airportPickupRate
+    // This is a one-time fee for airport pickup service including flight tracking
+    return airportPickupRate;
+  }
+
   // BookingType.DAY calculations
   // For DAY bookings, always charge the flat dayRate per leg (12-hour period)
   // Hourly rate is only used for booking extensions, not for regular bookings
@@ -832,7 +960,7 @@ function calculateBookingLegPrice(
 }
 
 export async function cancelBooking(bookingId: string, reason: string) {
-  return prisma.$transaction(async (transaction) => {
+  const booking = await prisma.$transaction(async (transaction) => {
     // First fetch the booking to check its current payment status
     const existingBooking = await transaction.booking.findUnique({
       where: { id: bookingId },
@@ -943,6 +1071,56 @@ export async function cancelBooking(bookingId: string, reason: string) {
 
     return booking;
   });
+
+  // Disable FlightAware alert if booking had a linked flight
+  const bookingWithFlight = await prisma.booking.findUnique({
+    where: { id: bookingId },
+    select: { flightId: true, flight: { select: { alertId: true } } },
+  });
+
+  if (bookingWithFlight?.flightId && bookingWithFlight?.flight?.alertId) {
+    try {
+      logger.info("Disabling FlightAware alert for cancelled booking", {
+        bookingId,
+        flightId: bookingWithFlight.flightId,
+        alertId: bookingWithFlight.flight.alertId,
+      });
+
+      // Check if there are other active bookings using this flight
+      const otherActiveBookings = await prisma.booking.count({
+        where: {
+          flightId: bookingWithFlight.flightId,
+          status: { in: [BookingStatus.CONFIRMED, BookingStatus.PENDING] },
+          id: { not: bookingId },
+        },
+      });
+
+      // Only disable the alert if no other bookings are using it
+      if (otherActiveBookings === 0) {
+        await disableFlightAlert(bookingWithFlight.flight.alertId);
+        await disableFlightAlertTracking(bookingWithFlight.flightId);
+
+        logger.info("FlightAware alert disabled (no other active bookings)", {
+          bookingId,
+          flightId: bookingWithFlight.flightId,
+        });
+      } else {
+        logger.info("FlightAware alert kept active (other bookings exist)", {
+          bookingId,
+          flightId: bookingWithFlight.flightId,
+          otherActiveBookings,
+        });
+      }
+    } catch (error) {
+      logger.error("Failed to disable FlightAware alert", {
+        bookingId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      // Don't fail the cancellation if alert cleanup fails
+    }
+  }
+
+  return booking;
 }
 
 // Complete a booking and release referral rewards if condition is "COMPLETED"

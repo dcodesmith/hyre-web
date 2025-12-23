@@ -38,6 +38,14 @@ export enum Template {
   FleetOwnerBookingNotification = "fleetOwnerBookingNotification",
   ChauffeurAssigned = "chauffeurAssigned",
   ChauffeurBookingNotification = "chauffeurBookingNotification",
+  // Flight notification templates
+  FlightArrival = "flightArrival",
+  FlightDelay = "flightDelay",
+  FlightCancellationCustomer = "flightCancellationCustomer",
+  FlightCancellationOwnerDriver = "flightCancellationOwnerDriver",
+  FlightDiversionCustomer = "flightDiversionCustomer",
+  FlightDiversionOwnerDriver = "flightDiversionOwnerDriver",
+  FlightGateChange = "flightGateChange",
 }
 
 const contentSidMap: Record<Template, string> = {
@@ -48,6 +56,14 @@ const contentSidMap: Record<Template, string> = {
   [Template.FleetOwnerBookingNotification]: "HXaeda40fabb6c33f323c1f101e0a10165",
   [Template.ChauffeurAssigned]: "HXadbe21560eb8f732677a73892de67cb7",
   [Template.ChauffeurBookingNotification]: "HX27cc87e3ed7adb436d2895e94d8edd73",
+  // Flight notification templates (TODO: Replace with actual Twilio Content SIDs after creating templates in Twilio console)
+  [Template.FlightArrival]: "HXPLACEHOLDER_FLIGHT_ARRIVAL",
+  [Template.FlightDelay]: "HXPLACEHOLDER_FLIGHT_DELAY",
+  [Template.FlightCancellationCustomer]: "HXPLACEHOLDER_FLIGHT_CANCELLATION_CUSTOMER",
+  [Template.FlightCancellationOwnerDriver]: "HXPLACEHOLDER_FLIGHT_CANCELLATION_OWNER_DRIVER",
+  [Template.FlightDiversionCustomer]: "HXPLACEHOLDER_FLIGHT_DIVERSION_CUSTOMER",
+  [Template.FlightDiversionOwnerDriver]: "HXPLACEHOLDER_FLIGHT_DIVERSION_OWNER_DRIVER",
+  [Template.FlightGateChange]: "HXPLACEHOLDER_FLIGHT_GATE_CHANGE",
 };
 
 const twilioConfig: TwilioConfig | null = getTwilioConfig();

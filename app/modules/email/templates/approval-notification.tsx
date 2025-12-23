@@ -17,7 +17,8 @@ export function renderCarApprovalEmail({
   ownerName,
   rejectionReason,
 }: CarApprovalEmailProps) {
-  const carIdentifier = `${carDetails.make} ${carDetails.model} (${carDetails.year})${carDetails.registration ? ` - ${carDetails.registration}` : ""}`;
+  const registrationSuffix = carDetails.registration ? ` - ${carDetails.registration}` : "";
+  const carIdentifier = `${carDetails.make} ${carDetails.model} (${carDetails.year})${registrationSuffix}`;
   let subject: string;
   let mainHeading: string;
   let messageBody: JSX.Element;

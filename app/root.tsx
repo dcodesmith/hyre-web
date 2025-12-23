@@ -110,6 +110,27 @@ function AppContent() {
   const isAuthPage = authRoutes.some(
     (route) => location.pathname === route || location.pathname.startsWith(`${route}/`),
   );
+  const isHomePage = location.pathname === "/";
+
+  const getDashboardLink = () => {
+    if (user?.roles?.some((role) => role.name === "admin")) {
+      return "/admin";
+    }
+    if (user?.roles?.some((role) => role.name === "fleetOwner")) {
+      return "/fleet-owner";
+    }
+    return "/";
+  };
+
+  const getMainClassName = () => {
+    if (isAuthPage) {
+      return "";
+    }
+    if (isHomePage) {
+      return "px-4 md:px-0 md:max-w-none md:mx-0 lg:container lg:mx-auto lg:px-4";
+    }
+    return "container mx-auto px-4";
+  };
 
   return (
     <html lang="en" className="h-full">
@@ -126,15 +147,9 @@ function AppContent() {
         <div className="flex flex-col min-h-screen">
           {/* Desktop header - hidden on mobile and login/verify pages */}
           {!isAuthPage && (
-            <header className="hidden md:flex p-4 container mx-auto justify-between items-center z-10">
+            <header className="hidden md:flex p-4 justify-between items-center z-10">
               <Link
-                to={
-                  user?.roles?.some((role) => role.name === "admin")
-                    ? "/admin"
-                    : user?.roles?.some((role) => role.name === "fleetOwner")
-                      ? "/fleet-owner"
-                      : "/"
-                }
+                to={getDashboardLink()}
                 className="text-2xl md:text-3xl font-bold font-dancingscript"
               >
                 {ENV.APP_NAME}
@@ -155,9 +170,7 @@ function AppContent() {
             </header>
           )}
 
-          <main
-            className={`flex-grow ${isAuthPage ? "" : "container mx-auto px-4"} pb-20 md:pb-4 text-sm`}
-          >
+          <main className={`flex-grow pb-20 md:pb-4 text-sm ${getMainClassName()}`}>
             <Outlet />
           </main>
 

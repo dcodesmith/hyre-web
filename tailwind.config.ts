@@ -14,6 +14,9 @@ export default {
         nunito: ["Nunito Sans", "sans-serif"],
         dancingscript: ["Dancing Script", "cursive"],
       },
+      width: {
+        "74": "18.5rem",
+      },
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",

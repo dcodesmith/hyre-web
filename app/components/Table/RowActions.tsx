@@ -28,7 +28,7 @@ const statusMap: Record<(typeof STATUSES)[number], string> = {
 };
 
 interface EditCarFormProps {
-  readonly car: Car & { fuelUpgradeRate: number };
+  readonly car: Car & { fuelUpgradeRate: number; airportPickupRate: number };
   readonly setIsEditOpen: Dispatch<SetStateAction<boolean>>;
 }
 
@@ -60,6 +60,7 @@ function EditCarForm({ car, setIsEditOpen }: EditCarFormProps) {
       nightRate,
       fullDayRate,
       fuelUpgradeRate,
+      airportPickupRate,
     },
   ] = useForm({
     defaultValue: car,
@@ -173,6 +174,26 @@ function EditCarForm({ car, setIsEditOpen }: EditCarFormProps) {
         </p>
       </div>
 
+      <div className="space-y-0.5">
+        <Label htmlFor="airportPickupRate">Airport Pickup Rate</Label>
+        <Input
+          {...getInputProps(airportPickupRate, { type: "number" })}
+          step="1000"
+          className={
+            airportPickupRate.errors
+              ? "border-red-500 focus-visible:ring-red-500 focus-visible:ring-2"
+              : ""
+          }
+          placeholder="Rate for airport pickup service"
+        />
+        {airportPickupRate.errors && (
+          <p className="text-sm text-destructive">{airportPickupRate.errors.join(" ")}</p>
+        )}
+        <p className="text-xs text-gray-500">
+          Flat rate charged for airport pickup service (including flight tracking)
+        </p>
+      </div>
+
       {car.status !== "BOOKED" && (
         <div className="space-y-0.5">
           <Label htmlFor={status.id}>Status</Label>
@@ -205,7 +226,7 @@ function EditCarForm({ car, setIsEditOpen }: EditCarFormProps) {
 }
 
 interface DataTableRowActionsProps {
-  readonly row: Row<Car & { fuelUpgradeRate: number }>;
+  readonly row: Row<Car & { fuelUpgradeRate: number; airportPickupRate: number }>;
 }
 
 export function RowActions({ row }: DataTableRowActionsProps) {

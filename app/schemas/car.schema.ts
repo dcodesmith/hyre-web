@@ -74,6 +74,12 @@ const nightRateField = z
   })
   .positive("Nightly rate must be positive");
 
+const airportPickupRateField = z
+  .int({
+    error: "Airport pickup rate must be an integer.",
+  })
+  .positive("Airport pickup rate must be positive");
+
 const yearField = z
   .int({
     error: "Year must be an integer.",
@@ -96,6 +102,7 @@ const carBaseSchema = z.object({
   nightRate: nightRateField,
   fullDayRate: fullDayRateField,
   fuelUpgradeRate: fuelUpgradeRateField,
+  airportPickupRate: airportPickupRateField,
 });
 
 export const carSchema = carBaseSchema.extend({

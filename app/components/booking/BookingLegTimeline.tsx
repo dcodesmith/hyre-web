@@ -5,6 +5,11 @@ import { Badge } from "~/components/ui/badge";
 import { Separator } from "~/components/ui/separator";
 import type { BookingWithRelations, BookingLegWithRelations } from "~/types";
 import { LAGOS_TIMEZONE } from "~/utils/timezone";
+import {
+  AIRPORT_PICKUP_BOOKING_TYPE,
+  FULL_DAY_BOOKING_TYPE,
+  NIGHT_BOOKING_TYPE,
+} from "../bookingTypes";
 
 interface TimePointRowProps {
   readonly label: string;
@@ -82,8 +87,9 @@ function getFullDayReturnText(legEndTime: Date, extendedDuration: number): strin
 }
 
 function getServiceTypeText(bookingType: string): string {
-  if (bookingType === "FULL_DAY") return "Standard 24-hour service";
-  if (bookingType === "NIGHT") return "Standard 6-hour service";
+  if (bookingType === FULL_DAY_BOOKING_TYPE) return "Standard 24-hour service";
+  if (bookingType === NIGHT_BOOKING_TYPE) return "Standard 6-hour service";
+  if (bookingType === AIRPORT_PICKUP_BOOKING_TYPE) return "Airport pickup service";
   return "Standard 12-hour service";
 }
 
@@ -197,7 +203,7 @@ export function BookingLegTimeline({ leg, index, booking }: BookingLegTimelinePr
             isLegStarted={isLegStarted}
           />
           <TimePointRow
-            label="Return"
+            label="Drop-off"
             timeText={getReturnTimeTextForBooking(booking.type, legEndTime, extendedDuration)}
             labelColorClassWhenStarted="text-red-600"
             isLegStarted={isLegStarted}
