@@ -166,18 +166,36 @@ export async function loader({ request }: LoaderFunctionArgs) {
       owner: {
         select: {
           username: true,
+          name: true,
         },
       },
+      images: {
+        select: { url: true },
+      },
+      documents: true,
     },
     orderBy: {
       updatedAt: "desc",
     },
   });
 
+  // Serialize dates for client
+  const serializedCars = cars.map((car) => ({
+    ...car,
+    createdAt: car.createdAt.toISOString(),
+    updatedAt: car.updatedAt.toISOString(),
+    documents: car.documents.map((doc) => ({
+      ...doc,
+      createdAt: doc.createdAt.toISOString(),
+      updatedAt: doc.updatedAt.toISOString(),
+      approvedAt: doc.approvedAt?.toISOString() ?? null,
+    })),
+  }));
+
   // Check if owner-driver can add more cars (max 1)
   const canAddCar = !user.isOwnerDriver || !(await hasReachedOwnerDriverCarLimit(user.id));
 
-  return { cars, canAddCar, isOwnerDriver: user.isOwnerDriver };
+  return { cars: serializedCars, canAddCar, isOwnerDriver: user.isOwnerDriver };
 }
 
 const statusColors: Record<(typeof Status)[keyof typeof Status], string> = {

@@ -14,6 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "~/components/ui/select";
+import { serviceTierLabels, ServiceTiers, vehicleTypeLabels, VehicleTypes } from "~/types";
 
 const Status = {
   AVAILABLE: "AVAILABLE",
@@ -53,6 +54,9 @@ export function NewCarForm() {
       fullDayRate,
       fuelUpgradeRate,
       airportPickupRate,
+      vehicleType,
+      serviceTier,
+      passengerCapacity,
     },
   ] = useForm({
     lastResult:
@@ -227,10 +231,67 @@ export function NewCarForm() {
       </div>
 
       <div className="space-y-0.5">
-        <label className="text-sm">Status</label>
+        <Label htmlFor={vehicleType.id}>Vehicle Type</Label>
+        <Select name={vehicleType.name} defaultValue={vehicleType.value}>
+          <SelectTrigger className={vehicleType.errors ? errorRingClasses : ""}>
+            <SelectValue placeholder="Select vehicle type" />
+          </SelectTrigger>
+          <SelectContent>
+            {Object.values(VehicleTypes).map((value) => (
+              <SelectItem key={value} value={value}>
+                {vehicleTypeLabels[value]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {vehicleType.errors && (
+          <p className="text-red-500 text-sm">{vehicleType.errors.join(" ")}</p>
+        )}
+      </div>
 
-        <Select name="status">
-          <SelectTrigger>
+      <div className="space-y-0.5">
+        <Label htmlFor={serviceTier.id}>Service Tier</Label>
+        <Select name={serviceTier.name} defaultValue={serviceTier.value}>
+          <SelectTrigger className={serviceTier.errors ? errorRingClasses : ""}>
+            <SelectValue placeholder="Select service tier" />
+          </SelectTrigger>
+          <SelectContent>
+            {Object.values(ServiceTiers).map((value) => (
+              <SelectItem key={value} value={value}>
+                {serviceTierLabels[value]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {serviceTier.errors && (
+          <p className="text-red-500 text-sm">{serviceTier.errors.join(" ")}</p>
+        )}
+        <p className="text-xs text-gray-500">
+          Standard: ₦30-50k/day • Executive: ₦60-100k/day • Luxury: ₦150-300k/day
+        </p>
+      </div>
+
+      <div className="space-y-0.5">
+        <Label htmlFor={passengerCapacity.id}>Passenger Capacity</Label>
+        <Input
+          {...getInputProps(passengerCapacity, { type: "number" })}
+          min={1}
+          max={15}
+          className={`rounded ${passengerCapacity.errors ? errorRingClasses : ""}`}
+        />
+        {passengerCapacity.errors && (
+          <p className="text-red-500 text-sm">{passengerCapacity.errors.join(" ")}</p>
+        )}
+        <p className="text-xs text-gray-500">Number of passengers (excluding driver)</p>
+      </div>
+
+      <div className="space-y-0.5">
+        <Label htmlFor={status.id} className="text-sm">
+          Status
+        </Label>
+
+        <Select name={status.name} defaultValue={status.value}>
+          <SelectTrigger className={status.errors ? errorRingClasses : ""}>
             <SelectValue placeholder="Select a status" />
           </SelectTrigger>
           <SelectContent>

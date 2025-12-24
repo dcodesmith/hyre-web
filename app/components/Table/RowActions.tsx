@@ -8,6 +8,7 @@ import { useAuthenticityToken } from "remix-utils/csrf/react";
 import { useToast } from "~/hooks/use-toast";
 import { carUpdateSchema, STATUSES } from "~/schemas/car.schema";
 import type { SerializedCar } from "~/types";
+import { serviceTierLabels, ServiceTiers, vehicleTypeLabels, VehicleTypes } from "~/types";
 import { Button } from "../ui/button";
 import {
   DropdownMenu,
@@ -61,6 +62,9 @@ function EditCarForm({ car, setIsEditOpen }: EditCarFormProps) {
       fullDayRate,
       fuelUpgradeRate,
       airportPickupRate,
+      vehicleType,
+      serviceTier,
+      passengerCapacity,
     },
   ] = useForm({
     defaultValue: car,
@@ -192,6 +196,69 @@ function EditCarForm({ car, setIsEditOpen }: EditCarFormProps) {
         <p className="text-xs text-gray-500">
           Flat rate charged for airport pickup service (including flight tracking)
         </p>
+      </div>
+
+      <div className="space-y-0.5">
+        <Label htmlFor={vehicleType.id}>Vehicle Type</Label>
+        <Select name={vehicleType.name} defaultValue={car.vehicleType}>
+          <SelectTrigger
+            className={
+              vehicleType.errors ? "border-red-500 focus-visible:ring-red-500 focus-visible:ring-2" : ""
+            }
+          >
+            <SelectValue placeholder="Select vehicle type" />
+          </SelectTrigger>
+          <SelectContent>
+            {Object.values(VehicleTypes).map((value) => (
+              <SelectItem key={value} value={value}>
+                {vehicleTypeLabels[value]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {vehicleType.errors && (
+          <p className="text-sm text-destructive">{vehicleType.errors.join(" ")}</p>
+        )}
+      </div>
+
+      <div className="space-y-0.5">
+        <Label htmlFor={serviceTier.id}>Service Tier</Label>
+        <Select name={serviceTier.name} defaultValue={car.serviceTier}>
+          <SelectTrigger
+            className={
+              serviceTier.errors ? "border-red-500 focus-visible:ring-red-500 focus-visible:ring-2" : ""
+            }
+          >
+            <SelectValue placeholder="Select service tier" />
+          </SelectTrigger>
+          <SelectContent>
+            {Object.values(ServiceTiers).map((value) => (
+              <SelectItem key={value} value={value}>
+                {serviceTierLabels[value]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {serviceTier.errors && (
+          <p className="text-sm text-destructive">{serviceTier.errors.join(" ")}</p>
+        )}
+      </div>
+
+      <div className="space-y-0.5">
+        <Label htmlFor={passengerCapacity.id}>Passenger Capacity</Label>
+        <Input
+          {...getInputProps(passengerCapacity, { type: "number" })}
+          min={1}
+          max={15}
+          className={
+            passengerCapacity.errors
+              ? "border-red-500 focus-visible:ring-red-500 focus-visible:ring-2"
+              : ""
+          }
+        />
+        {passengerCapacity.errors && (
+          <p className="text-sm text-destructive">{passengerCapacity.errors.join(" ")}</p>
+        )}
       </div>
 
       {car.status !== "BOOKED" && (

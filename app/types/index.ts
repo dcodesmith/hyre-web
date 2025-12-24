@@ -24,11 +24,35 @@ export const ServiceTiers = {
   ULTRA_LUXURY: "ULTRA_LUXURY",
 } as const;
 
-// Const arrays for Zod validation (derived from objects above)
-export const VEHICLE_TYPES = Object.values(VehicleTypes) as [VehicleType, ...VehicleType[]];
-export const SERVICE_TIERS = Object.values(ServiceTiers) as [ServiceTier, ...ServiceTier[]];
+// Const tuples for Zod validation (must be explicit for proper type inference)
+export const VEHICLE_TYPES = [
+  "SEDAN",
+  "SUV",
+  "LUXURY_SEDAN",
+  "LUXURY_SUV",
+  "VAN",
+  "CROSSOVER",
+] as const;
 
-// Re-export types
+export const SERVICE_TIERS = ["STANDARD", "EXECUTIVE", "LUXURY", "ULTRA_LUXURY"] as const;
+
+export const vehicleTypeLabels: Record<VehicleType, string> = {
+  SEDAN: "Sedan",
+  SUV: "SUV",
+  LUXURY_SEDAN: "Luxury Sedan",
+  LUXURY_SUV: "Luxury SUV",
+  VAN: "Van / Minibus",
+  CROSSOVER: "Crossover",
+};
+
+export const serviceTierLabels: Record<ServiceTier, string> = {
+  STANDARD: "Standard",
+  EXECUTIVE: "Executive",
+  LUXURY: "Luxury",
+  ULTRA_LUXURY: "Ultra Luxury",
+};
+
+// Re-export types (using local import to avoid circular dependency issues)
 export type { VehicleType, ServiceTier };
 
 // Re-export as runtime value
