@@ -14,7 +14,7 @@ function isNewListing(createdAt: string): boolean {
 
 interface CarCardProps {
   readonly car: SerializedCar;
-  readonly searchParams: URLSearchParams;
+  readonly searchParams?: URLSearchParams;
   readonly priority?: boolean;
   readonly price: number;
   readonly priceLabel?: string;
@@ -34,10 +34,11 @@ export function CarCard({
   variant = "carousel",
 }: CarCardProps) {
   const isGrid = variant === "grid";
+  const linkUrl = searchParams ? `/cars/${car.id}?${searchParams.toString()}` : `/cars/${car.id}`;
 
   return (
     <Link
-      to={`/cars/${car.id}?${searchParams.toString()}`}
+      to={linkUrl}
       className={isGrid ? "block" : "flex-shrink-0 w-[220px] md:w-[250px] snap-start"}
     >
       <div className="overflow-hidden space-y-3 group">

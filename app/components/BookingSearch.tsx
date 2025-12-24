@@ -1,4 +1,4 @@
-import { useNavigation, useSearchParams } from "@remix-run/react";
+import { useNavigate, useNavigation, useSearchParams } from "@remix-run/react";
 import { format } from "date-fns";
 import { Loader2, Search } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
@@ -274,10 +274,17 @@ function SearchButton({ isCompact, isSearching, onClick }: SearchButtonProps) {
 interface BookingSearchProps {
   readonly isCompact?: boolean;
   readonly context?: "hero" | "modal";
+  /** When true, navigates to /search route instead of updating current page URL params */
+  readonly navigateToSearch?: boolean;
 }
 
-export function BookingSearch({ isCompact = false, context = "hero" }: BookingSearchProps) {
+export function BookingSearch({
+  isCompact = false,
+  context = "hero",
+  navigateToSearch = false,
+}: BookingSearchProps) {
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const navigation = useNavigation();
   const [isSearchClicked, setIsSearchClicked] = useState(false);
   const [validatedFlight, setValidatedFlight] = useState<ValidatedFlight | null>(null);
@@ -431,8 +438,21 @@ export function BookingSearch({ isCompact = false, context = "hero" }: BookingSe
       }
     }
 
-    setSearchParams(newSearchParams, { replace: true, preventScrollReset: true });
-  }, [bookingType, dateRange, pickupTime, flightNumber, setSearchParams]);
+    // Navigate to /search route or update current page params
+    if (navigateToSearch) {
+      navigate(`/search?${newSearchParams.toString()}`);
+    } else {
+      setSearchParams(newSearchParams, { replace: true, preventScrollReset: true });
+    }
+  }, [
+    bookingType,
+    dateRange,
+    pickupTime,
+    flightNumber,
+    navigateToSearch,
+    navigate,
+    setSearchParams,
+  ]);
 
   const bookingTypeInputProps = {
     bookingType,
