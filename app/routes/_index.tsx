@@ -18,9 +18,11 @@ import { prisma } from "~/modules/db/db.server";
 import { availableCarsForSpecificRequest } from "~/services/availability-engine.server";
 import { LAGOS_TIMEZONE } from "~/utils/timezone";
 
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { CarCard } from "~/components/CarCard";
 import { CarouselSection } from "~/components/CarouselSection";
+import { CompactSearchBar } from "~/components/CompactSearchBar";
+import { SearchModal } from "~/components/SearchModal";
 import {
   AIRPORT_PICKUP_BOOKING_TYPE,
   FULL_DAY_BOOKING_TYPE,
@@ -458,16 +460,26 @@ export default function IndexPage() {
 
   // Scroll-based hero collapse behavior
   const heroScrollState = useHeroScroll();
-  const { isDesktopCollapsed, isMobileTextHidden } = heroScrollState;
-  const {
-    mobileHeight,
-    desktopHeight,
-    containerClass: heroContainerClass,
-  } = getHeroHeightClasses(heroScrollState);
+  const { isDesktopCollapsed, isMobileScrolled } = heroScrollState;
+  const { desktopHeight, containerClass: heroContainerClass } =
+    getHeroHeightClasses(heroScrollState);
+
+  // Mobile search modal state
+  const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
 
   return (
     <div className="w-full">
-      {/* Hero Section - Fixed, collapses on desktop scroll */}
+      {/* Mobile Compact Sticky Search - Shows after scrolling past hero */}
+      {isMobileScrolled && (
+        <div className="md:hidden fixed top-0 left-0 right-0 z-50 px-4 py-3 bg-white border-b border-gray-200 shadow-md">
+          <CompactSearchBar onClick={() => setIsSearchModalOpen(true)} />
+        </div>
+      )}
+
+      {/* Mobile Search Modal */}
+      <SearchModal isOpen={isSearchModalOpen} onClose={() => setIsSearchModalOpen(false)} />
+
+      {/* Hero Section - Fixed on desktop, relative on mobile */}
       <div className={`w-full transition-all duration-300 ease-out ${heroContainerClass}`}>
         {/* Hero Image - fades out when collapsed (desktop only) */}
         <div
@@ -510,7 +522,7 @@ export default function IndexPage() {
           {/* Title & description - hide when scrolled (desktop full collapse, mobile text only) */}
           <div
             className={`transition-all duration-300 overflow-hidden ${
-              isDesktopCollapsed || isMobileTextHidden
+              isDesktopCollapsed || isMobileScrolled
                 ? "opacity-0 max-h-0 mb-0"
                 : "opacity-100 max-h-40 mb-6"
             }`}
@@ -552,8 +564,8 @@ export default function IndexPage() {
         </div>
       </div>
 
-      {/* Spacer for fixed hero - use responsive heights to match hero */}
-      <div className={`transition-all duration-300 ${mobileHeight} ${desktopHeight}`} />
+      {/* Spacer for fixed hero - only needed on desktop (mobile is relative) */}
+      <div className={`hidden md:block transition-all duration-300 ${desktopHeight}`} />
 
       {/* Main Content Container - Scrolls underneath fixed hero */}
       <div className="relative z-0 bg-white py-8 md:py-12">

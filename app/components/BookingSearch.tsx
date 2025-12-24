@@ -27,10 +27,17 @@ interface BookingTypeTabsProps {
   readonly value: string;
   readonly onValueChange: (value: string) => void;
   readonly variant: "expanded" | "compact";
+  readonly context?: "hero" | "modal";
 }
 
-function BookingTypeTabs({ value, onValueChange, variant }: BookingTypeTabsProps) {
+function BookingTypeTabs({
+  value,
+  onValueChange,
+  variant,
+  context = "hero",
+}: BookingTypeTabsProps) {
   const isCompact = variant === "compact";
+  const isModal = context === "modal";
 
   if (isCompact) {
     return (
@@ -54,18 +61,24 @@ function BookingTypeTabs({ value, onValueChange, variant }: BookingTypeTabsProps
   }
 
   return (
-    <Tabs
-      className="w-full"
-      value={value}
-      onValueChange={onValueChange}
-    >
-      <TabsList className="p-1 gap-1 tabs-list-slider w-full h-auto before:w-[calc((100%-0.75rem)/4)] bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg">
+    <Tabs className="w-full" value={value} onValueChange={onValueChange}>
+      <TabsList
+        className={`p-1 gap-1 tabs-list-slider w-full h-auto before:w-[calc((100%-0.75rem)/4)] rounded-lg ${
+          isModal
+            ? "bg-gray-100 border border-gray-200"
+            : "bg-white/10 backdrop-blur-sm border border-white/20"
+        }`}
+      >
         {BOOKING_TYPE_OPTIONS.map((type) => {
           const option = BOOKING_TYPE_OPTIONS_MAP[type];
           return (
             <TabsTrigger
               key={option.value}
-              className="flex flex-col items-center justify-center min-w-0 data-[state=active]:shadow-none tabs-trigger-slider data-[state=active]:bg-white data-[state=active]:text-foreground text-white/90 py-2 px-1"
+              className={`flex flex-col items-center justify-center min-w-0 data-[state=active]:shadow-none tabs-trigger-slider data-[state=active]:bg-white py-2 px-1 ${
+                isModal
+                  ? "data-[state=active]:text-foreground text-gray-700"
+                  : "data-[state=active]:text-foreground text-white/90"
+              }`}
               value={option.value}
             >
               <span className="text-[11px] sm:text-xs md:text-sm font-semibold text-center whitespace-nowrap">
@@ -142,9 +155,10 @@ function FlightValidationNotice({
 
 interface BookingSearchProps {
   readonly isCompact?: boolean;
+  readonly context?: "hero" | "modal";
 }
 
-export function BookingSearch({ isCompact = false }: BookingSearchProps) {
+export function BookingSearch({ isCompact = false, context = "hero" }: BookingSearchProps) {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigation = useNavigation();
   const [isSearchClicked, setIsSearchClicked] = useState(false);
@@ -182,8 +196,9 @@ export function BookingSearch({ isCompact = false }: BookingSearchProps) {
   // Use local state for form inputs (only sync to URL on Search button click or booking type change)
   const [bookingType, setBookingType] = useState<BookingType>(initialBookingType);
   const [dateRange, setDateRange] = useState<DateRange>({
-    from: initialFrom ? new Date(`${initialFrom}T00:00:00Z`) : undefined,
-    to: initialTo ? new Date(`${initialTo}T00:00:00Z`) : undefined,
+    // Parse without Z suffix to treat as local midnight, preserving the calendar date
+    from: initialFrom ? new Date(`${initialFrom}T00:00:00`) : undefined,
+    to: initialTo ? new Date(`${initialTo}T00:00:00`) : undefined,
   });
   const [pickupTime, setPickupTime] = useState<string | undefined>(initialPickupTime);
   const [flightNumber, setFlightNumber] = useState<string | undefined>(initialFlightNumber);
@@ -201,8 +216,9 @@ export function BookingSearch({ isCompact = false }: BookingSearchProps) {
     }
 
     setDateRange({
-      from: urlFrom ? new Date(`${urlFrom}T00:00:00Z`) : undefined,
-      to: urlTo ? new Date(`${urlTo}T00:00:00Z`) : undefined,
+      // Parse without Z suffix to treat as local midnight, preserving the calendar date
+      from: urlFrom ? new Date(`${urlFrom}T00:00:00`) : undefined,
+      to: urlTo ? new Date(`${urlTo}T00:00:00`) : undefined,
     });
 
     setPickupTime(urlPickupTime || undefined);
@@ -367,6 +383,7 @@ export function BookingSearch({ isCompact = false }: BookingSearchProps) {
           value={BOOKING_TYPE_OPTIONS_MAP[bookingType].value}
           onValueChange={handleBookingTypeChange}
           variant="expanded"
+          context={context}
         />
       </div>
 

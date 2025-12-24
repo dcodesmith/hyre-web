@@ -4,8 +4,8 @@ import { MOBILE_BREAKPOINT, SCROLL_COLLAPSE_THRESHOLD } from "~/constants/ui";
 interface HeroScrollState {
   /** Whether the desktop hero is collapsed (scrolled past threshold on desktop) */
   isDesktopCollapsed: boolean;
-  /** Whether the mobile hero text is hidden (scrolled past threshold on mobile) */
-  isMobileTextHidden: boolean;
+  /** Whether mobile scroll has passed hero threshold (hides text, shows compact search) */
+  isMobileScrolled: boolean;
 }
 
 /**
@@ -16,7 +16,7 @@ interface HeroScrollState {
  */
 export function useHeroScroll(): HeroScrollState {
   const [isDesktopCollapsed, setIsDesktopCollapsed] = useState(false);
-  const [isMobileTextHidden, setIsMobileTextHidden] = useState(false);
+  const [isMobileScrolled, setIsMobileScrolled] = useState(false);
 
   useEffect(() => {
     // Create an invisible sentinel element at the scroll threshold position
@@ -38,7 +38,7 @@ export function useHeroScroll(): HeroScrollState {
       const isCurrentlyDesktop = !isCurrentlyMobile;
 
       setIsDesktopCollapsed(isCurrentlyDesktop && isScrolledPastThreshold);
-      setIsMobileTextHidden(isCurrentlyMobile && isScrolledPastThreshold);
+      setIsMobileScrolled(isCurrentlyMobile && isScrolledPastThreshold);
     };
 
     // Intersection Observer fires only when sentinel crosses viewport boundary
@@ -76,22 +76,22 @@ export function useHeroScroll(): HeroScrollState {
     };
   }, []);
 
-  return { isDesktopCollapsed, isMobileTextHidden };
+  return { isDesktopCollapsed, isMobileScrolled };
 }
 
 /**
  * Generate hero container CSS classes based on scroll state
- * Mobile: h-[500px] expanded → h-[380px] collapsed
- * Desktop: md:h-[471px] expanded → md:h-[84px] collapsed
+ * Mobile: relative positioning, natural scroll (h-[500px])
+ * Desktop: md:h-[471px] expanded → md:h-[84px] collapsed (fixed positioning)
  */
 export function getHeroHeightClasses(state: HeroScrollState): {
   mobileHeight: string;
   desktopHeight: string;
   containerClass: string;
 } {
-  const mobileHeight = state.isMobileTextHidden ? "h-[380px]" : "h-[500px]";
+  const mobileHeight = "h-[500px]";
   const desktopHeight = state.isDesktopCollapsed ? "md:h-[84px]" : "md:h-[471px]";
-  const containerClass = `fixed left-0 right-0 z-40 top-0 md:top-[69px] ${mobileHeight} ${desktopHeight}`;
+  const containerClass = `relative md:fixed left-0 right-0 z-40 top-0 md:top-[69px] ${mobileHeight} ${desktopHeight}`;
 
   return { mobileHeight, desktopHeight, containerClass };
 }
