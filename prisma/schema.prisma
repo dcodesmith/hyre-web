@@ -28,6 +28,10 @@ model Car {
   fuelUpgradeRate    Int
   fullDayRate        Int
   airportPickupRate  Int
+  // Vehicle categorization
+  vehicleType        VehicleType       @default(SEDAN)
+  serviceTier        ServiceTier       @default(STANDARD)
+  passengerCapacity  Int               @default(4)
   bookings           Booking[]
   owner              User               @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   documents          DocumentApproval[] @relation("CarDocuments")
@@ -39,6 +43,9 @@ model Car {
   @@index([approvalStatus])
   @@index([status])
   @@index([updatedAt(sort: Desc), dayRate])
+  @@index([vehicleType])
+  @@index([serviceTier])
+  @@index([serviceTier, vehicleType])
 }
 
 model User {
@@ -546,6 +553,22 @@ enum CarApprovalStatus {
   PENDING
   APPROVED
   REJECTED
+}
+
+enum VehicleType {
+  SEDAN
+  SUV
+  LUXURY_SEDAN
+  LUXURY_SUV
+  VAN
+  CROSSOVER
+}
+
+enum ServiceTier {
+  STANDARD
+  EXECUTIVE
+  LUXURY
+  ULTRA_LUXURY
 }
 
 enum FleetOwnerStatus {
