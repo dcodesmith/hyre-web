@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { SERVICE_TIERS, VEHICLE_TYPES } from "~/types";
 
 const Status = {
   AVAILABLE: "AVAILABLE",
@@ -31,7 +32,7 @@ const registrationNumberField = z
   .pipe(
     z.string().refine(
       (val) => {
-        const plate = val.replace(/\s+/g, "");
+        const plate = val.replaceAll(/\s+/g, "");
         const stateFormat = /^[A-Z]{3}[-]?\d{3}[A-Z]{2}$/;
         const federalFormat = /^[A-Z]{2}\d{3}[A-Z]{2}$/;
 
@@ -91,6 +92,22 @@ const statusField = z.enum(STATUSES, {
   error: "Status is required and must be valid.",
 });
 
+// Vehicle categorization fields
+const vehicleTypeField = z.enum(VEHICLE_TYPES, {
+  error: "Vehicle type is required.",
+});
+
+const serviceTierField = z.enum(SERVICE_TIERS, {
+  error: "Service tier is required.",
+});
+
+const passengerCapacityField = z
+  .int({
+    error: "Passenger capacity must be an integer.",
+  })
+  .min(1, "Passenger capacity must be at least 1")
+  .max(15, "Passenger capacity cannot exceed 15");
+
 const carBaseSchema = z.object({
   make: makeField,
   model: modelField,
@@ -103,6 +120,9 @@ const carBaseSchema = z.object({
   fullDayRate: fullDayRateField,
   fuelUpgradeRate: fuelUpgradeRateField,
   airportPickupRate: airportPickupRateField,
+  vehicleType: vehicleTypeField,
+  serviceTier: serviceTierField,
+  passengerCapacity: passengerCapacityField,
 });
 
 export const carSchema = carBaseSchema.extend({
@@ -131,13 +151,13 @@ export const carSchema = carBaseSchema.extend({
     .any()
     .refine((file) => file && file.size > 0, "MOT certificate is required")
     .refine((file) => file && file.size <= 5 * 1024 * 1024, "File must be less than 5MB")
-    .refine((file) => file && file.type === "application/pdf", "File must be a PDF"),
+    .refine((file) => file?.type === "application/pdf", "File must be a PDF"),
 
   insuranceCertificate: z
     .any()
     .refine((file) => file && file.size > 0, "Insurance certificate is required")
     .refine((file) => file && file.size <= 5 * 1024 * 1024, "File must be less than 5MB")
-    .refine((file) => file && file.type === "application/pdf", "File must be a PDF"),
+    .refine((file) => file?.type === "application/pdf", "File must be a PDF"),
 });
 
 export const carUpdateSchema = carBaseSchema.extend({

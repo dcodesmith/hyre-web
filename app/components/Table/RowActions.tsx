@@ -1,13 +1,13 @@
 import { getFormProps, getInputProps, useForm } from "@conform-to/react";
 import { parseWithZod } from "@conform-to/zod/v4";
 import { EllipsisHorizontalIcon } from "@heroicons/react/24/outline";
-import { Car } from "@prisma/client";
 import { useFetcher, useNavigate } from "@remix-run/react";
 import { Row } from "@tanstack/react-table";
 import { Dispatch, SetStateAction, useEffect, useState } from "react";
 import { useAuthenticityToken } from "remix-utils/csrf/react";
 import { useToast } from "~/hooks/use-toast";
 import { carUpdateSchema, STATUSES } from "~/schemas/car.schema";
+import type { SerializedCar } from "~/types";
 import { Button } from "../ui/button";
 import {
   DropdownMenu,
@@ -28,7 +28,7 @@ const statusMap: Record<(typeof STATUSES)[number], string> = {
 };
 
 interface EditCarFormProps {
-  readonly car: Car & { fuelUpgradeRate: number; airportPickupRate: number };
+  readonly car: SerializedCar;
   readonly setIsEditOpen: Dispatch<SetStateAction<boolean>>;
 }
 
@@ -226,7 +226,7 @@ function EditCarForm({ car, setIsEditOpen }: EditCarFormProps) {
 }
 
 interface DataTableRowActionsProps {
-  readonly row: Row<Car & { fuelUpgradeRate: number; airportPickupRate: number }>;
+  readonly row: Row<SerializedCar>;
 }
 
 export function RowActions({ row }: DataTableRowActionsProps) {

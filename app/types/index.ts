@@ -1,4 +1,35 @@
-import type { Car, ChauffeurApprovalStatus, DocumentApproval, Prisma } from "@prisma/client";
+import type {
+  Car,
+  ChauffeurApprovalStatus,
+  DocumentApproval,
+  Prisma,
+  VehicleType,
+  ServiceTier,
+} from "@prisma/client";
+
+// Re-export Prisma enums as runtime values for frontend use
+export const VehicleTypes = {
+  SEDAN: "SEDAN",
+  SUV: "SUV",
+  LUXURY_SEDAN: "LUXURY_SEDAN",
+  LUXURY_SUV: "LUXURY_SUV",
+  VAN: "VAN",
+  CROSSOVER: "CROSSOVER",
+} as const;
+
+export const ServiceTiers = {
+  STANDARD: "STANDARD",
+  EXECUTIVE: "EXECUTIVE",
+  LUXURY: "LUXURY",
+  ULTRA_LUXURY: "ULTRA_LUXURY",
+} as const;
+
+// Const arrays for Zod validation (derived from objects above)
+export const VEHICLE_TYPES = Object.values(VehicleTypes) as [VehicleType, ...VehicleType[]];
+export const SERVICE_TIERS = Object.values(ServiceTiers) as [ServiceTier, ...ServiceTier[]];
+
+// Re-export types
+export type { VehicleType, ServiceTier };
 
 // Re-export as runtime value
 export const AddonType = {
