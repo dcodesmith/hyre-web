@@ -1,5 +1,4 @@
 import { addDays, format, startOfDay, startOfToday } from "date-fns";
-import { ChevronsDownUp, ChevronsUpDown } from "lucide-react";
 import { useState } from "react";
 import { DateRange } from "react-day-picker";
 import { Button } from "~/components/ui/button";
@@ -7,6 +6,38 @@ import { Calendar } from "~/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "~/components/ui/popover";
 import { cn } from "~/lib/utils";
 import { getLagosHour } from "~/utils/timezone";
+
+/**
+ * Determines if booking cutoff means earliest date is tomorrow based on Lagos time.
+ */
+function isLagosCutoffTomorrow(
+  isAirportPickup: boolean,
+  isNightBooking: boolean,
+  isFullDayBooking: boolean,
+): boolean {
+  if (isAirportPickup || isFullDayBooking) return false;
+
+  const currentLagosHour = getLagosHour();
+  if (isNightBooking) return currentLagosHour >= 23;
+  return currentLagosHour >= 11; // DAY bookings
+}
+
+/**
+ * Formats date range for display.
+ */
+function formatDateDisplay(
+  from: Date | undefined,
+  to: Date | undefined,
+  singleDateMode: boolean,
+  formatStr: string,
+): string | null {
+  if (!from) return null;
+
+  const isSingleDate = singleDateMode || !to || from.getTime() === to.getTime();
+  if (isSingleDate) return format(from, formatStr);
+
+  return `${format(from, formatStr)} - ${format(to, formatStr)}`;
+}
 
 interface DateRangePickerProps {
   readonly date: DateRange;
@@ -46,22 +77,13 @@ export function DateRangePicker({
     to: date.to ? new Date(date.to) : undefined,
   };
 
-  // Get current hour in Lagos timezone for consistent date picker behavior
-  const currentLagosHour = getLagosHour();
-
-  // Determine if the Lagos cutoff means "tomorrow" based on Lagos business rules
-  const lagosCutoffIsTomorrow = isAirportPickup
-    ? false // AIRPORT_PICKUP: always allow today (validation is based on 2-hour advance notice from flight time)
-    : isNightBooking
-      ? currentLagosHour >= 23 // NIGHT bookings: after 11 PM, can't book for today
-      : isFullDayBooking
-        ? false // FULL_DAY bookings can always select today
-        : currentLagosHour >= 11; // DAY bookings: after 11 AM, can't book for today (booking window is 7-11 AM)
-
-  // Get start of today in local timezone
+  // Determine earliest selectable date based on Lagos business rules
   const today = startOfToday();
-
-  // If cutoff has passed, earliest selectable date is tomorrow; otherwise today
+  const lagosCutoffIsTomorrow = isLagosCutoffTomorrow(
+    isAirportPickup ?? false,
+    isNightBooking ?? false,
+    isFullDayBooking ?? false,
+  );
   const earliestDate = lagosCutoffIsTomorrow ? addDays(today, 1) : today;
 
   // If disableToday is true, start from tomorrow; otherwise use the cutoff logic
@@ -126,19 +148,12 @@ export function DateRangePicker({
               {singleDateMode ? "Date" : "Dates"}
             </span>
             <div className="text-sm text-gray-900 leading-tight">
-              {normalizedDate?.from ? (
-                singleDateMode ||
-                !normalizedDate.to ||
-                normalizedDate.from.getTime() === normalizedDate.to.getTime() ? (
-                  format(normalizedDate.from, "MMM dd")
-                ) : (
-                  <>
-                    {format(normalizedDate.from, "MMM dd")} - {format(normalizedDate.to, "MMM dd")}
-                  </>
-                )
-              ) : (
-                <span className="text-gray-400">Add dates</span>
-              )}
+              {formatDateDisplay(
+                normalizedDate.from,
+                normalizedDate.to,
+                singleDateMode,
+                "MMM dd",
+              ) ?? <span className="text-gray-400">Add dates</span>}
             </div>
           </Button>
         </PopoverTrigger>
@@ -169,20 +184,12 @@ export function DateRangePicker({
             )}
             <div className="flex justify-between items-center flex-col sm:flex-row gap-2 p-2 w-full border-t">
               <div className="text-sm h-10 items-center flex font-semibold">
-                {normalizedDate?.from ? (
-                  singleDateMode ||
-                  !normalizedDate.to ||
-                  normalizedDate.from.getTime() === normalizedDate.to.getTime() ? (
-                    format(normalizedDate.from, "LLL dd, y")
-                  ) : (
-                    <>
-                      {format(normalizedDate.from, "LLL dd, y")} -{" "}
-                      {format(normalizedDate.to, "LLL dd, y")}
-                    </>
-                  )
-                ) : (
-                  `No date${singleDateMode ? "" : "s"} selected`
-                )}
+                {formatDateDisplay(
+                  normalizedDate.from,
+                  normalizedDate.to,
+                  singleDateMode,
+                  "LLL dd, y",
+                ) ?? `No date${singleDateMode ? "" : "s"} selected`}
               </div>
 
               <div className="flex gap-2 sm:w-auto w-full">
@@ -196,18 +203,6 @@ export function DateRangePicker({
                 >
                   Clear Selection
                 </Button>
-                {/* <Button
-                  className="flex-1"
-                  onClick={() => {
-                    const closeEvent = new KeyboardEvent("keydown", {
-                      key: "Escape",
-                      bubbles: true,
-                    });
-                    document.dispatchEvent(closeEvent);
-                  }}
-                >
-                  Confirm
-                </Button> */}
               </div>
             </div>
           </div>

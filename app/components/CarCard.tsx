@@ -1,8 +1,16 @@
 import { Link } from "@remix-run/react";
-import { Heart, Star } from "lucide-react";
+import { Heart, Sparkles } from "lucide-react";
 import { formatCurrency } from "~/lib/utils";
 import type { SerializedCar } from "~/types";
 import Carousel from "./Carousel";
+
+const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+
+function isNewListing(createdAt: string): boolean {
+  const createdDate = new Date(createdAt);
+  const now = new Date();
+  return now.getTime() - createdDate.getTime() < SEVEN_DAYS_MS;
+}
 
 interface CarCardProps {
   readonly car: SerializedCar;
@@ -38,6 +46,13 @@ export function CarCard({
             images={car.images.length ? car.images.map(({ url }) => url) : undefined}
             priority={priority}
           />
+          {/* New Listing Badge - only shows for cars added in last 7 days */}
+          {isNewListing(car.createdAt) && (
+            <div className="absolute top-3 left-3 px-2.5 py-1.5 bg-white/90 rounded-full shadow-md flex items-center gap-1">
+              <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+              <span className="text-xs font-medium text-gray-800">New</span>
+            </div>
+          )}
           {/* Favorite Heart Icon - Airbnb style */}
           <button
             type="button"
@@ -52,59 +67,27 @@ export function CarCard({
           </button>
         </div>
 
-        <div className={isGrid ? "space-y-2" : "space-y-1.5"}>
+        <div className="space-y-1.5">
           <div className="flex justify-between items-start">
             <div className="flex-1">
-              <h3
-                className={
-                  isGrid
-                    ? "text-base font-semibold group-hover:underline"
-                    : "text-xs md:text-sm font-semibold group-hover:underline"
-                }
-              >
+              <h3 className="text-xs md:text-sm font-semibold group-hover:underline">
                 {car.make} {car.model} ({car.year})
               </h3>
-              <div className={isGrid ? "flex items-center gap-1 mt-1" : "flex items-center gap-1 mt-0.5"}>
-                <Star
-                  className={
-                    isGrid
-                      ? "h-4 w-4 text-gray-400 fill-gray-400"
-                      : "h-2.5 md:h-3 w-2.5 md:w-3 text-gray-400 fill-gray-400"
-                  }
-                />
-                <span className={isGrid ? "text-sm text-gray-600" : "text-[10px] md:text-xs text-gray-600"}>
-                  New
-                </span>
-              </div>
             </div>
           </div>
 
           <div className="flex items-baseline gap-1">
             {showTotal && totalPrice ? (
               <>
-                <span
-                  className={
-                    isGrid ? "font-semibold text-lg" : "font-semibold text-sm md:text-base"
-                  }
-                >
+                <span className="font-semibold text-sm md:text-base">
                   {formatCurrency(totalPrice)}
                 </span>
-                <span className={isGrid ? "text-sm text-gray-600" : "text-[10px] md:text-xs text-gray-600"}>
-                  total
-                </span>
+                <span className="text-[10px] md:text-xs text-gray-600">total</span>
               </>
             ) : (
               <>
-                <span
-                  className={
-                    isGrid ? "font-semibold text-lg" : "font-semibold text-sm md:text-base"
-                  }
-                >
-                  {formatCurrency(price)}
-                </span>
-                <span className={isGrid ? "text-sm text-gray-600" : "text-[10px] md:text-xs text-gray-600"}>
-                  {priceLabel}
-                </span>
+                <span className="font-semibold text-sm md:text-base">{formatCurrency(price)}</span>
+                <span className="text-[10px] md:text-xs text-gray-600">{priceLabel}</span>
               </>
             )}
           </div>

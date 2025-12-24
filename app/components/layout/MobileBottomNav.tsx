@@ -108,10 +108,12 @@ export function MobileBottomNav({ user, appName, onProfileOpen }: MobileBottomNa
   const [isHidden, setIsHidden] = useState(false);
 
   const isHomePage = location.pathname === "/";
+  const isSearchPage = location.pathname === "/search";
+  const shouldHideOnScroll = isHomePage || isSearchPage;
 
-  // Hide bottom nav on scroll (only on home page)
+  // Hide bottom nav on scroll (on home page and search page)
   useEffect(() => {
-    if (!isHomePage) {
+    if (!shouldHideOnScroll) {
       setIsHidden(false);
       return;
     }
@@ -123,7 +125,7 @@ export function MobileBottomNav({ user, appName, onProfileOpen }: MobileBottomNa
     handleScroll();
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
-  }, [isHomePage]);
+  }, [shouldHideOnScroll]);
 
   // Don't show on admin routes
   if (location.pathname.startsWith("/admin")) {

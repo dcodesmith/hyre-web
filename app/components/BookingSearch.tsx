@@ -153,6 +153,124 @@ function FlightValidationNotice({
   return null;
 }
 
+interface BookingTypeInputProps {
+  readonly bookingType: BookingType;
+  readonly pickupTime: string | undefined;
+  readonly flightNumber: string | undefined;
+  readonly dateRange: DateRange;
+  readonly onPickupTimeChange: (value: string) => void;
+  readonly onFlightNumberChange: (value: string) => void;
+  readonly onFlightNumberSelect: (value: string) => void;
+  readonly onFlightValidated: (flight: ValidatedFlight | null) => void;
+  readonly onValidationError: (message: string | null, isWarning: boolean) => void;
+}
+
+function BookingTypeInput({
+  bookingType,
+  pickupTime,
+  flightNumber,
+  dateRange,
+  onPickupTimeChange,
+  onFlightNumberChange,
+  onFlightNumberSelect,
+  onFlightValidated,
+  onValidationError,
+}: BookingTypeInputProps) {
+  const containerClass = "w-full h-[38px] flex flex-col justify-center";
+  const labelClass = "text-xs font-semibold text-gray-700 leading-tight";
+  const valueClass = "text-sm text-gray-900 leading-tight";
+
+  if (bookingType === NIGHT_BOOKING_TYPE) {
+    return (
+      <div className={containerClass}>
+        <div className={labelClass}>Pickup Time</div>
+        <div className={valueClass}>11:00 PM</div>
+      </div>
+    );
+  }
+
+  if (bookingType === AIRPORT_PICKUP_BOOKING_TYPE) {
+    return (
+      <div className={containerClass}>
+        <span className={labelClass}>Flight Number</span>
+        <AutocompleteFlight
+          id="flightNumber"
+          onSelect={onFlightNumberSelect}
+          inputProps={{
+            value: flightNumber || "",
+            onChange: (e) => onFlightNumberChange(e.target.value),
+            placeholder: "e.g. BA123",
+          }}
+          initialValue={flightNumber}
+          className="w-full h-5 placeholder-gray-400 border-0 px-0 py-0 focus:ring-0 shadow-none bg-transparent hover:bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 text-sm leading-tight"
+          nigeriaOnly={true}
+          pickupDate={
+            dateRange.from
+              ? formatInTimeZone(dateRange.from, LAGOS_TIMEZONE, "yyyy-MM-dd")
+              : undefined
+          }
+          showValidation={false}
+          onFlightValidated={onFlightValidated}
+          onValidationError={onValidationError}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <BookingTimeSelect
+      key={bookingType}
+      date={dateRange.from ?? new Date()}
+      bookingType={bookingType}
+      defaultValue={pickupTime}
+      onValueChange={onPickupTimeChange}
+      containerClassName={containerClass}
+      labelClassName={labelClass}
+      showLabel={true}
+    />
+  );
+}
+
+interface SearchButtonProps {
+  readonly isCompact: boolean;
+  readonly isSearching: boolean;
+  readonly onClick: () => void;
+}
+
+function SearchButton({ isCompact, isSearching, onClick }: SearchButtonProps) {
+  const containerClass = isCompact
+    ? "flex-none py-2 pl-2 pr-2"
+    : "px-4 sm:px-3 py-3 md:py-2 border-t md:border-t-0";
+
+  const buttonClass = isCompact
+    ? "h-9 w-9 p-0"
+    : "w-full md:w-auto h-12 md:h-12 px-6 md:px-8 text-sm md:text-base";
+
+  const iconClass = isCompact ? "h-4 w-4" : "h-5 w-5";
+
+  return (
+    <div className={`flex items-center justify-center ${containerClass}`}>
+      <Button
+        className={`rounded-full font-semibold bg-primary hover:bg-primary/90 transition-all duration-300 ${buttonClass}`}
+        onClick={onClick}
+        disabled={isSearching}
+      >
+        {isSearching ? (
+          <>
+            <Loader2 className={`${iconClass} animate-spin`} />
+            {!isCompact && <span className="ml-2 md:hidden">Searching...</span>}
+          </>
+        ) : (
+          <>
+            <Search className={isCompact ? iconClass : `${iconClass} mr-2`} aria-label="Search" />
+            {!isCompact && <span className="ml-2 md:hidden">Search</span>}
+          </>
+        )}
+      </Button>
+    </div>
+  );
+}
+
 interface BookingSearchProps {
   readonly isCompact?: boolean;
   readonly context?: "hero" | "modal";
@@ -275,6 +393,17 @@ export function BookingSearch({ isCompact = false, context = "hero" }: BookingSe
     setIsValidationWarning(false);
   }, []);
 
+  const handleFlightValidated = useCallback((flight: ValidatedFlight | null) => {
+    setValidatedFlight(flight);
+    setFlightValidationError(null);
+    setIsValidationWarning(false);
+  }, []);
+
+  const handleValidationError = useCallback((message: string | null, isWarning: boolean) => {
+    setFlightValidationError(message);
+    setIsValidationWarning(isWarning);
+  }, []);
+
   const handleSearch = useCallback(() => {
     // Set flag to show loading indicator
     setIsSearchClicked(true);
@@ -305,70 +434,16 @@ export function BookingSearch({ isCompact = false, context = "hero" }: BookingSe
     setSearchParams(newSearchParams, { replace: true, preventScrollReset: true });
   }, [bookingType, dateRange, pickupTime, flightNumber, setSearchParams]);
 
-  const renderBookingTypeInput = () => {
-    // All booking types use the same outer container structure for consistent alignment
-    // h-[38px] ensures consistent height across all booking types
-    const containerClass = "w-full h-[38px] flex flex-col justify-center";
-    const labelClass = "text-xs font-semibold text-gray-700 leading-tight";
-    const valueClass = "text-sm text-gray-900 leading-tight";
-
-    if (bookingType === NIGHT_BOOKING_TYPE) {
-      return (
-        <div className={containerClass}>
-          <div className={labelClass}>Pickup Time</div>
-          <div className={valueClass}>11:00 PM</div>
-        </div>
-      );
-    }
-
-    if (bookingType === AIRPORT_PICKUP_BOOKING_TYPE) {
-      return (
-        <div className={containerClass}>
-          <span className={labelClass}>Flight Number</span>
-          <AutocompleteFlight
-            id="flightNumber"
-            onSelect={handleFlightNumberSelect}
-            inputProps={{
-              value: flightNumber || "",
-              onChange: (e) => handleFlightNumberChange(e.target.value),
-              placeholder: "e.g. BA123",
-            }}
-            initialValue={flightNumber}
-            className="w-full h-5 placeholder-gray-400 border-0 px-0 py-0 focus:ring-0 shadow-none bg-transparent hover:bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 text-sm leading-tight"
-            nigeriaOnly={true}
-            pickupDate={
-              dateRange.from
-                ? formatInTimeZone(dateRange.from, LAGOS_TIMEZONE, "yyyy-MM-dd")
-                : undefined
-            }
-            showValidation={false}
-            onFlightValidated={(flight) => {
-              setValidatedFlight(flight);
-              setFlightValidationError(null);
-              setIsValidationWarning(false);
-            }}
-            onValidationError={(message, isWarning = false) => {
-              setFlightValidationError(message);
-              setIsValidationWarning(isWarning);
-            }}
-          />
-        </div>
-      );
-    }
-
-    // DAY and FULL_DAY booking types use BookingTimeSelect
-    return (
-      <BookingTimeSelect
-        key={bookingType}
-        date={dateRange.from ?? new Date()}
-        bookingType={bookingType}
-        defaultValue={pickupTime}
-        onValueChange={handlePickupTimeChange}
-        containerClassName={containerClass}
-        labelClassName={labelClass}
-        showLabel={true}
-      />
-    );
+  const bookingTypeInputProps = {
+    bookingType,
+    pickupTime,
+    flightNumber,
+    dateRange,
+    onPickupTimeChange: handlePickupTimeChange,
+    onFlightNumberChange: handleFlightNumberChange,
+    onFlightNumberSelect: handleFlightNumberSelect,
+    onFlightValidated: handleFlightValidated,
+    onValidationError: handleValidationError,
   };
 
   return (
@@ -431,7 +506,9 @@ export function BookingSearch({ isCompact = false, context = "hero" }: BookingSe
                   />
                 </div>
                 {/* Pickup Time / Flight Number Section */}
-                <div className="flex-1 flex items-center px-3 py-2">{renderBookingTypeInput()}</div>
+                <div className="flex-1 flex items-center px-3 py-2">
+                  <BookingTypeInput {...bookingTypeInputProps} />
+                </div>
               </div>
             ) : (
               <>
@@ -450,46 +527,12 @@ export function BookingSearch({ isCompact = false, context = "hero" }: BookingSe
                 </div>
                 {/* Pickup Time / Flight Number Section */}
                 <div className="flex-1 flex items-center px-4 sm:px-6 py-3 border-t md:border-t-0 min-h-[60px]">
-                  {renderBookingTypeInput()}
+                  <BookingTypeInput {...bookingTypeInputProps} />
                 </div>
               </>
             )}
 
-            {/* Search Button */}
-            <div
-              className={`flex items-center justify-center ${
-                isCompact
-                  ? "flex-none py-2 pl-2 pr-2"
-                  : "px-4 sm:px-3 py-3 md:py-2 border-t md:border-t-0"
-              }`}
-            >
-              <Button
-                className={`rounded-full font-semibold bg-primary hover:bg-primary/90 transition-all duration-300 ${
-                  isCompact
-                    ? "h-9 w-9 p-0"
-                    : "w-full md:w-auto h-12 md:h-12 px-6 md:px-8 text-sm md:text-base"
-                }`}
-                onClick={handleSearch}
-                disabled={isSearching}
-              >
-                {isSearching ? (
-                  <>
-                    <Loader2
-                      className={isCompact ? "h-4 w-4 animate-spin" : "h-5 w-5 animate-spin"}
-                    />
-                    {!isCompact && <span className="ml-2 md:hidden">Searching...</span>}
-                  </>
-                ) : (
-                  <>
-                    <Search
-                      className={isCompact ? "w-4 h-4" : "w-5 h-5 mr-2"}
-                      aria-label="Search"
-                    />
-                    {!isCompact && <span className="ml-2 md:hidden">Search</span>}
-                  </>
-                )}
-              </Button>
-            </div>
+            <SearchButton isCompact={isCompact} isSearching={isSearching} onClick={handleSearch} />
           </div>
         </div>
 

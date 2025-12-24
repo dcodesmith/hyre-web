@@ -10,7 +10,7 @@ import type { LoaderFunctionArgs } from "@remix-run/node";
 import { data } from "@remix-run/node";
 import { Link, useLoaderData, useSearchParams } from "@remix-run/react";
 import { fromZonedTime } from "date-fns-tz";
-import { Fingerprint, LocateFixed, ShieldCheck, Star } from "lucide-react";
+import { Fingerprint, LocateFixed, ShieldCheck } from "lucide-react";
 import { BookingSearch } from "~/components/BookingSearch";
 
 import logger from "~/lib/logger.server";
@@ -32,7 +32,6 @@ import { useIsMobile } from "~/hooks/use-mobile";
 import { useCarCategories } from "~/hooks/useCarCategories";
 import { getHeroHeightClasses, useHeroScroll } from "~/hooks/useHeroScroll";
 import { calculateBookingUnits } from "~/lib/booking-utils";
-import { formatCurrency } from "~/lib/utils";
 import { validateFlight } from "~/services/flight-validation.server";
 import type { SerializedCar } from "~/types";
 
