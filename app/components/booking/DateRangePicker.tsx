@@ -18,6 +18,7 @@ interface DateRangePickerProps {
   readonly onOpenChange?: (open: boolean) => void;
   readonly singleDateMode?: boolean; // New prop to enable single date selection
   readonly disableToday?: boolean; // Disable today's date selection
+  readonly isCompact?: boolean; // Compact mode for collapsed header
 }
 
 export function DateRangePicker({
@@ -30,6 +31,7 @@ export function DateRangePicker({
   onOpenChange,
   singleDateMode = false,
   disableToday = false,
+  isCompact = false,
 }: DateRangePickerProps) {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -107,38 +109,37 @@ export function DateRangePicker({
   };
 
   return (
-    <div className={cn("grid gap-2 w-full", className)}>
+    <div className={cn("w-full", className)}>
       <Popover open={isOpen} onOpenChange={handleOpenChange}>
         <PopoverTrigger asChild>
           <Button
             id="date"
-            variant={"outline"}
+            variant={"ghost"}
             onClick={() => setIsOpen(!isOpen)}
             className={cn(
-              "justify-start text-left font-normal px-3",
+              "w-full text-left font-normal px-0 hover:bg-transparent flex flex-col items-start justify-center",
+              isCompact ? "h-auto gap-0.5" : "h-[38px]",
               !normalizedDate.from && "text-muted-foreground",
             )}
           >
-            {/* <CalendarIcon className="mr-2 h-5 w-5" /> */}
-            {normalizedDate?.from ? (
-              singleDateMode ||
-              !normalizedDate.to ||
-              normalizedDate.from.getTime() === normalizedDate.to.getTime() ? (
-                format(normalizedDate.from, "LLL dd, y")
+            <span className="text-xs font-semibold text-gray-700 leading-tight">
+              {singleDateMode ? "Date" : "Dates"}
+            </span>
+            <div className="text-sm text-gray-900 leading-tight">
+              {normalizedDate?.from ? (
+                singleDateMode ||
+                !normalizedDate.to ||
+                normalizedDate.from.getTime() === normalizedDate.to.getTime() ? (
+                  format(normalizedDate.from, "MMM dd")
+                ) : (
+                  <>
+                    {format(normalizedDate.from, "MMM dd")} - {format(normalizedDate.to, "MMM dd")}
+                  </>
+                )
               ) : (
-                <>
-                  {format(normalizedDate.from, "LLL dd, y")} -{" "}
-                  {format(normalizedDate.to, "LLL dd, y")}
-                </>
-              )
-            ) : (
-              <span className="text-black">Pick a date{singleDateMode ? "" : " range"}</span>
-            )}
-            {isOpen ? (
-              <ChevronsDownUp className="h-4 w-4 ml-auto" />
-            ) : (
-              <ChevronsUpDown className="h-4 w-4 ml-auto" />
-            )}
+                <span className="text-gray-400">Add dates</span>
+              )}
+            </div>
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-auto p-0" align="start">

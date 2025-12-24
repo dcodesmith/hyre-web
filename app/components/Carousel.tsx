@@ -95,7 +95,7 @@ export default function Carousel({
     <div
       aria-label="Car images"
       aria-roledescription="Carousel"
-      className="relative group overflow-hidden touch-pan-y select-none"
+      className="relative group overflow-hidden rounded-xl touch-pan-y select-none"
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
@@ -112,7 +112,7 @@ export default function Carousel({
             key={image}
             src={image}
             alt={`Car view ${index + 1}`}
-            className="w-full h-80 object-cover flex-shrink-0"
+            className="w-full h-72 md:h-80 object-cover flex-shrink-0"
             width="400"
             height="320"
             loading={priority && index === 0 ? "eager" : "lazy"}
@@ -127,7 +127,7 @@ export default function Carousel({
           type="button"
           aria-label="Previous slide"
           onClick={prevSlide}
-          className="bg-white bg-opacity-50 text-black hover:bg-white hover:bg-opacity-75 rounded-full h-10 w-10 disabled:opacity-25 disabled:cursor-not-allowed"
+          className="bg-white/90 text-black hover:bg-white rounded-full h-8 w-8 p-0 disabled:opacity-25 disabled:cursor-not-allowed shadow-md"
           disabled={currentIndex === 0}
         >
           &#8592; {/* Left arrow */}
@@ -136,7 +136,7 @@ export default function Carousel({
           type="button"
           aria-label="Next slide"
           onClick={nextSlide}
-          className="bg-white bg-opacity-50 text-black hover:bg-white hover:bg-opacity-75 rounded-full h-10 w-10 disabled:opacity-25 disabled:cursor-not-allowed"
+          className="bg-white/90 text-black hover:bg-white rounded-full h-8 w-8 p-0 disabled:opacity-25 disabled:cursor-not-allowed shadow-md"
           disabled={currentIndex === images.length - 1}
         >
           &#8594; {/* Right arrow */}
@@ -144,20 +144,20 @@ export default function Carousel({
       </div>
 
       <div
-        className="absolute bottom-4 right-4 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-sm"
+        className="absolute bottom-3 right-3 bg-black/70 text-white px-2 py-1 rounded-md text-xs font-medium"
         aria-live="polite"
       >
         {currentIndex + 1} / {images.length}
       </div>
 
-      <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">
+      <div className="absolute bottom-3 left-1/2 transform -translate-x-1/2 flex space-x-1.5">
         {images.map((image, index) => (
           <button
             key={`slide-indicator-${image}`}
             type="button"
             onClick={() => setCurrentIndex(index)}
-            className={`w-6 h-1 rounded-full transition-colors ${
-              index === currentIndex ? "bg-white" : "bg-white bg-opacity-50"
+            className={`w-1.5 h-1.5 rounded-full transition-all ${
+              index === currentIndex ? "bg-white w-6" : "bg-white/60"
             }`}
             aria-label={`Go to slide ${index + 1}`}
             aria-roledescription="Slide indicator"

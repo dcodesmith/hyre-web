@@ -1,5 +1,6 @@
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { getLagosTime } from "~/utils/timezone";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
+import { cn } from "~/lib/utils";
 
 const hasTimePassed = (selectedDate: Date, hour: number) => {
   // Use Lagos-local clock consistently
@@ -56,6 +57,12 @@ interface BookingTimeSelectProps {
   readonly className?: string;
   readonly bookingType?: string;
   readonly onValueChange?: (value: string) => void;
+  /** Container class for inline-style usage (e.g., Airbnb-style search bar) */
+  readonly containerClassName?: string;
+  /** Label class for inline-style usage */
+  readonly labelClassName?: string;
+  /** Whether to show the inline label. Set to false when using external Label component. */
+  readonly showLabel?: boolean;
 }
 
 export function BookingTimeSelect({
@@ -64,11 +71,29 @@ export function BookingTimeSelect({
   className,
   bookingType = "DAY",
   onValueChange,
+  containerClassName,
+  labelClassName = "text-xs font-semibold text-gray-700 leading-tight",
+  showLabel = false,
 }: BookingTimeSelectProps) {
-  return (
+  const selectElement = (
     <Select name="pickupTime" defaultValue={defaultValue} onValueChange={onValueChange}>
-      <SelectTrigger className={`w-full rounded ${className}`}>
-        <SelectValue placeholder="Select pickup time" />
+      <SelectTrigger
+        className={cn(
+          containerClassName
+            ? "w-full justify-start text-left font-normal p-0 h-auto min-h-0 hover:bg-transparent focus:ring-0 shadow-none bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 border-0 [&>svg]:hidden text-sm leading-tight"
+            : "w-full rounded",
+          className,
+        )}
+      >
+        <SelectValue
+          placeholder={
+            containerClassName ? (
+              <span className="text-gray-400">Add time</span>
+            ) : (
+              "Select pickup time"
+            )
+          }
+        />
       </SelectTrigger>
       <SelectContent>
         {getPickupTimes(date, bookingType).map(({ label, value }) => (
@@ -78,5 +103,18 @@ export function BookingTimeSelect({
         ))}
       </SelectContent>
     </Select>
+  );
+
+  // If no container class provided, render plain select (backward compatible)
+  if (!containerClassName) {
+    return selectElement;
+  }
+
+  // Inline-style with optional label (for Airbnb-style search)
+  return (
+    <div className={containerClassName}>
+      {showLabel && <span className={labelClassName}>Pickup Time</span>}
+      {selectElement}
+    </div>
   );
 }

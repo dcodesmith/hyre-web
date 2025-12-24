@@ -1,9 +1,21 @@
 import type { Role, User } from "@prisma/client";
 import { Link, useLocation } from "@remix-run/react";
-import { Calendar, Gift, Home, LogIn, LogOut, User as UserIcon, Car, LayoutDashboard, Users } from "lucide-react";
+import {
+  Calendar,
+  Car,
+  Gift,
+  Home,
+  LayoutDashboard,
+  LogIn,
+  LogOut,
+  User as UserIcon,
+  Users,
+} from "lucide-react";
+import { useEffect, useState } from "react";
 import { Form } from "~/components/CSRFForm";
-import { userHasRole } from "~/utils/shared/roles";
 import { NairaIcon } from "~/components/icons/NairaIcon";
+import { SCROLL_COLLAPSE_THRESHOLD } from "~/constants/ui";
+import { userHasRole } from "~/utils/shared/roles";
 
 type MobileBottomNavProps = {
   readonly user: (User & { roles: Pick<Role, "name">[] }) | null;
@@ -93,6 +105,25 @@ function NavItem({ to, icon, label, isActive, onClick, children }: NavItemProps)
 
 export function MobileBottomNav({ user, appName, onProfileOpen }: MobileBottomNavProps) {
   const location = useLocation();
+  const [isHidden, setIsHidden] = useState(false);
+
+  const isHomePage = location.pathname === "/";
+
+  // Hide bottom nav on scroll (only on home page)
+  useEffect(() => {
+    if (!isHomePage) {
+      setIsHidden(false);
+      return;
+    }
+
+    const handleScroll = () => {
+      setIsHidden(window.scrollY > SCROLL_COLLAPSE_THRESHOLD);
+    };
+
+    handleScroll();
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [isHomePage]);
 
   // Don't show on admin routes
   if (location.pathname.startsWith("/admin")) {
@@ -109,7 +140,12 @@ export function MobileBottomNav({ user, appName, onProfileOpen }: MobileBottomNa
     return null;
   }
 
-  const isHomeActive = location.pathname === "/";
+  // Base container class with scroll-based hide/show transition
+  const containerClass = `md:hidden fixed bottom-0 left-0 right-0 bg-background border-t border-border z-40 transition-transform duration-300 ${
+    isHidden ? "translate-y-full" : "translate-y-0"
+  }`;
+
+  const isHomeActive = isHomePage;
   const isBookingsActive = location.pathname.startsWith("/bookings");
   const isReferralsActive = location.pathname.startsWith("/referrals");
   const isFleetOwnerActive = location.pathname.startsWith("/fleet-owner");
@@ -129,7 +165,7 @@ export function MobileBottomNav({ user, appName, onProfileOpen }: MobileBottomNa
     // If fleet owner is on fleet-owner routes, show fleet-specific navigation
     if (isFleetOwner && isFleetOwnerActive) {
       return (
-        <div className="md:hidden fixed bottom-0 left-0 right-0 bg-background border-t border-border z-40">
+        <div className={containerClass}>
           <div className="absolute inset-x-0 top-0 h-8 bg-gradient-to-b from-background/0 to-background pointer-events-none -z-10" />
           <div className="flex items-center justify-around max-w-full mx-auto px-2 pb-[env(safe-area-inset-bottom)] min-h-[56px] relative z-10">
             <NavItem
@@ -181,7 +217,7 @@ export function MobileBottomNav({ user, appName, onProfileOpen }: MobileBottomNa
 
     // Default navigation for all other users (including fleet owners on non-fleet routes)
     return (
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-background border-t border-border z-40">
+      <div className={containerClass}>
         <div className="absolute inset-x-0 top-0 h-8 bg-gradient-to-b from-background/0 to-background pointer-events-none -z-10" />
         <div className="flex items-center justify-around max-w-full mx-auto px-2 pb-[env(safe-area-inset-bottom)] min-h-[56px] relative z-10">
           <NavItem to="/" icon={<Home size={18} />} label={appName} isActive={isHomeActive} />
@@ -228,7 +264,7 @@ export function MobileBottomNav({ user, appName, onProfileOpen }: MobileBottomNa
 
   // Unauthenticated user navigation
   return (
-    <div className="md:hidden fixed bottom-0 left-0 right-0 bg-background border-t border-border z-40">
+    <div className={containerClass}>
       <div className="absolute inset-x-0 top-0 h-8 bg-gradient-to-b from-background/0 to-background pointer-events-none -z-10" />
       <div className="flex items-center justify-center max-w-md mx-auto px-24 pb-[env(safe-area-inset-bottom)] min-h-[56px] relative z-10">
         <NavItem to="/" icon={<Home size={18} />} label={appName} isActive={isHomeActive} />

@@ -46,7 +46,7 @@ export const links: LinksFunction = () => [
   // Preload critical fonts
   {
     rel: "stylesheet",
-    href: "https://fonts.googleapis.com/css2?family=Nunito+Sans:ital,opsz,wght@0,6..12,200..1000;1,6..12,200..1000&display=swap",
+    href: "https://fonts.googleapis.com/css2?family=Nunito+Sans:ital,opsz,wght@0,6..12,200..1000;1,6..12,200..1000&family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&display=swap",
   },
   // DNS prefetch for potential external resources
   { rel: "dns-prefetch", href: "https://vercel.app" },
@@ -127,7 +127,8 @@ function AppContent() {
       return "";
     }
     if (isHomePage) {
-      return "px-4 md:px-0 md:max-w-none md:mx-0 lg:container lg:mx-auto lg:px-4";
+      // Homepage handles its own padding for full-bleed hero
+      return "";
     }
     return "container mx-auto px-4";
   };
@@ -147,7 +148,7 @@ function AppContent() {
         <div className="flex flex-col min-h-screen">
           {/* Desktop header - hidden on mobile and login/verify pages */}
           {!isAuthPage && (
-            <header className="hidden md:flex p-4 justify-between items-center z-10">
+            <header className="hidden md:flex p-4 justify-between items-center z-50 sticky top-0 bg-white backdrop-blur-sm border-b border-transparent transition-all">
               <Link
                 to={getDashboardLink()}
                 className="text-2xl md:text-3xl font-bold font-dancingscript"

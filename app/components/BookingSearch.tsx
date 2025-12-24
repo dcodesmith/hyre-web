@@ -1,11 +1,13 @@
 import { useNavigation, useSearchParams } from "@remix-run/react";
 import { format } from "date-fns";
-import { Loader2 } from "lucide-react";
+import { Loader2, Search } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { DateRange } from "react-day-picker";
 import { DateRangePicker } from "./booking/DateRangePicker";
 
+import { formatInTimeZone } from "date-fns-tz";
 import type { ValidatedFlight } from "~/services/flight-validation.server";
+import { LAGOS_TIMEZONE } from "~/utils/timezone";
 import { AutocompleteFlight } from "./AutocompleteFlight";
 import { BookingTimeSelect } from "./booking/BookingTimeSelect";
 import {
@@ -20,8 +22,65 @@ import {
 } from "./bookingTypes";
 import { Button } from "./ui/button";
 import { Tabs, TabsList, TabsTrigger } from "./ui/tabs";
-import { formatInTimeZone } from "date-fns-tz";
-import { LAGOS_TIMEZONE } from "~/utils/timezone";
+
+interface BookingTypeTabsProps {
+  readonly value: string;
+  readonly onValueChange: (value: string) => void;
+  readonly variant: "expanded" | "compact";
+}
+
+function BookingTypeTabs({ value, onValueChange, variant }: BookingTypeTabsProps) {
+  const isCompact = variant === "compact";
+
+  if (isCompact) {
+    return (
+      <Tabs value={value} onValueChange={onValueChange}>
+        <TabsList className="h-7 p-0.5 gap-0.5 bg-gray-100 rounded-full">
+          {BOOKING_TYPE_OPTIONS.map((type) => {
+            const option = BOOKING_TYPE_OPTIONS_MAP[type];
+            return (
+              <TabsTrigger
+                key={option.value}
+                className="h-6 px-2.5 text-xs font-medium rounded-full data-[state=active]:bg-white data-[state=active]:shadow-sm"
+                value={option.value}
+              >
+                {option.label}
+              </TabsTrigger>
+            );
+          })}
+        </TabsList>
+      </Tabs>
+    );
+  }
+
+  return (
+    <Tabs
+      className="w-full"
+      value={value}
+      onValueChange={onValueChange}
+    >
+      <TabsList className="p-1 gap-1 tabs-list-slider w-full h-auto before:w-[calc((100%-0.75rem)/4)] bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg">
+        {BOOKING_TYPE_OPTIONS.map((type) => {
+          const option = BOOKING_TYPE_OPTIONS_MAP[type];
+          return (
+            <TabsTrigger
+              key={option.value}
+              className="flex flex-col items-center justify-center min-w-0 data-[state=active]:shadow-none tabs-trigger-slider data-[state=active]:bg-white data-[state=active]:text-foreground text-white/90 py-2 px-1"
+              value={option.value}
+            >
+              <span className="text-[11px] sm:text-xs md:text-sm font-semibold text-center whitespace-nowrap">
+                {option.label}
+              </span>
+              <span className="text-[9px] sm:text-[10px] md:text-xs opacity-80 text-center whitespace-nowrap">
+                {option.duration}
+              </span>
+            </TabsTrigger>
+          );
+        })}
+      </TabsList>
+    </Tabs>
+  );
+}
 
 type FlightValidationNoticeProps = {
   readonly validatedFlight: ValidatedFlight | null;
@@ -81,7 +140,11 @@ function FlightValidationNotice({
   return null;
 }
 
-export function BookingSearch() {
+interface BookingSearchProps {
+  readonly isCompact?: boolean;
+}
+
+export function BookingSearch({ isCompact = false }: BookingSearchProps) {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigation = useNavigation();
   const [isSearchClicked, setIsSearchClicked] = useState(false);
@@ -227,26 +290,35 @@ export function BookingSearch() {
   }, [bookingType, dateRange, pickupTime, flightNumber, setSearchParams]);
 
   const renderBookingTypeInput = () => {
+    // All booking types use the same outer container structure for consistent alignment
+    // h-[38px] ensures consistent height across all booking types
+    const containerClass = "w-full h-[38px] flex flex-col justify-center";
+    const labelClass = "text-xs font-semibold text-gray-700 leading-tight";
+    const valueClass = "text-sm text-gray-900 leading-tight";
+
     if (bookingType === NIGHT_BOOKING_TYPE) {
       return (
-        <p className="text-xs text-gray-600 h-10 items-center flex">
-          Night bookings start at 11pm and end at 5am.
-        </p>
+        <div className={containerClass}>
+          <div className={labelClass}>Pickup Time</div>
+          <div className={valueClass}>11:00 PM</div>
+        </div>
       );
     }
 
     if (bookingType === AIRPORT_PICKUP_BOOKING_TYPE) {
       return (
-        <div className="w-full space-y-2">
+        <div className={containerClass}>
+          <span className={labelClass}>Flight Number</span>
           <AutocompleteFlight
             id="flightNumber"
             onSelect={handleFlightNumberSelect}
             inputProps={{
               value: flightNumber || "",
               onChange: (e) => handleFlightNumberChange(e.target.value),
+              placeholder: "e.g. BA123",
             }}
             initialValue={flightNumber}
-            className="w-full placeholder-black"
+            className="w-full h-5 placeholder-gray-400 border-0 px-0 py-0 focus:ring-0 shadow-none bg-transparent hover:bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 text-sm leading-tight"
             nigeriaOnly={true}
             pickupDate={
               dateRange.from
@@ -264,18 +336,11 @@ export function BookingSearch() {
               setIsValidationWarning(isWarning);
             }}
           />
-
-          {(validatedFlight || flightValidationError) && (
-            <FlightValidationNotice
-              validatedFlight={validatedFlight}
-              message={flightValidationError}
-              isWarning={isValidationWarning}
-            />
-          )}
         </div>
       );
     }
 
+    // DAY and FULL_DAY booking types use BookingTimeSelect
     return (
       <BookingTimeSelect
         key={bookingType}
@@ -283,56 +348,147 @@ export function BookingSearch() {
         bookingType={bookingType}
         defaultValue={pickupTime}
         onValueChange={handlePickupTimeChange}
+        containerClassName={containerClass}
+        labelClassName={labelClass}
+        showLabel={true}
       />
     );
   };
 
   return (
-    <div className="w-74 md:w-full flex flex-col items-center justify-center gap-2 mt-4 mb-2">
-      <Tabs
-        className="w-74 md:w-full"
-        value={BOOKING_TYPE_OPTIONS_MAP[bookingType].value}
-        onValueChange={handleBookingTypeChange}
+    <div className="w-full">
+      {/* Booking Type Tabs - Above the pill, hidden when compact */}
+      <div
+        className={`transition-all duration-300 overflow-hidden ${
+          isCompact ? "opacity-0 max-h-0 mb-0" : "opacity-100 max-h-24 mb-4"
+        }`}
       >
-        <TabsList className="p-2 gap-2 tabs-list-slider w-74 md:w-full h-auto before:w-[calc((100%-0.5rem)/4)]">
-          {BOOKING_TYPE_OPTIONS.map((type) => {
-            const option = BOOKING_TYPE_OPTIONS_MAP[type];
-            return (
-              <TabsTrigger
-                key={option.value}
-                className="flex flex-col items-center justify-center min-w-0 data-[state=active]:shadow-none tabs-trigger-slider data-[state=active]:bg-transparent"
-                value={option.value}
+        <BookingTypeTabs
+          value={BOOKING_TYPE_OPTIONS_MAP[bookingType].value}
+          onValueChange={handleBookingTypeChange}
+          variant="expanded"
+        />
+      </div>
+
+      {/* Airbnb-style Pill Search */}
+      <div className="w-full">
+        <div
+          className={`bg-white border border-gray-200 transition-all duration-300 ${
+            isCompact
+              ? "rounded-full shadow-md hover:shadow-lg"
+              : "rounded-3xl md:rounded-full shadow-2xl hover:shadow-xl"
+          }`}
+        >
+          <div
+            className={`flex items-stretch ${
+              isCompact
+                ? "flex-row divide-x divide-gray-300"
+                : "flex-col md:flex-row md:divide-x md:divide-gray-200"
+            }`}
+          >
+            {/* Compact Booking Type Selector - Only visible when compact */}
+            {isCompact && (
+              <div className="flex-none flex items-center pl-4 pr-3 py-2">
+                <BookingTypeTabs
+                  value={BOOKING_TYPE_OPTIONS_MAP[bookingType].value}
+                  onValueChange={handleBookingTypeChange}
+                  variant="compact"
+                />
+              </div>
+            )}
+
+            {/* Dates & Pickup Time Group - Equal widths in compact mode */}
+            {isCompact ? (
+              <div className="flex-1 flex items-stretch divide-x divide-gray-300">
+                {/* Dates Section */}
+                <div className="flex-1 flex items-center px-3 py-2">
+                  <DateRangePicker
+                    className="w-full"
+                    date={dateRange}
+                    onDateChange={handleDateRangeChange}
+                    singleDateMode={bookingType === AIRPORT_PICKUP_BOOKING_TYPE}
+                    isNightBooking={bookingType === NIGHT_BOOKING_TYPE}
+                    isFullDayBooking={bookingType === FULL_DAY_BOOKING_TYPE}
+                    isAirportPickup={bookingType === AIRPORT_PICKUP_BOOKING_TYPE}
+                    isCompact={isCompact}
+                  />
+                </div>
+                {/* Pickup Time / Flight Number Section */}
+                <div className="flex-1 flex items-center px-3 py-2">{renderBookingTypeInput()}</div>
+              </div>
+            ) : (
+              <>
+                {/* Dates Section */}
+                <div className="flex-1 flex items-center px-4 sm:px-6 py-3 min-h-[60px]">
+                  <DateRangePicker
+                    className="w-full"
+                    date={dateRange}
+                    onDateChange={handleDateRangeChange}
+                    singleDateMode={bookingType === AIRPORT_PICKUP_BOOKING_TYPE}
+                    isNightBooking={bookingType === NIGHT_BOOKING_TYPE}
+                    isFullDayBooking={bookingType === FULL_DAY_BOOKING_TYPE}
+                    isAirportPickup={bookingType === AIRPORT_PICKUP_BOOKING_TYPE}
+                    isCompact={isCompact}
+                  />
+                </div>
+                {/* Pickup Time / Flight Number Section */}
+                <div className="flex-1 flex items-center px-4 sm:px-6 py-3 border-t md:border-t-0 min-h-[60px]">
+                  {renderBookingTypeInput()}
+                </div>
+              </>
+            )}
+
+            {/* Search Button */}
+            <div
+              className={`flex items-center justify-center ${
+                isCompact
+                  ? "flex-none py-2 pl-2 pr-2"
+                  : "px-4 sm:px-3 py-3 md:py-2 border-t md:border-t-0"
+              }`}
+            >
+              <Button
+                className={`rounded-full font-semibold bg-primary hover:bg-primary/90 transition-all duration-300 ${
+                  isCompact
+                    ? "h-9 w-9 p-0"
+                    : "w-full md:w-auto h-12 md:h-12 px-6 md:px-8 text-sm md:text-base"
+                }`}
+                onClick={handleSearch}
+                disabled={isSearching}
               >
-                <span className="text-sm font-semibold text-center">{option.label}</span>
-                <span className="text-xs text-gray-600 text-center">{option.duration}</span>
-              </TabsTrigger>
-            );
-          })}
-        </TabsList>
-      </Tabs>
+                {isSearching ? (
+                  <>
+                    <Loader2
+                      className={isCompact ? "h-4 w-4 animate-spin" : "h-5 w-5 animate-spin"}
+                    />
+                    {!isCompact && <span className="ml-2 md:hidden">Searching...</span>}
+                  </>
+                ) : (
+                  <>
+                    <Search
+                      className={isCompact ? "w-4 h-4" : "w-5 h-5 mr-2"}
+                      aria-label="Search"
+                    />
+                    {!isCompact && <span className="ml-2 md:hidden">Search</span>}
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
 
-      <DateRangePicker
-        className="w-74 md:w-full"
-        date={dateRange}
-        onDateChange={handleDateRangeChange}
-        singleDateMode={bookingType === AIRPORT_PICKUP_BOOKING_TYPE}
-        isNightBooking={bookingType === NIGHT_BOOKING_TYPE}
-        isFullDayBooking={bookingType === FULL_DAY_BOOKING_TYPE}
-        isAirportPickup={bookingType === AIRPORT_PICKUP_BOOKING_TYPE}
-      />
-
-      {renderBookingTypeInput()}
-
-      <Button className="w-full" onClick={handleSearch} disabled={isSearching}>
-        {isSearching ? (
-          <>
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            Searching...
-          </>
-        ) : (
-          "Search"
-        )}
-      </Button>
+        {/* Flight Validation Notice - Below the pill, hidden when compact */}
+        {!isCompact &&
+          bookingType === AIRPORT_PICKUP_BOOKING_TYPE &&
+          (validatedFlight || flightValidationError) && (
+            <div className="mt-4 px-2">
+              <FlightValidationNotice
+                validatedFlight={validatedFlight}
+                message={flightValidationError}
+                isWarning={isValidationWarning}
+              />
+            </div>
+          )}
+      </div>
     </div>
   );
 }

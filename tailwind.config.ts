@@ -11,7 +11,9 @@ export default {
         "3000": "3000ms",
       },
       fontFamily: {
+        sans: ["Plus Jakarta Sans", "sans-serif"],
         nunito: ["Nunito Sans", "sans-serif"],
+        jakarta: ["Plus Jakarta Sans", "sans-serif"],
         dancingscript: ["Dancing Script", "cursive"],
       },
       width: {

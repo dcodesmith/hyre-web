@@ -9,26 +9,30 @@ import {
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { data } from "@remix-run/node";
 import { Link, useLoaderData, useSearchParams } from "@remix-run/react";
-import { Fingerprint, LocateFixed, ShieldCheck, Star } from "lucide-react";
 import { fromZonedTime } from "date-fns-tz";
-import Carousel from "~/components/Carousel";
+import { Fingerprint, LocateFixed, ShieldCheck, Star } from "lucide-react";
 import { BookingSearch } from "~/components/BookingSearch";
 
 import logger from "~/lib/logger.server";
-import { LAGOS_TIMEZONE } from "~/utils/timezone";
 import { prisma } from "~/modules/db/db.server";
 import { availableCarsForSpecificRequest } from "~/services/availability-engine.server";
+import { LAGOS_TIMEZONE } from "~/utils/timezone";
 
-import type { SerializedCar } from "~/types";
-import { useCallback, useMemo } from "react";
-import { formatCurrency } from "~/lib/utils";
-import { calculateBookingUnits } from "~/lib/booking-utils";
-import { validateFlight } from "~/services/flight-validation.server";
+import { useCallback } from "react";
+import { CarCard } from "~/components/CarCard";
+import { CarouselSection } from "~/components/CarouselSection";
 import {
   AIRPORT_PICKUP_BOOKING_TYPE,
   FULL_DAY_BOOKING_TYPE,
   NIGHT_BOOKING_TYPE,
 } from "~/components/bookingTypes";
+import { useIsMobile } from "~/hooks/use-mobile";
+import { useCarCategories } from "~/hooks/useCarCategories";
+import { getHeroHeightClasses, useHeroScroll } from "~/hooks/useHeroScroll";
+import { calculateBookingUnits } from "~/lib/booking-utils";
+import { formatCurrency } from "~/lib/utils";
+import { validateFlight } from "~/services/flight-validation.server";
+import type { SerializedCar } from "~/types";
 
 interface PickupTimeWindow {
   specificFrom: Date;
@@ -441,40 +445,36 @@ export default function IndexPage() {
     [bookingType],
   );
 
-  const totalUnits = useMemo(
-    () => calculateBookingUnits(from, to, bookingType),
-    [from, to, bookingType],
-  );
+  const totalUnits = calculateBookingUnits(from, to, bookingType);
+
+  // Use extracted hook for car categorization (reduces cognitive complexity)
+  const categories = useCarCategories(cars, getRateForBookingType);
+
+  const hasSearchParams = from && to;
+
+  // Use the mobile hook for responsive behavior
+  const isMobile = useIsMobile();
+  const isDesktop = !isMobile;
+
+  // Scroll-based hero collapse behavior
+  const heroScrollState = useHeroScroll();
+  const { isDesktopCollapsed, isMobileTextHidden } = heroScrollState;
+  const {
+    mobileHeight,
+    desktopHeight,
+    containerClass: heroContainerClass,
+  } = getHeroHeightClasses(heroScrollState);
 
   return (
-    <div className="max-w-8xl mx-auto space-y-2 -mt-16">
-      <div className="grid grid-cols-1 lg:grid-cols-3 md:grid-cols-2 gap-2">
-        <div className="flex flex-col col-span-1">
-          <div className="mx-auto gap-2 flex py-12 md:pt-20 flex-col md:mt-4 mt-12">
-            <div className="w-64 text-3xl font-semibold">
-              Comfort. Safety. Professional. Every Ride.
-            </div>
-
-            <BookingSearch />
-
-            <div className="flex flex-col justify-center mt-4 gap-2">
-              <div className="flex items-center gap-2">
-                <LocateFixed className="h-4 w-4 text-blue-600" />
-                <span>Real-time location tracking</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <ShieldCheck className="h-4 w-4 text-orange-500" />
-                <span>Vetted chauffeurs</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Fingerprint className="h-4 w-4 text-green-600" />
-                <span>Secure Online Booking</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="relative lg:col-span-2 md:col-span-1 hidden md:block">
+    <div className="w-full">
+      {/* Hero Section - Fixed, collapses on desktop scroll */}
+      <div className={`w-full transition-all duration-300 ease-out ${heroContainerClass}`}>
+        {/* Hero Image - fades out when collapsed (desktop only) */}
+        <div
+          className={`absolute inset-0 transition-opacity duration-300 ${
+            isDesktopCollapsed ? "opacity-0" : "opacity-100"
+          }`}
+        >
           <picture>
             <source media="(min-width: 1024px)" srcSet="/images/hero.webp" type="image/webp" />
             <source media="(min-width: 768px)" srcSet="/images/hero-1200.webp" type="image/webp" />
@@ -482,54 +482,299 @@ export default function IndexPage() {
             <img
               src="/images/hero.png"
               alt="Professional chauffeur service - luxury vehicle ready for hire"
-              className="md:h-[648px] w-full object-cover"
+              className="w-full h-full object-cover"
               width="1024"
-              height="1024"
+              height="540"
               decoding="async"
             />
           </picture>
+          {/* Dark overlay for text readability */}
+          <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/30 to-black/60" />
+        </div>
+
+        {/* Collapsed header background (desktop only) */}
+        {isDesktop && (
+          <div
+            className={`absolute inset-0 bg-white border-b border-gray-200 transition-opacity duration-300 ${
+              isDesktopCollapsed ? "opacity-100" : "opacity-0"
+            }`}
+          />
+        )}
+
+        {/* Hero Content */}
+        <div
+          className={`relative z-10 flex flex-col items-center h-full px-4 max-w-4xl mx-auto transition-all duration-300 ${
+            isDesktopCollapsed ? "justify-center py-4" : "justify-center"
+          }`}
+        >
+          {/* Title & description - hide when scrolled (desktop full collapse, mobile text only) */}
+          <div
+            className={`transition-all duration-300 overflow-hidden ${
+              isDesktopCollapsed || isMobileTextHidden
+                ? "opacity-0 max-h-0 mb-0"
+                : "opacity-100 max-h-40 mb-6"
+            }`}
+          >
+            <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-white text-center mb-3">
+              Find your perfect ride
+            </h1>
+            <p className="text-base md:text-lg text-white/90 text-center max-w-2xl leading-relaxed">
+              Comfort. Safety. Professional service. Every ride.
+            </p>
+          </div>
+
+          {/* Search Box - always visible, adapts style on desktop collapse */}
+          <div
+            className={`w-full transition-all duration-300 ${isDesktopCollapsed ? "max-w-4xl" : "max-w-2xl"}`}
+          >
+            <BookingSearch isCompact={isDesktopCollapsed} />
+          </div>
+
+          {/* Trust Badges - hide when collapsed on desktop */}
+          <div
+            className={`flex flex-wrap justify-center gap-4 md:gap-6 text-white transition-all duration-300 overflow-hidden ${
+              isDesktopCollapsed ? "opacity-0 max-h-0 mt-0" : "opacity-100 max-h-20 mt-6"
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <LocateFixed className="h-4 w-4 md:h-5 md:w-5 text-blue-400" />
+              <span className="text-xs md:text-sm">Real-time tracking</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="h-4 w-4 md:h-5 md:w-5 text-green-400" />
+              <span className="text-xs md:text-sm">Vetted chauffeurs</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Fingerprint className="h-4 w-4 md:h-5 md:w-5 text-orange-400" />
+              <span className="text-xs md:text-sm">Secure booking</span>
+            </div>
+          </div>
         </div>
       </div>
 
-      {cars.length ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-2 gap-y-6">
-          {cars.map((car, index) => (
-            <Link key={car.id} to={`/cars/${car.id}?${searchParams.toString()}`}>
-              <div className="overflow-hidden space-y-2">
-                <Carousel
-                  images={car.images.length ? car.images.map(({ url }) => url) : undefined}
-                  priority={index < 3} // Only first 3 cars are above-the-fold
-                />
+      {/* Spacer for fixed hero - use responsive heights to match hero */}
+      <div className={`transition-all duration-300 ${mobileHeight} ${desktopHeight}`} />
 
-                <div className="space-y-1 font-semibold flex flex-col">
-                  <div className="flex justify-between items-center">
-                    <h3 className="text-base">
-                      {car.make} {car.model} ({car.year})
-                    </h3>
-                    <div className="flex items-center gap-1">
-                      <Star className="h-4 w-4 text-gray-400" />
-                    </div>
-                  </div>
-
-                  <div>
-                    {!from || !to ? (
-                      <span className="font-bold text-base">
-                        {formatCurrency(getRateForBookingType(car))}
-                      </span>
-                    ) : (
-                      <span className="font-bold text-base">
-                        {formatCurrency(getRateForBookingType(car) * totalUnits)}
-                      </span>
+      {/* Main Content Container - Scrolls underneath fixed hero */}
+      <div className="relative z-0 bg-white py-8 md:py-12">
+        {cars.length ? (
+          <div className="space-y-8">
+            {/* Show category carousel sections only when no search is active */}
+            {!hasSearchParams && (
+              <>
+                {/* Filter Pills */}
+                <div className="max-w-[1400px] mx-auto px-4 md:px-8">
+                  <div className="flex items-center gap-2 md:gap-3 overflow-x-auto scrollbar-hide pb-2">
+                    {categories.suvs.length > 0 && (
+                      <a
+                        href="#suvs"
+                        className="flex-shrink-0 px-3 md:px-4 py-1.5 md:py-2 rounded-full border border-gray-300 hover:border-gray-900 hover:bg-gray-50 transition-all text-xs md:text-sm font-medium whitespace-nowrap"
+                      >
+                        SUV ({categories.suvs.length})
+                      </a>
+                    )}
+                    {categories.luxury.length > 0 && (
+                      <a
+                        href="#luxury"
+                        className="flex-shrink-0 px-3 md:px-4 py-1.5 md:py-2 rounded-full border border-gray-300 hover:border-gray-900 hover:bg-gray-50 transition-all text-xs md:text-sm font-medium whitespace-nowrap"
+                      >
+                        Luxury ({categories.luxury.length})
+                      </a>
+                    )}
+                    {categories.executive.length > 0 && (
+                      <a
+                        href="#executive"
+                        className="flex-shrink-0 px-3 md:px-4 py-1.5 md:py-2 rounded-full border border-gray-300 hover:border-gray-900 hover:bg-gray-50 transition-all text-xs md:text-sm font-medium whitespace-nowrap"
+                      >
+                        Executive ({categories.executive.length})
+                      </a>
+                    )}
+                    {categories.budget.length > 0 && (
+                      <a
+                        href="#budget"
+                        className="flex-shrink-0 px-3 md:px-4 py-1.5 md:py-2 rounded-full border border-gray-300 hover:border-gray-900 hover:bg-gray-50 transition-all text-xs md:text-sm font-medium whitespace-nowrap"
+                      >
+                        Budget-friendly ({categories.budget.length})
+                      </a>
+                    )}
+                    {categories.popular.length > 0 && (
+                      <a
+                        href="#popular"
+                        className="flex-shrink-0 px-3 md:px-4 py-1.5 md:py-2 rounded-full border border-gray-300 hover:border-gray-900 hover:bg-gray-50 transition-all text-xs md:text-sm font-medium whitespace-nowrap"
+                      >
+                        Popular ({categories.popular.length})
+                      </a>
+                    )}
+                    {categories.sedans.length > 0 && (
+                      <a
+                        href="#sedans"
+                        className="flex-shrink-0 px-3 md:px-4 py-1.5 md:py-2 rounded-full border border-gray-300 hover:border-gray-900 hover:bg-gray-50 transition-all text-xs md:text-sm font-medium whitespace-nowrap"
+                      >
+                        Sedans ({categories.sedans.length})
+                      </a>
                     )}
                   </div>
                 </div>
+
+                {/* SUVs Section */}
+                {categories.suvs.length > 0 && (
+                  <CarouselSection title="SUV" id="suvs" href="#suvs">
+                    {categories.suvs.map((car, index) => (
+                      <CarCard
+                        key={car.id}
+                        car={car}
+                        searchParams={searchParams}
+                        priority={index < 5}
+                        price={getRateForBookingType(car)}
+                        showTotal={false}
+                      />
+                    ))}
+                  </CarouselSection>
+                )}
+
+                {/* Luxury Section */}
+                {categories.luxury.length > 0 && (
+                  <CarouselSection title="Luxury" id="luxury" href="#luxury">
+                    {categories.luxury.map((car) => (
+                      <CarCard
+                        key={car.id}
+                        car={car}
+                        searchParams={searchParams}
+                        priority={false}
+                        price={getRateForBookingType(car)}
+                        showTotal={false}
+                      />
+                    ))}
+                  </CarouselSection>
+                )}
+
+                {/* Executive Section */}
+                {categories.executive.length > 0 && (
+                  <CarouselSection title="Executive" id="executive" href="#executive">
+                    {categories.executive.map((car) => (
+                      <CarCard
+                        key={car.id}
+                        car={car}
+                        searchParams={searchParams}
+                        priority={false}
+                        price={getRateForBookingType(car)}
+                        showTotal={false}
+                      />
+                    ))}
+                  </CarouselSection>
+                )}
+
+                {/* Budget-Friendly Section */}
+                {categories.budget.length > 0 && (
+                  <CarouselSection title="Budget-friendly" id="budget" href="#budget">
+                    {categories.budget.map((car) => (
+                      <CarCard
+                        key={car.id}
+                        car={car}
+                        searchParams={searchParams}
+                        priority={false}
+                        price={getRateForBookingType(car)}
+                        showTotal={false}
+                      />
+                    ))}
+                  </CarouselSection>
+                )}
+
+                {/* Popular Section */}
+                {categories.popular.length > 0 && (
+                  <CarouselSection title="Popular" id="popular" href="#popular">
+                    {categories.popular.map((car) => (
+                      <CarCard
+                        key={car.id}
+                        car={car}
+                        searchParams={searchParams}
+                        priority={false}
+                        price={getRateForBookingType(car)}
+                        showTotal={false}
+                      />
+                    ))}
+                  </CarouselSection>
+                )}
+
+                {/* Sedans Section */}
+                {categories.sedans.length > 0 && (
+                  <CarouselSection title="Sedans" id="sedans" href="#sedans">
+                    {categories.sedans.map((car) => (
+                      <CarCard
+                        key={car.id}
+                        car={car}
+                        searchParams={searchParams}
+                        priority={false}
+                        price={getRateForBookingType(car)}
+                        showTotal={false}
+                      />
+                    ))}
+                  </CarouselSection>
+                )}
+              </>
+            )}
+
+            {/* All Vehicles Section - Grid for search results, Carousel for browsing */}
+            {hasSearchParams ? (
+              <div className="max-w-7xl mx-auto px-4 md:px-6 lg:px-8">
+                <section>
+                  <div className="flex justify-between items-center mb-6">
+                    <div>
+                      <h2 className="text-2xl md:text-3xl font-semibold">
+                        Available for your dates
+                      </h2>
+                      <p className="text-gray-600 mt-1">
+                        {categories.allCars.length}{" "}
+                        {categories.allCars.length === 1 ? "vehicle" : "vehicles"} available
+                      </p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {categories.allCars.map((car, index) => (
+                      <CarCard
+                        key={car.id}
+                        car={car}
+                        searchParams={searchParams}
+                        priority={index < 3}
+                        price={getRateForBookingType(car)}
+                        showTotal={true}
+                        totalPrice={getRateForBookingType(car) * totalUnits}
+                        variant="grid"
+                      />
+                    ))}
+                  </div>
+                </section>
               </div>
-            </Link>
-          ))}
-        </div>
-      ) : (
-        <div>No cars matching your search criteria.</div>
-      )}
+            ) : (
+              <CarouselSection title="All vehicles" href="#">
+                {categories.allCars.map((car, index) => (
+                  <CarCard
+                    key={car.id}
+                    car={car}
+                    searchParams={searchParams}
+                    priority={index < 5}
+                    price={getRateForBookingType(car)}
+                    showTotal={false}
+                  />
+                ))}
+              </CarouselSection>
+            )}
+          </div>
+        ) : (
+          <div className="max-w-7xl mx-auto px-4 md:px-6 lg:px-8">
+            <div className="text-center py-16">
+              <p className="text-xl text-gray-600 mb-4">No cars available for your search</p>
+              <p className="text-gray-500 mb-6">Try adjusting your dates or booking type</p>
+              <Link
+                to="/"
+                className="inline-block px-6 py-3 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors"
+              >
+                Browse all vehicles
+              </Link>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
