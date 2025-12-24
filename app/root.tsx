@@ -19,6 +19,7 @@ import { AuthenticityTokenProvider } from "remix-utils/csrf/react";
 import tailwindStyles from "~/tailwind.css?url";
 import { csrf } from "~/utils/csrf.server";
 import Forbidden from "./components/layout/Forbidden";
+import { Footer } from "./components/layout/Footer";
 import { MobileBottomNav } from "./components/layout/MobileBottomNav";
 import { UserNav } from "./components/layout/UserNav";
 import { Toaster } from "./components/ui/toaster";
@@ -171,15 +172,11 @@ function AppContent() {
             </header>
           )}
 
-          <main className={`flex-grow pb-20 md:pb-4 text-sm ${getMainClassName()}`}>
+          <main className={`flex-grow pb-20 md:pb-0 text-sm ${getMainClassName()}`}>
             <Outlet />
           </main>
 
-          {!isAuthPage && (
-            <footer className="text-sm text-black py-4 text-center">
-              © {new Date().getFullYear()} {ENV.APP_NAME}. All rights reserved.
-            </footer>
-          )}
+          {!isAuthPage && <Footer appName={ENV.APP_NAME} />}
         </div>
 
         {/* Mobile bottom navigation - hidden on login/verify pages */}
