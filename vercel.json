@@ -8,6 +8,23 @@
   ],
   "headers": [
     {
+      "source": "/(.*)\\.(css|js|mjs|png|jpg|jpeg|gif|svg|webp|woff|woff2|ttf|eot|ico|json|txt|xml|map)",
+      "headers": [
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "SAMEORIGIN"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        }
+      ]
+    },
+    {
       "source": "/api/(.*)",
       "headers": [
         {
