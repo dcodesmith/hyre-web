@@ -129,7 +129,11 @@ export default function IndexPage() {
       )}
 
       {/* Mobile Search Modal */}
-      <SearchModal isOpen={isSearchModalOpen} onClose={() => setIsSearchModalOpen(false)} />
+      <SearchModal
+        isOpen={isSearchModalOpen}
+        onClose={() => setIsSearchModalOpen(false)}
+        navigateToSearch
+      />
 
       {/* Hero Section - Fixed on desktop, relative on mobile */}
       <div className={`w-full transition-all duration-300 ease-out ${heroContainerClass}`}>

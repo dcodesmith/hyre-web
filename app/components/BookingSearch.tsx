@@ -363,13 +363,15 @@ export function BookingSearch({
         setFlightValidationError(null);
         setIsValidationWarning(false);
 
-        // Update URL immediately for booking type only
-        const newSearchParams = new URLSearchParams();
-        newSearchParams.set("bookingType", newBookingType);
-        setSearchParams(newSearchParams, { replace: true, preventScrollReset: true });
+        // Only update URL if not navigating to /search (homepage should stay clean)
+        if (!navigateToSearch) {
+          const newSearchParams = new URLSearchParams();
+          newSearchParams.set("bookingType", newBookingType);
+          setSearchParams(newSearchParams, { replace: true, preventScrollReset: true });
+        }
       }
     },
-    [setSearchParams],
+    [navigateToSearch, setSearchParams],
   );
 
   const handlePickupTimeChange = useCallback((value: string) => {
@@ -415,8 +417,20 @@ export function BookingSearch({
     // Set flag to show loading indicator
     setIsSearchClicked(true);
 
+    // Start with existing filter params (serviceTier, vehicleType) to preserve them
     const newSearchParams = new URLSearchParams();
 
+    // Preserve existing category filters when on search page
+    const existingServiceTier = searchParams.get("serviceTier");
+    const existingVehicleType = searchParams.get("vehicleType");
+    if (existingServiceTier) {
+      newSearchParams.set("serviceTier", existingServiceTier);
+    }
+    if (existingVehicleType) {
+      newSearchParams.set("vehicleType", existingVehicleType);
+    }
+
+    // Set booking params
     newSearchParams.set("bookingType", bookingType);
 
     if (dateRange.from) {
@@ -452,6 +466,7 @@ export function BookingSearch({
     navigateToSearch,
     navigate,
     setSearchParams,
+    searchParams,
   ]);
 
   const bookingTypeInputProps = {

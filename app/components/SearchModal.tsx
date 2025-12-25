@@ -5,6 +5,8 @@ import { Dialog, DialogContent } from "./ui/dialog";
 interface SearchModalProps {
   readonly isOpen: boolean;
   readonly onClose: () => void;
+  /** When true, navigates to /search route instead of updating current page URL params */
+  readonly navigateToSearch?: boolean;
 }
 
 const dialogContentClasses = cn(
@@ -19,12 +21,12 @@ const dialogContentClasses = cn(
   "md:data-[state=open]:slide-in-from-top-[48%]",
 );
 
-export function SearchModal({ isOpen, onClose }: SearchModalProps) {
+export function SearchModal({ isOpen, onClose, navigateToSearch = false }: SearchModalProps) {
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className={dialogContentClasses}>
         <div className="overflow-y-auto px-4 py-6 flex-1">
-          <BookingSearch isCompact={false} context="modal" />
+          <BookingSearch isCompact={false} context="modal" navigateToSearch={navigateToSearch} />
         </div>
       </DialogContent>
     </Dialog>
