@@ -265,7 +265,7 @@ export function MobileBottomNav({ user, appName, onProfileOpen }: MobileBottomNa
   // Unauthenticated user navigation
   return (
     <div className={containerClass}>
-      <div className="flex items-center justify-center max-w-md mx-auto px-6 py-2 min-h-[52px]">
+      <div className="flex items-center justify-around max-w-md mx-auto px-24 py-2 min-h-[52px]">
         <NavItem to="/" icon={<Home size={16} />} label={appName} isActive={isHomeActive} />
 
         <NavItem to="/auth" icon={<LogIn size={16} />} label="Log in" />
