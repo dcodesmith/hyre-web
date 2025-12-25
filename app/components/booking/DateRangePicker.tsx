@@ -1,4 +1,5 @@
 import { addDays, format, startOfDay, startOfToday } from "date-fns";
+import { ChevronsDownUp, ChevronsUpDown } from "lucide-react";
 import { useState } from "react";
 import { DateRange } from "react-day-picker";
 import { Button } from "~/components/ui/button";
@@ -45,11 +46,12 @@ interface DateRangePickerProps {
   readonly className?: string;
   readonly isNightBooking?: boolean;
   readonly isFullDayBooking?: boolean;
-  readonly isAirportPickup?: boolean; // New prop for airport pickup bookings
+  readonly isAirportPickup?: boolean;
   readonly onOpenChange?: (open: boolean) => void;
-  readonly singleDateMode?: boolean; // New prop to enable single date selection
-  readonly disableToday?: boolean; // Disable today's date selection
-  readonly isCompact?: boolean; // Compact mode for collapsed header
+  readonly singleDateMode?: boolean;
+  readonly disableToday?: boolean;
+  readonly isCompact?: boolean;
+  readonly showLabel?: boolean;
 }
 
 export function DateRangePicker({
@@ -63,6 +65,7 @@ export function DateRangePicker({
   singleDateMode = false,
   disableToday = false,
   isCompact = false,
+  showLabel = true,
 }: DateRangePickerProps) {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -130,32 +133,61 @@ export function DateRangePicker({
     }
   };
 
+  // Shared display logic for both button variants
+  const hasDate = !!normalizedDate.from;
+  const displayFormat = showLabel ? "MMM dd" : "LLL dd, y";
+  const formattedDate = formatDateDisplay(
+    normalizedDate.from,
+    normalizedDate.to,
+    singleDateMode,
+    displayFormat,
+  );
+  const label = singleDateMode ? "Date" : "Dates";
+
+  const getPlaceholder = () => {
+    if (singleDateMode) return showLabel ? "Select date" : "Pick a date";
+    return showLabel ? "Select dates" : "Pick a date range";
+  };
+  const placeholder = getPlaceholder();
+
   return (
     <div className={cn("w-full", className)}>
       <Popover open={isOpen} onOpenChange={handleOpenChange}>
         <PopoverTrigger asChild>
-          <Button
-            id="date"
-            variant={"ghost"}
-            onClick={() => setIsOpen(!isOpen)}
-            className={cn(
-              "w-full text-left font-normal px-0 hover:bg-transparent flex flex-col items-start justify-center",
-              isCompact ? "h-auto gap-0.5" : "h-[38px]",
-              !normalizedDate.from && "text-muted-foreground",
-            )}
-          >
-            <span className="text-xs font-semibold text-gray-700 leading-tight">
-              {singleDateMode ? "Date" : "Dates"}
-            </span>
-            <div className="text-sm text-gray-900 leading-tight">
-              {formatDateDisplay(
-                normalizedDate.from,
-                normalizedDate.to,
-                singleDateMode,
-                "MMM dd",
-              ) ?? <span className="text-gray-400">Select dates</span>}
-            </div>
-          </Button>
+          {showLabel ? (
+            <Button
+              id="date"
+              variant="ghost"
+              className={cn(
+                "w-full text-left font-normal hover:bg-transparent flex flex-col items-start justify-center",
+                isCompact ? "h-auto gap-0.5 px-0" : "h-10 px-0",
+                !hasDate && "text-muted-foreground",
+              )}
+            >
+              <span className="text-xs font-semibold text-gray-700 leading-tight">{label}</span>
+              <div
+                className={cn("text-sm leading-tight", hasDate ? "text-gray-900" : "text-gray-400")}
+              >
+                {formattedDate ?? placeholder}
+              </div>
+            </Button>
+          ) : (
+            <Button
+              id="date"
+              variant="outline"
+              className={cn(
+                "w-full justify-start text-left font-normal px-3",
+                !hasDate && "text-muted-foreground",
+              )}
+            >
+              {formattedDate ?? <span>{placeholder}</span>}
+              {isOpen ? (
+                <ChevronsDownUp className="h-4 w-4 ml-auto" />
+              ) : (
+                <ChevronsUpDown className="h-4 w-4 ml-auto" />
+              )}
+            </Button>
+          )}
         </PopoverTrigger>
         <PopoverContent className="w-auto p-0" align="start">
           <div className="flex flex-col w-auto">

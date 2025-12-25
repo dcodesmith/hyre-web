@@ -1,12 +1,15 @@
 import { MouseEvent, useState, useRef, TouchEvent } from "react";
 import { Button } from "./ui/button";
+import { cn } from "~/lib/utils";
 
 interface CarouselProps {
   readonly images?: string[];
+  readonly variant?: "carousel" | "booking";
   readonly priority?: boolean; // Add priority prop for above-the-fold images
 }
 
 export default function Carousel({
+  variant = "carousel",
   images = [
     "https://picsum.photos/seed/1/800/600",
     "https://picsum.photos/seed/2/800/600",
@@ -95,7 +98,10 @@ export default function Carousel({
     <div
       aria-label="Car images"
       aria-roledescription="Carousel"
-      className="relative group overflow-hidden rounded-xl touch-pan-y select-none"
+      className={cn(
+        "relative group overflow-hidden rounded-xl touch-pan-y select-none",
+        variant === "booking" && "rounded-t-none",
+      )}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}

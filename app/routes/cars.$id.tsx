@@ -193,6 +193,7 @@ export default function CarDetails() {
         <div className="flex flex-col gap-4">
           <div className="relative">
             <CarCarousel
+              variant="booking"
               images={car.images.length > 0 ? car.images.map(({ url }) => url) : undefined}
             />
             {/* Mobile-only back button overlay */}

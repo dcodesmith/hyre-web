@@ -754,6 +754,7 @@ export default function BookingCard({
                 singleDateMode={bookingType === AIRPORT_PICKUP_BOOKING_TYPE}
                 date={dateRange}
                 onDateChange={handleDateChange}
+                showLabel={false}
               />
             </div>
             {totalDays > 0 && !isAvailable && (
