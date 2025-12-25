@@ -14,9 +14,68 @@ import { CarouselSection } from "~/components/CarouselSection";
 import { CompactSearchBar } from "~/components/CompactSearchBar";
 import { SearchModal } from "~/components/SearchModal";
 import { useIsMobile } from "~/hooks/use-mobile";
-import { useCarCategories } from "~/hooks/useCarCategories";
 import { getHeroHeightClasses, useHeroScroll } from "~/hooks/useHeroScroll";
+import { ServiceTiers, VehicleTypes } from "~/types";
 import type { SerializedCar } from "~/types";
+
+/** Minimum number of cars needed to show a category */
+const MIN_CATEGORY_SIZE = 3;
+
+/** Popular car makes for the "Popular" category */
+const POPULAR_MAKES = new Set(["toyota", "honda", "lexus"]);
+
+interface CarCategories {
+  suvs: SerializedCar[];
+  luxury: SerializedCar[];
+  budget: SerializedCar[];
+  sedans: SerializedCar[];
+  executive: SerializedCar[];
+  popular: SerializedCar[];
+  allCars: SerializedCar[];
+}
+
+/**
+ * Categorizes cars into meaningful groups for display
+ * Uses database fields (serviceTier, vehicleType) for categorization
+ */
+function categorizeCars(cars: SerializedCar[]): CarCategories {
+  // SUVs - Filter by vehicleType
+  const suvs = cars.filter(
+    (car) => car.vehicleType === VehicleTypes.SUV || car.vehicleType === VehicleTypes.LUXURY_SUV,
+  );
+
+  // Luxury - Filter by serviceTier (LUXURY or ULTRA_LUXURY)
+  const luxury = cars.filter(
+    (car) =>
+      car.serviceTier === ServiceTiers.LUXURY || car.serviceTier === ServiceTiers.ULTRA_LUXURY,
+  );
+
+  // Budget-Friendly - Filter by STANDARD tier
+  const budget = cars.filter((car) => car.serviceTier === ServiceTiers.STANDARD);
+
+  // Sedans - Filter by vehicleType
+  const sedans = cars.filter(
+    (car) =>
+      car.vehicleType === VehicleTypes.SEDAN || car.vehicleType === VehicleTypes.LUXURY_SEDAN,
+  );
+
+  // Executive - Filter by serviceTier
+  const executive = cars.filter((car) => car.serviceTier === ServiceTiers.EXECUTIVE);
+
+  // Popular - Filter by common makes (Toyota, Honda, Lexus)
+  const popular = cars.filter((car) => POPULAR_MAKES.has(car.make.toLowerCase()));
+
+  // Only return categories with enough cars
+  return {
+    suvs: suvs.length >= MIN_CATEGORY_SIZE ? suvs : [],
+    luxury: luxury.length >= MIN_CATEGORY_SIZE ? luxury : [],
+    budget: budget.length >= MIN_CATEGORY_SIZE ? budget : [],
+    sedans: sedans.length >= MIN_CATEGORY_SIZE ? sedans : [],
+    executive: executive.length >= MIN_CATEGORY_SIZE ? executive : [],
+    popular: popular.length >= MIN_CATEGORY_SIZE ? popular : [],
+    allCars: cars,
+  };
+}
 
 // Preload hero image only for home page - use WebP with responsive fallback
 export const links = () => [
@@ -41,7 +100,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
   try {
     const startTime = Date.now();
 
-    // Simple query: fetch approved, available cars for category display
     const cars = await prisma.car.findMany({
       where: {
         status: { in: [Status.AVAILABLE, Status.BOOKED] },
@@ -72,11 +130,13 @@ export async function loader({ request }: LoaderFunctionArgs) {
       take: 100,
     });
 
+    const categories = categorizeCars(cars as unknown as SerializedCar[]);
+
     const totalTime = Date.now() - startTime;
     logger.info("[HOME] Cars query completed", { ms: totalTime, count: cars.length });
 
     return data(
-      { cars },
+      { categories },
       {
         headers: {
           "Cache-Control": "public, max-age=300, stale-while-revalidate=1800",
@@ -90,21 +150,32 @@ export async function loader({ request }: LoaderFunctionArgs) {
       "[HOME] Error in loader:",
       error instanceof Error ? error.message : "Unknown error",
     );
-    return data({ cars: [] }, { status: 500, headers: { "Cache-Control": "no-store" } });
+    return data(
+      {
+        categories: {
+          suvs: [],
+          luxury: [],
+          budget: [],
+          sedans: [],
+          executive: [],
+          popular: [],
+          allCars: [],
+        },
+      },
+      { status: 500, headers: { "Cache-Control": "no-store" } },
+    );
   }
 }
 
 type LoaderData = {
-  cars: SerializedCar[];
+  categories: CarCategories;
 };
 
 export default function IndexPage() {
-  const { cars } = useLoaderData<LoaderData>();
+  const { categories } = useLoaderData<LoaderData>();
 
-  // Use extracted hook for car categorization
   // Use dayRate for default price display on homepage
   const getRateForDisplay = (car: SerializedCar) => car.dayRate;
-  const categories = useCarCategories(cars, getRateForDisplay);
 
   // Use the mobile hook for responsive behavior
   const isMobile = useIsMobile();
@@ -225,7 +296,7 @@ export default function IndexPage() {
 
       {/* Main Content Container - Scrolls underneath fixed hero */}
       <div className="relative z-0 bg-white py-8 md:py-12">
-        {cars.length ? (
+        {categories.allCars.length ? (
           <div className="space-y-8">
             {/* Category Filter Pills - Link to /search with filters */}
             <div className="max-w-[1400px] mx-auto px-4 md:px-8">

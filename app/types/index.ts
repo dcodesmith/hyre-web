@@ -1,11 +1,4 @@
-import type {
-  Car,
-  ChauffeurApprovalStatus,
-  DocumentApproval,
-  Prisma,
-  VehicleType,
-  ServiceTier,
-} from "@prisma/client";
+import type { Car, ChauffeurApprovalStatus, DocumentApproval, Prisma } from "@prisma/client";
 
 // Re-export Prisma enums as runtime values for frontend use
 export const VehicleTypes = {
@@ -36,6 +29,10 @@ export const VEHICLE_TYPES = [
 
 export const SERVICE_TIERS = ["STANDARD", "EXECUTIVE", "LUXURY", "ULTRA_LUXURY"] as const;
 
+// Derive types from const objects
+export type VehicleType = (typeof VehicleTypes)[keyof typeof VehicleTypes];
+export type ServiceTier = (typeof ServiceTiers)[keyof typeof ServiceTiers];
+
 export const vehicleTypeLabels: Record<VehicleType, string> = {
   SEDAN: "Sedan",
   SUV: "SUV",
@@ -52,9 +49,6 @@ export const serviceTierLabels: Record<ServiceTier, string> = {
   ULTRA_LUXURY: "Ultra Luxury",
 };
 
-// Re-export types (using local import to avoid circular dependency issues)
-export type { VehicleType, ServiceTier };
-
 // Re-export as runtime value
 export const AddonType = {
   SECURITY_DETAIL: "SECURITY_DETAIL",
@@ -68,6 +62,9 @@ export type SerializedCar = Omit<Car, "createdAt" | "updatedAt"> & {
   updatedAt: string;
   fuelUpgradeRate: number;
   airportPickupRate: number;
+  // Explicitly include vehicle categorization fields for TypeScript
+  vehicleType: VehicleType;
+  serviceTier: ServiceTier;
   owner: {
     username: string | null;
     name: string | null;

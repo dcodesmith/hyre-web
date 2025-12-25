@@ -68,10 +68,10 @@ export function CarCard({
           </button>
         </div>
 
-        <div className="space-y-1.5">
+        <div className="space-y-1">
           <div className="flex justify-between items-start">
             <div className="flex-1">
-              <h3 className="text-xs md:text-sm font-semibold group-hover:underline">
+              <h3 className="text-sm md:text-base font-semibold tracking-wider">
                 {car.make} {car.model} ({car.year})
               </h3>
             </div>
