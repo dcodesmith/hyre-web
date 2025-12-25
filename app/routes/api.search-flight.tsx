@@ -208,9 +208,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
       case "alreadyLanded": {
         // This is informational, not an error - the flight exists but has already landed
-        const message = result.nextFlightDate
-          ? `Flight ${result.flightNumber} has already landed at ${result.landedTime}. The next ${result.flightNumber} flight arrives on ${result.nextFlightDate}.`
-          : `Flight ${result.flightNumber} has already landed at ${result.landedTime}.`;
+        const message = `${result.flightNumber} already landed at ${result.landedTime}`;
 
         logger.info(
           `[API /api/search-flight] Flight ${result.flightNumber} has already landed on ${result.requestedDate} at ${result.landedTime}`,
@@ -237,7 +235,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         return Response.json(
           {
             success: false,
-            error: `Flight ${flightNumber.toUpperCase()} not found landing on ${pickupDate}. Please verify the flight number and date.`,
+            error: `${flightNumber.toUpperCase()} not found. Verify the flight number and try again.`,
           },
           {
             status: 404,

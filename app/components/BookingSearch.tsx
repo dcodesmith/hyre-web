@@ -81,10 +81,10 @@ function BookingTypeTabs({
               }`}
               value={option.value}
             >
-              <span className="text-xs sm:text-sm md:text-sm font-semibold text-center whitespace-nowrap">
+              <span className="text-sm font-semibold text-center whitespace-nowrap">
                 {option.label}
               </span>
-              <span className="text-[10px] sm:text-[11px] md:text-xs opacity-80 text-center whitespace-nowrap">
+              <span className="text-xs opacity-80 text-center whitespace-nowrap">
                 {option.duration}
               </span>
             </TabsTrigger>
@@ -93,64 +93,6 @@ function BookingTypeTabs({
       </TabsList>
     </Tabs>
   );
-}
-
-type FlightValidationNoticeProps = {
-  readonly validatedFlight: ValidatedFlight | null;
-  readonly message: string | null;
-  readonly isWarning?: boolean;
-};
-
-function FlightValidationNotice({
-  validatedFlight,
-  message,
-  isWarning = false,
-}: FlightValidationNoticeProps) {
-  // Show validated flight info with optional warning
-  if (validatedFlight) {
-    return (
-      <div className="w-74 flex flex-col gap-2 text-xs">
-        {/* Flight info */}
-        <div className="flex items-center justify-center text-gray-600 min-h-10">
-          <div className="flex items-center text-center gap-2 flex-col">
-            <span className="text-green-700">
-              {validatedFlight.originIATA || validatedFlight.origin} →{" "}
-              {validatedFlight.destinationIATA || validatedFlight.destination} ( Arrives at{" "}
-              {new Date(
-                validatedFlight.actualArrival ||
-                  validatedFlight.estimatedArrival ||
-                  validatedFlight.scheduledArrival,
-              ).toLocaleTimeString("en-US", {
-                timeZone: "Africa/Lagos",
-                hour: "numeric",
-                minute: "2-digit",
-                hour12: true,
-              })}{" "}
-              local time )
-            </span>
-            {message && isWarning && <p>{message}</p>}
-          </div>
-
-          {validatedFlight.delay && validatedFlight.delay > 0 && (
-            <p className="text-xs text-orange-600 mt-1">
-              Delayed by {validatedFlight.delay} minutes
-            </p>
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  // Show informational or error message (flight not found, doesn't fly to Lagos, etc.)
-  if (message) {
-    return (
-      <div className="w-74 flex items-center justify-center text-xs text-gray-600 h-10">
-        <p className="text-xs text-gray-700">{message}</p>
-      </div>
-    );
-  }
-
-  return null;
 }
 
 interface BookingTypeInputProps {
@@ -163,6 +105,8 @@ interface BookingTypeInputProps {
   readonly onFlightNumberSelect: (value: string) => void;
   readonly onFlightValidated: (flight: ValidatedFlight | null) => void;
   readonly onValidationError: (message: string | null, isWarning: boolean) => void;
+  readonly validatedFlight?: ValidatedFlight | null;
+  readonly validationMessage?: string | null;
 }
 
 function BookingTypeInput({
@@ -175,6 +119,8 @@ function BookingTypeInput({
   onFlightNumberSelect,
   onFlightValidated,
   onValidationError,
+  validatedFlight,
+  validationMessage,
 }: BookingTypeInputProps) {
   const containerClass = "w-full h-[38px] flex flex-col justify-center";
   const labelClass = "text-xs font-semibold text-gray-700 leading-tight";
@@ -190,29 +136,63 @@ function BookingTypeInput({
   }
 
   if (bookingType === AIRPORT_PICKUP_BOOKING_TYPE) {
+    // Build validation notice content
+    let validationContent: React.ReactNode = null;
+    if (validatedFlight) {
+      const arrivalTime = formatInTimeZone(
+        new Date(
+          validatedFlight.actualArrival ??
+            validatedFlight.estimatedArrival ??
+            validatedFlight.scheduledArrival,
+        ),
+        LAGOS_TIMEZONE,
+        "h:mm a",
+      );
+      validationContent = (
+        <span className="text-green-600">
+          ✓ {validatedFlight.originIATA || validatedFlight.origin} →{" "}
+          {validatedFlight.destinationIATA || validatedFlight.destination} • {arrivalTime}
+        </span>
+      );
+    } else if (validationMessage) {
+      validationContent = <span className="text-gray-500">{validationMessage}</span>;
+    }
+
     return (
       <div className={containerClass}>
-        <span className={labelClass}>Flight Number</span>
-        <AutocompleteFlight
-          id="flightNumber"
-          onSelect={onFlightNumberSelect}
-          inputProps={{
-            value: flightNumber || "",
-            onChange: (e) => onFlightNumberChange(e.target.value),
-            placeholder: "e.g. BA123",
-          }}
-          initialValue={flightNumber}
-          className="w-full h-5 placeholder-gray-400 border-0 px-0 py-0 focus:ring-0 shadow-none bg-transparent hover:bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 text-sm leading-tight"
-          nigeriaOnly={true}
-          pickupDate={
-            dateRange.from
-              ? formatInTimeZone(dateRange.from, LAGOS_TIMEZONE, "yyyy-MM-dd")
-              : undefined
-          }
-          showValidation={false}
-          onFlightValidated={onFlightValidated}
-          onValidationError={onValidationError}
-        />
+        {/* Two-column layout: left (label+input), right (validation message) */}
+        <div className="flex items-start gap-2">
+          {/* Left column: Label + Input - takes full width when no message */}
+          <div className={`flex flex-col min-w-0 ${validationContent ? "w-[45%]" : "flex-1"}`}>
+            <span className={labelClass}>Flight Number</span>
+            <AutocompleteFlight
+              id="flightNumber"
+              onSelect={onFlightNumberSelect}
+              inputProps={{
+                value: flightNumber || "",
+                onChange: (e) => onFlightNumberChange(e.target.value),
+                placeholder: "e.g. BA123",
+              }}
+              initialValue={flightNumber}
+              className="w-full h-5 placeholder-gray-400 border-0 px-0 py-0 focus:ring-0 shadow-none bg-transparent hover:bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 text-sm leading-tight"
+              nigeriaOnly={true}
+              pickupDate={
+                dateRange.from
+                  ? formatInTimeZone(dateRange.from, LAGOS_TIMEZONE, "yyyy-MM-dd")
+                  : undefined
+              }
+              showValidation={false}
+              onFlightValidated={onFlightValidated}
+              onValidationError={onValidationError}
+            />
+          </div>
+          {/* Right column: Validation message */}
+          {validationContent && (
+            <div className="flex-1 text-xs leading-tight text-right pt-0.5">
+              {validationContent}
+            </div>
+          )}
+        </div>
       </div>
     );
   }
@@ -292,7 +272,6 @@ export function BookingSearch({
   const [isSearchClicked, setIsSearchClicked] = useState(false);
   const [validatedFlight, setValidatedFlight] = useState<ValidatedFlight | null>(null);
   const [flightValidationError, setFlightValidationError] = useState<string | null>(null);
-  const [isValidationWarning, setIsValidationWarning] = useState(false);
 
   // Check if page is loading/searching - only show loading if user clicked Search button
   const isSearching = navigation.state === "loading" && isSearchClicked;
@@ -364,7 +343,6 @@ export function BookingSearch({
         setFlightNumber(undefined);
         setValidatedFlight(null);
         setFlightValidationError(null);
-        setIsValidationWarning(false);
 
         // Only update URL if not navigating to /search (homepage should stay clean)
         if (!navigateToSearch) {
@@ -388,7 +366,6 @@ export function BookingSearch({
     // Clear validation when user manually types (not when autocomplete selects)
     setValidatedFlight(null);
     setFlightValidationError(null);
-    setIsValidationWarning(false);
   }, []);
 
   const handleFlightNumberSelect = useCallback((value: string) => {
@@ -402,18 +379,15 @@ export function BookingSearch({
     setDateRange(newDateRange);
     setValidatedFlight(null);
     setFlightValidationError(null);
-    setIsValidationWarning(false);
   }, []);
 
   const handleFlightValidated = useCallback((flight: ValidatedFlight | null) => {
     setValidatedFlight(flight);
     setFlightValidationError(null);
-    setIsValidationWarning(false);
   }, []);
 
-  const handleValidationError = useCallback((message: string | null, isWarning: boolean) => {
+  const handleValidationError = useCallback((message: string | null, _isWarning: boolean) => {
     setFlightValidationError(message);
-    setIsValidationWarning(isWarning);
   }, []);
 
   const handleSearch = useCallback(() => {
@@ -485,6 +459,8 @@ export function BookingSearch({
     onFlightNumberSelect: handleFlightNumberSelect,
     onFlightValidated: handleFlightValidated,
     onValidationError: handleValidationError,
+    validatedFlight,
+    validationMessage: flightValidationError,
   };
 
   return (
@@ -576,19 +552,6 @@ export function BookingSearch({
             <SearchButton isCompact={isCompact} isSearching={isSearching} onClick={handleSearch} />
           </div>
         </div>
-
-        {/* Flight Validation Notice - Below the pill, hidden when compact */}
-        {!isCompact &&
-          bookingType === AIRPORT_PICKUP_BOOKING_TYPE &&
-          (validatedFlight || flightValidationError) && (
-            <div className="mt-4 px-2">
-              <FlightValidationNotice
-                validatedFlight={validatedFlight}
-                message={flightValidationError}
-                isWarning={isValidationWarning}
-              />
-            </div>
-          )}
       </div>
     </div>
   );

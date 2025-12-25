@@ -60,7 +60,7 @@ export function CarouselSection({ title, href = "#", id, children }: CarouselSec
       <div className="mb-4">
         <div className="flex justify-between items-center">
           <Link to={href} className="group inline-flex items-center gap-2">
-            <h2 className="text-lg md:text-[20px] font-semibold group-hover:underline">{title}</h2>
+            <h2 className="text-lg md:text-xl font-semibold group-hover:underline">{title}</h2>
             <span className="inline-flex items-center justify-center h-8 w-8 border border-input bg-background rounded-full p-1.5 group-hover:border-gray-900 transition-colors">
               <ArrowRight className="h-4 w-4" />
             </span>

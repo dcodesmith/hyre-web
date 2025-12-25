@@ -71,7 +71,7 @@ export function CarCard({
         <div className="space-y-1">
           <div className="flex justify-between items-start">
             <div className="flex-1">
-              <h3 className="text-sm md:text-base font-semibold tracking-wider">
+              <h3 className="text-xs md:text-sm font-semibold tracking-wider">
                 {car.make} {car.model} ({car.year})
               </h3>
             </div>
@@ -80,15 +80,15 @@ export function CarCard({
           <div className="flex items-baseline gap-1">
             {showTotal && totalPrice ? (
               <>
-                <span className="font-semibold text-sm md:text-base">
+                <span className="font-semibold text-xs md:text-sm">
                   {formatCurrency(totalPrice)}
                 </span>
-                <span className="text-[10px] md:text-xs text-gray-600">total</span>
+                <span className="text-xs md:text-sm text-gray-600">total</span>
               </>
             ) : (
               <>
-                <span className="font-semibold text-sm md:text-base">{formatCurrency(price)}</span>
-                <span className="text-[10px] md:text-xs text-gray-600">{priceLabel}</span>
+                <span className="font-semibold text-xs md:text-sm">{formatCurrency(price)}</span>
+                <span className="text-xs md:text-sm text-gray-600">{priceLabel}</span>
               </>
             )}
           </div>

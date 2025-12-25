@@ -281,7 +281,7 @@ export default function IndexPage() {
             </div>
             <div className="flex items-center gap-2">
               <ShieldCheck className="h-4 w-4 md:h-5 md:w-5 text-green-400" />
-              <span className="text-xs md:text-sm">Vetted chauffeurs</span>
+              <span className="text-xs md:text-sm">Vetted fleet owners</span>
             </div>
             <div className="flex items-center gap-2">
               <Fingerprint className="h-4 w-4 md:h-5 md:w-5 text-orange-400" />

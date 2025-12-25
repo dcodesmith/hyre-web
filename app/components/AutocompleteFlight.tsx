@@ -1,4 +1,4 @@
-import { CheckCircle, Loader2, Plane, XCircle } from "lucide-react";
+import { CheckCircle, Plane, XCircle } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { type Airline, useAirlineData } from "~/hooks/useAirlineData";
 import { useFlightValidation } from "~/hooks/useFlightValidation";
@@ -244,7 +244,13 @@ export function AutocompleteFlight({
               {...sanitizedInputProps}
             />
             {(isLoadingSuggestions || isValidating) && (
-              <Loader2 className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-gray-500" />
+              <span className="absolute right-2 top-1/2 -translate-y-1/2 text-sm text-gray-500 font-medium">
+                <span className="inline-flex">
+                  <span className="animate-ellipsis">.</span>
+                  <span className="animate-ellipsis [animation-delay:0.2s]">.</span>
+                  <span className="animate-ellipsis [animation-delay:0.4s]">.</span>
+                </span>
+              </span>
             )}
           </div>
         </PopoverTrigger>
