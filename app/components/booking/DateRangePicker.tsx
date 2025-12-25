@@ -153,7 +153,7 @@ export function DateRangePicker({
                 normalizedDate.to,
                 singleDateMode,
                 "MMM dd",
-              ) ?? <span className="text-gray-400">Add dates</span>}
+              ) ?? <span className="text-gray-400">Select dates</span>}
             </div>
           </Button>
         </PopoverTrigger>

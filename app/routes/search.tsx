@@ -29,7 +29,14 @@ import { prisma } from "~/modules/db/db.server";
 import { availableCarsForSpecificRequest } from "~/services/availability-engine.server";
 import { validateFlight } from "~/services/flight-validation.server";
 import type { SerializedCar, ServiceTier, VehicleType } from "~/types";
-import { SERVICE_TIERS, VEHICLE_TYPES, serviceTierLabels, vehicleTypeLabels } from "~/types";
+import {
+  SERVICE_TIERS,
+  ServiceTiers,
+  VEHICLE_TYPES,
+  VehicleTypes,
+  serviceTierLabels,
+  vehicleTypeLabels,
+} from "~/types";
 import { LAGOS_TIMEZONE } from "~/utils/timezone";
 
 interface PickupTimeWindow {
@@ -473,7 +480,7 @@ export default function SearchPage() {
   return (
     <div className="min-h-screen">
       {/* Fixed Header with Search - positioned below main navbar */}
-      <div className="fixed top-0 md:top-[65px] left-0 right-0 z-30 bg-white border-b border-gray-200 shadow-sm">
+      <div className="fixed top-0 md:top-[65px] left-0 right-0 z-30 bg-white border-b-0 md:border-b md:border-gray-200 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 py-4">
           {/* Desktop: Search bar */}
           <div className="hidden md:block max-w-4xl mx-auto">
@@ -494,8 +501,8 @@ export default function SearchPage() {
       <div className="max-w-7xl mx-auto my-24">
         {/* Results Header */}
         <h4 className="py-4 font-semibold">
-          {cars.length} {serviceTierLabels[filters.serviceTier ?? ""]}{" "}
-          {vehicleTypeLabels[filters.vehicleType ?? ""]}{" "}
+          {cars.length} {serviceTierLabels[filters.serviceTier ?? ServiceTiers.STANDARD]}{" "}
+          {vehicleTypeLabels[filters.vehicleType ?? VehicleTypes.SEDAN]}{" "}
           {cars.length === 1 ? "vehicle" : "vehicles"} found
         </h4>
 

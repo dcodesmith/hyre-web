@@ -142,9 +142,9 @@ export function MobileBottomNav({ user, appName, onProfileOpen }: MobileBottomNa
     return null;
   }
 
-  // Base container class with scroll-based hide/show transition
-  const containerClass = `md:hidden fixed bottom-0 left-0 right-0 bg-background border-t border-border z-40 transition-transform duration-300 ${
-    isHidden ? "translate-y-full" : "translate-y-0"
+  // Base container class with scroll-based hide/show transition (floating design)
+  const containerClass = `md:hidden fixed left-4 right-4 bottom-[max(1rem,env(safe-area-inset-bottom))] bg-background/95 backdrop-blur-md border border-border/50 rounded-full shadow-lg z-40 transition-transform duration-300 ease-out ${
+    isHidden ? "translate-y-[calc(100%+2rem)]" : "translate-y-0"
   }`;
 
   const isHomeActive = isHomePage;
@@ -168,18 +168,17 @@ export function MobileBottomNav({ user, appName, onProfileOpen }: MobileBottomNa
     if (isFleetOwner && isFleetOwnerActive) {
       return (
         <div className={containerClass}>
-          <div className="absolute inset-x-0 top-0 h-8 bg-gradient-to-b from-background/0 to-background pointer-events-none -z-10" />
-          <div className="flex items-center justify-around max-w-full mx-auto px-2 pb-[env(safe-area-inset-bottom)] min-h-[56px] relative z-10">
+          <div className="flex items-center justify-around max-w-full mx-auto px-4 py-2 min-h-[52px]">
             <NavItem
               to="/fleet-owner"
-              icon={<LayoutDashboard size={18} />}
+              icon={<LayoutDashboard size={16} />}
               label="Dashboard"
               isActive={isDashboardActive}
             />
 
             <NavItem
               to="/fleet-owner/cars"
-              icon={<Car size={18} />}
+              icon={<Car size={16} />}
               label="Cars"
               isActive={isCarsActive}
             />
@@ -187,7 +186,7 @@ export function MobileBottomNav({ user, appName, onProfileOpen }: MobileBottomNa
             {!isOwnerDriver && (
               <NavItem
                 to="/fleet-owner/chauffeurs"
-                icon={<Users size={18} />}
+                icon={<Users size={16} />}
                 label="Chauffeurs"
                 isActive={isChauffeursActive}
               />
@@ -195,20 +194,20 @@ export function MobileBottomNav({ user, appName, onProfileOpen }: MobileBottomNa
 
             <NavItem
               to="/fleet-owner/bookings"
-              icon={<Calendar size={18} />}
+              icon={<Calendar size={16} />}
               label="Bookings"
               isActive={isFleetBookingsActive}
             />
 
             <NavItem
               to="/fleet-owner/payout-transactions"
-              icon={<NairaIcon size={18} />}
+              icon={<NairaIcon size={16} />}
               label="Payouts"
               isActive={isPayoutActive}
             />
 
             <NavItem
-              icon={<UserIcon size={18} />}
+              icon={<UserIcon size={16} />}
               label="Profile"
               onClick={() => onProfileOpen?.()}
             />
@@ -220,13 +219,12 @@ export function MobileBottomNav({ user, appName, onProfileOpen }: MobileBottomNa
     // Default navigation for all other users (including fleet owners on non-fleet routes)
     return (
       <div className={containerClass}>
-        <div className="absolute inset-x-0 top-0 h-8 bg-gradient-to-b from-background/0 to-background pointer-events-none -z-10" />
-        <div className="flex items-center justify-around max-w-full mx-auto px-2 pb-[env(safe-area-inset-bottom)] min-h-[56px] relative z-10">
-          <NavItem to="/" icon={<Home size={18} />} label={appName} isActive={isHomeActive} />
+        <div className="flex items-center justify-around max-w-full mx-auto px-4 py-2 min-h-[52px]">
+          <NavItem to="/" icon={<Home size={16} />} label={appName} isActive={isHomeActive} />
 
           <NavItem
             to={isFleetOwner ? "/fleet-owner" : "/bookings"}
-            icon={<Calendar size={18} />}
+            icon={<Calendar size={16} />}
             label={isFleetOwner ? "Dashboard" : "Bookings"}
             isActive={isFleetOwner ? isFleetOwnerActive : isBookingsActive}
           />
@@ -234,14 +232,14 @@ export function MobileBottomNav({ user, appName, onProfileOpen }: MobileBottomNa
           {!isFleetOwner && (
             <NavItem
               to="/referrals"
-              icon={<Gift size={18} />}
+              icon={<Gift size={16} />}
               label="Referrals"
               isActive={isReferralsActive}
             />
           )}
 
           <NavItem
-            icon={<UserIcon size={18} />}
+            icon={<UserIcon size={16} />}
             label="Profile"
             onClick={() => onProfileOpen?.()}
           />
@@ -253,7 +251,7 @@ export function MobileBottomNav({ user, appName, onProfileOpen }: MobileBottomNa
                 className="w-full flex flex-col items-center justify-center py-2 px-1 text-muted-foreground hover:text-foreground transition-all duration-200"
               >
                 <div className="w-6 h-6 mb-1 flex items-center justify-center transition-all duration-200 scale-100 hover:scale-110">
-                  <LogOut size={18} />
+                  <LogOut size={16} />
                 </div>
                 <span className="text-xs font-medium truncate max-w-full">Logout</span>
               </button>
@@ -267,11 +265,10 @@ export function MobileBottomNav({ user, appName, onProfileOpen }: MobileBottomNa
   // Unauthenticated user navigation
   return (
     <div className={containerClass}>
-      <div className="absolute inset-x-0 top-0 h-8 bg-gradient-to-b from-background/0 to-background pointer-events-none -z-10" />
-      <div className="flex items-center justify-center max-w-md mx-auto px-24 pb-[env(safe-area-inset-bottom)] min-h-[56px] relative z-10">
-        <NavItem to="/" icon={<Home size={18} />} label={appName} isActive={isHomeActive} />
+      <div className="flex items-center justify-center max-w-md mx-auto px-6 py-2 min-h-[52px]">
+        <NavItem to="/" icon={<Home size={16} />} label={appName} isActive={isHomeActive} />
 
-        <NavItem to="/auth" icon={<LogIn size={18} />} label="Log in" />
+        <NavItem to="/auth" icon={<LogIn size={16} />} label="Log in" />
       </div>
     </div>
   );

@@ -88,7 +88,7 @@ export function BookingTimeSelect({
         <SelectValue
           placeholder={
             containerClassName ? (
-              <span className="text-gray-400">Add time</span>
+              <span className="text-gray-400">Select pickup time</span>
             ) : (
               "Select pickup time"
             )

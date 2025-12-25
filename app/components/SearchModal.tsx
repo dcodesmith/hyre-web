@@ -5,7 +5,6 @@ import { Dialog, DialogContent } from "./ui/dialog";
 interface SearchModalProps {
   readonly isOpen: boolean;
   readonly onClose: () => void;
-  /** When true, navigates to /search route instead of updating current page URL params */
   readonly navigateToSearch?: boolean;
 }
 
@@ -26,7 +25,12 @@ export function SearchModal({ isOpen, onClose, navigateToSearch = false }: Searc
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className={dialogContentClasses}>
         <div className="overflow-y-auto px-4 py-6 flex-1">
-          <BookingSearch isCompact={false} context="modal" navigateToSearch={navigateToSearch} />
+          <BookingSearch
+            isCompact={false}
+            context="modal"
+            navigateToSearch={navigateToSearch}
+            onSearchComplete={onClose}
+          />
         </div>
       </DialogContent>
     </Dialog>

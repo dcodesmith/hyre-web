@@ -81,10 +81,10 @@ function BookingTypeTabs({
               }`}
               value={option.value}
             >
-              <span className="text-[11px] sm:text-xs md:text-sm font-semibold text-center whitespace-nowrap">
+              <span className="text-xs sm:text-sm md:text-sm font-semibold text-center whitespace-nowrap">
                 {option.label}
               </span>
-              <span className="text-[9px] sm:text-[10px] md:text-xs opacity-80 text-center whitespace-nowrap">
+              <span className="text-[10px] sm:text-[11px] md:text-xs opacity-80 text-center whitespace-nowrap">
                 {option.duration}
               </span>
             </TabsTrigger>
@@ -276,12 +276,15 @@ interface BookingSearchProps {
   readonly context?: "hero" | "modal";
   /** When true, navigates to /search route instead of updating current page URL params */
   readonly navigateToSearch?: boolean;
+  /** Called after search is triggered (useful for closing modals) */
+  readonly onSearchComplete?: () => void;
 }
 
 export function BookingSearch({
   isCompact = false,
   context = "hero",
   navigateToSearch = false,
+  onSearchComplete,
 }: BookingSearchProps) {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -458,6 +461,8 @@ export function BookingSearch({
     } else {
       setSearchParams(newSearchParams, { replace: true, preventScrollReset: true });
     }
+
+    onSearchComplete?.();
   }, [
     bookingType,
     dateRange,
@@ -467,6 +472,7 @@ export function BookingSearch({
     navigate,
     setSearchParams,
     searchParams,
+    onSearchComplete,
   ]);
 
   const bookingTypeInputProps = {

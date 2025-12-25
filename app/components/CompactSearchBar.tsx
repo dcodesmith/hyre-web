@@ -1,11 +1,7 @@
 import { useSearchParams } from "@remix-run/react";
 import { format } from "date-fns";
 import { Search } from "lucide-react";
-import {
-  BOOKING_TYPE_OPTIONS_MAP,
-  DAY_BOOKING_TYPE,
-  type BookingType,
-} from "./bookingTypes";
+import { BOOKING_TYPE_OPTIONS_MAP, DAY_BOOKING_TYPE, type BookingType } from "./bookingTypes";
 
 interface CompactSearchBarProps {
   readonly onClick: () => void;
@@ -29,7 +25,7 @@ export function CompactSearchBar({ onClick }: CompactSearchBarProps) {
 
   // Format date range text
   const getDateRangeText = () => {
-    if (!from) return "Add dates";
+    if (!from) return "Select dates";
 
     const fromDate = new Date(`${from}T00:00:00`);
     const toDate = to ? new Date(`${to}T00:00:00`) : null;
@@ -63,20 +59,18 @@ export function CompactSearchBar({ onClick }: CompactSearchBarProps) {
   const bookingTypeText = getBookingTypeText();
   const additionalInfo = getAdditionalInfo();
 
+  const hasSelections = from || bookingTypeParam || pickupTime || flightNumber;
+
   return (
     <button
       onClick={onClick}
-      className="w-full bg-white border border-gray-200 rounded-full shadow-lg hover:shadow-xl transition-shadow px-4 py-3 flex items-center gap-3"
+      className="w-full bg-white border border-gray-200 rounded-full shadow-lg hover:shadow-xl transition-shadow px-4 py-3 flex items-center justify-center gap-3"
       type="button"
       aria-label="Edit search parameters"
     >
-      {/* Search Icon */}
-      <div className="flex-shrink-0">
-        <Search className="h-5 w-5 text-gray-600" />
-      </div>
+      <Search className="h-5 w-5 text-gray-500" />
 
-      {/* Search Summary */}
-      <div className="flex-1 text-left min-w-0">
+      {hasSelections ? (
         <div className="flex items-center gap-2 text-sm font-medium text-gray-900">
           <span className="truncate">{dateText}</span>
           <span className="text-gray-300">•</span>
@@ -88,7 +82,9 @@ export function CompactSearchBar({ onClick }: CompactSearchBarProps) {
             </>
           )}
         </div>
-      </div>
+      ) : (
+        <span className="text-sm text-slate-900 font-semibold">Search for your ride</span>
+      )}
     </button>
   );
 }
