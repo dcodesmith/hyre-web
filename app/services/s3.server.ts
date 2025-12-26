@@ -18,6 +18,8 @@ export async function uploadFileToS3(file: File, key: string) {
     Key: key,
     Body: buffer,
     ContentType: file.type,
+    // Cache for 1 year (31536000 seconds) - immutable content with versioned URLs
+    CacheControl: "public, max-age=31536000, immutable",
     // ACL: "public-read", // Quickie: Add this line to trigger error for testing create form.
   });
 
