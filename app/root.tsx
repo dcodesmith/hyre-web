@@ -1,5 +1,10 @@
 import { cssBundleHref } from "@remix-run/css-bundle";
-import { type LinksFunction, type LoaderFunctionArgs, data } from "@remix-run/node";
+import {
+  type LinksFunction,
+  type LoaderFunctionArgs,
+  type MetaFunction,
+  data,
+} from "@remix-run/node";
 import {
   Link,
   Links,
@@ -33,6 +38,62 @@ import { GiftIcon } from "@heroicons/react/24/outline";
 import { getReferralConfig } from "./services/referral.server";
 import { formatCurrency } from "./lib/utils";
 
+export const meta: MetaFunction<typeof loader> = ({ data }) => {
+  const appName = data?.ENV?.APP_NAME || "Tripdly";
+  return [
+    {
+      title: `${appName} - Effortless, Reliable, Safe, and Exceptional Service.`,
+    },
+    {
+      name: "description",
+      content:
+        "Premium chauffeur service in Nigeria. Book luxury vehicles with professional drivers for day trips, airport pickups, and special events. Safe, reliable, and exceptional service.",
+    },
+    {
+      property: "og:title",
+      content: `${appName} - Effortless, Reliable, Safe, and Exceptional Service.`,
+    },
+    {
+      property: "og:description",
+      content:
+        "Premium chauffeur service in Nigeria. Book luxury vehicles with professional drivers for day trips, airport pickups, and special events.",
+    },
+    {
+      property: "og:type",
+      content: "website",
+    },
+    {
+      name: "twitter:card",
+      content: "summary_large_image",
+    },
+    {
+      name: "twitter:title",
+      content: `${appName} - Effortless, Reliable, Safe, and Exceptional Service.`,
+    },
+    {
+      name: "twitter:description",
+      content:
+        "Premium chauffeur service in Nigeria. Book luxury vehicles with professional drivers for day trips, airport pickups, and special events.",
+    },
+    {
+      property: "og:url",
+      content: data?.ENV?.DOMAIN ? `https://${data.ENV.DOMAIN}` : "https://tripdly.com",
+    },
+    {
+      property: "og:image",
+      content: data?.ENV?.DOMAIN
+        ? `https://${data.ENV.DOMAIN}/og-image.png`
+        : "https://tripdly.com/og-image.png",
+    },
+    {
+      name: "twitter:image",
+      content: data?.ENV?.DOMAIN
+        ? `https://${data.ENV.DOMAIN}/og-image.png`
+        : "https://tripdly.com/og-image.png",
+    },
+  ];
+};
+
 export const links: LinksFunction = () => [
   ...(cssBundleHref ? [{ rel: "stylesheet", href: cssBundleHref }] : []),
   { rel: "stylesheet", href: tailwindStyles },
@@ -41,30 +102,34 @@ export const links: LinksFunction = () => [
   { rel: "alternate icon", href: "/favicon.ico" },
   { rel: "apple-touch-icon", href: "/apple-touch-icon.svg" },
   { rel: "apple-touch-icon-precomposed", href: "/apple-touch-icon.svg" },
-  // Performance optimizations
+  // Performance optimizations - preconnect early
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
   { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
-  // Preload critical fonts
+  // Preload font CSS for faster loading
   {
-    rel: "stylesheet",
+    rel: "preload",
     href: "https://fonts.googleapis.com/css2?family=Nunito+Sans:ital,opsz,wght@0,6..12,200..1000;1,6..12,200..1000&family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&display=swap",
+    as: "style",
   },
   // DNS prefetch for potential external resources
   { rel: "dns-prefetch", href: "https://vercel.app" },
 ];
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  const user = await getSessionUser(request);
-  const [csrfToken, csrfCookieHeader] = await csrf.commitToken(request);
+  // Parallelize independent operations to reduce blocking time
+  const [user, csrfResult, referralConfig] = await Promise.all([
+    getSessionUser(request),
+    csrf.commitToken(request),
+    getReferralConfig(),
+  ]);
+
+  const [csrfToken, csrfCookieHeader] = csrfResult;
 
   const ENV = {
     APP_NAME: env.APP_NAME,
     GOOGLE_MAPS_API_KEY: env.GOOGLE_MAPS_API_KEY,
     DOMAIN: env.DOMAIN,
   };
-
-  // Fetch referral config for the UI
-  const referralConfig = await getReferralConfig();
 
   // Touch session to extend expiry (rolling expiry)
   const sessionCookie = await touchSession(request);
@@ -143,6 +208,37 @@ function AppContent() {
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <Meta />
         <Links />
+        {/* Load Google Fonts asynchronously to prevent blocking FCP */}
+        <link
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Nunito+Sans:ital,opsz,wght@0,6..12,200..1000;1,6..12,200..1000&family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&display=swap"
+          media="print"
+        />
+        <script
+          // biome-ignore lint/security/noDangerouslySetInnerHtml: <performance optimization>
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                var link = document.querySelector('link[href*="fonts.googleapis.com"][media="print"]');
+                if (link) {
+                  // If already loaded (cached), switch immediately
+                  if (link.sheet) {
+                    link.media = 'all';
+                    return;
+                  }
+                  link.onload = function() { this.media = 'all'; };
+                  link.onerror = function() { this.media = 'all'; };
+                }
+              })();
+            `,
+          }}
+        />
+        <noscript>
+          <link
+            rel="stylesheet"
+            href="https://fonts.googleapis.com/css2?family=Nunito+Sans:ital,opsz,wght@0,6..12,200..1000;1,6..12,200..1000&family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&display=swap"
+          />
+        </noscript>
       </head>
       <body className="h-full bg-background">
         <Analytics />
@@ -173,7 +269,9 @@ function AppContent() {
             </header>
           )}
 
-          <main className={`flex-grow ${isCarDetailPage ? "pb-0" : "pb-20"} md:pb-0 text-sm ${getMainClassName()}`}>
+          <main
+            className={`flex-grow ${isCarDetailPage ? "pb-0" : "pb-20"} md:pb-0 text-sm ${getMainClassName()}`}
+          >
             <Outlet />
           </main>
 

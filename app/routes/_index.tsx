@@ -1,5 +1,5 @@
 import { CarApprovalStatus, Status } from "@prisma/client";
-import type { LoaderFunctionArgs } from "@remix-run/node";
+import type { LoaderFunctionArgs, MetaFunction } from "@remix-run/node";
 import { data } from "@remix-run/node";
 import { Link, useLoaderData } from "@remix-run/react";
 import { Fingerprint, LocateFixed, ShieldCheck } from "lucide-react";
@@ -7,6 +7,7 @@ import { BookingSearch } from "~/components/BookingSearch";
 
 import logger from "~/lib/logger.server";
 import { prisma } from "~/modules/db/db.server";
+import { env } from "~/utils/server/env.server";
 
 import { useState } from "react";
 import { CarCard } from "~/components/CarCard";
@@ -77,6 +78,53 @@ function categorizeCars(cars: SerializedCar[]): CarCategories {
   };
 }
 
+export const meta: MetaFunction<typeof loader> = ({ data }) => {
+  // Use DOMAIN from env, detect localhost to use http:// instead of https://
+  const domain = data?.ENV?.DOMAIN ?? "tripdly.com";
+
+  // Check if domain is localhost
+  const isLocalhost = domain.includes("localhost") || domain.includes("127.0.0.1");
+
+  // Use http:// for localhost, https:// for production/staging
+  const baseUrl = isLocalhost ? `http://${domain}` : `https://${domain}`;
+
+  return [
+    {
+      title: "Tripdly - Premium Chauffeur Service in Nigeria",
+    },
+    {
+      name: "description",
+      content:
+        "Book luxury vehicles with professional chauffeurs in Nigeria. Day trips, airport pickups, and special events. Choose from SUVs, sedans, and executive cars. Safe, reliable, and exceptional service.",
+    },
+    {
+      property: "og:title",
+      content: "Tripdly - Premium Chauffeur Service in Nigeria",
+    },
+    {
+      property: "og:description",
+      content:
+        "Book luxury vehicles with professional chauffeurs in Nigeria. Day trips, airport pickups, and special events. Safe, reliable, and exceptional service.",
+    },
+    {
+      property: "og:type",
+      content: "website",
+    },
+    {
+      property: "og:url",
+      content: baseUrl,
+    },
+    {
+      property: "og:image",
+      content: `${baseUrl}/og-image.png`,
+    },
+    {
+      name: "twitter:image",
+      content: `${baseUrl}/og-image.png`,
+    },
+  ];
+};
+
 // Preload hero image only for home page - use WebP with responsive fallback
 export const links = () => [
   {
@@ -136,7 +184,12 @@ export async function loader({ request }: LoaderFunctionArgs) {
     logger.info("[HOME] Cars query completed", { ms: totalTime, count: cars.length });
 
     return data(
-      { categories },
+      {
+        categories,
+        ENV: {
+          DOMAIN: env.DOMAIN,
+        },
+      },
       {
         headers: {
           "Cache-Control": "public, max-age=300, stale-while-revalidate=1800",
@@ -161,6 +214,9 @@ export async function loader({ request }: LoaderFunctionArgs) {
           popular: [],
           allCars: [],
         },
+        ENV: {
+          DOMAIN: env.DOMAIN,
+        },
       },
       { status: 500, headers: { "Cache-Control": "no-store" } },
     );
@@ -169,6 +225,9 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
 type LoaderData = {
   categories: CarCategories;
+  ENV: {
+    DOMAIN: string | null;
+  };
 };
 
 export default function IndexPage() {

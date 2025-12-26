@@ -1,6 +1,6 @@
 import { ArrowLeftIcon } from "@heroicons/react/24/outline";
 import { Booking, BookingStatus, BookingType, Car } from "@prisma/client";
-import { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
+import { ActionFunctionArgs, type LoaderFunctionArgs, type MetaFunction } from "@remix-run/node";
 import { Link, redirect, useLoaderData, useSearchParams } from "@remix-run/react";
 import { fromZonedTime } from "date-fns-tz";
 import invariant from "tiny-invariant";
@@ -176,6 +176,58 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
     platformServiceFeeRate: rates.platformCustomerServiceFeeRatePercent.toNumber(),
     securityDetailRate: rates.securityDetailRate.toNumber(),
   };
+};
+
+export const meta: MetaFunction<typeof loader> = ({ data }) => {
+  if (!data?.car) {
+    return [
+      {
+        title: "Car Not Found - Tripdly",
+      },
+      {
+        name: "description",
+        content: "The requested car could not be found.",
+      },
+    ];
+  }
+
+  const { car } = data;
+  const carName = `${car.make} ${car.model} ${car.year}`;
+  const price = `₦${Number(car.dayRate).toLocaleString()}`;
+
+  return [
+    {
+      title: `${carName} - Book Now | Tripdly`,
+    },
+    {
+      name: "description",
+      content: `Book ${carName} with professional chauffeur service in Nigeria. ${car.color} ${car.vehicleType} available for day trips, airport pickups, and special events. Starting from ${price} per day. Safe, reliable, and exceptional service.`,
+    },
+    {
+      property: "og:title",
+      content: `${carName} - Book Now | Tripdly`,
+    },
+    {
+      property: "og:description",
+      content: `Book ${carName} with professional chauffeur service. ${car.color} ${car.vehicleType} starting from ${price} per day.`,
+    },
+    {
+      property: "og:type",
+      content: "website",
+    },
+    {
+      property: "og:url",
+      content: "https://tripdly.com",
+    },
+    {
+      property: "og:image",
+      content: "https://tripdly.com/og-image.png",
+    },
+    {
+      name: "twitter:image",
+      content: "https://tripdly.com/og-image.png",
+    },
+  ];
 };
 
 export default function CarDetails() {

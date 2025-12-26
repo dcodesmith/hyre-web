@@ -1,6 +1,11 @@
 import { ArrowLeftIcon } from "@heroicons/react/24/outline";
 import type { Prisma, User as PrismaUser } from "@prisma/client";
-import { type ActionFunctionArgs, type LoaderFunctionArgs, data } from "@remix-run/node";
+import {
+  type ActionFunctionArgs,
+  type LoaderFunctionArgs,
+  type MetaFunction,
+  data,
+} from "@remix-run/node";
 import {
   Link,
   useActionData,
@@ -440,6 +445,58 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 
   return data({ booking: serializedBooking, paymentSummary, extendableDuration }, { status: 200 });
 }
+
+export const meta: MetaFunction<typeof loader> = ({ data }) => {
+  if (!data?.booking) {
+    return [
+      {
+        title: "Booking Not Found - Tripdly",
+      },
+      {
+        name: "description",
+        content: "The requested booking could not be found.",
+      },
+    ];
+  }
+
+  const { booking } = data;
+  const carName = `${booking.car.make} ${booking.car.model} ${booking.car.year}`;
+  const bookingRef = booking.bookingReference;
+
+  return [
+    {
+      title: `Booking ${bookingRef} - ${carName} | Tripdly`,
+    },
+    {
+      name: "description",
+      content: `View booking details for ${carName}. Booking reference: ${bookingRef}. Status: ${booking.status}. Manage your booking, view timeline, and location details.`,
+    },
+    {
+      property: "og:title",
+      content: `Booking ${bookingRef} - ${carName} | Tripdly`,
+    },
+    {
+      property: "og:description",
+      content: `View booking details for ${carName}. Booking reference: ${bookingRef}.`,
+    },
+    {
+      property: "og:type",
+      content: "website",
+    },
+    {
+      property: "og:url",
+      content: "https://tripdly.com",
+    },
+    {
+      property: "og:image",
+      content: "https://tripdly.com/og-image.png",
+    },
+    {
+      name: "twitter:image",
+      content: "https://tripdly.com/og-image.png",
+    },
+  ];
+};
 
 function BookingHeader({ booking }: { booking: Booking }) {
   const getPaymentStatusClass = () => {

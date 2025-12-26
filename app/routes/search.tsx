@@ -6,7 +6,7 @@ import {
   CarApprovalStatus,
   Status,
 } from "@prisma/client";
-import type { LoaderFunctionArgs } from "@remix-run/node";
+import type { LoaderFunctionArgs, MetaFunction } from "@remix-run/node";
 import { data } from "@remix-run/node";
 import { Link, useLoaderData, useSearchParams } from "@remix-run/react";
 import { fromZonedTime } from "date-fns-tz";
@@ -292,6 +292,42 @@ async function filterCarsByAvailability<T extends { id: string }>(
   const availableCarIdsSet = new Set(availableCarIdsList);
   return cars.filter((c) => availableCarIdsSet.has(c.id));
 }
+
+export const meta: MetaFunction = () => [
+  {
+    title: "Search Available Cars - Tripdly",
+  },
+  {
+    name: "description",
+    content:
+      "Search and book available luxury vehicles with professional chauffeurs in Nigeria. Filter by date, vehicle type, and service tier. Find the perfect car for your trip.",
+  },
+  {
+    property: "og:title",
+    content: "Search Available Cars - Tripdly",
+  },
+  {
+    property: "og:description",
+    content:
+      "Search and book available luxury vehicles with professional chauffeurs in Nigeria. Filter by date, vehicle type, and service tier.",
+  },
+    {
+      property: "og:type",
+      content: "website",
+    },
+    {
+      property: "og:url",
+      content: "https://tripdly.com",
+    },
+    {
+      property: "og:image",
+      content: "https://tripdly.com/og-image.png",
+    },
+    {
+      name: "twitter:image",
+      content: "https://tripdly.com/og-image.png",
+    },
+];
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const url = new URL(request.url);
