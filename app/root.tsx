@@ -105,10 +105,11 @@ export const links: LinksFunction = () => [
   // Performance optimizations - preconnect early
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
   { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
-  // Load Google Fonts stylesheet
+  // Preload Google Fonts CSS to avoid CLS (matches async-loaded stylesheet)
   {
-    rel: "stylesheet",
+    rel: "preload",
     href: "https://fonts.googleapis.com/css2?family=Nunito+Sans:ital,opsz,wght@0,6..12,200..1000;1,6..12,200..1000&family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&display=swap",
+    as: "style",
   },
   // DNS prefetch for potential external resources
   { rel: "dns-prefetch", href: "https://vercel.app" },
@@ -275,6 +276,28 @@ function AppContent() {
           }}
         />
         <Scripts />
+
+        {/* Load Google Fonts asynchronously after hydration to avoid blocking render */}
+        <script
+          // biome-ignore lint/security/noDangerouslySetInnerHtml: <performance optimization>
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                var link = document.createElement('link');
+                link.rel = 'stylesheet';
+                link.href = 'https://fonts.googleapis.com/css2?family=Nunito+Sans:ital,opsz,wght@0,6..12,200..1000;1,6..12,200..1000&family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&display=swap';
+                document.head.appendChild(link);
+              })();
+            `,
+          }}
+        />
+        {/* Fallback for no-JS: load fonts synchronously */}
+        <noscript>
+          <link
+            rel="stylesheet"
+            href="https://fonts.googleapis.com/css2?family=Nunito+Sans:ital,opsz,wght@0,6..12,200..1000;1,6..12,200..1000&family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&display=swap"
+          />
+        </noscript>
 
         {/* Load Google Maps asynchronously */}
         <script

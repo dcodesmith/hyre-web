@@ -1,5 +1,5 @@
 import { CarApprovalStatus, Status } from "@prisma/client";
-import type { LoaderFunctionArgs, MetaFunction } from "@remix-run/node";
+import type { MetaFunction } from "@remix-run/node";
 import { data } from "@remix-run/node";
 import { Link, useLoaderData } from "@remix-run/react";
 import { Fingerprint, LocateFixed, ShieldCheck } from "lucide-react";
@@ -125,7 +125,6 @@ export const meta: MetaFunction<typeof loader> = ({ data }) => {
   ];
 };
 
-// Preload hero image only for home page - use WebP with responsive fallback
 export const links = () => [
   {
     rel: "preload",
@@ -133,6 +132,7 @@ export const links = () => [
     as: "image",
     type: "image/webp",
     media: "(min-width: 1024px)",
+    fetchpriority: "high",
   },
   {
     rel: "preload",
@@ -140,11 +140,19 @@ export const links = () => [
     as: "image",
     type: "image/webp",
     media: "(min-width: 768px) and (max-width: 1023px)",
+    fetchpriority: "high",
   },
-  { rel: "preload", href: "/images/hero.png", as: "image", type: "image/png" },
+  {
+    rel: "preload",
+    href: "/images/hero-640.webp",
+    as: "image",
+    type: "image/webp",
+    media: "(max-width: 767px)",
+    fetchpriority: "high",
+  },
 ];
 
-export async function loader({ request }: LoaderFunctionArgs) {
+export async function loader() {
   try {
     const startTime = Date.now();
 
@@ -274,16 +282,17 @@ export default function IndexPage() {
           }`}
         >
           <picture>
+            <source media="(max-width: 767px)" srcSet="/images/hero-640.webp" type="image/webp" />
             <source media="(min-width: 1024px)" srcSet="/images/hero.webp" type="image/webp" />
             <source media="(min-width: 768px)" srcSet="/images/hero-1200.webp" type="image/webp" />
-            <source media="(min-width: 1024px)" srcSet="/images/hero.png" type="image/png" />
             <img
-              src="/images/hero.png"
+              src="/images/hero.webp"
               alt="Professional chauffeur service - luxury vehicle ready for hire"
               className="w-full h-full object-cover"
               width="1024"
               height="540"
               decoding="async"
+              fetchPriority="high"
             />
           </picture>
           {/* Dark overlay for text readability */}
