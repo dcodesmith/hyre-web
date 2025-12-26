@@ -10,6 +10,7 @@ import {
   FULL_DAY_BOOKING_TYPE,
   NIGHT_BOOKING_TYPE,
 } from "../bookingTypes";
+import { cn } from "~/lib/utils";
 
 interface TimePointRowProps {
   readonly label: string;
@@ -27,17 +28,19 @@ const TimePointRow = ({
   <div>
     <div className="flex items-center gap-2 mb-1">
       <span
-        className={`text-sm font-medium ${
-          isLegStarted ? labelColorClassWhenStarted : "text-slate-400"
-        }`}
+        className={cn(
+          "text-sm min-w-16 justify-between font-medium",
+          isLegStarted ? labelColorClassWhenStarted : "text-slate-400",
+        )}
       >
         {label}
       </span>
       <Badge
         variant="outline"
-        className={`text-sm font-semibold rounded-sm ${
-          isLegStarted ? "" : "border-slate-200 text-slate-400"
-        }`}
+        className={cn(
+          "text-sm font-semibold rounded-sm",
+          !isLegStarted && "border-slate-200 text-slate-400",
+        )}
       >
         {timeText}
       </Badge>
@@ -179,7 +182,7 @@ export function BookingLegTimeline({ leg, index, booking }: BookingLegTimelinePr
         <h4
           className={`text-sm font-semibold ${isLegStarted ? "text-slate-700" : "text-slate-400"}`}
         >
-          Day {index + 1} - {format(legDate, "EEEE, MMMM do, yyyy")}
+          Day {index + 1} - {format(legDate, "EEE, MMM do, yyyy")}
         </h4>
         <Badge variant="outline" className={`text-xs rounded-sm ${statusBadge.styleClass}`}>
           {statusBadge.text}

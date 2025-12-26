@@ -58,16 +58,16 @@ export function BookingAddons({
       {/* Fuel upgrade option - only show for 1-2 DAY bookings */}
       {totalDays > 0 && totalDays <= 2 && bookingType === DAY_BOOKING_TYPE && (
         <div className="space-y-1">
-          <div className="flex items-center space-x-2">
+          <Label className="flex items-center space-x-2 cursor-pointer">
             <Checkbox
               id="requiresFullTank"
               checked={requiresFullTank}
               onCheckedChange={onFullTankChange}
             />
-            <Label htmlFor="requiresFullTank" className="cursor-pointer">
+            <span className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
               Upgrade to full tank (+{formatCurrency(fuelUpgradeRate)})
-            </Label>
-          </div>
+            </span>
+          </Label>
         </div>
       )}
 

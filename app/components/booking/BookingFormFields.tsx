@@ -190,17 +190,17 @@ export function BookingFormFields({
             name={fields.sameLocation.name}
             value={sameLocationChecked ? "true" : "false"}
           />
-          <div className="flex items-center space-x-2">
+          <Label className="flex items-center space-x-2 cursor-pointer">
             <Checkbox
               id={`${fields.sameLocation.id}-ctrl`}
               checked={sameLocationChecked}
               onCheckedChange={onSameLocationChange}
               aria-label="Drop-off location same as pickup"
             />
-            <Label htmlFor={`${fields.sameLocation.id}-ctrl`} className="cursor-pointer">
+            <span className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
               Drop-off location same as pickup
-            </Label>
-          </div>
+            </span>
+          </Label>
           <FieldError errors={fields.sameLocation.errors} />
         </div>
       )}

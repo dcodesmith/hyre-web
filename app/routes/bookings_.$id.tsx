@@ -15,7 +15,11 @@ import { AutocompleteAddress } from "~/components/AutocompleteAddress";
 import { Form } from "~/components/CSRFForm";
 import { BookingLegTimeline } from "~/components/booking/BookingLegTimeline";
 import { BookingTimeSelect } from "~/components/booking/BookingTimeSelect";
-import { AIRPORT_PICKUP_BOOKING_TYPE, NIGHT_BOOKING_TYPE } from "~/components/bookingTypes";
+import {
+  AIRPORT_PICKUP_BOOKING_TYPE,
+  DAY_BOOKING_TYPE,
+  NIGHT_BOOKING_TYPE,
+} from "~/components/bookingTypes";
 import { Alert, AlertDescription } from "~/components/ui/alert";
 import { Avatar, AvatarFallback, AvatarImage } from "~/components/ui/avatar";
 import { Badge } from "~/components/ui/badge";
@@ -445,69 +449,34 @@ function BookingHeader({ booking }: { booking: Booking }) {
   };
 
   return (
-    <>
-      {/* Mobile layout - stacked */}
-      <div className="flex flex-col gap-3 md:hidden">
-        <div className="flex flex-col gap-1">
-          <span className="text-base font-semibold">
-            {booking.car.make} {booking.car.model} - {booking.car.year}
-          </span>
-          <span className="text-sm text-gray-600">
-            Booking Reference: {booking.bookingReference}
-          </span>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Badge
-            variant="outline"
-            className={`text-sm rounded-sm capitalize ${
-              booking.status === "CANCELLED"
-                ? "bg-red-100 text-red-800 border-red-200"
-                : "bg-green-100 text-green-800 border-green-200"
-            }`}
-          >
-            <CheckCircle className="w-3 h-3 mr-1" />
-            {booking.status.toLowerCase()}
-          </Badge>
-          <Badge
-            variant="outline"
-            className={`text-sm rounded-sm capitalize ${getPaymentStatusClass()}`}
-          >
-            <CreditCard className="w-3 h-3 mr-1" />
-            {booking.paymentStatus.toLowerCase()}
-          </Badge>
-        </div>
+    <div className="flex flex-col md:flex-row md:justify-between md:items-end gap-3">
+      <p className="text-base flex flex-row gap-2 items-center">
+        <span className="font-semibold">
+          {booking.car.make} {booking.car.model} - {booking.car.year}
+        </span>
+        <span className="text-sm text-gray-600 md:text-gray-900">{booking.bookingReference}</span>
+      </p>
+      <div className="flex flex-wrap gap-2 md:items-end">
+        <Badge
+          variant="outline"
+          className={`text-sm rounded-sm capitalize ${
+            booking.status === "CANCELLED"
+              ? "bg-red-100 text-red-800 border-red-200"
+              : "bg-green-100 text-green-800 border-green-200"
+          }`}
+        >
+          <CheckCircle className="w-3 h-3 mr-1" />
+          {booking.status.toLowerCase()}
+        </Badge>
+        <Badge
+          variant="outline"
+          className={`text-sm rounded-sm capitalize ${getPaymentStatusClass()}`}
+        >
+          <CreditCard className="w-3 h-3 mr-1" />
+          {booking.paymentStatus.toLowerCase()}
+        </Badge>
       </div>
-
-      {/* Desktop layout - horizontal */}
-      <div className="hidden md:flex flex-row justify-between items-end gap-3">
-        <p className="text-base flex sm:flex-row flex-col gap-2">
-          <span className="font-semibold items-end">
-            {booking.car.make} {booking.car.model} - {booking.car.year}
-          </span>
-          <span className="text-sm items-end">Booking Reference: {booking.bookingReference}</span>
-        </p>
-        <div className="flex flex-wrap items-end gap-2">
-          <Badge
-            variant="outline"
-            className={`text-sm rounded-sm capitalize ${
-              booking.status === "CANCELLED"
-                ? "bg-red-100 text-red-800 border-red-200"
-                : "bg-green-100 text-green-800 border-green-200"
-            }`}
-          >
-            <CheckCircle className="w-3 h-3 mr-1" />
-            {booking.status.toLowerCase()}
-          </Badge>
-          <Badge
-            variant="outline"
-            className={`text-sm rounded-sm capitalize ${getPaymentStatusClass()}`}
-          >
-            <CreditCard className="w-3 h-3 mr-1" />
-            {booking.paymentStatus.toLowerCase()}
-          </Badge>
-        </div>
-      </div>
-    </>
+    </div>
   );
 }
 
@@ -515,7 +484,7 @@ function BookingTimeline({ booking }: { booking: Booking }) {
   return (
     <Card className="rounded">
       <CardHeader className="p-4">
-        <CardTitle className="flex items-center gap-2 text-base">
+        <CardTitle className="flex items-center gap-2 text-sm md:text-base">
           <Calendar className="w-5 h-5 text-blue-600" />
           Trip Timeline
         </CardTitle>
@@ -540,7 +509,7 @@ function LocationCard({ booking }: { booking: Booking }) {
   return (
     <Card className="rounded">
       <CardHeader className="p-4">
-        <CardTitle className="flex items-center gap-2 text-base">
+        <CardTitle className="flex items-center gap-2 text-sm md:text-base">
           <MapPin className="w-5 h-5 text-blue-600" />
           Location Details
         </CardTitle>
@@ -572,7 +541,7 @@ function ChauffeurCard({ booking }: { booking: Booking }) {
   return (
     <Card className="rounded">
       <CardHeader className="p-4">
-        <CardTitle className="flex items-center gap-2 text-base">
+        <CardTitle className="flex items-center gap-2 text-sm md:text-base">
           <User className="w-5 h-5 text-blue-600" />
           Your Chauffeur
         </CardTitle>
@@ -644,7 +613,6 @@ function FlightInfoCard({ booking }: { booking: Booking }) {
         return "bg-red-100 text-red-800 border-red-200";
       case "DIVERTED":
         return "bg-orange-100 text-orange-800 border-orange-200";
-      case "UNKNOWN":
       default:
         return "bg-gray-100 text-gray-800 border-gray-200";
     }
@@ -657,7 +625,7 @@ function FlightInfoCard({ booking }: { booking: Booking }) {
   return (
     <Card className="rounded">
       <CardHeader className="p-4">
-        <CardTitle className="flex items-center gap-2 text-base">
+        <CardTitle className="flex items-center gap-2 text-sm md:text-base">
           <Plane className="w-5 h-5 text-blue-600" />
           Flight Information
         </CardTitle>
@@ -776,7 +744,7 @@ export default function BookingDetails() {
 
   const canBeModified =
     booking.status === "CONFIRMED" && isBookingEditable(new Date(booking.startDate));
-  const canBeExtended = extendableDuration > 0 && booking.type === "DAY";
+  const canBeExtended = extendableDuration > 0 && booking.type === DAY_BOOKING_TYPE;
   const isCompleted = booking.status === "COMPLETED";
 
   const shouldShowActionsCard = canBeModified || canBeExtended || isCompleted;
@@ -800,17 +768,6 @@ export default function BookingDetails() {
   return (
     <div className="min-h-screen p-2 sm:p-4 md:p-6">
       <div className="max-w-4xl mx-auto space-y-4">
-        {/* Mobile-only back button with circular icon */}
-        <div className="flex items-center gap-2 md:hidden">
-          <Link
-            to="/bookings"
-            className="bg-muted bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-75 transition-opacity"
-            aria-label="Back to Bookings"
-          >
-            <ArrowLeftIcon className="w-5 h-5 text-black" />
-          </Link>
-        </div>
-
         {/* Desktop-only back link */}
         <div className="items-center gap-2 hidden md:flex">
           <Link to="/bookings" className="text-sm flex hover:underline">
@@ -832,7 +789,18 @@ export default function BookingDetails() {
           </Alert>
         )}
 
-        <BookingHeader booking={booking} />
+        <div className="flex flex-row gap-2">
+          <div className="flex items-start gap-2 md:hidden">
+            <Link
+              to="/bookings"
+              className="bg-muted bg-opacity-50 p-2 rounded-full hover:bg-opacity-75 transition-opacity"
+              aria-label="Back to Bookings"
+            >
+              <ArrowLeftIcon className="w-5 h-5 text-black" />
+            </Link>
+          </div>
+          <BookingHeader booking={booking} />
+        </div>
 
         <Alert className="border-blue-200 bg-blue-50 rounded">
           <AlertDescription className="text-sm text-blue-800">
@@ -852,7 +820,7 @@ export default function BookingDetails() {
 
             <Card className="rounded">
               <CardHeader className="p-4">
-                <CardTitle className="flex items-center gap-2 text-base">
+                <CardTitle className="flex items-center gap-2 text-sm md:text-base">
                   <CreditCard className="w-5 h-5 text-blue-600" />
                   Payment Summary
                 </CardTitle>
