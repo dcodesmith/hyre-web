@@ -142,6 +142,11 @@ export function MobileBottomNav({ user, appName, onProfileOpen }: MobileBottomNa
     return null;
   }
 
+  // Don't show on car details page (booking flow has its own sticky footer)
+  if (location.pathname.startsWith("/cars/")) {
+    return null;
+  }
+
   // Base container class with scroll-based hide/show transition (floating design)
   const containerClass = `md:hidden fixed left-4 right-4 bottom-[max(1rem,env(safe-area-inset-bottom))] bg-background/95 backdrop-blur-md border border-border/50 rounded-full shadow-lg z-40 transition-transform duration-300 ease-out ${
     isHidden ? "translate-y-[calc(100%+2rem)]" : "translate-y-0"

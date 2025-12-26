@@ -1,11 +1,12 @@
 import { MouseEvent, useState, useRef, TouchEvent } from "react";
 import { Button } from "./ui/button";
 import { cn } from "~/lib/utils";
+import { MoveLeft, MoveRight } from "lucide-react";
 
 interface CarouselProps {
   readonly images?: string[];
   readonly variant?: "carousel" | "booking";
-  readonly priority?: boolean; // Add priority prop for above-the-fold images
+  readonly priority?: boolean;
 }
 
 export default function Carousel({
@@ -15,7 +16,7 @@ export default function Carousel({
     "https://picsum.photos/seed/2/800/600",
     "https://picsum.photos/seed/3/800/600",
   ],
-  priority = false, // Default to lazy loading
+  priority = false,
 }: CarouselProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
@@ -99,8 +100,8 @@ export default function Carousel({
       aria-label="Car images"
       aria-roledescription="Carousel"
       className={cn(
-        "relative group overflow-hidden rounded-xl touch-pan-y select-none",
-        variant === "booking" && "rounded-t-none",
+        "relative group overflow-hidden touch-pan-y select-none rounded-xl",
+        variant === "booking" && "rounded-t-none md:rounded-xl",
       )}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
@@ -124,10 +125,11 @@ export default function Carousel({
             loading={priority && index === 0 ? "eager" : "lazy"}
             decoding="async"
             draggable={false}
-            // fetchPriority={priority && index === 0 ? "high" : "low"}
           />
         ))}
       </div>
+
+      {/* Navigation arrows */}
       <div className="absolute inset-0 items-center justify-between px-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300 hidden md:flex">
         <Button
           type="button"
@@ -136,7 +138,7 @@ export default function Carousel({
           className="bg-white/90 text-black hover:bg-white rounded-full h-8 w-8 p-0 disabled:opacity-25 disabled:cursor-not-allowed shadow-md"
           disabled={currentIndex === 0}
         >
-          &#8592; {/* Left arrow */}
+          <MoveLeft className="h-4 w-4" />
         </Button>
         <Button
           type="button"
@@ -145,26 +147,29 @@ export default function Carousel({
           className="bg-white/90 text-black hover:bg-white rounded-full h-8 w-8 p-0 disabled:opacity-25 disabled:cursor-not-allowed shadow-md"
           disabled={currentIndex === images.length - 1}
         >
-          &#8594; {/* Right arrow */}
+          <MoveRight className="h-4 w-4" />
         </Button>
       </div>
 
+      {/* Slide counter */}
       <div
-        className="absolute bottom-3 right-3 bg-black/70 text-white px-2 py-1 rounded-md text-xs font-medium"
+        className="absolute right-3 bottom-3 bg-black/70 text-white px-2 py-1 rounded-md text-xs font-medium"
         aria-live="polite"
       >
         {currentIndex + 1} / {images.length}
       </div>
 
+      {/* Dot indicators */}
       <div className="absolute bottom-3 left-1/2 transform -translate-x-1/2 flex space-x-1.5">
         {images.map((image, index) => (
           <button
             key={`slide-indicator-${image}`}
             type="button"
             onClick={() => setCurrentIndex(index)}
-            className={`w-1.5 h-1.5 rounded-full transition-all ${
-              index === currentIndex ? "bg-white w-6" : "bg-white/60"
-            }`}
+            className={cn(
+              "w-1.5 h-1.5 rounded-full transition-all",
+              index === currentIndex ? "bg-white w-6 cursor-not-allowed" : "bg-white/60",
+            )}
             aria-label={`Go to slide ${index + 1}`}
             aria-roledescription="Slide indicator"
             aria-current={index === currentIndex ? "true" : undefined}

@@ -199,10 +199,10 @@ function BookingTypeInput({
 
   return (
     <BookingTimeSelect
-      key={bookingType}
+      key={`${bookingType}-${dateRange.from?.toISOString()}`}
       date={dateRange.from ?? new Date()}
       bookingType={bookingType}
-      defaultValue={pickupTime}
+      value={pickupTime}
       onValueChange={onPickupTimeChange}
       containerClassName={containerClass}
       labelClassName={labelClass}

@@ -19,7 +19,6 @@ import { availableCarsForSpecificRequest } from "~/services/availability-engine.
 import { getRates } from "~/services/extensions.server";
 import { LAGOS_TIMEZONE } from "~/utils/timezone";
 import { validateCSRF } from "~/utils/csrf-action.server";
-import { AIRPORT_PICKUP_BOOKING_TYPE } from "~/components/bookingTypes";
 
 export async function action({ request, params }: ActionFunctionArgs) {
   await validateCSRF(request);
@@ -27,6 +26,104 @@ export async function action({ request, params }: ActionFunctionArgs) {
   await requireUser(request, {
     redirectTo: `/auth?redirectTo=/cars/${params.id}`,
   });
+}
+
+/** Parse pickup time string (e.g., "7 AM", "11:30 PM") and return hours in 24h format */
+function parsePickupTimeHours(pickupTime: string): number | null {
+  const normalized = pickupTime.trim().toUpperCase();
+  const match = normalized.match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)$/i);
+  if (!match) return null;
+
+  let hours = Number.parseInt(match[1]);
+  const period = match[3];
+  if (period === "PM" && hours !== 12) hours += 12;
+  if (period === "AM" && hours === 12) hours = 0;
+  return hours;
+}
+
+/** Determine the effective pickup time based on booking type */
+function getEffectivePickupTime(bookingType: string, pickupTime: string | null): string | null {
+  if (bookingType === BookingType.NIGHT && !pickupTime) return "11 PM";
+  return pickupTime;
+}
+
+/** Check car availability for the given parameters */
+async function checkCarAvailability(
+  carId: string,
+  params: {
+    fromDate: string | null;
+    toDate: string | null;
+    bookingType: string | null;
+    pickupTime: string | null;
+    flightNumber: string | null;
+  },
+): Promise<boolean> {
+  const { fromDate, toDate, bookingType, pickupTime, flightNumber } = params;
+
+  // Check if we have all required parameters
+  const hasRequiredParams =
+    fromDate &&
+    toDate &&
+    bookingType &&
+    (pickupTime ||
+      bookingType === BookingType.NIGHT ||
+      (bookingType === BookingType.AIRPORT_PICKUP && flightNumber));
+
+  if (!hasRequiredParams) return true;
+
+  const effectivePickupTime = getEffectivePickupTime(bookingType, pickupTime);
+  if (!effectivePickupTime) return true;
+
+  const hours = parsePickupTimeHours(effectivePickupTime);
+  if (hours === null) {
+    logger.warn(
+      `Invalid pickupTime format: "${effectivePickupTime}". Skipping availability check.`,
+      {
+        fromDate,
+        toDate,
+        bookingType,
+      },
+    );
+    return true;
+  }
+
+  // Define window that covers booking overlaps across [from..to]
+  const fromStart = new Date(`${fromDate}T00:00:00.000Z`);
+  const toStart = new Date(`${toDate}T00:00:00.000Z`);
+  const endWindow = new Date(toStart);
+  endWindow.setUTCDate(endWindow.getUTCDate() + 1);
+  endWindow.setUTCHours(5, 0, 0, 0);
+
+  const bookings = await prisma.booking.findMany({
+    where: {
+      carId,
+      status: { in: [BookingStatus.CONFIRMED, BookingStatus.ACTIVE] },
+      AND: [{ startDate: { lt: endWindow } }, { endDate: { gt: fromStart } }],
+    },
+    select: { carId: true, type: true, startDate: true, endDate: true, status: true },
+  });
+
+  const lagosDateString = `${fromDate}T${hours.toString().padStart(2, "0")}:00:00`;
+  const specificFrom = fromZonedTime(lagosDateString, LAGOS_TIMEZONE);
+
+  logger.debug("Car details availability check", {
+    carId,
+    pickupTime,
+    parsedHours: hours,
+    specificFrom: specificFrom.toISOString(),
+    fromDate,
+    toDate,
+    bookingType,
+    bookingsCount: bookings.length,
+  });
+
+  const availableCarIds = availableCarsForSpecificRequest(
+    [{ id: carId }] as Car[],
+    bookings as Booking[],
+    { bookingType: bookingType as BookingType, from: specificFrom },
+  );
+
+  return availableCarIds.includes(carId);
 }
 
 export const loader = async ({ request, params }: LoaderFunctionArgs) => {
@@ -56,98 +153,14 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
     throw redirect("/");
   }
 
-  // Only check availability if all required search parameters are provided
-  let isAvailable = true;
-
-  // Only check availability if we have all required parameters including pickup time
-  // Exception: NIGHT bookings can default to "11 PM" if no pickup time is specified
-  // Exception: AIRPORT_PICKUP bookings require flightNumber instead of pickupTime
-  if (
-    fromDate &&
-    toDate &&
-    bookingType &&
-    (pickupTime ||
-      bookingType === BookingType.NIGHT ||
-      (bookingType === BookingType.AIRPORT_PICKUP && flightNumber))
-  ) {
-    // Derive effective pickup time: for NIGHT bookings, default to "11 PM" if missing
-    // For AIRPORT_PICKUP, use a default time (12 PM) for availability checks
-    const effectivePickupTime =
-      bookingType === AIRPORT_PICKUP_BOOKING_TYPE
-        ? "12 PM" // Default time for airport pickup (can be adjusted based on flight schedules)
-        : bookingType === BookingType.NIGHT && !pickupTime
-          ? "11 PM"
-          : pickupTime;
-
-    // Normalize and validate pickup time format (e.g., "7 AM", "11:30 PM")
-    const normalizedPickupTime = effectivePickupTime?.trim().toUpperCase();
-    const timeRegex = /^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)$/i;
-    const timeMatch = normalizedPickupTime?.match(timeRegex);
-
-    if (timeMatch) {
-      // Parse the validated time
-      let hours = Number.parseInt(timeMatch[1]);
-      const period = timeMatch[3];
-
-      if (period === "PM" && hours !== 12) hours += 12;
-      if (period === "AM" && hours === 12) hours = 0;
-
-      // Define a superset window that covers DAY/NIGHT/FULL_DAY/AIRPORT_PICKUP overlaps across [from..to]
-      // fromDate and toDate are date-only strings (e.g., "2025-12-13") for all booking types
-      const fromStart = new Date(`${fromDate}T00:00:00.000Z`);
-      const toStart = new Date(`${toDate}T00:00:00.000Z`);
-      const endWindow = new Date(toStart);
-      endWindow.setUTCDate(endWindow.getUTCDate() + 1); // include last night spillover
-      endWindow.setUTCHours(5, 0, 0, 0); // up to 05:00 of the day after 'to'
-
-      // Fetch only bookings for this car with date range filter
-      const bookings = await prisma.booking.findMany({
-        where: {
-          carId: carId,
-          status: { in: [BookingStatus.CONFIRMED, BookingStatus.ACTIVE] },
-          AND: [{ startDate: { lt: endWindow } }, { endDate: { gt: fromStart } }],
-        },
-        select: { carId: true, type: true, startDate: true, endDate: true, status: true },
-      });
-
-      // Create a date string in Lagos timezone and convert to UTC
-      const lagosDateString = `${fromDate}T${hours.toString().padStart(2, "0")}:00:00`;
-      const specificFrom = fromZonedTime(lagosDateString, LAGOS_TIMEZONE);
-
-      logger.debug("Car details availability check with specific pickup time", {
-        carId,
-        pickupTime,
-        parsedHours: hours,
-        specificFrom: specificFrom.toISOString(),
-        fromDate,
-        toDate,
-        bookingType,
-        bookingsCount: bookings.length,
-        bookings: bookings.map((b) => ({
-          carId: b.carId,
-          start: b.startDate.toISOString(),
-          end: b.endDate.toISOString(),
-        })),
-      });
-
-      const availableCarIds = availableCarsForSpecificRequest(
-        [{ id: carId }] as Car[],
-        bookings as Booking[],
-        {
-          bookingType: bookingType as BookingType,
-          from: specificFrom,
-        },
-      );
-
-      isAvailable = availableCarIds.includes(carId);
-    } else {
-      // Invalid pickup time format - skip availability check and show car as available
-      logger.warn(
-        `Invalid pickupTime format: "${effectivePickupTime}". Skipping availability check.`,
-        { fromDate, toDate, bookingType },
-      );
-    }
-  }
+  // Check availability only when all required parameters are present
+  const isAvailable = await checkCarAvailability(carId, {
+    fromDate,
+    toDate,
+    bookingType,
+    pickupTime,
+    flightNumber,
+  });
 
   return {
     car,
@@ -176,133 +189,145 @@ export default function CarDetails() {
     updatedAt: new Date(car.updatedAt),
   };
 
+  const carImages = car.images.length > 0 ? car.images.map(({ url }) => url) : undefined;
+
   return (
-    <div className="max-w-6xl md:py-4 space-y-4 -mx-4 md:mx-auto -mt-4 md:mt-0">
-      <Link to={`/?${searchParams.toString()}`} className=" hover:underline mb-1 md:block hidden">
-        &larr; Back to search results
-      </Link>
-
-      <h2 className="text-2xl sm:text-3xl font-bold mb-4 hidden md:block">
-        {car.make} {car.model} - {car.year}
-      </h2>
-      <h2 className="sr-only md:hidden">
-        {car.make} {car.model} - {car.year}
-      </h2>
-
-      <div className="grid grid-cols-1 lg:grid-cols-[60%,40%] gap-4">
-        <div className="flex flex-col gap-4">
+    <>
+      {/* MOBILE LAYOUT - Sticky header, scrollable content, sticky footer handled by BookingCard */}
+      <div className="lg:hidden flex flex-col min-h-screen -mx-4 -mt-4">
+        {/* Sticky Header - Carousel with Car Title */}
+        <div className="sticky top-0 z-30 bg-white shadow-sm">
           <div className="relative">
-            <CarCarousel
-              variant="booking"
-              images={car.images.length > 0 ? car.images.map(({ url }) => url) : undefined}
-            />
-            {/* Mobile-only back button overlay */}
+            <CarCarousel variant="booking" images={carImages} priority />
+            {/* Back button overlay */}
             <Link
-              to={`/?${searchParams.toString()}`}
-              className="absolute top-4 left-4 z-10 bg-black bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-75 transition-opacity md:hidden"
+              to={`/search?${searchParams.toString()}`}
+              className="absolute top-4 left-4 z-10 bg-black/50 text-white p-2 rounded-full hover:bg-black/70 transition-colors"
               aria-label="Back to search results"
             >
               <ArrowLeftIcon className="w-4 h-4" />
             </Link>
           </div>
+        </div>
 
-          {/* Desktop version - always visible */}
-          <div className="px-4 hidden md:block">
-            <div className="px-0">
-              <h3 className="text-base font-semibold leading-7 text-gray-900">
-                Car information and features
-              </h3>
-            </div>
-
-            <div className="mt-4 border-t border-gray-100">
-              <dl>
-                <div className="px-4 py-3 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">
-                  <dt className="text-sm font-medium leading-6 text-gray-900">Make & Model</dt>
-                  <dd className="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
-                    {car.make} {car.model} {car.year}
-                  </dd>
-                </div>
-
-                <div className="px-4 py-3 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">
-                  <dt className="text-sm font-medium leading-6 text-gray-900">Features</dt>
-                  <dd className="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
-                    Air conditioning, GPS navigation system, Bluetooth connectivity, Cruise control,
-                    Rear-view camera, USB ports
-                  </dd>
-                </div>
-
-                <div className="px-4 py-3 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">
-                  <dt className="text-sm font-medium leading-6 text-gray-900">Transmission Type</dt>
-                  <dd className="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
-                    Automatic
-                  </dd>
-                </div>
-
-                <div className="px-4 py-3 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">
-                  <dt className="text-sm font-medium leading-6 text-gray-900">Seating Capacity</dt>
-                  <dd className="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
-                    7-seater
-                  </dd>
-                </div>
-              </dl>
-            </div>
-          </div>
-
-          {/* Mobile version - accordion */}
-          <div className="px-4 md:hidden">
+        {/* Scrollable Content */}
+        <div className="flex-1 pb-40">
+          {/* Car Details Accordion */}
+          <div className="px-4 pt-6">
             <Accordion type="single" collapsible className="w-full">
               <AccordionItem value="car-details" className="border-none">
-                <AccordionTrigger className="text-base font-semibold leading-7 text-gray-900 border-none">
+                <AccordionTrigger className="text-sm font-semibold leading-7 text-gray-900 border-none py-2">
                   Car information and features
                 </AccordionTrigger>
                 <AccordionContent className="border-none">
-                  <dl className="mt-2">
-                    <div className="py-3">
-                      <dt className="text-sm font-medium leading-6 text-gray-900">Make & Model</dt>
-                      <dd className="mt-1 text-sm leading-6 text-gray-700">
+                  <dl className="mt-1 text-sm">
+                    <div className="py-2">
+                      <dt className="font-medium text-gray-900">Make & Model</dt>
+                      <dd className="mt-0.5 text-gray-700">
                         {car.make} {car.model} {car.year}
                       </dd>
                     </div>
-
-                    <div className="py-3">
-                      <dt className="text-sm font-medium leading-6 text-gray-900">Features</dt>
-                      <dd className="mt-1 text-sm leading-6 text-gray-700">
-                        Air conditioning, GPS navigation system, Bluetooth connectivity, Cruise
-                        control, Rear-view camera, USB ports
+                    <div className="py-2">
+                      <dt className="font-medium text-gray-900">Features</dt>
+                      <dd className="mt-0.5 text-gray-700">
+                        Air conditioning, GPS, Bluetooth, Cruise control, Rear-view camera, USB
                       </dd>
                     </div>
-
-                    <div className="py-3">
-                      <dt className="text-sm font-medium leading-6 text-gray-900">
-                        Transmission Type
-                      </dt>
-                      <dd className="mt-1 text-sm leading-6 text-gray-700">Automatic</dd>
+                    <div className="py-2">
+                      <dt className="font-medium text-gray-900">Transmission</dt>
+                      <dd className="mt-0.5 text-gray-700">Automatic</dd>
                     </div>
-
-                    <div className="py-3">
-                      <dt className="text-sm font-medium leading-6 text-gray-900">
-                        Seating Capacity
-                      </dt>
-                      <dd className="mt-1 text-sm leading-6 text-gray-700">7-seater</dd>
+                    <div className="py-2">
+                      <dt className="font-medium text-gray-900">Seating</dt>
+                      <dd className="mt-0.5 text-gray-700">7-seater</dd>
                     </div>
                   </dl>
                 </AccordionContent>
               </AccordionItem>
             </Accordion>
           </div>
-        </div>
 
-        <div className="lg:sticky lg:top-4 px-2 sm:px-4">
-          <BookingCard
-            car={carWithDates}
-            isAvailable={isAvailable}
-            user={user as any}
-            vatRate={vatRate}
-            platformServiceFeeRate={platformServiceFeeRate}
-            securityDetailRate={securityDetailRate}
-          />
+          {/* Booking Card - Mobile version */}
+          <div className="px-4">
+            <BookingCard
+              car={carWithDates}
+              isAvailable={isAvailable}
+              user={user as Parameters<typeof BookingCard>[0]["user"]}
+              vatRate={vatRate}
+              platformServiceFeeRate={platformServiceFeeRate}
+              securityDetailRate={securityDetailRate}
+              isMobile
+            />
+          </div>
         </div>
       </div>
-    </div>
+
+      <div className="hidden lg:block max-w-6xl py-4 space-y-4 mx-auto">
+        <Link to={`/search?${searchParams.toString()}`} className="hover:underline mb-1 block">
+          &larr; Back to search results
+        </Link>
+
+        <h2 className="text-2xl sm:text-3xl font-bold mb-4">
+          {car.make} {car.model} - {car.year}
+        </h2>
+
+        <div className="grid grid-cols-1 lg:grid-cols-[60%,40%] gap-4">
+          <div className="flex flex-col gap-4">
+            <CarCarousel variant="booking" images={carImages} priority />
+
+            {/* Desktop car details */}
+            <div className="px-4">
+              <h3 className="text-base font-semibold leading-7 text-gray-900">
+                Car information and features
+              </h3>
+
+              <div className="mt-4 border-t border-gray-100">
+                <dl>
+                  <div className="py-3 grid grid-cols-3 gap-4 px-0">
+                    <dt className="text-sm font-medium leading-6 text-gray-900">Make & Model</dt>
+                    <dd className="text-sm leading-6 text-gray-700 col-span-2">
+                      {car.make} {car.model} {car.year}
+                    </dd>
+                  </div>
+
+                  <div className="py-3 grid grid-cols-3 gap-4 px-0">
+                    <dt className="text-sm font-medium leading-6 text-gray-900">Features</dt>
+                    <dd className="text-sm leading-6 text-gray-700 col-span-2">
+                      Air conditioning, GPS navigation system, Bluetooth connectivity, Cruise
+                      control, Rear-view camera, USB ports
+                    </dd>
+                  </div>
+
+                  <div className="py-3 grid grid-cols-3 gap-4">
+                    <dt className="text-sm font-medium leading-6 text-gray-900">
+                      Transmission Type
+                    </dt>
+                    <dd className="text-sm leading-6 text-gray-700 col-span-2">Automatic</dd>
+                  </div>
+
+                  <div className="py-3 grid grid-cols-3 gap-4">
+                    <dt className="text-sm font-medium leading-6 text-gray-900">
+                      Seating Capacity
+                    </dt>
+                    <dd className="text-sm leading-6 text-gray-700 col-span-2">7-seater</dd>
+                  </div>
+                </dl>
+              </div>
+            </div>
+          </div>
+
+          <div className="sticky top-4 px-4">
+            <BookingCard
+              car={carWithDates}
+              isAvailable={isAvailable}
+              user={user as Parameters<typeof BookingCard>[0]["user"]}
+              vatRate={vatRate}
+              platformServiceFeeRate={platformServiceFeeRate}
+              securityDetailRate={securityDetailRate}
+            />
+          </div>
+        </div>
+      </div>
+    </>
   );
 }

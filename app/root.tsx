@@ -112,6 +112,7 @@ function AppContent() {
     (route) => location.pathname === route || location.pathname.startsWith(`${route}/`),
   );
   const isHomePage = location.pathname === "/";
+  const isCarDetailPage = location.pathname.startsWith("/cars/");
 
   const getDashboardLink = () => {
     if (user?.roles?.some((role) => role.name === "admin")) {
@@ -172,11 +173,16 @@ function AppContent() {
             </header>
           )}
 
-          <main className={`flex-grow pb-20 md:pb-0 text-sm ${getMainClassName()}`}>
+          <main className={`flex-grow ${isCarDetailPage ? "pb-0" : "pb-20"} md:pb-0 text-sm ${getMainClassName()}`}>
             <Outlet />
           </main>
 
-          {!isAuthPage && <Footer appName={ENV.APP_NAME} />}
+          {/* Footer: hidden on auth pages, hidden on mobile for car detail pages (booking flow has sticky footer) */}
+          {!isAuthPage && (
+            <div className={isCarDetailPage ? "hidden lg:block" : ""}>
+              <Footer appName={ENV.APP_NAME} />
+            </div>
+          )}
         </div>
 
         {/* Mobile bottom navigation - hidden on login/verify pages */}

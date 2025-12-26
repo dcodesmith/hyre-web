@@ -14,6 +14,33 @@ const hasTimePassed = (selectedDate: Date, hour: number) => {
   return nowLagos.getHours() >= hour;
 };
 
+/**
+ * Normalizes a time string from URL format to match toLocaleTimeString output
+ * toLocaleTimeString with hour: 'numeric' produces "8 AM" (no :00)
+ */
+function normalizeTimeFormat(time: string | undefined): string | undefined {
+  if (!time) return undefined;
+
+  const trimmed = time.trim();
+
+  // Match patterns like "9 AM", "9AM", "11 PM", "9:00 AM" etc.
+  const timeRegex = /^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)$/i;
+  const match = timeRegex.exec(trimmed);
+  if (match) {
+    const hour = Number.parseInt(match[1], 10);
+    if (hour < 1 || hour > 12) {
+      return trimmed; // Return as-is if hour is out of range
+    }
+    const period = match[3].toUpperCase(); // match[3] is the AM/PM group, match[2] is optional minutes
+
+    // Format as "H AM/PM" to match toLocaleTimeString('en-US', { hour: 'numeric', hour12: true })
+    return `${hour} ${period}`;
+  }
+
+  // If it doesn't match expected patterns, return as is
+  return trimmed;
+}
+
 function getPickupTimes(date: Date, bookingType = "DAY", startHour = 7, endHour = 11) {
   const times = [];
 
@@ -54,6 +81,7 @@ function getPickupTimes(date: Date, bookingType = "DAY", startHour = 7, endHour 
 interface BookingTimeSelectProps {
   readonly date: Date;
   readonly defaultValue?: string;
+  readonly value?: string;
   readonly className?: string;
   readonly bookingType?: string;
   readonly onValueChange?: (value: string) => void;
@@ -68,6 +96,7 @@ interface BookingTimeSelectProps {
 export function BookingTimeSelect({
   date,
   defaultValue,
+  value,
   className,
   bookingType = "DAY",
   onValueChange,
@@ -75,8 +104,23 @@ export function BookingTimeSelect({
   labelClassName = "text-xs font-semibold text-gray-700 leading-tight",
   showLabel = false,
 }: BookingTimeSelectProps) {
+  // Normalize the value to match the select's format
+  const normalizedValue = value ? normalizeTimeFormat(value) : undefined;
+  const normalizedDefaultValue = defaultValue ? normalizeTimeFormat(defaultValue) : undefined;
+
+  // Determine if we're in controlled or uncontrolled mode
+  // Controlled: value prop is provided
+  // Uncontrolled: value prop is not provided, use defaultValue
+  const selectValueProp = normalizedValue;
+  const selectDefaultValue = normalizedValue === undefined ? normalizedDefaultValue : undefined;
+
   const selectElement = (
-    <Select name="pickupTime" defaultValue={defaultValue} onValueChange={onValueChange}>
+    <Select
+      name="pickupTime"
+      value={selectValueProp}
+      defaultValue={selectDefaultValue}
+      onValueChange={onValueChange}
+    >
       <SelectTrigger
         className={cn(
           containerClassName
