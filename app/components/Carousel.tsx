@@ -123,6 +123,7 @@ export default function Carousel({
             width="400"
             height="320"
             loading={priority && index === 0 ? "eager" : "lazy"}
+            fetchPriority={priority && index === 0 ? "high" : "auto"}
             decoding="async"
             draggable={false}
           />
