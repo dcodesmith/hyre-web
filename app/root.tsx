@@ -105,11 +105,10 @@ export const links: LinksFunction = () => [
   // Performance optimizations - preconnect early
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
   { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
-  // Preload font CSS for faster loading
+  // Load Google Fonts stylesheet
   {
-    rel: "preload",
+    rel: "stylesheet",
     href: "https://fonts.googleapis.com/css2?family=Nunito+Sans:ital,opsz,wght@0,6..12,200..1000;1,6..12,200..1000&family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&display=swap",
-    as: "style",
   },
   // DNS prefetch for potential external resources
   { rel: "dns-prefetch", href: "https://vercel.app" },
@@ -208,37 +207,6 @@ function AppContent() {
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <Meta />
         <Links />
-        {/* Load Google Fonts asynchronously to prevent blocking FCP */}
-        <link
-          rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=Nunito+Sans:ital,opsz,wght@0,6..12,200..1000;1,6..12,200..1000&family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&display=swap"
-          media="print"
-        />
-        <script
-          // biome-ignore lint/security/noDangerouslySetInnerHtml: <performance optimization>
-          dangerouslySetInnerHTML={{
-            __html: `
-              (function() {
-                var link = document.querySelector('link[href*="fonts.googleapis.com"][media="print"]');
-                if (link) {
-                  // If already loaded (cached), switch immediately
-                  if (link.sheet) {
-                    link.media = 'all';
-                    return;
-                  }
-                  link.onload = function() { this.media = 'all'; };
-                  link.onerror = function() { this.media = 'all'; };
-                }
-              })();
-            `,
-          }}
-        />
-        <noscript>
-          <link
-            rel="stylesheet"
-            href="https://fonts.googleapis.com/css2?family=Nunito+Sans:ital,opsz,wght@0,6..12,200..1000;1,6..12,200..1000&family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&display=swap"
-          />
-        </noscript>
       </head>
       <body className="h-full bg-background">
         <Analytics />
