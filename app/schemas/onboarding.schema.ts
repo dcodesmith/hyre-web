@@ -4,12 +4,12 @@ import { banks } from "~/lib/banks";
 const baseSchema = z.object({
   name: z
     .string({
-      error: "Name is required and must be a string.",
+      error: "Name is required.",
     })
     .min(1, "Name cannot be empty"),
   phoneNumber: z
     .string({
-      error: "Phone number is required and must be a string.",
+      error: "Phone number is required.",
     })
     .regex(
       /^\+234[789][01]\d{8}$/,
@@ -17,24 +17,24 @@ const baseSchema = z.object({
     ),
   address: z
     .string({
-      error: "Address is required and must be a string.",
+      error: "Address is required.",
     })
     .min(1, "Address cannot be empty"),
   bankCode: z
     .string({
-      error: "Bank is required and must be a string.",
+      error: "Bank is required.",
     })
     .refine((code) => banks.some((b) => b.code === code), {
       error: "Select a valid bank.",
     }),
   accountNumber: z
     .string({
-      error: "Account number is required and must be a string.",
+      error: "Account number is required.",
     })
     .regex(/^\d{10}$/, "Account number must be exactly 10 digits"),
   accountName: z
     .string({
-      error: "Account name is required and must be a string.",
+      error: "Account name is required.",
     })
     .min(1, "Account name cannot be empty"),
 });

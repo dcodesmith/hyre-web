@@ -14,7 +14,7 @@ const descriptionField = z
 
 const ratePercentField = z
   .string({
-    error: "Rate percentage is required and must be a string.",
+    error: "Rate percentage is required.",
   })
   .min(1, "Rate percentage cannot be empty")
   .transform((val) => Number.parseFloat(val))
@@ -22,7 +22,7 @@ const ratePercentField = z
 
 const effectiveSinceField = z
   .string({
-    error: "Effective date is required and must be a string.",
+    error: "Effective date is required.",
   })
   .min(1, "Effective date cannot be empty")
   .transform((val) => new Date(val))
@@ -44,13 +44,13 @@ const dateRangeValidation = (data: { effectiveUntil: Date | null; effectiveSince
 export const staffSchema = z.object({
   name: z
     .string({
-      error: "Name is required and must be a string.",
+      error: "Name is required.",
     })
     .min(2, "Name must be at least 2 characters"),
   email: emailField,
   phoneNumber: z
     .string({
-      error: "Phone number is required and must be a string.",
+      error: "Phone number is required.",
     })
     .min(10, "Phone number must be at least 10 digits"),
 });
@@ -60,7 +60,7 @@ export const ManualAttributionSchema = z.object({
   referrerEmail: emailField,
   reason: z
     .string({
-      error: "Reason is required and must be a string.",
+      error: "Reason is required.",
     })
     .min(1, "Reason cannot be empty"),
 });
@@ -77,7 +77,7 @@ export const ConfigSchema = z.object({
 export const UpdateOwnerStatusSchema = z.object({
   ownerId: z
     .string({
-      error: "Owner ID is required and must be a string.",
+      error: "Owner ID is required.",
     })
     .min(1, "Owner ID cannot be empty"),
   status: z.enum(FleetOwnerStatus, {
@@ -92,7 +92,7 @@ export const updateCarStatusSchema = z.object({
   intent: z.literal("updateCarStatus"),
   carId: z
     .string({
-      error: "Car ID is required and must be a string.",
+      error: "Car ID is required.",
     })
     .min(1, "Car ID cannot be empty"),
   status: z.enum(CarApprovalStatus, {

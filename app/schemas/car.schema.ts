@@ -13,19 +13,19 @@ export const STATUSES = ["AVAILABLE", "HOLD", "IN_SERVICE"] as const;
 // Shared field definitions
 const makeField = z
   .string({
-    error: "Make is required and must be a string.",
+    error: "Make is required.",
   })
   .min(1, "Make cannot be empty");
 
 const modelField = z
   .string({
-    error: "Model is required and must be a string.",
+    error: "Model is required.",
   })
   .min(1, "Model cannot be empty");
 
 const registrationNumberField = z
   .string({
-    error: "Registration number is required and must be a string.",
+    error: "Registration number is required.",
   })
   .min(1, "Registration number cannot be empty")
   .transform((val) => val.toUpperCase())
@@ -33,7 +33,7 @@ const registrationNumberField = z
     z.string().refine(
       (val) => {
         const plate = val.replaceAll(/\s+/g, "");
-        const stateFormat = /^[A-Z]{3}[-]?\d{3}[A-Z]{2}$/;
+        const stateFormat = /^[A-Z]{3}-?\d{3}[A-Z]{2}$/;
         const federalFormat = /^[A-Z]{2}\d{3}[A-Z]{2}$/;
 
         return stateFormat.test(plate) || federalFormat.test(plate);

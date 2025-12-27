@@ -244,34 +244,47 @@ export default function CarDetails() {
   const carImages = car.images.length > 0 ? car.images.map(({ url }) => url) : undefined;
 
   return (
-    <>
-      {/* MOBILE LAYOUT - Sticky header, scrollable content, sticky footer handled by BookingCard */}
-      <div className="lg:hidden flex flex-col min-h-screen -mx-4 -mt-4">
-        {/* Sticky Header - Carousel with Car Title */}
-        <div className="sticky top-0 z-30 bg-white shadow-sm">
-          <div className="relative">
-            <CarCarousel variant="booking" images={carImages} priority />
-            {/* Back button overlay */}
-            <Link
-              to={`/search?${searchParams.toString()}`}
-              className="absolute top-4 left-4 z-10 bg-black/50 text-white p-2 rounded-full hover:bg-black/70 transition-colors"
-              aria-label="Back to search results"
-            >
-              <ArrowLeftIcon className="w-4 h-4" />
-            </Link>
-          </div>
+    <div className="lg:max-w-6xl lg:space-y-4 lg:mx-auto">
+      <div className="lg:hidden bg-white">
+        <div className="relative">
+          <CarCarousel variant="booking" images={carImages} priority />
+          <Link
+            to={`/search?${searchParams.toString()}`}
+            className="absolute top-4 left-4 z-10 bg-black/50 text-white p-2 rounded-full hover:bg-black/70 transition-colors"
+            aria-label="Back to search results"
+          >
+            <ArrowLeftIcon className="w-4 h-4" />
+          </Link>
         </div>
+      </div>
 
-        {/* Scrollable Content */}
-        <div className="flex-1 pb-40">
-          {/* Car Details Accordion */}
-          <div className="px-4 pt-6">
-            <Accordion type="single" collapsible className="w-full">
+      {/* Desktop: Back link and title */}
+      <div className="hidden lg:block">
+        <Link to={`/search?${searchParams.toString()}`} className="hover:underline mb-1 block">
+          &larr; Back to search results
+        </Link>
+        <h2 className="text-2xl sm:text-3xl font-bold mb-4">
+          {car.make} {car.model} - {car.year}
+        </h2>
+      </div>
+
+      {/* Main content grid */}
+      <div className="lg:grid lg:grid-cols-[60%,40%] lg:gap-4">
+        {/* Left column: Carousel and car details */}
+        <div className="flex flex-col gap-4">
+          {/* Desktop carousel */}
+          <div className="hidden lg:block">
+            <CarCarousel variant="booking" images={carImages} priority />
+          </div>
+
+          {/* Car details - accordion on mobile, regular on desktop */}
+          <div className="px-4 lg:px-0">
+            <Accordion type="single" collapsible className="w-full lg:hidden">
               <AccordionItem value="car-details" className="border-none">
                 <AccordionTrigger className="text-sm font-semibold leading-7 text-gray-900 border-none py-2">
                   Car information and features
                 </AccordionTrigger>
-                <AccordionContent className="border-none">
+                <AccordionContent className="border-none px-4">
                   <dl className="mt-1 text-sm">
                     <div className="py-2">
                       <dt className="font-medium text-gray-900">Make & Model</dt>
@@ -297,67 +310,34 @@ export default function CarDetails() {
                 </AccordionContent>
               </AccordionItem>
             </Accordion>
-          </div>
-
-          {/* Booking Card - Mobile version */}
-          <div className="px-4">
-            <BookingCard
-              car={carWithDates}
-              isAvailable={isAvailable}
-              user={user as Parameters<typeof BookingCard>[0]["user"]}
-              vatRate={vatRate}
-              platformServiceFeeRate={platformServiceFeeRate}
-              securityDetailRate={securityDetailRate}
-              isMobile
-            />
-          </div>
-        </div>
-      </div>
-
-      <div className="hidden lg:block max-w-6xl py-4 space-y-4 mx-auto">
-        <Link to={`/search?${searchParams.toString()}`} className="hover:underline mb-1 block">
-          &larr; Back to search results
-        </Link>
-
-        <h2 className="text-2xl sm:text-3xl font-bold mb-4">
-          {car.make} {car.model} - {car.year}
-        </h2>
-
-        <div className="grid grid-cols-1 lg:grid-cols-[60%,40%] gap-4">
-          <div className="flex flex-col gap-4">
-            <CarCarousel variant="booking" images={carImages} priority />
 
             {/* Desktop car details */}
-            <div className="px-4">
+            <div className="hidden lg:block">
               <h3 className="text-base font-semibold leading-7 text-gray-900">
                 Car information and features
               </h3>
-
               <div className="mt-4 border-t border-gray-100">
                 <dl>
-                  <div className="py-3 grid grid-cols-3 gap-4 px-0">
+                  <div className="py-2 grid grid-cols-3 gap-4 px-0">
                     <dt className="text-sm font-medium leading-6 text-gray-900">Make & Model</dt>
                     <dd className="text-sm leading-6 text-gray-700 col-span-2">
                       {car.make} {car.model} {car.year}
                     </dd>
                   </div>
-
-                  <div className="py-3 grid grid-cols-3 gap-4 px-0">
+                  <div className="py-2 grid grid-cols-3 gap-4 px-0">
                     <dt className="text-sm font-medium leading-6 text-gray-900">Features</dt>
                     <dd className="text-sm leading-6 text-gray-700 col-span-2">
                       Air conditioning, GPS navigation system, Bluetooth connectivity, Cruise
                       control, Rear-view camera, USB ports
                     </dd>
                   </div>
-
-                  <div className="py-3 grid grid-cols-3 gap-4">
+                  <div className="py-2 grid grid-cols-3 gap-4">
                     <dt className="text-sm font-medium leading-6 text-gray-900">
                       Transmission Type
                     </dt>
                     <dd className="text-sm leading-6 text-gray-700 col-span-2">Automatic</dd>
                   </div>
-
-                  <div className="py-3 grid grid-cols-3 gap-4">
+                  <div className="py-2 grid grid-cols-3 gap-4">
                     <dt className="text-sm font-medium leading-6 text-gray-900">
                       Seating Capacity
                     </dt>
@@ -367,19 +347,20 @@ export default function CarDetails() {
               </div>
             </div>
           </div>
+        </div>
 
-          <div className="sticky top-4 px-4">
-            <BookingCard
-              car={carWithDates}
-              isAvailable={isAvailable}
-              user={user as Parameters<typeof BookingCard>[0]["user"]}
-              vatRate={vatRate}
-              platformServiceFeeRate={platformServiceFeeRate}
-              securityDetailRate={securityDetailRate}
-            />
-          </div>
+        {/* Right column: Booking form - single instance */}
+        <div className="px-4 lg:px-0 lg:sticky lg:top-4">
+          <BookingCard
+            car={carWithDates}
+            isAvailable={isAvailable}
+            user={user as Parameters<typeof BookingCard>[0]["user"]}
+            vatRate={vatRate}
+            platformServiceFeeRate={platformServiceFeeRate}
+            securityDetailRate={securityDetailRate}
+          />
         </div>
       </div>
-    </>
+    </div>
   );
 }

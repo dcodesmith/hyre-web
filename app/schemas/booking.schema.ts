@@ -9,7 +9,7 @@ import {
 const coreBookingFields = z.object({
   carId: z
     .string({
-      error: "Car ID is required and must be a string.",
+      error: "Car ID is required.",
     })
     .min(1, "Car ID cannot be empty"),
   pickupTime: z.string().optional(),
@@ -27,7 +27,7 @@ const coreBookingFields = z.object({
 const dropOffSchema = z.object({
   dropOffAddress: z
     .string({
-      error: "Drop-off address is required and must be a string.",
+      error: "Drop-off address is required.",
     })
     .min(1, "Drop-off address cannot be empty"),
 });
@@ -36,12 +36,12 @@ const guestInfoSchema = z.object({
   email: z.email("Email address is not valid."),
   name: z
     .string({
-      error: "Name is required and must be a string.",
+      error: "Name is required.",
     })
     .min(2, "Name must be at least 2 characters"),
   phoneNumber: z
     .string({
-      error: "Phone number is required and must be a string.",
+      error: "Phone number is required.",
     })
     .min(10, "Phone must be at least 10 digits"),
 });

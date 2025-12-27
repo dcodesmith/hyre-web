@@ -36,7 +36,6 @@ import { Label } from "../ui/label";
 import { Tabs, TabsList, TabsTrigger } from "../ui/tabs";
 import { BookingActions } from "./BookingActions";
 import { BookingAddons } from "./BookingAddons";
-import { BookingCardFooter } from "./BookingCardFooter";
 import { BookingCostBreakdown } from "./BookingCostBreakdown";
 import { BookingFormFields } from "./BookingFormFields";
 import { DateRangePicker } from "./DateRangePicker";
@@ -53,7 +52,6 @@ type BookingCardProps = {
   readonly vatRate: number;
   readonly platformServiceFeeRate: number;
   readonly securityDetailRate: number;
-  readonly isMobile?: boolean;
 };
 
 interface BookingCredits {
@@ -68,7 +66,6 @@ export default function BookingCard({
   user,
   vatRate,
   platformServiceFeeRate,
-  isMobile = false,
 }: BookingCardProps) {
   const navigate = useNavigate();
   const csrfToken = useAuthenticityToken();
@@ -293,7 +290,6 @@ export default function BookingCard({
   // Compute default pickup time based on booking type
   const getDefaultPickupTime = (): string | undefined => {
     if (bookingType === NIGHT_BOOKING_TYPE) return "11:00 PM";
-    if (bookingType === AIRPORT_PICKUP_BOOKING_TYPE) return undefined;
     return searchParams.get("pickupTime") || undefined;
   };
   const defaultPickupTime = getDefaultPickupTime();
@@ -748,198 +744,6 @@ export default function BookingCard({
     navigate,
   ]);
 
-  // Shared form content for both mobile and desktop
-  const formContent = (
-    <>
-      <input type="hidden" name="bookingType" value={bookingType} />
-
-      <div className="space-y-1">
-        <Label className="font-semibold">Booking Type</Label>
-        <Tabs
-          value={BOOKING_TYPE_OPTIONS_MAP[bookingType].value}
-          onValueChange={handleBookingTypeChange}
-          className="w-full"
-        >
-          <TabsList className="p-2 gap-2 tabs-list-slider w-full h-auto before:w-[calc((100%-0.5rem)/4)]">
-            {BOOKING_TYPE_OPTIONS.map((type) => {
-              const option = BOOKING_TYPE_OPTIONS_MAP[type];
-              return (
-                <TabsTrigger
-                  key={option.value}
-                  value={option.value}
-                  className="flex flex-col data-[state=active]:shadow-none tabs-trigger-slider data-[state=active]:bg-transparent"
-                >
-                  <span className="text-sm font-semibold">{option.label}</span>
-                  <span className="text-xs text-gray-600">{option.duration}</span>
-                </TabsTrigger>
-              );
-            })}
-          </TabsList>
-        </Tabs>
-      </div>
-
-      <div className="space-y-1">
-        <Label htmlFor={`${form.id}-daterange`} className="font-semibold">
-          Select Dates
-        </Label>
-        <DateRangePicker
-          isNightBooking={bookingType === NIGHT_BOOKING_TYPE}
-          isFullDayBooking={bookingType === FULL_DAY_BOOKING_TYPE}
-          isAirportPickup={bookingType === AIRPORT_PICKUP_BOOKING_TYPE}
-          singleDateMode={bookingType === AIRPORT_PICKUP_BOOKING_TYPE}
-          date={dateRange}
-          onDateChange={handleDateChange}
-          showLabel={false}
-        />
-      </div>
-
-      {totalDays > 0 && !isAvailable && (
-        <div className="text-red-600 p-2 bg-red-50 border border-red-200 rounded-md text-sm text-center">
-          Car not available for the selected date.
-        </div>
-      )}
-
-      {carIsAvailableToBook && (
-        <div className="w-full space-y-4">
-          <BookingFormFields
-            bookingType={bookingType}
-            dateRange={dateRange}
-            fallbackDate={fallbackDateRef.current}
-            fields={{
-              pickupTime: fields.pickupTime,
-              flightNumber: fields.flightNumber,
-              pickupAddress: fields.pickupAddress,
-              dropOffAddress: fields.dropOffAddress,
-              sameLocation: fields.sameLocation,
-            }}
-            sameLocationChecked={sameLocationChecked}
-            formId={form.id}
-            errorRingClasses={ERROR_RING_CLASSES}
-            nightBookingHelperText={nightBookingHelperText}
-            onPickupTimeChange={handlePickupTimeChange}
-            onSameLocationChange={handleSameLocationChange}
-            onAddressUpdate={(name, value) => {
-              form.update({ name, value });
-              if (name === "dropOffAddress" && bookingType === AIRPORT_PICKUP_BOOKING_TYPE) {
-                handleDropOffAddressSelected(value);
-              }
-            }}
-            validatedFlight={validatedFlight}
-            onFlightValidated={setValidatedFlight}
-          />
-
-          <BookingAddons
-            bookingType={bookingType}
-            totalDays={totalDays}
-            fuelNote={fuelNote}
-            fuelUpgradeRate={car.fuelUpgradeRate}
-            requiresFullTank={requiresFullTank}
-            onFullTankChange={handleFullTankChange}
-            user={user}
-            bookingCredits={bookingCredits}
-            useCreditsAmount={useCreditsAmount}
-            subtotalBeforeDiscounts={subtotalBeforeDiscounts}
-            referralDiscountAmount={referralDiscountAmount}
-            onUseCreditsChange={handleUseCreditsChange}
-          />
-        </div>
-      )}
-    </>
-  );
-
-  // Trip details for mobile footer
-  const tripDetailsForFooter =
-    bookingType === AIRPORT_PICKUP_BOOKING_TYPE &&
-    validatedFlight?.estimatedArrival &&
-    tripDuration &&
-    fields.dropOffAddress.value
-      ? {
-          estimatedArrival: validatedFlight.estimatedArrival,
-          durationInMinutes: tripDuration.durationInMinutes,
-          distanceText: tripDuration.distanceText,
-          status: tripDuration.status,
-        }
-      : null;
-
-  // MOBILE LAYOUT
-  if (isMobile) {
-    return (
-      <Form {...getFormProps(form)} method="POST" autoComplete="off">
-        <input type="hidden" name="carId" value={car.id} />
-        <input type="hidden" name="totalAmount" value={finalTotalCost} />
-        <input type="hidden" name="requiresFullTank" value={String(requiresFullTank)} />
-        <input type="hidden" name="useCredits" value={useCreditsAmount} />
-
-        {hasValidBookingType ? (
-          <div className="space-y-4">
-            {formContent}
-
-            {/* Cost breakdown in scrollable area for mobile */}
-            {carIsAvailableToBook && (
-              <div className="space-y-4 pt-4 border-t">
-                {/* Trip details for airport pickup */}
-                {tripDetailsForFooter && (
-                  <TripDetails
-                    estimatedArrival={tripDetailsForFooter.estimatedArrival}
-                    durationInMinutes={tripDetailsForFooter.durationInMinutes}
-                    distanceText={tripDetailsForFooter.distanceText}
-                    status={tripDetailsForFooter.status}
-                  />
-                )}
-
-                <BookingCostBreakdown
-                  currentCarPrice={currentCarPrice}
-                  totalDays={totalDays}
-                  bookingType={bookingType}
-                  baseTotal={baseTotal}
-                  fuelUpgradeCost={fuelUpgradeCost}
-                  platformFee={platformFee}
-                  platformServiceFeeRate={platformServiceFeeRate}
-                  referralDiscountAmount={referralDiscountAmount}
-                  useCreditsAmount={useCreditsAmount}
-                  vatRate={vatRate}
-                  vat={vat}
-                  finalTotalCost={finalTotalCost}
-                  hideTotal
-                />
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="text-red-600 p-4 bg-red-50 border border-red-200 rounded-md text-sm text-center">
-            <p className="font-medium mb-2">Invalid booking type</p>
-            <p>
-              Please{" "}
-              <Link to="/" className="underline font-medium hover:text-red-800">
-                select a car from the home page
-              </Link>{" "}
-              to continue.
-            </p>
-          </div>
-        )}
-
-        {/* Mobile Sticky Footer - just total + pay button */}
-        {hasValidBookingType && carIsAvailableToBook && (
-          <BookingCardFooter
-            finalTotalCost={finalTotalCost}
-            user={user}
-            isPending={isPending}
-            fields={{
-              name: "name" in fields ? (fields.name as FieldMetadata<string>) : undefined,
-              email: "email" in fields ? (fields.email as FieldMetadata<string>) : undefined,
-              phoneNumber:
-                "phoneNumber" in fields ? (fields.phoneNumber as FieldMetadata<string>) : undefined,
-            }}
-            onNavigateToAuth={handleNavigateToAuth}
-            showFetcherError={showFetcherError}
-            fetcherError={bookingFetcher.data?.error}
-          />
-        )}
-      </Form>
-    );
-  }
-
-  // DESKTOP LAYOUT
   return (
     <Form {...getFormProps(form)} method="POST" autoComplete="off">
       <input type="hidden" name="carId" value={car.id} />
@@ -948,7 +752,7 @@ export default function BookingCard({
       <input type="hidden" name="useCredits" value={useCreditsAmount} />
 
       <Card className="rounded shadow-xl inset-shadow-sm transform-gpu">
-        <CardHeader className="px-6 py-4">
+        <CardHeader className="px-4 lg:px-6 py-4">
           <CardTitle>
             <span className="text-lg" aria-live="polite">
               {formatCurrency(totalDays > 0 ? currentCarPrice * totalDays : currentCarPrice)}
@@ -962,7 +766,7 @@ export default function BookingCard({
         </CardHeader>
 
         {hasValidBookingType ? (
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-4 [&>div:first-of-type]:!mt-0 px-4 lg:px-6">
             <input type="hidden" name="bookingType" value={bookingType} />
 
             <div className="space-y-1">
@@ -1072,7 +876,7 @@ export default function BookingCard({
         )}
 
         {hasValidBookingType && carIsAvailableToBook && (
-          <CardFooter className="flex flex-col items-stretch space-y-4 bg-gray-50 p-4 border-t">
+          <CardFooter className="hidden lg:flex flex-col items-stretch space-y-4 bg-gray-50 p-4 border-t">
             {/* Show trip duration for airport pickup bookings */}
             {bookingType === AIRPORT_PICKUP_BOOKING_TYPE &&
               validatedFlight?.estimatedArrival &&
@@ -1127,6 +931,88 @@ export default function BookingCard({
           </CardFooter>
         )}
       </Card>
+
+      {/* Mobile only: Cost breakdown in its own bordered section - OUTSIDE Card */}
+      {hasValidBookingType && carIsAvailableToBook && (
+        <div className="lg:hidden mt-4">
+          <div className="space-y-4">
+            {/* Trip details for airport pickup */}
+            {bookingType === AIRPORT_PICKUP_BOOKING_TYPE &&
+              validatedFlight?.estimatedArrival &&
+              tripDuration &&
+              fields.dropOffAddress.value && (
+                <TripDetails
+                  estimatedArrival={validatedFlight.estimatedArrival}
+                  durationInMinutes={tripDuration.durationInMinutes}
+                  distanceText={tripDuration.distanceText}
+                  status={tripDuration.status}
+                />
+              )}
+
+            <BookingCostBreakdown
+              currentCarPrice={currentCarPrice}
+              totalDays={totalDays}
+              bookingType={bookingType}
+              baseTotal={baseTotal}
+              fuelUpgradeCost={fuelUpgradeCost}
+              platformFee={platformFee}
+              platformServiceFeeRate={platformServiceFeeRate}
+              referralDiscountAmount={referralDiscountAmount}
+              useCreditsAmount={useCreditsAmount}
+              vatRate={vatRate}
+              vat={vat}
+              finalTotalCost={finalTotalCost}
+            />
+
+            {/* Display booking submission errors */}
+            {showFetcherError && bookingFetcher.data?.error && (
+              <div className="bg-red-50 border-l-4 border-red-400 text-red-800 p-3 text-sm">
+                {bookingFetcher.data.error}
+              </div>
+            )}
+          </div>
+
+          {/* Add padding at bottom on mobile to account for sticky footer */}
+          <div className="pb-32" />
+        </div>
+      )}
+
+      {/* Mobile: Sticky footer with just total and pay button - OUTSIDE Card */}
+      {hasValidBookingType && carIsAvailableToBook && (
+        <div className="lg:hidden fixed bottom-0 rounded-t-xl left-0 right-0 z-50 bg-white border-t shadow-[0_-4px_20px_rgba(0,0,0,0.1)] pb-[env(safe-area-inset-bottom)]">
+          {/* Display booking submission errors */}
+          {showFetcherError && bookingFetcher.data?.error && (
+            <div className="px-4 py-2 bg-red-50 border-b border-red-200">
+              <p className="text-red-800 text-sm">{bookingFetcher.data.error}</p>
+            </div>
+          )}
+
+          <div className="p-4 space-y-3">
+            {/* Total row */}
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-gray-600">Total</span>
+              <span className="text-base font-semibold">{formatCurrency(finalTotalCost)}</span>
+            </div>
+
+            {/* Only show booking section if user is not a fleet owner */}
+            {!user?.roles?.some((role) => ["fleetOwner", "admin", "staff"].includes(role.name)) && (
+              <BookingActions
+                user={user}
+                isPending={isPending}
+                fields={{
+                  name: "name" in fields ? (fields.name as FieldMetadata<string>) : undefined,
+                  email: "email" in fields ? (fields.email as FieldMetadata<string>) : undefined,
+                  phoneNumber:
+                    "phoneNumber" in fields
+                      ? (fields.phoneNumber as FieldMetadata<string>)
+                      : undefined,
+                }}
+                onNavigateToAuth={handleNavigateToAuth}
+              />
+            )}
+          </div>
+        </div>
+      )}
     </Form>
   );
 }

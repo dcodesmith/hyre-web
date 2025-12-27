@@ -1,5 +1,4 @@
 import { User } from "@prisma/client";
-import { Fuel } from "lucide-react";
 import { formatCurrency } from "~/lib/utils";
 import { AIRPORT_PICKUP_BOOKING_TYPE, BookingType, DAY_BOOKING_TYPE } from "../bookingTypes";
 import { Checkbox } from "../ui/checkbox";
@@ -44,14 +43,9 @@ export function BookingAddons({
   return (
     <>
       {fuelNote && bookingType !== AIRPORT_PICKUP_BOOKING_TYPE && (
-        <div className="flex items-start gap-3">
-          <div className="flex-shrink-0 w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center">
-            <Fuel className="w-4 h-4 text-emerald-600" />
-          </div>
-          <div className="flex-1 text-xs min-w-0">
-            <p className="font-medium text-gray-900">Fuel included</p>
-            <p className="text-gray-500">{fuelNote}</p>
-          </div>
+        <div className="bg-slate-100 rounded-md p-2 text-sm text-orange-600 min-w-0">
+          <span className="font-medium mr-1">Fuel included:</span>
+          <span>{fuelNote}</span>
         </div>
       )}
 

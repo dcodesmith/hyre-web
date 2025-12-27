@@ -64,6 +64,10 @@ function TimeOrFlightField({
 }: TimeOrFlightFieldProps) {
   // Airport pickup: show flight number field
   if (bookingType === AIRPORT_PICKUP_BOOKING_TYPE && fields.flightNumber) {
+    const inputPropsFromConform = getInputProps(fields.flightNumber, {
+      type: "text",
+      ariaAttributes: true,
+    });
     return (
       <div className="space-y-1">
         <Label htmlFor={fields.flightNumber.id} className="font-semibold">
@@ -71,13 +75,10 @@ function TimeOrFlightField({
         </Label>
         <AutocompleteFlight
           id={fields.flightNumber.id}
-          onSelect={(flightNumber) =>
-            onAddressUpdate(fields.flightNumber?.name ?? "flightNumber", flightNumber)
-          }
-          inputProps={getInputProps(fields.flightNumber, {
-            type: "text",
-            ariaAttributes: true,
-          })}
+          onSelect={(flightNumber) => {
+            onAddressUpdate(fields.flightNumber?.name ?? "flightNumber", flightNumber);
+          }}
+          inputProps={inputPropsFromConform}
           initialValue={fields.flightNumber.value}
           className={fields.flightNumber.errors ? errorRingClasses : ""}
           nigeriaOnly={true}
@@ -146,7 +147,7 @@ export function BookingFormFields({
 
       {bookingType === NIGHT_BOOKING_TYPE && nightBookingHelperText && (
         <div
-          className="bg-blue-50 border-l-4 border-blue-400 text-blue-800 p-2 text-sm"
+          className="flex-1 bg-slate-100 rounded-md p-2 text-sm text-orange-600 min-w-0"
           role="alert"
         >
           {nightBookingHelperText}

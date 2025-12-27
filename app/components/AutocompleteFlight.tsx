@@ -50,7 +50,7 @@ export function AutocompleteFlight({
     isWarning: validationIsWarning,
   } = useFlightValidation();
 
-  // Effect to handle initial value
+  // Effect to handle initial value - syncs from form state to component state
   useEffect(() => {
     setQuery(initialValue);
   }, [initialValue]);
@@ -182,6 +182,7 @@ export function AutocompleteFlight({
       setQuery(formattedFlight);
       setOpen(false);
       setSuggestions([]);
+      // Update form state via onSelect callback (not via inputProps.onChange to avoid conflicts)
       onSelect(formattedFlight);
 
       // Validate flight if pickupDate is provided
@@ -203,19 +204,20 @@ export function AutocompleteFlight({
       setOpen(false);
     }
 
-    // Call parent's onChange if provided
-    if (inputProps?.onChange) {
-      inputProps.onChange(event);
-    }
+    // DO NOT call inputProps.onChange here - we manage form state via onSelect callback
+    // Calling both would cause duplicate updates and value concatenation issues
+    // The form state is updated when user selects from dropdown via onSelect -> onAddressUpdate -> form.update
   };
 
-  const sanitizedInputProps: Omit<
-    React.InputHTMLAttributes<HTMLInputElement>,
-    "value" | "onChange" | "defaultValue"
-  > = inputProps
-    ? (({ value: _omitValue, onChange: _omitOnChange, defaultValue: _omitDefaultValue, ...rest }) =>
-        rest)(inputProps)
-    : {};
+  // Remove value, onChange, defaultValue, and name from inputProps
+  // We control value/onChange ourselves, and name can cause conflicts with form state
+  const {
+    value: _omitValue,
+    onChange: _omitOnChange,
+    defaultValue: _omitDefaultValue,
+    name: _omitName,
+    ...sanitizedInputProps
+  } = inputProps || {};
 
   // Notify parent of validation messages when they occur
   useEffect(() => {
@@ -226,6 +228,8 @@ export function AutocompleteFlight({
 
   return (
     <div className="w-full">
+      {/* Hidden input for form submission - syncs with query state */}
+      {inputProps?.name && <input type="hidden" name={inputProps.name} value={query} />}
       <Popover open={open && suggestions.length > 0} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <div className="relative">

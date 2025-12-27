@@ -163,6 +163,7 @@ export function DateRangePicker({
                 isCompact ? "h-auto gap-0.5 px-0" : "h-10 px-0",
                 !hasDate && "text-muted-foreground",
               )}
+              aria-label={hasDate ? `${label}: ${formattedDate}` : `${label}: ${placeholder}`}
             >
               <span className="text-xs font-semibold text-gray-700 leading-tight">{label}</span>
               <div
@@ -179,6 +180,7 @@ export function DateRangePicker({
                 "w-full justify-start text-left font-normal px-3",
                 !hasDate && "text-muted-foreground",
               )}
+              aria-label={hasDate ? `Select date: ${formattedDate}` : `Select date: ${placeholder}`}
             >
               {formattedDate ?? <span>{placeholder}</span>}
               {isOpen ? (

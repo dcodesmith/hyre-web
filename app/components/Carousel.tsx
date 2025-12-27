@@ -166,7 +166,11 @@ export default function Carousel({
           <button
             key={`slide-indicator-${image}`}
             type="button"
-            onClick={() => setCurrentIndex(index)}
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              setCurrentIndex(index);
+            }}
             className={cn(
               "w-1.5 h-1.5 rounded-full transition-all",
               index === currentIndex ? "bg-white w-6 cursor-not-allowed" : "bg-white/60",

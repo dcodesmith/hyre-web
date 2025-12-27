@@ -326,7 +326,7 @@ export default function IndexPage() {
               Find your perfect ride
             </h1>
             <p className="text-base md:text-lg text-white/90 text-center max-w-2xl leading-relaxed">
-              Comfort. Safety. Professional service. Every ride.
+              Comfort. Safety. Professional. Every ride.
             </p>
           </div>
 

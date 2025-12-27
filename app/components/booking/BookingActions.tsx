@@ -17,7 +17,7 @@ interface BookingActionsProps {
 
 export function BookingActions({ user, isPending, fields, onNavigateToAuth }: BookingActionsProps) {
   return (
-    <div className="space-y-4 pt-4 border-t">
+    <div className="space-y-4 pt-2">
       {!user && fields.name && fields.email && fields.phoneNumber && (
         <>
           <h3 className="text-md font-semibold">Guest Details</h3>
@@ -30,11 +30,28 @@ export function BookingActions({ user, isPending, fields, onNavigateToAuth }: Bo
       )}
 
       <div className="flex flex-col space-y-2">
-        {!user ? (
+        {user ? (
+          <Button
+            type="submit"
+            className="rounded-full w-full"
+            name="intent"
+            value="auth"
+            disabled={isPending}
+          >
+            {isPending ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Redirecting to payment...
+              </>
+            ) : (
+              "Pay Now"
+            )}
+          </Button>
+        ) : (
           <>
             <Button
               type="submit"
-              className="rounded w-full"
+              className="rounded-full w-full"
               name="intent"
               value="guest"
               disabled={isPending}
@@ -61,23 +78,6 @@ export function BookingActions({ user, isPending, fields, onNavigateToAuth }: Bo
               </Button>
             </div>
           </>
-        ) : (
-          <Button
-            type="submit"
-            className="rounded w-full"
-            name="intent"
-            value="auth"
-            disabled={isPending}
-          >
-            {isPending ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Redirecting to payment...
-              </>
-            ) : (
-              "Pay Now"
-            )}
-          </Button>
         )}
       </div>
     </div>

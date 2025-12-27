@@ -197,6 +197,10 @@ function AppContent() {
       // Homepage handles its own padding for full-bleed hero
       return "";
     }
+    if (isCarDetailPage) {
+      // Car detail page: no padding on mobile, container with padding on desktop
+      return "lg:container lg:mx-auto lg:px-4";
+    }
     return "container mx-auto px-4";
   };
 
@@ -246,7 +250,7 @@ function AppContent() {
 
           {/* Footer: hidden on auth pages, hidden on mobile for car detail pages (booking flow has sticky footer) */}
           {!isAuthPage && (
-            <div className={isCarDetailPage ? "hidden lg:block" : ""}>
+            <div className={isCarDetailPage ? "hidden lg:block lg:mt-10" : ""}>
               <Footer appName={ENV.APP_NAME} />
             </div>
           )}

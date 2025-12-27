@@ -1,4 +1,9 @@
-import { BookingType, FULL_DAY_BOOKING_TYPE, NIGHT_BOOKING_TYPE, AIRPORT_PICKUP_BOOKING_TYPE } from "../bookingTypes";
+import {
+  BookingType,
+  FULL_DAY_BOOKING_TYPE,
+  NIGHT_BOOKING_TYPE,
+  AIRPORT_PICKUP_BOOKING_TYPE,
+} from "../bookingTypes";
 
 export function getOrdinal(n: number): string {
   const mod100 = n % 100;
@@ -47,5 +52,5 @@ export function getFuelTankNote(
     note = "Booking comes with a full tank";
   }
 
-  return note ? `${note}, after that, it's your responsibility to fill the tank.` : null;
+  return note ? `${note}, after which, it's your responsibility to fill the tank.` : null;
 }
