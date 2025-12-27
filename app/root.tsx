@@ -23,7 +23,7 @@ import { useState } from "react";
 import { AuthenticityTokenProvider } from "remix-utils/csrf/react";
 import tailwindStyles from "~/tailwind.css?url";
 import { csrf } from "~/utils/csrf.server";
-import Forbidden from "./components/layout/Forbidden";
+import { ForbiddenPage, NotFoundPage, ServerErrorPage } from "./components/errors";
 import { Footer } from "./components/layout/Footer";
 import { MobileBottomNav } from "./components/layout/MobileBottomNav";
 import { UserNav } from "./components/layout/UserNav";
@@ -353,32 +353,69 @@ export default function App() {
 
 export function ErrorBoundary() {
   const error = useRouteError();
+  const isDevelopment = process.env.NODE_ENV === "development";
 
-  if (isRouteErrorResponse(error) && error.status === 403) {
-    return <Forbidden />;
-  }
+  // Determine error details
+  const getErrorDetails = () => {
+    if (isRouteErrorResponse(error)) {
+      return {
+        status: error.status,
+        statusText: error.statusText,
+        message: typeof error.data === "string" ? error.data : JSON.stringify(error.data),
+      };
+    }
+    if (error instanceof Error) {
+      return {
+        status: 500,
+        statusText: "Internal Server Error",
+        message: error.message,
+      };
+    }
+    return {
+      status: 500,
+      statusText: "Unknown Error",
+      message: "An unexpected error occurred",
+    };
+  };
+
+  const errorDetails = getErrorDetails();
+
+  // Determine page title based on error type
+  const getPageTitle = () => {
+    if (isRouteErrorResponse(error)) {
+      if (error.status === 404) return "Page Not Found";
+      if (error.status === 403) return "Access Denied";
+      if (error.status >= 500) return "Server Error";
+    }
+    return "Error";
+  };
+
+  // Render appropriate error page
+  const renderErrorPage = () => {
+    if (isRouteErrorResponse(error)) {
+      if (error.status === 403) {
+        return <ForbiddenPage appName={ENV.APP_NAME} />;
+      }
+      if (error.status === 404) {
+        return <NotFoundPage appName={ENV.APP_NAME} />;
+      }
+    }
+    // For 500 errors and other unexpected errors
+    return <ServerErrorPage error={errorDetails} showDetails={isDevelopment} />;
+  };
 
   return (
-    <html lang="en">
+    <html lang="en" className="h-full">
       <head>
-        <title>Oh no!</title>
+        <title>{`${getPageTitle()} | ${ENV.APP_NAME}`}</title>
+        <meta charSet="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
         <Meta />
         <Links />
       </head>
-      <body>
-        <main className="min-h-lvh">
-          <div className="p-4">
-            <Link to="/">&laquo; Back to Home</Link>
-          </div>
-          <div className="flex items-center justify-center">
-            <p className="text-4xl font-bold">Something went wrong!</p>
-            {isRouteErrorResponse(error) && (
-              <p className="text-2xl font-bold">
-                {error.status} - {error.statusText}
-              </p>
-            )}
-          </div>
-        </main>
+      <body className="h-full bg-background">
+        {renderErrorPage()}
+        <ScrollRestoration />
         <Scripts />
       </body>
     </html>
