@@ -17,7 +17,7 @@ interface BookingActionsProps {
 
 export function BookingActions({ user, isPending, fields, onNavigateToAuth }: BookingActionsProps) {
   return (
-    <div className="space-y-4 pt-2">
+    <div className="space-y-4 py-2">
       {!user && fields.name && fields.email && fields.phoneNumber && (
         <>
           <h3 className="text-md font-semibold">Guest Details</h3>

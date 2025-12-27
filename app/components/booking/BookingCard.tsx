@@ -18,7 +18,7 @@ import { useAuthenticityToken } from "remix-utils/csrf/react";
 import { LAGOS_TIMEZONE } from "~/utils/timezone";
 import { Form } from "~/components/CSRFForm";
 import { calculateBookingUnits } from "~/lib/booking-utils";
-import { formatCurrency } from "~/lib/utils";
+import { cn, formatCurrency } from "~/lib/utils";
 import {
   BOOKING_TYPE_LABELS,
   BOOKING_TYPE_OPTIONS,
@@ -934,7 +934,12 @@ export default function BookingCard({
 
       {/* Mobile only: Cost breakdown in its own bordered section - OUTSIDE Card */}
       {hasValidBookingType && carIsAvailableToBook && (
-        <div className="lg:hidden mt-4">
+        <div
+          className={cn(
+            "lg:hidden mt-4 pb-40",
+            !user && bookingType === AIRPORT_PICKUP_BOOKING_TYPE && "pb-52",
+          )}
+        >
           <div className="space-y-4">
             {/* Trip details for airport pickup */}
             {bookingType === AIRPORT_PICKUP_BOOKING_TYPE &&
@@ -971,9 +976,6 @@ export default function BookingCard({
               </div>
             )}
           </div>
-
-          {/* Add padding at bottom on mobile to account for sticky footer */}
-          <div className="pb-32" />
         </div>
       )}
 

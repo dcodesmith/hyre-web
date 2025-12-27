@@ -12,9 +12,9 @@ function FieldError({ errors }: { readonly errors?: readonly string[] }) {
 }
 
 interface GuestInfoFieldsProps {
-  nameField: FieldMetadata<string>;
-  emailField: FieldMetadata<string>;
-  phoneNumberField: FieldMetadata<string>;
+  readonly nameField: FieldMetadata<string>;
+  readonly emailField: FieldMetadata<string>;
+  readonly phoneNumberField: FieldMetadata<string>;
 }
 
 export function GuestInfoFields({ nameField, emailField, phoneNumberField }: GuestInfoFieldsProps) {

@@ -110,6 +110,15 @@ export default function Login() {
 
   const referralCodeFromUrl = searchParams.get("ref") || "";
 
+  let errorMessage: string | undefined;
+  if (actionData?.error) {
+    errorMessage = typeof actionData.error === "string" ? actionData.error : "An error occurred";
+  } else if (typeof authError === "string") {
+    errorMessage = authError;
+  } else if (authError) {
+    errorMessage = "An error occurred";
+  }
+
   const [form, { email, referralCode }] = useForm({
     defaultValue: {
       email: authEmail || "",
@@ -129,8 +138,8 @@ export default function Login() {
         <div className="flex flex-col gap-6">
           <Card>
             <CardHeader>
-              <CardTitle>Login or sign up to your account</CardTitle>
-              <CardDescription>
+              <CardTitle className="text-base">Login or sign up to your account</CardTitle>
+              <CardDescription className="text-muted-foreground">
                 Enter your email below to login or sign up to your account
               </CardDescription>
             </CardHeader>
@@ -186,10 +195,9 @@ export default function Login() {
                   )}
 
                   {/* Prioritize actionData.error for same-route failures, fallback to authError for cross-route errors */}
-                  {(actionData?.error || authError) && (
+                  {errorMessage && (
                     <span className="mb-2 text-sm text-destructive dark:text-destructive-foreground">
-                      {actionData?.error ||
-                        (typeof authError === "string" ? authError : "An error occurred")}
+                      {errorMessage}
                     </span>
                   )}
 

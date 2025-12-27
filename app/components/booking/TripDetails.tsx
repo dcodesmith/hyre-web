@@ -42,7 +42,7 @@ export function TripDetails({
     <div className="w-full lg:pb-4 lg:border-b lg:border-gray-200">
       <h3 className="text-sm font-semibold mb-2">Trip Details</h3>
       <div className="bg-white border border-neutral-200 lg:border-none rounded shadow-xl inset-shadow-sm transform-gpu px-4 py-4 lg:bg-transparent lg:shadow-none lg:rounded-none lg:px-0 lg:py-0">
-        <dl className="text-sm text-gray-950 space-y-1">
+        <dl className="text-sm text-gray-950 space-y-1.5">
           <div className="flex justify-between">
             <dt className="text-gray-600">Flight Arrival</dt>
             <dd className="font-medium">
