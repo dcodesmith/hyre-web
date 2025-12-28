@@ -44,6 +44,11 @@ function addSecurityHeaders(headers: Headers) {
     imgSrcDirectives.push(s3Domain);
   }
 
+  // Add CloudFront domain for optimized images
+  if (env.CLOUDFRONT_DOMAIN) {
+    imgSrcDirectives.push(`https://${env.CLOUDFRONT_DOMAIN}`);
+  }
+
   const cspDirectives = [
     "default-src 'self'",
     `script-src 'self' 'unsafe-inline' https://maps.googleapis.com https://maps.gstatic.com https://va.vercel-scripts.com https://vercel.live`,

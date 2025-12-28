@@ -129,6 +129,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     APP_NAME: env.APP_NAME,
     GOOGLE_MAPS_API_KEY: env.GOOGLE_MAPS_API_KEY,
     DOMAIN: env.DOMAIN,
+    CLOUDFRONT_DOMAIN: env.CLOUDFRONT_DOMAIN,
   };
 
   // Touch session to extend expiry (rolling expiry)
@@ -355,6 +356,16 @@ export function ErrorBoundary() {
   const error = useRouteError();
   const isDevelopment = process.env.NODE_ENV === "development";
 
+  // Get app name - works on both server and client
+  const getAppName = () => {
+    if (globalThis.window !== undefined) {
+      return (globalThis as unknown as Window).ENV?.APP_NAME ?? "Tripdly";
+    }
+    return "Tripdly";
+  };
+
+  const appName = getAppName();
+
   // Determine error details
   const getErrorDetails = () => {
     if (isRouteErrorResponse(error)) {
@@ -394,10 +405,10 @@ export function ErrorBoundary() {
   const renderErrorPage = () => {
     if (isRouteErrorResponse(error)) {
       if (error.status === 403) {
-        return <ForbiddenPage appName={ENV.APP_NAME} />;
+        return <ForbiddenPage appName={appName} />;
       }
       if (error.status === 404) {
-        return <NotFoundPage appName={ENV.APP_NAME} />;
+        return <NotFoundPage appName={appName} />;
       }
     }
     // For 500 errors and other unexpected errors
@@ -407,7 +418,7 @@ export function ErrorBoundary() {
   return (
     <html lang="en" className="h-full">
       <head>
-        <title>{`${getPageTitle()} | ${ENV.APP_NAME}`}</title>
+        <title>{`${getPageTitle()} | ${appName}`}</title>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <Meta />

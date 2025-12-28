@@ -9,6 +9,7 @@ export type RootLoaderData = {
   ENV: {
     APP_NAME: string;
     GOOGLE_MAPS_API_KEY: string;
+    CLOUDFRONT_DOMAIN: string;
   };
   csrfToken: string;
 };

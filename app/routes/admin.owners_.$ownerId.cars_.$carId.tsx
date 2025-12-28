@@ -16,6 +16,7 @@ import {
   DialogDescription,
 } from "~/components/ui/dialog";
 import { CheckCircle2, FileText, Loader2 } from "lucide-react";
+import { getOptimizedImageUrl } from "~/utils/image-optimization";
 import { Worker, Viewer } from "@react-pdf-viewer/core";
 import { defaultLayoutPlugin } from "@react-pdf-viewer/default-layout";
 import { Textarea } from "~/components/ui/textarea";
@@ -157,9 +158,10 @@ export default function CarDetails() {
               aria-label={`View ${car.make} ${car.model} image ${index + 1}`}
             >
               <img
-                src={image.url}
+                src={getOptimizedImageUrl(image.url, { width: 320 })}
                 alt={`${car.make} ${car.model} - ${index + 1}`}
                 className="object-cover w-full h-full"
+                loading="lazy"
               />
               <div
                 className={`absolute top-2 right-2 px-2 py-1 rounded-full text-xs font-medium ${getStatusBadgeClass(image.status)}`}

@@ -2,6 +2,7 @@ import { MouseEvent, useState, useRef, TouchEvent } from "react";
 import { Button } from "./ui/button";
 import { cn } from "~/lib/utils";
 import { MoveLeft, MoveRight } from "lucide-react";
+import { getOptimizedImageUrl, getImageSrcSet } from "~/utils/image-optimization";
 
 interface CarouselProps {
   readonly images?: string[];
@@ -117,10 +118,12 @@ export default function Carousel({
         {images.map((image, index) => (
           <img
             key={image}
-            src={image}
+            src={getOptimizedImageUrl(image, { width: 640 })}
+            srcSet={getImageSrcSet(image, 640)}
+            sizes="(max-width: 768px) 100vw, 640px"
             alt={`Car view ${index + 1}`}
             className="w-full h-72 md:h-80 object-cover flex-shrink-0"
-            width="400"
+            width="640"
             height="320"
             loading={priority && index === 0 ? "eager" : "lazy"}
             fetchPriority={priority && index === 0 ? "high" : "auto"}

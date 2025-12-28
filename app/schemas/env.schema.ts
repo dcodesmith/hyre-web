@@ -33,6 +33,8 @@ export const envSchema = z.object({
   AWS_BUCKET_NAME: z.string(),
   APP_NAME: z.string(),
 
+  CLOUDFRONT_DOMAIN: z.string(),
+
   GOOGLE_MAPS_API_KEY: z.string(),
   GOOGLE_DISTANCE_MATRIX_API_KEY: z.string(),
 
