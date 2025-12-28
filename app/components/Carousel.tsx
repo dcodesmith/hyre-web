@@ -115,22 +115,35 @@ export default function Carousel({
           transform: `translateX(calc(-${currentIndex * 100}% + ${dragOffset}px))`,
         }}
       >
-        {images.map((image, index) => (
-          <img
-            key={image}
-            src={getOptimizedImageUrl(image, { width: 640 })}
-            srcSet={getImageSrcSet(image, 640)}
-            sizes="(max-width: 768px) 100vw, 640px"
-            alt={`Car view ${index + 1}`}
-            className="w-full h-72 md:h-80 object-cover flex-shrink-0"
-            width="640"
-            height="320"
-            loading={priority && index === 0 ? "eager" : "lazy"}
-            fetchPriority={priority && index === 0 ? "high" : "auto"}
-            decoding="async"
-            draggable={false}
-          />
-        ))}
+        {images.map((image, index) => {
+          // Mobile-first approach: 320px base width
+          // This generates srcSet: 320w, 480w, 640w
+          // Mobile (375px viewport):
+          //   - 1x DPI: 375px needed → selects 480w (perfect)
+          //   - 2x DPI: 750px needed → selects 800w (from extended srcSet)
+          // Desktop will still get larger sizes from srcSet when needed
+          const baseWidth = 320;
+          return (
+            <img
+              key={image}
+              src={getOptimizedImageUrl(image, { width: baseWidth })}
+              srcSet={getImageSrcSet(image, baseWidth)}
+              sizes={
+                variant === "booking"
+                  ? "(max-width: 768px) 100vw, (max-width: 1024px) 80vw, 800px"
+                  : "(max-width: 640px) 220px, (max-width: 1024px) 250px, 640px"
+              }
+              alt={`Car view ${index + 1}`}
+              className="w-full aspect-[4/3] object-cover flex-shrink-0"
+              width={baseWidth}
+              height={Math.round(baseWidth * 0.75)}
+              loading={priority && index === 0 ? "eager" : "lazy"}
+              fetchPriority={priority && index === 0 ? "high" : "auto"}
+              decoding="async"
+              draggable={false}
+            />
+          );
+        })}
       </div>
 
       {/* Navigation arrows */}

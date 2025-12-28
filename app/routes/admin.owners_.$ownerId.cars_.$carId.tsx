@@ -159,8 +159,12 @@ export default function CarDetails() {
             >
               <img
                 src={getOptimizedImageUrl(image.url, { width: 320 })}
+                srcSet={getImageSrcSet(image.url, 320)}
+                sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 320px"
                 alt={`${car.make} ${car.model} - ${index + 1}`}
                 className="object-cover w-full h-full"
+                width="320"
+                height="320"
                 loading="lazy"
               />
               <div

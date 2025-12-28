@@ -37,6 +37,7 @@ export function getSharedEnvs() {
     APP_NAME: env.APP_NAME,
     GOOGLE_MAPS_API_KEY: env.GOOGLE_MAPS_API_KEY,
     DOMAIN: env.DOMAIN,
+    CLOUDFRONT_DOMAIN: env.CLOUDFRONT_DOMAIN,
   };
 }
 

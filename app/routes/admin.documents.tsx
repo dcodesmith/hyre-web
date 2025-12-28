@@ -15,6 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import { Textarea } from "~/components/ui/textarea";
 import { requireAdminOrStaffWithRedirect } from "~/modules/auth/auth.server";
 import { prisma } from "~/modules/db/db.server";
+import { getOptimizedImageUrl, getImageSrcSet } from "~/utils/image-optimization";
 
 const DocumentType = {
   MOT_CERTIFICATE: "MOT_CERTIFICATE",
@@ -334,9 +335,12 @@ export default function AdminDocumentsPage() {
 
                       <div className="mb-4">
                         <img
-                          src={image.url}
+                          src={getOptimizedImageUrl(image.url, { width: 1024 })}
+                          srcSet={getImageSrcSet(image.url, 1024)}
+                          sizes="(max-width: 768px) 100vw, 1024px"
                           alt={`${image.car.make} ${image.car.model} vehicle`}
                           className="max-w-full h-auto rounded"
+                          loading="lazy"
                         />
                       </div>
                     </div>
