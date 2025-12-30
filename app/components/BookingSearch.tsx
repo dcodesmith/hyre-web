@@ -221,7 +221,7 @@ interface SearchButtonProps {
 function SearchButton({ isCompact, isSearching, onClick }: SearchButtonProps) {
   const containerClass = isCompact
     ? "flex-none flex items-center justify-center py-2 pl-2 pr-2"
-    : "flex items-center justify-center px-4 sm:px-3 py-3 md:py-2 min-h-[60px]";
+    : "w-full md:w-auto flex items-center justify-center px-4 sm:px-3 py-3 md:py-2 min-h-[60px]";
 
   const buttonClass = isCompact
     ? "h-9 w-9 p-0 flex items-center justify-center"
