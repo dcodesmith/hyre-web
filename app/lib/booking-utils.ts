@@ -1,4 +1,5 @@
 import {
+  addDays,
   differenceInCalendarDays,
   differenceInHours,
   differenceInMinutes,
@@ -9,6 +10,11 @@ import {
 import { toZonedTime } from "date-fns-tz";
 import type { BookingWithRelations } from "~/types";
 import { LAGOS_TIMEZONE } from "~/utils/timezone";
+import {
+  FULL_DAY_BOOKING_TYPE,
+  NIGHT_BOOKING_TYPE,
+  type BookingType,
+} from "~/components/bookingTypes";
 
 /**
  * Booking type as string literals to avoid Prisma client-side hydration issues.
@@ -364,4 +370,54 @@ export function getEffectiveLegEndTime(leg: {
   }
 
   return effectiveEndTime;
+}
+
+/**
+ * Validates that the "to" date selection is valid for the given booking type.
+ * For NIGHT and FULL_DAY bookings, the start and end dates must be different (not same day).
+ *
+ * @param bookingType - The type of booking (DAY, NIGHT, FULL_DAY, or AIRPORT_PICKUP)
+ * @param fromDate - The start date (from date)
+ * @param toDate - The end date (to date)
+ * @returns `true` if the date selection is valid, `false` if same-day selection is not allowed
+ */
+export function isValidToDateSelection(
+  bookingType: BookingType,
+  fromDate: Date | undefined,
+  toDate: Date | undefined,
+): boolean {
+  if (
+    (bookingType === NIGHT_BOOKING_TYPE || bookingType === FULL_DAY_BOOKING_TYPE) &&
+    fromDate &&
+    toDate
+  ) {
+    const startDate = startOfDay(fromDate);
+    const endDate = startOfDay(toDate);
+    if (startDate.getTime() === endDate.getTime()) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * Calculates the minimum selectable date for the "To" date picker.
+ * For NIGHT and FULL_DAY bookings, prevents same-day selection by requiring at least 1 day after "from".
+ * For other booking types, returns the "from" date as the minimum.
+ *
+ * @param bookingType - The type of booking (DAY, NIGHT, FULL_DAY, or AIRPORT_PICKUP)
+ * @param fromDate - The start date (from date)
+ * @returns The minimum selectable date for "to", or `undefined` if "from" is not provided
+ */
+export function getToDateMinDate(
+  bookingType: BookingType,
+  fromDate: Date | undefined,
+): Date | undefined {
+  if (!fromDate) return undefined;
+  if (bookingType === NIGHT_BOOKING_TYPE || bookingType === FULL_DAY_BOOKING_TYPE) {
+    // Normalize "from" to start of day before adding 1 day to ensure proper date comparison
+    const fromDateStartOfDay = startOfDay(fromDate);
+    return addDays(fromDateStartOfDay, 1);
+  }
+  return fromDate;
 }

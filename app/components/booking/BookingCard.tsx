@@ -17,7 +17,11 @@ import { DateRange } from "react-day-picker";
 import { useAuthenticityToken } from "remix-utils/csrf/react";
 import { LAGOS_TIMEZONE } from "~/utils/timezone";
 import { Form } from "~/components/CSRFForm";
-import { calculateBookingUnits } from "~/lib/booking-utils";
+import {
+  calculateBookingUnits,
+  isValidToDateSelection,
+  getToDateMinDate,
+} from "~/lib/booking-utils";
 import { cn, formatCurrency } from "~/lib/utils";
 import {
   BOOKING_TYPE_LABELS,
@@ -38,7 +42,7 @@ import { BookingActions } from "./BookingActions";
 import { BookingAddons } from "./BookingAddons";
 import { BookingCostBreakdown } from "./BookingCostBreakdown";
 import { BookingFormFields } from "./BookingFormFields";
-import { DateRangePicker } from "./DateRangePicker";
+import { SingleDatePicker } from "./SingleDatePicker";
 import { TripDetails } from "./TripDetails";
 import { getFuelTankNote, getOrdinal } from "./helpers";
 import { getBookingSchema } from "~/schemas/booking.schema";
@@ -373,22 +377,19 @@ export default function BookingCard({
     },
   });
 
-  const handleDateChange = useCallback(
-    (range: DateRange) => {
-      const normalizedRange = {
-        from: range.from ? startOfDay(range.from) : undefined,
-        to: range.to ? startOfDay(range.to) : undefined,
-      };
+  const handleFromDateChange = useCallback(
+    (date: Date | undefined) => {
+      const normalizedFrom = date ? startOfDay(date) : undefined;
 
-      // For airport pickup, only use the from date (single date selection)
+      // For airport pickup, automatically set "to" to same as "from"
       if (bookingType === AIRPORT_PICKUP_BOOKING_TYPE) {
-        setDateRange({ from: normalizedRange.from, to: normalizedRange.from });
+        setDateRange({ from: normalizedFrom, to: normalizedFrom });
         const newSearchParams = new URLSearchParams(searchParams);
 
-        if (normalizedRange.from) {
-          newSearchParams.set("from", format(normalizedRange.from, "yyyy-MM-dd"));
+        if (normalizedFrom) {
+          newSearchParams.set("from", format(normalizedFrom, "yyyy-MM-dd"));
           // Set to same as from for airport pickup (required for calculateBookingUnits)
-          newSearchParams.set("to", format(normalizedRange.from, "yyyy-MM-dd"));
+          newSearchParams.set("to", format(normalizedFrom, "yyyy-MM-dd"));
         } else {
           newSearchParams.delete("from");
           newSearchParams.delete("to");
@@ -398,36 +399,71 @@ export default function BookingCard({
         return;
       }
 
-      if (
-        normalizedRange.from &&
-        normalizedRange.to &&
-        isAfter(normalizedRange.from, normalizedRange.to)
-      ) {
-        setDateRange({ from: normalizedRange.from, to: undefined });
-        const resetParams = new URLSearchParams(searchParams);
-        resetParams.set("from", format(normalizedRange.from, "yyyy-MM-dd"));
-        resetParams.delete("to");
-        setSearchParams(resetParams, { replace: true, preventScrollReset: true });
+      // For other booking types, update "from" and clear "to" if it's before new "from"
+      const newTo =
+        dateRange.to && normalizedFrom && dateRange.to < normalizedFrom ? undefined : dateRange.to;
+
+      setDateRange({ from: normalizedFrom, to: newTo });
+      const newSearchParams = new URLSearchParams(searchParams);
+
+      if (normalizedFrom) {
+        newSearchParams.set("from", format(normalizedFrom, "yyyy-MM-dd"));
       } else {
-        setDateRange(normalizedRange);
-        const newSearchParams = new URLSearchParams(searchParams);
-
-        if (normalizedRange.from) {
-          newSearchParams.set("from", format(normalizedRange.from, "yyyy-MM-dd"));
-        } else {
-          newSearchParams.delete("from");
-        }
-
-        if (normalizedRange.to) {
-          newSearchParams.set("to", format(normalizedRange.to, "yyyy-MM-dd"));
-        } else {
-          newSearchParams.delete("to");
-        }
-
-        setSearchParams(newSearchParams, { replace: true, preventScrollReset: true });
+        newSearchParams.delete("from");
       }
+
+      if (newTo) {
+        newSearchParams.set("to", format(newTo, "yyyy-MM-dd"));
+      } else {
+        newSearchParams.delete("to");
+      }
+
+      setSearchParams(newSearchParams, { replace: true, preventScrollReset: true });
     },
-    [bookingType, searchParams, setSearchParams],
+    [bookingType, dateRange.to, searchParams, setSearchParams],
+  );
+
+  // Calculate minDate for "To" date picker
+  // For NIGHT/FULL_DAY bookings, prevent same-day selection by requiring at least 1 day after "from"
+  const toDateMinDate = useMemo(
+    () => getToDateMinDate(bookingType, dateRange.from),
+    [bookingType, dateRange.from],
+  );
+
+  const handleToDateChange = useCallback(
+    (date: Date | undefined) => {
+      const normalizedTo = date ? startOfDay(date) : undefined;
+
+      // Validate that "to" >= "from" (safety check, minDate should enforce this)
+      if (dateRange.from && normalizedTo && isAfter(dateRange.from, normalizedTo)) {
+        // If invalid, don't update
+        return;
+      }
+
+      // For night and full day bookings, enforce that start and end dates must be different
+      if (!isValidToDateSelection(bookingType, dateRange.from, normalizedTo)) {
+        // If same day selected, don't allow the selection
+        return;
+      }
+
+      setDateRange({ from: dateRange.from, to: normalizedTo });
+      const newSearchParams = new URLSearchParams(searchParams);
+
+      if (dateRange.from) {
+        newSearchParams.set("from", format(dateRange.from, "yyyy-MM-dd"));
+      } else {
+        newSearchParams.delete("from");
+      }
+
+      if (normalizedTo) {
+        newSearchParams.set("to", format(normalizedTo, "yyyy-MM-dd"));
+      } else {
+        newSearchParams.delete("to");
+      }
+
+      setSearchParams(newSearchParams, { replace: true, preventScrollReset: true });
+    },
+    [bookingType, dateRange.from, searchParams, setSearchParams],
   );
 
   const handleSameLocationChange = useCallback(
@@ -798,15 +834,37 @@ export default function BookingCard({
               <Label htmlFor={`${form.id}-daterange`} className="font-semibold">
                 Select Dates
               </Label>
-              <DateRangePicker
-                isNightBooking={bookingType === NIGHT_BOOKING_TYPE}
-                isFullDayBooking={bookingType === FULL_DAY_BOOKING_TYPE}
-                isAirportPickup={bookingType === AIRPORT_PICKUP_BOOKING_TYPE}
-                singleDateMode={bookingType === AIRPORT_PICKUP_BOOKING_TYPE}
-                date={dateRange}
-                onDateChange={handleDateChange}
-                showLabel={false}
-              />
+              {bookingType === AIRPORT_PICKUP_BOOKING_TYPE ? (
+                <SingleDatePicker
+                  isAirportPickup={bookingType === AIRPORT_PICKUP_BOOKING_TYPE}
+                  date={dateRange.from}
+                  onDateChange={handleFromDateChange}
+                  showLabel={false}
+                />
+              ) : (
+                <div className="flex gap-2">
+                  <SingleDatePicker
+                    className="flex-1"
+                    isNightBooking={bookingType === NIGHT_BOOKING_TYPE}
+                    isFullDayBooking={bookingType === FULL_DAY_BOOKING_TYPE}
+                    date={dateRange.from}
+                    onDateChange={handleFromDateChange}
+                    showLabel={false}
+                    placeholder="From date"
+                  />
+                  <SingleDatePicker
+                    className="flex-1"
+                    isNightBooking={bookingType === NIGHT_BOOKING_TYPE}
+                    isFullDayBooking={bookingType === FULL_DAY_BOOKING_TYPE}
+                    date={dateRange.to}
+                    onDateChange={handleToDateChange}
+                    showLabel={false}
+                    placeholder="To date"
+                    minDate={toDateMinDate}
+                    disabled={!dateRange.from}
+                  />
+                </div>
+              )}
             </div>
             {totalDays > 0 && !isAvailable && (
               <div className="text-red-600 p-2 bg-red-50 border border-red-200 rounded-md text-sm text-center">

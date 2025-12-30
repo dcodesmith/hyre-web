@@ -1,13 +1,14 @@
 import { useNavigate, useNavigation, useSearchParams } from "@remix-run/react";
 import { format } from "date-fns";
 import { Loader2, Search } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { DateRange } from "react-day-picker";
-import { DateRangePicker } from "./booking/DateRangePicker";
+import { SingleDatePicker } from "./booking/SingleDatePicker";
 
 import { formatInTimeZone } from "date-fns-tz";
 import type { ValidatedFlight } from "~/services/flight-validation.server";
 import { LAGOS_TIMEZONE } from "~/utils/timezone";
+import { isValidToDateSelection, getToDateMinDate } from "~/lib/booking-utils";
 import { AutocompleteFlight } from "./AutocompleteFlight";
 import { BookingTimeSelect } from "./booking/BookingTimeSelect";
 import {
@@ -219,17 +220,17 @@ interface SearchButtonProps {
 
 function SearchButton({ isCompact, isSearching, onClick }: SearchButtonProps) {
   const containerClass = isCompact
-    ? "flex-none py-2 pl-2 pr-2"
-    : "px-4 sm:px-3 py-3 md:py-2 border-t md:border-t-0";
+    ? "flex-none flex items-center justify-center py-2 pl-2 pr-2"
+    : "flex items-center justify-center px-4 sm:px-3 py-3 md:py-2 min-h-[60px]";
 
   const buttonClass = isCompact
-    ? "h-9 w-9 p-0"
+    ? "h-9 w-9 p-0 flex items-center justify-center"
     : "w-full md:w-auto h-12 md:h-12 px-6 md:px-8 text-sm md:text-base";
 
   const iconClass = isCompact ? "h-4 w-4" : "h-5 w-5";
 
   return (
-    <div className={`flex items-center justify-center ${containerClass}`}>
+    <div className={containerClass}>
       <Button
         className={`rounded-full font-semibold bg-primary hover:bg-primary/90 transition-all duration-300 ${buttonClass}`}
         onClick={onClick}
@@ -374,12 +375,53 @@ export function BookingSearch({
     setFlightNumber(value);
   }, []);
 
-  const handleDateRangeChange = useCallback((newDateRange: DateRange) => {
-    // Update local state only, don't update URL yet
-    setDateRange(newDateRange);
-    setValidatedFlight(null);
-    setFlightValidationError(null);
-  }, []);
+  const handleFromDateChange = useCallback(
+    (date: Date | undefined) => {
+      // Update local state only, don't update URL yet
+      const newDateRange: DateRange = {
+        from: date,
+        // For airport pickup, always set "to" to same as "from"
+        // Otherwise, if "to" date exists and is before new "from" date, clear "to" date
+        to:
+          bookingType === AIRPORT_PICKUP_BOOKING_TYPE
+            ? date
+            : dateRange.to && date && dateRange.to < date
+              ? undefined
+              : dateRange.to,
+      };
+      setDateRange(newDateRange);
+      setValidatedFlight(null);
+      setFlightValidationError(null);
+    },
+    [bookingType, dateRange.to],
+  );
+
+  // Calculate minDate for "To" date picker
+  // For NIGHT/FULL_DAY bookings, prevent same-day selection by requiring at least 1 day after "from"
+  const toDateMinDate = useMemo(
+    () => getToDateMinDate(bookingType, dateRange.from),
+    [bookingType, dateRange.from],
+  );
+
+  const handleToDateChange = useCallback(
+    (date: Date | undefined) => {
+      // For night and full day bookings, enforce that start and end dates must be different
+      if (!isValidToDateSelection(bookingType, dateRange.from, date)) {
+        // If same day selected, don't allow the selection
+        return;
+      }
+
+      // Update local state only, don't update URL yet
+      const newDateRange: DateRange = {
+        from: dateRange.from,
+        to: date,
+      };
+      setDateRange(newDateRange);
+      setValidatedFlight(null);
+      setFlightValidationError(null);
+    },
+    [bookingType, dateRange.from],
+  );
 
   const handleFlightValidated = useCallback((flight: ValidatedFlight | null) => {
     setValidatedFlight(flight);
@@ -490,9 +532,7 @@ export function BookingSearch({
         >
           <div
             className={`flex items-stretch ${
-              isCompact
-                ? "flex-row divide-x divide-gray-300"
-                : "flex-col md:flex-row md:divide-x md:divide-gray-200"
+              isCompact ? "flex-row divide-x divide-gray-300" : "flex-col md:flex-row"
             }`}
           >
             {/* Compact Booking Type Selector - Only visible when compact */}
@@ -508,48 +548,155 @@ export function BookingSearch({
 
             {/* Dates & Pickup Time Group - Equal widths in compact mode */}
             {isCompact ? (
-              <div className="flex-1 flex items-stretch divide-x divide-gray-300">
-                {/* Dates Section */}
-                <div className="flex-1 flex items-center px-3 py-2">
-                  <DateRangePicker
-                    className="w-full"
-                    date={dateRange}
-                    onDateChange={handleDateRangeChange}
-                    singleDateMode={bookingType === AIRPORT_PICKUP_BOOKING_TYPE}
-                    isNightBooking={bookingType === NIGHT_BOOKING_TYPE}
-                    isFullDayBooking={bookingType === FULL_DAY_BOOKING_TYPE}
-                    isAirportPickup={bookingType === AIRPORT_PICKUP_BOOKING_TYPE}
-                    isCompact={isCompact}
-                  />
-                </div>
-                {/* Pickup Time / Flight Number Section */}
-                <div className="flex-1 flex items-center px-3 py-2">
-                  <BookingTypeInput {...bookingTypeInputProps} />
-                </div>
-              </div>
+              <>
+                {bookingType === AIRPORT_PICKUP_BOOKING_TYPE ? (
+                  <div className="flex-1 flex items-stretch divide-x divide-gray-300">
+                    {/* Date Section */}
+                    <div className="flex-1 flex items-center pl-4 pr-3 py-2">
+                      <SingleDatePicker
+                        className="w-full"
+                        date={dateRange.from}
+                        onDateChange={handleFromDateChange}
+                        isAirportPickup={bookingType === AIRPORT_PICKUP_BOOKING_TYPE}
+                        isCompact={isCompact}
+                        label="Date"
+                      />
+                    </div>
+                    {/* Pickup Time / Flight Number Section */}
+                    <div className="flex-1 flex items-center px-3 py-2">
+                      <BookingTypeInput {...bookingTypeInputProps} />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex-1 flex items-stretch divide-x divide-gray-300">
+                    {/* From Date Section */}
+                    <div className="flex-1 flex items-center pl-4 pr-3 py-2">
+                      <SingleDatePicker
+                        className="w-full"
+                        date={dateRange.from}
+                        onDateChange={handleFromDateChange}
+                        isNightBooking={bookingType === NIGHT_BOOKING_TYPE}
+                        isFullDayBooking={bookingType === FULL_DAY_BOOKING_TYPE}
+                        isCompact={isCompact}
+                        label="From"
+                      />
+                    </div>
+                    {/* To Date Section */}
+                    <div className="flex-1 flex items-center px-3 py-2">
+                      <SingleDatePicker
+                        className="w-full"
+                        date={dateRange.to}
+                        onDateChange={handleToDateChange}
+                        isNightBooking={bookingType === NIGHT_BOOKING_TYPE}
+                        isFullDayBooking={bookingType === FULL_DAY_BOOKING_TYPE}
+                        isCompact={isCompact}
+                        label="To"
+                        minDate={toDateMinDate}
+                        disabled={!dateRange.from}
+                      />
+                    </div>
+                    {/* Pickup Time / Flight Number Section */}
+                    <div className="flex-1 flex items-center px-3 py-2">
+                      <BookingTypeInput {...bookingTypeInputProps} />
+                    </div>
+                  </div>
+                )}
+              </>
             ) : (
               <>
-                {/* Dates Section */}
-                <div className="flex-1 flex items-center px-4 sm:px-6 py-3 min-h-[60px]">
-                  <DateRangePicker
-                    className="w-full"
-                    date={dateRange}
-                    onDateChange={handleDateRangeChange}
-                    singleDateMode={bookingType === AIRPORT_PICKUP_BOOKING_TYPE}
-                    isNightBooking={bookingType === NIGHT_BOOKING_TYPE}
-                    isFullDayBooking={bookingType === FULL_DAY_BOOKING_TYPE}
-                    isAirportPickup={bookingType === AIRPORT_PICKUP_BOOKING_TYPE}
-                    isCompact={isCompact}
-                  />
-                </div>
-                {/* Pickup Time / Flight Number Section */}
-                <div className="flex-1 flex items-center px-4 sm:px-6 py-3 border-t md:border-t-0 min-h-[60px]">
-                  <BookingTypeInput {...bookingTypeInputProps} />
-                </div>
+                {bookingType === AIRPORT_PICKUP_BOOKING_TYPE ? (
+                  <>
+                    {/* Date Section */}
+                    <div className="flex-1 flex items-center px-4 sm:px-6 py-3 min-h-[60px]">
+                      <SingleDatePicker
+                        className="w-full"
+                        date={dateRange.from}
+                        onDateChange={handleFromDateChange}
+                        isAirportPickup={bookingType === AIRPORT_PICKUP_BOOKING_TYPE}
+                        isCompact={isCompact}
+                        label="Date"
+                      />
+                    </div>
+                    {/* Pickup Time / Flight Number Section */}
+                    <div className="flex-1 flex items-center px-4 sm:px-6 py-3 border-t md:border-t-0 md:border-l md:border-gray-200 min-h-[60px]">
+                      <BookingTypeInput {...bookingTypeInputProps} />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    {/* Mobile: Dates section with From/To side by side, Desktop: separate sections */}
+                    {/* Dates Section - Mobile layout */}
+                    <div className="flex-1 flex items-center px-4 sm:px-6 py-3 min-h-[60px] gap-2 md:hidden">
+                      <SingleDatePicker
+                        className="flex-1"
+                        date={dateRange.from}
+                        onDateChange={handleFromDateChange}
+                        isNightBooking={bookingType === NIGHT_BOOKING_TYPE}
+                        isFullDayBooking={bookingType === FULL_DAY_BOOKING_TYPE}
+                        isCompact={isCompact}
+                        label="From"
+                      />
+                      <SingleDatePicker
+                        className="flex-1"
+                        date={dateRange.to}
+                        onDateChange={handleToDateChange}
+                        isNightBooking={bookingType === NIGHT_BOOKING_TYPE}
+                        isFullDayBooking={bookingType === FULL_DAY_BOOKING_TYPE}
+                        isCompact={isCompact}
+                        label="To"
+                        minDate={toDateMinDate}
+                        disabled={!dateRange.from}
+                      />
+                    </div>
+                    {/* Desktop: All three sections side by side with equal widths */}
+                    <div className="hidden md:flex flex-1 items-stretch divide-x divide-gray-200">
+                      {/* From Date Section */}
+                      <div className="flex-1 flex items-center pl-6 pr-4 sm:pr-6 py-3 min-h-[60px] border-l-0">
+                        <SingleDatePicker
+                          className="w-full"
+                          date={dateRange.from}
+                          onDateChange={handleFromDateChange}
+                          isNightBooking={bookingType === NIGHT_BOOKING_TYPE}
+                          isFullDayBooking={bookingType === FULL_DAY_BOOKING_TYPE}
+                          isCompact={isCompact}
+                          label="From"
+                        />
+                      </div>
+                      {/* To Date Section */}
+                      <div className="flex-1 flex items-center px-4 sm:px-6 py-3 min-h-[60px]">
+                        <SingleDatePicker
+                          className="w-full"
+                          date={dateRange.to}
+                          onDateChange={handleToDateChange}
+                          isNightBooking={bookingType === NIGHT_BOOKING_TYPE}
+                          isFullDayBooking={bookingType === FULL_DAY_BOOKING_TYPE}
+                          isCompact={isCompact}
+                          label="To"
+                          minDate={toDateMinDate}
+                          disabled={!dateRange.from}
+                        />
+                      </div>
+                      {/* Pickup Time / Flight Number Section */}
+                      <div className="flex-1 flex items-center px-4 sm:px-6 py-3 min-h-[60px]">
+                        <BookingTypeInput {...bookingTypeInputProps} />
+                      </div>
+                    </div>
+                    {/* Pickup Time / Flight Number Section - Mobile only */}
+                    <div className="flex-1 flex items-center px-4 sm:px-6 py-3 border-t md:hidden min-h-[60px]">
+                      <BookingTypeInput {...bookingTypeInputProps} />
+                    </div>
+                  </>
+                )}
               </>
             )}
 
-            <SearchButton isCompact={isCompact} isSearching={isSearching} onClick={handleSearch} />
+            <div className="border-t md:border-t-0 md:border-l md:border-gray-200 flex items-center justify-center self-stretch">
+              <SearchButton
+                isCompact={isCompact}
+                isSearching={isSearching}
+                onClick={handleSearch}
+              />
+            </div>
           </div>
         </div>
       </div>
