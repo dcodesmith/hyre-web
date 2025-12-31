@@ -103,7 +103,6 @@ export function createPaymentSummary(booking: BookingWithRelations): PaymentSumm
   const finalServiceFee = baseBookingServiceFee + extensionServiceFee;
   const finalVat = baseBookingVat + extensionVat;
   const finalNetTotal = baseBookingNetTotal + extensionSummary.netTotal;
-  // const finalGrossTotal = finalNetTotal + finalServiceFee + finalVat;
   const finalGrossTotal =
     finalNetTotal + finalServiceFee + finalVat + fuelUpgradeCost - referralDiscountAmount;
 
@@ -131,7 +130,7 @@ export function createPaymentSummary(booking: BookingWithRelations): PaymentSumm
 export function calculateBookingUnits(
   from: Date | string | undefined | null,
   to: Date | string | undefined | null,
-  bookingType?: BookingTypeValue | string,
+  bookingType?: BookingTypeValue,
 ): number {
   if (!from || !to) {
     return 1;
@@ -308,7 +307,6 @@ export function getTimeRemainingForLiveBooking(
   const hours = differenceInHours(endTimeZoned, now);
   const minutes = differenceInMinutes(endTimeZoned, now) % 60;
 
-  // let timeStr: string;
   if (hours < 1) {
     time = `${minutes}min`;
   } else {

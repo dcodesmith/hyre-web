@@ -38,6 +38,7 @@ import {
   vehicleTypeLabels,
 } from "~/types";
 import { LAGOS_TIMEZONE } from "~/utils/timezone";
+import { getBaseUrl, generateMetaTags } from "~/utils/seo";
 
 interface PickupTimeWindow {
   specificFrom: Date;
@@ -293,48 +294,174 @@ async function filterCarsByAvailability<T extends { id: string }>(
   return cars.filter((c) => availableCarIdsSet.has(c.id));
 }
 
-export const meta: MetaFunction = () => [
-  {
-    title: "Search Available Cars - Tripdly",
-  },
-  {
-    name: "description",
-    content:
-      "Search and book available luxury vehicles with professional chauffeurs in Nigeria. Filter by date, vehicle type, and service tier. Find the perfect car for your trip.",
-  },
-  {
-    property: "og:title",
-    content: "Search Available Cars - Tripdly",
-  },
-  {
-    property: "og:description",
-    content:
-      "Search and book available luxury vehicles with professional chauffeurs in Nigeria. Filter by date, vehicle type, and service tier.",
-  },
-    {
-      property: "og:type",
-      content: "website",
-    },
-    {
-      property: "og:url",
-      content: "https://tripdly.com",
-    },
-    {
-      property: "og:image",
-      content: "https://tripdly.com/og-image.png",
-    },
-    {
-      name: "twitter:image",
-      content: "https://tripdly.com/og-image.png",
-    },
-];
+/**
+ * Generate dynamic meta tags based on search filters
+ */
+export const meta: MetaFunction<typeof loader> = ({ data, matches }) => {
+  // Access root loader data
+  const rootData = matches.find((match) => match.id === "root")?.data as
+    | { ENV?: { DOMAIN?: string } }
+    | undefined;
+
+  const filters = data?.filters;
+  const baseUrl = getBaseUrl(rootData?.ENV?.DOMAIN);
+
+  // Build dynamic title parts
+  const titleParts: string[] = [];
+  let descriptionContext = "";
+
+  if (filters?.vehicleType) {
+    const vehicleLabel = vehicleTypeLabels[filters.vehicleType] || filters.vehicleType;
+    titleParts.push(vehicleLabel);
+    descriptionContext += `${vehicleLabel} vehicles`;
+  }
+
+  if (filters?.serviceTier) {
+    const tierLabel = serviceTierLabels[filters.serviceTier] || filters.serviceTier;
+    titleParts.push(tierLabel);
+    descriptionContext += descriptionContext
+      ? ` with ${tierLabel} service`
+      : `${tierLabel} vehicles`;
+  }
+
+  if (filters?.bookingType) {
+    const bookingOption = BOOKING_TYPE_OPTIONS.find((opt) => opt === filters.bookingType);
+    if (bookingOption && filters.bookingType !== "DAY") {
+      titleParts.push(bookingOption);
+    }
+  }
+
+  // Generate dynamic title
+  const dynamicTitle =
+    titleParts.length > 0
+      ? `${titleParts.join(" ")} for Hire in Lagos | Tripdly`
+      : "Search Available Cars - Tripdly";
+
+  // Generate dynamic description
+  const dynamicDescription = descriptionContext
+    ? `Find and book ${descriptionContext} with professional chauffeurs in Lagos, Nigeria. Browse our selection of luxury cars for day trips, airport pickups, and special events.`
+    : "Search and book available luxury vehicles with professional chauffeurs in Nigeria. Filter by date, vehicle type, and service tier. Find the perfect car for your trip.";
+
+  return generateMetaTags({
+    title: dynamicTitle,
+    description: dynamicDescription,
+    url: `${baseUrl}/search`,
+    image: `${baseUrl}/og-image.jpg`,
+    canonical: `${baseUrl}/search`,
+  });
+};
+
+/**
+ * Maps a free-text query to vehicle type or service tier if possible.
+ * Returns the matched enum values and the remaining query text for make/model search.
+ *
+ * For compound queries like "Toyota Luxury", this will extract "Luxury" as serviceTier
+ * and return "Toyota" as the remaining query for make/model search.
+ *
+ * @example
+ * mapQueryToFilters("Toyota Luxury") // { serviceTier: "LUXURY", remainingQuery: "Toyota" }
+ * mapQueryToFilters("SUV") // { vehicleType: "SUV" }
+ * mapQueryToFilters("Mercedes") // { remainingQuery: "Mercedes" }
+ */
+function mapQueryToFilters(query: string): {
+  vehicleType?: VehicleType;
+  serviceTier?: ServiceTier;
+  remainingQuery?: string;
+} {
+  const normalizedQuery = query.trim().toLowerCase();
+  let remainingQuery = query.trim();
+
+  // Prioritize exact matches first
+  for (const [type, label] of Object.entries(vehicleTypeLabels)) {
+    if (normalizedQuery === label.toLowerCase() || normalizedQuery === type.toLowerCase()) {
+      return { vehicleType: type as VehicleType };
+    }
+  }
+
+  for (const [tier, label] of Object.entries(serviceTierLabels)) {
+    if (normalizedQuery === label.toLowerCase() || normalizedQuery === tier.toLowerCase()) {
+      return { serviceTier: tier as ServiceTier };
+    }
+  }
+
+  // Then try partial matches (only for queries with 3+ characters)
+  if (normalizedQuery.length < 3) {
+    return { remainingQuery };
+  }
+
+  // Track matched terms to extract them from the query
+  let matchedVehicleType: VehicleType | undefined;
+  let matchedServiceTier: ServiceTier | undefined;
+  let matchedLabel: string | undefined;
+
+  for (const [type, label] of Object.entries(vehicleTypeLabels)) {
+    if (
+      normalizedQuery.includes(label.toLowerCase()) ||
+      label.toLowerCase().includes(normalizedQuery)
+    ) {
+      matchedVehicleType = type as VehicleType;
+      matchedLabel = label;
+      break;
+    }
+  }
+
+  // Try to match service tiers (only if no vehicle type was matched)
+  if (!matchedVehicleType) {
+    for (const [tier, label] of Object.entries(serviceTierLabels)) {
+      if (
+        normalizedQuery.includes(label.toLowerCase()) ||
+        label.toLowerCase().includes(normalizedQuery)
+      ) {
+        matchedServiceTier = tier as ServiceTier;
+        matchedLabel = label;
+        break;
+      }
+    }
+  }
+
+  // Extract matched term from query to get remaining text for make/model search
+  if (matchedLabel) {
+    remainingQuery = remainingQuery
+      .replace(new RegExp(matchedLabel, 'gi'), '')
+      .trim();
+  }
+
+  return {
+    vehicleType: matchedVehicleType,
+    serviceTier: matchedServiceTier,
+    remainingQuery: remainingQuery || undefined,
+  };
+}
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const url = new URL(request.url);
 
+  // Free-text search query parameter (from Google sitelinks search box)
+  const q = url.searchParams.get("q");
+
   // Category/type filters
-  const serviceTierParam = url.searchParams.get("serviceTier");
-  const vehicleTypeParam = url.searchParams.get("vehicleType");
+  let serviceTierParam = url.searchParams.get("serviceTier");
+  let vehicleTypeParam = url.searchParams.get("vehicleType");
+
+  /**
+   * Filter precedence logic:
+   * - Explicit URL parameters (serviceTier, vehicleType) take precedence over `q` for category filtering
+   * - When explicit filters are provided, `q` is only used for make/model search if no filters matched
+   * - When no explicit filters exist, `q` is parsed to extract both category filters AND remaining text for make/model search
+   */
+  let extractedMakeModelQuery: string | undefined;
+
+  if (q && !serviceTierParam && !vehicleTypeParam) {
+    const mappedFilters = mapQueryToFilters(q);
+    if (mappedFilters.vehicleType) {
+      vehicleTypeParam = mappedFilters.vehicleType;
+    }
+    if (mappedFilters.serviceTier) {
+      serviceTierParam = mappedFilters.serviceTier;
+    }
+    // Store the remaining query for make/model search (e.g., "Toyota" from "Toyota Luxury")
+    extractedMakeModelQuery = mappedFilters.remainingQuery;
+  }
 
   // Date/availability filters
   const from = url.searchParams.get("from");
@@ -347,7 +474,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   if (bookingType && !isBookingType(bookingType)) {
     logger.warn("[SEARCH] Invalid booking type", { bookingType });
     return data(
-      { cars: [], filters: { serviceTier: null, vehicleType: null } },
+      { cars: [], filters: { serviceTier: null, vehicleType: null, bookingType: null } },
       { status: 400, headers: { "Cache-Control": "no-store" } },
     );
   }
@@ -356,7 +483,17 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const serviceTier = parseServiceTier(serviceTierParam);
   const vehicleType = parseVehicleType(vehicleTypeParam);
 
+  /**
+   * Make/model search logic:
+   * - Use extractedMakeModelQuery if it was extracted from compound query (e.g., "Toyota" from "Toyota Luxury")
+   * - Otherwise, use full `q` if no category filters matched
+   * - This allows compound queries to search by both category AND make/model
+   */
+  const makeModelQuery = extractedMakeModelQuery?.trim() ||
+                        (q && !serviceTier && !vehicleType ? q.trim() : null);
+
   logger.info("[SEARCH] Query params", {
+    q,
     serviceTier,
     vehicleType,
     from,
@@ -364,6 +501,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     bookingType,
     pickupTime,
     flightNumber,
+    makeModelQuery,
   });
 
   try {
@@ -379,7 +517,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
     const carQueryStartTime = Date.now();
 
-    // Build where clause with category filters
+    // Build where clause with category filters and optional make/model search
     const cars = await prisma.car.findMany({
       where: {
         AND: [
@@ -393,6 +531,13 @@ export async function loader({ request }: LoaderFunctionArgs) {
             // Category filters - only applied if provided
             ...(serviceTier && { serviceTier }),
             ...(vehicleType && { vehicleType }),
+            // Make/model search - case-insensitive partial match
+            ...(makeModelQuery && {
+              OR: [
+                { make: { contains: makeModelQuery, mode: "insensitive" } },
+                { model: { contains: makeModelQuery, mode: "insensitive" } },
+              ],
+            }),
           },
         ],
       },
@@ -439,6 +584,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
         filters: {
           serviceTier: serviceTier ?? null,
           vehicleType: vehicleType ?? null,
+          bookingType: bookingType ?? null,
         },
       },
       {
@@ -452,7 +598,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   } catch (error) {
     logger.error("[SEARCH] Error:", error instanceof Error ? error.message : "Unknown error");
     return data(
-      { cars: [], filters: { serviceTier: null, vehicleType: null } },
+      { cars: [], filters: { serviceTier: null, vehicleType: null, bookingType: null } },
       { status: 500, headers: { "Cache-Control": "no-store" } },
     );
   }

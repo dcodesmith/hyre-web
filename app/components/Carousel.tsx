@@ -8,6 +8,8 @@ interface CarouselProps {
   readonly images?: string[];
   readonly variant?: "carousel" | "booking";
   readonly priority?: boolean;
+  /** Car name for SEO-friendly alt text (e.g., "2023 Toyota Camry") */
+  readonly carName?: string;
 }
 
 export default function Carousel({
@@ -18,6 +20,7 @@ export default function Carousel({
     "https://picsum.photos/seed/3/800/600",
   ],
   priority = false,
+  carName,
 }: CarouselProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
@@ -133,7 +136,7 @@ export default function Carousel({
                   ? "(max-width: 768px) 100vw, (max-width: 1024px) 80vw, 800px"
                   : "(max-width: 640px) 220px, (max-width: 1024px) 250px, 640px"
               }
-              alt={`Car view ${index + 1}`}
+              alt={carName ? `${carName} - Image ${index + 1} of ${images.length}` : `Car image ${index + 1} of ${images.length}`}
               className="w-full aspect-[4/3] object-cover flex-shrink-0"
               width={baseWidth}
               height={Math.round(baseWidth * 0.75)}
@@ -176,8 +179,8 @@ export default function Carousel({
         {currentIndex + 1} / {images.length}
       </div>
 
-      {/* Dot indicators */}
-      <div className="absolute bottom-3 left-1/2 transform -translate-x-1/2 flex space-x-1.5">
+      {/* Dot indicators - hidden on mobile since slide counter is visible */}
+      <div className="absolute bottom-3 left-1/2 transform -translate-x-1/2 hidden md:flex space-x-1.5">
         {images.map((image, index) => (
           <button
             key={`slide-indicator-${image}`}

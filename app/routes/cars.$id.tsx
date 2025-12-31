@@ -6,6 +6,7 @@ import { fromZonedTime } from "date-fns-tz";
 import invariant from "tiny-invariant";
 import CarCarousel from "~/components/Carousel";
 import BookingCard from "~/components/booking/BookingCard";
+import { VehicleSchema, BreadcrumbSchema } from "~/components/seo/StructuredData";
 import {
   Accordion,
   AccordionContent,
@@ -17,12 +18,40 @@ import { getSessionUser, requireUser } from "~/modules/auth/auth.server";
 import { prisma } from "~/modules/db/db.server";
 import { availableCarsForSpecificRequest } from "~/services/availability-engine.server";
 import { getRates } from "~/services/extensions.server";
+import { getVehicleKeywords, generateCarSlug, extractCarIdFromSlug, getBaseUrl, generateMetaTags } from "~/utils/seo";
 import { LAGOS_TIMEZONE } from "~/utils/timezone";
 import { validateCSRF } from "~/utils/csrf-action.server";
+import { env } from "~/utils/server/env.server";
+
+/** Find a car by slug or full ID */
+async function findCarBySlugOrId(slugOrId: string) {
+  // First, check if it's a full CUID
+  if (/^c[a-z0-9]{24}$/i.test(slugOrId)) {
+    return prisma.car.findUnique({
+      where: { id: slugOrId },
+      include: { images: { select: { url: true } } },
+    });
+  }
+
+  // Extract the short ID from the slug
+  const shortId = extractCarIdFromSlug(slugOrId);
+  if (!shortId) {
+    return null;
+  }
+
+  // Find car where ID starts with the short ID
+  const car = await prisma.car.findFirst({
+    where: { id: { startsWith: shortId } },
+    include: { images: { select: { url: true } } },
+  });
+
+  return car;
+}
 
 export async function action({ request, params }: ActionFunctionArgs) {
   await validateCSRF(request);
 
+  // Use the slug as-is for the redirect (it will be resolved in loader)
   await requireUser(request, {
     redirectTo: `/auth?redirectTo=/cars/${params.id}`,
   });
@@ -128,7 +157,7 @@ async function checkCarAvailability(
 
 export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   invariant(params.id, "Car ID is required");
-  const carId = params.id;
+  const slugOrId = params.id;
   const url = new URL(request.url);
 
   const fromDate = url.searchParams.get("from");
@@ -140,12 +169,7 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   // Run all independent queries in parallel for better performance
   const [user, car, rates] = await Promise.all([
     getSessionUser(request),
-    prisma.car.findUnique({
-      where: { id: carId },
-      include: {
-        images: { select: { url: true } },
-      },
-    }),
+    findCarBySlugOrId(slugOrId),
     getRates(),
   ]);
 
@@ -153,8 +177,19 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
     throw redirect("/");
   }
 
+  // Generate the canonical slug for this car
+  const canonicalSlug = generateCarSlug(car);
+
+  // If accessed via raw ID or wrong slug, redirect to canonical slug URL (301 for SEO)
+  if (slugOrId !== canonicalSlug) {
+    const searchParams = url.searchParams.toString();
+    const queryString = searchParams ? `?${searchParams}` : "";
+    const redirectUrl = `/cars/${canonicalSlug}${queryString}`;
+    throw redirect(redirectUrl, 301);
+  }
+
   // Check availability only when all required parameters are present
-  const isAvailable = await checkCarAvailability(carId, {
+  const isAvailable = await checkCarAvailability(car.id, {
     fromDate,
     toDate,
     bookingType,
@@ -175,59 +210,43 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
     vatRate: rates.vatRatePercent.toNumber(),
     platformServiceFeeRate: rates.platformCustomerServiceFeeRatePercent.toNumber(),
     securityDetailRate: rates.securityDetailRate.toNumber(),
+    ENV: {
+      DOMAIN: env.DOMAIN,
+    },
   };
 };
 
 export const meta: MetaFunction<typeof loader> = ({ data }) => {
   if (!data?.car) {
     return [
-      {
-        title: "Car Not Found - Tripdly",
-      },
-      {
-        name: "description",
-        content: "The requested car could not be found.",
-      },
+      { title: "Car Not Found - Tripdly" },
+      { name: "description", content: "The requested car could not be found." },
+      { name: "robots", content: "noindex, nofollow" },
     ];
   }
 
   const { car } = data;
   const carName = `${car.make} ${car.model} ${car.year}`;
   const price = `₦${Number(car.dayRate).toLocaleString()}`;
+  const baseUrl = getBaseUrl(data?.ENV?.DOMAIN);
+  // Use SEO-friendly slug for canonical URL
+  const slug = generateCarSlug({ id: car.id, make: car.make, model: car.model, year: car.year });
+  const carUrl = `${baseUrl}/cars/${slug}`;
+  const imageUrl = car.images?.[0]?.url || `${baseUrl}/og-image.jpg`;
 
-  return [
-    {
-      title: `${carName} - Book Now | Tripdly`,
-    },
-    {
-      name: "description",
-      content: `Book ${carName} with professional chauffeur service in Nigeria. ${car.color} ${car.vehicleType} available for day trips, airport pickups, and special events. Starting from ${price} per day. Safe, reliable, and exceptional service.`,
-    },
-    {
-      property: "og:title",
-      content: `${carName} - Book Now | Tripdly`,
-    },
-    {
-      property: "og:description",
-      content: `Book ${carName} with professional chauffeur service. ${car.color} ${car.vehicleType} starting from ${price} per day.`,
-    },
-    {
-      property: "og:type",
-      content: "website",
-    },
-    {
-      property: "og:url",
-      content: "https://tripdly.com",
-    },
-    {
-      property: "og:image",
-      content: "https://tripdly.com/og-image.png",
-    },
-    {
-      name: "twitter:image",
-      content: "https://tripdly.com/og-image.png",
-    },
-  ];
+  const title = `${carName} - Book Now | Tripdly`;
+  const description = `Book ${carName} with professional chauffeur service in Nigeria. ${car.color} ${car.vehicleType} available for day trips, airport pickups, and special events. Starting from ${price} per day. Safe, reliable, and exceptional service.`;
+  const keywords = getVehicleKeywords(car.make, car.model, car.vehicleType);
+
+  return generateMetaTags({
+    title,
+    description,
+    url: carUrl,
+    image: imageUrl,
+    type: "website",
+    keywords,
+    canonical: carUrl,
+  });
 };
 
 export default function CarDetails() {
@@ -243,11 +262,45 @@ export default function CarDetails() {
 
   const carImages = car.images.length > 0 ? car.images.map(({ url }) => url) : undefined;
 
+  // SEO structured data
+  const baseUrl = "https://tripdly.com";
+  const carName = `${car.year} ${car.make} ${car.model}`;
+  const carSlug = generateCarSlug(car);
+
   return (
     <div className="lg:max-w-6xl lg:space-y-4 lg:mx-auto">
+      {/* Structured Data for SEO */}
+      <VehicleSchema
+        data={{
+          name: carName,
+          description: `Book a ${car.color} ${carName} with professional chauffeur service in Nigeria. ${car.vehicleType} with ${car.passengerCapacity} passenger capacity.`,
+          image: car.images?.[0]?.url || `${baseUrl}/og-image.jpg`,
+          url: `${baseUrl}/cars/${carSlug}`,
+          brand: car.make,
+          model: car.model,
+          year: car.year,
+          color: car.color,
+          seatingCapacity: car.passengerCapacity,
+          vehicleType: car.vehicleType,
+          offers: {
+            price: car.dayRate,
+            priceCurrency: "NGN",
+            availability: car.status === "AVAILABLE" ? "InStock" : "OutOfStock",
+          },
+        }}
+      />
+      <BreadcrumbSchema
+        data={{
+          items: [
+            { name: "Home", url: baseUrl },
+            { name: "Search", url: `${baseUrl}/search` },
+            { name: carName, url: `${baseUrl}/cars/${carSlug}` },
+          ],
+        }}
+      />
       <div className="lg:hidden bg-white">
         <div className="relative">
-          <CarCarousel variant="booking" images={carImages} priority />
+          <CarCarousel variant="booking" images={carImages} priority carName={carName} />
           <Link
             to={`/search?${searchParams.toString()}`}
             className="absolute top-4 left-4 z-10 bg-black/50 text-white p-2 rounded-full hover:bg-black/70 transition-colors"
@@ -274,7 +327,7 @@ export default function CarDetails() {
         <div className="flex flex-col gap-4">
           {/* Desktop carousel */}
           <div className="hidden lg:block">
-            <CarCarousel variant="booking" images={carImages} priority />
+            <CarCarousel variant="booking" images={carImages} priority carName={carName} />
           </div>
 
           {/* Car details - accordion on mobile, regular on desktop */}

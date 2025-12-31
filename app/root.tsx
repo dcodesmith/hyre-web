@@ -82,14 +82,14 @@ export const meta: MetaFunction<typeof loader> = ({ data }) => {
     {
       property: "og:image",
       content: data?.ENV?.DOMAIN
-        ? `https://${data.ENV.DOMAIN}/og-image.png`
-        : "https://tripdly.com/og-image.png",
+        ? `https://${data.ENV.DOMAIN}/og-image.jpg`
+        : "https://tripdly.com/og-image.jpg",
     },
     {
       name: "twitter:image",
       content: data?.ENV?.DOMAIN
-        ? `https://${data.ENV.DOMAIN}/og-image.png`
-        : "https://tripdly.com/og-image.png",
+        ? `https://${data.ENV.DOMAIN}/og-image.jpg`
+        : "https://tripdly.com/og-image.jpg",
     },
   ];
 };

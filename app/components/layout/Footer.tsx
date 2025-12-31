@@ -60,6 +60,14 @@ export function Footer({ appName }: FooterProps) {
             <ul className="space-y-2.5">
               <li>
                 <Link
+                  to="/chauffeur-service-lagos"
+                  className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
+                >
+                  Chauffeur Service Lagos
+                </Link>
+              </li>
+              <li>
+                <Link
                   to="/?bookingType=AIRPORT_PICKUP"
                   className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
                 >
@@ -190,6 +198,14 @@ export function Footer({ appName }: FooterProps) {
                   className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
                 >
                   Referral Program
+                </Link>
+              </li>
+              <li>
+                <Link
+                  to="/faq"
+                  className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
+                >
+                  FAQ
                 </Link>
               </li>
               <li>

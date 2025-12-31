@@ -143,7 +143,7 @@ export function SingleDatePicker({
             >
               <span className="text-xs font-semibold text-gray-700 leading-tight">{label}</span>
               <div
-                className={cn("text-sm leading-tight", hasDate ? "text-gray-900" : "text-gray-400")}
+                className={cn("text-sm leading-tight", hasDate ? "text-gray-900" : "text-gray-500")}
               >
                 {formattedDate ?? placeholder}
               </div>

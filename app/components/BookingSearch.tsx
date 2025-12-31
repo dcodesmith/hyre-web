@@ -378,16 +378,20 @@ export function BookingSearch({
   const handleFromDateChange = useCallback(
     (date: Date | undefined) => {
       // Update local state only, don't update URL yet
+      // For airport pickup, always set "to" to same as "from"
+      // Otherwise, if "to" date exists and is before new "from" date, clear "to" date
+      let toDate: Date | undefined;
+      if (bookingType === AIRPORT_PICKUP_BOOKING_TYPE) {
+        toDate = date;
+      } else if (dateRange.to && date && dateRange.to < date) {
+        toDate = undefined;
+      } else {
+        toDate = dateRange.to;
+      }
+
       const newDateRange: DateRange = {
         from: date,
-        // For airport pickup, always set "to" to same as "from"
-        // Otherwise, if "to" date exists and is before new "from" date, clear "to" date
-        to:
-          bookingType === AIRPORT_PICKUP_BOOKING_TYPE
-            ? date
-            : dateRange.to && date && dateRange.to < date
-              ? undefined
-              : dateRange.to,
+        to: toDate,
       };
       setDateRange(newDateRange);
       setValidatedFlight(null);

@@ -2,6 +2,7 @@ import { Link } from "@remix-run/react";
 import { Heart, Sparkles } from "lucide-react";
 import { formatCurrency } from "~/lib/utils";
 import type { SerializedCar } from "~/types";
+import { generateCarSlug } from "~/utils/seo";
 import Carousel from "./Carousel";
 
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
@@ -34,7 +35,11 @@ export function CarCard({
   variant = "carousel",
 }: CarCardProps) {
   const isGrid = variant === "grid";
-  const linkUrl = searchParams ? `/cars/${car.id}?${searchParams.toString()}` : `/cars/${car.id}`;
+  // Generate SEO-friendly slug for car URL
+  const carSlug = generateCarSlug({ id: car.id, make: car.make, model: car.model, year: car.year });
+  const linkUrl = searchParams ? `/cars/${carSlug}?${searchParams.toString()}` : `/cars/${carSlug}`;
+  // Generate car name for SEO alt text
+  const carName = `${car.year} ${car.make} ${car.model}`;
 
   return (
     <Link
@@ -46,6 +51,7 @@ export function CarCard({
           <Carousel
             images={car.images.length ? car.images.map(({ url }) => url) : undefined}
             priority={priority}
+            carName={carName}
           />
           {/* New Listing Badge - only shows for cars added in last 7 days */}
           {isNewListing(car.createdAt) && (

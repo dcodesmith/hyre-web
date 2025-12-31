@@ -14,10 +14,17 @@ import { CarCard } from "~/components/CarCard";
 import { CarouselSection } from "~/components/CarouselSection";
 import { CompactSearchBar } from "~/components/CompactSearchBar";
 import { SearchModal } from "~/components/SearchModal";
+import {
+  LocalBusinessSchema,
+  ServiceSchema,
+  WebSiteSchema,
+  FAQSchema,
+} from "~/components/seo/StructuredData";
 import { useIsMobile } from "~/hooks/use-mobile";
 import { getHeroHeightClasses, useHeroScroll } from "~/hooks/useHeroScroll";
 import { ServiceTiers, VehicleTypes } from "~/types";
 import type { SerializedCar } from "~/types";
+import { companyInfo, defaultKeywords, getBaseUrl, generateMetaTags } from "~/utils/seo";
 
 /** Minimum number of cars needed to show a category */
 const MIN_CATEGORY_SIZE = 3;
@@ -79,50 +86,23 @@ function categorizeCars(cars: SerializedCar[]): CarCategories {
 }
 
 export const meta: MetaFunction<typeof loader> = ({ data }) => {
-  // Use DOMAIN from env, detect localhost to use http:// instead of https://
-  const domain = data?.ENV?.DOMAIN ?? "tripdly.com";
+  const baseUrl = getBaseUrl(data?.ENV?.DOMAIN);
 
-  // Check if domain is localhost
-  const isLocalhost = domain.includes("localhost") || domain.includes("127.0.0.1");
+  const title = "Tripdly - Premium Chauffeur Service in Nigeria";
+  const description =
+    "Book luxury vehicles with professional chauffeurs in Nigeria. Day trips, airport pickups, and special events. Choose from SUVs, sedans, and executive cars. Safe, reliable, and exceptional service.";
 
-  // Use http:// for localhost, https:// for production/staging
-  const baseUrl = isLocalhost ? `http://${domain}` : `https://${domain}`;
-
-  return [
-    {
-      title: "Tripdly - Premium Chauffeur Service in Nigeria",
-    },
-    {
-      name: "description",
-      content:
-        "Book luxury vehicles with professional chauffeurs in Nigeria. Day trips, airport pickups, and special events. Choose from SUVs, sedans, and executive cars. Safe, reliable, and exceptional service.",
-    },
-    {
-      property: "og:title",
-      content: "Tripdly - Premium Chauffeur Service in Nigeria",
-    },
-    {
-      property: "og:description",
-      content:
-        "Book luxury vehicles with professional chauffeurs in Nigeria. Day trips, airport pickups, and special events. Safe, reliable, and exceptional service.",
-    },
-    {
-      property: "og:type",
-      content: "website",
-    },
-    {
-      property: "og:url",
-      content: baseUrl,
-    },
-    {
-      property: "og:image",
-      content: `${baseUrl}/og-image.png`,
-    },
-    {
-      name: "twitter:image",
-      content: `${baseUrl}/og-image.png`,
-    },
-  ];
+  return generateMetaTags({
+    title,
+    description,
+    url: baseUrl,
+    image: `${baseUrl}/og-image.jpg`,
+    keywords: defaultKeywords,
+    canonical: baseUrl,
+    geoRegion: "NG",
+    geoPlacename: "Lagos",
+    author: "Tripdly",
+  });
 };
 
 export const links = () => [
@@ -238,8 +218,34 @@ type LoaderData = {
   };
 };
 
+// FAQ data for structured data
+const faqData = {
+  questions: [
+    {
+      question: "How do I book a chauffeur service in Lagos?",
+      answer:
+        "Simply visit our website, select your pickup location, date, and time, choose your preferred vehicle, and complete the booking. You'll receive instant confirmation.",
+    },
+    {
+      question: "What types of vehicles are available?",
+      answer:
+        "We offer a wide range of vehicles including luxury sedans, SUVs, executive cars, and premium vehicles from brands like Toyota, Lexus, Mercedes-Benz, and BMW.",
+    },
+    {
+      question: "Are your chauffeurs professional and vetted?",
+      answer:
+        "Yes, all our chauffeurs are professionally trained, background-checked, and experienced in providing premium transportation services.",
+    },
+    {
+      question: "Do you offer airport pickup services?",
+      answer:
+        "Yes, we specialize in airport transfers including pickups from Murtala Muhammed International Airport (Lagos) and Nnamdi Azikiwe International Airport (Abuja).",
+    },
+  ],
+};
+
 export default function IndexPage() {
-  const { categories } = useLoaderData<LoaderData>();
+  const { categories, ENV } = useLoaderData<LoaderData>();
 
   // Use dayRate for default price display on homepage
   const getRateForDisplay = (car: SerializedCar) => car.dayRate;
@@ -257,8 +263,41 @@ export default function IndexPage() {
   // Mobile search modal state
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
 
+  // Build base URL for structured data
+  const baseUrl = getBaseUrl(ENV?.DOMAIN);
+
   return (
     <div className="w-full">
+      {/* Structured Data for SEO */}
+      <LocalBusinessSchema
+        data={{
+          ...companyInfo,
+          url: baseUrl,
+          logo: `${baseUrl}/logo.svg`,
+        }}
+      />
+      <WebSiteSchema
+        data={{
+          name: "Tripdly",
+          url: baseUrl,
+          description: companyInfo.description,
+          searchUrl: `${baseUrl}/search?q={search_term_string}`,
+        }}
+      />
+      <ServiceSchema
+        data={{
+          name: "Premium Chauffeur Service",
+          description:
+            "Professional chauffeur and luxury car hire service for corporate travel, airport transfers, and special occasions in Nigeria.",
+          provider: "Tripdly",
+          providerUrl: baseUrl,
+          serviceType: "Chauffeur Service",
+          areaServed: companyInfo.areaServed,
+          priceRange: companyInfo.priceRange,
+          image: `${baseUrl}/og-image.jpg`,
+        }}
+      />
+      <FAQSchema data={faqData} />
       {/* Mobile Compact Sticky Search - Shows after scrolling past hero */}
       {isMobileScrolled && (
         <div className="md:hidden fixed top-0 left-0 right-0 z-50 px-4 py-3 bg-white border-b border-gray-200 shadow-md">

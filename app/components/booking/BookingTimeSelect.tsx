@@ -122,6 +122,7 @@ export function BookingTimeSelect({
       onValueChange={onValueChange}
     >
       <SelectTrigger
+        aria-label="Select pickup time"
         className={cn(
           containerClassName
             ? "w-full justify-start text-left font-normal p-0 h-auto min-h-0 hover:bg-transparent focus:ring-0 shadow-none bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 border-0 [&>svg]:hidden text-sm leading-tight"
@@ -132,7 +133,7 @@ export function BookingTimeSelect({
         <SelectValue
           placeholder={
             containerClassName ? (
-              <span className="text-gray-400">Select pickup time</span>
+              <span className="text-gray-500">Select pickup time</span>
             ) : (
               "Select pickup time"
             )

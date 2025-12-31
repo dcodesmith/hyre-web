@@ -443,7 +443,9 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     referralCreditsReserved: booking.referralCreditsReserved?.toNumber() ?? 0,
   };
 
-  return data({ booking: serializedBooking, paymentSummary, extendableDuration }, { status: 200 });
+  const domain = env.DOMAIN || "https://tripdly.com";
+
+  return data({ booking: serializedBooking, paymentSummary, extendableDuration, domain }, { status: 200 });
 }
 
 export const meta: MetaFunction<typeof loader> = ({ data }) => {
@@ -489,11 +491,11 @@ export const meta: MetaFunction<typeof loader> = ({ data }) => {
     },
     {
       property: "og:image",
-      content: "https://tripdly.com/og-image.png",
+      content: `${data.domain}/og-image.jpg`,
     },
     {
       name: "twitter:image",
-      content: "https://tripdly.com/og-image.png",
+      content: `${data.domain}/og-image.jpg`,
     },
   ];
 };
