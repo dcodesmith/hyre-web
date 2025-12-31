@@ -96,6 +96,8 @@ export const meta: MetaFunction<typeof loader> = ({ data }) => {
 
 export const links: LinksFunction = () => [
   ...(cssBundleHref ? [{ rel: "stylesheet", href: cssBundleHref }] : []),
+  // Preload critical Tailwind CSS to reduce blocking time
+  { rel: "preload", href: tailwindStyles, as: "style" },
   { rel: "stylesheet", href: tailwindStyles },
   { rel: "icon", href: "/favicon.ico" },
   // { rel: "icon", type: "image/svg+xml", href: "/logo.svg" },
@@ -111,8 +113,9 @@ export const links: LinksFunction = () => [
     href: "https://fonts.googleapis.com/css2?family=Nunito+Sans:ital,opsz,wght@0,6..12,200..1000;1,6..12,200..1000&family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&display=swap",
     as: "style",
   },
-  // DNS prefetch for potential external resources
+  // DNS prefetch for Vercel and Analytics
   { rel: "dns-prefetch", href: "https://vercel.app" },
+  { rel: "dns-prefetch", href: "https://vitals.vercel-insights.com" },
 ];
 
 export async function loader({ request }: LoaderFunctionArgs) {

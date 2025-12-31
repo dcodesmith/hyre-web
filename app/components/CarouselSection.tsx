@@ -15,27 +15,44 @@ export function CarouselSection({ title, href = "#", id, children }: CarouselSec
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
   const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const rafRef = useRef<number | null>(null);
 
-  useEffect(() => {
-    return () => {
-      if (scrollTimeoutRef.current) {
-        clearTimeout(scrollTimeoutRef.current);
-      }
-    };
-  }, []);
-
+  // Optimize scroll check using requestAnimationFrame to batch layout reads
   const checkScroll = () => {
     const container = scrollContainerRef.current;
     if (!container) return;
 
-    setCanScrollLeft(container.scrollLeft > 0);
-    setCanScrollRight(container.scrollLeft < container.scrollWidth - container.clientWidth - 10);
+    // Cancel any pending RAF to avoid multiple reflows
+    if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current);
+    }
+
+    // Schedule layout read in the next frame
+    rafRef.current = requestAnimationFrame(() => {
+      setCanScrollLeft(container.scrollLeft > 0);
+      setCanScrollRight(container.scrollLeft < container.scrollWidth - container.clientWidth - 10);
+    });
   };
+
+  // Check initial scroll state after mount
+  useEffect(() => {
+    checkScroll();
+
+    return () => {
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+      }
+    };
+  }, []);
 
   const scroll = (direction: "left" | "right") => {
     const container = scrollContainerRef.current;
     if (!container) return;
 
+    // Read layout property once and cache it
     const scrollAmount = container.clientWidth * 0.8; // Scroll 80% of container width
     const newScrollLeft =
       direction === "left"
