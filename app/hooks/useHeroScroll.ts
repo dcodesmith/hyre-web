@@ -58,10 +58,20 @@ export function useHeroScroll(): HeroScrollState {
     observer.observe(sentinel);
 
     // Handle resize for mobile/desktop breakpoint changes
-    // This is still needed but fires much less frequently than scroll
+    // Use requestAnimationFrame to batch layout reads and avoid forced reflows
+    let rafId: number | null = null;
     const handleResize = () => {
-      const isScrolledPastThreshold = window.scrollY > SCROLL_COLLAPSE_THRESHOLD;
-      updateCollapseState(isScrolledPastThreshold);
+      // Cancel any pending RAF to avoid multiple reflows
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+      }
+
+      // Schedule layout reads in the next frame to batch with other layout reads
+      rafId = requestAnimationFrame(() => {
+        const isScrolledPastThreshold = window.scrollY > SCROLL_COLLAPSE_THRESHOLD;
+        updateCollapseState(isScrolledPastThreshold);
+        rafId = null;
+      });
     };
 
     window.addEventListener("resize", handleResize, { passive: true });
@@ -73,6 +83,9 @@ export function useHeroScroll(): HeroScrollState {
       observer.disconnect();
       sentinel.remove();
       window.removeEventListener("resize", handleResize);
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+      }
     };
   }, []);
 

@@ -118,13 +118,31 @@ export function MobileBottomNav({ user, appName, onProfileOpen }: MobileBottomNa
       return;
     }
 
+    let rafId: number | null = null;
+
     const handleScroll = () => {
-      setIsHidden(window.scrollY > SCROLL_COLLAPSE_THRESHOLD);
+      // Cancel any pending RAF to avoid multiple reflows
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+      }
+
+      // Schedule layout read in the next frame to batch with other layout reads
+      rafId = requestAnimationFrame(() => {
+        setIsHidden(window.scrollY > SCROLL_COLLAPSE_THRESHOLD);
+        rafId = null;
+      });
     };
 
+    // Initial check
     handleScroll();
+
     window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+      }
+    };
   }, [shouldHideOnScroll]);
 
   // Don't show on admin routes
