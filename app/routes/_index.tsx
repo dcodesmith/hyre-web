@@ -2,7 +2,7 @@ import { CarApprovalStatus, Status } from "@prisma/client";
 import type { MetaFunction } from "@remix-run/node";
 import { data } from "@remix-run/node";
 import { Link, useLoaderData } from "@remix-run/react";
-import { Fingerprint, LocateFixed, ShieldCheck } from "lucide-react";
+import { Fingerprint, ShieldCheck } from "lucide-react";
 import { BookingSearch } from "~/components/BookingSearch";
 
 import logger from "~/lib/logger.server";
@@ -404,7 +404,7 @@ export default function IndexPage() {
       <div className={`hidden md:block transition-all duration-300 ${desktopHeight}`} />
 
       {/* Main Content Container - Scrolls underneath fixed hero */}
-      <div className="relative z-0 bg-white py-8 md:py-12">
+      <div className="relative z-0 bg-white py-8 md:py-12 space-y-6">
         {categories.allCars.length ? (
           <div className="space-y-6">
             {/* Category Filter Pills - Link to /search with filters */}

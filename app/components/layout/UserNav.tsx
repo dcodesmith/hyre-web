@@ -28,9 +28,7 @@ function AuthSection({ user, isHomeRoute, onProfileOpen }: AuthSectionProps) {
         <DropdownMenuTrigger asChild>
           <Button
             variant="ghost"
-            className={`relative h-8 w-8 rounded-full border flex items-center justify-center capitalize italic md:hover:bg-transparent md:hover:text-white ${
-              isHomeRoute ? "text-white" : "text-black"
-            }`}
+            className="relative h-8 w-8 rounded-full border flex items-center justify-center capitalize italic md:hover:bg-transparent"
             aria-label="Open profile menu"
           >
             {getInitials(user)}

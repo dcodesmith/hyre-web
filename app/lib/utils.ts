@@ -38,6 +38,14 @@ export function useIsPending({
   );
 }
 
+function replaceWithOrdinalSuffix(day: string) {
+  const num = Number.parseInt(day);
+  const suffix = ["th", "st", "nd", "rd"][
+    num % 10 > 3 || (num % 100) - (num % 10) === 10 ? 0 : num % 10
+  ];
+  return `${num}${suffix}`;
+}
+
 export function formatDate(date: string | Date) {
   const formatter = new Intl.DateTimeFormat("en-GB", {
     dateStyle: "medium",
@@ -45,45 +53,10 @@ export function formatDate(date: string | Date) {
     hour12: true,
   });
 
-  function replaceWithOrdinalSuffix(day: string) {
-    const num = Number.parseInt(day);
-    const suffix = ["th", "st", "nd", "rd"][
-      num % 10 > 3 || (num % 100) - (num % 10) === 10 ? 0 : num % 10
-    ];
-    return `${num}${suffix}`;
-  }
-
   return formatter
     .format(new Date(date))
-    .replace(/,/g, " @")
+    .replaceAll(/,/g, " @")
     .replace(/(\d+)(?=\s)/, replaceWithOrdinalSuffix);
-
-  // let datePart = "";
-  // let timePart = "";
-  // const parts = formatter.formatToParts(new Date(date));
-
-  // // Separate date and time parts
-  // for (const part of parts) {
-  //   switch (part.type) {
-  //     case "day":
-  //       datePart += `${part.value}${ordinalSuffix(parseInt(part.value, 10))}`;
-  //       break;
-  //     case "month":
-  //     case "year":
-  //       datePart += part.value;
-  //       break;
-  //     case "hour":
-  //     case "minute":
-  //     case "dayPeriod":
-  //       timePart += part.value;
-  //       break;
-  //     case "literal":
-  //       timePart ? (timePart += part.value) : (datePart += " ");
-  //       break;
-  //   }
-  // }
-
-  // return `${datePart} @ ${timePart.trim()}`;
 }
 
 export const formatCurrency = (amount: number) => {
