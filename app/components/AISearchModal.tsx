@@ -1,21 +1,17 @@
 import { useNavigate } from "@remix-run/react";
-import { Sparkles, X, Loader2, CheckCircle, AlertCircle, Plane, Search } from "lucide-react";
+import { AlertCircle, CheckCircle, Loader2, Plane, Search, Sparkles, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import { Button } from "~/components/ui/button";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
-  DialogTitle,
+  DialogTrigger,
 } from "~/components/ui/dialog";
 import { Textarea } from "~/components/ui/textarea";
-import { toast } from "sonner";
-
-interface AISearchModalProps {
-  readonly isOpen: boolean;
-  readonly onClose: () => void;
-}
+import { cn } from "~/lib/utils";
 
 interface AISearchResponse {
   readonly params: Record<string, string>;
@@ -23,14 +19,29 @@ interface AISearchResponse {
   readonly error?: string;
 }
 
-export function AISearchModal({ isOpen, onClose }: AISearchModalProps) {
+const dialogContentClasses = cn(
+  // Base styles
+  "w-full p-0 gap-0 flex flex-col",
+  // Mobile styles (full screen)
+  "h-full max-h-screen rounded-none top-0 translate-y-0",
+  "data-[state=open]:slide-in-from-top",
+  // Desktop styles (centered modal)
+  "md:h-auto md:max-h-[90vh] max-w-full md:max-w-2xl",
+  "md:rounded-lg md:top-[50%] md:translate-y-[-50%]",
+  "md:data-[state=open]:slide-in-from-top-[48%]",
+);
+
+export function AISearchModal() {
   const navigate = useNavigate();
+  const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [validationStatus, setValidationStatus] = useState<string>("");
   const [flightDetails, setFlightDetails] = useState<string>("");
   const aiSearchAbortControllerRef = useRef<AbortController | null>(null);
   const flightValidationAbortControllerRef = useRef<AbortController | null>(null);
+
+  const onClose = () => setIsOpen(false);
 
   /**
    * Validates flight with timeout. Returns null if timeout/error (graceful degradation).
@@ -306,8 +317,17 @@ export function AISearchModal({ isOpen, onClose }: AISearchModalProps) {
   }, [isOpen]);
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-2xl p-0 gap-0">
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <DialogTrigger asChild>
+        <button
+          type="button"
+          className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-neutral-900 to-neutral-700 hover:from-neutral-800 hover:to-neutral-600 rounded-full transition-all shadow-sm hover:shadow-md"
+        >
+          <Sparkles className="h-4 w-4" />
+          Search by AI
+        </button>
+      </DialogTrigger>
+      <DialogContent className={dialogContentClasses}>
         <div className="px-6 pt-6 pb-4 border-b border-gray-100">
           <DialogHeader>
             <DialogDescription className="text-gray-600 mt-2 text-left">
@@ -394,25 +414,7 @@ export function AISearchModal({ isOpen, onClose }: AISearchModalProps) {
           )}
 
           {/* Search button */}
-          <div className="flex gap-3 pt-2">
-            <Button
-              onClick={handleSearch}
-              disabled={!query.trim() || isLoading}
-              className="flex-1 rounded-full"
-              size="lg"
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Searching...
-                </>
-              ) : (
-                <>
-                  <Search className="mr-2 h-4 w-4" />
-                  Search
-                </>
-              )}
-            </Button>
+          <div className="flex justify-center gap-3 pt-2">
             <Button
               onClick={() => {
                 // Abort any in-flight requests
@@ -427,10 +429,26 @@ export function AISearchModal({ isOpen, onClose }: AISearchModalProps) {
                 onClose();
               }}
               variant="outline"
-              size="lg"
-              className="rounded-full"
+              className="rounded-full min-w-[120px]"
             >
               Cancel
+            </Button>
+            <Button
+              onClick={handleSearch}
+              disabled={!query.trim() || isLoading}
+              className="rounded-full min-w-[120px]"
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Searching...
+                </>
+              ) : (
+                <>
+                  <Search className="mr-2 h-4 w-4" />
+                  Search
+                </>
+              )}
             </Button>
           </div>
         </div>

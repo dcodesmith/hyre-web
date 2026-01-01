@@ -1,4 +1,5 @@
 import { cn } from "~/lib/utils";
+import { AISearchModal } from "./AISearchModal";
 import { BookingSearch } from "./BookingSearch";
 import { Dialog, DialogContent } from "./ui/dialog";
 
@@ -31,6 +32,10 @@ export function SearchModal({ isOpen, onClose, navigateToSearch = false }: Searc
             navigateToSearch={navigateToSearch}
             onSearchComplete={onClose}
           />
+
+          <div className="mt-4 flex justify-center">
+            <AISearchModal />
+          </div>
         </div>
       </DialogContent>
     </Dialog>
