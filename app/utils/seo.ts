@@ -188,10 +188,12 @@ export function generatePageTitle(pageTitle: string, siteName = "Tripdly"): stri
 export const defaultKeywords = [
   "chauffeur service Nigeria",
   "luxury car hire Lagos",
+  "luxury chauffeur service Nigeria",
+  "premium chauffeur service Lagos",
+  "premium chauffeur Lagos",
   "executive car service Abuja",
   "airport transfer Nigeria",
   "corporate car hire",
-  "premium chauffeur Lagos",
   "professional driver service",
   "VIP transport Nigeria",
   "wedding car hire Lagos",

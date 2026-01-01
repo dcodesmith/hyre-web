@@ -37,7 +37,14 @@ export function CarCard({
   const isGrid = variant === "grid";
   // Generate SEO-friendly slug for car URL
   const carSlug = generateCarSlug({ id: car.id, make: car.make, model: car.model, year: car.year });
-  const linkUrl = searchParams ? `/cars/${carSlug}?${searchParams.toString()}` : `/cars/${carSlug}`;
+
+  // Ensure bookingType=DAY is set by default, unless another bookingType is already specified
+  const linkParams = new URLSearchParams(searchParams?.toString() || "");
+  if (!linkParams.has("bookingType")) {
+    linkParams.set("bookingType", "DAY");
+  }
+  const linkUrl = `/cars/${carSlug}?${linkParams.toString()}`;
+
   // Generate car name for SEO alt text
   const carName = `${car.year} ${car.make} ${car.model}`;
 
@@ -63,9 +70,9 @@ export function CarCard({
           {/* Favorite Heart Icon - Airbnb style */}
           <button
             type="button"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
             }}
             className="absolute top-3 right-3 p-2 bg-white/90 hover:bg-white rounded-full shadow-md transition-all"
             aria-label="Save to favorites"
@@ -77,24 +84,23 @@ export function CarCard({
         <div className="space-y-1">
           <div className="flex justify-between items-start">
             <div className="flex-1">
-              <h3 className="text-xs md:text-sm font-semibold tracking-wider">
+              <h3 className="text-sm font-semibold tracking-wider">
                 {car.make} {car.model} ({car.year})
               </h3>
+              <p className="text-sm text-gray-600 mt-0.5">{car.passengerCapacity}-Seater</p>
             </div>
           </div>
 
           <div className="flex items-baseline gap-1">
             {showTotal && totalPrice ? (
               <>
-                <span className="font-semibold text-xs md:text-sm">
-                  {formatCurrency(totalPrice)}
-                </span>
-                <span className="text-xs md:text-sm text-gray-600">total</span>
+                <span className="font-semibold text-sm">{formatCurrency(totalPrice)}</span>
+                <span className="text-sm text-gray-600">total</span>
               </>
             ) : (
               <>
-                <span className="font-semibold text-xs md:text-sm">{formatCurrency(price)}</span>
-                <span className="text-xs md:text-sm text-gray-600">{priceLabel}</span>
+                <span className="font-semibold text-sm">{formatCurrency(price)}</span>
+                <span className="text-sm text-gray-600">{priceLabel}</span>
               </>
             )}
           </div>

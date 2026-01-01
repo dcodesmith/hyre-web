@@ -111,7 +111,7 @@ export function CarouselSection({ title, href = "#", id, children }: CarouselSec
       <div
         ref={scrollContainerRef}
         onScroll={checkScroll}
-        className="flex overflow-x-auto snap-x snap-mandatory scrollbar-hide scroll-smooth gap-4 md:gap-6 pb-2"
+        className="flex overflow-x-auto snap-x snap-mandatory scrollbar-hide scroll-smooth gap-4 md:gap-6"
         style={{
           scrollbarWidth: "none",
           msOverflowStyle: "none",

@@ -15,6 +15,12 @@ import { CarouselSection } from "~/components/CarouselSection";
 import { CompactSearchBar } from "~/components/CompactSearchBar";
 import { SearchModal } from "~/components/SearchModal";
 import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "~/components/ui/accordion";
+import {
   LocalBusinessSchema,
   ServiceSchema,
   WebSiteSchema,
@@ -88,9 +94,9 @@ function categorizeCars(cars: SerializedCar[]): CarCategories {
 export const meta: MetaFunction<typeof loader> = ({ data }) => {
   const baseUrl = getBaseUrl(data?.ENV?.DOMAIN);
 
-  const title = "Tripdly - Premium Chauffeur Service in Nigeria";
+  const title = "Tripdly - Chauffeur Service in Nigeria | Book Chauffeur-Driven Cars";
   const description =
-    "Book luxury vehicles with professional chauffeurs in Nigeria. Day trips, airport pickups, and special events. Choose from SUVs, sedans, and executive cars. Safe, reliable, and exceptional service.";
+    "Book chauffeur-driven cars in Nigeria through our platform. Browse vehicles from verified fleet owners—from standard to premium and luxury options. Day trips, airport pickups, and special events. Choose from SUVs, sedans, and executive cars. Safe, reliable, and professional service.";
 
   return generateMetaTags({
     title,
@@ -362,7 +368,7 @@ export default function IndexPage() {
             }`}
           >
             <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-white text-center mb-3">
-              Find your perfect ride
+              Your Ride, Your Choice
             </h1>
             <p className="text-base md:text-lg text-white/90 text-center max-w-2xl leading-relaxed">
               Comfort. Safety. Professional. Every ride.
@@ -383,16 +389,12 @@ export default function IndexPage() {
             }`}
           >
             <div className="flex items-center gap-2">
-              <LocateFixed className="h-4 w-4 md:h-5 md:w-5 text-blue-400" />
-              <span className="text-xs md:text-sm">Real-time tracking</span>
-            </div>
-            <div className="flex items-center gap-2">
               <ShieldCheck className="h-4 w-4 md:h-5 md:w-5 text-green-400" />
-              <span className="text-xs md:text-sm">Vetted fleet owners</span>
+              <span>Vetted fleet owners</span>
             </div>
             <div className="flex items-center gap-2">
               <Fingerprint className="h-4 w-4 md:h-5 md:w-5 text-orange-400" />
-              <span className="text-xs md:text-sm">Secure booking</span>
+              <span>Secure booking</span>
             </div>
           </div>
         </div>
@@ -404,10 +406,10 @@ export default function IndexPage() {
       {/* Main Content Container - Scrolls underneath fixed hero */}
       <div className="relative z-0 bg-white py-8 md:py-12">
         {categories.allCars.length ? (
-          <div className="space-y-8">
+          <div className="space-y-6">
             {/* Category Filter Pills - Link to /search with filters */}
             <div className="max-w-[1400px] mx-auto px-4 md:px-8">
-              <div className="flex items-center gap-2 md:gap-3 overflow-x-auto scrollbar-hide pb-2">
+              <div className="flex items-center gap-2 md:gap-3 overflow-x-auto scrollbar-hide">
                 {categories.suvs.length > 0 && (
                   <Link
                     to="/search?vehicleType=SUV"
@@ -578,6 +580,40 @@ export default function IndexPage() {
             </div>
           </div>
         )}
+
+        {/* FAQ Section */}
+        <section className="bg-gray-50 py-12 md:py-16 border-t">
+          <div className="max-w-4xl mx-auto px-4 md:px-8">
+            <h2 className="text-2xl md:text-3xl font-bold text-center mb-8">
+              Frequently Asked Questions
+            </h2>
+            <Accordion type="single" collapsible className="bg-white rounded-lg border">
+              {faqData.questions.map((faq, index) => (
+                <AccordionItem
+                  key={faq.question}
+                  value={`item-${index}`}
+                  className="border-b border-gray-200 last:border-0 px-6"
+                >
+                  <AccordionTrigger className="text-left hover:no-underline">
+                    <span className="font-medium text-gray-900 pr-4">{faq.question}</span>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <p className="text-gray-600 leading-relaxed">{faq.answer}</p>
+                  </AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
+            <div className="text-center mt-6">
+              <Link
+                to="/faq"
+                className="text-gray-900 font-medium hover:underline inline-flex items-center gap-1"
+              >
+                View all FAQs
+                <span>→</span>
+              </Link>
+            </div>
+          </div>
+        </section>
       </div>
     </div>
   );

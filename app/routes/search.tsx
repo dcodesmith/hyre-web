@@ -19,6 +19,7 @@ import { SearchModal } from "~/components/SearchModal";
 import {
   AIRPORT_PICKUP_BOOKING_TYPE,
   BOOKING_TYPE_OPTIONS,
+  BOOKING_TYPE_OPTIONS_MAP,
   FULL_DAY_BOOKING_TYPE,
   NIGHT_BOOKING_TYPE,
 } from "~/components/bookingTypes";
@@ -325,17 +326,21 @@ export const meta: MetaFunction<typeof loader> = ({ data, matches }) => {
   }
 
   if (filters?.bookingType) {
-    const bookingOption = BOOKING_TYPE_OPTIONS.find((opt) => opt === filters.bookingType);
-    if (bookingOption && filters.bookingType !== "DAY") {
-      titleParts.push(bookingOption);
+    const bookingType = filters.bookingType;
+    // Use the user-friendly label instead of raw enum value
+    const bookingLabel =
+      BOOKING_TYPE_OPTIONS_MAP[bookingType as keyof typeof BOOKING_TYPE_OPTIONS_MAP]?.label;
+    if (bookingLabel && bookingType !== "DAY") {
+      // Format as "Night Service" instead of just "Night for Hire"
+      titleParts.push(`${bookingLabel} Service`);
     }
   }
 
   // Generate dynamic title
   const dynamicTitle =
     titleParts.length > 0
-      ? `${titleParts.join(" ")} for Hire in Lagos | Tripdly`
-      : "Search Available Cars - Tripdly";
+      ? `${titleParts.join(" ")} in Lagos | Tripdly`
+      : "Search Available Cars | Tripdly";
 
   // Generate dynamic description
   const dynamicDescription = descriptionContext
@@ -421,9 +426,7 @@ function mapQueryToFilters(query: string): {
 
   // Extract matched term from query to get remaining text for make/model search
   if (matchedLabel) {
-    remainingQuery = remainingQuery
-      .replace(new RegExp(matchedLabel, 'gi'), '')
-      .trim();
+    remainingQuery = remainingQuery.replace(new RegExp(matchedLabel, "gi"), "").trim();
   }
 
   return {
@@ -489,8 +492,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
    * - Otherwise, use full `q` if no category filters matched
    * - This allows compound queries to search by both category AND make/model
    */
-  const makeModelQuery = extractedMakeModelQuery?.trim() ||
-                        (q && !serviceTier && !vehicleType ? q.trim() : null);
+  const makeModelQuery =
+    extractedMakeModelQuery?.trim() || (q && !serviceTier && !vehicleType ? q.trim() : null);
 
   logger.info("[SEARCH] Query params", {
     q,

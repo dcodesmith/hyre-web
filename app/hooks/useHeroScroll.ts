@@ -102,9 +102,9 @@ export function getHeroHeightClasses(state: HeroScrollState): {
   desktopHeight: string;
   containerClass: string;
 } {
-  const mobileHeight = "h-[500px]";
+  const mobileHeight = "h-auto py-6";
   const desktopHeight = state.isDesktopCollapsed ? "md:h-[84px]" : "md:h-[471px]";
-  const containerClass = `relative md:fixed left-0 right-0 z-40 top-0 md:top-[69px] ${mobileHeight} ${desktopHeight}`;
+  const containerClass = `relative md:fixed left-0 right-0 z-40 top-0 md:top-[69px] md:py-0 ${mobileHeight} ${desktopHeight}`;
 
   return { mobileHeight, desktopHeight, containerClass };
 }
