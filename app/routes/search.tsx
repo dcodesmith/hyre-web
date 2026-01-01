@@ -445,6 +445,9 @@ export async function loader({ request }: LoaderFunctionArgs) {
   // Category/type filters
   let serviceTierParam = url.searchParams.get("serviceTier");
   let vehicleTypeParam = url.searchParams.get("vehicleType");
+  const colorParam = url.searchParams.get("color");
+  const makeParam = url.searchParams.get("make");
+  const modelParam = url.searchParams.get("model");
 
   /**
    * Filter precedence logic:
@@ -499,6 +502,9 @@ export async function loader({ request }: LoaderFunctionArgs) {
     q,
     serviceTier,
     vehicleType,
+    color: colorParam,
+    make: makeParam,
+    model: modelParam,
     from,
     to,
     bookingType,
@@ -534,6 +540,10 @@ export async function loader({ request }: LoaderFunctionArgs) {
             // Category filters - only applied if provided
             ...(serviceTier && { serviceTier }),
             ...(vehicleType && { vehicleType }),
+            // Vehicle attribute filters - color, make, model (supports AI search and manual filtering)
+            ...(colorParam && { color: { contains: colorParam, mode: "insensitive" } }),
+            ...(makeParam && { make: { contains: makeParam, mode: "insensitive" } }),
+            ...(modelParam && { model: { contains: modelParam, mode: "insensitive" } }),
             // Make/model search - case-insensitive partial match
             ...(makeModelQuery && {
               OR: [

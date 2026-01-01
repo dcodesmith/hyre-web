@@ -2,7 +2,7 @@ import { CarApprovalStatus, Status } from "@prisma/client";
 import type { MetaFunction } from "@remix-run/node";
 import { data } from "@remix-run/node";
 import { Link, useLoaderData } from "@remix-run/react";
-import { Fingerprint, ShieldCheck } from "lucide-react";
+import { Fingerprint, ShieldCheck, Sparkles } from "lucide-react";
 import { BookingSearch } from "~/components/BookingSearch";
 
 import logger from "~/lib/logger.server";
@@ -14,6 +14,7 @@ import { CarCard } from "~/components/CarCard";
 import { CarouselSection } from "~/components/CarouselSection";
 import { CompactSearchBar } from "~/components/CompactSearchBar";
 import { SearchModal } from "~/components/SearchModal";
+import { AISearchModal } from "~/components/AISearchModal";
 import {
   Accordion,
   AccordionContent,
@@ -269,6 +270,9 @@ export default function IndexPage() {
   // Mobile search modal state
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
 
+  // AI search modal state
+  const [isAISearchModalOpen, setIsAISearchModalOpen] = useState(false);
+
   // Build base URL for structured data
   const baseUrl = getBaseUrl(ENV?.DOMAIN);
 
@@ -316,6 +320,12 @@ export default function IndexPage() {
         isOpen={isSearchModalOpen}
         onClose={() => setIsSearchModalOpen(false)}
         navigateToSearch
+      />
+
+      {/* AI Search Modal */}
+      <AISearchModal
+        isOpen={isAISearchModalOpen}
+        onClose={() => setIsAISearchModalOpen(false)}
       />
 
       {/* Hero Section - Fixed on desktop, relative on mobile */}
@@ -380,6 +390,18 @@ export default function IndexPage() {
             className={`w-full transition-all duration-300 ${isDesktopCollapsed ? "max-w-4xl" : "max-w-2xl"}`}
           >
             <BookingSearch isCompact={isDesktopCollapsed} navigateToSearch />
+
+            {/* AI Search Button */}
+            <div className="flex justify-center mt-3">
+              <button
+                type="button"
+                onClick={() => setIsAISearchModalOpen(true)}
+                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-neutral-900 to-neutral-700 hover:from-neutral-800 hover:to-neutral-600 rounded-full transition-all shadow-sm hover:shadow-md"
+              >
+                <Sparkles className="h-4 w-4" />
+                Search by AI
+              </button>
+            </div>
           </div>
 
           {/* Trust Badges - hide when collapsed on desktop */}
@@ -608,8 +630,7 @@ export default function IndexPage() {
                 to="/faq"
                 className="text-gray-900 font-medium hover:underline inline-flex items-center gap-1"
               >
-                View all FAQs
-                <span>→</span>
+                View all FAQs <span>→</span>
               </Link>
             </div>
           </div>

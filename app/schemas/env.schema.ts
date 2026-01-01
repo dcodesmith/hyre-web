@@ -13,7 +13,7 @@ export const envSchema = z.object({
   DEV_HOST_URL: z.url().optional(),
   PROD_HOST_URL: z.url().optional(),
   RESEND_API_KEY: z.string(),
-  OPENAI_API_KEY: z.string().optional(),
+  OPENAI_API_KEY: z.string(),
 
   FLUTTERWAVE_SECRET_KEY: z.string(),
   FLUTTERWAVE_PUBLIC_KEY: z.string(),
