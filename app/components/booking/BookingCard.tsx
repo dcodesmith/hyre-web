@@ -42,6 +42,7 @@ import { BookingActions } from "./BookingActions";
 import { BookingAddons } from "./BookingAddons";
 import { BookingCostBreakdown } from "./BookingCostBreakdown";
 import { BookingFormFields } from "./BookingFormFields";
+import { GuestDetails } from "./GuestDetails";
 import { SingleDatePicker } from "./SingleDatePicker";
 import { TripDetails } from "./TripDetails";
 import { getFuelTankNote, getOrdinal } from "./helpers";
@@ -728,6 +729,19 @@ export default function BookingCard({
     }
   }, [bookingType, validatedFlight, tripDuration, searchParams, setSearchParams]);
 
+  // Get guest fields when user is not logged in
+  const guestFields = useMemo(() => {
+    if (user) return null;
+    const nameField = (fields as { name?: FieldMetadata<string> } & typeof fields).name;
+    const emailField = (fields as { email?: FieldMetadata<string> } & typeof fields).email;
+    const phoneNumberField = (fields as { phoneNumber?: FieldMetadata<string> } & typeof fields)
+      .phoneNumber;
+
+    if (!nameField || !emailField || !phoneNumberField) return null;
+
+    return { nameField, emailField, phoneNumberField };
+  }, [user, fields]);
+
   // Handler for navigating to auth - shared between mobile and desktop
   const handleNavigateToAuth = useCallback(() => {
     const currentParams = new URLSearchParams(searchParams);
@@ -901,6 +915,20 @@ export default function BookingCard({
                   onFlightValidated={setValidatedFlight}
                 />
 
+                {/* Guest Details - Desktop only (mobile version is outside Card) */}
+                {guestFields && (
+                  <div className="hidden lg:block">
+                    <GuestDetails
+                      fields={{
+                        name: guestFields.nameField,
+                        email: guestFields.emailField,
+                        phoneNumber: guestFields.phoneNumberField,
+                      }}
+                      errorRingClasses={ERROR_RING_CLASSES}
+                    />
+                  </div>
+                )}
+
                 <BookingAddons
                   bookingType={bookingType}
                   totalDays={totalDays}
@@ -975,14 +1003,6 @@ export default function BookingCard({
               <BookingActions
                 user={user}
                 isPending={isPending}
-                fields={{
-                  name: "name" in fields ? (fields.name as FieldMetadata<string>) : undefined,
-                  email: "email" in fields ? (fields.email as FieldMetadata<string>) : undefined,
-                  phoneNumber:
-                    "phoneNumber" in fields
-                      ? (fields.phoneNumber as FieldMetadata<string>)
-                      : undefined,
-                }}
                 onNavigateToAuth={handleNavigateToAuth}
               />
             )}
@@ -996,9 +1016,25 @@ export default function BookingCard({
           className={cn(
             "lg:hidden mt-4 pb-40",
             !user && bookingType === AIRPORT_PICKUP_BOOKING_TYPE && "pb-52",
+            !user && bookingType !== AIRPORT_PICKUP_BOOKING_TYPE && "pb-48",
           )}
         >
           <div className="space-y-4">
+            {/* Guest Details - Mobile only */}
+            {guestFields && (
+              <div className="w-full lg:hidden">
+                <h3 className="text-sm font-semibold mb-2">Guest Details</h3>
+                <GuestDetails
+                  fields={{
+                    name: guestFields.nameField,
+                    email: guestFields.emailField,
+                    phoneNumber: guestFields.phoneNumberField,
+                  }}
+                  errorRingClasses={ERROR_RING_CLASSES}
+                />
+              </div>
+            )}
+
             {/* Trip details for airport pickup */}
             {bookingType === AIRPORT_PICKUP_BOOKING_TYPE &&
               validatedFlight?.estimatedArrival &&
@@ -1059,14 +1095,6 @@ export default function BookingCard({
               <BookingActions
                 user={user}
                 isPending={isPending}
-                fields={{
-                  name: "name" in fields ? (fields.name as FieldMetadata<string>) : undefined,
-                  email: "email" in fields ? (fields.email as FieldMetadata<string>) : undefined,
-                  phoneNumber:
-                    "phoneNumber" in fields
-                      ? (fields.phoneNumber as FieldMetadata<string>)
-                      : undefined,
-                }}
                 onNavigateToAuth={handleNavigateToAuth}
               />
             )}
