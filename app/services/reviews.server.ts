@@ -9,6 +9,7 @@ import {
   ForbiddenError,
   NotFoundError,
 } from "~/utils/errors.server";
+import { sendReviewReceivedNotifications } from "~/services/review-notifications.server";
 
 /**
  * Valid rating value (1-5 stars)
@@ -144,8 +145,8 @@ export type PaginatedReviews = {
 export async function createReview(userId: string, input: CreateReviewInput): Promise<Review> {
   logger.info("Creating review", { userId, bookingId: input.bookingId });
 
-  // Validate booking exists and is COMPLETED (exclude soft-deleted bookings)
-  const booking = await prisma.booking.findFirst({
+  // Fetch booking with all necessary details for validation and notifications
+  const bookingDetails = await prisma.booking.findFirst({
     where: {
       id: input.bookingId,
       deletedAt: null,
@@ -156,24 +157,53 @@ export async function createReview(userId: string, input: CreateReviewInput): Pr
       status: true,
       endDate: true,
       chauffeurId: true,
+      bookingReference: true,
+      car: {
+        select: {
+          make: true,
+          model: true,
+          year: true,
+          owner: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+        },
+      },
+      chauffeur: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+      },
+      user: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+      },
     },
   });
 
-  if (!booking) {
+  if (!bookingDetails) {
     throw new NotFoundError("Booking not found");
   }
 
-  if (booking.status !== BookingStatus.COMPLETED) {
+  if (bookingDetails.status !== BookingStatus.COMPLETED) {
     throw new BadRequestError("Review can only be created for completed bookings");
   }
 
   // Validate booking belongs to user
-  if (booking.userId !== userId) {
+  if (bookingDetails.userId !== userId) {
     throw new ForbiddenError("You can only review your own bookings");
   }
 
   // Validate booking has a chauffeur (required for chauffeurRating)
-  if (!booking.chauffeurId) {
+  if (!bookingDetails.chauffeurId || !bookingDetails.chauffeur) {
     throw new BadRequestError("Booking must have a chauffeur assigned");
   }
 
@@ -188,7 +218,7 @@ export async function createReview(userId: string, input: CreateReviewInput): Pr
 
   // Validate 30-day creation window
   const thirtyDaysAgo = subDays(new Date(), 30);
-  if (booking.endDate < thirtyDaysAgo) {
+  if (bookingDetails.endDate < thirtyDaysAgo) {
     throw new BadRequestError("Review can only be created within 30 days of booking completion");
   }
 
@@ -208,6 +238,43 @@ export async function createReview(userId: string, input: CreateReviewInput): Pr
     });
 
     logger.info("Review created successfully", { reviewId: review.id, bookingId: input.bookingId });
+
+    // Send notifications to owner and chauffeur (non-blocking)
+    // Don't wait for notifications to complete - they run asynchronously
+    const carName = bookingDetails.car.year
+      ? `${bookingDetails.car.make} ${bookingDetails.car.model} (${bookingDetails.car.year})`
+      : `${bookingDetails.car.make} ${bookingDetails.car.model}`;
+
+    sendReviewReceivedNotifications({
+      owner: {
+        id: bookingDetails.car.owner.id,
+        name: bookingDetails.car.owner.name,
+        email: bookingDetails.car.owner.email,
+      },
+      chauffeur: {
+        id: bookingDetails.chauffeur.id,
+        name: bookingDetails.chauffeur.name,
+        email: bookingDetails.chauffeur.email,
+      },
+      review: {
+        bookingReference: bookingDetails.bookingReference,
+        carName,
+        customerName: bookingDetails.user?.name || bookingDetails.user?.email || "Customer",
+        overallRating: input.overallRating,
+        carRating: input.carRating,
+        chauffeurRating: input.chauffeurRating,
+        serviceRating: input.serviceRating,
+        comment: input.comment ?? null,
+        reviewDate: new Date(),
+      },
+    }).catch((error) => {
+      // Log notification errors but don't fail review creation
+      logger.error("Failed to send review notifications", {
+        error: error instanceof Error ? error.message : String(error),
+        bookingId: input.bookingId,
+        reviewId: review.id,
+      });
+    });
 
     return review;
   } catch (error) {
