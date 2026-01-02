@@ -30,3 +30,27 @@ export const updateReviewSchema = baseReviewSchema.extend({
 
 export type CreateReviewInput = z.infer<typeof createReviewSchema>;
 export type UpdateReviewInput = z.infer<typeof updateReviewSchema>;
+
+/**
+ * Schema for paginated review query parameters
+ * Used for car and chauffeur review endpoints
+ */
+export const reviewQueryParamsSchema = z.object({
+  page: z.preprocess((val) => (val == null ? 1 : Number(val)), z.number().min(1)),
+  limit: z.preprocess((val) => (val == null ? 10 : Number(val)), z.number().min(1).max(100)),
+  includeRatings: z.preprocess(
+    (val) => val ?? undefined,
+    z
+      .string()
+      .optional()
+      .transform((val) => val === "true"),
+  ),
+});
+
+/**
+ * Route parameter schemas for review endpoints
+ */
+export const reviewIdParamSchema = z.string().min(1, { error: "Review ID is required" });
+export const bookingIdParamSchema = z.string().min(1, { error: "Booking ID is required" });
+export const carIdParamSchema = z.string().min(1, { error: "Car ID is required" });
+export const chauffeurIdParamSchema = z.string().min(1, { error: "Chauffeur ID is required" });

@@ -281,3 +281,21 @@ export async function requireAdminOrStaffWithRedirect(request: Request) {
 
   return { user, isStaff, isAdmin };
 }
+
+export async function requireAdmin(
+  request: Request,
+): Promise<User & { roles: { name: string }[] }> {
+  const user = await requireUser(request);
+
+  if (!userHasRole(user, "admin") || !userHasRole(user, "staff")) {
+    throw Response.json(
+      {
+        success: false,
+        error: "Admin access required",
+      },
+      { status: 403 },
+    );
+  }
+
+  return user;
+}

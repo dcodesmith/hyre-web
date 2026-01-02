@@ -3,6 +3,12 @@ import { subDays } from "date-fns";
 import logger from "~/lib/logger.server";
 import { prisma } from "~/modules/db/db.server";
 import { CreateReviewInput, UpdateReviewInput } from "~/schemas/review.schema";
+import {
+  BadRequestError,
+  ConflictError,
+  ForbiddenError,
+  NotFoundError,
+} from "~/utils/errors.server";
 
 /**
  * Valid rating value (1-5 stars)
@@ -110,21 +116,21 @@ export async function createReview(userId: string, input: CreateReviewInput): Pr
   });
 
   if (!booking) {
-    throw new Error("Booking not found");
+    throw new NotFoundError("Booking not found");
   }
 
   if (booking.status !== BookingStatus.COMPLETED) {
-    throw new Error("Review can only be created for completed bookings");
+    throw new BadRequestError("Review can only be created for completed bookings");
   }
 
   // Validate booking belongs to user
   if (booking.userId !== userId) {
-    throw new Error("You can only review your own bookings");
+    throw new ForbiddenError("You can only review your own bookings");
   }
 
   // Validate booking has a chauffeur (required for chauffeurRating)
   if (!booking.chauffeurId) {
-    throw new Error("Booking must have a chauffeur assigned");
+    throw new BadRequestError("Booking must have a chauffeur assigned");
   }
 
   // Check if review already exists
@@ -133,13 +139,13 @@ export async function createReview(userId: string, input: CreateReviewInput): Pr
   });
 
   if (existingReview) {
-    throw new Error("Review already exists for this booking");
+    throw new ConflictError("Review already exists for this booking");
   }
 
   // Validate 30-day creation window
   const thirtyDaysAgo = subDays(new Date(), 30);
   if (booking.endDate < thirtyDaysAgo) {
-    throw new Error("Review can only be created within 30 days of booking completion");
+    throw new BadRequestError("Review can only be created within 30 days of booking completion");
   }
 
   // Create review (all ratings are guaranteed by schema validation)
@@ -173,7 +179,7 @@ export async function createReview(userId: string, input: CreateReviewInput): Pr
         bookingId: input.bookingId,
         userId,
       });
-      throw new Error("Review already exists for this booking");
+      throw new ConflictError("Review already exists for this booking");
     }
 
     // Re-throw other errors unchanged
@@ -201,18 +207,18 @@ export async function updateReview(
   });
 
   if (!existingReview) {
-    throw new Error("Review not found");
+    throw new NotFoundError("Review not found");
   }
 
   // Validate review belongs to user
   if (existingReview.userId !== userId) {
-    throw new Error("You can only update your own reviews");
+    throw new ForbiddenError("You can only update your own reviews");
   }
 
   // Validate 7-day edit window
   const sevenDaysAgo = subDays(new Date(), 7);
   if (existingReview.createdAt < sevenDaysAgo) {
-    throw new Error("Review can only be edited within 7 days of creation");
+    throw new BadRequestError("Review can only be edited within 7 days of creation");
   }
 
   // Check if there are any updates
@@ -224,7 +230,7 @@ export async function updateReview(
     input.comment !== undefined;
 
   if (!hasUpdates) {
-    throw new Error("No updates provided");
+    throw new BadRequestError("No updates provided");
   }
 
   // Build update data (only include fields that are provided)
@@ -344,7 +350,7 @@ export async function hideReview(reviewId: string, moderatorId?: string): Promis
   });
 
   if (!review) {
-    throw new Error("Review not found");
+    throw new NotFoundError("Review not found");
   }
 
   if (!review.isVisible) {
@@ -366,15 +372,15 @@ export async function hideReview(reviewId: string, moderatorId?: string): Promis
  * Delete a review (admin moderation)
  * Hides the review and records moderation details
  */
-export async function deleteReview(reviewId: string, moderatorId?: string): Promise<Review> {
-  logger.info("Deleting review", { reviewId, moderatorId });
+export async function softDeleteReview(reviewId: string, moderatorId?: string): Promise<Review> {
+  logger.info("Soft deleting review", { reviewId, moderatorId });
 
   const review = await prisma.review.findUnique({
     where: { id: reviewId },
   });
 
   if (!review) {
-    throw new Error("Review not found");
+    throw new NotFoundError("Review not found");
   }
 
   if (!review.isVisible && review.moderatedAt) {
