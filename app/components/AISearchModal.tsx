@@ -268,7 +268,6 @@ export function AISearchModal() {
 
       // Navigate to search results
       navigate(searchUrl);
-      onClose();
       setQuery("");
       setValidationStatus("");
       setFlightDetails("");
