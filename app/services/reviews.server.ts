@@ -471,6 +471,62 @@ export async function getCarRatings(carId: string): Promise<AggregatedRatings> {
 }
 
 /**
+ * Get aggregated ratings for multiple cars in a single query
+ * This is more efficient than calling getCarRatings for each car individually
+ * Only includes visible reviews
+ */
+export async function getBatchCarRatings(
+  carIds: string[],
+): Promise<Record<string, AggregatedRatings>> {
+  if (carIds.length === 0) {
+    return {};
+  }
+
+  // Get all visible reviews for bookings of these cars in a single query
+  const reviews = await prisma.review.findMany({
+    where: {
+      isVisible: true,
+      booking: {
+        carId: { in: carIds },
+      },
+    },
+    select: {
+      carRating: true,
+      booking: {
+        select: {
+          carId: true,
+        },
+      },
+    },
+  });
+
+  // Group ratings by carId
+  const ratingsByCarId = new Map<string, number[]>();
+
+  // Initialize all car IDs with empty arrays
+  for (const carId of carIds) {
+    ratingsByCarId.set(carId, []);
+  }
+
+  // Populate ratings
+  for (const review of reviews) {
+    const carId = review.booking.carId;
+    const ratings = ratingsByCarId.get(carId);
+    if (ratings) {
+      ratings.push(review.carRating);
+    }
+  }
+
+  // Calculate aggregated ratings for each car
+  const result: Record<string, AggregatedRatings> = {};
+  for (const [carId, ratings] of ratingsByCarId) {
+    result[carId] = calculateAggregatedRatings(ratings);
+  }
+
+  return result;
+}
+
+/**
  * Get aggregated ratings for a chauffeur
  * Only includes visible reviews
  */

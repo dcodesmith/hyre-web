@@ -29,6 +29,8 @@ import logger from "~/lib/logger.server";
 import { prisma } from "~/modules/db/db.server";
 import { availableCarsForSpecificRequest } from "~/services/availability-engine.server";
 import { validateFlight } from "~/services/flight-validation.server";
+import { getBatchCarRatings } from "~/services/reviews.server";
+import type { AggregatedRatings } from "~/services/reviews.server";
 import type { SerializedCar, ServiceTier, VehicleType } from "~/types";
 import {
   SERVICE_TIERS,
@@ -588,12 +590,24 @@ export async function loader({ request }: LoaderFunctionArgs) {
     });
 
     const carQueryTime = Date.now() - carQueryStartTime;
+
+    // Fetch ratings for all filtered cars in a single batch query
+    let ratings: Record<string, AggregatedRatings> = {};
+    try {
+      const carIds = filteredCars.map((car) => car.id);
+      ratings = await getBatchCarRatings(carIds);
+    } catch (error) {
+      logger.error("[SEARCH] Error fetching ratings", { error });
+      // Continue without ratings if there's an error
+    }
+
     const totalTime = Date.now() - startTime;
     logger.info("[SEARCH] Query completed", { ms: carQueryTime, totalMs: totalTime });
 
     return data(
       {
         cars: filteredCars,
+        ratings,
         filters: {
           serviceTier: serviceTier ?? null,
           vehicleType: vehicleType ?? null,
@@ -611,7 +625,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   } catch (error) {
     logger.error("[SEARCH] Error:", error instanceof Error ? error.message : "Unknown error");
     return data(
-      { cars: [], filters: { serviceTier: null, vehicleType: null, bookingType: null } },
+      { cars: [], ratings: {}, filters: { serviceTier: null, vehicleType: null, bookingType: null } },
       { status: 500, headers: { "Cache-Control": "no-store" } },
     );
   }
@@ -619,6 +633,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
 type LoaderData = {
   cars: SerializedCar[];
+  ratings: Record<string, AggregatedRatings>;
   filters: {
     serviceTier: ServiceTier | null;
     vehicleType: VehicleType | null;
@@ -626,7 +641,7 @@ type LoaderData = {
 };
 
 export default function SearchPage() {
-  const { cars, filters } = useLoaderData<LoaderData>();
+  const { cars, ratings, filters } = useLoaderData<LoaderData>();
   const [searchParams] = useSearchParams();
 
   // Mobile search modal state
@@ -713,6 +728,7 @@ export default function SearchPage() {
                 showTotal={hasDateFilters}
                 totalPrice={hasDateFilters ? getRateForBookingType(car) * totalUnits : undefined}
                 variant="grid"
+                ratings={ratings[car.id]}
               />
             ))}
           </div>

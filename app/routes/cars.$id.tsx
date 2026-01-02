@@ -7,6 +7,7 @@ import invariant from "tiny-invariant";
 import CarCarousel from "~/components/Carousel";
 import BookingCard from "~/components/booking/BookingCard";
 import { VehicleSchema, BreadcrumbSchema } from "~/components/seo/StructuredData";
+import { RatingSummary } from "~/components/reviews/RatingSummary";
 import {
   Accordion,
   AccordionContent,
@@ -18,7 +19,15 @@ import { getSessionUser, requireUser } from "~/modules/auth/auth.server";
 import { prisma } from "~/modules/db/db.server";
 import { availableCarsForSpecificRequest } from "~/services/availability-engine.server";
 import { getRates } from "~/services/extensions.server";
-import { getVehicleKeywords, generateCarSlug, extractCarIdFromSlug, getBaseUrl, generateMetaTags } from "~/utils/seo";
+import { getCarRatings } from "~/services/reviews.server";
+import type { AggregatedRatings } from "~/services/reviews.server";
+import {
+  getVehicleKeywords,
+  generateCarSlug,
+  extractCarIdFromSlug,
+  getBaseUrl,
+  generateMetaTags,
+} from "~/utils/seo";
 import { LAGOS_TIMEZONE } from "~/utils/timezone";
 import { validateCSRF } from "~/utils/csrf-action.server";
 import { env } from "~/utils/server/env.server";
@@ -197,9 +206,26 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
     flightNumber,
   });
 
+  // Fetch car ratings with error handling
+  let ratings: AggregatedRatings = {
+    averageRating: 0,
+    totalReviews: 0,
+    ratingDistribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+  };
+  try {
+    ratings = await getCarRatings(car.id);
+  } catch (error) {
+    logger.error("[CAR_DETAILS] Error fetching car ratings", {
+      carId: car.id,
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
+    // Continue with empty ratings - page can still render
+  }
+
   return {
     car,
     isAvailable,
+    ratings,
     user: user
       ? {
           ...user,
@@ -250,7 +276,7 @@ export const meta: MetaFunction<typeof loader> = ({ data }) => {
 };
 
 export default function CarDetails() {
-  const { car, isAvailable, user, vatRate, platformServiceFeeRate, securityDetailRate } =
+  const { car, isAvailable, ratings, user, vatRate, platformServiceFeeRate, securityDetailRate } =
     useLoaderData<typeof loader>();
   const [searchParams] = useSearchParams();
 
@@ -332,6 +358,13 @@ export default function CarDetails() {
 
           {/* Car details - accordion on mobile, regular on desktop */}
           <div className="px-4 lg:px-0">
+            {/* Ratings Summary - Mobile */}
+            {ratings.totalReviews > 0 && (
+              <div className="mb-4 lg:hidden">
+                <RatingSummary ratings={ratings} title="Car Ratings" showDistribution={false} />
+              </div>
+            )}
+
             <Accordion type="single" collapsible className="w-full lg:hidden">
               <AccordionItem value="car-details" className="border-none">
                 <AccordionTrigger className="text-sm font-semibold leading-7 text-gray-900 border-none py-2">
@@ -366,6 +399,13 @@ export default function CarDetails() {
 
             {/* Desktop car details */}
             <div className="hidden lg:block">
+              {/* Ratings Summary */}
+              {ratings.totalReviews > 0 && (
+                <div className="mb-6">
+                  <RatingSummary ratings={ratings} title="Car Ratings" showDistribution={true} />
+                </div>
+              )}
+
               <h3 className="text-base font-semibold leading-7 text-gray-900">
                 Car information and features
               </h3>

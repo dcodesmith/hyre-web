@@ -3,7 +3,9 @@ import { Heart, Sparkles } from "lucide-react";
 import { formatCurrency } from "~/lib/utils";
 import type { SerializedCar } from "~/types";
 import { generateCarSlug } from "~/utils/seo";
+import type { AggregatedRatings } from "~/services/reviews.server";
 import Carousel from "./Carousel";
+import { StarRating } from "./reviews/StarRating";
 
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -22,6 +24,7 @@ interface CarCardProps {
   readonly showTotal?: boolean;
   readonly totalPrice?: number;
   readonly variant?: "carousel" | "grid";
+  readonly ratings?: AggregatedRatings;
 }
 
 export function CarCard({
@@ -33,6 +36,7 @@ export function CarCard({
   showTotal = false,
   totalPrice,
   variant = "carousel",
+  ratings,
 }: CarCardProps) {
   const isGrid = variant === "grid";
   // Generate SEO-friendly slug for car URL
@@ -90,6 +94,21 @@ export function CarCard({
               <p className="text-sm text-gray-600 mt-0.5">{car.passengerCapacity}-Seater</p>
             </div>
           </div>
+
+          {/* Ratings display */}
+          {ratings && ratings.totalReviews > 0 && (
+            <div className="flex items-center gap-1.5">
+              <StarRating
+                rating={ratings.averageRating}
+                size="sm"
+                ariaLabel={`Average rating: ${ratings.averageRating.toFixed(1)} out of 5 stars`}
+              />
+              <span className="text-sm text-gray-600">
+                {ratings.averageRating.toFixed(1)} ({ratings.totalReviews}{" "}
+                {ratings.totalReviews === 1 ? "review" : "reviews"})
+              </span>
+            </div>
+          )}
 
           <div className="flex items-baseline gap-1">
             {showTotal && totalPrice ? (

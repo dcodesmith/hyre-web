@@ -2,12 +2,14 @@ import { CarApprovalStatus, Status } from "@prisma/client";
 import type { MetaFunction } from "@remix-run/node";
 import { data } from "@remix-run/node";
 import { Link, useLoaderData } from "@remix-run/react";
-import { Fingerprint, ShieldCheck, Sparkles } from "lucide-react";
+import { Fingerprint, ShieldCheck } from "lucide-react";
 import { BookingSearch } from "~/components/BookingSearch";
 
 import logger from "~/lib/logger.server";
 import { prisma } from "~/modules/db/db.server";
 import { env } from "~/utils/server/env.server";
+import { getBatchCarRatings } from "~/services/reviews.server";
+import type { AggregatedRatings } from "~/services/reviews.server";
 
 import { useState } from "react";
 import { CarCard } from "~/components/CarCard";
@@ -175,12 +177,23 @@ export async function loader() {
 
     const categories = categorizeCars(cars as unknown as SerializedCar[]);
 
+    // Fetch ratings for all cars in a single batch query
+    let ratings: Record<string, AggregatedRatings> = {};
+    try {
+      const carIds = cars.map((car) => car.id);
+      ratings = await getBatchCarRatings(carIds);
+    } catch (error) {
+      logger.error("[HOME] Error fetching ratings", { error });
+      // Continue without ratings if there's an error
+    }
+
     const totalTime = Date.now() - startTime;
     logger.info("[HOME] Cars query completed", { ms: totalTime, count: cars.length });
 
     return data(
       {
         categories,
+        ratings,
         ENV: {
           DOMAIN: env.DOMAIN,
         },
@@ -209,6 +222,7 @@ export async function loader() {
           popular: [],
           allCars: [],
         },
+        ratings: {},
         ENV: {
           DOMAIN: env.DOMAIN,
         },
@@ -220,6 +234,7 @@ export async function loader() {
 
 type LoaderData = {
   categories: CarCategories;
+  ratings: Record<string, AggregatedRatings>;
   ENV: {
     DOMAIN: string | null;
   };
@@ -252,7 +267,7 @@ const faqData = {
 };
 
 export default function IndexPage() {
-  const { categories, ENV } = useLoaderData<LoaderData>();
+  const { categories, ratings, ENV } = useLoaderData<LoaderData>();
 
   // Use dayRate for default price display on homepage
   const getRateForDisplay = (car: SerializedCar) => car.dayRate;
@@ -477,6 +492,7 @@ export default function IndexPage() {
                     priority={index < 5}
                     price={getRateForDisplay(car)}
                     showTotal={false}
+                    ratings={ratings[car.id]}
                   />
                 ))}
               </CarouselSection>
@@ -492,6 +508,7 @@ export default function IndexPage() {
                     priority={false}
                     price={getRateForDisplay(car)}
                     showTotal={false}
+                    ratings={ratings[car.id]}
                   />
                 ))}
               </CarouselSection>
@@ -511,6 +528,7 @@ export default function IndexPage() {
                     priority={false}
                     price={getRateForDisplay(car)}
                     showTotal={false}
+                    ratings={ratings[car.id]}
                   />
                 ))}
               </CarouselSection>
@@ -530,6 +548,7 @@ export default function IndexPage() {
                     priority={false}
                     price={getRateForDisplay(car)}
                     showTotal={false}
+                    ratings={ratings[car.id]}
                   />
                 ))}
               </CarouselSection>
@@ -545,6 +564,7 @@ export default function IndexPage() {
                     priority={false}
                     price={getRateForDisplay(car)}
                     showTotal={false}
+                    ratings={ratings[car.id]}
                   />
                 ))}
               </CarouselSection>
@@ -560,6 +580,7 @@ export default function IndexPage() {
                     priority={false}
                     price={getRateForDisplay(car)}
                     showTotal={false}
+                    ratings={ratings[car.id]}
                   />
                 ))}
               </CarouselSection>
@@ -574,6 +595,7 @@ export default function IndexPage() {
                   priority={index < 5}
                   price={getRateForDisplay(car)}
                   showTotal={false}
+                  ratings={ratings[car.id]}
                 />
               ))}
             </CarouselSection>
