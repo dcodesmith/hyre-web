@@ -928,7 +928,13 @@ export async function cleanupPendingBookings(olderThan: Date) {
 
 // Calculate the price for a single booking leg
 function calculateBookingLegPrice(
-  car: { dayRate: number; nightRate: number; hourlyRate: number; fullDayRate: number; airportPickupRate: number },
+  car: {
+    dayRate: number;
+    nightRate: number;
+    hourlyRate: number;
+    fullDayRate: number;
+    airportPickupRate: number;
+  },
   booking: { startDate: Date; endDate: Date; type: BookingType },
   legDate: Date,
 ): number {
@@ -1373,6 +1379,7 @@ export async function getUserBookings(email: string, isGuest = false) {
     include: {
       car: { include: { images: true } },
       chauffeur: true,
+      review: true, // Include review for status display
       legs: { include: { extensions: true } },
     },
     orderBy: { startDate: "asc" },

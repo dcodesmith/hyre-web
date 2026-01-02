@@ -18,6 +18,7 @@ import invariant from "tiny-invariant";
 import { AutocompleteAddress } from "~/components/AutocompleteAddress";
 import { BookingTimeSelect } from "~/components/booking/BookingTimeSelect";
 import { AIRPORT_PICKUP_BOOKING_TYPE } from "~/components/bookingTypes";
+import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Checkbox } from "~/components/ui/checkbox";
 import {
@@ -697,12 +698,26 @@ export default function BookingsPage() {
                             className="w-10 h-10 rounded-full object-cover"
                           />
                           <div className="space-y-1">
-                            <h3 className="text-pretty text-sm font-semibold">
-                              {booking.car.make} {booking.car.model} ({booking.car.year}) -{" "}
-                              <span className="text-gray-500 italic">
-                                {booking.bookingReference}
-                              </span>
-                            </h3>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h3 className="text-pretty text-sm font-semibold">
+                                {booking.car.make} {booking.car.model} ({booking.car.year}) -{" "}
+                                <span className="text-gray-500 italic">
+                                  {booking.bookingReference}
+                                </span>
+                              </h3>
+                              {booking.status === "COMPLETED" && (
+                                <Badge
+                                  variant="outline"
+                                  className={`text-xs rounded-sm ${
+                                    booking.review
+                                      ? "bg-green-50 text-green-700 border-green-200"
+                                      : "bg-amber-50 text-amber-700 border-amber-200"
+                                  }`}
+                                >
+                                  {booking.review ? "Reviewed" : "Review Pending"}
+                                </Badge>
+                              )}
+                            </div>
                             <div className="text-sm text-pretty text-gray-600 space-y-1">
                               <p className="sm:block hidden">
                                 {format(toZonedTime(new Date(booking.startDate), LAGOS_TZ), "PPPp")}{" "}

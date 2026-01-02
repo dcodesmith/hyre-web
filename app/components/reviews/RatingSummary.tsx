@@ -71,7 +71,7 @@ export function RatingSummary({
                   <div key={stars} className="flex items-center gap-3">
                     <div className="flex items-center gap-1 w-16">
                       <span className="text-sm text-gray-600 w-4">{stars}</span>
-                      <StarRating rating={stars} size="sm" ariaLabel={`${stars} stars`} /> +{" "}
+                      <StarRating rating={stars} size="sm" ariaLabel={`${stars} stars`} />
                       {/* <Star
                         className="h-3 w-3 fill-amber-400 text-amber-400"
                         aria-label={`${stars} stars`}

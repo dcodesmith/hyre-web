@@ -11,15 +11,20 @@ import {
   useActionData,
   useLoaderData,
   useNavigation,
+  useRevalidator,
   useSearchParams,
 } from "@remix-run/react";
 import { Calendar, CheckCircle, CreditCard, Loader2, MapPin, Plane, User } from "lucide-react";
+import { subDays } from "date-fns";
 import { useEffect, useState } from "react";
 import invariant from "tiny-invariant";
 import { AutocompleteAddress } from "~/components/AutocompleteAddress";
 import { Form } from "~/components/CSRFForm";
 import { BookingLegTimeline } from "~/components/booking/BookingLegTimeline";
 import { BookingTimeSelect } from "~/components/booking/BookingTimeSelect";
+import { ReviewCard } from "~/components/reviews/ReviewCard";
+import { ReviewForm } from "~/components/reviews/ReviewForm";
+import { ReviewPrompt } from "~/components/reviews/ReviewPrompt";
 import {
   AIRPORT_PICKUP_BOOKING_TYPE,
   DAY_BOOKING_TYPE,
@@ -392,6 +397,17 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
       user: true,
       chauffeur: true,
       flight: true, // Include flight data for AIRPORT_PICKUP bookings
+      review: {
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              image: true,
+            },
+          },
+        },
+      },
       legs: {
         orderBy: { legDate: "asc" },
         include: {
@@ -445,7 +461,10 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 
   const domain = env.DOMAIN || "https://tripdly.com";
 
-  return data({ booking: serializedBooking, paymentSummary, extendableDuration, domain }, { status: 200 });
+  return data(
+    { booking: serializedBooking, paymentSummary, extendableDuration, domain },
+    { status: 200 },
+  );
 }
 
 export const meta: MetaFunction<typeof loader> = ({ data }) => {
@@ -779,6 +798,99 @@ function FlightInfoCard({ booking }: { booking: Booking }) {
   );
 }
 
+function ReviewSection({ booking }: { booking: Booking }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const navigation = useNavigation();
+  const revalidator = useRevalidator();
+  const [searchParams] = useSearchParams();
+  const isSubmitting = navigation.state === "submitting";
+
+  const review = booking.review;
+
+  // Check if review can be edited (within 7 days of creation)
+  const canEditReview = review ? new Date(review.createdAt) >= subDays(new Date(), 7) : false;
+
+  // Refresh page data after successful review submission/edit
+  const handleReviewSuccess = () => {
+    setIsEditing(false);
+    // Revalidate to get the updated review data
+    revalidator.revalidate();
+  };
+
+  // Don't show review section for guest users (they can't create reviews)
+  const guestEmail = searchParams.get("email");
+  if (guestEmail) {
+    return null;
+  }
+
+  // Show edit form if editing
+  if (isEditing && review && canEditReview) {
+    return (
+      <Card className="rounded">
+        <CardHeader>
+          <CardTitle>Edit Your Review</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ReviewForm
+            existingReview={{
+              id: review.id,
+              overallRating: review.overallRating,
+              carRating: review.carRating,
+              chauffeurRating: review.chauffeurRating,
+              serviceRating: review.serviceRating,
+              comment: review.comment,
+            }}
+            onSuccess={handleReviewSuccess}
+            onCancel={() => setIsEditing(false)}
+            inModal={false}
+          />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Show existing review
+  if (review) {
+    return (
+      <Card className="rounded">
+        <CardHeader>
+          <CardTitle>Your Review</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <ReviewCard
+              review={{
+                id: review.id,
+                overallRating: review.overallRating,
+                carRating: review.carRating,
+                chauffeurRating: review.chauffeurRating,
+                serviceRating: review.serviceRating,
+                comment: review.comment,
+                createdAt: review.createdAt,
+                user: review.user,
+              }}
+              showDetailedRatings
+            />
+            {canEditReview && (
+              <Button
+                variant="outline"
+                onClick={() => setIsEditing(true)}
+                disabled={isSubmitting}
+                className="w-full sm:w-auto"
+              >
+                Edit Review
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Show review prompt if no review exists
+  return <ReviewPrompt bookingId={booking.id} onReviewSubmitted={handleReviewSuccess} />;
+}
+
 export default function BookingDetails() {
   const { booking, paymentSummary, extendableDuration } = useLoaderData<typeof loader>();
   const [showDropoffFields, setShowDropoffFields] = useState(
@@ -871,6 +983,7 @@ export default function BookingDetails() {
           <div className="lg:col-span-2 space-y-6">
             <BookingTimeline booking={booking} />
             <LocationCard booking={booking} />
+            {isCompleted && <ReviewSection booking={booking} />}
           </div>
 
           <div className="space-y-6">
