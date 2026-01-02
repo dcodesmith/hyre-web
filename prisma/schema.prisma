@@ -29,9 +29,9 @@ model Car {
   fullDayRate        Int
   airportPickupRate  Int
   // Vehicle categorization
-  vehicleType        VehicleType       @default(SEDAN)
-  serviceTier        ServiceTier       @default(STANDARD)
-  passengerCapacity  Int               @default(4)
+  vehicleType        VehicleType        @default(SEDAN)
+  serviceTier        ServiceTier        @default(STANDARD)
+  passengerCapacity  Int                @default(4)
   bookings           Booking[]
   owner              User               @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   documents          DocumentApproval[] @relation("CarDocuments")
@@ -93,6 +93,8 @@ model User {
   referralRewardsFrom   ReferralReward[]      @relation("RefereeRewards")
   bookingReferrals      Booking[]             @relation("BookingReferrals")
   sessions              Session[]
+  reviewsWritten        Review[]              @relation("CustomerReviews")
+  moderatedReviews      Review[]              @relation("ReviewModerator")
 
   @@index([fleetOwnerId])
   @@index([fleetOwnerStatus, hasOnboarded])
@@ -112,13 +114,13 @@ model Role {
 }
 
 enum FlightStatus {
-  SCHEDULED  // "Scheduled" - not yet departed
-  DEPARTED   // "Departed" - just took off / taxiing out
-  EN_ROUTE   // "En Route" - in the air
-  LANDED     // "Landed" / "Arrived" - at destination
-  CANCELLED  // "Cancelled"
-  DIVERTED   // "Diverted"
-  UNKNOWN    // "Unknown" / unrecognized status
+  SCHEDULED // "Scheduled" - not yet departed
+  DEPARTED // "Departed" - just took off / taxiing out
+  EN_ROUTE // "En Route" - in the air
+  LANDED // "Landed" / "Arrived" - at destination
+  CANCELLED // "Cancelled"
+  DIVERTED // "Diverted"
+  UNKNOWN // "Unknown" / unrecognized status
 }
 
 enum FlightDataSource {
@@ -232,6 +234,7 @@ model Booking {
   chauffeurId                             String?
   cancelledAt                             DateTime?
   cancellationReason                      String?
+  deletedAt                               DateTime? // Soft-delete: preserves review history and analytics
   guestUser                               Json?
   type                                    BookingType              @default(DAY)
   paymentIntent                           String?
@@ -267,6 +270,7 @@ model Booking {
   customerPayments   Payment[]           @relation("BookingCustomerPayments")
   payoutTransactions PayoutTransaction[] @relation("BookingPayouts")
   referralRewards    ReferralReward[]
+  review             Review?
 
   @@index([bookingReference])
   @@index([carId])
@@ -285,6 +289,7 @@ model Booking {
   @@index([userId, paymentStatus, referralCreditsUsed])
   @@index([userId, paymentStatus, referralCreditsReserved])
   @@index([flightId])
+  @@index([deletedAt])
 }
 
 model BookingLeg {
@@ -436,6 +441,45 @@ model VehicleImage {
 
   @@index([carId])
   @@index([status])
+}
+
+model Review {
+  id        String @id @default(cuid())
+  bookingId String @unique // One review per booking
+  userId    String // Customer who wrote the review
+
+  // Ratings (1-5 stars)
+  overallRating   Int // Overall experience rating
+  carRating       Int // Car condition, cleanliness, comfort
+  chauffeurRating Int // Professionalism, driving, communication (required - all bookings have chauffeurs)
+  serviceRating   Int // Booking process, punctuality, communication
+
+  // Written feedback
+  comment String? // Optional text review, max 2000 chars
+
+  // Moderation
+  isVisible       Boolean   @default(true) // For admin moderation
+  moderatedAt     DateTime?
+  moderatedBy     String?
+  moderationNotes String?
+
+  // Metadata
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  booking   Booking @relation(fields: [bookingId], references: [id], onDelete: Restrict) // Restrict prevents accidental deletion - reviews must persist for analytics/reputation
+  user      User    @relation("CustomerReviews", fields: [userId], references: [id], onDelete: Cascade) // Cascade: when user is deleted, their reviews are deleted too
+  moderator User?   @relation("ReviewModerator", fields: [moderatedBy], references: [id])
+
+  @@index([userId])
+  @@index([overallRating])
+  @@index([carRating])
+  @@index([chauffeurRating])
+  @@index([serviceRating])
+  @@index([isVisible])
+  @@index([createdAt])
+  @@index([moderatedBy])
 }
 
 model TaxRate {
