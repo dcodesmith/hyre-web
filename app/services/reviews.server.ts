@@ -59,6 +59,50 @@ export type ReviewWithBookingInternal = Prisma.ReviewGetPayload<{
 }>;
 
 /**
+ * Review with related booking information (admin - includes email and moderator)
+ */
+export type ReviewWithBookingAdmin = Prisma.ReviewGetPayload<{
+  include: {
+    booking: {
+      include: {
+        car: true;
+        chauffeur: true;
+      };
+    };
+    user: {
+      select: {
+        id: true;
+        name: true;
+        email: true;
+        image: true;
+      };
+    };
+    moderator: {
+      select: {
+        id: true;
+        name: true;
+        email: true;
+      };
+    };
+  };
+}>;
+
+/**
+ * Paginated reviews response for admin
+ */
+export type PaginatedReviewsAdmin = {
+  reviews: ReviewWithBookingAdmin[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasNextPage: boolean;
+    hasPreviousPage: boolean;
+  };
+};
+
+/**
  * Aggregated ratings for a car or chauffeur
  */
 export type AggregatedRatings = {
@@ -339,10 +383,13 @@ export async function getReviewByBookingIdInternal(
 
 /**
  * Hide a review (admin moderation)
- * Sets isVisible to false without deleting the review
- * Optionally logs moderator action for audit trail
+ * Sets isVisible to false and records moderation details
  */
-export async function hideReview(reviewId: string, moderatorId?: string): Promise<Review> {
+export async function hideReview(
+  reviewId: string,
+  moderatorId: string,
+  moderationNotes?: string,
+): Promise<Review> {
   logger.info("Hiding review", { reviewId, moderatorId });
 
   const review = await prisma.review.findUnique({
@@ -360,7 +407,12 @@ export async function hideReview(reviewId: string, moderatorId?: string): Promis
 
   const updatedReview = await prisma.review.update({
     where: { id: reviewId },
-    data: { isVisible: false },
+    data: {
+      isVisible: false,
+      moderatedAt: new Date(),
+      moderatedBy: moderatorId,
+      moderationNotes: moderationNotes || "Review hidden by moderator",
+    },
   });
 
   logger.info("Review hidden successfully", { reviewId, moderatorId });
@@ -369,10 +421,53 @@ export async function hideReview(reviewId: string, moderatorId?: string): Promis
 }
 
 /**
+ * Show/unhide a review (admin moderation)
+ * Sets isVisible to true and updates moderation details
+ */
+export async function showReview(
+  reviewId: string,
+  moderatorId: string,
+  moderationNotes?: string,
+): Promise<Review> {
+  logger.info("Showing review", { reviewId, moderatorId });
+
+  const review = await prisma.review.findUnique({
+    where: { id: reviewId },
+  });
+
+  if (!review) {
+    throw new NotFoundError("Review not found");
+  }
+
+  if (review.isVisible) {
+    logger.warn("Review already visible", { reviewId });
+    return review;
+  }
+
+  const updatedReview = await prisma.review.update({
+    where: { id: reviewId },
+    data: {
+      isVisible: true,
+      moderatedAt: new Date(),
+      moderatedBy: moderatorId,
+      moderationNotes: moderationNotes || "Review restored by moderator",
+    },
+  });
+
+  logger.info("Review shown successfully", { reviewId, moderatorId });
+
+  return updatedReview;
+}
+
+/**
  * Delete a review (admin moderation)
  * Hides the review and records moderation details
  */
-export async function softDeleteReview(reviewId: string, moderatorId?: string): Promise<Review> {
+export async function softDeleteReview(
+  reviewId: string,
+  moderatorId?: string,
+  moderationNotes?: string,
+): Promise<Review> {
   logger.info("Soft deleting review", { reviewId, moderatorId });
 
   const review = await prisma.review.findUnique({
@@ -394,7 +489,7 @@ export async function softDeleteReview(reviewId: string, moderatorId?: string): 
       isVisible: false,
       moderatedAt: new Date(),
       moderatedBy: moderatorId,
-      moderationNotes: "Review deleted by moderator",
+      moderationNotes: moderationNotes || "Review deleted by moderator",
     },
   });
 
@@ -628,4 +723,103 @@ export async function getUserReviews(
   limit = 10,
 ): Promise<PaginatedReviews> {
   return getPaginatedReviews({ userId }, page, limit);
+}
+
+/**
+ * Admin: Get all reviews with optional filters
+ * Returns all reviews (visible and hidden) for admin moderation
+ */
+export type AdminReviewFilters = {
+  isVisible?: boolean;
+  rating?: 1 | 2 | 3 | 4 | 5; // Filter by overall rating (1-5)
+  search?: string; // Search in comment or user name
+  userId?: string; // Filter by user ID
+  bookingId?: string; // Filter by booking ID
+  moderated?: boolean; // Filter by moderation status (has moderatedAt)
+};
+
+export async function getAllReviewsForAdmin(
+  filters: AdminReviewFilters = {},
+  page = 1,
+  limit = 20,
+): Promise<PaginatedReviewsAdmin> {
+  const validPage = Math.max(1, page);
+  const validLimit = Math.max(1, Math.min(limit, 100));
+  const skip = (validPage - 1) * validLimit;
+
+  // Build where clause
+  const whereClause: Prisma.ReviewWhereInput = {};
+
+  if (filters.isVisible !== undefined) {
+    whereClause.isVisible = filters.isVisible;
+  }
+
+  if (filters.rating !== undefined) {
+    whereClause.overallRating = filters.rating;
+  }
+
+  if (filters.userId) {
+    whereClause.userId = filters.userId;
+  }
+
+  if (filters.bookingId) {
+    whereClause.bookingId = filters.bookingId;
+  }
+
+  if (filters.moderated !== undefined) {
+    whereClause.moderatedAt = filters.moderated ? { not: null } : null;
+  }
+
+  if (filters.search) {
+    whereClause.OR = [
+      { comment: { contains: filters.search, mode: "insensitive" } },
+      { user: { name: { contains: filters.search, mode: "insensitive" } } },
+    ];
+  }
+
+  const [total, reviews] = await Promise.all([
+    prisma.review.count({ where: whereClause }),
+    prisma.review.findMany({
+      where: whereClause,
+      include: {
+        booking: {
+          include: {
+            car: true,
+            chauffeur: true,
+          },
+        },
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            image: true,
+          },
+        },
+        moderator: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+      skip,
+      take: validLimit,
+    }),
+  ]);
+
+  const totalPages = Math.ceil(total / validLimit);
+  return {
+    reviews: reviews as ReviewWithBookingAdmin[],
+    pagination: {
+      page: validPage,
+      limit: validLimit,
+      total,
+      totalPages,
+      hasNextPage: validPage < totalPages,
+      hasPreviousPage: validPage > 1,
+    },
+  };
 }

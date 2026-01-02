@@ -159,3 +159,15 @@ export const EligibilitySchema = z.object({
     error: "Booking type is required and must be valid.",
   }),
 });
+
+export const ReviewModerationSchema = z.object({
+  reviewId: z
+    .string({
+      error: "Review ID is required.",
+    })
+    .min(1, "Review ID cannot be empty"),
+  intent: z.enum(["hide", "show", "delete"], {
+    error: "Intent must be one of: hide, show, delete.",
+  }),
+  moderationNotes: z.string().max(500).optional(),
+});

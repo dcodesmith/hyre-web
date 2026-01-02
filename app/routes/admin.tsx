@@ -29,6 +29,7 @@ const adminNavLinks = [
   { to: "/admin/owners", label: "Fleet Owners" },
   { to: "/admin/documents", label: "Documents" },
   { to: "/admin/referrals", label: "Referrals" },
+  { to: "/admin/reviews", label: "Reviews" },
   { to: "/admin/staff", label: "Staff" },
   { to: "/admin/fees", label: "Fees" },
   { to: "/admin/addon-rates", label: "Addon Rates" },
