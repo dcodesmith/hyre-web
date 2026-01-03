@@ -1,5 +1,5 @@
 import { Link } from "@remix-run/react";
-import { Heart, Sparkles } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { formatCurrency } from "~/lib/utils";
 import type { SerializedCar } from "~/types";
 import { generateCarSlug } from "~/utils/seo";
@@ -71,18 +71,21 @@ export function CarCard({
               <span className="text-xs font-medium text-gray-800">New</span>
             </div>
           )}
-          {/* Favorite Heart Icon - Airbnb style */}
-          <button
-            type="button"
-            onClick={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
-            }}
-            className="absolute top-3 right-3 p-2 bg-white/90 hover:bg-white rounded-full shadow-md transition-all"
-            aria-label="Save to favorites"
-          >
-            <Heart className="h-4 w-4 text-gray-700" />
-          </button>
+          {/* Ratings display in top right corner */}
+          {ratings && ratings.totalReviews > 0 && (
+            <div className="absolute top-3 right-3 px-2 py-1.5 bg-white/90 hover:bg-white rounded-full shadow-md flex items-center gap-1.5 transition-all">
+              <StarRating
+                rating={ratings.averageRating}
+                mode="compact"
+                variant="black"
+                size="sm"
+                ariaLabel={`Average rating: ${ratings.averageRating.toFixed(1)} out of 5 stars`}
+              />
+              <span className="text-xs font-medium text-gray-700 leading-none">
+                {ratings.averageRating.toFixed(1)} ({ratings.totalReviews})
+              </span>
+            </div>
+          )}
         </div>
 
         <div className="space-y-1">
@@ -94,21 +97,6 @@ export function CarCard({
               <p className="text-sm text-gray-600 mt-0.5">{car.passengerCapacity}-Seater</p>
             </div>
           </div>
-
-          {/* Ratings display */}
-          {ratings && ratings.totalReviews > 0 && (
-            <div className="flex items-center gap-1.5">
-              <StarRating
-                rating={ratings.averageRating}
-                size="sm"
-                ariaLabel={`Average rating: ${ratings.averageRating.toFixed(1)} out of 5 stars`}
-              />
-              <span className="text-sm text-gray-600">
-                {ratings.averageRating.toFixed(1)} ({ratings.totalReviews}{" "}
-                {ratings.totalReviews === 1 ? "review" : "reviews"})
-              </span>
-            </div>
-          )}
 
           <div className="flex items-baseline gap-1">
             {showTotal && totalPrice ? (

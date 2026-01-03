@@ -16,6 +16,12 @@ interface StarRatingProps {
    */
   readonly mode?: "default" | "compact";
   /**
+   * Color variant:
+   * - "amber": Yellow/gold stars (default)
+   * - "black": Black stars
+   */
+  readonly variant?: "amber" | "black";
+  /**
    * Whether the rating is interactive (can be changed). Only works in default mode.
    */
   readonly interactive?: boolean;
@@ -48,6 +54,10 @@ interface PartialStarProps {
    */
   readonly isHovered?: boolean;
   /**
+   * Color variant
+   */
+  readonly variant?: "amber" | "black";
+  /**
    * Additional CSS classes
    */
   readonly className?: string;
@@ -56,12 +66,30 @@ interface PartialStarProps {
 /**
  * A single star that can be partially filled using CSS clip
  */
-function PartialStar({ fillPercentage, size, isHovered, className }: PartialStarProps) {
+function PartialStar({
+  fillPercentage,
+  size,
+  isHovered,
+  variant = "amber",
+  className,
+}: PartialStarProps) {
   const starSize = sizeClasses[size];
   const clampedPercentage = Math.max(0, Math.min(100, fillPercentage));
 
+  const emptyStarClass =
+    variant === "black" ? "fill-neutral-300 text-neutral-300" : "fill-neutral-200 text-neutral-200";
+
+  let filledStarClass: string;
+  if (variant === "black") {
+    filledStarClass = "fill-gray-900 text-gray-900";
+  } else if (isHovered) {
+    filledStarClass = "fill-amber-300 text-amber-300";
+  } else {
+    filledStarClass = "fill-amber-400 text-amber-400";
+  }
+
   // If hovered, show full highlight
-  if (isHovered) {
+  if (isHovered && variant === "amber") {
     return (
       <div className={cn("relative inline-flex", className)}>
         <Star className={cn(starSize, "fill-amber-300 text-amber-300")} />
@@ -72,14 +100,14 @@ function PartialStar({ fillPercentage, size, isHovered, className }: PartialStar
   return (
     <div className={cn("relative inline-flex", className)}>
       {/* Empty star (background) */}
-      <Star className={cn(starSize, "fill-neutral-200 text-neutral-200")} />
+      <Star className={cn(starSize, emptyStarClass)} />
       {/* Filled star (foreground, clipped) */}
       {clampedPercentage > 0 && (
         <div
           className="absolute inset-0 overflow-hidden"
           style={{ width: `${clampedPercentage}%` }}
         >
-          <Star className={cn(starSize, "fill-amber-400 text-amber-400")} />
+          <Star className={cn(starSize, filledStarClass)} />
         </div>
       )}
     </div>
@@ -106,6 +134,7 @@ function getStarFillPercentage(position: number, rating: number): number {
 export function StarRating({
   rating,
   mode = "default",
+  variant = "amber",
   interactive = false,
   onRatingChange,
   size = "md",
@@ -141,16 +170,18 @@ export function StarRating({
     }
   };
 
-  // Compact mode: Single star with proportional fill
+  // Compact mode: Single filled star
   if (mode === "compact") {
-    const fillPercentage = (clampedRating / 5) * 100;
+    const starSize = sizeClasses[size];
+    const filledStarClass =
+      variant === "black" ? "fill-gray-900 text-gray-900" : "fill-amber-400 text-amber-400";
 
     return (
       <div
         className={cn("inline-flex items-center", className)}
         aria-label={ariaLabel ?? `${rating} out of 5 stars`}
       >
-        <PartialStar fillPercentage={fillPercentage} size={size} />
+        <Star className={cn(starSize, filledStarClass)} />
       </div>
     );
   }
@@ -202,7 +233,12 @@ export function StarRating({
             tabIndex={getTabIndex()}
             disabled={!isInteractive}
           >
-            <PartialStar fillPercentage={fillPercentage} size={size} isHovered={isHovered} />
+            <PartialStar
+              fillPercentage={fillPercentage}
+              size={size}
+              variant={variant}
+              isHovered={isHovered}
+            />
           </button>
         );
       })}

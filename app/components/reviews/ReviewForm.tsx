@@ -194,8 +194,8 @@ export function ReviewForm({
   };
 
   return (
-    <Card>
-      <CardHeader>
+    <Card className="border-none p-0">
+      <CardHeader className="px-0">
         <CardTitle>{isEditing ? "Edit Your Review" : "Write a Review"}</CardTitle>
         <CardDescription>
           {isEditing
@@ -203,7 +203,7 @@ export function ReviewForm({
             : "Share your experience to help others make better decisions."}
         </CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="px-0">
         <form {...getFormProps(form)} onSubmit={handleSubmit} className="space-y-6">
           {fetcher.data?.error && (
             <div className="rounded-lg bg-red-50 border border-red-200 p-3">

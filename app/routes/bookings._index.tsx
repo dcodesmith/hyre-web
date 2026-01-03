@@ -603,7 +603,7 @@ export default function BookingsPage() {
   const { bookings, user } = useLoaderData<typeof loader>();
   const fetcher = useFetcher();
   const [searchParams] = useSearchParams();
-  const status = searchParams.get("status")?.toLocaleUpperCase() ?? "ACTIVE";
+  const status = searchParams.get("status")?.toUpperCase() ?? "ACTIVE";
   const navigate = useNavigate();
   const statuses = ["ACTIVE", "CONFIRMED", "COMPLETED", "CANCELLED"] as const;
   const [showDropoffFields, setShowDropoffFields] = useState(false);

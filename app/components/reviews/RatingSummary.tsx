@@ -1,17 +1,15 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
-import { StarRating } from "./StarRating";
 import type { AggregatedRatings } from "~/services/reviews.server";
+import { Card, CardContent } from "../ui/card";
+import { StarRating } from "./StarRating";
 
 interface RatingSummaryProps {
   readonly ratings: AggregatedRatings;
-  readonly title?: string;
   readonly showDistribution?: boolean;
   readonly className?: string;
 }
 
 export function RatingSummary({
   ratings,
-  title = "Ratings",
   showDistribution = false,
   className,
 }: RatingSummaryProps) {
@@ -20,10 +18,7 @@ export function RatingSummary({
   if (totalReviews === 0) {
     return (
       <Card className={className}>
-        <CardHeader>
-          <CardTitle>{title}</CardTitle>
-        </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-6 pt-6">
           <div className="text-center py-6">
             <p className="text-gray-500 text-sm">No ratings yet</p>
           </div>
@@ -36,13 +31,7 @@ export function RatingSummary({
 
   return (
     <Card className={className}>
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
-        <CardDescription>
-          {totalReviews} {totalReviews === 1 ? "review" : "reviews"}
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
+      <CardContent className="space-y-6 pt-6">
         {/* Average Rating */}
         <div className="flex items-center gap-4">
           <div className="text-4xl font-bold text-gray-900">{roundedAverage}</div>

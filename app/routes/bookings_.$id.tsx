@@ -826,10 +826,7 @@ function ReviewSection({ booking }: { booking: Booking }) {
   // Show edit form if editing
   if (isEditing && review && canEditReview) {
     return (
-      <Card className="rounded">
-        <CardHeader>
-          <CardTitle>Edit Your Review</CardTitle>
-        </CardHeader>
+      <Card className="rounded" id="review">
         <CardContent>
           <ReviewForm
             existingReview={{
@@ -852,7 +849,7 @@ function ReviewSection({ booking }: { booking: Booking }) {
   // Show existing review
   if (review) {
     return (
-      <Card className="rounded">
+      <Card className="rounded" id="review">
         <CardHeader>
           <CardTitle>Your Review</CardTitle>
         </CardHeader>
@@ -870,6 +867,7 @@ function ReviewSection({ booking }: { booking: Booking }) {
                 user: review.user,
               }}
               showDetailedRatings
+              variant="nested"
             />
             {canEditReview && (
               <Button

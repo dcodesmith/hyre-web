@@ -361,7 +361,7 @@ export default function CarDetails() {
             {/* Ratings Summary - Mobile */}
             {ratings.totalReviews > 0 && (
               <div className="mb-4 lg:hidden">
-                <RatingSummary ratings={ratings} title="Car Ratings" showDistribution={false} />
+                <RatingSummary ratings={ratings} showDistribution={false} />
               </div>
             )}
 
@@ -402,7 +402,7 @@ export default function CarDetails() {
               {/* Ratings Summary */}
               {ratings.totalReviews > 0 && (
                 <div className="mb-6">
-                  <RatingSummary ratings={ratings} title="Car Ratings" showDistribution={true} />
+                  <RatingSummary ratings={ratings} showDistribution={true} />
                 </div>
               )}
 
