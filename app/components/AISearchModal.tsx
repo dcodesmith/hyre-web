@@ -1,4 +1,4 @@
-import { useNavigate } from "@remix-run/react";
+import { useLocation, useNavigate } from "@remix-run/react";
 import { AlertCircle, CheckCircle, Loader2, Plane, Search, Sparkles, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -32,6 +32,7 @@ const dialogContentClasses = cn(
 );
 
 export function AISearchModal() {
+  const location = useLocation();
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -259,18 +260,17 @@ export function AISearchModal() {
           aiSearchAbortControllerRef.current = null;
           return; // Validation failed, stay in modal
         }
-      } else {
+      } else if (data.interpretation) {
         // Not airport pickup - show interpretation
-        if (data.interpretation) {
-          toast.success(data.interpretation);
-        }
+        toast.success(data.interpretation);
       }
 
       // Navigate to search results
-      navigate(searchUrl);
-      setQuery("");
-      setValidationStatus("");
-      setFlightDetails("");
+      if (location.pathname === "/search") {
+        globalThis.location.href = searchUrl;
+      } else {
+        navigate(searchUrl);
+      }
     } catch (error) {
       // Handle abort gracefully
       if (error instanceof Error && error.name === "AbortError") {
@@ -314,6 +314,18 @@ export function AISearchModal() {
       }
     }
   }, [isOpen]);
+
+  // Determine validation status icon
+  let validationIcon: React.ReactNode;
+  if (flightDetails) {
+    validationIcon = <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />;
+  } else if (isLoading) {
+    validationIcon = (
+      <Loader2 className="h-5 w-5 text-gray-700 flex-shrink-0 mt-0.5 animate-spin" />
+    );
+  } else {
+    validationIcon = <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />;
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -364,16 +376,7 @@ export function AISearchModal() {
           {validationStatus && (
             <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
               <div className="flex items-start gap-3">
-                {flightDetails ? (
-                  // Success state - flight validated
-                  <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
-                ) : isLoading ? (
-                  // Loading state - validating
-                  <Loader2 className="h-5 w-5 text-gray-700 flex-shrink-0 mt-0.5 animate-spin" />
-                ) : (
-                  // Error state - validation failed
-                  <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
-                )}
+                {validationIcon}
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-gray-900">{validationStatus}</p>
                   {flightDetails && (
