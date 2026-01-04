@@ -48,8 +48,7 @@ export function useCarouselScroll(options: UseCarouselScrollOptions = {}) {
         cancelAnimationFrame(rafRef.current);
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, dependencies);
+  }, [...dependencies, checkScroll]);
 
   const scroll = useCallback(
     (direction: "left" | "right") => {
