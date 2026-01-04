@@ -1,4 +1,5 @@
 import { formatDistanceToNow } from "date-fns";
+import { useState } from "react";
 import { Card, CardContent } from "../ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { StarRating } from "./StarRating";
@@ -20,7 +21,7 @@ interface ReviewCardProps {
   };
   readonly showDetailedRatings?: boolean;
   readonly className?: string;
-  readonly variant?: "default" | "nested";
+  readonly variant?: "default" | "nested" | "carousel";
 }
 
 function getInitials(name: string | null): string {
@@ -41,6 +42,64 @@ export function ReviewCard({
   const createdAt =
     typeof review.createdAt === "string" ? new Date(review.createdAt) : review.createdAt;
   const timeAgo = formatDistanceToNow(createdAt, { addSuffix: true });
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  // Carousel variant: Airbnb-style layout
+  if (variant === "carousel") {
+    const comment = review.comment ?? "";
+    const shouldTruncate = comment.length > 150;
+
+    return (
+      <div className={className}>
+        <div className="h-full flex flex-col space-y-4">
+          {/* Stars and timestamp at top */}
+          <div className="flex items-center justify-between mb-1.5">
+            <StarRating
+              rating={review.overallRating}
+              size="sm"
+              ariaLabel={`${review.overallRating} out of 5 stars`}
+            />
+            <span className="text-xs text-gray-500">{timeAgo}</span>
+          </div>
+
+          {/* Comment text */}
+          {comment && (
+            <div className="min-h-[3.5rem]">
+              <p
+                className={`text-sm text-gray-700 leading-snug whitespace-pre-wrap ${
+                  shouldTruncate && !isExpanded ? "line-clamp-3" : ""
+                }`}
+              >
+                {comment}
+              </p>
+              {shouldTruncate && (
+                <button
+                  type="button"
+                  onClick={() => setIsExpanded(!isExpanded)}
+                  className="text-xs text-gray-600 underline mt-0.5 hover:text-gray-900"
+                >
+                  {isExpanded ? "Show less" : "Show more"}
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Profile at bottom */}
+          <div className="flex items-center gap-2 mt-auto">
+            <Avatar className="h-7 w-7">
+              <AvatarImage src={review.user.image ?? undefined} alt={userName} />
+              <AvatarFallback className="bg-neutral-100 text-neutral-700 text-xs">
+                {userInitials}
+              </AvatarFallback>
+            </Avatar>
+            <div>
+              <p className="font-medium text-xs text-gray-900">{userName}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const content = (
     <div className="space-y-4">

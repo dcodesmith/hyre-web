@@ -38,6 +38,28 @@ export type ReviewWithBooking = Prisma.ReviewGetPayload<{
 }>;
 
 /**
+ * Lightweight review type for paginated lists/carousels - only includes booking IDs
+ */
+export type ReviewWithBookingLight = Prisma.ReviewGetPayload<{
+  include: {
+    booking: {
+      select: {
+        id: true;
+        carId: true;
+        chauffeurId: true;
+      };
+    };
+    user: {
+      select: {
+        id: true;
+        name: true;
+        image: true;
+      };
+    };
+  };
+}>;
+
+/**
  * Review with related booking information (internal/owner - includes email)
  */
 export type ReviewWithBookingInternal = Prisma.ReviewGetPayload<{
@@ -119,10 +141,10 @@ export type AggregatedRatings = {
 };
 
 /**
- * Paginated reviews response
+ * Paginated reviews response (lightweight - for lists/carousels)
  */
 export type PaginatedReviews = {
-  reviews: ReviewWithBooking[];
+  reviews: ReviewWithBookingLight[];
   pagination: {
     page: number;
     limit: number;
@@ -725,9 +747,10 @@ async function getPaginatedReviews(
       where: whereClause,
       include: {
         booking: {
-          include: {
-            car: true,
-            chauffeur: true,
+          select: {
+            id: true,
+            carId: true,
+            chauffeurId: true,
           },
         },
         user: { select: { id: true, name: true, image: true } },

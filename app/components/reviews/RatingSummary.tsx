@@ -58,15 +58,11 @@ export function RatingSummary({
 
                 return (
                   <div key={stars} className="flex items-center gap-3">
-                    <div className="flex items-center gap-1 w-16">
-                      <span className="text-sm text-gray-600 w-4">{stars}</span>
+                    <div className="flex items-center gap-1.5 min-w-[80px] shrink-0">
+                      <span className="text-sm text-gray-600 w-4 text-right">{stars}</span>
                       <StarRating rating={stars} size="sm" ariaLabel={`${stars} stars`} />
-                      {/* <Star
-                        className="h-3 w-3 fill-amber-400 text-amber-400"
-                        aria-label={`${stars} stars`}
-                      /> */}
                     </div>
-                    <div className="flex-1">
+                    <div className="flex-1 min-w-0">
                       <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
                         <div
                           className="h-full bg-amber-400 transition-all duration-300"
@@ -74,7 +70,7 @@ export function RatingSummary({
                         />
                       </div>
                     </div>
-                    <div className="text-sm text-gray-600 w-12 text-right">
+                    <div className="text-sm text-gray-600 min-w-[60px] text-right shrink-0">
                       {count} ({Math.round(percentage)}%)
                     </div>
                   </div>

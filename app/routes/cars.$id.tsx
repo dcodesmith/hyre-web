@@ -8,6 +8,7 @@ import CarCarousel from "~/components/Carousel";
 import BookingCard from "~/components/booking/BookingCard";
 import { VehicleSchema, BreadcrumbSchema } from "~/components/seo/StructuredData";
 import { RatingSummary } from "~/components/reviews/RatingSummary";
+import { ReviewCarousel } from "~/components/reviews/ReviewCarousel";
 import {
   Accordion,
   AccordionContent,
@@ -439,6 +440,17 @@ export default function CarDetails() {
                 </dl>
               </div>
             </div>
+
+            {/* Reviews Carousel - Visible on all screen sizes */}
+            {ratings.totalReviews > 0 && (
+              <div className="mt-8">
+                <ReviewCarousel
+                  endpoint={`/api/reviews/car/${car.id}`}
+                  title="Reviews"
+                  limit={10}
+                />
+              </div>
+            )}
           </div>
         </div>
 

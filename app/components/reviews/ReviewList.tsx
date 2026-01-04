@@ -4,7 +4,7 @@ import { Button } from "../ui/button";
 import { Card } from "../ui/card";
 import { Skeleton } from "../ui/skeleton";
 import { ReviewCard } from "./ReviewCard";
-import type { ReviewWithBooking } from "~/services/reviews.server";
+import type { ReviewWithBookingLight } from "~/services/reviews.server";
 
 interface ReviewListProps {
   /**
@@ -14,7 +14,7 @@ interface ReviewListProps {
   /**
    * Initial reviews data (optional, for SSR)
    */
-  readonly initialReviews?: ReviewWithBooking[];
+  readonly initialReviews?: ReviewWithBookingLight[];
   /**
    * Initial pagination data (optional, for SSR)
    */
@@ -32,7 +32,7 @@ interface ReviewListProps {
 
 interface PaginatedReviewsResponse {
   readonly success: boolean;
-  readonly reviews?: ReviewWithBooking[];
+  readonly reviews?: ReviewWithBookingLight[];
   readonly pagination?: {
     readonly page: number;
     readonly limit: number;
@@ -52,7 +52,7 @@ export function ReviewList({
   className,
 }: ReviewListProps) {
   const fetcher = useFetcher<PaginatedReviewsResponse>();
-  const [reviews, setReviews] = useState<ReviewWithBooking[]>(initialReviews ?? []);
+  const [reviews, setReviews] = useState<ReviewWithBookingLight[]>(initialReviews ?? []);
   const [pagination, setPagination] = useState(initialPagination);
   const [currentPage, setCurrentPage] = useState(initialPagination?.page ?? 1);
 

@@ -1,7 +1,8 @@
 import { Link } from "@remix-run/react";
-import { ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
-import type { ReactNode } from "react";
+import { ArrowRight } from "lucide-react";
+import { useCallback, type ReactNode } from "react";
+import { CarouselNavigation } from "./ui/carousel-navigation";
+import { useCarouselScroll } from "~/hooks/useCarouselScroll";
 
 interface CarouselSectionProps {
   readonly title: string;
@@ -11,65 +12,11 @@ interface CarouselSectionProps {
 }
 
 export function CarouselSection({ title, href = "#", id, children }: CarouselSectionProps) {
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const [canScrollLeft, setCanScrollLeft] = useState(false);
-  const [canScrollRight, setCanScrollRight] = useState(true);
-  const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const rafRef = useRef<number | null>(null);
+  const { scrollContainerRef, canScrollLeft, canScrollRight, scroll, checkScroll } =
+    useCarouselScroll();
 
-  // Optimize scroll check using requestAnimationFrame to batch layout reads
-  const checkScroll = () => {
-    const container = scrollContainerRef.current;
-    if (!container) return;
-
-    // Cancel any pending RAF to avoid multiple reflows
-    if (rafRef.current) {
-      cancelAnimationFrame(rafRef.current);
-    }
-
-    // Schedule layout read in the next frame
-    rafRef.current = requestAnimationFrame(() => {
-      setCanScrollLeft(container.scrollLeft > 0);
-      setCanScrollRight(container.scrollLeft < container.scrollWidth - container.clientWidth - 10);
-    });
-  };
-
-  // Check initial scroll state after mount
-  useEffect(() => {
-    checkScroll();
-
-    return () => {
-      if (scrollTimeoutRef.current) {
-        clearTimeout(scrollTimeoutRef.current);
-      }
-      if (rafRef.current) {
-        cancelAnimationFrame(rafRef.current);
-      }
-    };
-  }, []);
-
-  const scroll = (direction: "left" | "right") => {
-    const container = scrollContainerRef.current;
-    if (!container) return;
-
-    // Read layout property once and cache it
-    const scrollAmount = container.clientWidth * 0.8; // Scroll 80% of container width
-    const newScrollLeft =
-      direction === "left"
-        ? container.scrollLeft - scrollAmount
-        : container.scrollLeft + scrollAmount;
-
-    container.scrollTo({
-      left: newScrollLeft,
-      behavior: "smooth",
-    });
-
-    if (scrollTimeoutRef.current) {
-      clearTimeout(scrollTimeoutRef.current);
-    }
-
-    scrollTimeoutRef.current = setTimeout(checkScroll, 300);
-  };
+  const handleScrollLeft = useCallback(() => scroll("left"), [scroll]);
+  const handleScrollRight = useCallback(() => scroll("right"), [scroll]);
 
   return (
     <section id={id} className="relative max-w-[1400px] mx-auto px-6 md:px-8 scroll-mt-20">
@@ -84,26 +31,12 @@ export function CarouselSection({ title, href = "#", id, children }: CarouselSec
           </Link>
 
           {/* Navigation Arrows - All Views */}
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => scroll("left")}
-              disabled={!canScrollLeft}
-              className="p-1.5 md:p-2 border border-gray-300 rounded-full hover:border-gray-900 hover:shadow-md transition-all disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:border-gray-300 disabled:hover:shadow-none"
-              aria-label="Scroll left"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              onClick={() => scroll("right")}
-              disabled={!canScrollRight}
-              className="p-1.5 md:p-2 border border-gray-300 rounded-full hover:border-gray-900 hover:shadow-md transition-all disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:border-gray-300 disabled:hover:shadow-none"
-              aria-label="Scroll right"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </button>
-          </div>
+          <CarouselNavigation
+            onScrollLeft={handleScrollLeft}
+            onScrollRight={handleScrollRight}
+            canScrollLeft={canScrollLeft}
+            canScrollRight={canScrollRight}
+          />
         </div>
       </div>
 
