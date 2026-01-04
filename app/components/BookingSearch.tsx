@@ -477,10 +477,10 @@ export function BookingSearch({
 
     // Navigate to /search route or update current page params
     if (navigateToSearch) {
-      navigate(`/search?${newSearchParams.toString()}`);
-    } else {
-      setSearchParams(newSearchParams, { replace: true, preventScrollReset: true });
+      return navigate(`/search?${newSearchParams.toString()}`);
     }
+
+    setSearchParams(newSearchParams, { replace: true, preventScrollReset: true });
 
     onSearchComplete?.();
   }, [
