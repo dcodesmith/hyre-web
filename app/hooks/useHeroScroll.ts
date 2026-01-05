@@ -95,7 +95,7 @@ export function useHeroScroll(): HeroScrollState {
 /**
  * Generate hero container CSS classes based on scroll state
  * Mobile: relative positioning, natural scroll (h-[500px])
- * Desktop: md:h-[471px] expanded → md:h-[84px] collapsed (fixed positioning)
+ * Desktop: md:h-[471px] expanded → md:h-[130px] collapsed (fixed positioning)
  */
 export function getHeroHeightClasses(state: HeroScrollState): {
   mobileHeight: string;
@@ -103,7 +103,7 @@ export function getHeroHeightClasses(state: HeroScrollState): {
   containerClass: string;
 } {
   const mobileHeight = "h-auto py-6";
-  const desktopHeight = state.isDesktopCollapsed ? "md:h-[84px]" : "md:h-[471px]";
+  const desktopHeight = state.isDesktopCollapsed ? "md:h-[130px]" : "md:h-[471px]";
   const containerClass = `relative md:fixed left-0 right-0 z-40 top-0 md:top-[69px] md:py-0 ${mobileHeight} ${desktopHeight}`;
 
   return { mobileHeight, desktopHeight, containerClass };

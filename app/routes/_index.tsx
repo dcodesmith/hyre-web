@@ -393,12 +393,11 @@ export default function IndexPage() {
 
           {/* Search Box - always visible, adapts style on desktop collapse */}
           <div
-            className={`w-full transition-all duration-300 ${isDesktopCollapsed ? "max-w-4xl" : "max-w-2xl"}`}
+            className={`w-full transition-all duration-300 space-y-3 ${isDesktopCollapsed ? "max-w-4xl" : "max-w-2xl"}`}
           >
             <BookingSearch isCompact={isDesktopCollapsed} navigateToSearch />
 
-            {/* AI Search Button */}
-            <div className="flex justify-center mt-3">
+            <div className="flex justify-center">
               <AISearchModal />
             </div>
           </div>
