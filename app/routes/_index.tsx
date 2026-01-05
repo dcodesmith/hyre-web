@@ -240,7 +240,6 @@ type LoaderData = {
   };
 };
 
-// FAQ data for structured data
 const faqData = {
   questions: [
     {
@@ -251,17 +250,17 @@ const faqData = {
     {
       question: "What types of vehicles are available?",
       answer:
-        "We offer a wide range of vehicles including luxury sedans, SUVs, executive cars, and premium vehicles from brands like Toyota, Lexus, Mercedes-Benz, and BMW.",
+        "We offer a wide range of vehicles including luxury sedans, SUVs, executive cars, and premium vehicles from brands like Toyota, Lexus and Mercedes-Benz.",
     },
     {
       question: "Are your chauffeurs professional and vetted?",
       answer:
-        "Yes, all our chauffeurs are professionally trained, background-checked, and experienced in providing premium transportation services.",
+        "Yes, all our chauffeurs are professionally trained, background-checked via the fleet owners, and experienced in providing premium transportation services.",
     },
     {
       question: "Do you offer airport pickup services?",
       answer:
-        "Yes, we specialize in airport transfers including pickups from Murtala Muhammed International Airport (Lagos) and Nnamdi Azikiwe International Airport (Abuja).",
+        "Yes, we specialize in airport pickups from Murtala Muhammed International Airport (Lagos).",
     },
   ],
 };

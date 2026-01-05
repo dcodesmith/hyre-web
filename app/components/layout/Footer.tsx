@@ -281,9 +281,7 @@ export function Footer({ appName }: FooterProps) {
             luxury sedans, executive SUVs, and budget-friendly vehicles. Whether you need airport
             pickup, full-day charter, or hourly rentals, our vetted drivers ensure safe,
             comfortable, and reliable transportation. Book online instantly with real-time
-            availability, transparent pricing, and 24/7 customer support. Experience the difference
-            with our premium car hire service featuring GPS tracking, insurance coverage, and
-            flexible cancellation policies.
+            availability, transparent pricing, and 24/7 customer support.
           </p>
         </div>
       </div>
