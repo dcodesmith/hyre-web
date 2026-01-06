@@ -4,18 +4,22 @@ import {
   BookingType,
   type Car,
   CarApprovalStatus,
+  Prisma,
   Status,
 } from "@prisma/client";
 import type { LoaderFunctionArgs, MetaFunction } from "@remix-run/node";
 import { data } from "@remix-run/node";
-import { Link, useLoaderData, useSearchParams } from "@remix-run/react";
+import { Link, useLoaderData, useMatches, useSearchParams } from "@remix-run/react";
 import { fromZonedTime } from "date-fns-tz";
 import { useCallback, useState } from "react";
 
 import { BookingSearch } from "~/components/BookingSearch";
 import { CarCard } from "~/components/CarCard";
+import { CarSkeleton } from "~/components/CarSkeleton";
 import { CompactSearchBar } from "~/components/CompactSearchBar";
+import { PaginationControl } from "~/components/PaginationControl";
 import { SearchModal } from "~/components/SearchModal";
+import { useInfiniteScroll } from "~/hooks/useInfiniteScroll";
 import {
   AIRPORT_PICKUP_BOOKING_TYPE,
   BOOKING_TYPE_OPTIONS,
@@ -300,13 +304,14 @@ async function filterCarsByAvailability<T extends { id: string }>(
 /**
  * Generate dynamic meta tags based on search filters
  */
-export const meta: MetaFunction<typeof loader> = ({ data, matches }) => {
+export const meta: MetaFunction<typeof loader> = ({ data, matches, location }) => {
   // Access root loader data
   const rootData = matches.find((match) => match.id === "root")?.data as
     | { ENV?: { DOMAIN?: string } }
     | undefined;
 
   const filters = data?.filters;
+  const pagination = data?.pagination;
   const baseUrl = getBaseUrl(rootData?.ENV?.DOMAIN);
 
   // Build dynamic title parts
@@ -349,13 +354,42 @@ export const meta: MetaFunction<typeof loader> = ({ data, matches }) => {
     ? `Find and book ${descriptionContext} with professional chauffeurs in Lagos, Nigeria. Browse our selection of luxury cars for day trips, airport pickups, and special events.`
     : "Search and book available luxury vehicles with professional chauffeurs in Nigeria. Filter by date, vehicle type, and service tier. Find the perfect car for your trip.";
 
-  return generateMetaTags({
+  const tags = generateMetaTags({
     title: dynamicTitle,
     description: dynamicDescription,
     url: `${baseUrl}/search`,
     image: `${baseUrl}/og-image.jpg`,
     canonical: `${baseUrl}/search`,
   });
+
+  // Add pagination links (rel="next" and rel="prev")
+  if (pagination) {
+    const currentPage = pagination.page;
+
+    if (pagination.hasNextPage) {
+      const nextParams = new URLSearchParams(location.search);
+      nextParams.set("page", (currentPage + 1).toString());
+
+      tags.push({
+        tagName: "link",
+        rel: "next",
+        href: `${baseUrl}/search?${nextParams.toString()}`,
+      });
+    }
+
+    if (pagination.hasPreviousPage) {
+      const prevParams = new URLSearchParams(location.search);
+      prevParams.set("page", (currentPage - 1).toString());
+
+      tags.push({
+        tagName: "link",
+        rel: "prev",
+        href: `${baseUrl}/search?${prevParams.toString()}`,
+      });
+    }
+  }
+
+  return tags;
 };
 
 /**
@@ -428,7 +462,7 @@ function mapQueryToFilters(query: string): {
 
   // Extract matched term from query to get remaining text for make/model search
   if (matchedLabel) {
-    remainingQuery = remainingQuery.replace(new RegExp(matchedLabel, "gi"), "").trim();
+    remainingQuery = remainingQuery.replaceAll(new RegExp(matchedLabel, "gi"), "").trim();
   }
 
   return {
@@ -438,25 +472,17 @@ function mapQueryToFilters(query: string): {
   };
 }
 
-export async function loader({ request }: LoaderFunctionArgs) {
-  const url = new URL(request.url);
-
-  // Free-text search query parameter (from Google sitelinks search box)
+/**
+ * Parses search query parameters from URL
+ */
+function parseSearchParams(url: URL) {
   const q = url.searchParams.get("q");
-
-  // Category/type filters
   let serviceTierParam = url.searchParams.get("serviceTier");
   let vehicleTypeParam = url.searchParams.get("vehicleType");
   const colorParam = url.searchParams.get("color");
   const makeParam = url.searchParams.get("make");
   const modelParam = url.searchParams.get("model");
 
-  /**
-   * Filter precedence logic:
-   * - Explicit URL parameters (serviceTier, vehicleType) take precedence over `q` for category filtering
-   * - When explicit filters are provided, `q` is only used for make/model search if no filters matched
-   * - When no explicit filters exist, `q` is parsed to extract both category filters AND remaining text for make/model search
-   */
   let extractedMakeModelQuery: string | undefined;
 
   if (q && !serviceTierParam && !vehicleTypeParam) {
@@ -467,60 +493,165 @@ export async function loader({ request }: LoaderFunctionArgs) {
     if (mappedFilters.serviceTier) {
       serviceTierParam = mappedFilters.serviceTier;
     }
-    // Store the remaining query for make/model search (e.g., "Toyota" from "Toyota Luxury")
     extractedMakeModelQuery = mappedFilters.remainingQuery;
   }
 
-  // Date/availability filters
-  const from = url.searchParams.get("from");
-  const to = url.searchParams.get("to");
-  const bookingType = url.searchParams.get("bookingType");
-  const pickupTime = url.searchParams.get("pickupTime");
-  const flightNumber = url.searchParams.get("flightNumber");
-
-  // Validate booking type if provided
-  if (bookingType && !isBookingType(bookingType)) {
-    logger.warn("[SEARCH] Invalid booking type", { bookingType });
-    return data(
-      { cars: [], filters: { serviceTier: null, vehicleType: null, bookingType: null } },
-      { status: 400, headers: { "Cache-Control": "no-store" } },
-    );
-  }
-
-  // Parse enum filters
   const serviceTier = parseServiceTier(serviceTierParam);
   const vehicleType = parseVehicleType(vehicleTypeParam);
-
-  /**
-   * Make/model search logic:
-   * - Use extractedMakeModelQuery if it was extracted from compound query (e.g., "Toyota" from "Toyota Luxury")
-   * - Otherwise, use full `q` if no category filters matched
-   * - This allows compound queries to search by both category AND make/model
-   */
   const makeModelQuery =
     extractedMakeModelQuery?.trim() || (q && !serviceTier && !vehicleType ? q.trim() : null);
 
-  logger.info("[SEARCH] Query params", {
-    q,
+  return {
     serviceTier,
     vehicleType,
-    color: colorParam,
-    make: makeParam,
-    model: modelParam,
-    from,
-    to,
-    bookingType,
-    pickupTime,
-    flightNumber,
+    colorParam,
+    makeParam,
+    modelParam,
     makeModelQuery,
+    from: url.searchParams.get("from"),
+    to: url.searchParams.get("to"),
+    bookingType: url.searchParams.get("bookingType"),
+    pickupTime: url.searchParams.get("pickupTime"),
+    flightNumber: url.searchParams.get("flightNumber"),
+  };
+}
+
+/**
+ * Builds Prisma where clause for car search
+ */
+function buildCarWhereClause(params: {
+  fleetOwnersToExclude: string[];
+  serviceTier: ServiceTier | undefined;
+  vehicleType: VehicleType | undefined;
+  colorParam: string | null;
+  makeParam: string | null;
+  modelParam: string | null;
+  makeModelQuery: string | null;
+}): Prisma.CarWhereInput {
+  return {
+    AND: [
+      {
+        ...(params.fleetOwnersToExclude.length > 0 && {
+          ownerId: { notIn: params.fleetOwnersToExclude },
+        }),
+        status: { in: [Status.AVAILABLE, Status.BOOKED] },
+        approvalStatus: { in: [CarApprovalStatus.APPROVED] },
+        owner: { fleetOwnerStatus: "APPROVED", hasOnboarded: true },
+        ...(params.serviceTier && { serviceTier: params.serviceTier }),
+        ...(params.vehicleType && { vehicleType: params.vehicleType }),
+        ...(params.colorParam && {
+          color: { contains: params.colorParam, mode: Prisma.QueryMode.insensitive },
+        }),
+        ...(params.makeParam && {
+          make: { contains: params.makeParam, mode: Prisma.QueryMode.insensitive },
+        }),
+        ...(params.modelParam && {
+          model: { contains: params.modelParam, mode: Prisma.QueryMode.insensitive },
+        }),
+        ...(params.makeModelQuery && {
+          OR: [
+            { make: { contains: params.makeModelQuery, mode: Prisma.QueryMode.insensitive } },
+            { model: { contains: params.makeModelQuery, mode: Prisma.QueryMode.insensitive } },
+          ],
+        }),
+      },
+    ],
+  };
+}
+
+/**
+ * Creates error response with empty data
+ */
+function createErrorResponse(status: number) {
+  return data(
+    {
+      cars: [],
+      ratings: {},
+      filters: { serviceTier: null, vehicleType: null, bookingType: null },
+      pagination: {
+        page: 1,
+        limit: 12,
+        total: 0,
+        totalPages: 0,
+        hasNextPage: false,
+        hasPreviousPage: false,
+      },
+    },
+    { status, headers: { "Cache-Control": "no-store" } },
+  );
+}
+
+/**
+ * Calculates pagination metadata
+ *
+ * hasNextPage logic:
+ * - hasMoreAfterFiltering: the over-fetched batch had more than `limit` cars after availability filtering
+ * - dbHasMore: the DB returned as many records as we asked for, indicating more might exist
+ *
+ * We use dbHasMore instead of totalPages because totalCount is pre-availability-filtering,
+ * which doesn't reliably indicate post-filtering pagination boundaries.
+ */
+function calculatePagination(
+  totalCount: number,
+  limit: number,
+  page: number,
+  returnedCars: unknown[],
+  hasMoreAfterFiltering: boolean,
+  dbHasMore: boolean,
+) {
+  const totalPages = Math.ceil(totalCount / limit);
+  const hasNextPage = hasMoreAfterFiltering || (returnedCars.length === limit && dbHasMore);
+  const hasPreviousPage = page > 1;
+
+  return {
+    page,
+    limit,
+    total: totalCount,
+    totalPages,
+    hasNextPage,
+    hasPreviousPage,
+  };
+}
+
+export async function loader({ request }: LoaderFunctionArgs) {
+  const url = new URL(request.url);
+  const params = parseSearchParams(url);
+
+  // Validate booking type if provided
+  if (params.bookingType && !isBookingType(params.bookingType)) {
+    logger.warn("[SEARCH] Invalid booking type", { bookingType: params.bookingType });
+    return createErrorResponse(400);
+  }
+
+  logger.info("[SEARCH] Query params", {
+    q: url.searchParams.get("q"),
+    serviceTier: params.serviceTier,
+    vehicleType: params.vehicleType,
+    color: params.colorParam,
+    make: params.makeParam,
+    model: params.modelParam,
+    from: params.from,
+    to: params.to,
+    bookingType: params.bookingType,
+    pickupTime: params.pickupTime,
+    flightNumber: params.flightNumber,
+    makeModelQuery: params.makeModelQuery,
   });
 
   try {
     const startTime = Date.now();
 
+    // Parse page parameter for pagination
+    const pageParam = url.searchParams.get("page");
+    const page = pageParam ? Math.max(1, Number.parseInt(pageParam, 10)) : 1;
+    const limit = 12;
+    const overFetchMultiplier = 1.5; // Fetch 18 cars to account for filtering
+    const take = Math.ceil(limit * overFetchMultiplier);
+    const skip = (page - 1) * limit;
+
     // Get unavailable fleet owners for the date
-    const fleetOwnersToExclude = from
-      ? await getFleetOwnersWithNoChauffeursOrAllChauffeursBusy(new Date(from))
+    const fleetOwnersToExclude = params.from
+      ? await getFleetOwnersWithNoChauffeursOrAllChauffeursBusy(new Date(params.from))
       : [];
 
     const fleetOwnerQueryTime = Date.now() - startTime;
@@ -528,34 +659,23 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
     const carQueryStartTime = Date.now();
 
+    // Build where clause for count and findMany (same conditions)
+    const whereClause = buildCarWhereClause({
+      fleetOwnersToExclude,
+      serviceTier: params.serviceTier,
+      vehicleType: params.vehicleType,
+      colorParam: params.colorParam,
+      makeParam: params.makeParam,
+      modelParam: params.modelParam,
+      makeModelQuery: params.makeModelQuery,
+    });
+
+    // Get total count BEFORE availability filtering (for consistent pagination)
+    const totalCount = await prisma.car.count({ where: whereClause });
+
     // Build where clause with category filters and optional make/model search
     const cars = await prisma.car.findMany({
-      where: {
-        AND: [
-          {
-            ...(fleetOwnersToExclude.length > 0 && {
-              ownerId: { notIn: fleetOwnersToExclude },
-            }),
-            status: { in: [Status.AVAILABLE, Status.BOOKED] },
-            approvalStatus: { in: [CarApprovalStatus.APPROVED] },
-            owner: { fleetOwnerStatus: "APPROVED", hasOnboarded: true },
-            // Category filters - only applied if provided
-            ...(serviceTier && { serviceTier }),
-            ...(vehicleType && { vehicleType }),
-            // Vehicle attribute filters - color, make, model (supports AI search and manual filtering)
-            ...(colorParam && { color: { contains: colorParam, mode: "insensitive" } }),
-            ...(makeParam && { make: { contains: makeParam, mode: "insensitive" } }),
-            ...(modelParam && { model: { contains: modelParam, mode: "insensitive" } }),
-            // Make/model search - case-insensitive partial match
-            ...(makeModelQuery && {
-              OR: [
-                { make: { contains: makeModelQuery, mode: "insensitive" } },
-                { model: { contains: makeModelQuery, mode: "insensitive" } },
-              ],
-            }),
-          },
-        ],
-      },
+      where: whereClause,
       include: {
         owner: { select: { username: true, name: true } },
         images: { select: { url: true }, orderBy: { createdAt: "asc" }, take: 4 },
@@ -577,24 +697,31 @@ export async function loader({ request }: LoaderFunctionArgs) {
         },
       },
       orderBy: [{ updatedAt: "desc" }, { dayRate: "asc" }],
-      take: 100,
+      skip,
+      take,
     });
 
     // Apply availability filtering if all required params are present
     const filteredCars = await filterCarsByAvailability(cars, {
-      from,
-      to,
-      bookingType,
-      pickupTime,
-      flightNumber,
+      from: params.from,
+      to: params.to,
+      bookingType: params.bookingType,
+      pickupTime: params.pickupTime,
+      flightNumber: params.flightNumber,
     });
+
+    // Return only up to limit, but track if there are more after filtering
+    const returnedCars = filteredCars.slice(0, limit);
+    const hasMoreAfterFiltering = filteredCars.length > limit;
+    // DB returned everything we asked for, so there might be more pages
+    const dbHasMore = cars.length === take;
 
     const carQueryTime = Date.now() - carQueryStartTime;
 
     // Fetch ratings for all filtered cars in a single batch query
     let ratings: Record<string, AggregatedRatings> = {};
     try {
-      const carIds = filteredCars.map((car) => car.id);
+      const carIds = returnedCars.map((car) => car.id);
       ratings = await getBatchCarRatings(carIds);
     } catch (error) {
       logger.error("[SEARCH] Error fetching ratings", { error });
@@ -604,15 +731,25 @@ export async function loader({ request }: LoaderFunctionArgs) {
     const totalTime = Date.now() - startTime;
     logger.info("[SEARCH] Query completed", { ms: carQueryTime, totalMs: totalTime });
 
+    const pagination = calculatePagination(
+      totalCount,
+      limit,
+      page,
+      returnedCars,
+      hasMoreAfterFiltering,
+      dbHasMore,
+    );
+
     return data(
       {
-        cars: filteredCars,
+        cars: returnedCars,
         ratings,
         filters: {
-          serviceTier: serviceTier ?? null,
-          vehicleType: vehicleType ?? null,
-          bookingType: bookingType ?? null,
+          serviceTier: params.serviceTier ?? null,
+          vehicleType: params.vehicleType ?? null,
+          bookingType: params.bookingType ?? null,
         },
+        pagination,
       },
       {
         headers: {
@@ -624,10 +761,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     );
   } catch (error) {
     logger.error("[SEARCH] Error:", error instanceof Error ? error.message : "Unknown error");
-    return data(
-      { cars: [], ratings: {}, filters: { serviceTier: null, vehicleType: null, bookingType: null } },
-      { status: 500, headers: { "Cache-Control": "no-store" } },
-    );
+    return createErrorResponse(500);
   }
 }
 
@@ -637,15 +771,48 @@ type LoaderData = {
   filters: {
     serviceTier: ServiceTier | null;
     vehicleType: VehicleType | null;
+    bookingType: string | null;
+  };
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasNextPage: boolean;
+    hasPreviousPage: boolean;
   };
 };
 
 export default function SearchPage() {
-  const { cars, ratings, filters } = useLoaderData<LoaderData>();
+  const { cars, ratings, filters, pagination } = useLoaderData<LoaderData>();
   const [searchParams] = useSearchParams();
+  const matches = useMatches();
+
+  // Get domain from root loader data
+  const rootData = matches.find((match) => match.id === "root")?.data as
+    | { ENV?: { DOMAIN?: string } }
+    | undefined;
+  const baseUrl = getBaseUrl(rootData?.ENV?.DOMAIN);
 
   // Mobile search modal state
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
+
+  // Infinite scroll hook
+  const {
+    allItems: allCars,
+    allRatings,
+    hasMore,
+    fetchError,
+    isLoading,
+    sentinelRef,
+    initialItemsCount,
+    retry,
+  } = useInfiniteScroll({
+    initialItems: cars,
+    initialRatings: ratings,
+    initialPagination: pagination,
+    searchParams,
+  });
 
   // Parse URL params for display
   const from = searchParams.get("from");
@@ -711,27 +878,43 @@ export default function SearchPage() {
       <div className="max-w-7xl mx-auto my-24">
         {/* Results Header */}
         <h4 className="py-4 font-semibold">
-          {cars.length} {serviceTierLabels[filters.serviceTier ?? ServiceTiers.STANDARD]}{" "}
+          {pagination?.total ?? allCars.length}{" "}
+          {serviceTierLabels[filters.serviceTier ?? ServiceTiers.STANDARD]}{" "}
           {vehicleTypeLabels[filters.vehicleType ?? VehicleTypes.SEDAN]}{" "}
-          {cars.length === 1 ? "vehicle" : "vehicles"} found
+          {(pagination?.total ?? allCars.length) === 1 ? "vehicle" : "vehicles"} found
         </h4>
 
-        {cars.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {cars.map((car, index) => (
-              <CarCard
-                key={car.id}
-                car={car}
-                searchParams={searchParams}
-                priority={index < 6}
-                price={getRateForBookingType(car)}
-                showTotal={hasDateFilters}
-                totalPrice={hasDateFilters ? getRateForBookingType(car) * totalUnits : undefined}
-                variant="grid"
-                ratings={ratings[car.id]}
-              />
-            ))}
-          </div>
+        {/* Hidden pagination links for SEO */}
+        {pagination && (
+          <PaginationControl
+            currentPage={pagination.page}
+            totalPages={pagination.totalPages}
+            hasNextPage={pagination.hasNextPage}
+            hasPreviousPage={pagination.hasPreviousPage}
+            searchParams={searchParams}
+            baseUrl={baseUrl}
+          />
+        )}
+
+        {allCars.length > 0 ? (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {allCars.map((car, index) => (
+                <CarCard
+                  key={car.id}
+                  car={car}
+                  searchParams={searchParams}
+                  priority={index < 6}
+                  price={getRateForBookingType(car)}
+                  showTotal={hasDateFilters}
+                  totalPrice={hasDateFilters ? getRateForBookingType(car) * totalUnits : undefined}
+                  variant="grid"
+                  ratings={allRatings[car.id]}
+                />
+              ))}
+            </div>
+            {hasMore && <div ref={sentinelRef} className="h-1" aria-hidden="true" />}
+          </>
         ) : (
           <div className="text-center py-16 bg-white rounded-xl border border-gray-200">
             <div className="max-w-md mx-auto">
@@ -752,6 +935,30 @@ export default function SearchPage() {
                 </Button>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Loading state during fetch */}
+        {hasMore && isLoading && (
+          <div className="mt-6">
+            <CarSkeleton count={3} grid={true} />
+          </div>
+        )}
+
+        {/* Error state */}
+        {fetchError && (
+          <div className="text-center py-4 mt-6">
+            <p className="text-sm text-red-600 mb-2">{fetchError}</p>
+            <Button variant="outline" size="sm" onClick={retry}>
+              Retry
+            </Button>
+          </div>
+        )}
+
+        {/* No more results message */}
+        {!hasMore && allCars.length > initialItemsCount && (
+          <div className="text-center py-8 text-sm text-gray-500 mt-6">
+            You&apos;ve reached the end of available vehicles
           </div>
         )}
       </div>

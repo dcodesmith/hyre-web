@@ -261,8 +261,8 @@ export const meta: MetaFunction<typeof loader> = ({ data }) => {
   const carUrl = `${baseUrl}/cars/${slug}`;
   const imageUrl = car.images?.[0]?.url || `${baseUrl}/og-image.jpg`;
 
-  const title = `${carName} - Book Now | Tripdly`;
-  const description = `Book ${carName} with professional chauffeur service in Nigeria. ${car.color} ${car.vehicleType} available for day trips, airport pickups, and special events. Starting from ${price} per day. Safe, reliable, and exceptional service.`;
+  const title = `${carName} in Lagos, Nigeria - Book Now | Tripdly`;
+  const description = `Book ${carName} with professional chauffeur service in Lagos, Nigeria. ${car.color} ${car.vehicleType} available for day trips, airport pickups, and special events. Starting from ${price} per day. Safe, reliable, and exceptional service. Instant booking & secure payment.`;
   const keywords = getVehicleKeywords(car.make, car.model, car.vehicleType);
 
   return generateMetaTags({

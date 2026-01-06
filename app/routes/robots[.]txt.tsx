@@ -30,7 +30,6 @@ Disallow: /debug*
 
 # Disallow query parameters that create duplicate content
 Disallow: /*?*sort=
-Disallow: /*?*page=
 
 # Sitemaps
 Sitemap: ${domain}/sitemap.xml

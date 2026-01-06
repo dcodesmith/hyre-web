@@ -166,7 +166,10 @@ export default function Carousel({
       onTouchCancel={handleTouchCancel}
     >
       <div
-        className={`flex will-change-transform ${isDragging ? "transition-none" : "transition-transform duration-200 ease-out"}`}
+        className={cn(
+          "flex will-change-transform",
+          isDragging ? "transition-none" : "transition-transform duration-200 ease-out",
+        )}
         style={{
           transform: `translateX(calc(-${currentIndex * 100}% + ${dragOffset}px))`,
         }}
@@ -175,6 +178,7 @@ export default function Carousel({
           const altText = carName
             ? `${carName} - Image ${index + 1} of ${images.length}`
             : `Car image ${index + 1} of ${images.length}`;
+
           return (
             <img
               key={image}
