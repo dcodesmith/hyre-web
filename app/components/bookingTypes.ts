@@ -24,7 +24,7 @@ export const TAB_VALUE_TO_BOOKING_TYPE: Record<string, BookingType> = {
 
 export const BOOKING_TYPE_OPTIONS_MAP = {
   [DAY_BOOKING_TYPE]: {
-    label: "Day",
+    label: "Same Day",
     duration: "12 hours",
     value: "day",
   },

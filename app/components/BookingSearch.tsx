@@ -21,80 +21,9 @@ import {
   NIGHT_BOOKING_TYPE,
   TAB_VALUE_TO_BOOKING_TYPE,
 } from "./bookingTypes";
+import { BookingTypeTabs } from "./BookingTypeTabs";
 import { Button } from "./ui/button";
-import { Tabs, TabsList, TabsTrigger } from "./ui/tabs";
-
-interface BookingTypeTabsProps {
-  readonly value: string;
-  readonly onValueChange: (value: string) => void;
-  readonly variant: "expanded" | "compact";
-  readonly context?: "hero" | "modal";
-}
-
-function BookingTypeTabs({
-  value,
-  onValueChange,
-  variant,
-  context = "hero",
-}: BookingTypeTabsProps) {
-  const isCompact = variant === "compact";
-  const isModal = context === "modal";
-
-  if (isCompact) {
-    return (
-      <Tabs value={value} onValueChange={onValueChange}>
-        <TabsList className="h-7 p-0.5 gap-0.5 bg-gray-100 rounded-full">
-          {BOOKING_TYPE_OPTIONS.map((type) => {
-            const option = BOOKING_TYPE_OPTIONS_MAP[type];
-            return (
-              <TabsTrigger
-                key={option.value}
-                className="h-6 px-2.5 text-xs font-medium rounded-full data-[state=active]:bg-white data-[state=active]:shadow-sm"
-                value={option.value}
-              >
-                {option.label}
-              </TabsTrigger>
-            );
-          })}
-        </TabsList>
-      </Tabs>
-    );
-  }
-
-  return (
-    <Tabs className="w-full" value={value} onValueChange={onValueChange}>
-      <TabsList
-        className={`p-1 gap-1 tabs-list-slider w-full h-auto before:w-[calc((100%-0.75rem)/4)] rounded-lg ${
-          isModal
-            ? "bg-gray-100 border border-gray-200"
-            : "bg-white/10 backdrop-blur-sm border border-white/20"
-        }`}
-      >
-        {BOOKING_TYPE_OPTIONS.map((type) => {
-          const option = BOOKING_TYPE_OPTIONS_MAP[type];
-          return (
-            <TabsTrigger
-              key={option.value}
-              className={`flex flex-col items-center justify-center min-w-0 data-[state=active]:shadow-none tabs-trigger-slider data-[state=active]:bg-white py-2 px-1 ${
-                isModal
-                  ? "data-[state=active]:text-foreground text-gray-700"
-                  : "data-[state=active]:text-foreground text-white/90"
-              }`}
-              value={option.value}
-            >
-              <span className="text-sm font-semibold text-center whitespace-nowrap">
-                {option.label}
-              </span>
-              <span className="text-xs opacity-80 text-center whitespace-nowrap">
-                {option.duration}
-              </span>
-            </TabsTrigger>
-          );
-        })}
-      </TabsList>
-    </Tabs>
-  );
-}
+import { cn } from "~/lib/utils";
 
 interface BookingTypeInputProps {
   readonly bookingType: BookingType;
@@ -164,7 +93,7 @@ function BookingTypeInput({
         {/* Two-column layout: left (label+input), right (validation message) */}
         <div className="flex items-start gap-2">
           {/* Left column: Label + Input - takes full width when no message */}
-          <div className={`flex flex-col min-w-0 ${validationContent ? "w-[45%]" : "flex-1"}`}>
+          <div className={cn("flex flex-col min-w-0", validationContent ? "w-[45%]" : "flex-1")}>
             <span className={labelClass}>Flight Number</span>
             <AutocompleteFlight
               id="flightNumber"
@@ -219,31 +148,36 @@ interface SearchButtonProps {
 }
 
 function SearchButton({ isCompact, isSearching, onClick }: SearchButtonProps) {
-  const containerClass = isCompact
-    ? "flex-none flex items-center justify-center py-2 pl-2 pr-2"
-    : "w-full md:w-auto flex items-center justify-center px-4 sm:px-3 py-3 md:py-2 min-h-[60px]";
-
-  const buttonClass = isCompact
-    ? "h-9 w-9 p-0 flex items-center justify-center"
-    : "w-full md:w-auto h-12 md:h-12 px-6 md:px-8 text-sm md:text-base";
-
-  const iconClass = isCompact ? "h-4 w-4" : "h-5 w-5";
-
   return (
-    <div className={containerClass}>
+    <div
+      className={cn(
+        "flex items-center justify-center",
+        isCompact
+          ? "flex-none py-2 pl-2 pr-2"
+          : "w-full md:w-auto px-4 sm:px-3 py-3 md:py-2 min-h-[60px]",
+      )}
+    >
       <Button
-        className={`rounded-full font-semibold bg-primary hover:bg-primary/90 transition-all duration-300 ${buttonClass}`}
+        className={cn(
+          "rounded-full font-semibold bg-primary hover:bg-primary/90 transition-all duration-300",
+          isCompact
+            ? "h-9 w-9 p-0 flex items-center justify-center"
+            : "w-full md:w-auto h-12 md:h-12 px-6 md:px-8 text-sm md:text-base",
+        )}
         onClick={onClick}
         disabled={isSearching}
       >
         {isSearching ? (
           <>
-            <Loader2 className={`${iconClass} animate-spin`} />
+            <Loader2 className={cn("animate-spin", isCompact ? "h-4 w-4" : "h-5 w-5")} />
             {!isCompact && <span className="ml-2 md:hidden">Searching...</span>}
           </>
         ) : (
           <>
-            <Search className={isCompact ? iconClass : `${iconClass} mr-2`} aria-label="Search" />
+            <Search
+              className={cn(isCompact ? "h-4 w-4" : "h-5 w-5 mr-2")}
+              aria-label="Search"
+            />
             {!isCompact && <span className="ml-2 md:hidden">Search</span>}
           </>
         )}
@@ -513,31 +447,33 @@ export function BookingSearch({
     <div className="w-full">
       {/* Booking Type Tabs - Above the pill, hidden when compact */}
       <div
-        className={`transition-all duration-300 overflow-hidden ${
-          isCompact ? "opacity-0 max-h-0 mb-0" : "opacity-100 max-h-24 mb-4"
-        }`}
+        className={cn(
+          "transition-all duration-300 overflow-hidden",
+          isCompact ? "opacity-0 max-h-0 mb-0" : "opacity-100 max-h-24 mb-4",
+        )}
       >
         <BookingTypeTabs
           value={BOOKING_TYPE_OPTIONS_MAP[bookingType].value}
           onValueChange={handleBookingTypeChange}
-          variant="expanded"
-          context={context}
+          variant={context}
         />
       </div>
 
       {/* Airbnb-style Pill Search */}
       <div className="w-full">
         <div
-          className={`bg-white border border-gray-200 transition-all duration-300 ${
+          className={cn(
+            "bg-white border border-gray-200 transition-all duration-300",
             isCompact
               ? "rounded-full shadow-md hover:shadow-lg"
-              : "rounded-3xl md:rounded-full shadow-2xl hover:shadow-xl"
-          }`}
+              : "rounded-3xl md:rounded-full shadow-2xl hover:shadow-xl",
+          )}
         >
           <div
-            className={`flex items-stretch ${
-              isCompact ? "flex-row divide-x divide-gray-300" : "flex-col md:flex-row"
-            }`}
+            className={cn(
+              "flex items-stretch",
+              isCompact ? "flex-row divide-x divide-gray-300" : "flex-col md:flex-row",
+            )}
           >
             {/* Compact Booking Type Selector - Only visible when compact */}
             {isCompact && (
