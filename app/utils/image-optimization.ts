@@ -1,4 +1,4 @@
-const ALLOWED_WIDTHS = [320, 480, 640, 800, 1024, 1200, 1600];
+const ALLOWED_WIDTHS = [320, 400, 440, 480, 640, 800, 1024, 1200, 1600];
 
 type ImageFormat = "webp" | "jpeg" | "png" | "auto";
 
@@ -19,7 +19,7 @@ function getNearestWidth(width: number): number {
  * Without Lambda@Edge, CloudFront will serve the original images and ignore query parameters.
  *
  * @param originalUrl - The original S3 image URL
- * @param options.width - Desired width (snaps to nearest allowed: 320, 480, 640, 800, 1024, 1200, 1600)
+ * @param options.width - Desired width (snaps to nearest allowed: 320, 400, 440, 480, 640, 800, 1024, 1200, 1600)
  * @param options.quality - Quality 60-90 (default: 75 for better compression)
  * @param options.format - 'webp' | 'jpeg' | 'png' | 'auto' (default: 'auto' - uses Accept header)
  */

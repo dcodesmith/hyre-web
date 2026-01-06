@@ -1,4 +1,4 @@
-import { MouseEvent, useState, useRef, TouchEvent } from "react";
+import { MouseEvent, useState, useRef, TouchEvent, useMemo } from "react";
 import { Button } from "./ui/button";
 import { cn } from "~/lib/utils";
 import { MoveLeft, MoveRight } from "lucide-react";
@@ -6,10 +6,60 @@ import { getOptimizedImageUrl, getImageSrcSet } from "~/utils/image-optimization
 
 interface CarouselProps {
   readonly images?: string[];
-  readonly variant?: "carousel" | "booking";
+  readonly variant?: "carousel" | "booking" | "grid";
   readonly priority?: boolean;
   /** Car name for SEO-friendly alt text (e.g., "2023 Toyota Camry") */
   readonly carName?: string;
+}
+
+const VARIANT_DIMENSIONS = {
+  carousel: { baseWidth: 220, sizesAttr: "(max-width: 640px) 220px, 250px" },
+  grid: {
+    baseWidth: 380,
+    sizesAttr:
+      "(max-width: 640px) calc(100vw - 2rem), (max-width: 1024px) calc(50vw - 1.5rem), 400px",
+  },
+  booking: {
+    baseWidth: 412,
+    sizesAttr: "(max-width: 768px) 100vw, (max-width: 1024px) 80vw, 691px",
+  },
+} as const;
+
+/**
+ * Calculates the optimal base width and sizes attribute for responsive images
+ * based on the carousel variant.
+ *
+ * Mobile-first approach: baseWidth matches mobile display size to optimize
+ * image download size. The sizes attribute tells the browser what size to expect
+ * at different breakpoints, allowing it to select the best image from srcSet.
+ *
+ * Image size selection (browser picks from srcSet based on display size × DPR):
+ * - Carousel variant (baseWidth 220px, srcSet: 320w, 400w, 440w, 480w, 640w):
+ *   • Mobile 220px @ 1x DPR: selects 320w (220px × 1 = 220px needed)
+ *   • Mobile 220px @ 2x DPR: selects 440w (220px × 2 = 440px needed)
+ *   • Desktop 250px @ 1x DPR: selects 320w (250px × 1 = 250px needed)
+ *   • Desktop 250px @ 2x DPR: selects 640w (250px × 2 = 500px needed)
+ *
+ * - Grid variant (baseWidth 380px, srcSet: 400w, 640w, 800w):
+ *   • Mobile 380px @ 1x DPR: selects 400w (380px × 1 = 380px needed)
+ *   • Mobile 380px @ 2x DPR: selects 800w (380px × 2 = 760px needed)
+ *   • Desktop 400px @ 1x DPR: selects 400w (400px × 1 = 400px needed)
+ *   • Desktop 400px @ 2x DPR: selects 800w (400px × 2 = 800px needed)
+ *
+ * - Booking variant (baseWidth 412px, srcSet: 480w, 640w, 1024w):
+ *   • Mobile 412px @ 1x DPR: selects 480w (412px × 1 = 412px needed)
+ *   • Mobile 412px @ 2x DPR: selects 1024w (412px × 2 = 824px needed)
+ *   • Desktop 691px @ 1x DPR: selects 1024w (691px × 1 = 691px needed)
+ *   • Desktop 691px @ 2x DPR: selects 1024w (691px × 2 = 1382px needed, uses largest available)
+ *
+ * @param variant - The carousel variant: "carousel" (home page), "grid" (search page), or "booking" (car detail page)
+ * @returns Object with baseWidth (number) and sizesAttr (string)
+ */
+function getImageDimensions(variant: "carousel" | "booking" | "grid"): {
+  baseWidth: number;
+  sizesAttr: string;
+} {
+  return VARIANT_DIMENSIONS[variant];
 }
 
 export default function Carousel({
@@ -99,6 +149,9 @@ export default function Carousel({
 
   const handleTouchCancel = () => resetTouchState();
 
+  // Calculate image dimensions once based on variant (memoized to avoid recalculation)
+  const { baseWidth, sizesAttr } = useMemo(() => getImageDimensions(variant), [variant]);
+
   return (
     <div
       aria-label="Car images"
@@ -119,24 +172,16 @@ export default function Carousel({
         }}
       >
         {images.map((image, index) => {
-          // Mobile-first approach: 320px base width
-          // This generates srcSet: 320w, 480w, 640w
-          // Mobile (375px viewport):
-          //   - 1x DPI: 375px needed → selects 480w (perfect)
-          //   - 2x DPI: 750px needed → selects 800w (from extended srcSet)
-          // Desktop will still get larger sizes from srcSet when needed
-          const baseWidth = 320;
+          const altText = carName
+            ? `${carName} - Image ${index + 1} of ${images.length}`
+            : `Car image ${index + 1} of ${images.length}`;
           return (
             <img
               key={image}
               src={getOptimizedImageUrl(image, { width: baseWidth })}
               srcSet={getImageSrcSet(image, baseWidth)}
-              sizes={
-                variant === "booking"
-                  ? "(max-width: 768px) 100vw, (max-width: 1024px) 80vw, 800px"
-                  : "(max-width: 640px) 220px, (max-width: 1024px) 250px, 640px"
-              }
-              alt={carName ? `${carName} - Image ${index + 1} of ${images.length}` : `Car image ${index + 1} of ${images.length}`}
+              sizes={sizesAttr}
+              alt={altText}
               className="w-full aspect-[4/3] object-cover flex-shrink-0"
               width={baseWidth}
               height={Math.round(baseWidth * 0.75)}

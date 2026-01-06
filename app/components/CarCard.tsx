@@ -61,6 +61,7 @@ export function CarCard({
         <div className="relative">
           <Carousel
             images={car.images.length ? car.images.map(({ url }) => url) : undefined}
+            variant={isGrid ? "grid" : "carousel"}
             priority={priority}
             carName={carName}
           />
