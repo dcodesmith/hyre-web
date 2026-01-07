@@ -32,8 +32,6 @@ export const env = initEnvs();
  */
 export function getSharedEnvs() {
   return {
-    DEV_HOST_URL: env.DEV_HOST_URL,
-    PROD_HOST_URL: env.PROD_HOST_URL,
     APP_NAME: env.APP_NAME,
     GOOGLE_MAPS_API_KEY: env.GOOGLE_MAPS_API_KEY,
     DOMAIN: env.DOMAIN,

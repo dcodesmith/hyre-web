@@ -2,7 +2,8 @@ import { Star } from "lucide-react";
 import * as React from "react";
 import { cn } from "~/lib/utils";
 
-type RatingValue = 1 | 2 | 3 | 4 | 5;
+const ratingValues = [1, 2, 3, 4, 5] as const;
+type RatingValue = (typeof ratingValues)[number]; // 1 | 2 | 3 | 4 | 5
 
 interface StarRatingProps {
   /**
@@ -196,7 +197,7 @@ export function StarRating({
       role={isInteractive ? "radiogroup" : undefined}
       aria-label={ariaLabel ?? `${rating} out of 5 stars`}
     >
-      {[1, 2, 3, 4, 5].map((position) => {
+      {ratingValues.map((position) => {
         // For interactive mode with hover, show full stars up to hover position
         const isHovered = isInteractive && hoveredRating !== null && position <= hoveredRating;
 
@@ -222,12 +223,12 @@ export function StarRating({
                 position === focusedStar &&
                 "ring-2 ring-neutral-950 ring-offset-2",
             )}
-            onClick={() => handleClick(position as RatingValue)}
+            onClick={() => handleClick(position)}
             onMouseEnter={() => isInteractive && setHoveredRating(position)}
             onMouseLeave={() => isInteractive && setHoveredRating(null)}
             onFocus={() => isInteractive && setIsKeyboardFocused(true)}
             onBlur={() => setIsKeyboardFocused(false)}
-            onKeyDown={(e) => handleKeyDown(e, position as RatingValue)}
+            onKeyDown={(e) => handleKeyDown(e, position)}
             aria-label={`${position} star${position === 1 ? "" : "s"}`}
             aria-pressed={position <= Math.round(rating)}
             tabIndex={getTabIndex()}

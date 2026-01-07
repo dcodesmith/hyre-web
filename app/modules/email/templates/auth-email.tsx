@@ -16,7 +16,7 @@ export function renderAuthEmail({ code, intent }: AuthEmailOptions) {
       </Heading>
 
       <Text className="text-sm text-gray-800">
-        Use the {intent} verification code below. It is only valid for 60 seconds.
+        Use the {intent} verification code below. It is only valid for 10 minutes.
       </Text>
       <code className="text-xl font-semibold">{code}</code>
     </EmailTemplate>,

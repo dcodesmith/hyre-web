@@ -270,7 +270,8 @@ export function generateVehicleOfferData(car: {
 /**
  * Generate SEO-friendly slug for a car
  * Format: {year}-{make}-{model}-{shortId}
- * Example: 2023-toyota-camry-cmiiyvz
+ * Example: 2023-toyota-camry-cmiiyvz12a3bc
+ * Note: Using 13 characters to handle edge cases where CUIDs share long prefixes
  */
 export function generateCarSlug(car: {
   id: string;
@@ -278,7 +279,7 @@ export function generateCarSlug(car: {
   model: string;
   year: number;
 }): string {
-  const shortId = car.id.slice(0, 7);
+  const shortId = car.id.slice(0, 13);
   let slug = `${car.year}-${car.make}-${car.model}`
     .toLowerCase()
     .replaceAll(/[^\w\s-]/g, "") // Remove special characters
@@ -296,7 +297,7 @@ export function generateCarSlug(car: {
 
 /**
  * Extract the car ID from a slug
- * The ID is the last 7 characters after the final hyphen
+ * The ID is the last 13 characters after the final hyphen
  * Returns null if the slug format is invalid
  */
 export function extractCarIdFromSlug(slug: string): string | null {
@@ -305,8 +306,8 @@ export function extractCarIdFromSlug(slug: string): string | null {
     return slug;
   }
 
-  // Extract the short ID from the end of the slug
-  const regex = /-([a-z0-9]{7})$/i;
+  // Extract the short ID from the end of the slug (13 chars for uniqueness)
+  const regex = /-([a-z0-9]{13})$/i;
   const match = regex.exec(slug);
   if (match) {
     return match[1]; // Return the short ID to search with startsWith

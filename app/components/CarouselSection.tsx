@@ -11,7 +11,7 @@ interface CarouselSectionProps {
   readonly children: ReactNode;
 }
 
-export function CarouselSection({ title, href = "#", id, children }: CarouselSectionProps) {
+export function CarouselSection({ title, href, id, children }: CarouselSectionProps) {
   const { scrollContainerRef, canScrollLeft, canScrollRight, scroll, checkScroll } =
     useCarouselScroll();
 
@@ -21,14 +21,18 @@ export function CarouselSection({ title, href = "#", id, children }: CarouselSec
   return (
     <section id={id} className="relative max-w-[1400px] mx-auto px-6 md:px-8 scroll-mt-20">
       {/* Header */}
-      <div className="mb-4">
+      <div className="mb-2">
         <div className="flex justify-between items-center">
-          <Link to={href} className="group inline-flex items-center gap-2">
-            <h2 className="text-lg md:text-xl font-semibold group-hover:underline">{title}</h2>
-            <span className="inline-flex items-center justify-center h-8 w-8 border border-input bg-background rounded-full p-1.5 group-hover:border-gray-900 transition-colors">
-              <ArrowRight className="h-4 w-4" />
-            </span>
-          </Link>
+          {href ? (
+            <Link to={href} className="group inline-flex items-center gap-2">
+              <h2 className="text-lg md:text-xl font-semibold group-hover:underline">{title}</h2>
+              <span className="inline-flex items-center justify-center h-8 w-8 border border-input bg-background rounded-full p-1.5 group-hover:border-gray-900 transition-colors">
+                <ArrowRight className="h-4 w-4" />
+              </span>
+            </Link>
+          ) : (
+            <h2 className="text-lg md:text-xl font-semibold">{title}</h2>
+          )}
 
           {/* Navigation Arrows - All Views */}
           <CarouselNavigation

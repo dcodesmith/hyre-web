@@ -24,7 +24,7 @@ const config = {
   }),
   secret: env.SESSION_SECRET,
   baseURL: env.DOMAIN ?? "http://localhost:5173",
-  trustedOrigins: env.DOMAIN ? [env.DOMAIN] : undefined,
+  trustedOrigins: [env.DOMAIN],
   session: {
     // 60 * 60 * 24 * 7 = 604800 seconds (7 days)
     expiresIn: 60 * 60 * 24 * 7,

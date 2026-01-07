@@ -39,17 +39,15 @@ export function CarCard({
   ratings,
 }: CarCardProps) {
   const isGrid = variant === "grid";
-  // Generate SEO-friendly slug for car URL
+
   const carSlug = generateCarSlug({ id: car.id, make: car.make, model: car.model, year: car.year });
 
-  // Ensure bookingType=DAY is set by default, unless another bookingType is already specified
   const linkParams = new URLSearchParams(searchParams?.toString() || "");
   if (!linkParams.has("bookingType")) {
     linkParams.set("bookingType", "DAY");
   }
   const linkUrl = `/cars/${carSlug}?${linkParams.toString()}`;
 
-  // Generate car name for SEO alt text
   const carName = `${car.year} ${car.make} ${car.model}`;
 
   return (

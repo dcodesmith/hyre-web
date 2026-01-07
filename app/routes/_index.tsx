@@ -14,6 +14,7 @@ import type { AggregatedRatings } from "~/services/reviews.server";
 import { useState } from "react";
 import { CarCard } from "~/components/CarCard";
 import { CarouselSection } from "~/components/CarouselSection";
+import { TopBookingCard, filterTopBookings } from "~/components/TopBookingCard";
 import { CompactSearchBar } from "~/components/CompactSearchBar";
 import { SearchModal } from "~/components/SearchModal";
 import { AISearchModal } from "~/components/AISearchModal";
@@ -271,6 +272,9 @@ export default function IndexPage() {
   // Use dayRate for default price display on homepage
   const getRateForDisplay = (car: SerializedCar) => car.dayRate;
 
+  // Filter cars with 4.5+ rating for Top Bookings section
+  const topBookings = filterTopBookings(categories.allCars, ratings);
+
   // Use the mobile hook for responsive behavior
   const isMobile = useIsMobile();
   const isDesktop = !isMobile;
@@ -480,19 +484,36 @@ export default function IndexPage() {
               </div>
             </div>
 
+            {/* Top Bookings Section - Cars with 4.5+ rating */}
+            {topBookings.length > 0 && (
+              <CarouselSection title="Top Rated" id="top-bookings">
+                {topBookings.map(({ car, ratings: carRatings }, index) => (
+                  <TopBookingCard
+                    key={car.id}
+                    car={car}
+                    priority={index < 3}
+                    price={car.dayRate}
+                    ratings={carRatings}
+                  />
+                ))}
+              </CarouselSection>
+            )}
+
             {/* SUVs Section */}
             {categories.suvs.length > 0 && (
               <CarouselSection title="SUV" id="suvs" href="/search?vehicleType=SUV">
-                {categories.suvs.map((car, index) => (
-                  <CarCard
-                    key={car.id}
-                    car={car}
-                    priority={index < 5}
-                    price={getRateForDisplay(car)}
-                    showTotal={false}
-                    ratings={ratings[car.id]}
-                  />
-                ))}
+                {categories.suvs.map((car, index) => {
+                  return (
+                    <CarCard
+                      key={car.id}
+                      car={car}
+                      priority={index < 5}
+                      price={getRateForDisplay(car)}
+                      showTotal={false}
+                      ratings={ratings[car.id]}
+                    />
+                  );
+                })}
               </CarouselSection>
             )}
 

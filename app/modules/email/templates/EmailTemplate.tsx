@@ -18,7 +18,7 @@ import { env } from "~/utils/server/env.server";
 // Sourcing company details from environment variables for a Remix app (server-side)
 const COMPANY_NAME = env.APP_NAME || "Tripdly";
 const COMPANY_ADDRESS = "Lagos, Nigeria";
-const WEBSITE_URL = env.WEBSITE_URL || env.DOMAIN || "https://hyre-neon.vercel.app";
+const WEBSITE_URL = env.DOMAIN || "https://tripdly.com";
 const SUPPORT_EMAIL = env.SUPPORT_EMAIL || "support@tripdly.com";
 const CURRENT_YEAR = new Date().getFullYear();
 
