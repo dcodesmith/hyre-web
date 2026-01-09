@@ -1,7 +1,7 @@
 import { cn } from "~/lib/utils";
 import { AISearchModal } from "./AISearchModal";
 import { BookingSearch } from "./BookingSearch";
-import { Dialog, DialogContent } from "./ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "./ui/dialog";
 
 interface SearchModalProps {
   readonly isOpen: boolean;
@@ -25,6 +25,10 @@ export function SearchModal({ isOpen, onClose, navigateToSearch = false }: Searc
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className={dialogContentClasses}>
+        <DialogHeader className="sr-only">
+          <DialogTitle>Search</DialogTitle>
+          <DialogDescription>Search modal</DialogDescription>
+        </DialogHeader>
         <div className="overflow-y-auto px-4 py-6 flex-1">
           <BookingSearch
             isCompact={false}

@@ -66,20 +66,30 @@ export function TopBookingCard({
   return (
     <Link to={linkUrl} className="flex-shrink-0 w-[220px] md:w-[250px] snap-start group">
       <div className="relative h-[96px] bg-white rounded-xl overflow-hidden shadow-sm border border-stone-200 hover:shadow-md transition-shadow">
-        {/* Content container - horizontal layout */}
-        <div className="flex h-full relative">
-          {/* Left side - Text content */}
-          <div className="flex-1 p-3 flex flex-col justify-between min-w-0">
+        <div className="flex h-full">
+          <div className="flex-1 text-sm p-3 flex flex-col justify-between min-w-0">
             <div>
-              <h3 className="font-semibold text-xs leading-tight line-clamp-1">
+              <h3 className="font-semibold leading-tight line-clamp-1">
                 {car.make} {car.model}
               </h3>
             </div>
 
-            {/* Price */}
+            <div className="flex items-center gap-1">
+              <StarRating
+                rating={ratings.averageRating}
+                mode="compact"
+                variant="black"
+                size="sm"
+                ariaLabel={`Average rating: ${ratings.averageRating.toFixed(1)} out of 5 stars`}
+              />
+              <span className="font-medium text-gray-700 leading-none">
+                {ratings.averageRating.toFixed(1)} ({ratings.totalReviews})
+              </span>
+            </div>
+
             <div className="flex items-baseline gap-1">
-              <span className="font-semibold text-xs">{formatCurrency(price)}</span>
-              <span className="text-[10px] text-gray-500">/ day</span>
+              <span className="font-semibold">{formatCurrency(price)}</span>
+              <span className=" text-gray-500">/ day</span>
             </div>
           </div>
 
@@ -104,32 +114,6 @@ export function TopBookingCard({
                 transformOrigin: "top left",
               }}
             />
-
-            {/* Linear gradient overlay at top-right for text readability */}
-            <div
-              className="absolute -top-2 -right-2 w-24 h-10 z-10 pointer-events-none"
-              style={{
-                background:
-                  "linear-gradient(to bottom left, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.75) 15%, rgba(255, 255, 255, 0.6) 30%, rgba(255, 255, 255, 0.45) 45%, rgba(255, 255, 255, 0.3) 60%, rgba(255, 255, 255, 0.2) 70%, rgba(255, 255, 255, 0.1) 80%, rgba(255, 255, 255, 0.05) 88%, transparent 100%)",
-                maskImage: "linear-gradient(to bottom left, black 0%, black 85%, transparent 100%)",
-                WebkitMaskImage:
-                  "linear-gradient(to bottom left, black 0%, black 85%, transparent 100%)",
-              }}
-            />
-
-            {/* Rating */}
-            <div className="absolute top-0 right-0 px-2 py-0.5 z-20">
-              <StarRating
-                rating={ratings.averageRating}
-                mode="compact"
-                variant="black"
-                size="sm"
-                ariaLabel={`Average rating: ${ratings.averageRating.toFixed(1)} out of 5 stars`}
-              />
-              <span className="text-xs font-medium text-gray-700 leading-none">
-                {ratings.averageRating.toFixed(1)} ({ratings.totalReviews})
-              </span>
-            </div>
           </div>
         </div>
       </div>
