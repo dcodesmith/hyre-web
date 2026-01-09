@@ -200,7 +200,7 @@ export async function verifyTransaction(
  * Initiates a refund for a transaction
  */
 export async function refundPayment(transactionId: string, amount: number, callbackurl: string) {
-  logger.info("Refunding payment", {
+  logger.info("[Flutterwave Refund] Initiating refund", {
     transactionId,
     amount,
     callbackurl,
@@ -219,16 +219,37 @@ export async function refundPayment(transactionId: string, amount: number, callb
       },
     );
 
-    logger.info("Refund response", response.data);
+    logger.info("[Flutterwave Refund] API response received", {
+      transactionId,
+      responseStatus: response.data.status,
+      refundId: response.data.data?.id,
+      refundStatus: response.data.data?.status,
+      amountRefunded: response.data.data?.amount_refunded,
+    });
 
     if (response.data.status === "success") {
-      return {
+      const refundData = {
         success: true,
         refundId: response.data.data.id,
         amount: response.data.data.amount_refunded,
         status: response.data.data.status,
       };
+
+      logger.info("[Flutterwave Refund] Refund initiated successfully", {
+        transactionId,
+        refundId: refundData.refundId,
+        amountRefunded: refundData.amount,
+        refundStatus: refundData.status,
+      });
+
+      return refundData;
     }
+
+    logger.warn("[Flutterwave Refund] Refund initiation returned non-success status", {
+      transactionId,
+      status: response.data.status,
+      message: response.data.message,
+    });
 
     return { success: false, message: response.data.message };
   } catch (error: unknown) {
@@ -244,36 +265,6 @@ export async function refundPayment(transactionId: string, amount: number, callb
 
     logger.error("[Flutterwave Refund] Unknown error", { error: String(error) });
     return { success: false, error: "An unknown error occurred" };
-  }
-}
-
-/**
- * Verifies a refund's status directly with Flutterwave
- */
-export async function verifyRefund(refundId: string) {
-  try {
-    const response = await axios.get(`https://api.flutterwave.com/v3/refunds/${refundId}`, {
-      headers: {
-        Authorization: `Bearer ${env.FLUTTERWAVE_SECRET_KEY}`,
-      },
-    });
-
-    if (response.data.status === "success" && response.data.data.status === "successful") {
-      return {
-        verified: true,
-        amount: response.data.data.amount_refunded,
-        refundId: response.data.data.id,
-        transactionId: response.data.data.transaction_id,
-        status: response.data.data.status,
-      };
-    }
-
-    return { verified: false, status: response.data.data?.status };
-  } catch (error: unknown) {
-    logger.error(
-      `Refund verification error: ${error instanceof Error ? error.message : String(error)}`,
-    );
-    return { verified: false, error: error instanceof Error ? error.message : String(error) };
   }
 }
 
@@ -388,14 +379,11 @@ export async function initiatePayout(booking: BookingWithRelations) {
   }
 
   if (!bankDetails.isVerified) {
-    logger.warn(
-      "Bank details for fleet owner not verified. Cannot process payout for booking",
-      {
-        fleetOwnerId: fleetOwner.id,
-        bookingId: booking.id,
-        isVerified: bankDetails.isVerified,
-      },
-    );
+    logger.warn("Bank details for fleet owner not verified. Cannot process payout for booking", {
+      fleetOwnerId: fleetOwner.id,
+      bookingId: booking.id,
+      isVerified: bankDetails.isVerified,
+    });
     return;
   }
 

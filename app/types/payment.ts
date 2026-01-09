@@ -52,7 +52,16 @@ export interface FlutterwaveChargeCompletedPayload {
 export interface FlutterwaveRefundPayload {
   id: number;
   AmountRefunded: number;
-  status: "completed" | "failed";
+  status:
+    | "completed"
+    | "completed-bank-transfer"
+    | "completed-momo"
+    | "completed-mpgs"
+    | "completed-offline"
+    | "completed-preauth"
+    | "pending-momo"
+    | "processing"
+    | "failed";
   FlwRef: string;
   destination: string;
   comments: string | null;

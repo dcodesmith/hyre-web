@@ -254,6 +254,13 @@ async function handleBookingCancellation(bookingId: string, sessionUser: PrismaU
     }
 
     if (booking.paymentId && booking.totalAmount.gt(0)) {
+      logger.info("[Booking Cancellation] Initiating refund for cancelled booking", {
+        bookingId: booking.id,
+        transactionId: booking.paymentId,
+        refundAmount: booking.totalAmount.toNumber(),
+        paymentStatus: booking.paymentStatus,
+      });
+
       const callbackurl = `${env.FLUTTERWAVE_WEBHOOK_URL}/api/payments/webhook/flutterwave`;
       const refund = await refundPayment(
         booking.paymentId,
@@ -262,12 +269,28 @@ async function handleBookingCancellation(bookingId: string, sessionUser: PrismaU
       );
 
       if (refund.success && refund.refundId) {
-        logger.info(`Refund successful for Booking ${booking.id}. Refund ID: ${refund.refundId}.`);
+        logger.info("[Booking Cancellation] Refund initiated successfully", {
+          bookingId: booking.id,
+          transactionId: booking.paymentId,
+          refundId: refund.refundId,
+          refundAmount: refund.amount,
+          refundStatus: refund.status,
+        });
       } else {
-        logger.error(
-          `Failed to initiate refund for booking ${booking.id}: ${refund.error}. MANUAL REFUND REQUIRED.`,
-        );
+        logger.error("[Booking Cancellation] Failed to initiate refund - MANUAL REFUND REQUIRED", {
+          bookingId: booking.id,
+          transactionId: booking.paymentId,
+          refundAmount: booking.totalAmount.toNumber(),
+          error: refund.error || refund.message,
+        });
       }
+    } else {
+      logger.info("[Booking Cancellation] No refund required for cancelled booking", {
+        bookingId: booking.id,
+        hasPaymentId: !!booking.paymentId,
+        totalAmount: booking.totalAmount.toNumber(),
+        paymentStatus: booking.paymentStatus,
+      });
     }
 
     const bookingDetails = normaliseBookingDetails(booking);

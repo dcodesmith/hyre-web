@@ -464,13 +464,47 @@ async function reverseReferralReward(bookingId: string): Promise<void> {
 }
 
 async function handleRefundCompleted(payload: FlutterwaveRefundPayload) {
-  const { status, FlwRef: flutterwaveReference } = payload;
+  const { status: rawStatus, FlwRef: flutterwaveReference, id: refundId, AmountRefunded } = payload;
 
-  if (status !== "completed") {
-    logger.warn(
-      `[Unified Webhook] Refund event received but status is not 'completed': ${status}. Ignoring.`,
+  // Defensively coerce status to string to handle null/undefined/unexpected types
+  const status = String(rawStatus ?? "");
+
+  logger.info("[Unified Webhook] Refund webhook received", {
+    refundId,
+    flutterwaveReference,
+    status,
+    amountRefunded: AmountRefunded,
+  });
+
+  // Accept all completed statuses (completed, completed-bank-transfer, completed-momo, etc.)
+  const isCompleted = status.startsWith("completed");
+  const isFailed = status === "failed";
+
+  // Return 400 only for failed refunds
+  if (isFailed) {
+    logger.error(
+      `[Unified Webhook] Refund failed for transaction reference: ${flutterwaveReference ?? "unknown"}.`,
     );
-    return Response.json({ message: "Refund not completed." }, { status: 400 });
+    return Response.json({ message: "Refund failed." }, { status: 400 });
+  }
+
+  // For non-failed but uncompleted statuses (e.g., "processing", "pending-momo", etc.),
+  // return 200 OK with a benign message instead of 400
+  if (!isCompleted) {
+    logger.info(
+      `[Unified Webhook] Refund event received with intermediate/unhandled status: ${status}. Acknowledging but not processing.`,
+      {
+        refundId,
+        flutterwaveReference: flutterwaveReference ?? "unknown",
+        status,
+      },
+    );
+    return Response.json(
+      {
+        message: `Refund status '${status}' acknowledged. Processing will continue when status changes to completed.`,
+      },
+      { status: 200 },
+    );
   }
 
   if (!flutterwaveReference) {
@@ -481,6 +515,11 @@ async function handleRefundCompleted(payload: FlutterwaveRefundPayload) {
   }
 
   try {
+    logger.info("[Unified Webhook] Looking up payment record", {
+      flutterwaveReference,
+      refundId,
+    });
+
     const payment = await prisma.payment.findUnique({
       where: { flutterwaveReference: String(flutterwaveReference) },
       include: { booking: true },
@@ -488,15 +527,31 @@ async function handleRefundCompleted(payload: FlutterwaveRefundPayload) {
 
     if (!payment) {
       logger.error(
-        `[Unified Webhook] Payment record not found for Flutterwave transaction reference: ${flutterwaveReference}.`,
+        "[Unified Webhook] Payment record not found for Flutterwave transaction reference",
+        {
+          flutterwaveReference,
+          refundId,
+        },
       );
       return Response.json({ error: "Payment not found" }, { status: 404 });
     }
 
     if (!payment.booking) {
-      logger.error(`[Unified Webhook] No associated booking found for payment ID: ${payment.id}.`);
+      logger.error("[Unified Webhook] No associated booking found for payment", {
+        paymentId: payment.id,
+        flutterwaveReference,
+        refundId,
+      });
       return Response.json({ error: "Booking not found for payment" }, { status: 404 });
     }
+
+    logger.info("[Unified Webhook] Payment and booking found, updating status to REFUNDED", {
+      paymentId: payment.id,
+      bookingId: payment.booking.id,
+      refundId,
+      currentPaymentStatus: payment.status,
+      currentBookingPaymentStatus: payment.booking.paymentStatus,
+    });
 
     // Update payment and booking status to REFUNDED
     await prisma.$transaction([
@@ -510,22 +565,48 @@ async function handleRefundCompleted(payload: FlutterwaveRefundPayload) {
       }),
     ]);
 
-    logger.info(
-      `[Unified Webhook] Successfully processed refund for booking ${payment.booking.id}. Status updated to REFUNDED.`,
-    );
+    logger.info("[Unified Webhook] Successfully processed refund - status updated to REFUNDED", {
+      bookingId: payment.booking.id,
+      paymentId: payment.id,
+      refundId,
+      amountRefunded: AmountRefunded,
+      refundStatus: status,
+    });
 
     // Handle referral reversal on refund
     if (payment.booking.referralStatus !== "NONE") {
+      logger.info("[Unified Webhook] Processing referral reversal for refunded booking", {
+        bookingId: payment.booking.id,
+        referralStatus: payment.booking.referralStatus,
+        refundId,
+      });
+
       try {
         await reverseReferralReward(payment.booking.id);
+        logger.info("[Unified Webhook] Referral reversal completed for refunded booking", {
+          bookingId: payment.booking.id,
+          refundId,
+        });
       } catch (e) {
         logger.error("[Unified Webhook] Failed to reverse referral on refund", {
+          bookingId: payment.booking.id,
+          refundId,
           error: e instanceof Error ? e.message : e,
         });
       }
+    } else {
+      logger.info("[Unified Webhook] No referral reversal needed (referralStatus is NONE)", {
+        bookingId: payment.booking.id,
+        refundId,
+      });
     }
   } catch (error) {
-    logger.error(`[Unified Webhook] Error processing refund: ${error}`);
+    logger.error("[Unified Webhook] Error processing refund webhook", {
+      flutterwaveReference,
+      refundId,
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    });
     return Response.json({ error: "Failed to process refund" }, { status: 500 });
   }
 
