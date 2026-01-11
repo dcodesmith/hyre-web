@@ -285,7 +285,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     throw data({ error: "Forbidden" }, { status: 403 });
   }
 
-  return { booking };
+  return { booking: { ...booking, totalAmount: booking.totalAmount.toNumber() } };
 }
 
 export default function BookingDetails() {
