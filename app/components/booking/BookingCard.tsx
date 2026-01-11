@@ -51,7 +51,7 @@ import { getBookingSchema } from "~/schemas/booking.schema";
 const ERROR_RING_CLASSES = "border-red-500 focus-visible:ring-red-500 focus-visible:ring-2";
 
 type BookingCardProps = {
-  readonly car: Car & { fuelUpgradeRate: number };
+  readonly car: Car & { fuelUpgradeRate: number | null; pricingIncludesFuel: boolean };
   readonly isAvailable: boolean;
   readonly user: (User & { roles: { name: string }[]; phoneNumber?: string | null }) | null;
   readonly vatRate: number;
@@ -169,6 +169,10 @@ export default function BookingCard({
   const baseTotal = useMemo(() => currentCarPrice * totalDays, [currentCarPrice, totalDays]);
 
   const fuelUpgradeCost = useMemo(() => {
+    // If pricing includes fuel, no fuel upgrade cost
+    if (car.pricingIncludesFuel) {
+      return 0;
+    }
     // FULL_DAY, NIGHT, and AIRPORT_PICKUP bookings don't have fuel upgrades
     if (
       bookingType === FULL_DAY_BOOKING_TYPE ||
@@ -179,8 +183,8 @@ export default function BookingCard({
     ) {
       return 0;
     }
-    return Number(car.fuelUpgradeRate);
-  }, [bookingType, requiresFullTank, car.fuelUpgradeRate, totalDays]);
+    return Number(car.fuelUpgradeRate ?? 0);
+  }, [bookingType, requiresFullTank, car.fuelUpgradeRate, car.pricingIncludesFuel, totalDays]);
 
   const subtotal = useMemo(() => baseTotal + fuelUpgradeCost, [baseTotal, fuelUpgradeCost]);
   const platformFeeBase = useMemo(() => baseTotal + fuelUpgradeCost, [baseTotal, fuelUpgradeCost]);
@@ -190,8 +194,8 @@ export default function BookingCard({
   );
 
   const fuelNote = useMemo(
-    () => getFuelTankNote(totalDays, requiresFullTank, bookingType),
-    [totalDays, requiresFullTank, bookingType],
+    () => getFuelTankNote(totalDays, requiresFullTank, bookingType, car.pricingIncludesFuel),
+    [totalDays, requiresFullTank, bookingType, car.pricingIncludesFuel],
   );
 
   const subtotalBeforeDiscounts = useMemo(() => subtotal + platformFee, [subtotal, platformFee]);
@@ -917,7 +921,7 @@ export default function BookingCard({
                   bookingType={bookingType}
                   totalDays={totalDays}
                   fuelNote={fuelNote}
-                  fuelUpgradeRate={car.fuelUpgradeRate}
+                  fuelUpgradeRate={car.fuelUpgradeRate ?? 0}
                   requiresFullTank={requiresFullTank}
                   onFullTankChange={handleFullTankChange}
                   user={user}
@@ -926,6 +930,7 @@ export default function BookingCard({
                   subtotalBeforeDiscounts={subtotalBeforeDiscounts}
                   referralDiscountAmount={referralDiscountAmount}
                   onUseCreditsChange={handleUseCreditsChange}
+                  pricingIncludesFuel={car.pricingIncludesFuel}
                 />
               </div>
             )}
@@ -973,6 +978,7 @@ export default function BookingCard({
               vatRate={vatRate}
               vat={vat}
               finalTotalCost={finalTotalCost}
+              pricingIncludesFuel={car.pricingIncludesFuel}
             />
 
             {/* Display booking submission errors */}
@@ -1045,6 +1051,7 @@ export default function BookingCard({
               vatRate={vatRate}
               vat={vat}
               finalTotalCost={finalTotalCost}
+              pricingIncludesFuel={car.pricingIncludesFuel}
             />
 
             {/* Display booking submission errors */}

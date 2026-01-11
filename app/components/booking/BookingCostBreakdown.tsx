@@ -14,6 +14,7 @@ interface BookingCostBreakdownProps {
   readonly vatRate: number;
   readonly vat: number;
   readonly finalTotalCost: number;
+  readonly pricingIncludesFuel: boolean;
 }
 
 export function BookingCostBreakdown({
@@ -29,6 +30,7 @@ export function BookingCostBreakdown({
   vatRate,
   vat,
   finalTotalCost,
+  pricingIncludesFuel,
 }: BookingCostBreakdownProps) {
   const unitLabel =
     totalDays === 1
@@ -49,7 +51,7 @@ export function BookingCostBreakdown({
             <dt className="text-gray-600">{bookingTypeLabel}</dt>
             <dd className="font-medium">{formatCurrency(baseTotal)}</dd>
           </div>
-          {bookingType !== AIRPORT_PICKUP_BOOKING_TYPE && (
+          {!pricingIncludesFuel && bookingType !== AIRPORT_PICKUP_BOOKING_TYPE && (
             <div
               className={cn(
                 "flex justify-between transition-all duration-200 ease-out",

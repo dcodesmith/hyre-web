@@ -60,8 +60,9 @@ export type AddonType = (typeof AddonType)[keyof typeof AddonType];
 export type SerializedCar = Omit<Car, "createdAt" | "updatedAt"> & {
   createdAt: string;
   updatedAt: string;
-  fuelUpgradeRate: number;
+  fuelUpgradeRate: number | null;
   airportPickupRate: number;
+  pricingIncludesFuel: boolean;
   // Explicitly include vehicle categorization fields for TypeScript
   vehicleType: VehicleType;
   serviceTier: ServiceTier;

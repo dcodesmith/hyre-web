@@ -65,9 +65,9 @@ export function CarCard({
           />
           {/* New Listing Badge - only shows for cars added in last 7 days */}
           {isNewListing(car.createdAt) && (
-            <div className="absolute top-3 left-3 px-2.5 py-1.5 bg-white/90 rounded-full shadow-md flex items-center gap-1">
-              <Sparkles className="h-3.5 w-3.5 text-amber-500" />
-              <span className="text-xs font-medium text-gray-800">New</span>
+            <div className="absolute top-3 left-3 px-2 py-1.5 bg-white/90 rounded-full shadow-md flex items-center gap-1">
+              <Sparkles className="h-3 w-3 text-amber-500" />
+              <span className="text-xs font-medium text-gray-800 leading-none">New</span>
             </div>
           )}
           {/* Ratings display in top right corner */}
@@ -87,14 +87,19 @@ export function CarCard({
           )}
         </div>
 
-        <div className="space-y-1">
-          <div className="flex justify-between items-start">
-            <div className="flex-1">
-              <h3 className="text-sm font-semibold tracking-wider">
-                {car.make} {car.model} ({car.year})
-              </h3>
-              <p className="text-sm text-gray-600 mt-0.5">{car.passengerCapacity}-Seater</p>
-            </div>
+        <div className="space-y-0.5">
+          <h3 className="text-sm font-semibold tracking-wider">
+            {car.make} {car.model} ({car.year})
+          </h3>
+
+          <div className="flex text-xs items-center gap-1.5 text-gray-600">
+            <span>{car.passengerCapacity}-Seater</span>
+            {car.pricingIncludesFuel && (
+              <>
+                <span>•</span>
+                <span>Fuel Included</span>
+              </>
+            )}
           </div>
 
           <div className="flex items-baseline gap-1">

@@ -1,13 +1,6 @@
 import { z } from "zod";
 import { SERVICE_TIERS, VEHICLE_TYPES } from "~/types";
 
-const Status = {
-  AVAILABLE: "AVAILABLE",
-  BOOKED: "BOOKED",
-  HOLD: "HOLD",
-  IN_SERVICE: "IN_SERVICE",
-} as const;
-
 export const STATUSES = ["AVAILABLE", "HOLD", "IN_SERVICE"] as const;
 
 // Shared field definitions
@@ -47,43 +40,52 @@ const registrationNumberField = z
 
 const dayRateField = z
   .number({
-    error: "Day rate is required and must be a number.",
+    error: "Day rate is required.",
   })
   .positive("Day rate must be positive");
 
 const fullDayRateField = z
   .int({
-    error: "24-hour rate must be an integer.",
+    error: "24-hour rate is required.",
   })
   .positive("24-hour rate must be positive");
 
-const fuelUpgradeRateField = z
-  .int({
-    error: "Fuel upgrade rate must be an integer.",
-  })
-  .positive("Fuel upgrade rate must be positive");
+const fuelUpgradeRateField = z.preprocess((val) => {
+  if (val === null || val === undefined) return null;
+  if (typeof val === "string") {
+    const trimmed = val.trim();
+    if (trimmed === "") return null;
+    const num = Number(trimmed);
+    return Number.isFinite(num) && !Number.isNaN(num) ? num : null;
+  }
+  // For numbers, check if finite (catches Infinity/-Infinity)
+  if (typeof val === "number") {
+    return Number.isFinite(val) ? val : null;
+  }
+  return null;
+}, z.union([z.number().int().positive(), z.null()]).optional());
 
 const hourlyRateField = z
   .int({
-    error: "Hourly rate must be an integer.",
+    error: "Hourly rate is required.",
   })
   .positive("Hourly rate must be positive");
 
 const nightRateField = z
   .int({
-    error: "Nightly rate must be an integer.",
+    error: "Nightly rate is required.",
   })
   .positive("Nightly rate must be positive");
 
 const airportPickupRateField = z
   .int({
-    error: "Airport pickup rate must be an integer.",
+    error: "Airport pickup rate is required.",
   })
   .positive("Airport pickup rate must be positive");
 
 const yearField = z
   .int({
-    error: "Year must be an integer.",
+    error: "Year is required.",
   })
   .min(2015, "Year must be 2015 or later")
   .max(new Date().getFullYear() + 1, "Year cannot be in the future");
@@ -108,24 +110,49 @@ const passengerCapacityField = z
   .min(1, "Passenger capacity must be at least 1")
   .max(15, "Passenger capacity cannot exceed 15");
 
-const carBaseSchema = z.object({
-  make: makeField,
-  model: modelField,
-  year: yearField,
-  registrationNumber: registrationNumberField,
-  dayRate: dayRateField,
-  status: statusField,
-  hourlyRate: hourlyRateField,
-  nightRate: nightRateField,
-  fullDayRate: fullDayRateField,
-  fuelUpgradeRate: fuelUpgradeRateField,
-  airportPickupRate: airportPickupRateField,
-  vehicleType: vehicleTypeField,
-  serviceTier: serviceTierField,
-  passengerCapacity: passengerCapacityField,
-});
+// Transform checkbox value ("on" | undefined | boolean) to boolean
+// Checkbox sends "on" when checked, undefined when unchecked
+const pricingIncludesFuelField = z.preprocess((val) => {
+  if (val === "on" || val === true || val === "true") return true;
+  if (val === false || val === "false") return false;
+  // When checkbox is unchecked, form sends undefined - treat as false
+  return false;
+}, z.boolean());
 
-export const carSchema = carBaseSchema.extend({
+const carBaseSchema = z
+  .object({
+    make: makeField,
+    model: modelField,
+    year: yearField,
+    registrationNumber: registrationNumberField,
+    dayRate: dayRateField,
+    status: statusField,
+    hourlyRate: hourlyRateField,
+    nightRate: nightRateField,
+    fullDayRate: fullDayRateField,
+    fuelUpgradeRate: fuelUpgradeRateField,
+    airportPickupRate: airportPickupRateField,
+    pricingIncludesFuel: pricingIncludesFuelField,
+    vehicleType: vehicleTypeField,
+    serviceTier: serviceTierField,
+    passengerCapacity: passengerCapacityField,
+  })
+  .superRefine((data, ctx) => {
+    // fuelUpgradeRate is required only when pricingIncludesFuel is false
+    // When pricingIncludesFuel is true, fuelUpgradeRate can be null/undefined (not validated)
+    // Numeric constraints (positive integer) are already enforced by fuelUpgradeRateField schema
+    if (data.pricingIncludesFuel === false) {
+      if (data.fuelUpgradeRate === null || data.fuelUpgradeRate === undefined) {
+        ctx.addIssue({
+          code: "custom",
+          message: "Fuel upgrade rate is required when pricing does not include fuel.",
+          path: ["fuelUpgradeRate"],
+        });
+      }
+    }
+  });
+
+export const carSchema = carBaseSchema.safeExtend({
   images: z
     .any()
     .array()
@@ -160,6 +187,6 @@ export const carSchema = carBaseSchema.extend({
     .refine((file) => file?.type === "application/pdf", "File must be a PDF"),
 });
 
-export const carUpdateSchema = carBaseSchema.extend({
+export const carUpdateSchema = carBaseSchema.safeExtend({
   carId: z.string().min(1, "Car ID cannot be empty"),
 });

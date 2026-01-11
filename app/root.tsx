@@ -182,6 +182,9 @@ function AppContent() {
   );
   const isHomePage = location.pathname === "/";
   const isCarDetailPage = location.pathname.startsWith("/cars/");
+  const isAdminRoute = location.pathname.startsWith("/admin");
+  const isFleetOwnerRoute = location.pathname.startsWith("/fleet-owner");
+  const isInternalDashboardRoute = isAdminRoute || isFleetOwnerRoute;
 
   const getDashboardLink = () => {
     if (user?.roles?.some((role) => role.name === "admin")) {
@@ -251,8 +254,8 @@ function AppContent() {
             <Outlet />
           </main>
 
-          {/* Footer: hidden on auth pages, hidden on mobile for car detail pages (booking flow has sticky footer) */}
-          {!isAuthPage && (
+          {/* Footer: hidden on auth pages, hidden on internal dashboard routes (admin/fleet-owner), hidden on mobile for car detail pages (booking flow has sticky footer) */}
+          {!isAuthPage && !isInternalDashboardRoute && (
             <div className={isCarDetailPage ? "hidden lg:block lg:mt-10" : ""}>
               <Footer appName={ENV.APP_NAME} />
             </div>

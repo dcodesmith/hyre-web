@@ -24,6 +24,7 @@ interface BookingAddonsProps {
   readonly subtotalBeforeDiscounts: number;
   readonly referralDiscountAmount: number;
   readonly onUseCreditsChange: (checked: boolean, bookingCredits: BookingCredits) => void;
+  readonly pricingIncludesFuel: boolean;
 }
 
 export function BookingAddons({
@@ -39,31 +40,35 @@ export function BookingAddons({
   subtotalBeforeDiscounts,
   referralDiscountAmount,
   onUseCreditsChange,
+  pricingIncludesFuel,
 }: BookingAddonsProps) {
   return (
     <>
-      {fuelNote && bookingType !== AIRPORT_PICKUP_BOOKING_TYPE && (
+      {fuelNote && !pricingIncludesFuel && bookingType !== AIRPORT_PICKUP_BOOKING_TYPE && (
         <div className="bg-slate-100 rounded-md p-2 text-sm text-orange-600 min-w-0">
           <span className="font-medium mr-1">Fuel included:</span>
           <span>{fuelNote}</span>
         </div>
       )}
 
-      {/* Fuel upgrade option - only show for 1-2 DAY bookings */}
-      {totalDays > 0 && totalDays <= 2 && bookingType === DAY_BOOKING_TYPE && (
-        <div className="space-y-1">
-          <Label className="flex items-center space-x-2 cursor-pointer">
-            <Checkbox
-              id="requiresFullTank"
-              checked={requiresFullTank}
-              onCheckedChange={onFullTankChange}
-            />
-            <span className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-              Upgrade to full tank (+{formatCurrency(fuelUpgradeRate)})
-            </span>
-          </Label>
-        </div>
-      )}
+      {/* Fuel upgrade option - only show for 1-2 DAY bookings and when fuel is not included */}
+      {!pricingIncludesFuel &&
+        totalDays > 0 &&
+        totalDays <= 2 &&
+        bookingType === DAY_BOOKING_TYPE && (
+          <div className="space-y-1">
+            <Label className="flex items-center space-x-2 cursor-pointer">
+              <Checkbox
+                id="requiresFullTank"
+                checked={requiresFullTank}
+                onCheckedChange={onFullTankChange}
+              />
+              <span className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                Upgrade to full tank (+{formatCurrency(fuelUpgradeRate)})
+              </span>
+            </Label>
+          </div>
+        )}
 
       {/* <div className="space-y-1">
         <div className="flex items-center space-x-2">

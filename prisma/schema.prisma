@@ -25,9 +25,10 @@ model Car {
   hourlyRate         Int
   dayRate            Int
   nightRate          Int
-  fuelUpgradeRate    Int
+  fuelUpgradeRate    Int?
   fullDayRate        Int
   airportPickupRate  Int
+  pricingIncludesFuel Boolean           @default(false)
   // Vehicle categorization
   vehicleType        VehicleType        @default(SEDAN)
   serviceTier        ServiceTier        @default(STANDARD)

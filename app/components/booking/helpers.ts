@@ -28,8 +28,14 @@ export function getFuelTankNote(
   totalDays: number,
   requiresFullTank = false,
   bookingType?: BookingType,
+  pricingIncludesFuel?: boolean,
 ): string | null {
   if (totalDays <= 0) {
+    return null;
+  }
+
+  // If pricing includes fuel, don't show fuel note
+  if (pricingIncludesFuel) {
     return null;
   }
 

@@ -150,9 +150,10 @@ export async function calculateBookingCost({
     nightRate: number;
     hourlyRate: number;
     fullDayRate: number;
-    fuelUpgradeRate: number;
+    fuelUpgradeRate: number | null;
     airportPickupRate: number;
     id: string;
+    pricingIncludesFuel: boolean;
   };
   startDate: Date;
   endDate: Date;
@@ -275,10 +276,11 @@ export async function calculateBookingCost({
     : new Decimal(0);
 
   // Calculate fuel upgrade cost (only for 1-2 day bookings, same logic as client)
+  // If pricing includes fuel, no fuel upgrade cost
   const fuelUpgradeCost =
-    requiresFullTank && bookingDates.length <= 2
-      ? new Decimal(car.fuelUpgradeRate)
-      : new Decimal(0);
+    car.pricingIncludesFuel || !requiresFullTank || bookingDates.length > 2
+      ? new Decimal(0)
+      : new Decimal(car.fuelUpgradeRate ?? 0);
 
   const netTotalWithSecurityAndFuel = netTotal.plus(securityDetailCost).plus(fuelUpgradeCost);
 

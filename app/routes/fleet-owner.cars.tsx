@@ -273,7 +273,9 @@ export const columns: ColumnDef<SerializedCar>[] = [
     enableColumnFilter: false,
     header: ({ column }) => <ColumnHeader column={column} title="Fuel Upgrade Rate" />,
     cell: ({ row }) => (
-      <div className="w-[150px]">{formatCurrency(row.original.fuelUpgradeRate)}</div>
+      <div className="w-[150px]">
+        {row.original.fuelUpgradeRate ? formatCurrency(row.original.fuelUpgradeRate) : "N/A"}
+      </div>
     ),
   },
   {

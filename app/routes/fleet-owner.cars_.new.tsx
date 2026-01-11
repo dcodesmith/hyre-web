@@ -1,10 +1,12 @@
-import { getFormProps, getInputProps, useForm } from "@conform-to/react";
+import { getFormProps, getInputProps, useForm, useInputControl } from "@conform-to/react";
 import { parseWithZod } from "@conform-to/zod/v4";
+import type { z } from "zod";
 import { CogIcon } from "@heroicons/react/24/outline";
 import { useFetcher } from "@remix-run/react";
 import { useAuthenticityToken } from "remix-utils/csrf/react";
 import { Button } from "~/components/ui/button";
 import { carSchema } from "~/schemas/car.schema";
+import { Checkbox } from "~/components/ui/checkbox";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
 import {
@@ -54,11 +56,15 @@ export function NewCarForm() {
       fullDayRate,
       fuelUpgradeRate,
       airportPickupRate,
+      pricingIncludesFuel,
       vehicleType,
       serviceTier,
       passengerCapacity,
     },
-  ] = useForm({
+  ] = useForm<z.infer<typeof carSchema>>({
+    defaultValue: {
+      pricingIncludesFuel: false,
+    },
     lastResult:
       fetcher.state === "idle" && lastResult?.success === false
         ? { status: "error" as const, error: {} }
@@ -70,8 +76,9 @@ export function NewCarForm() {
   });
 
   const isSubmitting = fetcher.state === "submitting";
-
   const errorRingClasses = "border-red-500 focus-visible:ring-red-500 focus-visible:ring-2";
+
+  const pricingIncludesFuelControl = useInputControl(pricingIncludesFuel);
 
   return (
     <fetcher.Form
@@ -121,6 +128,25 @@ export function NewCarForm() {
       </div>
 
       <div className="space-y-0.5">
+        <Label className="flex items-center space-x-2 cursor-pointer">
+          <Checkbox
+            id={pricingIncludesFuel.id}
+            checked={pricingIncludesFuelControl.value === "on"}
+            onCheckedChange={(checked) => {
+              pricingIncludesFuelControl.change(checked ? "on" : "");
+            }}
+            onBlur={pricingIncludesFuelControl.blur}
+          />
+          <span className="text-sm font-medium">Pricing includes fuel</span>
+        </Label>
+
+        <p className="text-xs text-gray-500">
+          If checked, customers won't see fuel upgrade options. Fuel costs are included in your base
+          rates.
+        </p>
+      </div>
+
+      <div className="space-y-0.5">
         <Label htmlFor={dayRate.id}>Daily Rate</Label>
         <Input
           {...getInputProps(dayRate, { type: "number", step: "1000" })}
@@ -158,22 +184,26 @@ export function NewCarForm() {
         )}
       </div>
 
-      <div className="space-y-0.5">
-        <Label htmlFor={fuelUpgradeRate.id}>Fuel Upgrade Rate</Label>
-        <Input
-          {...getInputProps(fuelUpgradeRate, { type: "number", step: "1000" })}
-          min={1000}
-          className={`rounded ${fuelUpgradeRate.errors ? errorRingClasses : ""}`}
-          placeholder="Cost to upgrade from partial to full tank"
-        />
-        {fuelUpgradeRate.errors && (
-          <p className="text-red-500 text-sm">{fuelUpgradeRate.errors.join(" ")}</p>
-        )}
-        <p className="text-xs text-gray-500">
-          Amount charged to customers who want to upgrade from partial tank (1/3 or 2/3) to full
-          tank for 1-2 day bookings
-        </p>
-      </div>
+      {pricingIncludesFuelControl.value !== "on" ? (
+        <div className="space-y-0.5">
+          <Label htmlFor={fuelUpgradeRate.id}>Fuel Upgrade Rate</Label>
+          <Input
+            {...getInputProps(fuelUpgradeRate, { type: "number", step: "1000" })}
+            min={1000}
+            className={`rounded ${fuelUpgradeRate.errors ? errorRingClasses : ""}`}
+            placeholder="Cost to upgrade from partial to full tank"
+          />
+          {fuelUpgradeRate.errors && (
+            <p className="text-red-500 text-sm">{fuelUpgradeRate.errors.join(" ")}</p>
+          )}
+          <p className="text-xs text-gray-500">
+            Amount charged to customers who want to upgrade from partial tank (1/3 or 2/3) to full
+            tank for 1-2 day bookings
+          </p>
+        </div>
+      ) : (
+        <input type="hidden" name={fuelUpgradeRate.name} value="" />
+      )}
 
       <div className="space-y-0.5">
         <Label htmlFor={airportPickupRate.id}>Airport Pickup Rate</Label>

@@ -1,4 +1,4 @@
-import { getFormProps, getInputProps, useForm } from "@conform-to/react";
+import { getFormProps, getInputProps, useForm, useInputControl } from "@conform-to/react";
 import { parseWithZod } from "@conform-to/zod/v4";
 import { EllipsisHorizontalIcon } from "@heroicons/react/24/outline";
 import { useFetcher, useNavigate } from "@remix-run/react";
@@ -10,6 +10,7 @@ import { carUpdateSchema, STATUSES } from "~/schemas/car.schema";
 import type { SerializedCar } from "~/types";
 import { serviceTierLabels, ServiceTiers, vehicleTypeLabels, VehicleTypes } from "~/types";
 import { Button } from "../ui/button";
+import { Checkbox } from "../ui/checkbox";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -62,6 +63,7 @@ function EditCarForm({ car, setIsEditOpen }: EditCarFormProps) {
       fullDayRate,
       fuelUpgradeRate,
       airportPickupRate,
+      pricingIncludesFuel,
       vehicleType,
       serviceTier,
       passengerCapacity,
@@ -74,6 +76,8 @@ function EditCarForm({ car, setIsEditOpen }: EditCarFormProps) {
     shouldValidate: "onInput",
     shouldRevalidate: "onInput",
   });
+
+  const pricingIncludesFuelControl = useInputControl(pricingIncludesFuel);
 
   return (
     <fetcher.Form method="post" {...getFormProps(form)} className="space-y-4">
@@ -158,25 +162,50 @@ function EditCarForm({ car, setIsEditOpen }: EditCarFormProps) {
       </div>
 
       <div className="space-y-0.5">
-        <Label htmlFor="fuelUpgradeRate">Fuel Upgrade Rate</Label>
-        <Input
-          {...getInputProps(fuelUpgradeRate, { type: "number" })}
-          step="1000"
-          className={
-            fuelUpgradeRate.errors
-              ? "border-red-500 focus-visible:ring-red-500 focus-visible:ring-2"
-              : ""
-          }
-          placeholder="Cost to upgrade from partial to full tank"
-        />
-        {fuelUpgradeRate.errors && (
-          <p className="text-sm text-destructive">{fuelUpgradeRate.errors.join(" ")}</p>
-        )}
+        <Label className="flex items-center space-x-2 cursor-pointer">
+          <Checkbox
+            id={pricingIncludesFuel.id}
+            checked={
+              pricingIncludesFuelControl.value === "on" ||
+              pricingIncludesFuelControl.value === "true"
+            }
+            onCheckedChange={(checked) => {
+              pricingIncludesFuelControl.change(checked ? "on" : "");
+            }}
+            onBlur={pricingIncludesFuelControl.blur}
+          />
+          <span className="text-sm font-medium">Pricing includes fuel</span>
+        </Label>
         <p className="text-xs text-gray-500">
-          Amount charged to customers who want to upgrade from partial tank to full tank for 1-2 day
-          bookings
+          If checked, customers won't see fuel upgrade options. Fuel costs are included in your base
+          rates.
         </p>
       </div>
+
+      {pricingIncludesFuelControl.value !== "on" && pricingIncludesFuel.value !== "true" ? (
+        <div className="space-y-0.5">
+          <Label htmlFor="fuelUpgradeRate">Fuel Upgrade Rate</Label>
+          <Input
+            {...getInputProps(fuelUpgradeRate, { type: "number" })}
+            step="1000"
+            className={
+              fuelUpgradeRate.errors
+                ? "border-red-500 focus-visible:ring-red-500 focus-visible:ring-2"
+                : ""
+            }
+            placeholder="Cost to upgrade from partial to full tank"
+          />
+          {fuelUpgradeRate.errors && (
+            <p className="text-sm text-destructive">{fuelUpgradeRate.errors.join(" ")}</p>
+          )}
+          <p className="text-xs text-gray-500">
+            Amount charged to customers who want to upgrade from partial tank to full tank for 1-2
+            day bookings
+          </p>
+        </div>
+      ) : (
+        <input type="hidden" name={fuelUpgradeRate.name} value="" />
+      )}
 
       <div className="space-y-0.5">
         <Label htmlFor="airportPickupRate">Airport Pickup Rate</Label>
@@ -203,7 +232,9 @@ function EditCarForm({ car, setIsEditOpen }: EditCarFormProps) {
         <Select name={vehicleType.name} defaultValue={car.vehicleType}>
           <SelectTrigger
             className={
-              vehicleType.errors ? "border-red-500 focus-visible:ring-red-500 focus-visible:ring-2" : ""
+              vehicleType.errors
+                ? "border-red-500 focus-visible:ring-red-500 focus-visible:ring-2"
+                : ""
             }
           >
             <SelectValue placeholder="Select vehicle type" />
@@ -226,7 +257,9 @@ function EditCarForm({ car, setIsEditOpen }: EditCarFormProps) {
         <Select name={serviceTier.name} defaultValue={car.serviceTier}>
           <SelectTrigger
             className={
-              serviceTier.errors ? "border-red-500 focus-visible:ring-red-500 focus-visible:ring-2" : ""
+              serviceTier.errors
+                ? "border-red-500 focus-visible:ring-red-500 focus-visible:ring-2"
+                : ""
             }
           >
             <SelectValue placeholder="Select service tier" />
@@ -301,10 +334,11 @@ export function RowActions({ row }: DataTableRowActionsProps) {
   const navigate = useNavigate();
   const fetcher = useFetcher();
   const { toast } = useToast();
+  const csrfToken = useAuthenticityToken();
 
   const onDelete = () => {
     fetcher.submit(
-      { id: row.original.id },
+      { id: row.original.id, csrf: csrfToken },
       {
         method: "DELETE",
         action: `/fleet-owner/cars/${row.original.id}?index`,
