@@ -85,14 +85,9 @@ export function UnassignedBookingsTable({ bookings }: UnassignedBookingsTablePro
                     </div>
                   </div>
                   {booking.user && (
-                    <div className="flex items-start gap-2">
+                    <div className="flex items-center gap-2">
                       <User className="size-4 text-muted-foreground mt-0.5" />
-                      <div>
-                        <p className="text-xs font-medium">{booking.user.name || "Guest"}</p>
-                        <p className="text-xs text-muted-foreground truncate">
-                          {booking.user.email}
-                        </p>
-                      </div>
+                      <p className="text-sm font-medium">{booking.user.name || "Guest"}</p>
                     </div>
                   )}
                 </div>
