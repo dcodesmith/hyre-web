@@ -1,5 +1,6 @@
 import * as React from "react";
 import { Bar, BarChart, CartesianGrid, XAxis } from "recharts";
+import { NameType, Payload, ValueType } from "recharts/types/component/DefaultTooltipContent";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
 import {
   ChartConfig,
@@ -22,6 +23,32 @@ interface RevenueChartProps {
   readonly data: Array<{ readonly date: Date; readonly revenue: number }>;
 }
 
+const chartConfig = {
+  revenue: {
+    label: "Revenue",
+    color: "hsl(var(--chart-1))",
+  },
+} satisfies ChartConfig;
+
+const tooltipLabelFormatter = (_: unknown, payload: Payload<ValueType, NameType>[]) => {
+  const value = payload?.[0]?.payload?.date;
+  return new Date(value).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+};
+
+const tooltipValueFormatter = (value: unknown) => formatCurrency(value as number);
+
+const xAxisTickFormatter = (value: Date) => {
+  const date = new Date(value);
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  });
+};
+
 export function RevenueChart({ data }: RevenueChartProps) {
   const isMobile = useIsMobile();
   const [timeRange, setTimeRange] = React.useState("7d");
@@ -31,13 +58,6 @@ export function RevenueChart({ data }: RevenueChartProps) {
       setTimeRange("7d");
     }
   }, [isMobile]);
-
-  const chartConfig = {
-    revenue: {
-      label: "Revenue",
-      color: "hsl(var(--chart-1))",
-    },
-  } satisfies ChartConfig;
 
   const filteredData = React.useMemo(() => {
     let daysToShow = 7;
@@ -122,26 +142,14 @@ export function RevenueChart({ data }: RevenueChartProps) {
               axisLine={false}
               tickMargin={8}
               minTickGap={32}
-              tickFormatter={(value) => {
-                const date = new Date(value);
-                return date.toLocaleDateString("en-US", {
-                  month: "short",
-                  day: "numeric",
-                });
-              }}
+              tickFormatter={xAxisTickFormatter}
             />
             <ChartTooltip
               cursor={false}
               content={
                 <ChartTooltipContent
-                  labelFormatter={(value) => {
-                    return new Date(value).toLocaleDateString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                      year: "numeric",
-                    });
-                  }}
-                  formatter={(value) => formatCurrency(value as number)}
+                  labelFormatter={tooltipLabelFormatter}
+                  formatter={tooltipValueFormatter}
                   indicator="dot"
                 />
               }

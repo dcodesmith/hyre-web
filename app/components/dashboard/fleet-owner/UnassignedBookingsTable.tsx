@@ -1,5 +1,5 @@
 import { Link } from "@remix-run/react";
-import { Calendar, Car, DollarSign, User } from "lucide-react";
+import { Calendar, Car, User } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Button } from "~/components/ui/button";
 import { Badge } from "~/components/ui/badge";
@@ -47,7 +47,10 @@ export function UnassignedBookingsTable({ bookings }: UnassignedBookingsTablePro
   }
 
   return (
-    <Card className="@container/card bg-gradient-to-t from-primary/5 to-card shadow-md dark:bg-card">
+    <Card
+      id="unassigned-bookings"
+      className="@container/card bg-gradient-to-t from-primary/5 to-card shadow-md dark:bg-card"
+    >
       <CardHeader>
         <div className="flex items-center justify-between">
           <div>
@@ -115,13 +118,10 @@ export function UnassignedBookingsTable({ bookings }: UnassignedBookingsTablePro
                 {/* Payment Info */}
                 <div className="space-y-2">
                   <div className="flex items-start gap-2">
-                    <DollarSign className="size-4 text-muted-foreground mt-0.5" />
-                    <div>
-                      <p className="text-xs text-muted-foreground">Your Payout</p>
-                      <p className="text-sm font-semibold text-green-600 dark:text-green-400">
-                        {formatCurrency(booking.fleetOwnerPayoutAmountNet ?? 0)}
-                      </p>
-                    </div>
+                    <p className="text-xs text-muted-foreground">Your Payout</p>
+                    <p className="text-sm font-semibold text-green-600 dark:text-green-400">
+                      {formatCurrency(booking.fleetOwnerPayoutAmountNet ?? 0)}
+                    </p>
                   </div>
                   <div className="flex gap-2">
                     <Badge variant="outline" className="text-xs">
@@ -138,7 +138,7 @@ export function UnassignedBookingsTable({ bookings }: UnassignedBookingsTablePro
 
                 {/* Action */}
                 <div className="flex items-center justify-end">
-                  <Button size="sm" asChild>
+                  <Button className="w-full sm:w-auto" size="sm" asChild>
                     <Link
                       to={`/fleet-owner/bookings/${booking.id}?startDate=${encodeURIComponent(
                         booking.startDate.toISOString(),
