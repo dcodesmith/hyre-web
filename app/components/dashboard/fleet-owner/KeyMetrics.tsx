@@ -56,20 +56,20 @@ export function KeyMetrics({
         </CardHeader>
         <CardFooter className="flex-col items-start gap-2 text-sm">
           <div className="w-full space-y-1">
-            <div className="flex items-center justify-between text-xs">
+            <div className="flex items-center justify-between">
               <span className="text-neutral-500 dark:text-neutral-400">Active</span>
               <span className="font-medium">{todayStats.activeBookings}</span>
             </div>
-            <div className="flex items-center justify-between text-xs">
+            <div className="flex items-center justify-between">
               <span className="text-neutral-500 dark:text-neutral-400">Starting Today</span>
               <span className="font-medium">{todayStats.confirmedBookings}</span>
             </div>
-            <div className="flex items-center justify-between text-xs">
+            <div className="flex items-center justify-between">
               <span className="text-neutral-500 dark:text-neutral-400">Completed</span>
               <span className="font-medium">{todayStats.completedBookings}</span>
             </div>
             {todayStats.cancelledBookings > 0 && (
-              <div className="flex items-center justify-between text-xs">
+              <div className="flex items-center justify-between">
                 <span className="text-neutral-500 dark:text-neutral-400">Cancelled</span>
                 <span className="font-medium text-destructive">{todayStats.cancelledBookings}</span>
               </div>
@@ -98,15 +98,15 @@ export function KeyMetrics({
         </CardHeader>
         <CardFooter className="flex-col items-start gap-2 text-sm">
           <div className="w-full space-y-1">
-            <div className="flex items-center justify-between text-xs">
+            <div className="flex items-center justify-between">
               <span className="text-neutral-500 dark:text-neutral-400">Available Cars</span>
               <span className="font-medium">{availableCarsCount}</span>
             </div>
-            <div className="flex items-center justify-between text-xs">
+            <div className="flex items-center justify-between">
               <span className="text-neutral-500 dark:text-neutral-400">In Maintenance</span>
               <span className="font-medium">{maintenanceCarsCount}</span>
             </div>
-            <div className="flex items-center justify-between text-xs">
+            <div className="flex items-center justify-between">
               <span className="text-neutral-500 dark:text-neutral-400">Booked Cars</span>
               <span className="font-medium">{bookedCarsCount}</span>
             </div>
@@ -126,15 +126,15 @@ export function KeyMetrics({
         </CardHeader>
         <CardFooter className="flex-col items-start gap-2 text-sm">
           <div className="w-full space-y-1">
-            <div className="flex items-center justify-between text-xs">
+            <div className="flex items-center justify-between">
               <span className="text-neutral-500 dark:text-neutral-400">Completed</span>
               <span className="font-medium">{completedBookingsCount}</span>
             </div>
-            <div className="flex items-center justify-between text-xs">
+            <div className="flex items-center justify-between">
               <span className="text-neutral-500 dark:text-neutral-400">Cancelled</span>
               <span className="font-medium">{cancelledBookingsCount}</span>
             </div>
-            <div className="flex items-center justify-between text-xs">
+            <div className="flex items-center justify-between">
               <span className="text-neutral-500 dark:text-neutral-400">Month Revenue</span>
               <span className="font-medium">{formatCurrency(monthlyRevenue)}</span>
             </div>
@@ -154,11 +154,11 @@ export function KeyMetrics({
         </CardHeader>
         <CardFooter className="flex-col items-start gap-2 text-sm">
           <div className="w-full space-y-1">
-            <div className="flex items-center justify-between text-xs">
+            <div className="flex items-center justify-between">
               <span className="text-neutral-500 dark:text-neutral-400">Available</span>
               <span className="font-medium">{availableChauffeursCount}</span>
             </div>
-            <div className="flex items-center justify-between text-xs">
+            <div className="flex items-center justify-between">
               <span className="text-neutral-500 dark:text-neutral-400">On Duty</span>
               <span className="font-medium">{onDutyChauffeursCount}</span>
             </div>

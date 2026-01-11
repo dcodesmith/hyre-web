@@ -28,12 +28,10 @@ function ActivityItem({ booking }: { readonly booking: BookingWithRelations }) {
       className="block group hover:bg-muted/50 -mx-4 px-4 py-3 transition-colors rounded-lg"
     >
       <div className="flex items-start gap-3">
-        {/* Status Icon */}
         <div className="rounded-full bg-green-100 dark:bg-green-950 p-1.5 mt-0.5 shrink-0">
           <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
         </div>
 
-        {/* Content */}
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2 mb-1">
             <p className="text-sm font-medium truncate">{description}</p>
@@ -42,14 +40,12 @@ function ActivityItem({ booking }: { readonly booking: BookingWithRelations }) {
             </span>
           </div>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <Clock className="h-3 w-3" />
             <span>{dateLabel}</span>
             <span>•</span>
             <span suppressHydrationWarning>{timeAgo}</span>
           </div>
         </div>
 
-        {/* Hover Arrow */}
         <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0 mt-1" />
       </div>
     </Link>
