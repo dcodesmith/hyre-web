@@ -246,12 +246,12 @@ const faqData = {
     {
       question: "How do I book a chauffeur service in Lagos?",
       answer:
-        "Simply visit our website, select your pickup location, date, and time, choose your preferred vehicle, and complete the booking. You'll receive instant confirmation.",
+        "Simply visit our website, select your bookingn type, date, and time, choose your preferred vehicle, and complete the booking. You'll receive instant confirmation.",
     },
     {
       question: "What types of vehicles are available?",
       answer:
-        "We offer a wide range of vehicles including luxury sedans, SUVs, executive cars, and premium vehicles from brands like Toyota, Lexus and Mercedes-Benz.",
+        "We offer a wide range of vehicles including standard, economy, budget-friendly, luxury sedans, SUVs, executive cars, and premium vehicles from brands like Toyota, Lexus and Mercedes-Benz.",
     },
     {
       question: "Are your chauffeurs professional and vetted?",
