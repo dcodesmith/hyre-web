@@ -28,10 +28,10 @@ import { FacetedFilter } from "./FacetedFilter";
 import { Pagination } from "./Pagination";
 
 type TableProps<T extends object> = {
-  columns: ColumnDef<T>[];
-  data: T[];
-  initialSorting?: SortingState;
-  hideColumnViewOptions?: boolean;
+  readonly columns: ColumnDef<T>[];
+  readonly data: T[];
+  readonly initialSorting?: SortingState;
+  readonly hideColumnViewOptions?: boolean;
 };
 
 export function Table<T extends object>({

@@ -71,7 +71,6 @@ export function UnassignedBookingsTable({ bookings }: UnassignedBookingsTablePro
               className="rounded-lg border bg-card p-4 hover:bg-accent/50 transition-colors"
             >
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                {/* Car & Customer Info */}
                 <div className="space-y-2">
                   <div className="flex items-start gap-2">
                     <Car className="size-4 text-muted-foreground mt-0.5" />
@@ -92,7 +91,6 @@ export function UnassignedBookingsTable({ bookings }: UnassignedBookingsTablePro
                   )}
                 </div>
 
-                {/* Dates */}
                 <div className="space-y-2">
                   <div className="flex items-start gap-2">
                     <Calendar className="size-4 text-muted-foreground mt-0.5" />
@@ -110,9 +108,8 @@ export function UnassignedBookingsTable({ bookings }: UnassignedBookingsTablePro
                   </div>
                 </div>
 
-                {/* Payment Info */}
                 <div className="space-y-2">
-                  <div className="flex items-start gap-2">
+                  <div className="flex items-center gap-2">
                     <p className="text-xs text-muted-foreground">Your Payout</p>
                     <p className="text-sm font-semibold text-green-600 dark:text-green-400">
                       {formatCurrency(booking.fleetOwnerPayoutAmountNet ?? 0)}
@@ -131,8 +128,7 @@ export function UnassignedBookingsTable({ bookings }: UnassignedBookingsTablePro
                   </div>
                 </div>
 
-                {/* Action */}
-                <div className="flex items-center justify-end">
+                <div className="flex items-center lg:justify-end">
                   <Button className="w-full sm:w-auto" size="sm" asChild>
                     <Link
                       to={`/fleet-owner/bookings/${booking.id}?startDate=${encodeURIComponent(
