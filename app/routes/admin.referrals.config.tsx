@@ -19,9 +19,7 @@ import {
 } from "@heroicons/react/24/outline";
 import { getFormProps, getInputProps, useForm } from "@conform-to/react";
 import { getZodConstraint, parseWithZod } from "@conform-to/zod/v4";
-import { z } from "zod";
 import { ReferralReleaseCondition } from "@prisma/client";
-import { CheckedState } from "@radix-ui/react-checkbox";
 import logger from "~/lib/logger.server";
 import { ConfigSchema } from "~/schemas/admin.schema";
 
@@ -53,13 +51,17 @@ export async function action({ request }: ActionFunctionArgs) {
 
   try {
     // Update all configuration values
-    await prisma.$transaction(async (tx) => [
-      tx.referralProgramConfig.upsert({
+    await prisma.$transaction([
+      prisma.referralProgramConfig.upsert({
         where: { key: "REFERRAL_ENABLED" },
         update: { value: configData.REFERRAL_ENABLED, updatedAt: new Date(), updatedBy: user.id },
-        create: { key: "REFERRAL_ENABLED", value: configData.REFERRAL_ENABLED, updatedBy: user.id },
+        create: {
+          key: "REFERRAL_ENABLED",
+          value: configData.REFERRAL_ENABLED,
+          updatedBy: user.id,
+        },
       }),
-      tx.referralProgramConfig.upsert({
+      prisma.referralProgramConfig.upsert({
         where: { key: "REFERRAL_DISCOUNT_AMOUNT" },
         update: {
           value: configData.REFERRAL_DISCOUNT_AMOUNT,
@@ -72,7 +74,7 @@ export async function action({ request }: ActionFunctionArgs) {
           updatedBy: user.id,
         },
       }),
-      tx.referralProgramConfig.upsert({
+      prisma.referralProgramConfig.upsert({
         where: { key: "REFERRAL_MIN_BOOKING_AMOUNT" },
         update: {
           value: configData.REFERRAL_MIN_BOOKING_AMOUNT,
@@ -85,7 +87,7 @@ export async function action({ request }: ActionFunctionArgs) {
           updatedBy: user.id,
         },
       }),
-      tx.referralProgramConfig.upsert({
+      prisma.referralProgramConfig.upsert({
         where: { key: "REFERRAL_ELIGIBLE_TYPES" },
         update: {
           value: configData.REFERRAL_ELIGIBLE_TYPES,
@@ -98,7 +100,7 @@ export async function action({ request }: ActionFunctionArgs) {
           updatedBy: user.id,
         },
       }),
-      tx.referralProgramConfig.upsert({
+      prisma.referralProgramConfig.upsert({
         where: { key: "REFERRAL_RELEASE_CONDITION" },
         update: {
           value: configData.REFERRAL_RELEASE_CONDITION as ReferralReleaseCondition,
@@ -111,7 +113,7 @@ export async function action({ request }: ActionFunctionArgs) {
           updatedBy: user.id,
         },
       }),
-      tx.referralProgramConfig.upsert({
+      prisma.referralProgramConfig.upsert({
         where: { key: "REFERRAL_EXPIRY_DAYS" },
         update: {
           value: configData.REFERRAL_EXPIRY_DAYS,

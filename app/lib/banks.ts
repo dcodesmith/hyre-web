@@ -333,7 +333,7 @@ export const banks = [
   },
   {
     name: "Kuda Bank",
-    code: "50211",
+    code: "090267",
   },
   {
     name: "Lagos Building Investment Company Plc.",

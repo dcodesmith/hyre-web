@@ -1,5 +1,6 @@
 import { type LoaderFunctionArgs } from "@remix-run/node";
 import { useFetcher, useLoaderData } from "@remix-run/react";
+import { useAuthenticityToken } from "remix-utils/csrf/react";
 import { Car, FileText } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "~/components/ui/button";
@@ -107,6 +108,7 @@ export default function AdminDocumentsPage() {
 
   const documentFetcher = useFetcher();
   const imageFetcher = useFetcher();
+  const csrfToken = useAuthenticityToken();
 
   // Track which items are being approved
   const [approvingIds, setApprovingIds] = useState<Set<string>>(new Set());
@@ -157,7 +159,7 @@ export default function AdminDocumentsPage() {
 
   const handleImageApproval = (imageId: string) => {
     imageFetcher.submit(
-      {},
+      { csrf: csrfToken },
       {
         method: "post",
         action: `/admin/vehicle-images/${imageId}/approve`,

@@ -16,7 +16,7 @@ import {
   DialogDescription,
 } from "~/components/ui/dialog";
 import { CheckCircle2, FileText, Loader2 } from "lucide-react";
-import { getOptimizedImageUrl } from "~/utils/image-optimization";
+import { getImageSrcSet, getOptimizedImageUrl } from "~/utils/image-optimization";
 import { Worker, Viewer } from "@react-pdf-viewer/core";
 import { defaultLayoutPlugin } from "@react-pdf-viewer/default-layout";
 import { Textarea } from "~/components/ui/textarea";
@@ -95,7 +95,7 @@ export default function CarDetails() {
   const [isRejecting, setIsRejecting] = useState<string | null>(null);
 
   const handleApprove = () => {
-    if (window.confirm("Are you sure you want to approve this car?")) {
+    if (globalThis.confirm("Are you sure you want to approve this car?")) {
       const formData = new FormData();
       formData.append("action", "approve");
       formData.append("csrf", csrfToken);
