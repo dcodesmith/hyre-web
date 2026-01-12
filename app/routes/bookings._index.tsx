@@ -504,7 +504,7 @@ async function handleCreateBooking(request: Request, formData: FormData, user: B
       useCreditsValue,
       flightNumber: bookingData.flightNumber,
       estimatedDuration,
-      callbackUrl: `${env.DOMAIN || url.origin}/bookings/payment-status?transactionType=booking_creation`,
+      callbackUrl: `${env.DOMAIN}/bookings/payment-status?transactionType=booking_creation`,
     });
 
     return redirect(checkoutUrl);

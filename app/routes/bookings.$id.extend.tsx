@@ -369,7 +369,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
         transactionType: "booking_extension",
       },
       idempotencyKey: crypto.randomUUID(), // Always new idempotency key for new/updated PI
-      callbackUrl: `${env.FLUTTERWAVE_WEBHOOK_URL || "http://localhost:5173"}/bookings/payment-status?transactionType=booking_extension`,
+      callbackUrl: `${env.DOMAIN}/bookings/payment-status?transactionType=booking_extension`,
     });
 
     logger.debug(`Payment intent created: ${paymentIntentId}`);
