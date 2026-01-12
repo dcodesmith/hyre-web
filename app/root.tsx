@@ -175,7 +175,6 @@ function AppContent() {
     "/admin/verify",
     "/fleet-owner/login",
     "/fleet-owner/verify",
-    "/fleet-owner/onboarding",
   ];
   const isAuthPage = authRoutes.some(
     (route) => location.pathname === route || location.pathname.startsWith(`${route}/`),

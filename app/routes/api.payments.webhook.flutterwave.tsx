@@ -717,9 +717,9 @@ async function handleTransferCompleted(payload: FlutterwaveTransferCompletedPayl
 }
 
 // Disable Vercel Authentication for webhook endpoint
-export const config = {
-  auth: false,
-};
+// export const config = {
+//   auth: false,
+// };
 
 export async function action({ request }: ActionFunctionArgs) {
   const contentType = request.headers.get("content-type");
