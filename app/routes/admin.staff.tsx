@@ -16,7 +16,7 @@ import {
   DialogTitle,
 } from "~/components/ui/dialog";
 import { useState, useEffect, useRef } from "react";
-import { Table } from "~/components/Table/Table";
+import { LazyTable } from "~/components/Table/LazyTable";
 import { createColumnHelper, type Row } from "@tanstack/react-table";
 import { ColumnHeader } from "~/components/Table/ColumnHeader";
 import { Badge } from "~/components/ui/badge";
@@ -332,7 +332,7 @@ function StaffTable({
   readonly data: StaffMember[];
   readonly hideColumnViewOptions: boolean;
 }) {
-  return <Table columns={columns} data={data} hideColumnViewOptions={hideColumnViewOptions} />;
+  return <LazyTable columns={columns} data={data} hideColumnViewOptions={hideColumnViewOptions} />;
 }
 
 export default function AdminStaffPage() {

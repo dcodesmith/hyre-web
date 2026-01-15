@@ -2,7 +2,7 @@ import { type LoaderFunctionArgs, type ActionFunctionArgs, data } from "@remix-r
 import { useLoaderData, useSearchParams, Link, useFetcher } from "@remix-run/react";
 import { requireAdminOrStaffWithRedirect } from "~/modules/auth/auth.server";
 import { prisma } from "~/modules/db/db.server";
-import { Table } from "~/components/Table/Table";
+import { LazyTable } from "~/components/Table/LazyTable";
 import { createColumnHelper } from "@tanstack/react-table";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
@@ -509,7 +509,7 @@ export default function AdminReferralRewards() {
 
       {/* Table */}
       <div className="border rounded-lg">
-        <Table
+        <LazyTable
           data={rewards}
           columns={columns}
           searchPlaceholder="Search rewards..."

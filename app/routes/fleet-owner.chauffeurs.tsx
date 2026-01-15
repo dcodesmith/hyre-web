@@ -17,7 +17,7 @@ import { useEffect, useState } from "react";
 import { Form } from "~/components/CSRFForm";
 import { ChauffeurRowActions } from "~/components/Table/ChauffuerRowActions";
 import { ColumnHeader } from "~/components/Table/ColumnHeader";
-import { Table } from "~/components/Table/Table";
+import { LazyTable } from "~/components/Table/LazyTable";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
@@ -450,7 +450,7 @@ export default function ChauffeursPage() {
           </SheetContent>
         </Sheet>
       </div>
-      <Table data={chauffeurs} columns={columns} />
+      <LazyTable data={chauffeurs} columns={columns} />
     </div>
   );
 }

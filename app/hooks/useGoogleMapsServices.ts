@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { loadGoogleMapsApi } from "~/utils/client/loadGoogleMapsApi";
 
 // const GOOGLE_API_KEY = "AIzaSyC4wP-v71ZBOKNUXx8hOxmuYKdxY2gh0XM";
 
@@ -15,29 +16,14 @@ const useGoogleMapsPlaces = () => {
 
   useEffect(() => {
     let isMounted = true;
-    let retryCount = 0;
-    const maxRetries = 3;
-
     const initializePlacesApi = async () => {
       try {
-        // Wait for Google Maps to be available
-        const waitForGoogleMaps = () => {
-          return new Promise<void>((resolve, reject) => {
-            const checkGoogleMaps = () => {
-              if (window.google?.maps && typeof window.google.maps.importLibrary === "function") {
-                resolve();
-              } else if (retryCount < maxRetries) {
-                retryCount++;
-                setTimeout(checkGoogleMaps, 500); // Check every 500ms
-              } else {
-                reject(new Error("Google Maps API not available after retries"));
-              }
-            };
-            checkGoogleMaps();
-          });
-        };
+        const apiKey = globalThis.window?.ENV?.GOOGLE_MAPS_API_KEY;
+        if (!apiKey) {
+          throw new Error("Missing Google Maps API key");
+        }
 
-        await waitForGoogleMaps();
+        await loadGoogleMapsApi(apiKey, ["places"]);
 
         if (!isMounted) return;
 

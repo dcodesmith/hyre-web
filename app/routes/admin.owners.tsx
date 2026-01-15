@@ -6,7 +6,7 @@ import { createColumnHelper, Row } from "@tanstack/react-table";
 import { useAuthenticityToken } from "remix-utils/csrf/react";
 import { AdminFleetOwnerRowActions } from "~/components/Table/AdminRowActions";
 import { ColumnHeader } from "~/components/Table/ColumnHeader";
-import { Table } from "~/components/Table/Table";
+import { LazyTable } from "~/components/Table/LazyTable";
 import { Badge } from "~/components/ui/badge";
 import { requireAdminOrStaffWithRedirect } from "~/modules/auth/auth.server";
 import { prisma } from "~/modules/db/db.server";
@@ -181,7 +181,7 @@ export default function AdminDashboard() {
   return (
     <div className="p-8">
       <h1 className="text-2xl font-bold mb-6">Fleet Owners</h1>
-      <Table hideColumnViewOptions columns={columns} data={fleetOwners} />
+      <LazyTable hideColumnViewOptions columns={columns} data={fleetOwners} />
     </div>
   );
 }

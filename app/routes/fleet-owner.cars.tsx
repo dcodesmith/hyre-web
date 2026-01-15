@@ -11,7 +11,7 @@ import { CheckCircle2, PlusCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { ColumnHeader } from "~/components/Table/ColumnHeader";
 import { RowActions } from "~/components/Table/RowActions";
-import { Table } from "~/components/Table/Table";
+import { LazyTable } from "~/components/Table/LazyTable";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import {
@@ -361,7 +361,7 @@ export default function CarsPage() {
         )}
       </div>
 
-      <Table data={cars} columns={columns} />
+      <LazyTable data={cars} columns={columns} />
     </div>
   );
 }

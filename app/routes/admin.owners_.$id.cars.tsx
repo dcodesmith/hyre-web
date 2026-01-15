@@ -8,7 +8,7 @@ import { z } from "zod";
 import { parseWithZod } from "@conform-to/zod/v4";
 import { AdminCarRowActions } from "~/components/Table/AdminRowActions";
 import { ColumnHeader } from "~/components/Table/ColumnHeader";
-import { Table } from "~/components/Table/Table";
+import { LazyTable } from "~/components/Table/LazyTable";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { requireAdminOrStaffWithRedirect } from "~/modules/auth/auth.server";
@@ -253,7 +253,7 @@ export default function OwnerDetails() {
         )}
       </div>
 
-      <Table
+      <LazyTable
         columns={columns}
         data={owner.cars}
         initialSorting={[

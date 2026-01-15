@@ -6,7 +6,7 @@ import { MoreHorizontal } from "lucide-react";
 import { useEffect } from "react";
 import { Form } from "~/components/CSRFForm";
 import { ColumnHeader } from "~/components/Table/ColumnHeader";
-import { Table } from "~/components/Table/Table";
+import { LazyTable } from "~/components/Table/LazyTable";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import {
@@ -274,7 +274,7 @@ export default function OwnerChauffeurs() {
         </div>
       </div>
 
-      <Table
+      <LazyTable
         hideColumnViewOptions
         columns={columns}
         data={owner.chauffeurs}

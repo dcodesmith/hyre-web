@@ -27,7 +27,7 @@ import { ColumnViewOptions } from "./ColumnViewOptions";
 import { FacetedFilter } from "./FacetedFilter";
 import { Pagination } from "./Pagination";
 
-type TableProps<T extends object> = {
+export type TableProps<T extends object> = {
   readonly columns: ColumnDef<T>[];
   readonly data: T[];
   readonly initialSorting?: SortingState;

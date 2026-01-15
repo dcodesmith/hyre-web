@@ -5,7 +5,7 @@ import { createColumnHelper, type ColumnDef, type Row } from "@tanstack/react-ta
 import { useAuthenticityToken } from "remix-utils/csrf/react";
 import { Eye, EyeOff, Trash2, MoreHorizontal, ChevronLeft, ChevronRight } from "lucide-react";
 import { ColumnHeader } from "~/components/Table/ColumnHeader";
-import { Table } from "~/components/Table/Table";
+import { LazyTable } from "~/components/Table/LazyTable";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import {
@@ -484,7 +484,7 @@ export default function AdminReviewsPage() {
         </div>
       ) : (
         <div className="rounded-md border">
-          <Table
+          <LazyTable
             hideColumnViewOptions
             columns={columns as ColumnDef<ReviewRow>[]}
             data={reviewData}
