@@ -3,6 +3,7 @@ import { useFetcher, useLoaderData } from "@remix-run/react";
 import { useAuthenticityToken } from "remix-utils/csrf/react";
 import { Car, FileText } from "lucide-react";
 import { useEffect, useState } from "react";
+import { PDFViewer } from "~/components/pdf/PDFViewer";
 import { Button } from "~/components/ui/button";
 import {
   Dialog,
@@ -105,6 +106,7 @@ export default function AdminDocumentsPage() {
     id: string;
   } | null>(null);
   const [rejectionReason, setRejectionReason] = useState("");
+  const [previewDoc, setPreviewDoc] = useState<{ url: string; title: string } | null>(null);
 
   const documentFetcher = useFetcher();
   const imageFetcher = useFetcher();
@@ -236,11 +238,25 @@ export default function AdminDocumentsPage() {
                         </div>
 
                         {/* View Certificate Button */}
-                        <div className="flex items-center gap-2">
-                          <FileText className="h-4 w-4" />
-                          <a href={doc.documentUrl} target="_blank" rel="noreferrer">
-                            View Document
-                          </a>
+                        <div className="flex items-center gap-3 flex-wrap">
+                          <div className="flex items-center gap-2">
+                            <FileText className="h-4 w-4" />
+                            <a href={doc.documentUrl} target="_blank" rel="noreferrer">
+                              View Document
+                            </a>
+                          </div>
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() =>
+                              setPreviewDoc({
+                                url: `/api/proxy-pdf/${doc.id}`,
+                                title: documentTypeMap[doc.documentType] ?? "Document",
+                              })
+                            }
+                          >
+                            Preview
+                          </Button>
                         </div>
 
                         {/* Action Buttons */}
@@ -399,6 +415,29 @@ export default function AdminDocumentsPage() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!previewDoc} onOpenChange={(open) => !open && setPreviewDoc(null)}>
+        <DialogContent className="max-w-5xl">
+          <DialogHeader>
+            <DialogTitle>{previewDoc?.title ?? "Document Preview"}</DialogTitle>
+            <DialogDescription>
+              Preview the submitted document without leaving the page.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="h-[70vh]">
+            {previewDoc?.url ? (
+              <PDFViewer fileUrl={previewDoc.url} />
+            ) : (
+              <p className="text-sm text-gray-500">No document selected.</p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="secondary" onClick={() => setPreviewDoc(null)}>
+              Close
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

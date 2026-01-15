@@ -17,14 +17,11 @@ import {
 } from "~/components/ui/dialog";
 import { CheckCircle2, FileText, Loader2 } from "lucide-react";
 import { getImageSrcSet, getOptimizedImageUrl } from "~/utils/image-optimization";
-import { Worker, Viewer } from "@react-pdf-viewer/core";
-import { defaultLayoutPlugin } from "@react-pdf-viewer/default-layout";
+
+import { PDFViewer } from "~/components/pdf/PDFViewer";
 import { Textarea } from "~/components/ui/textarea";
 import { useAuthenticityToken } from "remix-utils/csrf/react";
 
-// Import styles
-import "@react-pdf-viewer/core/lib/styles/index.css";
-import "@react-pdf-viewer/default-layout/lib/styles/index.css";
 import invariant from "tiny-invariant";
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
@@ -83,7 +80,6 @@ export default function CarDetails() {
   const [selectedPdf, setSelectedPdf] = useState<{ url: string; title: string; id: string } | null>(
     null,
   );
-  const defaultLayoutPluginInstance = defaultLayoutPlugin();
   const [rejectionModal, setRejectionModal] = useState<{
     open: boolean;
     type: "document" | "image";
@@ -302,15 +298,7 @@ export default function CarDetails() {
             {selectedPdf && (
               <>
                 <div className="flex-1 w-full h-[calc(86vh-8rem)] mt-2">
-                  <Worker workerUrl="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js">
-                    <div className="h-full">
-                      <Viewer
-                        fileUrl={selectedPdf.url}
-                        plugins={[defaultLayoutPluginInstance]}
-                        defaultScale={1}
-                      />
-                    </div>
-                  </Worker>
+                  <PDFViewer fileUrl={selectedPdf.url} />
                 </div>
                 <DialogFooter className="mt-4 pb-4">
                   <Button variant="outline" onClick={() => setSelectedPdf(null)}>
