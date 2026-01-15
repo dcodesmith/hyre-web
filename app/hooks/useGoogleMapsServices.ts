@@ -1,8 +1,6 @@
 import { useEffect, useState } from "react";
 import { loadGoogleMapsApi } from "~/utils/client/loadGoogleMapsApi";
 
-// const GOOGLE_API_KEY = "AIzaSyC4wP-v71ZBOKNUXx8hOxmuYKdxY2gh0XM";
-
 type PlacesApiType = Awaited<ReturnType<typeof google.maps.importLibrary>> & {
   AutocompleteSuggestion: typeof google.maps.places.AutocompleteSuggestion;
   Place: typeof google.maps.places.Place;

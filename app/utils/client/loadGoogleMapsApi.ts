@@ -31,7 +31,6 @@ export function loadGoogleMapsApi(apiKey: string, libraries: string[] = ["places
 
     script.src = `https://maps.googleapis.com/maps/api/js?${params.toString()}`;
     script.async = true;
-    script.defer = true;
     script.onload = () => resolve();
     script.onerror = () => {
       loadPromise = null;

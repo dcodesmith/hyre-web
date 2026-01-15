@@ -221,6 +221,13 @@ function AppContent() {
       <body className="h-full bg-background">
         <Analytics />
 
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:fixed focus:z-[100] focus:top-4 focus:left-4 focus:bg-white focus:text-black focus:px-3 focus:py-2 focus:rounded focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-black shadow"
+        >
+          Skip to main content
+        </a>
+
         <div className="flex flex-col min-h-screen">
           {/* Desktop header - hidden on mobile and login/verify pages */}
           {!isAuthPage && (
@@ -248,6 +255,7 @@ function AppContent() {
           )}
 
           <main
+            id="main-content"
             className={`flex-grow ${isCarDetailPage ? "pb-0" : "pb-20"} md:pb-0 text-sm ${getMainClassName()}`}
           >
             <Outlet />

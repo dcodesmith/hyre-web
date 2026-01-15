@@ -157,14 +157,18 @@ export function AutocompleteAddress({
   };
 
   if (apiError) {
-    return <div className="text-red-500">Error loading Google Maps: {apiError.message}</div>;
+    return (
+      <output className="text-red-500" aria-live="polite">
+        Error loading Google Maps: {apiError.message}
+      </output>
+    );
   }
 
   if (isLoadingApi) {
     return (
-      <div className="p-2 text-gray-500 flex items-center gap-2">
+      <output className="p-2 text-gray-500 flex items-center gap-2" aria-live="polite">
         <Loader2 className="h-4 w-4 animate-spin" /> Loading map services...
-      </div>
+      </output>
     );
   }
 
@@ -207,7 +211,7 @@ export function AutocompleteAddress({
             <button
               key={prediction.placePrediction?.placeId}
               type="button"
-              className="flex items-center gap-2 p-2 cursor-pointer hover:bg-gray-100 rounded text-left w-full"
+              className="flex items-center gap-2 p-2 cursor-pointer hover:bg-gray-100 rounded text-left w-full touch-manipulation"
               onMouseDown={(event) => event.preventDefault()}
               onClick={(event) => {
                 event.preventDefault();
