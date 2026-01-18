@@ -34,7 +34,6 @@ import {
   AIRPORT_PICKUP_BOOKING_TYPE,
   TAB_VALUE_TO_BOOKING_TYPE,
 } from "../bookingTypes";
-import type { ValidatedFlight } from "~/services/flight-validation.server";
 import { BookingTypeTabs } from "../BookingTypeTabs";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "../ui/card";
 import { Label } from "../ui/label";
@@ -45,10 +44,26 @@ import { BookingFormFields } from "./BookingFormFields";
 import { GuestDetails } from "./GuestDetails";
 import { SingleDatePicker } from "./SingleDatePicker";
 import { TripDetails } from "./TripDetails";
-import { getFuelTankNote, getOrdinal } from "./helpers";
+import { getOrdinal } from "./helpers";
 import { getBookingSchema } from "~/schemas/booking.schema";
+import { useBookingFlight } from "~/hooks/useBookingFlight";
+import { useBookingPricing, useFinalPricing } from "~/hooks/useBookingPricing";
+import { useReferralCredits } from "~/hooks/useReferralCredits";
 
 const ERROR_RING_CLASSES = "border-red-500 focus-visible:ring-red-500 focus-visible:ring-2";
+
+// Type guard for BookingType validation - defined outside component to avoid recreation
+const isValidBookingType = (value: string | null): value is BookingType =>
+  !!value && BOOKING_TYPE_OPTIONS.includes(value as BookingType);
+
+// Default pickup time helper - defined outside to avoid recreation
+const getDefaultPickupTime = (
+  bookingType: BookingType,
+  searchParams: URLSearchParams,
+): string | undefined => {
+  if (bookingType === NIGHT_BOOKING_TYPE) return "11:00 PM";
+  return searchParams.get("pickupTime") || undefined;
+};
 
 type BookingCardProps = {
   readonly car: Car & { fuelUpgradeRate: number | null; pricingIncludesFuel: boolean };
@@ -78,10 +93,6 @@ export default function BookingCard({
   const bookingFetcher = useFetcher<{ error?: string; success?: boolean }>();
   const [showFetcherError, setShowFetcherError] = useState(true);
 
-  // Type guard for BookingType validation
-  const isValidBookingType = (value: string | null): value is BookingType =>
-    !!value && BOOKING_TYPE_OPTIONS.includes(value as BookingType);
-
   const bookingTypeParam = searchParams.get("bookingType");
   const hasValidBookingType = isValidBookingType(bookingTypeParam);
 
@@ -96,31 +107,23 @@ export default function BookingCard({
     searchParams.get("sameLocation") !== "false",
   );
   const [requiresFullTank, setRequiresFullTank] = useState(false);
-  const [validatedFlight, setValidatedFlight] = useState<ValidatedFlight | null>(null);
-  const [tripDuration, setTripDuration] = useState<{
-    durationInMinutes: number;
-    durationText: string;
-    distanceText: string;
-    status: "success" | "fallback";
-  } | null>(null);
-  const [referralDiscount, setReferralDiscount] = useState<{
-    eligible: boolean;
-    discountAmount: number;
-  } | null>(null);
-  const [bookingCredits, setBookingCredits] = useState<BookingCredits | null>(null);
-  const [useCreditsAmount, setUseCreditsAmount] = useState(0);
   const fallbackDateRef = useRef<Date>(startOfDay(new Date()));
-  const processedFlightRef = useRef<string | null>(null);
 
+  // Flight validation hook for booking flow
+  const {
+    validatedFlight,
+    setValidatedFlight,
+    tripDuration,
+    processedFlightRef,
+    handleDropOffAddressSelected,
+  } = useBookingFlight({ bookingType, searchParams });
+
+  // Date range parsing
   const initialDateRange = useMemo(() => {
     const parseDateParam = (param: string | null) => {
-      if (!param) {
-        return undefined;
-      }
-
+      if (!param) return undefined;
       try {
         const date = parseISO(param);
-
         if (Number.isNaN(date.getTime())) {
           console.warn("Invalid date parameter:", param);
           return undefined;
@@ -150,158 +153,55 @@ export default function BookingCard({
     [dateRange.from, dateRange.to, bookingType],
   );
 
-  const currentCarPrice = useMemo(() => {
-    if (bookingType === NIGHT_BOOKING_TYPE) {
-      return car.nightRate;
-    }
-
-    if (bookingType === FULL_DAY_BOOKING_TYPE) {
-      return car.fullDayRate;
-    }
-
-    if (bookingType === AIRPORT_PICKUP_BOOKING_TYPE) {
-      return car.airportPickupRate; // Use dayRate for airport pickup (can be updated to use airportPickupRate if added to schema)
-    }
-
-    return car.dayRate;
-  }, [bookingType, car.nightRate, car.fullDayRate, car.dayRate, car.airportPickupRate]);
-
-  const baseTotal = useMemo(() => currentCarPrice * totalDays, [currentCarPrice, totalDays]);
-
-  const fuelUpgradeCost = useMemo(() => {
-    // If pricing includes fuel, no fuel upgrade cost
-    if (car.pricingIncludesFuel) {
-      return 0;
-    }
-    // FULL_DAY, NIGHT, and AIRPORT_PICKUP bookings don't have fuel upgrades
-    if (
-      bookingType === FULL_DAY_BOOKING_TYPE ||
-      bookingType === NIGHT_BOOKING_TYPE ||
-      bookingType === AIRPORT_PICKUP_BOOKING_TYPE ||
-      !requiresFullTank ||
-      totalDays >= 3
-    ) {
-      return 0;
-    }
-    return Number(car.fuelUpgradeRate ?? 0);
-  }, [bookingType, requiresFullTank, car.fuelUpgradeRate, car.pricingIncludesFuel, totalDays]);
-
-  const subtotal = useMemo(() => baseTotal + fuelUpgradeCost, [baseTotal, fuelUpgradeCost]);
-  const platformFeeBase = useMemo(() => baseTotal + fuelUpgradeCost, [baseTotal, fuelUpgradeCost]);
-  const platformFee = useMemo(
-    () => platformFeeBase * (platformServiceFeeRate / 100),
-    [platformFeeBase, platformServiceFeeRate],
-  );
-
-  const fuelNote = useMemo(
-    () => getFuelTankNote(totalDays, requiresFullTank, bookingType, car.pricingIncludesFuel),
-    [totalDays, requiresFullTank, bookingType, car.pricingIncludesFuel],
-  );
-
-  const subtotalBeforeDiscounts = useMemo(() => subtotal + platformFee, [subtotal, platformFee]);
-
-  const referralDiscountAmount = useMemo(() => {
-    if (!user || !referralDiscount?.eligible) return 0;
-    return Math.min(referralDiscount.discountAmount || 0, subtotalBeforeDiscounts);
-  }, [user, referralDiscount, subtotalBeforeDiscounts]);
-
-  const subtotalAfterDiscounts = useMemo(
-    () => Math.max(0, subtotalBeforeDiscounts - referralDiscountAmount - useCreditsAmount),
-    [subtotalBeforeDiscounts, referralDiscountAmount, useCreditsAmount],
-  );
-
-  const vat = useMemo(
-    () => subtotalAfterDiscounts * (vatRate / 100),
-    [subtotalAfterDiscounts, vatRate],
-  );
-
-  const finalTotalCost = useMemo(() => subtotalAfterDiscounts + vat, [subtotalAfterDiscounts, vat]);
+  // Base pricing hook (before discounts)
+  const {
+    currentCarPrice,
+    baseTotal,
+    fuelUpgradeCost,
+    platformFee,
+    fuelNote,
+    subtotalBeforeDiscounts,
+  } = useBookingPricing({
+    car,
+    bookingType,
+    totalDays,
+    requiresFullTank,
+    platformServiceFeeRate,
+  });
 
   const carIsAvailableToBook = useMemo(
     () => !!dateRange.from && !!dateRange.to && totalDays > 0 && isAvailable,
     [dateRange.from, dateRange.to, totalDays, isAvailable],
   );
 
-  // Check referral eligibility when booking details change
-  useEffect(() => {
-    if (!user || !carIsAvailableToBook || subtotalBeforeDiscounts <= 0) {
-      setReferralDiscount(null);
-      return;
-    }
+  // Referral and credits hook
+  const { referralDiscount, bookingCredits, useCreditsAmount, handleUseCreditsChange } =
+    useReferralCredits({
+      user,
+      carIsAvailableToBook,
+      subtotalBeforeDiscounts,
+      bookingType,
+    });
 
-    const controller = new AbortController();
+  // Calculate referral discount amount
+  const referralDiscountAmount = useMemo(() => {
+    if (!user || !referralDiscount?.eligible) return 0;
+    return Math.min(referralDiscount.discountAmount || 0, subtotalBeforeDiscounts);
+  }, [user, referralDiscount, subtotalBeforeDiscounts]);
 
-    const checkEligibility = async () => {
-      try {
-        const response = await fetch(
-          `/api/referrals/eligibility?amount=${subtotalBeforeDiscounts}&type=${bookingType}`,
-          { signal: controller.signal },
-        );
-
-        if (response.ok) {
-          const data = await response.json();
-          setReferralDiscount(data);
-        } else {
-          setReferralDiscount(null);
-        }
-      } catch (error) {
-        // Ignore abort errors (expected when component unmounts or deps change)
-        if (error instanceof Error && error.name === "AbortError") {
-          return;
-        }
-        console.error("Failed to check referral eligibility:", error);
-        setReferralDiscount(null);
-      }
-    };
-
-    checkEligibility();
-
-    return () => controller.abort();
-  }, [user, carIsAvailableToBook, subtotalBeforeDiscounts, bookingType]);
-
-  // Fetch user's available booking credits
-  useEffect(() => {
-    if (!user) {
-      setBookingCredits(null);
-      return;
-    }
-
-    const controller = new AbortController();
-
-    const fetchCredits = async () => {
-      try {
-        const response = await fetch("/api/referrals/user", { signal: controller.signal });
-        if (response.ok) {
-          const data = await response.json();
-          setBookingCredits({
-            availableCredits: data.stats?.availableCredits || 0,
-            totalEarned: data.stats?.totalEarned || 0,
-            maxCreditsPerBooking: data.stats?.maxCreditsPerBooking,
-          });
-        } else {
-          setBookingCredits(null);
-        }
-      } catch (error) {
-        // Ignore abort errors (expected when component unmounts or deps change)
-        if (error instanceof Error && error.name === "AbortError") {
-          return;
-        }
-        console.error("Failed to fetch booking credits:", error);
-        setBookingCredits(null);
-      }
-    };
-
-    fetchCredits();
-
-    return () => controller.abort();
-  }, [user]);
+  // Final pricing hook (after discounts)
+  const { vat, finalTotalCost } = useFinalPricing({
+    subtotalBeforeDiscounts,
+    referralDiscountAmount,
+    useCreditsAmount,
+    vatRate,
+  });
 
   // Compute default pickup time based on booking type
-  const getDefaultPickupTime = (): string | undefined => {
-    if (bookingType === NIGHT_BOOKING_TYPE) return "11:00 PM";
-    return searchParams.get("pickupTime") || undefined;
-  };
-  const defaultPickupTime = getDefaultPickupTime();
+  const defaultPickupTime = useMemo(
+    () => getDefaultPickupTime(bookingType, searchParams),
+    [bookingType, searchParams],
+  );
 
   const [form, fields] = useForm({
     id: `booking-form-${car.id}`,
@@ -543,23 +443,6 @@ export default function BookingCard({
     setRequiresFullTank(!!checked);
   }, []);
 
-  const handleUseCreditsChange = useCallback(
-    (checked: boolean, bookingCredits: BookingCredits) => {
-      if (checked) {
-        setUseCreditsAmount(
-          Math.min(
-            bookingCredits.availableCredits,
-            subtotalBeforeDiscounts - referralDiscountAmount,
-            bookingCredits.maxCreditsPerBooking,
-          ),
-        );
-      } else {
-        setUseCreditsAmount(0);
-      }
-    },
-    [subtotalBeforeDiscounts, referralDiscountAmount],
-  );
-
   // Clear booking errors when form values change
   // biome-ignore lint/correctness/useExhaustiveDependencies: Intentionally trigger on form value changes
   useEffect(() => {
@@ -573,44 +456,8 @@ export default function BookingCard({
     }
   }, [bookingFetcher.data?.error]);
 
-  // Auto-validate flight from URL on component mount
-  useEffect(() => {
-    const flightNumber = searchParams.get("flightNumber");
-    const from = searchParams.get("from");
-
-    if (bookingType === AIRPORT_PICKUP_BOOKING_TYPE && flightNumber && from && !validatedFlight) {
-      const controller = new AbortController();
-
-      // Validate the flight from the URL
-      const validateFlightFromUrl = async () => {
-        try {
-          const response = await fetch(
-            `/api/search-flight?flightNumber=${encodeURIComponent(flightNumber)}&date=${from}`,
-            { signal: controller.signal },
-          );
-
-          if (response.ok) {
-            const data = await response.json();
-            if (data.success && data.flight && !controller.signal.aborted) {
-              setValidatedFlight(data.flight);
-            }
-          }
-        } catch (error) {
-          // Ignore abort errors (expected when component unmounts or deps change)
-          if (error instanceof Error && error.name === "AbortError") {
-            return;
-          }
-          console.error("Failed to validate flight from URL:", error);
-        }
-      };
-
-      validateFlightFromUrl();
-
-      return () => controller.abort();
-    }
-  }, [searchParams, bookingType, validatedFlight]);
-
   // Handle validated flight - auto-fill pickup address with destination airport
+  // biome-ignore lint/correctness/useExhaustiveDependencies: processedFlightRef is a stable ref that doesn't need to be in deps
   useEffect(() => {
     if (validatedFlight && bookingType === AIRPORT_PICKUP_BOOKING_TYPE) {
       // Check if we've already processed this flight to avoid infinite loop
@@ -643,53 +490,6 @@ export default function BookingCard({
       processedFlightRef.current = null;
     }
   }, [validatedFlight, bookingType, form, searchParams, setSearchParams]);
-
-  // Calculate trip duration for AIRPORT_PICKUP bookings when drop-off address is selected
-  const handleDropOffAddressSelected = useCallback(
-    async (address: string) => {
-      if (bookingType !== AIRPORT_PICKUP_BOOKING_TYPE || !validatedFlight) {
-        return;
-      }
-
-      if (!address || address.trim().length === 0) {
-        setTripDuration(null);
-        return;
-      }
-
-      try {
-        const params = new URLSearchParams({
-          destination: address,
-        });
-
-        // If we have flight arrival time, use it for traffic estimation
-        if (validatedFlight.estimatedArrival) {
-          params.set("arrivalTime", validatedFlight.estimatedArrival);
-        }
-
-        const response = await fetch(`/api/calculate-trip-duration?${params.toString()}`);
-
-        if (response.ok) {
-          const data = await response.json();
-          if (data.success) {
-            setTripDuration({
-              durationInMinutes: data.durationInMinutes,
-              durationText: data.durationText,
-              distanceText: data.distanceText,
-              status: data.status,
-            });
-          } else {
-            setTripDuration(null);
-          }
-        } else {
-          setTripDuration(null);
-        }
-      } catch (error) {
-        console.error("Failed to calculate trip duration:", error);
-        setTripDuration(null);
-      }
-    },
-    [bookingType, validatedFlight],
-  );
 
   // Update URL params with calculated pickup date and time for AIRPORT_PICKUP bookings
   useEffect(() => {

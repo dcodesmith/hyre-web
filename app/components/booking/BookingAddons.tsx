@@ -23,7 +23,7 @@ interface BookingAddonsProps {
   readonly useCreditsAmount: number;
   readonly subtotalBeforeDiscounts: number;
   readonly referralDiscountAmount: number;
-  readonly onUseCreditsChange: (checked: boolean, bookingCredits: BookingCredits) => void;
+  readonly onUseCreditsChange: (checked: boolean) => void;
   readonly pricingIncludesFuel: boolean;
 }
 
@@ -116,7 +116,7 @@ export function BookingAddons({
             <Switch
               id="applyCredits"
               checked={useCreditsAmount > 0}
-              onCheckedChange={(checked) => onUseCreditsChange(checked, bookingCredits)}
+              onCheckedChange={onUseCreditsChange}
               disabled={bookingCredits.availableCredits === 0}
             />
           </div>
