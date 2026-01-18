@@ -118,27 +118,6 @@ export function generateMetaTags(options: MetaTagsOptions): MetaDescriptor[] {
 }
 
 /**
- * Generate domain URL from environment
- */
-export function getDomain(env?: { DOMAIN?: string }): string {
-  if (globalThis.window !== undefined) {
-    return globalThis.window.ENV?.DOMAIN || "https://tripdly.com";
-  }
-  return env?.DOMAIN || "https://tripdly.com";
-}
-
-/**
- * Build base URL with protocol detection for localhost
- * Detects localhost/127.0.0.1 and uses http://, otherwise uses https://
- */
-export function getBaseUrl(domain: string | null | undefined = "tripdly.com"): string {
-  const effectiveDomain = domain ?? "tripdly.com";
-  const isLocalhost =
-    effectiveDomain.includes("localhost") || effectiveDomain.includes("127.0.0.1");
-  return isLocalhost ? `http://${effectiveDomain}` : `https://${effectiveDomain}`;
-}
-
-/**
  * Generate SEO-friendly slug from text
  */
 export function generateSlug(text: string): string {

@@ -1,6 +1,6 @@
 declare global {
   interface Window {
-    ENV?: {
+    ENV: {
       APP_NAME: string;
       GOOGLE_MAPS_API_KEY: string;
       CLOUDFRONT_DOMAIN: string;

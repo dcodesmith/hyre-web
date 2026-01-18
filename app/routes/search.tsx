@@ -45,7 +45,7 @@ import {
   vehicleTypeLabels,
 } from "~/types";
 import { LAGOS_TIMEZONE } from "~/utils/timezone";
-import { getBaseUrl, generateMetaTags } from "~/utils/seo";
+import { generateMetaTags } from "~/utils/seo";
 
 interface PickupTimeWindow {
   specificFrom: Date;
@@ -312,7 +312,7 @@ export const meta: MetaFunction<typeof loader> = ({ data, matches, location }) =
 
   const filters = data?.filters;
   const pagination = data?.pagination;
-  const baseUrl = getBaseUrl(rootData?.ENV?.DOMAIN);
+  const baseUrl = rootData?.ENV?.DOMAIN ?? "http://localhost:5173";
 
   // Build dynamic title parts
   const titleParts: string[] = [];
@@ -347,12 +347,12 @@ export const meta: MetaFunction<typeof loader> = ({ data, matches, location }) =
   const dynamicTitle =
     titleParts.length > 0
       ? `${titleParts.join(" ")} in Lagos | Tripdly`
-      : "Search Available Cars | Tripdly";
+      : "Search Available Cars in Lagos, Nigeria | Tripdly";
 
   // Generate dynamic description
   const dynamicDescription = descriptionContext
-    ? `Find and book ${descriptionContext} with professional chauffeurs in Lagos, Nigeria. Browse our selection of luxury cars for day trips, airport pickups, and special events.`
-    : "Search and book available luxury vehicles with professional chauffeurs in Nigeria. Filter by date, vehicle type, and service tier. Find the perfect car for your trip.";
+    ? `Find and book ${descriptionContext} with professional drivers in Lagos, Nigeria. Browse our selection of luxury cars for day trips, airport pickups, and special events.`
+    : "Search and book available luxury vehicles with professional drivers in Nigeria. Filter by date, vehicle type, and service tier. Find the perfect car for your trip.";
 
   const tags = generateMetaTags({
     title: dynamicTitle,
@@ -792,7 +792,7 @@ export default function SearchPage() {
   const rootData = matches.find((match) => match.id === "root")?.data as
     | { ENV?: { DOMAIN?: string } }
     | undefined;
-  const baseUrl = getBaseUrl(rootData?.ENV?.DOMAIN);
+  const baseUrl = rootData?.ENV?.DOMAIN ?? "http://localhost:5173";
 
   // Mobile search modal state
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);

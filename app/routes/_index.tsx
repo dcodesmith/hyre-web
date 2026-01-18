@@ -34,7 +34,7 @@ import { useIsMobile } from "~/hooks/use-mobile";
 import { getHeroHeightClasses, useHeroScroll } from "~/hooks/useHeroScroll";
 import { ServiceTiers, VehicleTypes } from "~/types";
 import type { SerializedCar } from "~/types";
-import { companyInfo, defaultKeywords, getBaseUrl, generateMetaTags } from "~/utils/seo";
+import { companyInfo, defaultKeywords, generateMetaTags } from "~/utils/seo";
 
 /** Minimum number of cars needed to show a category */
 const MIN_CATEGORY_SIZE = 3;
@@ -96,11 +96,12 @@ function categorizeCars(cars: SerializedCar[]): CarCategories {
 }
 
 export const meta: MetaFunction<typeof loader> = ({ data }) => {
-  const baseUrl = getBaseUrl(data?.ENV?.DOMAIN);
+  const baseUrl = data?.ENV?.DOMAIN ?? "http://localhost:5173";
 
-  const title = "Tripdly - Chauffeur Service in Nigeria | Book Chauffeur-Driven Cars";
+  const title = "Car Rental in Lagos with Driver | Chauffeur Service | Tripdly";
+
   const description =
-    "Book chauffeur-driven cars in Nigeria through our platform. Browse vehicles from verified fleet owners—from standard to premium and luxury options. Day trips, airport pickups, and special events. Choose from SUVs, sedans, and executive cars. Safe, reliable, and professional service.";
+    "Book chauffeur-driven cars in Lagos, Nigeria through our platform. Browse vehicles from verified fleet owners—from standard to premium and luxury options. Day trips, airport pickups, and special events. Choose from SUVs, sedans, and executive cars. Safe, reliable, and professional service.";
 
   return generateMetaTags({
     title,
@@ -220,7 +221,7 @@ type LoaderData = {
   categories: CarCategories;
   ratings: Record<string, AggregatedRatings>;
   ENV: {
-    DOMAIN: string | null;
+    DOMAIN: string;
   };
 };
 
@@ -272,7 +273,7 @@ export default function IndexPage() {
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
 
   // Build base URL for structured data
-  const baseUrl = getBaseUrl(ENV?.DOMAIN);
+  const baseUrl = ENV?.DOMAIN ?? "http://localhost:5173";
 
   return (
     <div className="w-full">

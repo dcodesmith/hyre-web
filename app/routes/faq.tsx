@@ -14,7 +14,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import { cn } from "~/lib/utils";
 import { env } from "~/utils/server/env.server";
-import { getBaseUrl, generateMetaTags } from "~/utils/seo";
+import { generateMetaTags } from "~/utils/seo";
 
 // Comprehensive FAQ data organized by category
 const faqCategories = [
@@ -208,7 +208,7 @@ export async function loader() {
 }
 
 export const meta: MetaFunction<typeof loader> = ({ data }) => {
-  const baseUrl = getBaseUrl(data?.ENV?.DOMAIN);
+  const baseUrl = data?.ENV?.DOMAIN ?? "http://localhost:5173";
 
   const title = "FAQ - Frequently Asked Questions | Tripdly Chauffeur Service";
   const description =
@@ -226,7 +226,7 @@ export default function FAQPage() {
   const { ENV } = useLoaderData<typeof loader>();
   const [searchQuery, setSearchQuery] = useState("");
 
-  const baseUrl = getBaseUrl(ENV?.DOMAIN);
+  const baseUrl = ENV?.DOMAIN ?? "http://localhost:5173";
 
   // Filter questions based on search
   const filteredCategories = searchQuery

@@ -17,9 +17,7 @@ import {
   useLocation,
   useRouteError,
 } from "@remix-run/react";
-import { Analytics } from "@vercel/analytics/remix";
-import { SpeedInsights } from "@vercel/speed-insights/react";
-import { useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { AuthenticityTokenProvider } from "remix-utils/csrf/react";
 import tailwindStyles from "~/tailwind.css?url";
 import { csrf } from "~/utils/csrf.server";
@@ -37,86 +35,175 @@ import { Button } from "./components/ui/button";
 import { GiftIcon } from "@heroicons/react/24/outline";
 import { getReferralConfig } from "./services/referral.server";
 import { formatCurrency } from "./lib/utils";
+import { generateMetaTags } from "./utils/seo";
 
-export const meta: MetaFunction<typeof loader> = ({ data }) => {
-  const appName = data?.ENV?.APP_NAME || "Tripdly";
-  return [
-    {
-      title: `${appName} - Effortless, Reliable, Safe, and Exceptional Service.`,
-    },
-    {
-      name: "description",
-      content:
-        "Premium chauffeur service in Nigeria. Book luxury vehicles with professional drivers for day trips, airport pickups, and special events. Safe, reliable, and exceptional service.",
-    },
-    {
-      property: "og:title",
-      content: `${appName} - Effortless, Reliable, Safe, and Exceptional Service.`,
-    },
-    {
-      property: "og:description",
-      content:
-        "Premium chauffeur service in Nigeria. Book luxury vehicles with professional drivers for day trips, airport pickups, and special events.",
-    },
-    {
-      property: "og:type",
-      content: "website",
-    },
-    {
-      name: "twitter:card",
-      content: "summary_large_image",
-    },
-    {
-      name: "twitter:title",
-      content: `${appName} - Effortless, Reliable, Safe, and Exceptional Service.`,
-    },
-    {
-      name: "twitter:description",
-      content:
-        "Premium chauffeur service in Nigeria. Book luxury vehicles with professional drivers for day trips, airport pickups, and special events.",
-    },
-    {
-      property: "og:url",
-      content: data?.ENV?.DOMAIN ? `https://${data.ENV.DOMAIN}` : "https://tripdly.com",
-    },
-    {
-      property: "og:image",
-      content: data?.ENV?.DOMAIN
-        ? `https://${data.ENV.DOMAIN}/og-image.jpg`
-        : "https://tripdly.com/og-image.jpg",
-    },
-    {
-      name: "twitter:image",
-      content: data?.ENV?.DOMAIN
-        ? `https://${data.ENV.DOMAIN}/og-image.jpg`
-        : "https://tripdly.com/og-image.jpg",
-    },
-  ];
+// Constants
+const AUTH_ROUTES = [
+  "/auth",
+  "/verify",
+  "/admin/login",
+  "/admin/verify",
+  "/fleet-owner/login",
+  "/fleet-owner/verify",
+] as const;
+
+const GOOGLE_FONTS_URL =
+  "https://fonts.googleapis.com/css2?family=Nunito+Sans:ital,opsz,wght@0,6..12,200..1000;1,6..12,200..1000&family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&display=swap";
+
+const ERROR_STATUS = {
+  NOT_FOUND: 404,
+  FORBIDDEN: 403,
+  SERVER_ERROR: 500,
+} as const;
+
+// Lazy-load analytics components for code splitting
+const LazyAnalytics = lazy(() =>
+  import("./components/AnalyticsWrapper").then((mod) => ({
+    default: mod.AnalyticsWrapper,
+  })),
+);
+
+/**
+ * Defers analytics loading until after hydration to prevent Suspense
+ * from affecting initial render/hydration of main content
+ */
+function DeferredAnalytics() {
+  const [shouldLoad, setShouldLoad] = useState(false);
+
+  useEffect(() => {
+    // Defer loading until after hydration is complete
+    // Using requestIdleCallback for better performance, with setTimeout fallback
+    const timeoutId = setTimeout(() => {
+      setShouldLoad(true);
+    }, 0);
+
+    return () => {
+      clearTimeout(timeoutId);
+    };
+  }, []);
+
+  if (!shouldLoad) {
+    return null;
+  }
+
+  return (
+    <Suspense fallback={null}>
+      <LazyAnalytics />
+    </Suspense>
+  );
+}
+
+// Helper functions
+const isAuthRoute = (pathname: string): boolean => {
+  return AUTH_ROUTES.some((route) => pathname === route || pathname.startsWith(`${route}/`));
 };
 
-export const links: LinksFunction = () => [
-  ...(cssBundleHref ? [{ rel: "stylesheet", href: cssBundleHref }] : []),
-  // Preload critical Tailwind CSS to reduce blocking time
-  { rel: "preload", href: tailwindStyles, as: "style" },
-  { rel: "stylesheet", href: tailwindStyles },
-  { rel: "icon", href: "/favicon.ico" },
-  // { rel: "icon", type: "image/svg+xml", href: "/logo.svg" },
-  { rel: "alternate icon", href: "/favicon.ico" },
-  { rel: "apple-touch-icon", href: "/apple-touch-icon.svg" },
-  { rel: "apple-touch-icon-precomposed", href: "/apple-touch-icon.svg" },
-  // Performance optimizations - preconnect early
-  { rel: "preconnect", href: "https://fonts.googleapis.com" },
-  { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
-  // Preload Google Fonts CSS to avoid CLS (matches async-loaded stylesheet)
-  {
-    rel: "preload",
-    href: "https://fonts.googleapis.com/css2?family=Nunito+Sans:ital,opsz,wght@0,6..12,200..1000;1,6..12,200..1000&family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&display=swap",
-    as: "style",
-  },
-  // DNS prefetch for Vercel and Analytics
-  { rel: "dns-prefetch", href: "https://vercel.app" },
-  { rel: "dns-prefetch", href: "https://vitals.vercel-insights.com" },
-];
+const getDashboardLinkFromUser = (user: Awaited<ReturnType<typeof getSessionUser>>): string => {
+  if (user?.roles?.some((role) => role.name === "admin")) {
+    return "/admin";
+  }
+  if (user?.roles?.some((role) => role.name === "fleetOwner")) {
+    return "/fleet-owner";
+  }
+  return "/";
+};
+
+const getMainClassName = (
+  isAuthPage: boolean,
+  isHomePage: boolean,
+  isCarDetailPage: boolean,
+): string => {
+  if (isAuthPage || isHomePage) {
+    return "";
+  }
+  if (isCarDetailPage) {
+    return "lg:container lg:mx-auto lg:px-4";
+  }
+  return "container mx-auto px-4";
+};
+
+const getErrorDetails = (
+  error: unknown,
+): { status: number; statusText: string; message: string } => {
+  if (isRouteErrorResponse(error)) {
+    return {
+      status: error.status,
+      statusText: error.statusText,
+      message: typeof error.data === "string" ? error.data : JSON.stringify(error.data),
+    };
+  }
+  if (error instanceof Error) {
+    return {
+      status: ERROR_STATUS.SERVER_ERROR,
+      statusText: "Internal Server Error",
+      message: error.message,
+    };
+  }
+  return {
+    status: ERROR_STATUS.SERVER_ERROR,
+    statusText: "Unknown Error",
+    message: "An unexpected error occurred",
+  };
+};
+
+const getPageTitle = (error: unknown): string => {
+  if (isRouteErrorResponse(error)) {
+    if (error.status === ERROR_STATUS.NOT_FOUND) return "Page Not Found";
+    if (error.status === ERROR_STATUS.FORBIDDEN) return "Access Denied";
+    if (error.status >= ERROR_STATUS.SERVER_ERROR) return "Server Error";
+  }
+  return "Error";
+};
+
+export const meta: MetaFunction<typeof loader> = ({ data }) => {
+  const baseUrl = data?.ENV?.DOMAIN ?? "http://localhost:5173";
+  const appName = data?.ENV?.APP_NAME ?? "Tripdly";
+
+  return generateMetaTags({
+    title: `${appName} - Effortless, Reliable, Safe, and Exceptional Service.`,
+    description:
+      "Premium chauffeur service in Nigeria. Book luxury vehicles with professional drivers for day trips, airport pickups, and special events. Safe, reliable, and exceptional service.",
+    url: baseUrl,
+    image: `${baseUrl}/og-image.jpg`,
+  });
+};
+
+export const links: LinksFunction = () => {
+  const linksArray = [
+    ...(cssBundleHref ? [{ rel: "stylesheet" as const, href: cssBundleHref }] : []),
+    // Preload critical Tailwind CSS to reduce blocking time
+    { rel: "preload" as const, href: tailwindStyles, as: "style" as const },
+    { rel: "stylesheet" as const, href: tailwindStyles },
+    { rel: "icon" as const, href: "/favicon.ico" },
+    { rel: "alternate icon" as const, href: "/favicon.ico" },
+    { rel: "apple-touch-icon" as const, href: "/apple-touch-icon.svg" },
+    {
+      rel: "apple-touch-icon-precomposed" as const,
+      href: "/apple-touch-icon.svg",
+    },
+    // Performance optimizations - preconnect early
+    { rel: "preconnect" as const, href: "https://fonts.googleapis.com" },
+    {
+      rel: "preconnect" as const,
+      href: "https://fonts.gstatic.com",
+      crossOrigin: "anonymous" as const,
+    },
+    // Preload Google Fonts CSS to avoid CLS (matches async-loaded stylesheet)
+    {
+      rel: "preload" as const,
+      href: GOOGLE_FONTS_URL,
+      as: "style" as const,
+    },
+    // DNS prefetch for Vercel and Analytics
+    { rel: "dns-prefetch" as const, href: "https://vercel.app" },
+    {
+      rel: "dns-prefetch" as const,
+      href: "https://vitals.vercel-insights.com",
+    },
+  ];
+
+  return linksArray;
+};
 
 export async function loader({ request }: LoaderFunctionArgs) {
   // Parallelize independent operations to reduce blocking time
@@ -133,7 +220,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     GOOGLE_MAPS_API_KEY: env.GOOGLE_MAPS_API_KEY,
     DOMAIN: env.DOMAIN,
     CLOUDFRONT_DOMAIN: env.CLOUDFRONT_DOMAIN,
-  };
+  } as const;
 
   // Touch session to extend expiry (rolling expiry)
   const sessionCookie = await touchSession(request);
@@ -168,47 +255,27 @@ function AppContent() {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const location = useLocation();
 
-  const authRoutes = [
-    "/auth",
-    "/verify",
-    "/admin/login",
-    "/admin/verify",
-    "/fleet-owner/login",
-    "/fleet-owner/verify",
-  ];
-  const isAuthPage = authRoutes.some(
-    (route) => location.pathname === route || location.pathname.startsWith(`${route}/`),
-  );
+  // Route checks - simple string comparisons don't need memoization
+  const isAuthPage = isAuthRoute(location.pathname);
   const isHomePage = location.pathname === "/";
   const isCarDetailPage = location.pathname.startsWith("/cars/");
   const isAdminRoute = location.pathname.startsWith("/admin");
   const isFleetOwnerRoute = location.pathname.startsWith("/fleet-owner");
   const isInternalDashboardRoute = isAdminRoute || isFleetOwnerRoute;
 
-  const getDashboardLink = () => {
-    if (user?.roles?.some((role) => role.name === "admin")) {
-      return "/admin";
-    }
-    if (user?.roles?.some((role) => role.name === "fleetOwner")) {
-      return "/fleet-owner";
-    }
-    return "/";
-  };
+  // Computed values
+  const dashboardLink = getDashboardLinkFromUser(user);
+  const mainClassName = getMainClassName(isAuthPage, isHomePage, isCarDetailPage);
+  const mainPaddingClass = isCarDetailPage ? "pb-0" : "pb-20";
 
-  const getMainClassName = () => {
-    if (isAuthPage) {
-      return "";
-    }
-    if (isHomePage) {
-      // Homepage handles its own padding for full-bleed hero
-      return "";
-    }
-    if (isCarDetailPage) {
-      // Car detail page: no padding on mobile, container with padding on desktop
-      return "lg:container lg:mx-auto lg:px-4";
-    }
-    return "container mx-auto px-4";
-  };
+  // Memoize callbacks passed to child components
+  const handleProfileOpen = useCallback(() => {
+    setIsProfileOpen(true);
+  }, []);
+
+  const handleProfileOpenChange = useCallback((open: boolean) => {
+    setIsProfileOpen(open);
+  }, []);
 
   return (
     <html lang="en" className="h-full">
@@ -219,8 +286,6 @@ function AppContent() {
         <Links />
       </head>
       <body className="h-full bg-background">
-        <Analytics />
-
         <a
           href="#main-content"
           className="sr-only focus:not-sr-only focus:fixed focus:z-[100] focus:top-4 focus:left-4 focus:bg-white focus:text-black focus:px-3 focus:py-2 focus:rounded focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-black shadow"
@@ -233,7 +298,7 @@ function AppContent() {
           {!isAuthPage && (
             <header className="hidden md:flex p-4 justify-between items-center z-50 sticky top-0 bg-white backdrop-blur-sm border-b border-transparent transition-all">
               <Link
-                to={getDashboardLink()}
+                to={dashboardLink}
                 className="text-2xl md:text-3xl font-bold font-dancingscript"
               >
                 {ENV.APP_NAME}
@@ -256,7 +321,7 @@ function AppContent() {
 
           <main
             id="main-content"
-            className={`flex-grow ${isCarDetailPage ? "pb-0" : "pb-20"} md:pb-0 text-sm ${getMainClassName()}`}
+            className={`flex-grow ${mainPaddingClass} md:pb-0 text-sm ${mainClassName}`}
           >
             <Outlet />
           </main>
@@ -271,16 +336,16 @@ function AppContent() {
 
         {/* Mobile bottom navigation - hidden on login/verify pages */}
         {!isAuthPage && (
-          <MobileBottomNav
-            user={user}
-            appName={ENV.APP_NAME}
-            onProfileOpen={() => setIsProfileOpen(true)}
-          />
+          <MobileBottomNav user={user} appName={ENV.APP_NAME} onProfileOpen={handleProfileOpen} />
         )}
 
         {/* Mobile profile sheet */}
         <div className="md:hidden">
-          <ProfileFormSheet open={isProfileOpen} onOpenChange={setIsProfileOpen} user={user} />
+          <ProfileFormSheet
+            open={isProfileOpen}
+            onOpenChange={handleProfileOpenChange}
+            user={user}
+          />
         </div>
 
         <Toaster />
@@ -302,7 +367,7 @@ function AppContent() {
               (function() {
                 var link = document.createElement('link');
                 link.rel = 'stylesheet';
-                link.href = 'https://fonts.googleapis.com/css2?family=Nunito+Sans:ital,opsz,wght@0,6..12,200..1000;1,6..12,200..1000&family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&display=swap';
+                link.href = '${GOOGLE_FONTS_URL}';
                 document.head.appendChild(link);
               })();
             `,
@@ -310,13 +375,11 @@ function AppContent() {
         />
         {/* Fallback for no-JS: load fonts synchronously */}
         <noscript>
-          <link
-            rel="stylesheet"
-            href="https://fonts.googleapis.com/css2?family=Nunito+Sans:ital,opsz,wght@0,6..12,200..1000;1,6..12,200..1000&family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&display=swap"
-          />
+          <link rel="stylesheet" href={GOOGLE_FONTS_URL} />
         </noscript>
 
-        <SpeedInsights />
+        {/* Lazy-load analytics components - deferred until after hydration */}
+        <DeferredAnalytics />
       </body>
     </html>
   );
@@ -336,76 +399,50 @@ export function ErrorBoundary() {
   const error = useRouteError();
   const isDevelopment = process.env.NODE_ENV === "development";
 
-  // Get app name - works on both server and client
-  const getAppName = () => {
+  // Memoize app name - works on both server and client
+  // Note: On client, window.ENV is set by loader script tag
+  // On server (rare for ErrorBoundary), use generic fallback
+  const appName = useMemo(() => {
     if (globalThis.window !== undefined) {
-      return (globalThis as unknown as Window).ENV?.APP_NAME ?? "Tripdly";
+      return (
+        (globalThis as unknown as Window & { ENV?: { APP_NAME?: string } }).ENV?.APP_NAME ?? "App"
+      );
     }
-    return "Tripdly";
-  };
+    // Server-side fallback (ErrorBoundary on server is rare)
+    return "App";
+  }, []);
 
-  const appName = getAppName();
+  // Memoize error details
+  const errorDetails = useMemo(() => getErrorDetails(error), [error]);
 
-  // Determine error details
-  const getErrorDetails = () => {
+  // Memoize page title
+  const pageTitle = useMemo(() => getPageTitle(error), [error]);
+
+  // Memoize error page render
+  const errorPage = useMemo(() => {
     if (isRouteErrorResponse(error)) {
-      return {
-        status: error.status,
-        statusText: error.statusText,
-        message: typeof error.data === "string" ? error.data : JSON.stringify(error.data),
-      };
-    }
-    if (error instanceof Error) {
-      return {
-        status: 500,
-        statusText: "Internal Server Error",
-        message: error.message,
-      };
-    }
-    return {
-      status: 500,
-      statusText: "Unknown Error",
-      message: "An unexpected error occurred",
-    };
-  };
-
-  const errorDetails = getErrorDetails();
-
-  // Determine page title based on error type
-  const getPageTitle = () => {
-    if (isRouteErrorResponse(error)) {
-      if (error.status === 404) return "Page Not Found";
-      if (error.status === 403) return "Access Denied";
-      if (error.status >= 500) return "Server Error";
-    }
-    return "Error";
-  };
-
-  // Render appropriate error page
-  const renderErrorPage = () => {
-    if (isRouteErrorResponse(error)) {
-      if (error.status === 403) {
+      if (error.status === ERROR_STATUS.FORBIDDEN) {
         return <ForbiddenPage appName={appName} />;
       }
-      if (error.status === 404) {
+      if (error.status === ERROR_STATUS.NOT_FOUND) {
         return <NotFoundPage appName={appName} />;
       }
     }
     // For 500 errors and other unexpected errors
     return <ServerErrorPage error={errorDetails} showDetails={isDevelopment} />;
-  };
+  }, [error, appName, errorDetails, isDevelopment]);
 
   return (
     <html lang="en" className="h-full">
       <head>
-        <title>{`${getPageTitle()} | ${appName}`}</title>
+        <title>{`${pageTitle} | ${appName}`}</title>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <Meta />
         <Links />
       </head>
       <body className="h-full bg-background">
-        {renderErrorPage()}
+        {errorPage}
         <ScrollRestoration />
         <Scripts />
       </body>

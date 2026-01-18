@@ -34,7 +34,7 @@ import {
   AccordionTrigger,
 } from "~/components/ui/accordion";
 import type { SerializedCar } from "~/types";
-import { getLocationKeywords, generateMetaTags, getBaseUrl } from "~/utils/seo";
+import { getLocationKeywords, generateMetaTags } from "~/utils/seo";
 
 // Lagos-specific FAQ data
 const lagosFaqData = {
@@ -138,7 +138,7 @@ const areasServed = [
 ];
 
 export const meta: MetaFunction<typeof loader> = ({ data }) => {
-  const baseUrl = getBaseUrl(data?.ENV?.DOMAIN);
+  const baseUrl = data?.ENV?.DOMAIN ?? "http://localhost:5173";
 
   const title = "Chauffeur Service Lagos - Premium Car Hire & Airport Transfers | Tripdly";
   const description =
@@ -201,7 +201,7 @@ export async function loader() {
 export default function ChauffeurServiceLagos() {
   const { cars, ENV } = useLoaderData<typeof loader>();
 
-  const baseUrl = getBaseUrl(ENV?.DOMAIN);
+  const baseUrl = ENV?.DOMAIN ?? "http://localhost:5173";
 
   return (
     <div className="w-full">

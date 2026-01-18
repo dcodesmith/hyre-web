@@ -26,7 +26,6 @@ import {
   getVehicleKeywords,
   generateCarSlug,
   extractCarIdFromSlug,
-  getBaseUrl,
   generateMetaTags,
 } from "~/utils/seo";
 import { LAGOS_TIMEZONE } from "~/utils/timezone";
@@ -255,7 +254,7 @@ export const meta: MetaFunction<typeof loader> = ({ data }) => {
   const { car } = data;
   const carName = `${car.make} ${car.model} ${car.year}`;
   const price = `₦${Number(car.dayRate).toLocaleString()}`;
-  const baseUrl = getBaseUrl(data?.ENV?.DOMAIN);
+  const baseUrl = data?.ENV?.DOMAIN ?? "http://localhost:5173";
   // Use SEO-friendly slug for canonical URL
   const slug = generateCarSlug({ id: car.id, make: car.make, model: car.model, year: car.year });
   const carUrl = `${baseUrl}/cars/${slug}`;

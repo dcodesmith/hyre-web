@@ -6,7 +6,7 @@ import { BreadcrumbSchema } from "~/components/seo/StructuredData";
 import { Button } from "~/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
 import { env } from "~/utils/server/env.server";
-import { getBaseUrl, generateMetaTags } from "~/utils/seo";
+import { generateMetaTags } from "~/utils/seo";
 
 export async function loader() {
   return data({
@@ -17,7 +17,7 @@ export async function loader() {
 }
 
 export const meta: MetaFunction<typeof loader> = ({ data }) => {
-  const baseUrl = getBaseUrl(data?.ENV?.DOMAIN);
+  const baseUrl = data?.ENV?.DOMAIN ?? "http://localhost:5173";
 
   const title = "About Us - Connecting Fleet Owners with Customers | Tripdly";
   const description =
@@ -33,7 +33,7 @@ export const meta: MetaFunction<typeof loader> = ({ data }) => {
 
 export default function AboutPage() {
   const { ENV } = useLoaderData<typeof loader>();
-  const baseUrl = getBaseUrl(ENV?.DOMAIN);
+  const baseUrl = ENV?.DOMAIN ?? "http://localhost:5173";
 
   return (
     <div className="w-full">
