@@ -33,7 +33,7 @@ import {
 import { useIsMobile } from "~/hooks/use-mobile";
 import { getHeroHeightClasses, useHeroScroll } from "~/hooks/useHeroScroll";
 import { ServiceTiers, VehicleTypes } from "~/types";
-import type { SerializedCar } from "~/types";
+import type { ServiceTier, VehicleType } from "~/types";
 import { companyInfo, defaultKeywords, generateMetaTags } from "~/utils/seo";
 
 /** Minimum number of cars needed to show a category */
@@ -42,46 +42,73 @@ const MIN_CATEGORY_SIZE = 3;
 /** Popular car makes for the "Popular" category */
 const POPULAR_MAKES = new Set(["toyota", "honda", "lexus"]);
 
+/**
+ * Lightweight car type for homepage display (server-serialization optimization)
+ * Only includes fields actually used by CarCard and TopBookingCard components
+ */
+interface HomePageCar {
+  id: string;
+  make: string;
+  model: string;
+  year: number;
+  createdAt: string;
+  dayRate: number;
+  passengerCapacity: number;
+  pricingIncludesFuel: boolean;
+  vehicleType: VehicleType;
+  serviceTier: ServiceTier;
+  images: { url: string }[];
+}
+
 interface CarCategories {
-  suvs: SerializedCar[];
-  luxury: SerializedCar[];
-  budget: SerializedCar[];
-  sedans: SerializedCar[];
-  executive: SerializedCar[];
-  popular: SerializedCar[];
-  allCars: SerializedCar[];
+  suvs: HomePageCar[];
+  luxury: HomePageCar[];
+  budget: HomePageCar[];
+  sedans: HomePageCar[];
+  executive: HomePageCar[];
+  popular: HomePageCar[];
+  allCars: HomePageCar[];
 }
 
 /**
  * Categorizes cars into meaningful groups for display
  * Uses database fields (serviceTier, vehicleType) for categorization
+ * Single iteration over cars array for better performance (js-combine-iterations)
  */
-function categorizeCars(cars: SerializedCar[]): CarCategories {
-  // SUVs - Filter by vehicleType
-  const suvs = cars.filter(
-    (car) => car.vehicleType === VehicleTypes.SUV || car.vehicleType === VehicleTypes.LUXURY_SUV,
-  );
+function categorizeCars(cars: HomePageCar[]): CarCategories {
+  const suvs: HomePageCar[] = [];
+  const luxury: HomePageCar[] = [];
+  const budget: HomePageCar[] = [];
+  const sedans: HomePageCar[] = [];
+  const executive: HomePageCar[] = [];
+  const popular: HomePageCar[] = [];
 
-  // Luxury - Filter by serviceTier (LUXURY or ULTRA_LUXURY)
-  const luxury = cars.filter(
-    (car) =>
-      car.serviceTier === ServiceTiers.LUXURY || car.serviceTier === ServiceTiers.ULTRA_LUXURY,
-  );
-
-  // Budget-Friendly - Filter by STANDARD tier
-  const budget = cars.filter((car) => car.serviceTier === ServiceTiers.STANDARD);
-
-  // Sedans - Filter by vehicleType
-  const sedans = cars.filter(
-    (car) =>
-      car.vehicleType === VehicleTypes.SEDAN || car.vehicleType === VehicleTypes.LUXURY_SEDAN,
-  );
-
-  // Executive - Filter by serviceTier
-  const executive = cars.filter((car) => car.serviceTier === ServiceTiers.EXECUTIVE);
-
-  // Popular - Filter by common makes (Toyota, Honda, Lexus)
-  const popular = cars.filter((car) => POPULAR_MAKES.has(car.make.toLowerCase()));
+  for (const car of cars) {
+    // SUVs - by vehicleType
+    if (car.vehicleType === VehicleTypes.SUV || car.vehicleType === VehicleTypes.LUXURY_SUV) {
+      suvs.push(car);
+    }
+    // Luxury - by serviceTier (LUXURY or ULTRA_LUXURY)
+    if (car.serviceTier === ServiceTiers.LUXURY || car.serviceTier === ServiceTiers.ULTRA_LUXURY) {
+      luxury.push(car);
+    }
+    // Budget-Friendly - by STANDARD tier
+    if (car.serviceTier === ServiceTiers.STANDARD) {
+      budget.push(car);
+    }
+    // Sedans - by vehicleType
+    if (car.vehicleType === VehicleTypes.SEDAN || car.vehicleType === VehicleTypes.LUXURY_SEDAN) {
+      sedans.push(car);
+    }
+    // Executive - by serviceTier
+    if (car.serviceTier === ServiceTiers.EXECUTIVE) {
+      executive.push(car);
+    }
+    // Popular - by common makes (Toyota, Honda, Lexus)
+    if (POPULAR_MAKES.has(car.make.toLowerCase())) {
+      popular.push(car);
+    }
+  }
 
   // Only return categories with enough cars
   return {
@@ -147,20 +174,38 @@ export async function loader() {
   try {
     const startTime = Date.now();
 
+    // Select only fields needed for homepage display (server-serialization)
     const cars = await prisma.car.findMany({
       where: {
         status: { in: [Status.AVAILABLE, Status.BOOKED] },
         approvalStatus: CarApprovalStatus.APPROVED,
         owner: { fleetOwnerStatus: "APPROVED", hasOnboarded: true },
       },
-      include: {
+      select: {
+        id: true,
+        make: true,
+        model: true,
+        year: true,
+        createdAt: true,
+        dayRate: true,
+        passengerCapacity: true,
+        pricingIncludesFuel: true,
+        vehicleType: true,
+        serviceTier: true,
         images: { select: { url: true }, orderBy: { createdAt: "asc" }, take: 3 },
       },
       orderBy: [{ updatedAt: "desc" }, { dayRate: "asc" }],
       take: 100,
     });
 
-    const categories = categorizeCars(cars as unknown as SerializedCar[]);
+    // Serialize dates for client (Remix handles this automatically for full objects,
+    // but with select we need to do it manually)
+    const serializedCars: HomePageCar[] = cars.map((car) => ({
+      ...car,
+      createdAt: car.createdAt.toISOString(),
+    }));
+
+    const categories = categorizeCars(serializedCars);
 
     // Fetch ratings for all cars in a single batch query
     let ratings: Record<string, AggregatedRatings> = {};
@@ -254,7 +299,7 @@ export default function IndexPage() {
   const { categories, ratings, ENV } = useLoaderData<LoaderData>();
 
   // Use dayRate for default price display on homepage
-  const getRateForDisplay = (car: SerializedCar) => car.dayRate;
+  const getRateForDisplay = (car: HomePageCar) => car.dayRate;
 
   // Filter cars with 4.5+ rating for Top Bookings section
   const topBookings = filterTopBookings(categories.allCars, ratings);

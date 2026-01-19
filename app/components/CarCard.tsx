@@ -1,7 +1,6 @@
 import { Link } from "@remix-run/react";
 import { Sparkles } from "lucide-react";
 import { formatCurrency } from "~/lib/utils";
-import type { SerializedCar } from "~/types";
 import { generateCarSlug } from "~/utils/seo";
 import type { AggregatedRatings } from "~/services/reviews.server";
 import Carousel from "./Carousel";
@@ -15,8 +14,20 @@ function isNewListing(createdAt: string): boolean {
   return now.getTime() - createdDate.getTime() < SEVEN_DAYS_MS;
 }
 
+/** Minimal car interface for CarCard - accepts both full SerializedCar and lightweight HomePageCar */
+interface CarCardCar {
+  id: string;
+  make: string;
+  model: string;
+  year: number;
+  createdAt: string;
+  passengerCapacity: number;
+  pricingIncludesFuel: boolean;
+  images: { url: string }[];
+}
+
 interface CarCardProps {
-  readonly car: SerializedCar;
+  readonly car: CarCardCar;
   readonly searchParams?: URLSearchParams;
   readonly priority?: boolean;
   readonly price: number;

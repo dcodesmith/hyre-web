@@ -1,6 +1,5 @@
 import { Link } from "@remix-run/react";
 import { formatCurrency } from "~/lib/utils";
-import type { SerializedCar } from "~/types";
 import { generateCarSlug } from "~/utils/seo";
 import type { AggregatedRatings } from "~/services/reviews.server";
 import { getOptimizedImageUrl } from "~/utils/image-optimization";
@@ -9,8 +8,17 @@ import { StarRating } from "./reviews/StarRating";
 /** Minimum rating to be considered a "Top Booking" */
 export const TOP_BOOKING_MIN_RATING = 4.5;
 
+/** Minimal car interface for TopBookingCard - accepts both full SerializedCar and lightweight HomePageCar */
+interface TopBookingCar {
+  id: string;
+  make: string;
+  model: string;
+  year: number;
+  images: { url: string }[];
+}
+
 interface TopBookingCardProps {
-  readonly car: SerializedCar;
+  readonly car: TopBookingCar;
   readonly searchParams?: URLSearchParams;
   readonly priority?: boolean;
   readonly price: number;
@@ -23,10 +31,10 @@ interface TopBookingCardProps {
  * @param ratings - Record of car ID to ratings
  * @returns Cars with 4.5+ average rating, sorted by rating descending
  */
-export function filterTopBookings(
-  cars: SerializedCar[],
+export function filterTopBookings<T extends TopBookingCar>(
+  cars: T[],
   ratings: Record<string, AggregatedRatings>,
-): { car: SerializedCar; ratings: AggregatedRatings }[] {
+): { car: T; ratings: AggregatedRatings }[] {
   return cars
     .filter((car) => {
       const carRatings = ratings[car.id];
