@@ -6,6 +6,7 @@ import {
   data,
 } from "@remix-run/node";
 import {
+  Await,
   Link,
   Links,
   Meta,
@@ -32,7 +33,7 @@ import { env } from "./utils/server/env.server";
 import { ProfileFormSheet } from "./components/forms/ProfileFormSheet";
 import { userHasRole } from "./utils/shared/roles";
 import { Button } from "./components/ui/button";
-import { GiftIcon } from "@heroicons/react/24/outline";
+import { Gift } from "lucide-react";
 import { getReferralConfig } from "./services/referral.server";
 import { formatCurrency } from "./lib/utils";
 import { generateMetaTags } from "./utils/seo";
@@ -46,6 +47,16 @@ const AUTH_ROUTES = [
   "/fleet-owner/login",
   "/fleet-owner/verify",
 ] as const;
+
+// Hoisted static JSX elements (rendering-hoist-jsx)
+const skipToMainLink = (
+  <a
+    href="#main-content"
+    className="sr-only focus:not-sr-only focus:fixed focus:z-[100] focus:top-4 focus:left-4 focus:bg-white focus:text-black focus:px-3 focus:py-2 focus:rounded focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-black shadow"
+  >
+    Skip to main content
+  </a>
+);
 
 const GOOGLE_FONTS_URL =
   "https://fonts.googleapis.com/css2?family=Nunito+Sans:ital,opsz,wght@0,6..12,200..1000;1,6..12,200..1000&family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&display=swap";
@@ -206,11 +217,15 @@ export const links: LinksFunction = () => {
 };
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  // Parallelize independent operations to reduce blocking time
-  const [user, csrfResult, referralConfig] = await Promise.all([
+  // Start non-blocking fetch immediately (Single Fetch streaming)
+  // This promise will be streamed to the client after critical data is sent
+  const referralConfigPromise = getReferralConfig();
+
+  // Parallelize critical blocking operations (async-parallel)
+  const [user, csrfResult, sessionCookie] = await Promise.all([
     getSessionUser(request),
     csrf.commitToken(request),
-    getReferralConfig(),
+    touchSession(request),
   ]);
 
   const [csrfToken, csrfCookieHeader] = csrfResult;
@@ -221,9 +236,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
     DOMAIN: env.DOMAIN,
     CLOUDFRONT_DOMAIN: env.CLOUDFRONT_DOMAIN,
   } as const;
-
-  // Touch session to extend expiry (rolling expiry)
-  const sessionCookie = await touchSession(request);
 
   // Properly handle multiple Set-Cookie headers
   const headers = new Headers();
@@ -239,19 +251,20 @@ export async function loader({ request }: LoaderFunctionArgs) {
     headers.append("Set-Cookie", sessionCookie);
   }
 
+  // Pass promise directly - Single Fetch will stream it after critical data
   return data(
     {
       user,
       ENV,
       csrfToken,
-      referralDiscountAmount: referralConfig.REFERRAL_DISCOUNT_AMOUNT,
+      referralConfigPromise,
     },
     { headers },
   );
 }
 
 function AppContent() {
-  const { user, ENV, referralDiscountAmount } = useLoaderData<typeof loader>();
+  const { user, ENV, referralConfigPromise } = useLoaderData<typeof loader>();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const location = useLocation();
 
@@ -286,12 +299,7 @@ function AppContent() {
         <Links />
       </head>
       <body className="h-full bg-background">
-        <a
-          href="#main-content"
-          className="sr-only focus:not-sr-only focus:fixed focus:z-[100] focus:top-4 focus:left-4 focus:bg-white focus:text-black focus:px-3 focus:py-2 focus:rounded focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-black shadow"
-        >
-          Skip to main content
-        </a>
+        {skipToMainLink}
 
         <div className="flex flex-col min-h-screen">
           {/* Desktop header - hidden on mobile and login/verify pages */}
@@ -305,14 +313,20 @@ function AppContent() {
               </Link>
               <div className="flex items-center gap-2 mr-2">
                 {userHasRole(user, "user") && (
-                  <Button variant="outline" asChild className="text-sm">
-                    <Link to="/referrals">
-                      <span className="flex items-center gap-2">
-                        Earn {formatCurrency(referralDiscountAmount)}
-                        <GiftIcon className="w-4 h-4 text-green-600 font-medium" />
-                      </span>
-                    </Link>
-                  </Button>
+                  <Suspense fallback={null}>
+                    <Await resolve={referralConfigPromise} errorElement={null}>
+                      {(referralConfig) => (
+                        <Button variant="outline" asChild className="text-sm">
+                          <Link to="/referrals">
+                            <span className="flex items-center gap-2">
+                              Earn {formatCurrency(referralConfig.REFERRAL_DISCOUNT_AMOUNT)}
+                              <Gift className="w-4 h-4 text-green-600 font-medium" />
+                            </span>
+                          </Link>
+                        </Button>
+                      )}
+                    </Await>
+                  </Suspense>
                 )}
                 <UserNav user={user} />
               </div>

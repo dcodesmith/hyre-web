@@ -11,19 +11,54 @@ import { env } from "~/utils/server/env.server";
 import { getBatchCarRatings } from "~/services/reviews.server";
 import type { AggregatedRatings } from "~/services/reviews.server";
 
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { CarCard } from "~/components/CarCard";
 import { CarouselSection } from "~/components/CarouselSection";
 import { TopBookingCard, filterTopBookings } from "~/components/TopBookingCard";
-import { CompactSearchBar } from "~/components/CompactSearchBar";
-import { SearchModal } from "~/components/SearchModal";
-import { AISearchModal } from "~/components/AISearchModal";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "~/components/ui/accordion";
+
+// Lazy-load components that aren't needed for initial render
+const CompactSearchBar = lazy(() =>
+  import("~/components/CompactSearchBar").then((mod) => ({
+    default: mod.CompactSearchBar,
+  })),
+);
+const SearchModal = lazy(() =>
+  import("~/components/SearchModal").then((mod) => ({
+    default: mod.SearchModal,
+  })),
+);
+const AISearchModal = lazy(() =>
+  import("~/components/AISearchModal").then((mod) => ({
+    default: mod.AISearchModal,
+  })),
+);
+// Lazy-load Accordion components - create wrapper since they're named exports
+const LazyAccordion = lazy(() =>
+  import("~/components/ui/accordion").then((mod) => ({
+    default: ({
+      faqData,
+    }: {
+      faqData: { questions: Array<{ question: string; answer: string }> };
+    }) => (
+      <mod.Accordion type="single" collapsible className="bg-white rounded-lg border">
+        {faqData.questions.map((faq, index) => (
+          <mod.AccordionItem
+            key={faq.question}
+            value={`item-${index}`}
+            className="border-b border-gray-200 last:border-0 px-6"
+          >
+            <mod.AccordionTrigger className="text-left hover:no-underline">
+              <span className="font-medium text-gray-900 pr-4">{faq.question}</span>
+            </mod.AccordionTrigger>
+            <mod.AccordionContent>
+              <p className="text-gray-600 leading-relaxed">{faq.answer}</p>
+            </mod.AccordionContent>
+          </mod.AccordionItem>
+        ))}
+      </mod.Accordion>
+    ),
+  })),
+);
 import {
   LocalBusinessSchema,
   ServiceSchema,
@@ -172,8 +207,6 @@ export const links = () => [
 
 export async function loader() {
   try {
-    const startTime = Date.now();
-
     // Select only fields needed for homepage display (server-serialization)
     const cars = await prisma.car.findMany({
       where: {
@@ -195,7 +228,7 @@ export async function loader() {
         images: { select: { url: true }, orderBy: { createdAt: "asc" }, take: 3 },
       },
       orderBy: [{ updatedAt: "desc" }, { dayRate: "asc" }],
-      take: 100,
+      take: 50, // Reduced from 100 - users rarely scroll through all cars
     });
 
     // Serialize dates for client (Remix handles this automatically for full objects,
@@ -213,12 +246,8 @@ export async function loader() {
       const carIds = cars.map((car) => car.id);
       ratings = await getBatchCarRatings(carIds);
     } catch (error) {
-      logger.error("[HOME] Error fetching ratings", { error });
       // Continue without ratings if there's an error
     }
-
-    const totalTime = Date.now() - startTime;
-    logger.info("[HOME] Cars query completed", { ms: totalTime, count: cars.length });
 
     return data(
       {
@@ -232,7 +261,6 @@ export async function loader() {
         headers: {
           "Cache-Control": "public, max-age=300, stale-while-revalidate=1800",
           Vary: "Accept-Encoding",
-          "X-Total-Time": `${totalTime}ms`,
         },
       },
     );
@@ -355,16 +383,22 @@ export default function IndexPage() {
       {/* Mobile Compact Sticky Search - Shows after scrolling past hero */}
       {isMobileScrolled && (
         <div className="md:hidden fixed top-0 left-0 right-0 z-50 px-4 py-3 bg-white border-b border-gray-200 shadow-md">
-          <CompactSearchBar onClick={() => setIsSearchModalOpen(true)} />
+          <Suspense fallback={null}>
+            <CompactSearchBar onClick={() => setIsSearchModalOpen(true)} />
+          </Suspense>
         </div>
       )}
 
       {/* Mobile Search Modal */}
-      <SearchModal
-        isOpen={isSearchModalOpen}
-        onClose={() => setIsSearchModalOpen(false)}
-        navigateToSearch
-      />
+      {isSearchModalOpen && (
+        <Suspense fallback={null}>
+          <SearchModal
+            isOpen={isSearchModalOpen}
+            onClose={() => setIsSearchModalOpen(false)}
+            navigateToSearch
+          />
+        </Suspense>
+      )}
 
       {/* Hero Section - Fixed on desktop, relative on mobile */}
       <div className={`w-full transition-all duration-300 ease-out ${heroContainerClass}`}>
@@ -430,7 +464,9 @@ export default function IndexPage() {
             <BookingSearch isCompact={isDesktopCollapsed} navigateToSearch />
 
             <div className="flex justify-center">
-              <AISearchModal />
+              <Suspense fallback={null}>
+                <AISearchModal />
+              </Suspense>
             </div>
           </div>
 
@@ -663,22 +699,15 @@ export default function IndexPage() {
             <h2 className="text-2xl md:text-3xl font-bold text-center mb-8">
               Frequently Asked Questions
             </h2>
-            <Accordion type="single" collapsible className="bg-white rounded-lg border">
-              {faqData.questions.map((faq, index) => (
-                <AccordionItem
-                  key={faq.question}
-                  value={`item-${index}`}
-                  className="border-b border-gray-200 last:border-0 px-6"
-                >
-                  <AccordionTrigger className="text-left hover:no-underline">
-                    <span className="font-medium text-gray-900 pr-4">{faq.question}</span>
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    <p className="text-gray-600 leading-relaxed">{faq.answer}</p>
-                  </AccordionContent>
-                </AccordionItem>
-              ))}
-            </Accordion>
+            <Suspense
+              fallback={
+                <div className="bg-white rounded-lg border p-8 text-center text-gray-500">
+                  Loading FAQ...
+                </div>
+              }
+            >
+              <LazyAccordion faqData={faqData} />
+            </Suspense>
             <div className="text-center mt-6">
               <Link
                 to="/faq"

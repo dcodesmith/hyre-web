@@ -11,10 +11,7 @@ export function ForbiddenPage({ appName = "Tripdly" }: ForbiddenPageProps) {
     <div className="min-h-screen bg-gradient-to-b from-neutral-50 to-white flex flex-col">
       {/* Header */}
       <header className="p-4 md:p-6">
-        <Link
-          to="/"
-          className="text-2xl md:text-3xl font-bold font-dancingscript text-neutral-900"
-        >
+        <Link to="/" className="text-2xl md:text-3xl font-bold font-dancingscript text-neutral-900">
           {appName}
         </Link>
       </header>
@@ -37,11 +34,10 @@ export function ForbiddenPage({ appName = "Tripdly" }: ForbiddenPageProps) {
           </div>
 
           {/* Error message */}
-          <h1 className="text-3xl md:text-4xl font-bold text-neutral-900 mb-3">
-            Access Denied
-          </h1>
+          <h1 className="text-3xl md:text-4xl font-bold text-neutral-900 mb-3">Access Denied</h1>
           <p className="text-neutral-600 text-base md:text-lg mb-8 max-w-md mx-auto">
-            Sorry, you don't have permission to access this page. Please sign in with an authorized account or contact support if you believe this is an error.
+            Sorry, you don't have permission to access this page. Please sign in with an authorized
+            account or contact support if you believe this is an error.
           </p>
 
           {/* Action buttons */}
