@@ -28,6 +28,28 @@ const config = {
   session: {
     // 60 * 60 * 24 * 7 = 604800 seconds (7 days)
     expiresIn: 60 * 60 * 24 * 7,
+    /**
+     * Cookie Cache Configuration
+     *
+     * Caches session data in a signed cookie to reduce database lookups.
+     * Without this, every request hits the database to validate the session.
+     *
+     * - enabled: true - Activates cookie-based session caching
+     * - maxAge: 300 seconds (5 minutes) - How long to trust the cached session
+     *   before re-validating against the database
+     *
+     * Trade-offs:
+     * - Pro: Significantly reduces database load and improves response times
+     * - Con: Session revocation has up to 5-minute delay (user stays logged in
+     *   for up to maxAge after session is revoked in database)
+     *
+     * Note: Custom session fields added via plugins are NOT cached and will
+     * always be fetched from the database.
+     */
+    cookieCache: {
+      enabled: true,
+      maxAge: 60 * 5, // 5 minutes
+    },
   },
   rateLimit: {
     /**
