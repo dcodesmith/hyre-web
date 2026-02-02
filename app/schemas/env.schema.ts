@@ -42,4 +42,6 @@ export const envSchema = z.object({
   SUPPORT_EMAIL: z.string().optional(),
   WEBSITE_URL: z.url().optional(),
   DOMAIN: z.string(),
+
+  MAINTENANCE_MODE: z.enum(["true", "false"]).optional().default("false"),
 });

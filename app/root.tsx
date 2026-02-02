@@ -37,6 +37,7 @@ import { Gift } from "lucide-react";
 import { getReferralConfig } from "./services/referral.server";
 import { formatCurrency } from "./lib/utils";
 import { generateMetaTags } from "./utils/seo";
+import { MaintenancePage } from "./components/MaintenancePage";
 
 // Constants
 const AUTH_ROUTES = [
@@ -217,6 +218,22 @@ export const links: LinksFunction = () => {
 };
 
 export async function loader({ request }: LoaderFunctionArgs) {
+  const isMaintenanceMode = env.MAINTENANCE_MODE === "true";
+
+  // Allow webhook/API routes through during maintenance
+  const url = new URL(request.url);
+  const isApiRoute = url.pathname.startsWith("/api/");
+
+  if (isMaintenanceMode && !isApiRoute) {
+    return data({
+      maintenanceMode: true as const,
+      user: null,
+      ENV: { APP_NAME: env.APP_NAME, GOOGLE_MAPS_API_KEY: "", DOMAIN: env.DOMAIN, CLOUDFRONT_DOMAIN: "" },
+      csrfToken: "",
+      referralConfigPromise: Promise.resolve({ REFERRAL_DISCOUNT_AMOUNT: 0, REFERRAL_DISCOUNT_PERCENT: 0, REFERRAL_MINIMUM_BOOKING_AMOUNT: 0 }),
+    });
+  }
+
   // Start non-blocking fetch immediately (Single Fetch streaming)
   // This promise will be streamed to the client after critical data is sent
   const referralConfigPromise = getReferralConfig();
@@ -254,6 +271,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   // Pass promise directly - Single Fetch will stream it after critical data
   return data(
     {
+      maintenanceMode: false as const,
       user,
       ENV,
       csrfToken,
@@ -400,7 +418,11 @@ function AppContent() {
 }
 
 export default function App() {
-  const { csrfToken } = useLoaderData<typeof loader>();
+  const { csrfToken, maintenanceMode, ENV } = useLoaderData<typeof loader>();
+
+  if (maintenanceMode) {
+    return <MaintenancePage appName={ENV.APP_NAME} />;
+  }
 
   return (
     <AuthenticityTokenProvider token={csrfToken}>
