@@ -71,6 +71,7 @@ function addSecurityHeaders(headers: Headers) {
   headers.set("Cross-Origin-Opener-Policy", "same-origin");
   headers.set("Cross-Origin-Resource-Policy", "cross-origin");
   headers.set("X-DNS-Prefetch-Control", "off");
+  headers.set("X-Robots-Tag", "noindex, nofollow, noarchive, nosnippet");
 }
 
 export default function handleRequest(
