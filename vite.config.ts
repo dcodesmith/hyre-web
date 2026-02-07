@@ -1,7 +1,8 @@
 import { vitePlugin as remix } from "@remix-run/dev";
-import { defineConfig } from "vite";
+import { defineConfig, type UserConfig } from "vite";
 import tsconfigPaths from "vite-tsconfig-paths";
-import { vercelPreset } from "@vercel/remix/vite";
+
+const isVercel = process.env.VERCEL === "1";
 
 declare module "@remix-run/node" {
   interface Future {
@@ -9,33 +10,41 @@ declare module "@remix-run/node" {
   }
 }
 
-export default defineConfig({
-  resolve: {
-    alias: {
-      ".prisma/client/index-browser": "./node_modules/@prisma/client/index-browser.js",
-    },
-  },
-  server: {
-    host: true,
-    allowedHosts: ["regular-terrier-helping.ngrok-free.app"],
-  },
-  plugins: [
-    remix({
-      presets: [vercelPreset()],
-      future: {
-        v3_singleFetch: true,
-        v3_fetcherPersist: true,
-        v3_relativeSplatPath: true,
-        v3_throwAbortReason: true,
+export default defineConfig(async (): Promise<UserConfig> => {
+  const presets = [];
+  if (isVercel) {
+    const { vercelPreset } = await import("@vercel/remix/vite");
+    presets.push(vercelPreset());
+  }
+
+  return {
+    resolve: {
+      alias: {
+        ".prisma/client/index-browser": "./node_modules/@prisma/client/index-browser.js",
       },
-    }),
-    tsconfigPaths(),
-  ],
-  test: {
-    environment: "node",
-    coverage: {
-      provider: "v8",
     },
-    include: ["app/**/*.{test,spec}.{ts,tsx}"],
-  },
+    server: {
+      host: true,
+      allowedHosts: ["regular-terrier-helping.ngrok-free.app"],
+    },
+    plugins: [
+      remix({
+        presets,
+        future: {
+          v3_singleFetch: true,
+          v3_fetcherPersist: true,
+          v3_relativeSplatPath: true,
+          v3_throwAbortReason: true,
+        },
+      }),
+      tsconfigPaths(),
+    ],
+    test: {
+      environment: "node",
+      coverage: {
+        provider: "v8",
+      },
+      include: ["app/**/*.{test,spec}.{ts,tsx}"],
+    },
+  };
 });
