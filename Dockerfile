@@ -9,8 +9,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends openssl && rm -
 # Copy package.json first for corepack to read packageManager field
 COPY package.json pnpm-lock.yaml ./
 
-# Enable corepack and prepare pnpm (uses version from packageManager field)
-RUN corepack enable && corepack prepare --activate
+# Update corepack to latest (>=0.31.0) for valid signing keys, then enable and prepare pnpm
+RUN npm install -g corepack@latest && corepack enable && corepack prepare pnpm@10.20.0 --activate
 
 # Fetch dependencies
 RUN pnpm fetch
