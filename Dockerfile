@@ -6,8 +6,8 @@ WORKDIR /app
 # Install openssl for Prisma
 RUN apt-get update && apt-get install -y --no-install-recommends openssl && rm -rf /var/lib/apt/lists/*
 
-# Enable corepack (uses pnpm version from packageManager field)
-RUN corepack enable pnpm
+# Enable corepack and prepare pnpm (uses version from packageManager field)
+RUN corepack enable && corepack prepare --activate
 
 # Copy lockfiles first for optimal caching
 COPY package.json pnpm-lock.yaml ./
