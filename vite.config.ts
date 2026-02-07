@@ -18,6 +18,10 @@ export default defineConfig(async (): Promise<UserConfig> => {
   }
 
   return {
+    define: {
+      // Expose VERCEL env var to client for conditional analytics loading
+      "import.meta.env.VITE_VERCEL": JSON.stringify(process.env.VERCEL || ""),
+    },
     resolve: {
       alias: {
         ".prisma/client/index-browser": "./node_modules/@prisma/client/index-browser.js",

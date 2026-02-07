@@ -77,14 +77,19 @@ const LazyAnalytics = lazy(() =>
 
 /**
  * Defers analytics loading until after hydration to prevent Suspense
- * from affecting initial render/hydration of main content
+ * from affecting initial render/hydration of main content.
+ * Only loads on Vercel deployments - skips entirely on other environments.
  */
 function DeferredAnalytics() {
   const [shouldLoad, setShouldLoad] = useState(false);
 
+  // Skip entirely on non-Vercel deployments - prevents lazy import
+  const isVercel = import.meta.env.VITE_VERCEL === "1";
+
   useEffect(() => {
-    // Defer loading until after hydration is complete
-    // Using requestIdleCallback for better performance, with setTimeout fallback
+    // Only load on Vercel after hydration is complete
+    if (!isVercel) return;
+
     const timeoutId = setTimeout(() => {
       setShouldLoad(true);
     }, 0);
@@ -94,7 +99,8 @@ function DeferredAnalytics() {
     };
   }, []);
 
-  if (!shouldLoad) {
+  // Don't render anything on non-Vercel or before hydration
+  if (!isVercel || !shouldLoad) {
     return null;
   }
 
