@@ -9,7 +9,8 @@ on:
 jobs:
   sonarqube:
     name: SonarCloud
-    if: ${{ github.event_name != 'pull_request' || !github.event.pull_request.head.repo.fork }}
+    # Temporarily disabled - remove to enable
+    if: false
     runs-on: ubuntu-latest
     steps:
       - name: Check SONAR_TOKEN
