@@ -51,7 +51,7 @@ function addSecurityHeaders(headers: Headers) {
 
   const cspDirectives = [
     "default-src 'self'",
-    `script-src 'self' 'unsafe-inline' https://maps.googleapis.com https://maps.gstatic.com https://va.vercel-scripts.com https://vercel.live`,
+    `script-src 'self' 'unsafe-inline' https://maps.googleapis.com https://maps.gstatic.com https://va.vercel-scripts.com https://vercel.live https://static.cloudflareinsights.com`,
     `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`,
     `font-src 'self' https://fonts.gstatic.com`,
     `img-src ${imgSrcDirectives.join(" ")}`,
