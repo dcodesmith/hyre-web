@@ -3,16 +3,23 @@ import { Mail, Phone, MapPin } from "lucide-react";
 import { FacebookIcon } from "~/components/icons/FacebookIcon";
 import { InstagramIcon } from "~/components/icons/InstagramIcon";
 import { XIcon } from "~/components/icons/XIcon";
+import { cn } from "~/lib/utils";
 
 interface FooterProps {
   readonly appName: string;
+  readonly isCarDetailPage: boolean;
 }
 
-export function Footer({ appName }: FooterProps) {
+export function Footer({ appName, isCarDetailPage }: FooterProps) {
   const currentYear = new Date().getFullYear();
 
   return (
-    <footer className="bg-gray-50 border-t border-gray-200">
+    <footer
+      className={cn(
+        "bg-gray-50 border-t border-gray-200",
+        isCarDetailPage && "hidden lg:block lg:mt-10",
+      )}
+    >
       {/* Main Footer Content */}
       <div className="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 py-12">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-12">

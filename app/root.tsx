@@ -234,9 +234,18 @@ export async function loader({ request }: LoaderFunctionArgs) {
     return data({
       maintenanceMode: true as const,
       user: null,
-      ENV: { APP_NAME: env.APP_NAME, GOOGLE_MAPS_API_KEY: "", DOMAIN: env.DOMAIN, CLOUDFRONT_DOMAIN: "" },
+      ENV: {
+        APP_NAME: env.APP_NAME,
+        GOOGLE_MAPS_API_KEY: "",
+        DOMAIN: env.DOMAIN,
+        CLOUDFRONT_DOMAIN: "",
+      },
       csrfToken: "",
-      referralConfigPromise: Promise.resolve({ REFERRAL_DISCOUNT_AMOUNT: 0, REFERRAL_DISCOUNT_PERCENT: 0, REFERRAL_MINIMUM_BOOKING_AMOUNT: 0 }),
+      referralConfigPromise: Promise.resolve({
+        REFERRAL_DISCOUNT_AMOUNT: 0,
+        REFERRAL_DISCOUNT_PERCENT: 0,
+        REFERRAL_MINIMUM_BOOKING_AMOUNT: 0,
+      }),
     });
   }
 
@@ -366,9 +375,7 @@ function AppContent() {
 
           {/* Footer: hidden on auth pages, hidden on internal dashboard routes (admin/fleet-owner), hidden on mobile for car detail pages (booking flow has sticky footer) */}
           {!isAuthPage && !isInternalDashboardRoute && (
-            <div className={isCarDetailPage ? "hidden lg:block lg:mt-10" : ""}>
-              <Footer appName={ENV.APP_NAME} />
-            </div>
+            <Footer isCarDetailPage={isCarDetailPage} appName={ENV.APP_NAME} />
           )}
         </div>
 
