@@ -18,7 +18,15 @@ import {
   useLocation,
   useRouteError,
 } from "@remix-run/react";
-import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { AuthenticityTokenProvider } from "remix-utils/csrf/react";
 import tailwindStyles from "~/tailwind.css?url";
 import { csrf } from "~/utils/csrf.server";
@@ -38,6 +46,8 @@ import { getReferralConfig } from "./services/referral.server";
 import { formatCurrency } from "./lib/utils";
 import { generateMetaTags } from "./utils/seo";
 import { MaintenancePage } from "./components/MaintenancePage";
+import { CookieConsentBanner } from "./components/CookieConsentBanner";
+import { COOKIE_CONSENT_KEY } from "./hooks/useCookieConsent";
 
 // Constants
 const AUTH_ROUTES = [
@@ -76,19 +86,63 @@ const LazyAnalytics = lazy(() =>
 );
 
 /**
+ * Subscribe to cookie consent changes in localStorage
+ * Uses useSyncExternalStore for proper React 18 external store subscription
+ */
+function getConsentSnapshot(): boolean {
+  if (typeof globalThis === "undefined") return false;
+  try {
+    const stored = localStorage.getItem(COOKIE_CONSENT_KEY);
+    if (!stored) return false;
+    const parsed = JSON.parse(stored);
+    return parsed.analytics === true;
+  } catch {
+    return false;
+  }
+}
+
+function subscribeToConsent(callback: () => void): () => void {
+  // Listen for storage changes (cross-tab)
+  const handleStorage = (e: StorageEvent) => {
+    if (e.key === COOKIE_CONSENT_KEY) {
+      callback();
+    }
+  };
+  window.addEventListener("storage", handleStorage);
+
+  // Also listen for custom event (same-tab updates)
+  const handleCustom = () => callback();
+  window.addEventListener("cookie-consent-change", handleCustom);
+
+  return () => {
+    window.removeEventListener("storage", handleStorage);
+    window.removeEventListener("cookie-consent-change", handleCustom);
+  };
+}
+
+function getServerSnapshot(): boolean {
+  return false;
+}
+
+/**
  * Defers analytics loading until after hydration to prevent Suspense
  * from affecting initial render/hydration of main content.
- * Only loads on Vercel deployments - skips entirely on other environments.
+ * Only loads on Vercel deployments when user has consented to analytics cookies.
  */
 function DeferredAnalytics() {
   const [shouldLoad, setShouldLoad] = useState(false);
+  const hasAnalyticsConsent = useSyncExternalStore(
+    subscribeToConsent,
+    getConsentSnapshot,
+    getServerSnapshot,
+  );
 
   // Skip entirely on non-Vercel deployments - prevents lazy import
   const isVercel = import.meta.env.VITE_VERCEL === "1";
 
   useEffect(() => {
-    // Only load on Vercel after hydration is complete
-    if (!isVercel) return;
+    // Only load on Vercel after hydration is complete and user has consented
+    if (!isVercel || !hasAnalyticsConsent) return;
 
     const timeoutId = setTimeout(() => {
       setShouldLoad(true);
@@ -97,10 +151,10 @@ function DeferredAnalytics() {
     return () => {
       clearTimeout(timeoutId);
     };
-  }, []);
+  }, [hasAnalyticsConsent]);
 
-  // Don't render anything on non-Vercel or before hydration
-  if (!isVercel || !shouldLoad) {
+  // Don't render anything on non-Vercel, before hydration, or without consent
+  if (!isVercel || !shouldLoad || !hasAnalyticsConsent) {
     return null;
   }
 
@@ -423,8 +477,11 @@ function AppContent() {
           <link rel="stylesheet" href={GOOGLE_FONTS_URL} />
         </noscript>
 
-        {/* Lazy-load analytics components - deferred until after hydration */}
+        {/* Lazy-load analytics components - deferred until after hydration and consent */}
         <DeferredAnalytics />
+
+        {/* Cookie consent banner for NDPC compliance */}
+        <CookieConsentBanner />
       </body>
     </html>
   );
