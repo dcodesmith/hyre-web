@@ -66,6 +66,9 @@ model User {
   chauffeurApprovalStatus   ChauffeurApprovalStatus?   @default(PENDING)
   hasOnboarded              Boolean                    @default(false)
   isOwnerDriver             Boolean                    @default(false)
+  // Consent fields (NDPC compliance)
+  termsAcceptedAt           DateTime?
+  privacyAcceptedAt         DateTime?
   // Referral fields
   referralCode              String?                    @unique
   referredByUserId          String?

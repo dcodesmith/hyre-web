@@ -2,12 +2,13 @@ import { getFormProps, getInputProps, useForm } from "@conform-to/react";
 import { getZodConstraint, parseWithZod } from "@conform-to/zod/v4";
 import { CogIcon } from "@heroicons/react/24/outline";
 import { ActionFunctionArgs, LoaderFunctionArgs, data, redirect } from "@remix-run/node";
-import { Outlet, useActionData, useLoaderData, useSearchParams } from "@remix-run/react";
+import { Link, Outlet, useActionData, useLoaderData, useSearchParams } from "@remix-run/react";
 import { Form } from "~/components/CSRFForm";
 import { LoginSchema } from "~/schemas/auth.schema";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
 import { Input } from "~/components/ui/input";
+import { Checkbox } from "~/components/ui/checkbox";
 import logger from "~/lib/logger.server";
 import { useIsPending } from "~/lib/utils";
 import { getSessionUser } from "~/modules/auth/auth.server";
@@ -61,8 +62,24 @@ export async function action({ request }: ActionFunctionArgs) {
   const redirectTo = safeRedirect(url.searchParams.get("redirectTo"), "");
   const referralCodeFromUrl = url.searchParams.get("ref");
 
-  const { email, referralCode } = submission.value;
+  const { email, referralCode, acceptTerms } = submission.value;
   const role = "user" as const; // Customer login is always "user" role
+
+  // Check if user exists to determine if this is login or signup
+  const existingUserForConsent = await prisma.user.findUnique({
+    where: { email },
+    select: { id: true },
+  });
+
+  // Require consent for new users (signup)
+  if (!existingUserForConsent && !acceptTerms) {
+    return data(
+      {
+        error: "You must accept the Terms of Service and Privacy Policy to create an account.",
+      },
+      { status: 400 },
+    );
+  }
 
   // Use referral code from form or URL parameter
   const finalReferralCodeRaw = referralCode ?? referralCodeFromUrl ?? "";
@@ -89,7 +106,8 @@ export async function action({ request }: ActionFunctionArgs) {
     }
 
     // Send OTP and redirect to verify page
-    return sendOTPAndRedirect(request, email, role, redirectTo, finalReferralCode);
+    // Pass acceptTerms for new user signup consent tracking
+    return sendOTPAndRedirect(request, email, role, redirectTo, finalReferralCode, acceptTerms);
   } catch (error) {
     logger.error("Error sending OTP for user", { error });
 
@@ -193,6 +211,28 @@ export default function Login() {
                       <input type="hidden" name="referralCode" value={referralCodeFromUrl} />
                     </div>
                   )}
+
+                  {/* Terms and Privacy Policy consent */}
+                  <label
+                    htmlFor="acceptTerms"
+                    className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer"
+                  >
+                    <Checkbox id="acceptTerms" name="acceptTerms" className="shrink-0" />
+                    <span>
+                        I agree to the{" "}
+                        <Link to="/terms" className="text-primary hover:underline" target="_blank">
+                          Terms of Service
+                        </Link>{" "}
+                        and{" "}
+                        <Link
+                          to="/privacy"
+                          className="text-primary hover:underline"
+                          target="_blank"
+                        >
+                          Privacy Policy
+                        </Link>
+                      </span>
+                    </label>
 
                   {/* Prioritize actionData.error for same-route failures, fallback to authError for cross-route errors */}
                   {errorMessage && (

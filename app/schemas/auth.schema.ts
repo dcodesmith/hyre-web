@@ -8,4 +8,8 @@ export const LoginSchema = z.object({
     .regex(/^[123456789ABCDEFGHJKLMNPQRSTUVWXYZ]+$/, "Invalid referral code format")
     .optional()
     .or(z.literal("")),
+  acceptTerms: z
+    .string()
+    .optional()
+    .transform((val) => val === "on"),
 });

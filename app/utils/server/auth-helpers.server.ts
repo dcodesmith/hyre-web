@@ -172,6 +172,7 @@ export function clearAuthSession(session: Awaited<ReturnType<typeof getSession>>
   session.unset("auth:email");
   session.unset("auth:role");
   session.unset("auth:referralCode");
+  session.unset("auth:acceptedTerms");
   session.unset("auth:error");
 }
 
@@ -185,6 +186,7 @@ export async function getAuthContext(request: Request) {
     authEmail: session.get("auth:email") as string | undefined,
     authRole: session.get("auth:role") as RoleName | undefined,
     authReferralCode: session.get("auth:referralCode") as string | undefined,
+    authAcceptedTerms: session.get("auth:acceptedTerms") as boolean | undefined,
     authError: session.get("auth:error") as string | Error | undefined,
   };
 }
@@ -197,12 +199,16 @@ export async function storeAuthContext(
   email: string,
   role: RoleName,
   referralCode?: string | null,
+  acceptedTerms?: boolean,
 ) {
   const session = await getSession(request.headers.get("Cookie"));
   session.set("auth:email", email);
   session.set("auth:role", role);
   if (referralCode) {
     session.set("auth:referralCode", referralCode);
+  }
+  if (acceptedTerms) {
+    session.set("auth:acceptedTerms", true);
   }
   session.unset("auth:error");
   return session;
@@ -217,6 +223,7 @@ export async function sendOTPAndRedirect(
   role: RoleName,
   redirectTo?: string | null,
   referralCode?: string | null,
+  acceptedTerms?: boolean,
 ) {
   try {
     // Send OTP via better-auth
@@ -233,7 +240,7 @@ export async function sendOTPAndRedirect(
   }
 
   // Store context in session
-  const session = await storeAuthContext(request, email, role, referralCode);
+  const session = await storeAuthContext(request, email, role, referralCode, acceptedTerms);
 
   // Build verify URL
   const route = ROLE_ROUTES[role];

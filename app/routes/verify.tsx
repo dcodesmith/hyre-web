@@ -142,6 +142,7 @@ async function handleReferralForNewUser(
   authEmail: string,
   authReferralCode: string | null,
   request: Request,
+  authAcceptedTerms: boolean | undefined,
 ) {
   const user = await prisma.user.findUnique({
     where: { id: userId },
@@ -153,6 +154,18 @@ async function handleReferralForNewUser(
   // (user hasn't been updated since creation)
   const isNewUser = user.createdAt.getTime() === user.updatedAt.getTime();
   if (!isNewUser) return;
+
+  // Save consent timestamps for new users who accepted terms
+  if (authAcceptedTerms) {
+    const now = new Date();
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        termsAcceptedAt: now,
+        privacyAcceptedAt: now,
+      },
+    });
+  }
 
   await createUserReferralCode(userId);
 
@@ -185,6 +198,7 @@ export async function action({ request }: ActionFunctionArgs) {
     authEmail,
     authRole,
     authReferralCode: sessionReferralCode,
+    authAcceptedTerms,
   } = await getAuthContext(request);
   const authReferralCode = sessionReferralCode || referralCodeFromUrl;
 
@@ -220,8 +234,8 @@ export async function action({ request }: ActionFunctionArgs) {
   try {
     const { userId, cookie } = await signInWithOTP(authEmail, code, request);
 
-    // Handle referral code for new users
-    await handleReferralForNewUser(userId, authEmail, authReferralCode, request);
+    // Handle referral code and consent for new users
+    await handleReferralForNewUser(userId, authEmail, authReferralCode, request, authAcceptedTerms);
 
     // Ensure user has user role
     await ensureUserHasRole(userId, "user");
