@@ -37,11 +37,11 @@ export function CookieConsentBanner() {
           </p>
         </div>
 
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <Button onClick={acceptAll} size="sm" className="flex-1">
+        <div className="flex flex-col gap-2 sm:flex-row sm:gap-3">
+          <Button onClick={acceptAll} size="sm" className="w-full sm:flex-1">
             Accept All
           </Button>
-          <Button onClick={declineAll} variant="outline" size="sm" className="flex-1">
+          <Button onClick={declineAll} variant="outline" size="sm" className="w-full sm:flex-1">
             Essential Only
           </Button>
         </div>
