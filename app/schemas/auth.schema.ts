@@ -9,7 +9,9 @@ export const LoginSchema = z.object({
     .optional()
     .or(z.literal("")),
   acceptTerms: z
-    .string()
-    .optional()
-    .transform((val) => val === "on"),
+    .string({ error: "You must accept the Terms of Service and Privacy Policy" })
+    .refine((val) => val === "on", {
+      message: "You must accept the Terms of Service and Privacy Policy",
+    })
+    .transform(() => true),
 });

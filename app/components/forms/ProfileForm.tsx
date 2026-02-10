@@ -1,10 +1,21 @@
 import { getFormProps, getInputProps, useForm } from "@conform-to/react";
 import { parseWithZod } from "@conform-to/zod/v4";
 import type { Role, User } from "@prisma/client";
-import { useFetcher } from "@remix-run/react";
+import { useFetcher, useNavigate } from "@remix-run/react";
 import { useEffect } from "react";
 import { useAuthenticityToken } from "remix-utils/csrf/react";
 import { profileFormSchema } from "~/schemas/user";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "../ui/alert-dialog";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
@@ -25,7 +36,10 @@ export function ProfileForm({
   buttonClassName = "",
 }: ProfileFormContentProps) {
   const fetcher = useFetcher<{ success: boolean; error?: string }>();
+  const deleteFetcher = useFetcher<{ success: boolean; error?: string }>();
+  const navigate = useNavigate();
   const isSubmitting = fetcher.state === "submitting";
+  const isDeleting = deleteFetcher.state !== "idle";
   const csrfToken = useAuthenticityToken();
 
   const [form, { name, email, phoneNumber, city, address }] = useForm({
@@ -43,6 +57,13 @@ export function ProfileForm({
       onCancel();
     }
   }, [fetcher.state, fetcher.data, onCancel]);
+
+  // Redirect to auth page after successful account deletion
+  useEffect(() => {
+    if (deleteFetcher.state === "idle" && deleteFetcher.data?.success) {
+      navigate("/auth");
+    }
+  }, [deleteFetcher.state, deleteFetcher.data, navigate]);
 
   return (
     <fetcher.Form action="/profile" method="post" {...getFormProps(form)} className="space-y-4">
@@ -100,6 +121,61 @@ export function ProfileForm({
         >
           {isSubmitting ? "Saving..." : submitLabel}
         </Button>
+      </div>
+
+      {/* Delete Account Section */}
+      <div className="border-t border-red-200 pt-4 mt-6">
+        <div className="space-y-2">
+          <h3 className="text-sm font-medium text-red-600">Danger Zone</h3>
+          <p className="text-sm text-gray-600">
+            Once you delete your account, there is no going back. Your personal data will be
+            permanently removed.
+          </p>
+
+          {deleteFetcher.data?.error && (
+            <p className="text-sm text-red-500">{deleteFetcher.data.error}</p>
+          )}
+
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                type="button"
+                variant="destructive"
+                className="w-full sm:w-auto"
+                disabled={isDeleting}
+              >
+                {isDeleting ? "Deleting..." : "Delete Account"}
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This action cannot be undone. This will permanently delete your account, including
+                  your profile, bank details, and identity documents. Your booking history will be
+                  anonymized for our records.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() => {
+                    const formData = new FormData();
+                    formData.append("csrf", csrfToken);
+                    deleteFetcher.submit(formData, {
+                      method: "POST",
+                      action: "/api/account/delete",
+                    });
+                  }}
+                  className="bg-red-500 hover:bg-red-600 disabled:opacity-50"
+                  disabled={isDeleting}
+                >
+                  {isDeleting ? "Deleting..." : "Delete Account"}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
       </div>
     </fetcher.Form>
   );

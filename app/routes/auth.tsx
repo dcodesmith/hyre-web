@@ -1,4 +1,4 @@
-import { getFormProps, getInputProps, useForm } from "@conform-to/react";
+import { getFormProps, getInputProps, useForm, useInputControl } from "@conform-to/react";
 import { getZodConstraint, parseWithZod } from "@conform-to/zod/v4";
 import { CogIcon } from "@heroicons/react/24/outline";
 import { ActionFunctionArgs, LoaderFunctionArgs, data, redirect } from "@remix-run/node";
@@ -65,22 +65,6 @@ export async function action({ request }: ActionFunctionArgs) {
   const { email, referralCode, acceptTerms } = submission.value;
   const role = "user" as const; // Customer login is always "user" role
 
-  // Check if user exists to determine if this is login or signup
-  const existingUserForConsent = await prisma.user.findUnique({
-    where: { email },
-    select: { id: true },
-  });
-
-  // Require consent for new users (signup)
-  if (!existingUserForConsent && !acceptTerms) {
-    return data(
-      {
-        error: "You must accept the Terms of Service and Privacy Policy to create an account.",
-      },
-      { status: 400 },
-    );
-  }
-
   // Use referral code from form or URL parameter
   const finalReferralCodeRaw = referralCode ?? referralCodeFromUrl ?? "";
   const finalReferralCode = finalReferralCodeRaw.trim().toUpperCase() || undefined;
@@ -137,7 +121,7 @@ export default function Login() {
     errorMessage = "An error occurred";
   }
 
-  const [form, { email, referralCode }] = useForm({
+  const [form, { email, referralCode, acceptTerms }] = useForm({
     defaultValue: {
       email: authEmail || "",
       referralCode: referralCodeFromUrl,
@@ -149,6 +133,8 @@ export default function Login() {
     shouldValidate: "onSubmit",
     shouldRevalidate: "onInput",
   });
+
+  const acceptTermsControl = useInputControl(acceptTerms);
 
   return (
     <div className="flex min-h-svh w-full items-center justify-center p-6 md:p-10">
@@ -213,12 +199,22 @@ export default function Login() {
                   )}
 
                   {/* Terms and Privacy Policy consent */}
-                  <label
-                    htmlFor="acceptTerms"
-                    className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer"
-                  >
-                    <Checkbox id="acceptTerms" name="acceptTerms" className="shrink-0" />
-                    <span>
+                  <div className="space-y-1">
+                    <label
+                      htmlFor={acceptTerms.id}
+                      className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer"
+                    >
+                      <Checkbox
+                        id={acceptTerms.id}
+                        name={acceptTerms.name}
+                        className="shrink-0"
+                        checked={acceptTermsControl.value === "on"}
+                        onCheckedChange={(checked) => {
+                          acceptTermsControl.change(checked ? "on" : "");
+                        }}
+                        onBlur={acceptTermsControl.blur}
+                      />
+                      <span>
                         I agree to the{" "}
                         <Link to="/terms" className="text-primary hover:underline" target="_blank">
                           Terms of Service
@@ -233,6 +229,10 @@ export default function Login() {
                         </Link>
                       </span>
                     </label>
+                    {acceptTerms.errors && (
+                      <div className="text-destructive text-sm">{acceptTerms.errors.join(", ")}</div>
+                    )}
+                  </div>
 
                   {/* Prioritize actionData.error for same-route failures, fallback to authError for cross-route errors */}
                   {errorMessage && (
