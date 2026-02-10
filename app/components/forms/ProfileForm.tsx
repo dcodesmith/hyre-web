@@ -1,4 +1,4 @@
-import { getFormProps, getInputProps, useForm } from "@conform-to/react";
+import { getFormProps, getInputProps, useForm, useInputControl } from "@conform-to/react";
 import { parseWithZod } from "@conform-to/zod/v4";
 import type { Role, User } from "@prisma/client";
 import { useFetcher, useNavigate } from "@remix-run/react";
@@ -19,6 +19,7 @@ import {
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
+import { Switch } from "../ui/switch";
 
 interface ProfileFormContentProps {
   readonly user: (User & { roles: Pick<Role, "name">[] }) | null;
@@ -42,14 +43,19 @@ export function ProfileForm({
   const isDeleting = deleteFetcher.state !== "idle";
   const csrfToken = useAuthenticityToken();
 
-  const [form, { name, email, phoneNumber, city, address }] = useForm({
-    defaultValue: user,
+  const [form, { name, email, phoneNumber, city, address, marketingConsent }] = useForm({
+    defaultValue: {
+      ...user,
+      marketingConsent: user?.marketingConsent ? "on" : "",
+    },
     onValidate({ formData }) {
       return parseWithZod(formData, { schema: profileFormSchema });
     },
     shouldValidate: "onInput",
     shouldRevalidate: "onInput",
   });
+
+  const marketingConsentControl = useInputControl(marketingConsent);
 
   // Close modal on successful submission
   useEffect(() => {
@@ -61,7 +67,7 @@ export function ProfileForm({
   // Redirect to auth page after successful account deletion
   useEffect(() => {
     if (deleteFetcher.state === "idle" && deleteFetcher.data?.success) {
-      navigate("/auth");
+      navigate("/auth", { replace: true });
     }
   }, [deleteFetcher.state, deleteFetcher.data, navigate]);
 
@@ -105,6 +111,28 @@ export function ProfileForm({
 
       <input type="hidden" name="intent" value="update" />
 
+      <div className="pt-4 mt-2">
+        <div className="flex items-center justify-between">
+          <div className="space-y-0.5">
+            <Label htmlFor={marketingConsent.id} className="text-sm font-medium">
+              Marketing communications
+            </Label>
+            <p className="text-sm text-muted-foreground">
+              Receive updates about new features, promotions, and travel tips.
+            </p>
+          </div>
+          <Switch
+            id={marketingConsent.id}
+            name={marketingConsent.name}
+            checked={marketingConsentControl.value === "on"}
+            onCheckedChange={(checked) => {
+              marketingConsentControl.change(checked ? "on" : "");
+            }}
+            onBlur={marketingConsentControl.blur}
+          />
+        </div>
+      </div>
+
       <div className="flex flex-col sm:flex-row gap-2 pt-4 sm:justify-end">
         <Button
           type="button"
@@ -123,13 +151,12 @@ export function ProfileForm({
         </Button>
       </div>
 
-      {/* Delete Account Section */}
       <div className="border-t border-red-200 pt-4 mt-6">
         <div className="space-y-2">
           <h3 className="text-sm font-medium text-red-600">Danger Zone</h3>
           <p className="text-sm text-gray-600">
-            Once you delete your account, there is no going back. Your personal data will be
-            permanently removed.
+            Once you delete your account, there is no going back. Your profile and identity data
+            will be permanently removed, and your booking history will be anonymized for records.
           </p>
 
           {deleteFetcher.data?.error && (

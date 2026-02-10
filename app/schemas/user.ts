@@ -93,11 +93,16 @@ export const profileFormSchema = z.object({
     .min(2, "Name must be at least 2 characters"),
   email: z.email("Invalid email address"),
   phoneNumber: phoneNumberValidation,
+  city: z.string().optional(),
   address: z
     .string({
       error: "Address is required",
     })
     .min(1, "Address cannot be empty"),
+  marketingConsent: z
+    .string()
+    .optional()
+    .transform((val) => val === "on"),
 });
 
 export type ProfileFormValues = z.infer<typeof profileFormSchema>;

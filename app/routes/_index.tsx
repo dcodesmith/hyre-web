@@ -330,7 +330,7 @@ export default function IndexPage() {
   const getRateForDisplay = (car: HomePageCar) => car.dayRate;
 
   // Filter cars with 4.5+ rating for Top Bookings section
-  const topBookings = filterTopBookings(categories.allCars, ratings);
+  // const topBookings = filterTopBookings(categories.allCars, ratings);
 
   // Use the mobile hook for responsive behavior
   const isMobile = useIsMobile();
@@ -550,7 +550,7 @@ export default function IndexPage() {
             </div>
 
             {/* Top Bookings Section - Cars with 4.5+ rating */}
-            {topBookings.length > 0 && (
+            {/* {topBookings.length > 0 && (
               <CarouselSection title="Top Rated" id="top-bookings">
                 {topBookings.map(({ car, ratings: carRatings }, index) => (
                   <TopBookingCard
@@ -562,7 +562,7 @@ export default function IndexPage() {
                   />
                 ))}
               </CarouselSection>
-            )}
+            )} */}
 
             {/* SUVs Section */}
             {categories.suvs.length > 0 && (

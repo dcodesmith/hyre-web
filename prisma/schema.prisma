@@ -69,6 +69,7 @@ model User {
   // Consent fields (NDPC compliance)
   termsAcceptedAt           DateTime?
   privacyAcceptedAt         DateTime?
+  marketingConsent          Boolean                    @default(false)
   // Referral fields
   referralCode              String?                    @unique
   referredByUserId          String?
