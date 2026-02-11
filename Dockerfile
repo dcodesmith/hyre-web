@@ -24,8 +24,14 @@ RUN pnpm install --offline --frozen-lockfile
 # Build the Remix app (prisma generate runs as part of build script)
 RUN pnpm build
 
-# Prune dev dependencies
-RUN pnpm prune --prod --ignore-scripts && cp -R node_modules /tmp/node_modules_prod
+# Preserve prisma CLI for runtime migrations, then prune dev dependencies
+RUN cp -R node_modules/.prisma /tmp/dotprisma && \
+    cp -R node_modules/prisma /tmp/prisma_cli && \
+    pnpm prune --prod --ignore-scripts && \
+    cp -R /tmp/dotprisma node_modules/.prisma && \
+    cp -R /tmp/prisma_cli node_modules/prisma && \
+    ln -sf ../prisma/build/index.js node_modules/.bin/prisma && \
+    cp -R node_modules /tmp/node_modules_prod
 
 
 # STAGE 2: Production
