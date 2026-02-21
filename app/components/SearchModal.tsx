@@ -1,6 +1,6 @@
 import { cn } from "~/lib/utils";
 import { AISearchModal } from "./AISearchModal";
-import { BookingSearch } from "./BookingSearch";
+import { BookingSearch, BookingSearchDraftProvider } from "./BookingSearch";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "./ui/dialog";
 
 interface SearchModalProps {
@@ -30,12 +30,14 @@ export function SearchModal({ isOpen, onClose, navigateToSearch = false }: Searc
           <DialogDescription>Search modal</DialogDescription>
         </DialogHeader>
         <div className="overflow-y-auto px-4 py-6 flex-1">
-          <BookingSearch
-            isCompact={false}
-            context="modal"
-            navigateToSearch={navigateToSearch}
-            onSearchComplete={onClose}
-          />
+          <BookingSearchDraftProvider>
+            <BookingSearch
+              isCompact={false}
+              context="modal"
+              navigateToSearch={navigateToSearch}
+              onSearchComplete={onClose}
+            />
+          </BookingSearchDraftProvider>
 
           <div className="mt-4 flex justify-center">
             <AISearchModal />

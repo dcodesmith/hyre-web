@@ -13,7 +13,7 @@ import { Link, useLoaderData, useMatches, useSearchParams } from "@remix-run/rea
 import { fromZonedTime } from "date-fns-tz";
 import { useCallback, useState } from "react";
 
-import { BookingSearch } from "~/components/BookingSearch";
+import { BookingSearch, BookingSearchDraftProvider } from "~/components/BookingSearch";
 import { CarCard } from "~/components/CarCard";
 import { CarSkeleton } from "~/components/CarSkeleton";
 import { CompactSearchBar } from "~/components/CompactSearchBar";
@@ -857,11 +857,13 @@ export default function SearchPage() {
   return (
     <div className="min-h-screen">
       {/* Fixed Header with Search - positioned below main navbar */}
-      <div className="fixed top-0 md:top-[65px] left-0 right-0 z-30 bg-white border-b-0 md:border-b md:border-gray-200 shadow-sm">
+      <div className="fixed top-0 md:top-[69px] left-0 right-0 z-30 bg-white border-b-0 md:border-b md:border-gray-200 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 py-4">
           {/* Desktop: Search bar */}
           <div className="hidden md:block max-w-4xl mx-auto">
-            <BookingSearch isCompact={true} />
+            <BookingSearchDraftProvider>
+              <BookingSearch isCompact={true} />
+            </BookingSearchDraftProvider>
           </div>
 
           {/* Mobile: Compact search bar */}

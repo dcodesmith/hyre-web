@@ -1,7 +1,15 @@
 import { useNavigate, useNavigation, useSearchParams } from "@remix-run/react";
 import { format } from "date-fns";
 import { Loader2, Search } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 import { DateRange } from "react-day-picker";
 import { SingleDatePicker } from "./booking/SingleDatePicker";
 
@@ -25,6 +33,75 @@ import { BookingTypeTabs } from "./BookingTypeTabs";
 import { Button } from "./ui/button";
 import { cn } from "~/lib/utils";
 
+type BookingSearchDraftContextValue = {
+  bookingType: BookingType;
+  setBookingType: (value: BookingType) => void;
+  dateRange: DateRange;
+  setDateRange: (value: DateRange) => void;
+  pickupTime: string | undefined;
+  setPickupTime: (value: string | undefined) => void;
+  flightNumber: string | undefined;
+  setFlightNumber: (value: string | undefined) => void;
+  validatedFlight: ValidatedFlight | null;
+  setValidatedFlight: (value: ValidatedFlight | null) => void;
+  flightValidationError: string | null;
+  setFlightValidationError: (value: string | null) => void;
+};
+
+const BookingSearchDraftContext = createContext<BookingSearchDraftContextValue | null>(null);
+
+function useBookingSearchDraft(): BookingSearchDraftContextValue {
+  const context = useContext(BookingSearchDraftContext);
+
+  if (!context) {
+    throw new Error(
+      "BookingSearch must be rendered within BookingSearchDraftProvider to access BookingSearchDraftContext state.",
+    );
+  }
+
+  return context;
+}
+
+export function BookingSearchDraftProvider({ children }: { readonly children: ReactNode }) {
+  const [bookingType, setBookingType] = useState<BookingType>(DAY_BOOKING_TYPE);
+  const [dateRange, setDateRange] = useState<DateRange>({ from: undefined, to: undefined });
+  const [pickupTime, setPickupTime] = useState<string | undefined>(undefined);
+  const [flightNumber, setFlightNumber] = useState<string | undefined>(undefined);
+  const [validatedFlight, setValidatedFlight] = useState<ValidatedFlight | null>(null);
+  const [flightValidationError, setFlightValidationError] = useState<string | null>(null);
+
+  const contextValue = useMemo(
+    () => ({
+      bookingType,
+      setBookingType,
+      dateRange,
+      setDateRange,
+      pickupTime,
+      setPickupTime,
+      flightNumber,
+      setFlightNumber,
+      validatedFlight,
+      setValidatedFlight,
+      flightValidationError,
+      setFlightValidationError,
+    }),
+    [
+      bookingType,
+      dateRange,
+      pickupTime,
+      flightNumber,
+      validatedFlight,
+      flightValidationError,
+    ],
+  );
+
+  return (
+    <BookingSearchDraftContext.Provider value={contextValue}>
+      {children}
+    </BookingSearchDraftContext.Provider>
+  );
+}
+
 interface BookingTypeInputProps {
   readonly bookingType: BookingType;
   readonly pickupTime: string | undefined;
@@ -37,6 +114,7 @@ interface BookingTypeInputProps {
   readonly onValidationError: (message: string | null, isWarning: boolean) => void;
   readonly validatedFlight?: ValidatedFlight | null;
   readonly validationMessage?: string | null;
+  readonly isCompact?: boolean;
 }
 
 function BookingTypeInput({
@@ -51,6 +129,7 @@ function BookingTypeInput({
   onValidationError,
   validatedFlight,
   validationMessage,
+  isCompact = false,
 }: BookingTypeInputProps) {
   const containerClass = "w-full h-[38px] flex flex-col justify-center";
   const labelClass = "text-xs font-semibold text-gray-700 leading-tight";
@@ -137,6 +216,7 @@ function BookingTypeInput({
       containerClassName={containerClass}
       labelClassName={labelClass}
       showLabel={true}
+      placeholder={isCompact ? "Select time" : "Select pickup time"}
     />
   );
 }
@@ -204,9 +284,8 @@ export function BookingSearch({
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const navigation = useNavigation();
+  const sharedDraft = useBookingSearchDraft();
   const [isSearchClicked, setIsSearchClicked] = useState(false);
-  const [validatedFlight, setValidatedFlight] = useState<ValidatedFlight | null>(null);
-  const [flightValidationError, setFlightValidationError] = useState<string | null>(null);
 
   // Check if page is loading/searching - only show loading if user clicked Search button
   const isSearching = navigation.state === "loading" && isSearchClicked;
@@ -225,25 +304,20 @@ export function BookingSearch({
     [],
   );
 
-  // Get initial values from URL params
-  const urlBookingTypeParam = searchParams.get("bookingType");
-  const initialBookingType: BookingType = isValidBookingType(urlBookingTypeParam)
-    ? urlBookingTypeParam
-    : DAY_BOOKING_TYPE;
-  const initialFrom = searchParams.get("from");
-  const initialTo = searchParams.get("to");
-  const initialPickupTime = searchParams.get("pickupTime") || undefined;
-  const initialFlightNumber = searchParams.get("flightNumber") || undefined;
-
-  // Use local state for form inputs (only sync to URL on Search button click or booking type change)
-  const [bookingType, setBookingType] = useState<BookingType>(initialBookingType);
-  const [dateRange, setDateRange] = useState<DateRange>({
-    // Parse without Z suffix to treat as local midnight, preserving the calendar date
-    from: initialFrom ? new Date(`${initialFrom}T00:00:00`) : undefined,
-    to: initialTo ? new Date(`${initialTo}T00:00:00`) : undefined,
-  });
-  const [pickupTime, setPickupTime] = useState<string | undefined>(initialPickupTime);
-  const [flightNumber, setFlightNumber] = useState<string | undefined>(initialFlightNumber);
+  const {
+    bookingType,
+    setBookingType,
+    dateRange,
+    setDateRange,
+    pickupTime,
+    setPickupTime,
+    flightNumber,
+    setFlightNumber,
+    validatedFlight,
+    setValidatedFlight,
+    flightValidationError,
+    setFlightValidationError,
+  } = sharedDraft;
 
   // Sync state when URL changes (e.g., navigating back from car details page)
   useEffect(() => {
@@ -253,9 +327,10 @@ export function BookingSearch({
     const urlPickupTime = searchParams.get("pickupTime");
     const urlFlightNumber = searchParams.get("flightNumber");
 
-    if (urlBookingType && isValidBookingType(urlBookingType)) {
-      setBookingType(urlBookingType);
-    }
+    const nextBookingType: BookingType = isValidBookingType(urlBookingType)
+      ? urlBookingType
+      : DAY_BOOKING_TYPE;
+    setBookingType(nextBookingType);
 
     setDateRange({
       // Parse without Z suffix to treat as local midnight, preserving the calendar date
@@ -265,7 +340,14 @@ export function BookingSearch({
 
     setPickupTime(urlPickupTime || undefined);
     setFlightNumber(urlFlightNumber || undefined);
-  }, [searchParams, isValidBookingType]);
+  }, [
+    searchParams,
+    isValidBookingType,
+    setBookingType,
+    setDateRange,
+    setPickupTime,
+    setFlightNumber,
+  ]);
 
   const handleBookingTypeChange = useCallback(
     (tabValue: string) => {
@@ -287,13 +369,22 @@ export function BookingSearch({
         }
       }
     },
-    [navigateToSearch, setSearchParams],
+    [
+      navigateToSearch,
+      setSearchParams,
+      setBookingType,
+      setDateRange,
+      setPickupTime,
+      setFlightNumber,
+      setValidatedFlight,
+      setFlightValidationError,
+    ],
   );
 
   const handlePickupTimeChange = useCallback((value: string) => {
     // Update local state only, don't update URL yet
     setPickupTime(value);
-  }, []);
+  }, [setPickupTime]);
 
   const handleFlightNumberChange = useCallback((value: string) => {
     // Update local state only, don't update URL yet
@@ -301,13 +392,13 @@ export function BookingSearch({
     // Clear validation when user manually types (not when autocomplete selects)
     setValidatedFlight(null);
     setFlightValidationError(null);
-  }, []);
+  }, [setFlightNumber, setValidatedFlight, setFlightValidationError]);
 
   const handleFlightNumberSelect = useCallback((value: string) => {
     // Update local state when autocomplete selection is made
     // Don't clear validation state - the validation callback will set it
     setFlightNumber(value);
-  }, []);
+  }, [setFlightNumber]);
 
   const handleFromDateChange = useCallback(
     (date: Date | undefined) => {
@@ -331,7 +422,7 @@ export function BookingSearch({
       setValidatedFlight(null);
       setFlightValidationError(null);
     },
-    [bookingType, dateRange.to],
+    [bookingType, dateRange.to, setDateRange, setValidatedFlight, setFlightValidationError],
   );
 
   // Calculate minDate for "To" date picker
@@ -358,17 +449,23 @@ export function BookingSearch({
       setValidatedFlight(null);
       setFlightValidationError(null);
     },
-    [bookingType, dateRange.from],
+    [
+      bookingType,
+      dateRange.from,
+      setDateRange,
+      setValidatedFlight,
+      setFlightValidationError,
+    ],
   );
 
   const handleFlightValidated = useCallback((flight: ValidatedFlight | null) => {
     setValidatedFlight(flight);
     setFlightValidationError(null);
-  }, []);
+  }, [setValidatedFlight, setFlightValidationError]);
 
   const handleValidationError = useCallback((message: string | null, _isWarning: boolean) => {
     setFlightValidationError(message);
-  }, []);
+  }, [setFlightValidationError]);
 
   const handleSearch = useCallback(() => {
     // Set flag to show loading indicator
@@ -441,6 +538,7 @@ export function BookingSearch({
     onValidationError: handleValidationError,
     validatedFlight,
     validationMessage: flightValidationError,
+    isCompact,
   };
 
   return (

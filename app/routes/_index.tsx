@@ -14,7 +14,6 @@ import type { AggregatedRatings } from "~/services/reviews.server";
 import { lazy, Suspense, useState } from "react";
 import { CarCard } from "~/components/CarCard";
 import { CarouselSection } from "~/components/CarouselSection";
-import { TopBookingCard, filterTopBookings } from "~/components/TopBookingCard";
 
 // Lazy-load components that aren't needed for initial render
 const CompactSearchBar = lazy(() =>
@@ -65,8 +64,8 @@ import {
   WebSiteSchema,
   FAQSchema,
 } from "~/components/seo/StructuredData";
-import { useIsMobile } from "~/hooks/use-mobile";
-import { getHeroHeightClasses, useHeroScroll } from "~/hooks/useHeroScroll";
+import { getHeroHeightClasses } from "~/hooks/useHeroScroll";
+import { useRootScrollState } from "~/root";
 import { ServiceTiers, VehicleTypes } from "~/types";
 import type { ServiceTier, VehicleType } from "~/types";
 import { companyInfo, defaultKeywords, generateMetaTags } from "~/utils/seo";
@@ -332,14 +331,16 @@ export default function IndexPage() {
   // Filter cars with 4.5+ rating for Top Bookings section
   // const topBookings = filterTopBookings(categories.allCars, ratings);
 
-  // Use the mobile hook for responsive behavior
-  const isMobile = useIsMobile();
+  // Get shared scroll state from root to prevent flash
+  // Both header and hero now use the same state source
+  const { hasScrolled, isMobile } = useRootScrollState();
   const isDesktop = !isMobile;
 
-  // Scroll-based hero collapse behavior
-  const heroScrollState = useHeroScroll();
-  const { isDesktopCollapsed, isMobileScrolled } = heroScrollState;
-  const { desktopHeight, containerClass: heroContainerClass } =
+  // Derive hero collapse state from shared scroll state
+  const isDesktopCollapsed = isDesktop && hasScrolled;
+  const isMobileScrolled = isMobile && hasScrolled;
+  const heroScrollState = { isDesktopCollapsed, isMobileScrolled };
+  const { desktopHeight, containerClass: heroContainerClass, heroOpacity, contentTransform } =
     getHeroHeightClasses(heroScrollState);
 
   // Mobile search modal state
@@ -401,7 +402,7 @@ export default function IndexPage() {
       )}
 
       {/* Hero Section - Fixed on desktop, relative on mobile */}
-      <div className={`w-full transition-all duration-300 ease-out ${heroContainerClass}`}>
+      <div className={`w-full transition-all duration-300 ease-out ${heroContainerClass} ${heroOpacity}`}>
         {/* Hero Image - fades out when collapsed (desktop only) */}
         <div
           className={`absolute inset-0 transition-opacity duration-300 ${
@@ -435,10 +436,10 @@ export default function IndexPage() {
           />
         )}
 
-        {/* Hero Content */}
+        {/* Hero Content - pt-16 md:pt-20 adds space for transparent header overlay */}
         <div
           className={`relative z-10 flex flex-col items-center h-full px-4 max-w-4xl mx-auto transition-all duration-300 ${
-            isDesktopCollapsed ? "justify-center py-4" : "justify-center"
+            isDesktopCollapsed ? "justify-center py-4" : "justify-center pt-16 md:pt-20"
           }`}
         >
           {/* Title & description - hide when scrolled (desktop full collapse, mobile text only) */}
@@ -457,11 +458,13 @@ export default function IndexPage() {
             </p>
           </div>
 
-          {/* Search Box - always visible, adapts style on desktop collapse */}
+          {/* Search Box - hide on desktop when collapsed (search moves to header) */}
           <div
-            className={`w-full transition-all duration-300 space-y-3 ${isDesktopCollapsed ? "max-w-4xl" : "max-w-2xl"}`}
+            className={`w-full transition-all duration-300 space-y-3 max-w-2xl ${
+              isDesktopCollapsed ? "md:opacity-0 md:max-h-0 md:overflow-hidden" : ""
+            }`}
           >
-            <BookingSearch isCompact={isDesktopCollapsed} navigateToSearch />
+            <BookingSearch navigateToSearch />
 
             <div className="flex justify-center">
               <Suspense fallback={null}>
@@ -492,7 +495,7 @@ export default function IndexPage() {
       <div className={`hidden md:block transition-all duration-300 ${desktopHeight}`} />
 
       {/* Main Content Container - Scrolls underneath fixed hero */}
-      <div className="relative z-0 bg-white py-8 md:py-12 space-y-6">
+      <div className={`relative z-0 bg-white py-8 md:py-12 space-y-6 transition-transform duration-300 ${contentTransform}`}>
         {categories.allCars.length ? (
           <div className="space-y-6">
             {/* Category Filter Pills - Link to /search with filters */}

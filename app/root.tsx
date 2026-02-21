@@ -17,6 +17,7 @@ import {
   useLoaderData,
   useLocation,
   useRouteError,
+  useOutletContext,
 } from "@remix-run/react";
 import {
   lazy,
@@ -42,12 +43,30 @@ import { ProfileFormSheet } from "./components/forms/ProfileFormSheet";
 import { userHasRole } from "./utils/shared/roles";
 import { Button } from "./components/ui/button";
 import { Gift } from "lucide-react";
+import { BookingSearch, BookingSearchDraftProvider } from "./components/BookingSearch";
+import { AISearchModal } from "./components/AISearchModal";
 import { getReferralConfig } from "./services/referral.server";
-import { formatCurrency } from "./lib/utils";
+import { cn, formatCurrency } from "./lib/utils";
 import { generateMetaTags } from "./utils/seo";
 import { MaintenancePage } from "./components/MaintenancePage";
 import { CookieConsentBanner } from "./components/CookieConsentBanner";
 import { COOKIE_CONSENT_KEY } from "./hooks/useCookieConsent";
+import {
+  SCROLL_COLLAPSE_THRESHOLD,
+  SCROLL_EXPAND_THRESHOLD,
+  MOBILE_BREAKPOINT,
+} from "./constants/ui";
+
+// Type for outlet context - shared scroll state
+export interface RootOutletContext {
+  hasScrolled: boolean;
+  isMobile: boolean;
+}
+
+// Hook to access scroll state from child routes
+export function useRootScrollState() {
+  return useOutletContext<RootOutletContext>();
+}
 
 // Constants
 const AUTH_ROUTES = [
@@ -188,10 +207,11 @@ const getMainClassName = (
   if (isAuthPage || isHomePage) {
     return "";
   }
+  // md:pt-[69px] compensates for the fixed-position desktop header
   if (isCarDetailPage) {
-    return "lg:container lg:mx-auto lg:px-4";
+    return "md:pt-[69px] lg:container lg:mx-auto lg:px-4";
   }
-  return "container mx-auto px-4";
+  return "md:pt-[69px] container mx-auto px-4";
 };
 
 const getErrorDetails = (
@@ -353,6 +373,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
 function AppContent() {
   const { user, ENV, referralConfigPromise } = useLoaderData<typeof loader>();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [hasScrolled, setHasScrolled] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const location = useLocation();
 
   // Route checks - simple string comparisons don't need memoization
@@ -367,6 +389,45 @@ function AppContent() {
   const dashboardLink = getDashboardLinkFromUser(user);
   const mainClassName = getMainClassName(isAuthPage, isHomePage, isCarDetailPage);
   const mainPaddingClass = isCarDetailPage ? "pb-0" : "pb-20";
+
+  // Track scroll and mobile state for hero collapse
+  // This state is shared with child routes via outlet context to prevent flash
+  useEffect(() => {
+    // Track mobile state
+    const updateMobile = () => {
+      setIsMobile(window.innerWidth < MOBILE_BREAKPOINT);
+    };
+    updateMobile();
+    window.addEventListener("resize", updateMobile, { passive: true });
+
+    if (!isHomePage) {
+      setHasScrolled(false);
+      return () => window.removeEventListener("resize", updateMobile);
+    }
+
+    // Use hysteresis to prevent flicker when scrolling slowly near threshold
+    // Collapse at 100px, expand at 50px - this creates a "dead zone" that prevents rapid toggling
+    const handleScroll = () => {
+      const scrollY = window.scrollY;
+      setHasScrolled((prev) => {
+        if (prev) {
+          // Currently collapsed - only expand when scroll is below expand threshold
+          return scrollY > SCROLL_EXPAND_THRESHOLD;
+        }
+        // Currently expanded - only collapse when scroll is above collapse threshold
+        return scrollY > SCROLL_COLLAPSE_THRESHOLD;
+      });
+    };
+
+    // Check initial state
+    handleScroll();
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+      window.removeEventListener("resize", updateMobile);
+    };
+  }, [isHomePage]);
 
   // Memoize callbacks passed to child components
   const handleProfileOpen = useCallback(() => {
@@ -388,50 +449,82 @@ function AppContent() {
       <body className="h-full bg-background">
         {skipToMainLink}
 
-        <div className="flex flex-col min-h-screen">
-          {/* Desktop header - hidden on mobile and login/verify pages */}
-          {!isAuthPage && (
-            <header className="hidden md:flex p-4 justify-between items-center z-50 sticky top-0 bg-white backdrop-blur-sm border-b border-transparent transition-all">
-              <Link
-                to={dashboardLink}
-                className="text-2xl md:text-3xl font-bold font-dancingscript"
-              >
-                {ENV.APP_NAME}
-              </Link>
-              <div className="flex items-center gap-2 mr-2">
-                {userHasRole(user, "user") && (
-                  <Suspense fallback={null}>
-                    <Await resolve={referralConfigPromise} errorElement={null}>
-                      {(referralConfig) => (
-                        <Button variant="outline" asChild className="text-sm">
-                          <Link to="/referrals">
-                            <span className="flex items-center gap-2">
-                              Earn {formatCurrency(referralConfig.REFERRAL_DISCOUNT_AMOUNT)}
-                              <Gift className="w-4 h-4 text-green-600 font-medium" />
-                            </span>
-                          </Link>
-                        </Button>
-                      )}
-                    </Await>
-                  </Suspense>
+        <BookingSearchDraftProvider>
+          <div className="flex flex-col min-h-screen">
+            {/* Desktop header - hidden on mobile and login/verify pages */}
+            {/* On homepage: transparent overlay on hero, becomes solid on scroll */}
+            {!isAuthPage && (
+              <header
+                className={cn(
+                  "hidden md:flex p-4 justify-between z-50 fixed top-0 left-0 right-0 transition-all duration-300",
+                  isHomePage && hasScrolled ? "items-start" : "items-center",
+                  isHomePage && !hasScrolled
+                    ? "bg-transparent border-transparent"
+                    : "bg-white border-b border-gray-200 shadow-sm",
                 )}
-                <UserNav user={user} />
-              </div>
-            </header>
-          )}
+              >
+                <Link
+                  to={dashboardLink}
+                  className={`text-2xl md:text-3xl font-bold font-dancingscript transition-colors duration-300 shrink-0 ${
+                    isHomePage && !hasScrolled ? "text-white" : "text-gray-900"
+                  }`}
+                >
+                  {ENV.APP_NAME}
+                </Link>
 
-          <main
-            id="main-content"
-            className={`flex-grow ${mainPaddingClass} md:pb-0 text-sm ${mainClassName}`}
-          >
-            <Outlet />
-          </main>
+                {/* Compact search in header - only on homepage when scrolled */}
+                {isHomePage && hasScrolled && (
+                  <div className="flex-1 max-w-3xl mx-4 flex flex-col items-center gap-1">
+                    <div className="w-full">
+                      <BookingSearch isCompact navigateToSearch />
+                    </div>
+                    <AISearchModal />
+                  </div>
+                )}
 
-          {/* Footer: hidden on auth pages, hidden on internal dashboard routes (admin/fleet-owner), hidden on mobile for car detail pages (booking flow has sticky footer) */}
-          {!isAuthPage && !isInternalDashboardRoute && (
-            <Footer isCarDetailPage={isCarDetailPage} appName={ENV.APP_NAME} />
-          )}
-        </div>
+                <div className="flex items-center gap-2 mr-2 shrink-0">
+                  {userHasRole(user, "user") && (
+                    <Suspense fallback={null}>
+                      <Await resolve={referralConfigPromise} errorElement={null}>
+                        {(referralConfig) => (
+                          <Button
+                            variant="outline"
+                            asChild
+                            className={`text-sm transition-colors duration-300 ${
+                              isHomePage && !hasScrolled
+                                ? "bg-white/20 border-white/40 text-white hover:bg-white/30"
+                                : ""
+                            }`}
+                          >
+                            <Link to="/referrals">
+                              <span className="flex items-center gap-2">
+                                Earn {formatCurrency(referralConfig.REFERRAL_DISCOUNT_AMOUNT)}
+                                <Gift className="w-4 h-4 text-green-600 font-medium" />
+                              </span>
+                            </Link>
+                          </Button>
+                        )}
+                      </Await>
+                    </Suspense>
+                  )}
+                  <UserNav user={user} isTransparent={isHomePage && !hasScrolled} />
+                </div>
+              </header>
+            )}
+
+            <main
+              id="main-content"
+              className={`flex-grow ${mainPaddingClass} md:pb-0 text-sm ${mainClassName}`}
+            >
+              <Outlet context={{ hasScrolled, isMobile } satisfies RootOutletContext} />
+            </main>
+
+            {/* Footer: hidden on auth pages, hidden on internal dashboard routes (admin/fleet-owner), hidden on mobile for car detail pages (booking flow has sticky footer) */}
+            {!isAuthPage && !isInternalDashboardRoute && (
+              <Footer isCarDetailPage={isCarDetailPage} appName={ENV.APP_NAME} />
+            )}
+          </div>
+        </BookingSearchDraftProvider>
 
         {/* Mobile bottom navigation - hidden on login/verify pages */}
         {!isAuthPage && (

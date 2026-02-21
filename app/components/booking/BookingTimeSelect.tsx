@@ -91,6 +91,8 @@ interface BookingTimeSelectProps {
   readonly labelClassName?: string;
   /** Whether to show the inline label. Set to false when using external Label component. */
   readonly showLabel?: boolean;
+  /** Custom placeholder text (defaults to "Select pickup time") */
+  readonly placeholder?: string;
 }
 
 export function BookingTimeSelect({
@@ -103,6 +105,7 @@ export function BookingTimeSelect({
   containerClassName,
   labelClassName = "text-xs font-semibold text-gray-700 leading-tight",
   showLabel = false,
+  placeholder = "Select pickup time",
 }: BookingTimeSelectProps) {
   // Normalize the value to match the select's format
   const normalizedValue = value ? normalizeTimeFormat(value) : undefined;
@@ -133,9 +136,9 @@ export function BookingTimeSelect({
         <SelectValue
           placeholder={
             containerClassName ? (
-              <span className="text-gray-500">Select pickup time</span>
+              <span className="text-gray-500">{placeholder}</span>
             ) : (
-              "Select pickup time"
+              placeholder
             )
           }
         />

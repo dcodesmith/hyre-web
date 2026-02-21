@@ -17,18 +17,22 @@ import { Form } from "~/components/CSRFForm";
 
 type AuthSectionProps = {
   readonly user: (User & { roles: Pick<Role, "name">[] }) | null;
-  readonly isHomeRoute: boolean;
   readonly onProfileOpen: () => void;
+  readonly isTransparent?: boolean;
 };
 
-function AuthSection({ user, isHomeRoute, onProfileOpen }: AuthSectionProps) {
+function AuthSection({ user, onProfileOpen, isTransparent }: AuthSectionProps) {
   if (user) {
     return (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
             variant="ghost"
-            className="relative h-8 w-8 rounded-full border flex items-center justify-center capitalize italic md:hover:bg-transparent"
+            className={`relative h-8 w-8 rounded-full border flex items-center justify-center capitalize italic md:hover:bg-transparent transition-colors duration-300 ${
+              isTransparent
+                ? "border-white/60 text-white hover:border-white"
+                : "border-gray-300 text-gray-900"
+            }`}
             aria-label="Open profile menu"
           >
             {getInitials(user)}
@@ -75,9 +79,11 @@ function AuthSection({ user, isHomeRoute, onProfileOpen }: AuthSectionProps) {
       <Button
         variant="outline"
         size="sm"
-        // className={`flex border items-center justify-center md:hover:bg-transparent md:hover:text-white ${
-        //   isHomeRoute ? "text-white" : "text-black"
-        // }`}
+        className={`transition-colors duration-300 ${
+          isTransparent
+            ? "bg-white/20 border-white/40 text-white hover:bg-white/30 hover:text-white"
+            : ""
+        }`}
       >
         Register or Log in
       </Button>
@@ -113,22 +119,29 @@ function getInitials(user: (User & { roles: Pick<Role, "name">[] }) | null): str
 
 type UserNavProps = {
   readonly user: (User & { roles: Pick<Role, "name">[] }) | null;
+  readonly isTransparent?: boolean;
 };
 
-export function UserNav({ user }: UserNavProps) {
+export function UserNav({ user, isTransparent }: UserNavProps) {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const location = useLocation();
   const isAdminRoute = location.pathname.startsWith("/admin");
-  const isHomeRoute = location.pathname === "/";
 
   return (
     <>
       <div className="flex items-center gap-2">
         {userHasRole(user, "admin") || userHasRole(user, "staff") ? (
           <div className="flex items-center gap-2">
-            <span className="text-sm font-medium">{user?.name ?? user?.username ?? "User"}</span>
+            <span
+              className={`text-sm font-medium transition-colors duration-300 ${isTransparent ? "text-white" : ""}`}
+            >
+              {user?.name ?? user?.username ?? "User"}
+            </span>
             <Form method="post" action="/logout">
-              <button type="submit" className="w-full text-left">
+              <button
+                type="submit"
+                className={`w-full text-left transition-colors duration-300 ${isTransparent ? "text-white hover:text-white/80" : ""}`}
+              >
                 Log out
               </button>
             </Form>
@@ -137,8 +150,8 @@ export function UserNav({ user }: UserNavProps) {
           !isAdminRoute && (
             <AuthSection
               user={user}
-              isHomeRoute={isHomeRoute}
               onProfileOpen={() => setIsProfileOpen(true)}
+              isTransparent={isTransparent}
             />
           )
         )}
