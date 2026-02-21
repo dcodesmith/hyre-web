@@ -1,12 +1,13 @@
-import { getFormProps, getInputProps, useForm } from "@conform-to/react";
+import { getFormProps, getInputProps, useForm, useInputControl } from "@conform-to/react";
 import { getZodConstraint, parseWithZod } from "@conform-to/zod/v4";
 import { CogIcon } from "@heroicons/react/24/outline";
 import { ActionFunctionArgs, LoaderFunctionArgs, data, redirect } from "@remix-run/node";
-import { useActionData, useLoaderData } from "@remix-run/react";
+import { Link, useActionData, useLoaderData } from "@remix-run/react";
 import { Form } from "~/components/CSRFForm";
 import { LoginSchema } from "~/schemas/auth.schema";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
+import { Checkbox } from "~/components/ui/checkbox";
 import { Input } from "~/components/ui/input";
 import logger from "~/lib/logger.server";
 import { useIsPending } from "~/lib/utils";
@@ -56,7 +57,7 @@ export async function action({ request }: ActionFunctionArgs) {
   }
 
   const redirectTo = safeRedirect(url.searchParams.get("redirectTo"), "");
-  const { email } = submission.value;
+  const { email, acceptTerms } = submission.value;
   const role = "fleetOwner" as const;
 
   try {
@@ -80,7 +81,8 @@ export async function action({ request }: ActionFunctionArgs) {
     }
 
     // Send OTP and redirect to verify page
-    return sendOTPAndRedirect(request, email, role, redirectTo);
+    // Pass acceptTerms for consent tracking
+    return sendOTPAndRedirect(request, email, role, redirectTo, undefined, acceptTerms);
   } catch (error) {
     logger.error("Error sending OTP for fleet owner", { error });
 
@@ -98,7 +100,16 @@ export default function FleetOwnerLogin() {
   const actionData = useActionData<typeof action>();
   const isPending = useIsPending();
 
-  const [form, { email }] = useForm({
+  let errorMessage: string | undefined;
+  if (actionData?.error) {
+    errorMessage = typeof actionData.error === "string" ? actionData.error : "An error occurred";
+  } else if (typeof authError === "string") {
+    errorMessage = authError;
+  } else if (authError) {
+    errorMessage = "An error occurred";
+  }
+
+  const [form, { email, acceptTerms }] = useForm({
     defaultValue: {
       email: authEmail || "",
     },
@@ -109,6 +120,8 @@ export default function FleetOwnerLogin() {
     shouldValidate: "onSubmit",
     shouldRevalidate: "onInput",
   });
+
+  const acceptTermsControl = useInputControl(acceptTerms);
 
   return (
     <div className="flex min-h-svh w-full items-center justify-center p-6 md:p-10">
@@ -140,11 +153,44 @@ export default function FleetOwnerLogin() {
                     )}
                   </div>
 
-                  {/* Prioritize actionData.error for same-route failures, fallback to authError for cross-route errors */}
-                  {(actionData?.error || authError) && (
+                  <div className="space-y-1">
+                    <label
+                      htmlFor={acceptTerms.id}
+                      className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer"
+                    >
+                      <Checkbox
+                        id={acceptTerms.id}
+                        name={acceptTerms.name}
+                        className="shrink-0"
+                        checked={acceptTermsControl.value === "on"}
+                        onCheckedChange={(checked) => {
+                          acceptTermsControl.change(checked ? "on" : "");
+                        }}
+                        onBlur={acceptTermsControl.blur}
+                      />
+                      <span>
+                        I agree to the{" "}
+                        <Link to="/terms" className="text-primary hover:underline" target="_blank">
+                          Terms of Service
+                        </Link>{" "}
+                        and{" "}
+                        <Link
+                          to="/privacy"
+                          className="text-primary hover:underline"
+                          target="_blank"
+                        >
+                          Privacy Policy
+                        </Link>
+                      </span>
+                    </label>
+                    {acceptTerms.errors && (
+                      <div className="text-destructive text-sm">{acceptTerms.errors.join(", ")}</div>
+                    )}
+                  </div>
+
+                  {errorMessage && (
                     <span className="mb-2 text-sm text-destructive dark:text-destructive-foreground">
-                      {actionData?.error ||
-                        (typeof authError === "string" ? authError : authError?.message)}
+                      {errorMessage}
                     </span>
                   )}
 
