@@ -632,7 +632,7 @@ export default function BookingsPage() {
       <div className="max-w-md mx-auto mt-8">
         <h2 className="text-2xl font-bold mb-4">Find Your Bookings</h2>
         <form method="get" action="/bookings?status=confirmed" className="space-y-4">
-          <div>
+          <div className="flex flex-col gap-2">
             <Label htmlFor="guestEmail">Enter your email address</Label>
             <Input id="email" name="email" type="email" placeholder="your@email.com" required />
           </div>
