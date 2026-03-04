@@ -514,7 +514,7 @@ function AppContent() {
 
             <main
               id="main-content"
-              className={`flex-grow ${mainPaddingClass} md:pb-0 text-sm ${mainClassName}`}
+              className={`flex-grow min-h-[500px] ${mainPaddingClass} md:pb-0 text-sm ${mainClassName}`}
             >
               <Outlet context={{ hasScrolled, isMobile } satisfies RootOutletContext} />
             </main>

@@ -553,7 +553,7 @@ function BookingHeader({ booking }: { booking: Booking }) {
     <div className="flex flex-col md:flex-row md:justify-between md:items-end gap-3">
       <p className="text-base flex flex-row gap-2 items-center">
         <span className="font-semibold">
-          {booking.car.make} {booking.car.model} - {booking.car.year}
+          {booking.car.make} {booking.car.model} ({booking.car.year})
         </span>
         <span className="text-sm text-gray-600 md:text-gray-900">{booking.bookingReference}</span>
       </p>
