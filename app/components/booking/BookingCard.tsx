@@ -48,6 +48,7 @@ import { getOrdinal } from "./helpers";
 import { getBookingSchema } from "~/schemas/booking.schema";
 import { useBookingFlight } from "~/hooks/useBookingFlight";
 import { useBookingPricing, useFinalPricing } from "~/hooks/useBookingPricing";
+import { useIsMobile } from "~/hooks/use-mobile";
 import { useReferralCredits } from "~/hooks/useReferralCredits";
 
 const ERROR_RING_CLASSES = "border-red-500 focus-visible:ring-red-500 focus-visible:ring-2";
@@ -78,6 +79,63 @@ interface BookingCredits {
   availableCredits: number;
   totalEarned: number;
   maxCreditsPerBooking: number;
+}
+
+type GuestFieldsData = {
+  nameField: FieldMetadata<string>;
+  emailField: FieldMetadata<string>;
+  phoneNumberField: FieldMetadata<string>;
+};
+
+function GuestDetailsPlacement({
+  guestFields,
+  errorRingClasses,
+  className,
+  showHeading,
+  variant,
+}: {
+  readonly guestFields: GuestFieldsData | null;
+  readonly errorRingClasses: string;
+  readonly className: string;
+  readonly showHeading?: boolean;
+  readonly variant: "mobile" | "desktop";
+}) {
+  const isMobile = useIsMobile();
+  const shouldRender = variant === "mobile" ? isMobile : !isMobile;
+
+  if (!guestFields || !shouldRender) return null;
+
+  return (
+    <div className={className}>
+      {showHeading && <h3 className="text-sm font-semibold mb-2">Guest Details</h3>}
+      <GuestDetails
+        fields={{
+          name: guestFields.nameField,
+          email: guestFields.emailField,
+          phoneNumber: guestFields.phoneNumberField,
+        }}
+        errorRingClasses={errorRingClasses}
+      />
+    </div>
+  );
+}
+
+function BookingActionsPlacement({
+  user,
+  isPending,
+  onNavigateToAuth,
+}: {
+  readonly user: (User & { roles: { name: string }[]; phoneNumber?: string | null }) | null;
+  readonly isPending: boolean;
+  readonly onNavigateToAuth: () => void;
+}) {
+  if (user?.roles?.some((role) => ["fleetOwner", "admin", "staff"].includes(role.name))) {
+    return null;
+  }
+
+  return (
+    <BookingActions user={user} isPending={isPending} onNavigateToAuth={onNavigateToAuth} />
+  );
 }
 
 export default function BookingCard({
@@ -704,18 +762,12 @@ export default function BookingCard({
                 />
 
                 {/* Guest Details - Desktop only (mobile version is outside Card) */}
-                {guestFields && (
-                  <div className="hidden lg:block">
-                    <GuestDetails
-                      fields={{
-                        name: guestFields.nameField,
-                        email: guestFields.emailField,
-                        phoneNumber: guestFields.phoneNumberField,
-                      }}
-                      errorRingClasses={ERROR_RING_CLASSES}
-                    />
-                  </div>
-                )}
+                <GuestDetailsPlacement
+                  guestFields={guestFields}
+                  errorRingClasses={ERROR_RING_CLASSES}
+                  className="hidden lg:block"
+                  variant="desktop"
+                />
 
                 <BookingAddons
                   bookingType={bookingType}
@@ -788,14 +840,11 @@ export default function BookingCard({
               </div>
             )}
 
-            {/* Only show booking section if user is not a fleet owner */}
-            {!user?.roles?.some((role) => ["fleetOwner", "admin", "staff"].includes(role.name)) && (
-              <BookingActions
-                user={user}
-                isPending={isPending}
-                onNavigateToAuth={handleNavigateToAuth}
-              />
-            )}
+            <BookingActionsPlacement
+              user={user}
+              isPending={isPending}
+              onNavigateToAuth={handleNavigateToAuth}
+            />
           </CardFooter>
         )}
       </Card>
@@ -811,19 +860,13 @@ export default function BookingCard({
         >
           <div className="space-y-4">
             {/* Guest Details - Mobile only */}
-            {guestFields && (
-              <div className="w-full lg:hidden">
-                <h3 className="text-sm font-semibold mb-2">Guest Details</h3>
-                <GuestDetails
-                  fields={{
-                    name: guestFields.nameField,
-                    email: guestFields.emailField,
-                    phoneNumber: guestFields.phoneNumberField,
-                  }}
-                  errorRingClasses={ERROR_RING_CLASSES}
-                />
-              </div>
-            )}
+            <GuestDetailsPlacement
+              guestFields={guestFields}
+              errorRingClasses={ERROR_RING_CLASSES}
+              className="w-full lg:hidden"
+              showHeading
+              variant="mobile"
+            />
 
             {/* Trip details for airport pickup */}
             {bookingType === AIRPORT_PICKUP_BOOKING_TYPE &&
@@ -881,14 +924,11 @@ export default function BookingCard({
               <span className="text-base font-semibold">{formatCurrency(finalTotalCost)}</span>
             </div>
 
-            {/* Only show booking section if user is not a fleet owner */}
-            {!user?.roles?.some((role) => ["fleetOwner", "admin", "staff"].includes(role.name)) && (
-              <BookingActions
-                user={user}
-                isPending={isPending}
-                onNavigateToAuth={handleNavigateToAuth}
-              />
-            )}
+            <BookingActionsPlacement
+              user={user}
+              isPending={isPending}
+              onNavigateToAuth={handleNavigateToAuth}
+            />
           </div>
         </div>
       )}

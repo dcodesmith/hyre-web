@@ -546,10 +546,10 @@ export async function action({ request }: ActionFunctionArgs) {
   }
 
   if (request.method === "POST") {
-    // Check if guest email exists as a user
     if (guestEmail) {
       const existingUser = await prisma.user.findUnique({
         where: { email: String(guestEmail) },
+        select: { id: true },
       });
 
       if (existingUser) {
