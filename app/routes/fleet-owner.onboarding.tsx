@@ -1,5 +1,6 @@
 import {
   type FieldMetadata,
+  type SubmissionResult,
   getFormProps,
   getInputProps,
   useForm,
@@ -9,38 +10,40 @@ import { parseWithZod } from "@conform-to/zod/v4";
 import { CogIcon } from "@heroicons/react/24/outline";
 import { DocumentStatus, DocumentType } from "@prisma/client";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
-import { data } from "@remix-run/node";
 import {
+  data,
   redirect,
   unstable_createMemoryUploadHandler,
   unstable_parseMultipartFormData,
 } from "@remix-run/node";
-import { useActionData, useLoaderData } from "@remix-run/react";
+import { useActionData, useFetcher, useLoaderData } from "@remix-run/react";
 import axios from "axios";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
 import { AutocompleteAddress } from "~/components/AutocompleteAddress";
-import { onboardingSchema, ownerDriverSchema } from "~/schemas/onboarding.schema";
-import { Button } from "~/components/ui/button";
-import { Combobox } from "~/components/ui/combobox";
-import { Input } from "~/components/ui/input";
-import { Label } from "~/components/ui/label";
-import { Tabs, TabsList, TabsTrigger } from "~/components/ui/tabs";
-import { banks } from "~/lib/banks";
+import { Form } from "~/components/CSRFForm";
 import {
   ACCOUNT_TYPE_OPTIONS,
   ACCOUNT_TYPE_OPTIONS_MAP,
   FLEET_OWNER_TYPE,
   OWNER_DRIVER_TYPE,
 } from "~/components/accountTypes";
+import { Button } from "~/components/ui/button";
+import { Checkbox } from "~/components/ui/checkbox";
+import { Combobox } from "~/components/ui/combobox";
+import { Input } from "~/components/ui/input";
+import { Label } from "~/components/ui/label";
+import { Tabs, TabsList, TabsTrigger } from "~/components/ui/tabs";
+import { banks } from "~/lib/banks";
 import logger from "~/lib/logger.server";
 import { useIsPending } from "~/lib/utils";
 import { prisma } from "~/modules/db/db.server";
+import { onboardingSchema, ownerDriverSchema } from "~/schemas/onboarding.schema";
 import { uploadFileToS3 } from "~/services/s3.server";
-import { requireUserWithRole } from "~/utils/server/permissions.server";
-import { env } from "~/utils/server/env.server";
 import { validateCSRF } from "~/utils/csrf-action.server";
-import { Form } from "~/components/CSRFForm";
+import { env } from "~/utils/server/env.server";
+import { requireUserWithRole } from "~/utils/server/permissions.server";
+import { useAuthenticityToken } from "remix-utils/csrf/react";
 
 // This prevents the parent loader from running for this route
 export function shouldRevalidate() {
@@ -57,9 +60,73 @@ export async function loader({ request }: LoaderFunctionArgs) {
   return { user };
 }
 
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Onboarding action handles resolve intent and final submission in one route.
 export async function action({ request }: ActionFunctionArgs) {
   await validateCSRF(request);
   const user = await requireUserWithRole(request, "fleetOwner");
+  const isLocalDev = env.NODE_ENV === "development" || env.NODE_ENV === "test";
+  const forcedDevBankCode = "044";
+
+  const formDataForIntent = await request.clone().formData();
+  const intent = formDataForIntent.get("intent");
+
+  if (intent === "resolve-account") {
+    const bankCode = isLocalDev
+      ? forcedDevBankCode
+      : formDataForIntent.get("bankCode")?.toString().trim() || "";
+    const accountNumber = formDataForIntent.get("accountNumber")?.toString().trim() || "";
+
+    if (!bankCode || !banks.some((bank) => bank.code === bankCode)) {
+      return data({ error: "Please select a valid bank." }, { status: 400 });
+    }
+
+    if (!/^\d{10}$/.test(accountNumber)) {
+      return data({ error: "Enter a valid 10-digit account number." }, { status: 400 });
+    }
+
+    const masked = accountNumber.replaceAll(/\d(?=\d{4})/g, "•");
+    logger.info(`Resolving bank account name: ${masked} for bank: ${bankCode}`);
+
+    try {
+      const response = await axios.post(
+        "https://api.flutterwave.com/v3/accounts/resolve",
+        {
+          account_number: accountNumber,
+          account_bank: bankCode,
+        },
+        {
+          headers: {
+            accept: "application/json",
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${env.FLUTTERWAVE_SECRET_KEY}`,
+          },
+          timeout: 15000,
+        },
+      );
+
+      const result = response.data;
+      if (result.status !== "success" || !result.data?.account_name) {
+        return data({ error: "Could not verify bank account." }, { status: 400 });
+      }
+
+      return data({ resolvedAccountName: result.data.account_name });
+    } catch (error) {
+      logger.error(
+        `Flutterwave resolve error: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      if (axios.isAxiosError(error) && error.response?.data?.message) {
+        return data(
+          { error: `Verification failed: ${error.response.data.message}` },
+          { status: 400 },
+        );
+      }
+
+      return data(
+        { error: "An error occurred during verification. Please try again later." },
+        { status: 500 },
+      );
+    }
+  }
 
   const uploadHandler = unstable_createMemoryUploadHandler({
     maxPartSize: 10 * 1024 * 1024,
@@ -75,10 +142,14 @@ export async function action({ request }: ActionFunctionArgs) {
   const { value } = submission;
 
   // Verify bank details for both fleet owners and owner-drivers
-  const { accountNumber, bankCode, accountName } = value;
+  const accountNumber = value.accountNumber;
+  const bankCode = isLocalDev ? forcedDevBankCode : value.bankCode;
+  const accountOwnershipConfirmed = value.accountOwnershipConfirmed;
 
-  const masked = accountNumber.replace(/\d(?=\d{4})/g, "•");
+  const masked = accountNumber.replaceAll(/\d(?=\d{4})/g, "•");
   logger.info(`Verifying bank account: ${masked} for bank: ${bankCode}`);
+
+  let resolvedAccountName = "";
 
   try {
     const response = await axios.post(
@@ -106,17 +177,7 @@ export async function action({ request }: ActionFunctionArgs) {
     }
 
     const verifiedAccountName = result.data.account_name;
-
-    if (verifiedAccountName.trim().toLowerCase() !== accountName.trim().toLowerCase()) {
-      return data(
-        submission.reply({
-          fieldErrors: {
-            accountName: ["Account name does not match the provided account number."],
-          },
-        }),
-        { status: 400 },
-      );
-    }
+    resolvedAccountName = verifiedAccountName;
   } catch (error) {
     logger.error(
       `Flutterwave API Error: ${error instanceof Error ? error.message : String(error)}`,
@@ -191,7 +252,7 @@ export async function action({ request }: ActionFunctionArgs) {
   // Create the user profile and bank details in a transaction
   try {
     await prisma.$transaction(async (tx) => {
-      const { bankCode, accountNumber, accountName } = value;
+      const accountNumber = value.accountNumber;
       const bank = banks.find((bank) => bank.code === bankCode);
 
       if (!bank) {
@@ -205,8 +266,15 @@ export async function action({ request }: ActionFunctionArgs) {
           bankName: bank.name,
           bankCode,
           accountNumber,
-          accountName,
+          accountName: resolvedAccountName,
           isVerified: true,
+          lastVerifiedAt: new Date(),
+          verificationResponse: {
+            provider: "flutterwave",
+            resolvedAccountName,
+            ownershipConfirmed: accountOwnershipConfirmed === "on",
+            ownershipConfirmedAt: new Date().toISOString(),
+          },
         },
       });
 
@@ -380,27 +448,51 @@ function OwnerDriverDocuments({
 function BankDetailsFields({
   bankCode,
   accountNumber,
-  accountName,
+  accountOwnershipConfirmed,
+  resolvedAccountName,
+  resolveError,
+  isResolving,
+  forceDevBankCode,
 }: {
   readonly bankCode: FieldMetadata<string>;
   readonly accountNumber: FieldMetadata<string>;
-  readonly accountName: FieldMetadata<string>;
+  readonly accountOwnershipConfirmed: FieldMetadata<string>;
+  readonly resolvedAccountName: string;
+  readonly resolveError: string | null;
+  readonly isResolving: boolean;
+  readonly forceDevBankCode: boolean;
 }) {
   const control = useInputControl(bankCode);
+  const devBankOption = banks.find((bank) => bank.code === "044");
+
+  useEffect(() => {
+    if (forceDevBankCode && control.value !== "044") {
+      control.change("044");
+    }
+  }, [forceDevBankCode, control]);
 
   return (
     <>
       <div className="space-y-1">
         <Label htmlFor={bankCode.id}>Bank</Label>
         <Combobox
-          options={banks.map((b) => ({ value: b.code, label: b.name }))}
-          value={control.value}
-          onChange={(value) => control.change(value)}
+          options={
+            forceDevBankCode && devBankOption
+              ? [{ value: devBankOption.code, label: devBankOption.name }]
+              : banks.map((b) => ({ value: b.code, label: b.name }))
+          }
+          value={forceDevBankCode ? "044" : control.value}
+          onChange={(value) => control.change(forceDevBankCode ? "044" : value)}
           placeholder="Select a bank"
           searchPlaceholder="Search for a bank..."
           noResultsMessage="No banks found."
           triggerClassName="w-full"
         />
+        {forceDevBankCode && (
+          <p className="text-xs text-muted-foreground">
+            Local/dev mode: bank is fixed to {devBankOption?.name ?? "bank code 044"}.
+          </p>
+        )}
         {bankCode.errors?.map((error) => (
           <p key={error} className="text-red-600 text-sm">
             {error}
@@ -425,29 +517,58 @@ function BankDetailsFields({
           </p>
         ))}
       </div>
-      <div className="space-y-1">
-        <Label htmlFor={accountName.id}>Account Name</Label>
-        <Input
-          {...getInputProps(accountName, { type: "text" })}
-          key={accountName.key}
-          placeholder="The name on your bank account"
-          className={accountName.errors ? "border-red-500" : ""}
-        />
-        {accountName.errors?.map((error) => (
-          <p key={error} className="text-red-500 text-sm">
-            {error}
-          </p>
-        ))}
+      <div className="space-y-2">
+        {isResolving && <p className="text-sm text-muted-foreground">Verifying account...</p>}
+        {!isResolving && resolveError && <p className="text-red-500 text-sm">{resolveError}</p>}
+        {!isResolving && resolvedAccountName && (
+          <>
+            <div className="inline-flex h-10 items-center rounded w-full bg-green-50 px-3 py-1 text-sm font-semibold text-green-800">
+              {resolvedAccountName}
+            </div>
+            <div className="space-y-2 rounded-md border border-neutral-200 p-3">
+              <div className="flex items-start gap-3">
+                <Checkbox
+                  id={accountOwnershipConfirmed.id}
+                  name={accountOwnershipConfirmed.name}
+                  defaultChecked={accountOwnershipConfirmed.initialValue === "on"}
+                  className="mt-1"
+                />
+                <Label
+                  htmlFor={accountOwnershipConfirmed.id}
+                  className="block cursor-pointer text-sm leading-4"
+                >
+                  I confirm this bank account belongs to me and I am authorized to receive payouts
+                  into it.
+                </Label>
+              </div>
+              {accountOwnershipConfirmed.errors?.map((error) => (
+                <p key={error} className="text-red-500 text-sm">
+                  {error}
+                </p>
+              ))}
+            </div>
+          </>
+        )}
       </div>
     </>
   );
 }
 
 export default function FleetOwnerOnboarding() {
+  const isLocalDev = import.meta.env.DEV;
   const isPending = useIsPending();
-  const lastResult = useActionData<typeof action>();
+  const actionData = useActionData<typeof action>();
+  const lastResult =
+    actionData && typeof actionData === "object" && "status" in actionData
+      ? (actionData as SubmissionResult<string[]>)
+      : undefined;
   const { user } = useLoaderData<typeof loader>();
   const [isOwnerDriver, setIsOwnerDriver] = useState(false);
+  const csrfToken = useAuthenticityToken();
+  const resolveFetcher = useFetcher<{ resolvedAccountName?: string; error?: string }>();
+  const [resolvedAccountName, setResolvedAccountName] = useState("");
+  const [resolveError, setResolveError] = useState<string | null>(null);
+  const lastLookupKeyRef = useRef<string | null>(null);
 
   const [
     form,
@@ -461,7 +582,7 @@ export default function FleetOwnerOnboarding() {
       lasdriCard,
       bankCode,
       accountNumber,
-      accountName,
+      accountOwnershipConfirmed,
     },
   ] = useForm<z.infer<typeof onboardingSchema>>({
     lastResult,
@@ -472,6 +593,7 @@ export default function FleetOwnerOnboarding() {
       name: user.name,
       phoneNumber: user.phoneNumber,
       address: user.address || "",
+      bankCode: isLocalDev ? "044" : undefined,
     },
     shouldValidate: "onInput",
     shouldRevalidate: "onInput",
@@ -482,6 +604,53 @@ export default function FleetOwnerOnboarding() {
     setIsOwnerDriver(value === OWNER_DRIVER_TYPE);
     form.reset();
   };
+
+  const bankCodeValue = bankCode.value ?? "";
+  const accountNumberValue = accountNumber.value ?? "";
+
+  useEffect(() => {
+    if (resolveFetcher.data?.resolvedAccountName) {
+      setResolvedAccountName(resolveFetcher.data.resolvedAccountName);
+      setResolveError(null);
+      return;
+    }
+
+    if (resolveFetcher.data?.error) {
+      setResolvedAccountName("");
+      setResolveError(resolveFetcher.data.error);
+    }
+  }, [resolveFetcher.data]);
+
+  useEffect(() => {
+    if (!bankCodeValue || !/^\d{10}$/.test(accountNumberValue)) {
+      setResolvedAccountName("");
+      setResolveError(null);
+      lastLookupKeyRef.current = null;
+      return;
+    }
+
+    const lookupKey = `${bankCodeValue}:${accountNumberValue}`;
+    if (lookupKey === lastLookupKeyRef.current) {
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setResolveError(null);
+      setResolvedAccountName("");
+      lastLookupKeyRef.current = lookupKey;
+      resolveFetcher.submit(
+        {
+          intent: "resolve-account",
+          bankCode: bankCodeValue,
+          accountNumber: accountNumberValue,
+          csrf: csrfToken,
+        },
+        { method: "post", action: "." },
+      );
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [bankCodeValue, accountNumberValue, resolveFetcher, csrfToken]);
 
   return (
     <div className="mx-auto mt-4 max-w-md rounded border border-gray-200 p-6 shadow-xl inset-shadow-sm">
@@ -552,10 +721,18 @@ export default function FleetOwnerOnboarding() {
         <BankDetailsFields
           bankCode={bankCode}
           accountNumber={accountNumber}
-          accountName={accountName}
+          accountOwnershipConfirmed={accountOwnershipConfirmed}
+          resolvedAccountName={resolvedAccountName}
+          resolveError={resolveError}
+          isResolving={resolveFetcher.state !== "idle"}
+          forceDevBankCode={isLocalDev}
         />
 
-        <Button className="w-full" type="submit" disabled={isPending}>
+        <Button
+          className="w-full"
+          type="submit"
+          disabled={isPending || !resolvedAccountName || resolveFetcher.state !== "idle"}
+        >
           {isPending ? <CogIcon className="h-5 w-5 animate-spin" /> : "Complete Onboarding"}
         </Button>
       </Form>

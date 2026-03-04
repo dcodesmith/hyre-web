@@ -174,8 +174,33 @@ export function MobileBottomNav({ user, appName, onProfileOpen }: MobileBottomNa
   const isBookingsActive = location.pathname.startsWith("/bookings");
   const isReferralsActive = location.pathname.startsWith("/referrals");
   const isFleetOwnerActive = location.pathname.startsWith("/fleet-owner");
+  const isFleetOwnerOnboardingPage =
+    location.pathname === "/fleet-owner/onboarding" ||
+    location.pathname.startsWith("/fleet-owner/onboarding/");
 
   if (user) {
+    if (isFleetOwnerOnboardingPage) {
+      return (
+        <div className={containerClass}>
+          <div className="flex items-center justify-around max-w-full mx-auto px-4 py-2 min-h-[52px]">
+            <NavItem asChild>
+              <Form method="post" action="/logout" className="flex-1 min-w-0">
+                <button
+                  type="submit"
+                  className="w-full flex flex-col items-center justify-center py-2 px-1 text-muted-foreground hover:text-foreground transition-all duration-200"
+                >
+                  <div className="w-6 h-6 mb-1 flex items-center justify-center transition-all duration-200 scale-100 hover:scale-110">
+                    <LogOut size={16} />
+                  </div>
+                  <span className="text-xs font-medium truncate max-w-full">Logout</span>
+                </button>
+              </Form>
+            </NavItem>
+          </div>
+        </div>
+      );
+    }
+
     // Authenticated user navigation
     const isFleetOwner = userHasRole(user, "fleetOwner");
     const isOwnerDriver = user.isOwnerDriver;

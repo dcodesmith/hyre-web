@@ -32,11 +32,9 @@ const baseSchema = z.object({
       error: "Account number is required.",
     })
     .regex(/^\d{10}$/, "Account number must be exactly 10 digits"),
-  accountName: z
-    .string({
-      error: "Account name is required.",
-    })
-    .min(1, "Account name cannot be empty"),
+  accountOwnershipConfirmed: z.literal("on", {
+    error: "Please confirm that this bank account belongs to you.",
+  }),
 });
 
 export const ownerDriverSchema = baseSchema.extend({
