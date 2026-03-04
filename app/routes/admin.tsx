@@ -4,8 +4,8 @@ import { ScrollArea } from "~/components/ui/scroll-area";
 import { requireAdminOrStaffWithRedirect } from "~/modules/auth/auth.server";
 
 interface NavLinkProps {
-  to: string;
-  children: React.ReactNode;
+  readonly to: string;
+  readonly children: React.ReactNode;
 }
 
 function NavLink({ to, children }: NavLinkProps) {

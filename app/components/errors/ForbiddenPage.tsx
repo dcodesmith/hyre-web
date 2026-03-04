@@ -48,12 +48,6 @@ export function ForbiddenPage({ appName = "Tripdly" }: ForbiddenPageProps) {
                 Back to Home
               </Link>
             </Button>
-            <Button asChild variant="outline" size="lg" className="gap-2">
-              <Link to="/auth">
-                <LockClosedIcon className="w-5 h-5" />
-                Sign In
-              </Link>
-            </Button>
           </div>
 
           {/* Help text */}

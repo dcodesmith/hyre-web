@@ -604,11 +604,12 @@ export function ErrorBoundary() {
   const appName = useMemo(() => {
     if (globalThis.window !== undefined) {
       return (
-        (globalThis as unknown as Window & { ENV?: { APP_NAME?: string } }).ENV?.APP_NAME ?? "App"
+        (globalThis as unknown as Window & { ENV?: { APP_NAME?: string } }).ENV?.APP_NAME ??
+        "Tripdly"
       );
     }
     // Server-side fallback (ErrorBoundary on server is rare)
-    return "App";
+    return "Tripdly";
   }, []);
 
   // Memoize error details

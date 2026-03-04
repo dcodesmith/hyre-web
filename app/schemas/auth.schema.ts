@@ -15,3 +15,7 @@ export const LoginSchema = z.object({
     })
     .transform(() => true),
 });
+
+export const AdminLoginSchema = z.object({
+  email: z.email("Email address is not valid."),
+});

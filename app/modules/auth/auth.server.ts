@@ -298,7 +298,7 @@ export async function requireAdminOrStaffWithRedirect(request: Request) {
   const isStaff = userHasRole(user, "staff");
 
   if (!isAdmin && !isStaff) {
-    throw redirect("/admin/login");
+    throw new Response("Forbidden", { status: 403 });
   }
 
   return { user, isStaff, isAdmin };

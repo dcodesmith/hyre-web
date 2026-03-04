@@ -2,7 +2,7 @@ import { parseWithZod } from "@conform-to/zod/v4";
 import { type ActionFunctionArgs, type LoaderFunctionArgs, data, redirect } from "@remix-run/node";
 import { useActionData } from "@remix-run/react";
 import { Form } from "~/components/CSRFForm";
-import { LoginSchema } from "~/schemas/auth.schema";
+import { AdminLoginSchema } from "~/schemas/auth.schema";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import logger from "~/lib/logger.server";
@@ -27,7 +27,7 @@ export async function action({ request }: ActionFunctionArgs) {
   await validateCSRF(request);
 
   const formData = await request.clone().formData();
-  const submission = parseWithZod(formData, { schema: LoginSchema });
+  const submission = parseWithZod(formData, { schema: AdminLoginSchema });
 
   if (submission.status !== "success") {
     return data({ error: "Invalid form data", submission: submission.reply() }, { status: 400 });
