@@ -1,30 +1,45 @@
 import { parseWithZod } from "@conform-to/zod/v4";
+import type { User } from "@prisma/client";
 import { ActionFunctionArgs, LoaderFunctionArgs, data, redirect } from "@remix-run/node";
 import { useActionData, useLoaderData } from "@remix-run/react";
-import { getSessionUser } from "~/modules/auth/auth.server";
-import type { User } from "@prisma/client";
-import { commitSession, getSession } from "~/modules/auth/session.server";
-import { validateCSRF } from "~/utils/csrf-action.server";
-import { safeRedirect } from "~/utils/safe-redirect";
+import { createHash } from "node:crypto";
+import { VerifyOTPForm } from "~/components/forms/VerifyOTPForm";
 import logger from "~/lib/logger.server";
+import { getSessionUser } from "~/modules/auth/auth.server";
+import { commitSession, getSession } from "~/modules/auth/session.server";
 import { prisma } from "~/modules/db/db.server";
+import { VerifySchema } from "~/schemas/otp.schema";
 import {
   createReferralCodeForUser,
   handleReferralAttribution,
   validateReferralCode,
 } from "~/services/referral.server";
-import { userHasRole } from "~/utils/shared/roles";
+import { validateCSRF } from "~/utils/csrf-action.server";
+import { safeRedirect } from "~/utils/safe-redirect";
 import {
   clearAuthSession,
   createAuthErrorResponse,
   createAuthRedirectResponse,
   ensureUserHasRole,
   getAuthContext,
+  isInvalidOtpError,
+  isOtpRateLimitError,
   redirectToLoginForRole,
   signInWithOTP,
 } from "~/utils/server/auth-helpers.server";
-import { VerifyOTPForm } from "~/components/forms/VerifyOTPForm";
-import { VerifySchema } from "~/schemas/otp.schema";
+import {
+  checkOtpVerificationGuard,
+  clearOtpFailures,
+  isTooManyAttemptsError,
+  recordOtpFailure,
+} from "~/utils/server/rate-limit.server";
+import { userHasRole } from "~/utils/shared/roles";
+
+function hashIdentifierForLogs(value: string | null | undefined) {
+  return createHash("sha256")
+    .update(value ?? "__NULLISH__")
+    .digest("hex");
+}
 
 function redirectAuthenticatedUser(user: User & { roles: { name: string }[] }, redirectTo: string) {
   if (userHasRole(user, "user")) {
@@ -137,6 +152,27 @@ async function createUserReferralCode(userId: string): Promise<void> {
   }
 }
 
+async function runBestEffortOtpStateWrite(args: {
+  operation: "clear" | "record";
+  accountKey: string;
+  subjectKey: string;
+  write: () => Promise<void>;
+}) {
+  const { operation, accountKey, subjectKey, write } = args;
+  try {
+    await write();
+  } catch (error) {
+    const redactedAccountKeyHash = hashIdentifierForLogs(accountKey);
+    const redactedSubjectKeyHash = hashIdentifierForLogs(subjectKey);
+    logger.warn("Best-effort OTP state write failed", {
+      operation,
+      accountKeyHash: redactedAccountKeyHash,
+      subjectKeyHash: redactedSubjectKeyHash,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
+
 async function handleReferralForNewUser(
   userId: string,
   authEmail: string,
@@ -218,6 +254,21 @@ export async function action({ request }: ActionFunctionArgs) {
     return redirectToLoginForRole(authRole, redirectTo);
   }
 
+  const otpGuard = await checkOtpVerificationGuard({ request, email: authEmail });
+  if (!otpGuard.allowed) {
+    return data(
+      {
+        error: otpGuard.message,
+        isRateLimit: true,
+        retryAfterSeconds: otpGuard.retryAfterSeconds,
+      },
+      {
+        status: otpGuard.status ?? 429,
+        headers: otpGuard.headers,
+      },
+    );
+  }
+
   const formData = await request.formData();
 
   // Validate OTP code using schema (single source of truth)
@@ -231,8 +282,53 @@ export async function action({ request }: ActionFunctionArgs) {
 
   const { code } = submission.value;
 
+  let signInResult: Awaited<ReturnType<typeof signInWithOTP>>;
   try {
-    const { userId, cookie } = await signInWithOTP(authEmail, code, request);
+    signInResult = await signInWithOTP(authEmail, code, request);
+  } catch (error) {
+    logger.error("Error verifying OTP", { error, email: authEmail });
+
+    if (isTooManyAttemptsError(error) || isOtpRateLimitError(error)) {
+      return data(
+        {
+          error: "Too many verification attempts. Please request a new code and try again later.",
+          isRateLimit: true,
+        },
+        {
+          status: 429,
+          headers: { "Cache-Control": "no-store" },
+        },
+      );
+    }
+
+    if (isInvalidOtpError(error)) {
+      await runBestEffortOtpStateWrite({
+        operation: "record",
+        accountKey: otpGuard.accountKey,
+        subjectKey: otpGuard.subjectKey,
+        write: () =>
+          recordOtpFailure({
+            accountKey: otpGuard.accountKey,
+            subjectKey: otpGuard.subjectKey,
+          }),
+      });
+    }
+
+    return createAuthErrorResponse(error, session, "Invalid verification code");
+  }
+
+  const { userId, cookie } = signInResult;
+  try {
+    await runBestEffortOtpStateWrite({
+      operation: "clear",
+      accountKey: otpGuard.accountKey,
+      subjectKey: otpGuard.subjectKey,
+      write: () =>
+        clearOtpFailures({
+          accountKey: otpGuard.accountKey,
+          subjectKey: otpGuard.subjectKey,
+        }),
+    });
 
     // Handle referral code and consent for new users
     await handleReferralForNewUser(userId, authEmail, authReferralCode, request, authAcceptedTerms);
@@ -248,8 +344,12 @@ export async function action({ request }: ActionFunctionArgs) {
 
     return createAuthRedirectResponse(finalRedirect, session, cookie);
   } catch (error) {
-    logger.error("Error verifying OTP", { error, email: authEmail });
-    return createAuthErrorResponse(error, session, "Invalid verification code");
+    logger.error("Post-OTP verification steps failed", {
+      error,
+      email: authEmail,
+      userId,
+    });
+    return createAuthErrorResponse(error, session, "Unable to complete sign-in. Please try again.");
   }
 }
 

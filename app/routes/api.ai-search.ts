@@ -3,8 +3,10 @@ import { add } from "date-fns";
 import { formatInTimeZone } from "date-fns-tz";
 import OpenAI from "openai";
 import logger from "~/lib/logger.server";
+import { getSessionUserId } from "~/modules/auth/auth.server";
 import { extractedParamsSchema } from "~/schemas/ai.search.schema";
 import { env } from "~/utils/server/env.server";
+import { checkAiSearchRateLimit } from "~/utils/server/rate-limit.server";
 import { LAGOS_TIMEZONE } from "~/utils/timezone";
 
 // Initialize OpenAI client
@@ -195,6 +197,31 @@ export async function action({ request }: ActionFunctionArgs) {
   }
 
   try {
+    const sessionUserId = await getSessionUserId(request);
+    const rateLimitResult = await checkAiSearchRateLimit({
+      request,
+      userId: sessionUserId,
+    });
+
+    if (!rateLimitResult.allowed) {
+      logger.warn("[AI_SEARCH] Rate limit exceeded", {
+        reason: rateLimitResult.reason,
+        userId: sessionUserId,
+      });
+      return Response.json(
+        {
+          error:
+            rateLimitResult.status === 503
+              ? "Search is temporarily unavailable. Please try again shortly."
+              : "Too many requests. Please slow down and try again shortly.",
+        },
+        {
+          status: rateLimitResult.status ?? 429,
+          headers: rateLimitResult.headers,
+        },
+      );
+    }
+
     const body = await request.json();
     const { query } = body;
 
@@ -202,8 +229,20 @@ export async function action({ request }: ActionFunctionArgs) {
       return Response.json({ error: "Query is required" }, { status: 400 });
     }
 
+    const normalizedQuery = query.trim();
+    if (normalizedQuery.length === 0) {
+      return Response.json({ error: "Query cannot be empty" }, { status: 400 });
+    }
+
+    if (normalizedQuery.length > 500) {
+      return Response.json(
+        { error: "Query is too long. Please keep it under 500 characters." },
+        { status: 400 },
+      );
+    }
+
     // Extract parameters using AI
-    const extracted = await extractWithAI(query.trim());
+    const extracted = await extractWithAI(normalizedQuery);
 
     // Build search URL parameters
     const params = buildSearchParams(extracted);
@@ -212,7 +251,7 @@ export async function action({ request }: ActionFunctionArgs) {
     const interpretation = generateInterpretation(extracted);
 
     logger.info("[AI_SEARCH] Search successful", {
-      query,
+      query: normalizedQuery,
       params,
       interpretation,
     });

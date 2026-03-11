@@ -1,10 +1,11 @@
 import { parseWithZod } from "@conform-to/zod/v4";
 import { ActionFunctionArgs, LoaderFunctionArgs, data, redirect } from "@remix-run/node";
 import { useActionData, useLoaderData } from "@remix-run/react";
+import { VerifyOTPForm } from "~/components/forms/VerifyOTPForm";
 import logger from "~/lib/logger.server";
 import { getSessionUser } from "~/modules/auth/auth.server";
 import { commitSession, getSession } from "~/modules/auth/session.server";
-import { userHasRole } from "~/utils/shared/roles";
+import { VerifySchema } from "~/schemas/otp.schema";
 import { validateCSRF } from "~/utils/csrf-action.server";
 import { safeRedirect } from "~/utils/safe-redirect";
 import {
@@ -14,11 +15,47 @@ import {
   getAuthContext,
   getDashboardUrlForRole,
   getLoginUrlForRole,
+  isInvalidOtpError,
+  isOtpRateLimitError,
   signInWithOTP,
   verifyUserHasRole,
 } from "~/utils/server/auth-helpers.server";
-import { VerifyOTPForm } from "~/components/forms/VerifyOTPForm";
-import { VerifySchema } from "~/schemas/otp.schema";
+import {
+  checkOtpVerificationGuard,
+  clearOtpFailures,
+  isTooManyAttemptsError,
+  recordOtpFailure,
+} from "~/utils/server/rate-limit.server";
+import { userHasRole } from "~/utils/shared/roles";
+
+function hashIdentifierForLogs(value: string) {
+  let hash = 5381;
+  for (const char of value) {
+    hash = (hash * 33) ^ (char.codePointAt(0) ?? 0);
+  }
+  return `h${(hash >>> 0).toString(16)}`;
+}
+
+async function runBestEffortOtpStateWrite(args: {
+  operation: "record";
+  accountKey: string;
+  subjectKey: string;
+  write: () => Promise<void>;
+}) {
+  const { operation, accountKey, subjectKey, write } = args;
+  try {
+    await write();
+  } catch (error) {
+    const redactedAccountId = hashIdentifierForLogs(accountKey);
+    const redactedSubjectId = hashIdentifierForLogs(subjectKey);
+    logger.warn("Best-effort OTP state write failed", {
+      operation,
+      redactedAccountId,
+      redactedSubjectId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
 
 export async function loader({ request }: LoaderFunctionArgs) {
   // Redirect to admin if already authenticated
@@ -86,6 +123,21 @@ export async function action({ request }: ActionFunctionArgs) {
     return redirect(getLoginUrlForRole("admin", redirectTo));
   }
 
+  const otpGuard = await checkOtpVerificationGuard({ request, email: authEmail });
+  if (!otpGuard.allowed) {
+    return data(
+      {
+        error: otpGuard.message,
+        isRateLimit: true,
+        retryAfterSeconds: otpGuard.retryAfterSeconds,
+      },
+      {
+        status: otpGuard.status ?? 429,
+        headers: otpGuard.headers,
+      },
+    );
+  }
+
   const formData = await request.formData();
 
   // Validate OTP code using schema (single source of truth)
@@ -99,8 +151,53 @@ export async function action({ request }: ActionFunctionArgs) {
 
   const { code } = submission.value;
 
+  let signInResult: Awaited<ReturnType<typeof signInWithOTP>>;
   try {
-    const { userId, cookie } = await signInWithOTP(authEmail, code, request);
+    signInResult = await signInWithOTP(authEmail, code, request);
+  } catch (error) {
+    const redactedAccountId = hashIdentifierForLogs(otpGuard.accountKey);
+    const redactedSubjectId = hashIdentifierForLogs(otpGuard.subjectKey);
+    logger.error("Error verifying OTP for admin/staff", {
+      error,
+      redactedAccountId,
+      redactedSubjectId,
+    });
+
+    if (isTooManyAttemptsError(error) || isOtpRateLimitError(error)) {
+      return data(
+        {
+          error: "Too many verification attempts. Please request a new code and try again later.",
+          isRateLimit: true,
+        },
+        {
+          status: 429,
+          headers: { "Cache-Control": "no-store" },
+        },
+      );
+    }
+
+    if (isInvalidOtpError(error)) {
+      await runBestEffortOtpStateWrite({
+        operation: "record",
+        accountKey: otpGuard.accountKey,
+        subjectKey: otpGuard.subjectKey,
+        write: () =>
+          recordOtpFailure({
+            accountKey: otpGuard.accountKey,
+            subjectKey: otpGuard.subjectKey,
+          }),
+      });
+    }
+
+    return createAuthErrorResponse(error, session, "Invalid verification code");
+  }
+
+  const { userId, cookie } = signInResult;
+  try {
+    await clearOtpFailures({
+      accountKey: otpGuard.accountKey,
+      subjectKey: otpGuard.subjectKey,
+    });
 
     // Strictly verify user has admin or staff role (do NOT grant roles)
     // This prevents TOCTOU vulnerabilities and unauthorized role escalation
@@ -114,8 +211,14 @@ export async function action({ request }: ActionFunctionArgs) {
 
     return createAuthRedirectResponse(finalRedirect, session, cookie);
   } catch (error) {
-    logger.error("Error verifying OTP for admin/staff", { error });
-    return createAuthErrorResponse(error, session, "Invalid verification code");
+    const redactedAccountId = hashIdentifierForLogs(otpGuard.accountKey);
+    const redactedSubjectId = hashIdentifierForLogs(otpGuard.subjectKey);
+    logger.error("Post-OTP admin/staff verification step failed", {
+      error,
+      redactedAccountId,
+      redactedSubjectId,
+    });
+    return createAuthErrorResponse(error, session, "Unable to complete sign-in. Please try again.");
   }
 }
 

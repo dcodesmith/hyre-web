@@ -18,13 +18,18 @@ type BetterAuthSession = {
   user: SessionUser | null;
 };
 
+const baseURL = env.DOMAIN || "http://localhost:5173";
+
 const config = {
   database: prismaAdapter(prisma, {
     provider: "postgresql",
   }),
   secret: env.SESSION_SECRET,
-  baseURL: env.DOMAIN ?? "http://localhost:5173",
-  trustedOrigins: [env.DOMAIN],
+  baseURL,
+  trustedOrigins: [
+    baseURL,
+    ...(process.env.VERCEL_URL ? [`https://${process.env.VERCEL_URL}`] : []),
+  ].filter((origin): origin is string => Boolean(origin)),
   session: {
     // 60 * 60 * 24 * 7 = 604800 seconds (7 days)
     expiresIn: 60 * 60 * 24 * 7,
@@ -197,7 +202,7 @@ async function getSession(request: Request): Promise<BetterAuthSession | null> {
   }
 }
 
-async function getSessionUserId(request: Request): Promise<string | null> {
+export async function getSessionUserId(request: Request): Promise<string | null> {
   const session = await getSession(request);
   return session?.user?.id ?? null;
 }

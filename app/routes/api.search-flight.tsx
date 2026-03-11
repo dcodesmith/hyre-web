@@ -2,6 +2,7 @@ import type { LoaderFunctionArgs } from "@remix-run/node";
 import { formatDistanceToNow } from "date-fns";
 import logger from "~/lib/logger.server";
 import { isValidFlightNumberFormat, validateFlight } from "~/services/flight-validation.server";
+import { checkSearchFlightRateLimit } from "~/utils/server/rate-limit.server";
 
 type ValidationError = { error: string; status: number };
 
@@ -157,6 +158,20 @@ function handleFlightError(message: string): Response {
  * }
  */
 export const loader = async ({ request }: LoaderFunctionArgs) => {
+  const rateLimit = await checkSearchFlightRateLimit(request);
+  if (!rateLimit.allowed) {
+    return Response.json(
+      {
+        success: false,
+        error: rateLimit.message,
+      },
+      {
+        status: rateLimit.status ?? 429,
+        headers: rateLimit.headers,
+      },
+    );
+  }
+
   const url = new URL(request.url);
   const flightNumber = url.searchParams.get("flightNumber");
   const pickupDate = url.searchParams.get("date");

@@ -2,6 +2,7 @@ import { type LoaderFunctionArgs } from "@remix-run/node";
 import { z } from "zod";
 import logger from "~/lib/logger.server";
 import { calculateAirportTripDuration } from "~/services/google-maps.server";
+import { checkTripDurationRateLimit } from "~/utils/server/rate-limit.server";
 
 const TripDurationQuerySchema = z.object({
   destination: z.string().min(1, "Destination address is required"),
@@ -18,6 +19,17 @@ const TripDurationQuerySchema = z.object({
  * Used by the frontend to show estimated drive time for AIRPORT_PICKUP bookings
  */
 export async function loader({ request }: LoaderFunctionArgs) {
+  const rateLimit = await checkTripDurationRateLimit(request);
+  if (!rateLimit.allowed) {
+    return Response.json(
+      {
+        success: false,
+        error: rateLimit.message,
+      },
+      { status: rateLimit.status ?? 429, headers: rateLimit.headers },
+    );
+  }
+
   const url = new URL(request.url);
 
   const validation = TripDurationQuerySchema.safeParse({

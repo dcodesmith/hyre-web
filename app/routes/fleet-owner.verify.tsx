@@ -1,12 +1,13 @@
 import { parseWithZod } from "@conform-to/zod/v4";
 import { ActionFunctionArgs, LoaderFunctionArgs, data, redirect } from "@remix-run/node";
 import { useActionData, useLoaderData } from "@remix-run/react";
+import { VerifyOTPForm } from "~/components/forms/VerifyOTPForm";
+import logger from "~/lib/logger.server";
 import { getSessionUser } from "~/modules/auth/auth.server";
 import { commitSession, getSession } from "~/modules/auth/session.server";
+import { VerifySchema } from "~/schemas/otp.schema";
 import { validateCSRF } from "~/utils/csrf-action.server";
 import { safeRedirect } from "~/utils/safe-redirect";
-import logger from "~/lib/logger.server";
-import { userHasRole } from "~/utils/shared/roles";
 import {
   clearAuthSession,
   createAuthErrorResponse,
@@ -15,10 +16,25 @@ import {
   getAuthContext,
   getDashboardUrlForRole,
   getLoginUrlForRole,
+  isInvalidOtpError,
+  isOtpRateLimitError,
   signInWithOTP,
 } from "~/utils/server/auth-helpers.server";
-import { VerifyOTPForm } from "~/components/forms/VerifyOTPForm";
-import { VerifySchema } from "~/schemas/otp.schema";
+import {
+  checkOtpVerificationGuard,
+  clearOtpFailures,
+  isTooManyAttemptsError,
+  recordOtpFailure,
+} from "~/utils/server/rate-limit.server";
+import { userHasRole } from "~/utils/shared/roles";
+
+function hashIdentifierForLogs(value: string) {
+  let hash = 5381;
+  for (const char of value) {
+    hash = (hash * 33) ^ (char.codePointAt(0) ?? 0);
+  }
+  return `h${(hash >>> 0).toString(16)}`;
+}
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const url = new URL(request.url);
@@ -93,6 +109,21 @@ export async function action({ request }: ActionFunctionArgs) {
     return redirect(getLoginUrlForRole("fleetOwner", redirectTo));
   }
 
+  const otpGuard = await checkOtpVerificationGuard({ request, email: authEmail });
+  if (!otpGuard.allowed) {
+    return data(
+      {
+        error: otpGuard.message,
+        isRateLimit: true,
+        retryAfterSeconds: otpGuard.retryAfterSeconds,
+      },
+      {
+        status: otpGuard.status ?? 429,
+        headers: otpGuard.headers,
+      },
+    );
+  }
+
   const formData = await request.formData();
 
   // Validate OTP code using schema (single source of truth)
@@ -106,8 +137,45 @@ export async function action({ request }: ActionFunctionArgs) {
 
   const { code } = submission.value;
 
+  let signInResult: Awaited<ReturnType<typeof signInWithOTP>>;
   try {
-    const { userId, cookie } = await signInWithOTP(authEmail, code, request);
+    signInResult = await signInWithOTP(authEmail, code, request);
+  } catch (error) {
+    const redactedAuthEmail = hashIdentifierForLogs(authEmail);
+    logger.error("Error verifying OTP for fleet owner", {
+      error,
+      redactedAuthEmail,
+    });
+
+    if (isTooManyAttemptsError(error) || isOtpRateLimitError(error)) {
+      return data(
+        {
+          error: "Too many verification attempts. Please request a new code and try again later.",
+          isRateLimit: true,
+        },
+        {
+          status: 429,
+          headers: { "Cache-Control": "no-store" },
+        },
+      );
+    }
+
+    if (isInvalidOtpError(error)) {
+      await recordOtpFailure({
+        accountKey: otpGuard.accountKey,
+        subjectKey: otpGuard.subjectKey,
+      });
+    }
+
+    return createAuthErrorResponse(error, session, "Invalid verification code");
+  }
+
+  const { userId, cookie } = signInResult;
+  try {
+    await clearOtpFailures({
+      accountKey: otpGuard.accountKey,
+      subjectKey: otpGuard.subjectKey,
+    });
 
     // Ensure user has fleetOwner role (grants role if missing for new users)
     // This is safe because we've verified they came through the fleet-owner login flow
@@ -122,8 +190,16 @@ export async function action({ request }: ActionFunctionArgs) {
 
     return createAuthRedirectResponse(finalRedirect, session, cookie);
   } catch (error) {
-    logger.error("Error verifying OTP for fleet owner", { error, email: authEmail });
-    return createAuthErrorResponse(error, session, "Invalid verification code");
+    const redactedAuthEmail = hashIdentifierForLogs(authEmail);
+    const redactedAccountKey = hashIdentifierForLogs(otpGuard.accountKey);
+    const redactedSubjectKey = hashIdentifierForLogs(otpGuard.subjectKey);
+    logger.error("Post-OTP fleet-owner verification step failed", {
+      error,
+      redactedAuthEmail,
+      redactedAccountKey,
+      redactedSubjectKey,
+    });
+    return createAuthErrorResponse(error, session, "Unable to complete sign-in. Please try again.");
   }
 }
 

@@ -5,6 +5,100 @@ import { commitSession, getSession } from "~/modules/auth/session.server";
 import { prisma } from "~/modules/db/db.server";
 import { userHasRole, type RoleName } from "~/utils/shared/roles";
 
+export type OtpSignInErrorKind = "invalid_otp" | "too_many_attempts" | "upstream_error";
+
+export class OtpSignInError extends Error {
+  readonly status: number;
+  readonly kind: OtpSignInErrorKind;
+  readonly details: unknown;
+
+  constructor(args: { message: string; status: number; kind: OtpSignInErrorKind; details?: unknown }) {
+    super(args.message);
+    this.name = "OtpSignInError";
+    this.status = args.status;
+    this.kind = args.kind;
+    this.details = args.details;
+  }
+}
+
+function extractOtpErrorCode(payload: unknown): string | undefined {
+  if (!payload || typeof payload !== "object") return undefined;
+
+  const value = payload as Record<string, unknown>;
+  const directCode = value.code;
+  if (typeof directCode === "string" && directCode.length > 0) {
+    return directCode.toLowerCase();
+  }
+
+  const nestedError = value.error;
+  if (nestedError && typeof nestedError === "object") {
+    const nestedCode = (nestedError as Record<string, unknown>).code;
+    if (typeof nestedCode === "string" && nestedCode.length > 0) {
+      return nestedCode.toLowerCase();
+    }
+  }
+
+  return undefined;
+}
+
+function classifyOtpSignInError(args: { status: number; message: string; code?: string }): OtpSignInErrorKind {
+  const { status, message, code } = args;
+  const normalizedMessage = message.toLowerCase();
+  const normalizedCode = code?.toLowerCase() ?? "";
+
+  if (status >= 500) {
+    return "upstream_error";
+  }
+
+  if (status === 429 || normalizedMessage.includes("too many attempts")) {
+    return "too_many_attempts";
+  }
+
+  if (
+    status === 401 ||
+    normalizedCode.includes("invalid_code") ||
+    normalizedCode.includes("otp") ||
+    normalizedCode.includes("verification") ||
+    normalizedMessage.includes("invalid") ||
+    normalizedMessage.includes("incorrect") ||
+    normalizedMessage.includes("expired")
+  ) {
+    return "invalid_otp";
+  }
+
+  return "upstream_error";
+}
+
+export function isInvalidOtpError(error: unknown): boolean {
+  if (error instanceof OtpSignInError) {
+    return error.kind === "invalid_otp";
+  }
+
+  if (!error || typeof error !== "object") return false;
+  const maybeStatus = (error as { status?: unknown }).status;
+  return maybeStatus === 401;
+}
+
+/**
+ * Returns true when the error indicates a rate limit from Better-auth (request rate
+ * limit 429 or allowedAttempts exceeded). Use with isTooManyAttemptsError to handle
+ * both Better-auth and custom rate limit responses.
+ */
+export function isOtpRateLimitError(error: unknown): boolean {
+  if (error instanceof OtpSignInError) {
+    return error.kind === "too_many_attempts";
+  }
+  if (!error || typeof error !== "object") return false;
+  const maybeStatus = (error as { status?: unknown }).status;
+  return maybeStatus === 429;
+}
+
+function resolveErrorStatus(error: unknown, fallbackStatus: number) {
+  if (!error || typeof error !== "object") return fallbackStatus;
+  const maybeStatus = (error as { status?: unknown }).status;
+  return typeof maybeStatus === "number" ? maybeStatus : fallbackStatus;
+}
+
 /**
  * Role-based route configuration
  */
@@ -86,23 +180,54 @@ export function redirectToLoginForRole(role: RoleName | null, redirectTo?: strin
  * Sign in with OTP and extract session cookie
  */
 export async function signInWithOTP(email: string, otp: string, request: Request) {
-  const signInResponse = await auth.api.signInEmailOTP({
-    body: {
-      email,
-      otp,
-    },
-    headers: request.headers,
-    asResponse: true,
-  });
+  let signInResponse: Response;
+  try {
+    signInResponse = await auth.api.signInEmailOTP({
+      body: {
+        email,
+        otp,
+      },
+      headers: request.headers,
+      asResponse: true,
+    });
+  } catch (error) {
+    throw new OtpSignInError({
+      message: error instanceof Error ? error.message : "Failed to sign in",
+      status: 502,
+      kind: "upstream_error",
+      details: error,
+    });
+  }
 
   const signInData = await signInResponse.json().catch(() => ({}));
 
   if (!signInResponse.ok) {
-    throw new Error(signInData.message || "Failed to sign in");
+    const message =
+      typeof signInData?.message === "string" && signInData.message.length > 0
+        ? signInData.message
+        : "Failed to sign in";
+    const code = extractOtpErrorCode(signInData);
+    const kind = classifyOtpSignInError({
+      status: signInResponse.status,
+      message,
+      code,
+    });
+
+    throw new OtpSignInError({
+      message,
+      status: signInResponse.status,
+      kind,
+      details: signInData,
+    });
   }
 
   if (!signInData?.user?.id) {
-    throw new Error("Failed to sign in");
+    throw new OtpSignInError({
+      message: "Failed to sign in",
+      status: 502,
+      kind: "upstream_error",
+      details: signInData,
+    });
   }
 
   const cookie = signInResponse.headers.get("Set-Cookie");
@@ -142,7 +267,8 @@ export async function createAuthErrorResponse(
   session: Awaited<ReturnType<typeof getSession>>,
   defaultMessage = "An error occurred",
 ) {
-  const errorMessage = error instanceof Error ? error.message : defaultMessage;
+  const errorMessage = error instanceof Error && error.message ? error.message : defaultMessage;
+  const status = resolveErrorStatus(error, 401);
 
   // Detect "too many attempts" error and provide helpful guidance
   const isTooManyAttempts =
@@ -156,7 +282,7 @@ export async function createAuthErrorResponse(
   return data(
     { error: userMessage },
     {
-      status: 401,
+      status,
       headers: {
         "Set-Cookie": await commitSession(session),
         "Cache-Control": "no-store",

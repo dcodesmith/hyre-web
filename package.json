@@ -14,7 +14,8 @@
     "postinstall": "npx prisma generate",
     "vercel-build": "npx prisma migrate deploy && npx prisma generate && remix vite:build",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:ai-search-rate-limit": "k6 run scripts/k6-ai-search-load-test.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.974.0",
@@ -64,6 +65,8 @@
     "@tailwindcss/container-queries": "^0.1.1",
     "@tanstack/react-table": "^8.20.5",
     "@types/decimal.js": "^7.4.3",
+    "@upstash/ratelimit": "^2.0.8",
+    "@upstash/redis": "^1.36.3",
     "@vercel/analytics": "^1.5.0",
     "@vercel/remix": "^2.16.7",
     "@vercel/speed-insights": "^1.2.0",
