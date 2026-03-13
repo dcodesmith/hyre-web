@@ -24,7 +24,7 @@ export const options = {
     // Scenario 1: Rapid fire from single IP to exhaust rate limit (8/60s token bucket)
     exhaust_rate_limit: {
       executor: "constant-vus",
-      vus: parseInt(VUS, 10),
+      vus: Number.parseInt(VUS, 10),
       duration: DURATION,
       startTime: "0s",
     },
@@ -69,8 +69,7 @@ export default function () {
     `duration=${(res.timings.duration / 1000).toFixed(2)}s`,
   ];
   if (retryAfter !== undefined) logParts.push(`Retry-After=${retryAfter}`);
-  if (rateLimitRemaining !== undefined)
-    logParts.push(`RateLimit-Remaining=${rateLimitRemaining}`);
+  if (rateLimitRemaining !== undefined) logParts.push(`RateLimit-Remaining=${rateLimitRemaining}`);
   if (isRateLimited) logParts.push(`body=${res.body?.slice(0, 100)}`);
   else if (res.status === 200)
     logParts.push(`query="${query.slice(0, 40)}${query.length > 40 ? "…" : ""}"`);
@@ -78,8 +77,7 @@ export default function () {
   console.log(logParts.join(" | "));
 
   check(res, {
-    "status is 200 or 429/503": (r) =>
-      r.status === 200 || r.status === 429 || r.status === 503,
+    "status is 200 or 429/503": (r) => r.status === 200 || r.status === 429 || r.status === 503,
   });
 
   if (res.status === 400) {

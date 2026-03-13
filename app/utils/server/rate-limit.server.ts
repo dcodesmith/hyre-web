@@ -11,14 +11,14 @@ const redis = new Redis({
 
 const aiSearchByIpLimiter = new Ratelimit({
   redis,
-  limiter: Ratelimit.tokenBucket(8, "60 s", 12),
+  limiter: Ratelimit.slidingWindow(10, "60 s"),
   analytics: true,
   prefix: "rl:ai-search:ip",
 });
 
 const aiSearchByUserLimiter = new Ratelimit({
   redis,
-  limiter: Ratelimit.tokenBucket(60, "1 h", 80),
+  limiter: Ratelimit.slidingWindow(40, "1 h"),
   analytics: true,
   prefix: "rl:ai-search:user",
 });
@@ -482,7 +482,10 @@ export async function recordOtpFailure(args: {
       redis.incr(accountFailureKey),
     ]);
 
-    await Promise.all([ensureFailureKeyTtl(subjectFailureKey), ensureFailureKeyTtl(accountFailureKey)]);
+    await Promise.all([
+      ensureFailureKeyTtl(subjectFailureKey),
+      ensureFailureKeyTtl(accountFailureKey),
+    ]);
 
     if (accountCount >= OTP_PROGRESSIVE_DELAY_START) {
       const delayExponent = Math.max(0, accountCount - OTP_PROGRESSIVE_DELAY_START);
