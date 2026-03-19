@@ -54,8 +54,9 @@ export const envSchema = z
   .superRefine((value, ctx) => {
     const hasUpstashPair = Boolean(value.UPSTASH_REDIS_REST_URL && value.UPSTASH_REDIS_REST_TOKEN);
     const hasVercelKvPair = Boolean(value.KV_REST_API_URL && value.KV_REST_API_TOKEN);
+    const isDevelopment = value.NODE_ENV === "development";
 
-    if (!hasUpstashPair && !hasVercelKvPair) {
+    if (!hasUpstashPair && !hasVercelKvPair && !isDevelopment) {
       ctx.addIssue({
         code: "custom",
         message:

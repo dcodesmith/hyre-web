@@ -20,6 +20,11 @@ interface UseBookingFlightResult {
   readonly tripDuration: TripDuration | null;
   readonly processedFlightRef: React.MutableRefObject<string | null>;
   readonly handleDropOffAddressSelected: (address: string) => Promise<void>;
+  readonly clearFlightState: () => void;
+}
+
+function normalizeFlightNumber(value: string | null | undefined): string {
+  return (value ?? "").trim().toUpperCase();
 }
 
 /**
@@ -35,6 +40,11 @@ export function useBookingFlight({
   const [tripDuration, setTripDuration] = useState<TripDuration | null>(null);
   const processedFlightRef = useRef<string | null>(null);
   const tripDurationRequestRef = useRef(0);
+  const clearFlightState = useCallback(() => {
+    setValidatedFlight(null);
+    setTripDuration(null);
+    processedFlightRef.current = null;
+  }, []);
 
   // Auto-validate flight from URL on component mount
   useEffect(() => {
@@ -42,15 +52,21 @@ export function useBookingFlight({
 
     // Clear validatedFlight when bookingType changes away from airport pickup
     if (bookingType !== AIRPORT_PICKUP_BOOKING_TYPE) {
-      if (validatedFlight !== null) {
-        setValidatedFlight(null);
+      if (validatedFlight !== null || tripDuration !== null) {
+        clearFlightState();
       }
       return;
     }
 
-    // Clear validatedFlight if it exists but flightNumber from URL has changed
-    if (validatedFlight !== null && validatedFlight.flightNumber !== flightNumber) {
-      setValidatedFlight(null);
+    // Clear validated flight only when URL explicitly carries a different flight number.
+    const normalizedUrlFlight = normalizeFlightNumber(flightNumber);
+    const normalizedValidatedFlight = normalizeFlightNumber(validatedFlight?.flightNumber);
+    if (
+      validatedFlight !== null &&
+      normalizedUrlFlight.length > 0 &&
+      normalizedValidatedFlight !== normalizedUrlFlight
+    ) {
+      clearFlightState();
       return;
     }
 
@@ -87,7 +103,7 @@ export function useBookingFlight({
         return () => controller.abort();
       }
     }
-  }, [searchParams, bookingType, validatedFlight]);
+  }, [searchParams, bookingType, validatedFlight, tripDuration, clearFlightState]);
 
   // Calculate trip duration for AIRPORT_PICKUP bookings when drop-off address is selected
   const handleDropOffAddressSelected = useCallback(
@@ -108,8 +124,13 @@ export function useBookingFlight({
           destination: address,
         });
 
-        if (validatedFlight.estimatedArrival) {
-          params.set("arrivalTime", validatedFlight.estimatedArrival);
+        const arrivalTimeForDuration =
+          validatedFlight.estimatedArrival ??
+          validatedFlight.actualArrival ??
+          validatedFlight.scheduledArrival;
+
+        if (arrivalTimeForDuration) {
+          params.set("arrivalTime", arrivalTimeForDuration);
         }
 
         const response = await fetch(`/api/calculate-trip-duration?${params.toString()}`);
@@ -148,5 +169,6 @@ export function useBookingFlight({
     tripDuration,
     processedFlightRef,
     handleDropOffAddressSelected,
+    clearFlightState,
   };
 }

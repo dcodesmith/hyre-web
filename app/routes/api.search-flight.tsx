@@ -5,6 +5,15 @@ import { isValidFlightNumberFormat, validateFlight } from "~/services/flight-val
 import { checkSearchFlightRateLimit } from "~/utils/server/rate-limit.server";
 
 type ValidationError = { error: string; status: number };
+type FlightSearchErrorType =
+  | "non_lagos_destination"
+  | "already_landed"
+  | "not_found"
+  | "invalid_format"
+  | "past_date";
+
+const PAST_DATE_TOKEN = "past";
+const INVALID_FORMAT_TOKENS = ["invalid flight number format", "invalid date format"] as const;
 
 /** Validate request parameters and return error if invalid */
 function validateRequestParams(
@@ -54,8 +63,27 @@ function validateRequestParams(
 }
 
 /** Build error response JSON */
-function errorResponse(error: string, status: number) {
-  return Response.json({ success: false, error }, { status });
+function errorResponse(
+  error: string,
+  status: number,
+  shortError?: string,
+  errorType?: FlightSearchErrorType,
+) {
+  return Response.json(
+    { success: false, error, shortError: shortError ?? error, errorType },
+    { status },
+  );
+}
+
+function classifyFlightSearchError(message: string): FlightSearchErrorType | undefined {
+  const lowerMessage = message.toLowerCase();
+  if (lowerMessage.includes(PAST_DATE_TOKEN)) {
+    return "past_date";
+  }
+  if (INVALID_FORMAT_TOKENS.some((token) => lowerMessage.includes(token))) {
+    return "invalid_format";
+  }
+  return undefined;
 }
 
 /** Standard no-cache headers for flight data */
@@ -69,7 +97,7 @@ function getArrivalWarning(
     scheduledArrival: string;
   },
   flightNumber: string,
-): string | undefined {
+): { warning: string; shortWarning: string } | undefined {
   const arrivalTime = new Date(
     flight.actualArrival ?? flight.estimatedArrival ?? flight.scheduledArrival,
   );
@@ -80,7 +108,7 @@ function getArrivalWarning(
     logger.info(
       `[API /api/search-flight] Flight ${flightNumber} has already landed at ${arrivalTime.toISOString()}`,
     );
-    return "This flight has already landed.";
+    return { warning: "This flight has already landed.", shortWarning: "Already landed" };
   }
 
   if (arrivalTime < oneHourFromNow) {
@@ -88,7 +116,10 @@ function getArrivalWarning(
     logger.info(
       `[API /api/search-flight] Flight ${flightNumber} arrives soon (in ${timeUntilArrival})`,
     );
-    return `This flight arrives in ${timeUntilArrival}. We require at least 1 hour advance notice to arrange an airport pickup. For immediate pickup needs, please contact us directly.`;
+    return {
+      warning: `This flight arrives in ${timeUntilArrival}. We require at least 1 hour advance notice to arrange an airport pickup. For immediate pickup needs, please contact us directly.`,
+      shortWarning: `Arrives in ${timeUntilArrival}`,
+    };
   }
 
   return undefined;
@@ -102,15 +133,82 @@ function handleFlightError(message: string): Response {
     return errorResponse(
       "Flight validation service is temporarily unavailable. Please try again later.",
       503,
+      "Service unavailable",
     );
   }
   if (message.includes("rate limit")) {
-    return errorResponse("Too many requests. Please try again in a few minutes.", 429);
+    return errorResponse(
+      "Too many requests. Please try again in a few minutes.",
+      429,
+      "Try again shortly",
+    );
   }
   return errorResponse(
     message || "An error occurred while searching for the flight. Please try again.",
     500,
+    "Something went wrong",
   );
+}
+
+function toIsoDateUtc(date: Date): string {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) {
+    throw new TypeError("Invalid date supplied to toIsoDateUtc");
+  }
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(date.getUTCDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+async function wrapValidateFlightWithTimeout(
+  flightNumber: string,
+  pickupDate: string,
+  timeoutMs = 4500,
+) {
+  return await Promise.race([
+    validateFlight(flightNumber, pickupDate),
+    new Promise<null>((resolve) => {
+      setTimeout(() => resolve(null), timeoutMs);
+    }),
+  ]);
+}
+
+/**
+ * If a flight is "not found" for a specific date, probe nearby dates to determine
+ * whether it likely exists but does not arrive in Lagos.
+ */
+async function isLikelyNonLagosFlight(flightNumber: string, pickupDate: string): Promise<boolean> {
+  const baseDate = new Date(`${pickupDate}T00:00:00.000Z`);
+  const nearbyOffsets = [-1, 1];
+  const probes = nearbyOffsets.map(async (offset) => {
+    const nearbyDate = new Date(baseDate);
+    nearbyDate.setUTCDate(nearbyDate.getUTCDate() + offset);
+    const nearbyDateStr = toIsoDateUtc(nearbyDate);
+    return {
+      nearbyDateStr,
+      result: await wrapValidateFlightWithTimeout(flightNumber, nearbyDateStr),
+    };
+  });
+
+  const settledResults = await Promise.allSettled(probes);
+  for (const settled of settledResults) {
+    if (settled.status !== "fulfilled" || !settled.value.result) continue;
+    const { nearbyDateStr, result } = settled.value;
+    if (result.type === "success" && result.flight.destinationIATA !== "LOS") {
+      logger.info(
+        "[API /api/search-flight] Classified not-found flight as non-Lagos via nearby date",
+        {
+          flightNumber,
+          pickupDate,
+          nearbyDate: nearbyDateStr,
+          destinationIATA: result.flight.destinationIATA,
+        },
+      );
+      return true;
+    }
+  }
+
+  return false;
 }
 
 /**
@@ -179,7 +277,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   // Validate all parameters upfront
   const validationError = validateRequestParams(flightNumber, pickupDate);
   if (validationError) {
-    return errorResponse(validationError.error, validationError.status);
+    const errorType = classifyFlightSearchError(validationError.error);
+    return errorResponse(validationError.error, validationError.status, undefined, errorType);
   }
 
   // After validation, we know these are non-null
@@ -206,6 +305,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             {
               success: true,
               message: `Flight ${validFlightNumber.toUpperCase()} flies from ${originName} to ${destinationName}. We only provide airport pickup for flights arriving in Lagos (LOS).`,
+              shortMessage: "Flight doesn't arrive in Lagos",
+              errorType: "non_lagos_destination",
               flight: null,
             },
             { status: 200, headers: NO_CACHE_HEADERS },
@@ -213,8 +314,14 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         }
 
         logger.info(`[API /api/search-flight] Flight ${validFlightNumber} found successfully`);
+        const arrivalWarning = getArrivalWarning(flight, validFlightNumber);
         return Response.json(
-          { success: true, flight, warning: getArrivalWarning(flight, validFlightNumber) },
+          {
+            success: true,
+            flight,
+            warning: arrivalWarning?.warning,
+            shortWarning: arrivalWarning?.shortWarning,
+          },
           { status: 200, headers: NO_CACHE_HEADERS },
         );
       }
@@ -225,6 +332,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
           {
             success: true,
             message: `${result.flightNumber} already landed at ${result.landedTime}`,
+            shortMessage: `Landed at ${result.landedTime}`,
+            errorType: "already_landed",
             flight: null,
           },
           { status: 200, headers: NO_CACHE_HEADERS },
@@ -235,10 +344,26 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         logger.info(
           `[API /api/search-flight] Flight ${validFlightNumber} not found for ${validPickupDate}`,
         );
+
+        if (await isLikelyNonLagosFlight(validFlightNumber, validPickupDate)) {
+          return Response.json(
+            {
+              success: true,
+              message: "Flight doesn't go to Lagos.",
+              shortMessage: "Flight doesn't go to Lagos.",
+              errorType: "non_lagos_destination",
+              flight: null,
+            },
+            { status: 200, headers: NO_CACHE_HEADERS },
+          );
+        }
+
         return Response.json(
           {
             success: false,
             error: `${validFlightNumber.toUpperCase()} not found. Verify the flight number and try again.`,
+            shortError: "Flight not found",
+            errorType: "not_found",
           },
           { status: 404, headers: NO_CACHE_HEADERS },
         );

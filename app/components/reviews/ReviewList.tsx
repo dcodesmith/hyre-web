@@ -1,5 +1,5 @@
 import { useFetcher } from "@remix-run/react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "../ui/button";
 import { Card } from "../ui/card";
 import { Skeleton } from "../ui/skeleton";
@@ -55,9 +55,59 @@ export function ReviewList({
   const [reviews, setReviews] = useState<ReviewWithBookingLight[]>(initialReviews ?? []);
   const [pagination, setPagination] = useState(initialPagination);
   const [currentPage, setCurrentPage] = useState(initialPagination?.page ?? 1);
+  const loadRef = useRef(fetcher.load);
+
+  useEffect(() => {
+    loadRef.current = fetcher.load;
+  }, [fetcher.load]);
 
   const isLoading = fetcher.state === "loading";
   const isSubmitting = fetcher.state === "submitting";
+
+  const loadPage = useCallback(
+    (page: number) => {
+      const params = new URLSearchParams();
+      params.set("page", page.toString());
+      params.set("limit", (pagination?.limit ?? 10).toString());
+
+      loadRef.current(`${endpoint}?${params.toString()}`);
+      setCurrentPage(page);
+    },
+    [endpoint, pagination?.limit],
+  );
+
+  // Auto-load the first page on mount
+  useEffect(() => {
+    const initialPage = initialPagination?.page;
+    const hasValidInitialPage =
+      typeof initialPage === "number" &&
+      Number.isFinite(initialPage) &&
+      initialPage >= 1 &&
+      (!initialPagination?.totalPages || initialPage <= initialPagination.totalPages);
+    const hasValidCurrentPage =
+      typeof currentPage === "number" &&
+      Number.isFinite(currentPage) &&
+      currentPage >= 1 &&
+      (!pagination?.totalPages || currentPage <= pagination.totalPages);
+    const hasSsrReviews = Array.isArray(initialReviews);
+    const hasSsrData = hasSsrReviews || Boolean(initialPagination);
+    const ssrPage = initialPagination?.page ?? 1;
+    const hasMatchingSsrPage = hasSsrData && ssrPage === currentPage;
+
+    if (hasMatchingSsrPage && hasValidInitialPage && hasValidCurrentPage) {
+      return;
+    }
+
+    if (!hasSsrData || !hasValidInitialPage || !hasValidCurrentPage) {
+      loadPage(1);
+    }
+  }, [
+    currentPage,
+    initialPagination,
+    initialReviews,
+    loadPage,
+    pagination?.totalPages,
+  ]);
 
   // Update reviews when fetcher data changes
   useEffect(() => {
@@ -66,15 +116,6 @@ export function ReviewList({
       setPagination(fetcher.data.pagination);
     }
   }, [fetcher.data]);
-
-  const loadPage = (page: number) => {
-    const params = new URLSearchParams();
-    params.set("page", page.toString());
-    params.set("limit", (pagination?.limit ?? 10).toString());
-
-    fetcher.load(`${endpoint}?${params.toString()}`);
-    setCurrentPage(page);
-  };
 
   const handleNextPage = () => {
     if (pagination?.hasNextPage) {

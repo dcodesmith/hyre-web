@@ -3,12 +3,6 @@ import logger from "~/lib/logger.server";
 import { env } from "~/utils/server/env.server";
 
 /**
- * Constants
- */
-const CACHE_TTL_HOURS = 24;
-const CACHE_CLEANUP_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
-
-/**
  * FlightAware API Types
  */
 
@@ -27,13 +21,13 @@ interface FlightAwareFlightLeg {
     code: string;
     code_iata?: string;
     name?: string;
-  };
+  } | null;
   destination: {
     code: string;
     code_iata?: string;
     name?: string;
     city?: string;
-  };
+  } | null;
   aircraft_type?: string;
   status?: string;
   delay?: number;
@@ -85,6 +79,11 @@ interface FlightAwareSchedulesResponse {
   links?: string | null;
 }
 
+interface FlightAwareAirportFlightsResponse {
+  arrivals?: unknown[];
+  scheduled_arrivals?: unknown[];
+}
+
 export interface ValidatedFlight {
   flightNumber: string;
   flightId: string;
@@ -127,102 +126,6 @@ export type FlightValidationResult =
     };
 
 /**
- * In-memory cache for flight validation results
- * TTL: 24 hours
- * Only caches "success" and "notFound" results (not "alreadyLanded" or "error" - those are time-sensitive)
- * Format: Map<cacheKey, { data: FlightValidationResult, expiresAt: timestamp }>
- */
-const flightCache = new Map<
-  string,
-  {
-    data: FlightValidationResult;
-    expiresAt: number;
-  }
->();
-
-/**
- * Clean up expired cache entries
- * Prevents memory leaks by removing stale entries
- */
-function cleanupExpiredCacheEntries(): void {
-  const now = Date.now();
-  let removedCount = 0;
-
-  for (const [key, value] of flightCache.entries()) {
-    if (now > value.expiresAt) {
-      flightCache.delete(key);
-      removedCount++;
-    }
-  }
-
-  if (removedCount > 0) {
-    logger.info("Cleaned up expired cache entries", {
-      removedCount,
-      remainingCount: flightCache.size,
-    });
-  }
-}
-
-/**
- * Start periodic cache cleanup
- * Only runs in server environment (not during build)
- */
-if (typeof setInterval !== "undefined") {
-  setInterval(cleanupExpiredCacheEntries, CACHE_CLEANUP_INTERVAL_MS);
-  logger.info("Flight cache cleanup scheduled", {
-    intervalMinutes: CACHE_CLEANUP_INTERVAL_MS / 60000,
-  });
-}
-
-/**
- * Generate cache key for flight lookup
- */
-function getCacheKey(flightNumber: string, date: string): string {
-  return `flight:${flightNumber.toUpperCase()}:${date}`;
-}
-
-/**
- * Get cached flight data if available and not expired
- */
-function getCachedFlight(flightNumber: string, date: string): FlightValidationResult | undefined {
-  const key = getCacheKey(flightNumber, date);
-  const cached = flightCache.get(key);
-
-  if (!cached) {
-    return undefined; // No cache entry
-  }
-
-  if (Date.now() > cached.expiresAt) {
-    // Expired - remove from cache
-    flightCache.delete(key);
-    return undefined;
-  }
-
-  return cached.data;
-}
-
-/**
- * Cache flight data with configurable TTL
- * Only caches "success" and "notFound" results (not "alreadyLanded" or "error")
- */
-function setCachedFlight(
-  flightNumber: string,
-  date: string,
-  data: FlightValidationResult,
-  ttlHours = CACHE_TTL_HOURS,
-): void {
-  // Don't cache "alreadyLanded" or "error" results - they're time-sensitive
-  if (data.type === "alreadyLanded" || data.type === "error") {
-    return;
-  }
-
-  const key = getCacheKey(flightNumber, date);
-  const expiresAt = Date.now() + ttlHours * 60 * 60 * 1000;
-
-  flightCache.set(key, { data, expiresAt });
-}
-
-/**
  * IATA to ICAO airline code mapping
  * Format: { IATA: ICAO }
  */
@@ -244,6 +147,7 @@ const IATA_TO_ICAO_MAP: Record<string, string> = {
   AT: "RAM", // Royal Air Maroc
   SA: "SAA", // South African Airways
   RW: "WB", // RwandAir
+  Q9: "GWG", // Green Africa Airways
   P4: "APK", // Air Peace
   W3: "ARA", // Arik Air
 };
@@ -350,9 +254,296 @@ function formatLagosTime(arrivalTimeUTC: string): string {
   });
 }
 
+function parseFlightIdentifier(flightNumber: string): {
+  normalized: string;
+  airlineCode: string;
+  flightDigits: string;
+} {
+  const normalized = flightNumber.trim().toUpperCase();
+  const match = /^([A-Z0-9]{2,3})(\d{1,5})$/i.exec(normalized);
+  return {
+    normalized,
+    airlineCode: match?.[1]?.toUpperCase() ?? "",
+    flightDigits: match?.[2] ?? "",
+  };
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return typeof value === "object" && value !== null ? (value as Record<string, unknown>) : null;
+}
+
+function readString(record: Record<string, unknown>, key: string): string | undefined {
+  const value = record[key];
+  return typeof value === "string" && value.length > 0 ? value : undefined;
+}
+
+function getAirportField(record: Record<string, unknown>, key: "origin" | "destination"): {
+  code?: string;
+  codeIata?: string;
+  name?: string;
+  city?: string;
+} {
+  const field = record[key];
+  if (typeof field === "string") {
+    return { code: field };
+  }
+  const parsed = asRecord(field);
+  if (!parsed) return {};
+  return {
+    code: readString(parsed, "code"),
+    codeIata: readString(parsed, "code_iata"),
+    name: readString(parsed, "name"),
+    city: readString(parsed, "city"),
+  };
+}
+
+function manifestRecordMatchesFlight(
+  record: Record<string, unknown>,
+  target: ReturnType<typeof parseFlightIdentifier>,
+): boolean {
+  const candidateIdents = [
+    readString(record, "ident_iata"),
+    readString(record, "actual_ident_iata"),
+    readString(record, "ident"),
+    readString(record, "actual_ident"),
+    readString(record, "ident_icao"),
+    readString(record, "actual_ident_icao"),
+  ]
+    .filter((value): value is string => Boolean(value))
+    .map((value) => value.toUpperCase());
+
+  if (candidateIdents.includes(target.normalized)) {
+    return true;
+  }
+
+  const operatorIata = readString(record, "operator_iata")?.toUpperCase();
+  const operatorIcao = readString(record, "operator_icao")?.toUpperCase();
+  const flightDigits = readString(record, "flight_number");
+  if (flightDigits && target.flightDigits && flightDigits === target.flightDigits) {
+    if (!target.airlineCode) return true;
+    if (operatorIata === target.airlineCode || operatorIcao === target.airlineCode) {
+      return true;
+    }
+    return candidateIdents.some((ident) => ident.startsWith(target.airlineCode));
+  }
+
+  return false;
+}
+
+function getManifestArrivalTime(record: Record<string, unknown>): string | undefined {
+  return (
+    readString(record, "actual_on") ||
+    readString(record, "estimated_on") ||
+    readString(record, "scheduled_on") ||
+    readString(record, "estimated_in") ||
+    readString(record, "scheduled_in")
+  );
+}
+
+function getManifestActualTime(record: Record<string, unknown>): string | undefined {
+  return readString(record, "actual_on") || readString(record, "actual_in");
+}
+
+type ManifestFlightSelection = {
+  upcoming: { record: Record<string, unknown>; arrivalDate: Date } | null;
+  landed: { record: Record<string, unknown>; arrivalDate: Date } | null;
+};
+
+function buildLosArrivalsApiUrl(pickupDate: string): string {
+  const startBound = `${pickupDate}T00:00:00+01:00`;
+  const startDate = new Date(startBound);
+  const endDate = new Date(startDate);
+  endDate.setDate(endDate.getDate() + 1);
+  const endBound = toFlightAwareDateTime(endDate);
+  return `https://aeroapi.flightaware.com/aeroapi/airports/LOS/flights?start=${encodeURIComponent(startBound)}&end=${encodeURIComponent(endBound)}&max_pages=1`;
+}
+
+async function fetchLosArrivalsPayload(
+  flightNumber: string,
+  pickupDate: string,
+): Promise<FlightAwareAirportFlightsResponse | null> {
+  const response = await fetch(buildLosArrivalsApiUrl(pickupDate), {
+    headers: { "x-apikey": env.FLIGHTAWARE_API_KEY, Accept: "application/json" },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    logger.warn("FlightAware LOS arrivals fallback API error", {
+      status: response.status,
+      errorText,
+      flightNumber,
+      pickupDate,
+    });
+    return null;
+  }
+
+  return (await response.json()) as FlightAwareAirportFlightsResponse;
+}
+
+function selectManifestFlightsForDate(
+  candidates: Record<string, unknown>[],
+  pickupDate: string,
+): ManifestFlightSelection {
+  let upcoming: { record: Record<string, unknown>; arrivalDate: Date } | null = null;
+  let landed: { record: Record<string, unknown>; arrivalDate: Date } | null = null;
+  const now = new Date();
+
+  for (const record of candidates) {
+    const arrivalTime = getManifestArrivalTime(record);
+    if (!arrivalTime) continue;
+    const arrivalDate = new Date(arrivalTime);
+    if (Number.isNaN(arrivalDate.getTime())) continue;
+    if (toLagosDateString(arrivalDate) !== pickupDate) continue;
+
+    if (arrivalDate < now) {
+      // Only classify as landed when an actual arrival timestamp exists.
+      const actualArrivalTime = getManifestActualTime(record);
+      if (actualArrivalTime) {
+        const actualArrivalDate = new Date(actualArrivalTime);
+        if (
+          !Number.isNaN(actualArrivalDate.getTime()) &&
+          toLagosDateString(actualArrivalDate) === pickupDate &&
+          actualArrivalDate < now &&
+          (!landed || landed.arrivalDate < actualArrivalDate)
+        ) {
+          landed = { record, arrivalDate: actualArrivalDate };
+        }
+      }
+      continue;
+    }
+
+    if (!upcoming || upcoming.arrivalDate > arrivalDate) {
+      upcoming = { record, arrivalDate };
+    }
+  }
+
+  return { upcoming, landed };
+}
+
+function buildManifestSuccessResult(
+  record: Record<string, unknown>,
+  flightNumber: string,
+): FlightValidationResult | null {
+  const origin = getAirportField(record, "origin");
+  const destination = getAirportField(record, "destination");
+  const faFlightId = readString(record, "fa_flight_id");
+  const scheduledArrival = getManifestArrivalTime(record);
+  if (!scheduledArrival) return null;
+
+  return {
+    type: "success",
+    flight: {
+      flightNumber,
+      flightId: faFlightId ?? `${flightNumber}-los-manifest`,
+      origin: origin.code ?? origin.codeIata ?? "UNKNOWN",
+      originIATA: origin.codeIata,
+      destination: destination.code ?? destination.codeIata ?? "LOS",
+      destinationIATA: destination.codeIata ?? "LOS",
+      scheduledArrival,
+      status: readString(record, "status") ?? "Scheduled",
+      aircraftType: readString(record, "aircraft_type"),
+      isLive: true,
+      arrivalAddress:
+        destination.name && destination.city ? `${destination.name}, ${destination.city}` : undefined,
+    },
+  };
+}
+
+function buildManifestLandedResult(
+  record: Record<string, unknown>,
+  flightNumber: string,
+  pickupDate: string,
+): FlightValidationResult | null {
+  const arrivalTime = getManifestArrivalTime(record);
+  if (!arrivalTime) return null;
+  return {
+    type: "alreadyLanded",
+    flightNumber,
+    requestedDate: pickupDate,
+    landedTime: formatLagosTime(arrivalTime),
+  };
+}
+
+async function resolveFromLosArrivalsManifest(
+  flightNumber: string,
+  pickupDate: string,
+): Promise<FlightValidationResult | null> {
+  const payload = await fetchLosArrivalsPayload(flightNumber, pickupDate);
+  if (!payload) return null;
+
+  const target = parseFlightIdentifier(flightNumber);
+  const candidates = [...(payload.arrivals ?? []), ...(payload.scheduled_arrivals ?? [])]
+    .map(asRecord)
+    .filter((record): record is Record<string, unknown> => record !== null)
+    .filter((record) => manifestRecordMatchesFlight(record, target));
+
+  const { upcoming, landed } = selectManifestFlightsForDate(candidates, pickupDate);
+  if (upcoming) return buildManifestSuccessResult(upcoming.record, flightNumber);
+  if (landed) return buildManifestLandedResult(landed.record, flightNumber, pickupDate);
+
+  return null;
+}
+
+/**
+ * FlightAware bounds are safest without milliseconds.
+ * Example: 2026-03-17T12:39:03Z (not ...03.953Z)
+ */
+function toFlightAwareDateTime(date: Date): string {
+  return date.toISOString().replace(/\.\d{3}Z$/, "Z");
+}
+
 /**
  * Find matching flight from API response
  */
+function getLiveLegArrivalDate(flight: FlightAwareFlightLeg): Date {
+  return new Date(flight.actual_on || flight.estimated_on || flight.scheduled_on);
+}
+
+function chooseEarlierFlight(
+  current: FlightAwareFlightLeg | null,
+  candidate: FlightAwareFlightLeg,
+): FlightAwareFlightLeg {
+  if (!current) return candidate;
+  return getLiveLegArrivalDate(candidate) < getLiveLegArrivalDate(current) ? candidate : current;
+}
+
+function chooseLaterFlight(
+  current: FlightAwareFlightLeg | null,
+  candidate: FlightAwareFlightLeg,
+): FlightAwareFlightLeg {
+  if (!current) return candidate;
+  return getLiveLegArrivalDate(candidate) > getLiveLegArrivalDate(current) ? candidate : current;
+}
+
+type LiveFlightSelectionState = {
+  matchingFlightToLagos: FlightAwareFlightLeg | null;
+  matchingFlightOther: FlightAwareFlightLeg | null;
+  landedFlightToLagos: FlightAwareFlightLeg | null;
+  landedFlightOther: FlightAwareFlightLeg | null;
+};
+
+function updateSelectionForMatchingDate(
+  selection: LiveFlightSelectionState,
+  flight: FlightAwareFlightLeg,
+  hasLanded: boolean,
+  isLagosDestination: boolean,
+): void {
+  if (hasLanded) {
+    if (isLagosDestination) {
+      selection.landedFlightToLagos = chooseLaterFlight(selection.landedFlightToLagos, flight);
+    } else {
+      selection.landedFlightOther = chooseLaterFlight(selection.landedFlightOther, flight);
+    }
+    return;
+  }
+
+  if (isLagosDestination) {
+    selection.matchingFlightToLagos = chooseEarlierFlight(selection.matchingFlightToLagos, flight);
+  } else {
+    selection.matchingFlightOther = chooseEarlierFlight(selection.matchingFlightOther, flight);
+  }
+}
+
 function findMatchingFlight(
   flights: FlightAwareFlightLeg[],
   pickupDateStr: string,
@@ -362,28 +553,40 @@ function findMatchingFlight(
   nextFlightDate: string | null;
 } {
   const now = new Date();
-  let matchingFlight: FlightAwareFlightLeg | null = null;
-  let landedFlight: FlightAwareFlightLeg | null = null;
+  const selection: LiveFlightSelectionState = {
+    matchingFlightToLagos: null as FlightAwareFlightLeg | null,
+    matchingFlightOther: null as FlightAwareFlightLeg | null,
+    landedFlightToLagos: null as FlightAwareFlightLeg | null,
+    landedFlightOther: null as FlightAwareFlightLeg | null,
+  };
   let nextFlightDate: string | null = null;
 
   for (const flight of flights) {
-    const arrivalTimeUTC = flight.actual_on || flight.estimated_on || flight.scheduled_on;
-    const arrivalDate = new Date(arrivalTimeUTC);
+    const arrivalDate = getLiveLegArrivalDate(flight);
     const lagosDateStr = toLagosDateString(arrivalDate);
+    const isLagosDestination = flight.destination?.code_iata === "LOS";
+    const hasLanded = arrivalDate < now;
 
-    if (lagosDateStr === pickupDateStr) {
-      if (arrivalDate < now) {
-        landedFlight = flight;
-      } else {
-        matchingFlight = flight;
-        break;
+    if (lagosDateStr !== pickupDateStr) {
+      if (arrivalDate > now && !nextFlightDate) {
+        nextFlightDate = lagosDateStr;
       }
-    } else if (arrivalDate > now && !nextFlightDate) {
-      nextFlightDate = lagosDateStr;
+      continue;
     }
+
+    // Prefer LOS arrivals and choose the soonest upcoming one.
+    updateSelectionForMatchingDate(selection, flight, hasLanded, isLagosDestination);
   }
 
-  return { matchingFlight, landedFlight, nextFlightDate };
+  return {
+    // If we already have a landed LOS leg for this date, prefer reporting that
+    // over unrelated non-LOS matches on the same flight number.
+    matchingFlight:
+      selection.matchingFlightToLagos ??
+      (selection.landedFlightToLagos ? null : selection.matchingFlightOther),
+    landedFlight: selection.landedFlightToLagos ?? selection.landedFlightOther,
+    nextFlightDate,
+  };
 }
 
 /**
@@ -395,7 +598,7 @@ function buildAlreadyLandedResult(
   pickupDateStr: string,
   nextFlightDate: string | null,
 ): FlightValidationResult | null {
-  const destinationIATA = landedFlight.destination.code_iata;
+  const destinationIATA = landedFlight.destination?.code_iata;
 
   if (destinationIATA !== "LOS") {
     logger.debug("Flight landed but not going to Lagos", {
@@ -433,22 +636,38 @@ function buildSuccessResult(
   matchingFlight: FlightAwareFlightLeg,
   flightNumber: string,
 ): FlightValidationResult {
+  const originCode = matchingFlight.origin?.code;
+  const destinationCode = matchingFlight.destination?.code;
+  const originIATA = matchingFlight.origin?.code_iata;
+  const destinationIATA = matchingFlight.destination?.code_iata;
+  const destinationName = matchingFlight.destination?.name;
+  const destinationCity = matchingFlight.destination?.city;
+
+  if (!originCode || !destinationCode) {
+    logger.warn("Missing origin/destination in live flight leg", {
+      flightNumber,
+      flightId: matchingFlight.fa_flight_id,
+    });
+    return { type: "notFound" };
+  }
+
   return {
     type: "success",
     flight: {
       flightNumber,
       flightId: matchingFlight.fa_flight_id,
-      origin: matchingFlight.origin.code,
-      originIATA: matchingFlight.origin.code_iata,
-      destination: matchingFlight.destination.code,
-      destinationIATA: matchingFlight.destination.code_iata,
+      origin: originCode,
+      originIATA,
+      destination: destinationCode,
+      destinationIATA,
       scheduledArrival: matchingFlight.scheduled_on,
       estimatedArrival: matchingFlight.estimated_in,
       actualArrival: matchingFlight.actual_on,
       status: matchingFlight.status,
       aircraftType: matchingFlight.aircraft_type,
       delay: matchingFlight.delay,
-      arrivalAddress: `${matchingFlight.destination.name}, ${matchingFlight.destination.city}`,
+      arrivalAddress:
+        destinationName && destinationCity ? `${destinationName}, ${destinationCity}` : undefined,
       isLive: true,
     },
   };
@@ -466,8 +685,8 @@ async function fetchLiveFlight(
   pickupDate: string,
 ): Promise<FlightValidationResult> {
   const apiKey = env.FLIGHTAWARE_API_KEY;
-  const start = startDate.toISOString();
-  const end = endDate.toISOString();
+  const start = toFlightAwareDateTime(startDate);
+  const end = toFlightAwareDateTime(endDate);
 
   const tryFlightNumber = async (flightNum: string): Promise<FlightValidationResult | null> => {
     const apiUrl = `https://aeroapi.flightaware.com/aeroapi/flights/${flightNum}?start=${start}&end=${end}`;
@@ -536,13 +755,11 @@ async function fetchLiveFlight(
  */
 async function fetchScheduledFlight(
   flightNumber: string,
-  startDate: Date,
-  endDate: Date,
+  scheduleStartIso: string,
+  scheduleEndIso: string,
+  pickupDate: string,
 ): Promise<FlightValidationResult> {
   const apiKey = env.FLIGHTAWARE_API_KEY;
-
-  const startDateStr = startDate.toISOString().split("T")[0]; // YYYY-MM-DD
-  const endDateStr = endDate.toISOString().split("T")[0]; // YYYY-MM-DD
 
   // Helper function to try a single flight number
   const tryScheduledFlight = async (flightNum: string): Promise<FlightValidationResult | null> => {
@@ -561,9 +778,17 @@ async function fetchScheduledFlight(
     const flightNumDigits = match[2];
 
     // Schedules API format: /schedules/{date_start}/{date_end}?airline={code}&flight_number={num}
-    const apiUrl = `https://aeroapi.flightaware.com/aeroapi/schedules/${startDateStr}/${endDateStr}?airline=${airlineCode}&flight_number=${flightNumDigits}`;
+    // Use explicit datetime bounds (UTC) to avoid ambiguous date parsing errors.
+    const encodedStartBound = encodeURIComponent(scheduleStartIso);
+    const encodedEndBound = encodeURIComponent(scheduleEndIso);
+    const apiUrl = `https://aeroapi.flightaware.com/aeroapi/schedules/${encodedStartBound}/${encodedEndBound}?airline=${airlineCode}&flight_number=${flightNumDigits}`;
 
-    logger.debug("FlightAware SCHEDULES API request", { apiUrl });
+    logger.debug("FlightAware SCHEDULES API request", {
+      apiUrl,
+      flightNum,
+      scheduleStartIso,
+      scheduleEndIso,
+    });
 
     const response = await fetch(apiUrl, {
       headers: {
@@ -607,13 +832,57 @@ async function fetchScheduledFlight(
     }
 
     const normalizedFlight = flightNum.toUpperCase();
-    const scheduledFlight =
-      data.scheduled.find(
-        (flight) =>
-          flight.ident_iata?.toUpperCase() === normalizedFlight ||
-          flight.actual_ident_iata?.toUpperCase() === normalizedFlight ||
-          flight.ident?.toUpperCase() === normalizedFlight,
-      ) ?? data.scheduled[0];
+    const getArrivalTime = (flight: FlightAwareScheduledFlight): string | null =>
+      flight.estimated_in ?? flight.scheduled_in ?? flight.actual_in ?? flight.scheduled_on ?? null;
+
+    const flightsOnPickupDate = data.scheduled.filter((flight) => {
+      const arrivalTime = getArrivalTime(flight);
+      if (!arrivalTime) return false;
+      return toLagosDateString(new Date(arrivalTime)) === pickupDate;
+    });
+
+    if (flightsOnPickupDate.length === 0) {
+      logger.debug("No scheduled flights found on pickup date", { flightNum, pickupDate });
+      return { type: "notFound" };
+    }
+
+    const getIdentifierMatchScore = (flight: FlightAwareScheduledFlight): number => {
+      if (flight.ident_iata?.toUpperCase() === normalizedFlight) return 3;
+      if (flight.actual_ident_iata?.toUpperCase() === normalizedFlight) return 2;
+      if (flight.ident?.toUpperCase() === normalizedFlight) return 1;
+      return 0;
+    };
+
+    const scheduledFlight = flightsOnPickupDate.reduce((best, current) => {
+      if (!best) return current;
+
+      const bestIdScore = getIdentifierMatchScore(best);
+      const currentIdScore = getIdentifierMatchScore(current);
+      if (currentIdScore !== bestIdScore) {
+        return currentIdScore > bestIdScore ? current : best;
+      }
+
+      const isLagosDestination = (flight: FlightAwareScheduledFlight): boolean => {
+        return [flight.destination_iata, flight.destination, flight.destination_icao].some(
+          (destinationCode) => destinationCode?.toUpperCase() === "LOS",
+        );
+      };
+      const bestIsLagos = isLagosDestination(best);
+      const currentIsLagos = isLagosDestination(current);
+      if (currentIsLagos !== bestIsLagos) {
+        return currentIsLagos ? current : best;
+      }
+
+      const bestArrival = getArrivalTime(best);
+      const currentArrival = getArrivalTime(current);
+      if (!bestArrival || !currentArrival) return best;
+
+      return new Date(currentArrival) < new Date(bestArrival) ? current : best;
+    }, null as FlightAwareScheduledFlight | null);
+
+    if (!scheduledFlight) {
+      return { type: "notFound" };
+    }
 
     logger.info("[fetchScheduledFlight] Scheduled flight", { flightNumber, scheduledFlight, data });
 
@@ -642,7 +911,31 @@ async function fetchScheduledFlight(
       },
     );
 
-    const airportsData = await airportsResponse.json();
+    let airportsData: { name?: string; city?: string } = {};
+    if (airportsResponse.ok) {
+      try {
+        airportsData = (await airportsResponse.json()) as { name?: string; city?: string };
+      } catch (error) {
+        logger.warn("Failed to parse airport details response", {
+          destination: scheduledFlight.destination,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    } else {
+      logger.warn("Airport details API returned non-success status", {
+        destination: scheduledFlight.destination,
+        status: airportsResponse.status,
+      });
+    }
+    const airportName =
+      typeof airportsData.name === "string" && airportsData.name.trim().length > 0
+        ? airportsData.name
+        : scheduledFlight.destination_iata || scheduledFlight.destination || "Destination airport";
+    const airportCity =
+      typeof airportsData.city === "string" && airportsData.city.trim().length > 0
+        ? airportsData.city
+        : "";
+    const arrivalAddress = airportCity ? `${airportName}, ${airportCity}` : airportName;
 
     // Transform to our format (use original flightNumber for consistency)
     return {
@@ -655,7 +948,7 @@ async function fetchScheduledFlight(
         destination: scheduledFlight.destination,
         destinationIATA: scheduledFlight.destination_iata ?? undefined,
         scheduledArrival,
-        arrivalAddress: `${airportsData.name}, ${airportsData.city}`,
+        arrivalAddress,
         status: "Scheduled",
         aircraftType: scheduledFlight.aircraft_type ?? undefined,
         isLive: false,
@@ -699,14 +992,7 @@ export async function validateFlight(
   // Normalize flight number to uppercase
   const normalizedFlightNumber = flightNumber.toUpperCase();
 
-  // 2. Check cache first
-  const cached = getCachedFlight(normalizedFlightNumber, pickupDate);
-  if (cached !== undefined) {
-    logger.debug("Flight cache HIT", { flightNumber: normalizedFlightNumber, pickupDate });
-    return cached;
-  }
-
-  logger.debug("Flight cache MISS - calling API", {
+  logger.debug("Flight validation - calling API", {
     flightNumber: normalizedFlightNumber,
     pickupDate,
   });
@@ -759,11 +1045,25 @@ export async function validateFlight(
       result = await fetchLiveFlight(normalizedFlightNumber, startDate, cappedEndDate, pickupDate);
     } else {
       // Use schedules API for flights more than 2 days out
-      result = await fetchScheduledFlight(normalizedFlightNumber, startDate, endDate);
+      // Use a schedules-specific UTC day window for stable bounds parsing in AeroAPI.
+      const scheduleStartDate = new Date(`${pickupDate}T00:00:00.000Z`);
+      const scheduleEndDate = new Date(scheduleStartDate);
+      scheduleEndDate.setUTCDate(scheduleEndDate.getUTCDate() + 1);
+
+      result = await fetchScheduledFlight(
+        normalizedFlightNumber,
+        toFlightAwareDateTime(scheduleStartDate),
+        toFlightAwareDateTime(scheduleEndDate),
+        pickupDate,
+      );
     }
 
-    // Cache the result (only caches "success" and "notFound" - "alreadyLanded" and "error" are not cached)
-    setCachedFlight(normalizedFlightNumber, pickupDate, result);
+    if (result.type === "notFound") {
+      const fallbackResult = await resolveFromLosArrivalsManifest(normalizedFlightNumber, pickupDate);
+      if (fallbackResult) {
+        result = fallbackResult;
+      }
+    }
 
     return result;
   } catch (error) {
@@ -782,32 +1082,3 @@ export async function validateFlight(
   }
 }
 
-/**
- * Clear expired cache entries
- * Call this periodically or on server startup
- */
-export function cleanFlightCache(): void {
-  const now = Date.now();
-  let cleaned = 0;
-
-  for (const [key, value] of flightCache.entries()) {
-    if (now > value.expiresAt) {
-      flightCache.delete(key);
-      cleaned++;
-    }
-  }
-
-  if (cleaned > 0) {
-    logger.debug("Flight cache cleanup", { cleanedEntries: cleaned });
-  }
-}
-
-/**
- * Get cache statistics (useful for monitoring)
- */
-export function getFlightCacheStats() {
-  return {
-    size: flightCache.size,
-    entries: Array.from(flightCache.keys()),
-  };
-}

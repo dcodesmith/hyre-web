@@ -2,6 +2,7 @@ import { parseWithZod } from "@conform-to/zod/v4";
 import { ActionFunctionArgs, LoaderFunctionArgs, data, redirect } from "@remix-run/node";
 import { useActionData, useLoaderData } from "@remix-run/react";
 import { VerifyOTPForm } from "~/components/forms/VerifyOTPForm";
+import { AuthSplitLayout } from "~/components/layout/AuthSplitLayout";
 import logger from "~/lib/logger.server";
 import { getSessionUser } from "~/modules/auth/auth.server";
 import { commitSession, getSession } from "~/modules/auth/session.server";
@@ -207,5 +208,9 @@ export default function FleetOwnerVerify() {
   const { authEmail, authError } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
 
-  return <VerifyOTPForm authEmail={authEmail} authError={authError} actionData={actionData} />;
+  return (
+    <AuthSplitLayout>
+      <VerifyOTPForm authEmail={authEmail} authError={authError} actionData={actionData} />
+    </AuthSplitLayout>
+  );
 }

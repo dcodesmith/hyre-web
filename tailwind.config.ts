@@ -15,6 +15,7 @@ export default {
         nunito: ["Nunito Sans", "sans-serif"],
         jakarta: ["Plus Jakarta Sans", "sans-serif"],
         dancingscript: ["Dancing Script", "cursive"],
+        display: ["Cormorant Garamond", "Georgia", "serif"],
       },
       width: {
         "74": "18.5rem",

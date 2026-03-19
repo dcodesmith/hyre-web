@@ -6,7 +6,6 @@ import { Link, Outlet, useActionData, useLoaderData, useSearchParams } from "@re
 import { Form } from "~/components/CSRFForm";
 import { LoginSchema } from "~/schemas/auth.schema";
 import { Button } from "~/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
 import { Input } from "~/components/ui/input";
 import { Checkbox } from "~/components/ui/checkbox";
 import logger from "~/lib/logger.server";
@@ -14,10 +13,12 @@ import { useIsPending } from "~/lib/utils";
 import { getSessionUser } from "~/modules/auth/auth.server";
 import { commitSession, getSession } from "~/modules/auth/session.server";
 import { prisma } from "~/modules/db/db.server";
+import { AuthSplitLayout } from "~/components/layout/AuthSplitLayout";
 import { userHasRole } from "~/utils/shared/roles";
 import { validateCSRF } from "~/utils/csrf-action.server";
 import { safeRedirect } from "~/utils/safe-redirect";
 import { sendOTPAndRedirect } from "~/utils/server/auth-helpers.server";
+import { ArrowRight } from "lucide-react";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const user = await getSessionUser(request);
@@ -137,124 +138,150 @@ export default function Login() {
   const acceptTermsControl = useInputControl(acceptTerms);
 
   return (
-    <div className="flex min-h-svh w-full items-center justify-center p-6 md:p-10">
-      <div className="w-full max-w-sm">
-        <div className="flex flex-col gap-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Login or sign up to your account</CardTitle>
-              <CardDescription className="text-muted-foreground">
-                Enter your email below to login or sign up to your account
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Form method="post" {...getFormProps(form)}>
-                <div className="flex flex-col gap-4">
-                  <div className="space-y-1">
-                    <label htmlFor={email.id} className="text-sm font-medium">
-                      Email
-                    </label>
-                    <Input
-                      className={`bg-transparent ${
-                        email.errors ? "border-destructive focus-visible:ring-destructive" : ""
-                      }`}
-                      {...getInputProps(email, { type: "email" })}
-                      placeholder="m@example.com"
-                    />
-                    {email.errors && (
-                      <div className="text-destructive text-sm">{email.errors.join(", ")}</div>
-                    )}
-                  </div>
-
-                  {/* Referral Code Input - only show if not prefilled from URL */}
-                  {!referralCodeFromUrl && (
-                    <div className="space-y-1">
-                      <label htmlFor={referralCode.id} className="text-sm font-medium">
-                        Referral code (optional)
-                      </label>
-                      <Input
-                        className={`bg-transparent ${
-                          referralCode.errors
-                            ? "border-destructive focus-visible:ring-destructive"
-                            : ""
-                        }`}
-                        {...getInputProps(referralCode, { type: "text" })}
-                        placeholder="XXXXXXXX"
-                      />
-                      {referralCode.errors && (
-                        <div className="text-destructive text-sm">
-                          {referralCode.errors.join(", ")}
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Show referral info if code is from URL */}
-                  {referralCodeFromUrl && (
-                    <div className="text-sm text-muted-foreground p-3 bg-green-50 rounded-md border border-green-200">
-                      🎉 You're signing up with referral code:{" "}
-                      <span className="font-semibold">{referralCodeFromUrl}</span>
-                      <input type="hidden" name="referralCode" value={referralCodeFromUrl} />
-                    </div>
-                  )}
-
-                  {/* Terms and Privacy Policy consent */}
-                  <div className="space-y-1">
-                    <label
-                      htmlFor={acceptTerms.id}
-                      className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer"
-                    >
-                      <Checkbox
-                        id={acceptTerms.id}
-                        name={acceptTerms.name}
-                        className="shrink-0"
-                        checked={acceptTermsControl.value === "on"}
-                        onCheckedChange={(checked) => {
-                          acceptTermsControl.change(checked ? "on" : "");
-                        }}
-                        onBlur={acceptTermsControl.blur}
-                      />
-                      <span>
-                        I agree to the{" "}
-                        <Link to="/terms" className="text-primary hover:underline" target="_blank">
-                          Terms of Service
-                        </Link>{" "}
-                        and{" "}
-                        <Link
-                          to="/privacy"
-                          className="text-primary hover:underline"
-                          target="_blank"
-                        >
-                          Privacy Policy
-                        </Link>
-                      </span>
-                    </label>
-                    {acceptTerms.errors && (
-                      <div className="text-destructive text-sm">{acceptTerms.errors.join(", ")}</div>
-                    )}
-                  </div>
-
-                  {/* Prioritize actionData.error for same-route failures, fallback to authError for cross-route errors */}
-                  {errorMessage && (
-                    <span className="mb-2 text-sm text-destructive dark:text-destructive-foreground">
-                      {errorMessage}
-                    </span>
-                  )}
-
-                  <Button type="submit" className="w-full" disabled={isPending}>
-                    {isPending ? (
-                      <CogIcon className="h-5 w-5 animate-spin" />
-                    ) : (
-                      "Continue with Email"
-                    )}
-                  </Button>
-                </div>
-              </Form>
-            </CardContent>
-          </Card>
-          <Outlet />
-        </div>
+    <AuthSplitLayout>
+      <div className="fade-up anim-delay-100 mb-8">
+        <h2 className="mb-1 text-[2rem] font-normal leading-snug text-[#1A1814]">Welcome back</h2>
+        <p className="text-sm font-light text-neutral-500">
+          Enter your email to sign in or create your account.
+        </p>
       </div>
-    </div>
+
+      <div className="fade-up anim-delay-200">
+        <Form method="post" {...getFormProps(form)}>
+        <div className="flex flex-col gap-4">
+          <div className="space-y-1.5">
+            <label
+              htmlFor={email.id}
+              className="block text-[11px] font-medium uppercase tracking-[0.12em] text-neutral-500"
+            >
+              Email address
+            </label>
+            <Input
+              className={`h-11 rounded-lg border-neutral-200 px-4 text-[#1A1814] placeholder:text-neutral-400 focus-visible:ring-[#B8922A]/20 ${
+                email.errors
+                  ? "border-destructive focus-visible:ring-destructive"
+                  : "focus-visible:border-[#B8922A]"
+              }`}
+              {...getInputProps(email, { type: "email" })}
+              placeholder="you@example.com"
+            />
+            {email.errors && (
+              <div className="text-sm text-destructive">{email.errors.join(", ")}</div>
+            )}
+          </div>
+
+          {!referralCodeFromUrl && (
+            <div className="space-y-1.5">
+              <label
+                htmlFor={referralCode.id}
+                className="flex items-baseline gap-1.5 text-[11px] font-medium uppercase tracking-[0.12em] text-neutral-500"
+              >
+                <span>Referral code</span>
+                <span className="text-[11px] font-light normal-case tracking-normal text-neutral-400">
+                  (optional)
+                </span>
+              </label>
+              <Input
+                className={`h-11 rounded-lg border-neutral-200 px-4 text-[#1A1814] placeholder:text-neutral-400 focus-visible:ring-[#B8922A]/20 ${
+                  referralCode.errors
+                    ? "border-destructive focus-visible:ring-destructive"
+                    : "focus-visible:border-[#B8922A]"
+                }`}
+                {...getInputProps(referralCode, { type: "text" })}
+                placeholder="e.g. TRIP-XXXX"
+              />
+              {referralCode.errors && (
+                <div className="text-sm text-destructive">{referralCode.errors.join(", ")}</div>
+              )}
+              <p className="mt-1.5 text-xs font-light text-neutral-500">
+                Have a code? You&apos;ll both receive a ride credit.
+              </p>
+            </div>
+          )}
+
+          {referralCodeFromUrl && (
+            <div className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-neutral-600">
+              🎉 You&apos;re signing up with referral code:{" "}
+              <span className="font-semibold">{referralCodeFromUrl}</span>
+              <input type="hidden" name="referralCode" value={referralCodeFromUrl} />
+            </div>
+          )}
+
+          <div className="my-1 h-px bg-neutral-100" />
+
+          <div className="space-y-1">
+            <label
+              htmlFor={acceptTerms.id}
+              className="flex cursor-pointer items-start gap-2.5 text-xs font-light leading-relaxed text-neutral-500"
+            >
+              <Checkbox
+                id={acceptTerms.id}
+                name={acceptTerms.name}
+                className="shrink-0"
+                checked={acceptTermsControl.value === "on"}
+                onCheckedChange={(checked) => {
+                  acceptTermsControl.change(checked ? "on" : "");
+                }}
+                onBlur={acceptTermsControl.blur}
+              />
+              <span>
+                I agree to Tripdly&apos;s{" "}
+                <Link
+                  to="/terms"
+                  className="text-[#B8922A] hover:underline"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Terms of Service
+                </Link>{" "}
+                and{" "}
+                <Link
+                  to="/privacy"
+                  className="text-[#B8922A] hover:underline"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Privacy Policy
+                </Link>
+              </span>
+            </label>
+            {acceptTerms.errors && (
+              <div className="text-sm text-destructive">{acceptTerms.errors.join(", ")}</div>
+            )}
+          </div>
+
+          {errorMessage && (
+            <span className="mb-1 text-sm text-destructive dark:text-destructive-foreground">
+              {errorMessage}
+            </span>
+          )}
+
+          <Button
+            type="submit"
+            className="h-12 w-full rounded-lg bg-[#1A1814] px-6 py-3.5 text-xs font-medium uppercase tracking-[0.08em] text-white hover:bg-neutral-800"
+            disabled={isPending}
+          >
+            {isPending ? (
+              <CogIcon className="h-5 w-5 animate-spin" />
+            ) : (
+              <span className="flex gap-2">
+                Continue with Email <ArrowRight />
+              </span>
+            )}
+          </Button>
+        </div>
+        </Form>
+      </div>
+
+      <p className="fade-up anim-delay-300 mt-6 text-center text-xs font-light leading-relaxed text-neutral-400">
+        Protected by industry-standard encryption.
+        <br />
+        We never share your data with third parties.
+      </p>
+
+      <div className="mt-6">
+        <Outlet />
+      </div>
+    </AuthSplitLayout>
   );
 }

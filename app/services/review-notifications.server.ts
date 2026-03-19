@@ -5,6 +5,7 @@ import {
   renderReviewReceivedEmailForOwner,
   renderReviewReceivedEmailForChauffeur,
 } from "~/modules/email/templates/review-emails";
+import { formatRating } from "~/utils/review-formatting";
 
 export interface ReviewNotificationPayload {
   readonly owner: {
@@ -54,7 +55,7 @@ async function sendReviewReceivedNotificationToOwner(
 
     await sendEmail({
       to: ownerEmail,
-      subject: `New ${reviewData.overallRating}-star review received for ${reviewData.carName}`,
+      subject: `New ${formatRating(reviewData.overallRating)}-star review received for ${reviewData.carName}`,
       html: emailHtml,
     });
 
@@ -97,7 +98,7 @@ async function sendReviewReceivedNotificationToChauffeur(
 
     await sendEmail({
       to: chauffeurEmail,
-      subject: `New ${reviewData.chauffeurRating}-star review received for your service`,
+      subject: `New ${formatRating(reviewData.chauffeurRating)}-star review received for your service`,
       html: emailHtml,
     });
 

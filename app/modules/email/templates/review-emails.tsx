@@ -1,6 +1,7 @@
 import { Heading, Hr, Section, Text } from "@react-email/components";
 import { render } from "@react-email/render";
 import { EmailTemplate } from "./EmailTemplate";
+import { formatRating } from "~/utils/review-formatting";
 
 type ReviewData = {
   readonly customerName: string;
@@ -48,7 +49,7 @@ function ReviewSummarySection({
       <Text className="font-semibold mb-3 underline">Review Summary</Text>
       {ratings.map(({ label, value }) => (
         <Text key={label} className="m-0 py-1">
-          <span className="font-semibold">{label}:</span> {getRatingStars(value)} ({value}/5)
+          <span className="font-semibold">{label}:</span> {getRatingStars(value)} ({formatRating(value)}/5)
         </Text>
       ))}
       {reviewData.comment && (
@@ -82,7 +83,7 @@ function BookingDetailsSection({ reviewData }: { readonly reviewData: ReviewData
  * Render review received email for car owners
  */
 export async function renderReviewReceivedEmailForOwner(ownerName: string, reviewData: ReviewData) {
-  const previewText = `You received a ${reviewData.overallRating}-star review from ${reviewData.customerName}`;
+  const previewText = `You received a ${formatRating(reviewData.overallRating)}-star review from ${reviewData.customerName}`;
 
   return render(
     <EmailTemplate previewText={previewText} pageTitle="New Review Received">
@@ -92,7 +93,8 @@ export async function renderReviewReceivedEmailForOwner(ownerName: string, revie
       <Text className="mb-3">Hello {ownerName},</Text>
       <Text className="mb-3">
         Great news! <span className="font-semibold">{reviewData.customerName}</span> has left a{" "}
-        <span className="font-semibold">{reviewData.overallRating}-star review</span> for your
+        <span className="font-semibold">{formatRating(reviewData.overallRating)}-star review</span>{" "}
+        for your
         vehicle, <span className="font-semibold">{reviewData.carName}</span>.
       </Text>
 
@@ -114,7 +116,7 @@ export async function renderReviewReceivedEmailForChauffeur(
   chauffeurName: string,
   reviewData: ReviewData,
 ) {
-  const previewText = `You received a ${reviewData.chauffeurRating}-star chauffeur review from ${reviewData.customerName}`;
+  const previewText = `You received a ${formatRating(reviewData.chauffeurRating)}-star chauffeur review from ${reviewData.customerName}`;
 
   return render(
     <EmailTemplate previewText={previewText} pageTitle="New Review Received">
@@ -124,7 +126,8 @@ export async function renderReviewReceivedEmailForChauffeur(
       <Text className="mb-3">Hello {chauffeurName},</Text>
       <Text className="mb-3">
         Great news! <span className="font-semibold">{reviewData.customerName}</span> has left a{" "}
-        <span className="font-semibold">{reviewData.chauffeurRating}-star review</span> for your
+        <span className="font-semibold">{formatRating(reviewData.chauffeurRating)}-star review</span>{" "}
+        for your
         service as chauffeur for the <span className="font-semibold">{reviewData.carName}</span>{" "}
         booking.
       </Text>

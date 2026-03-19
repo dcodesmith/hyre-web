@@ -174,7 +174,12 @@ export default function BookingCard({
     tripDuration,
     processedFlightRef,
     handleDropOffAddressSelected,
+    clearFlightState,
   } = useBookingFlight({ bookingType, searchParams });
+  const tripDetailsArrivalTime =
+    validatedFlight?.estimatedArrival ??
+    validatedFlight?.actualArrival ??
+    validatedFlight?.scheduledArrival;
 
   // Date range parsing
   const initialDateRange = useMemo(() => {
@@ -481,20 +486,28 @@ export default function BookingCard({
     (tabValue: string) => {
       const newBookingType = TAB_VALUE_TO_BOOKING_TYPE[tabValue];
       if (newBookingType) {
-        const newSearchParams = new URLSearchParams(searchParams);
+        const newSearchParams = new URLSearchParams();
         newSearchParams.set("bookingType", newBookingType);
 
-        // Reset dates, pickup time, and flight number when changing booking type
+        // Reset URL state and all booking form state when changing booking type.
         setDateRange({ from: undefined, to: undefined });
-        newSearchParams.delete("from");
-        newSearchParams.delete("to");
-        newSearchParams.delete("pickupTime");
-        newSearchParams.delete("flightNumber");
+        setSameLocationChecked(true);
+        setRequiresFullTank(false);
+        clearFlightState();
+        setShowFetcherError(false);
+
+        // Clear primary booking form fields to avoid stale values across booking types.
+        form.update({ name: "pickupTime", value: "" });
+        form.update({ name: "flightNumber", value: "" });
+        form.update({ name: "pickupAddress", value: "" });
+        form.update({ name: "dropOffAddress", value: "" });
+        form.update({ name: "sameLocation", value: "true" });
+        form.update({ name: "requiresFullTank", value: "false" });
 
         setSearchParams(newSearchParams, { replace: true, preventScrollReset: true });
       }
     },
-    [searchParams, setSearchParams],
+    [clearFlightState, form, setSearchParams],
   );
 
   const handleFullTankChange = useCallback((checked: boolean) => {
@@ -551,12 +564,8 @@ export default function BookingCard({
 
   // Update URL params with calculated pickup date and time for AIRPORT_PICKUP bookings
   useEffect(() => {
-    if (
-      bookingType === AIRPORT_PICKUP_BOOKING_TYPE &&
-      validatedFlight?.estimatedArrival &&
-      tripDuration
-    ) {
-      const arrivalDate = new Date(validatedFlight.estimatedArrival);
+    if (bookingType === AIRPORT_PICKUP_BOOKING_TYPE && tripDetailsArrivalTime && tripDuration) {
+      const arrivalDate = new Date(tripDetailsArrivalTime);
       const pickupDateTime = new Date(arrivalDate.getTime() + 40 * 60 * 1000); // 40 min after arrival
 
       // Add 20% buffer to drive time
@@ -589,7 +598,7 @@ export default function BookingCard({
         setSearchParams(newParams, { replace: true });
       }
     }
-  }, [bookingType, validatedFlight, tripDuration, searchParams, setSearchParams]);
+  }, [bookingType, tripDetailsArrivalTime, tripDuration, searchParams, setSearchParams]);
 
   // Get guest fields when user is not logged in
   const guestFields = useMemo(() => {
@@ -752,6 +761,19 @@ export default function BookingCard({
                   onSameLocationChange={handleSameLocationChange}
                   onAddressUpdate={(name, value) => {
                     form.update({ name, value });
+                    const normalizedValue = value.trim();
+                    const newSearchParams = new URLSearchParams(searchParams);
+
+                    if (normalizedValue) {
+                      newSearchParams.set(name, normalizedValue);
+                    } else {
+                      newSearchParams.delete(name);
+                    }
+
+                    // Keep booking type + key form fields reflected in URL so auto-validation
+                    // behavior stays consistent across search/home and direct car page flows.
+                    setSearchParams(newSearchParams, { replace: true, preventScrollReset: true });
+
                     // Calculate trip duration when drop-off address is selected
                     if (name === "dropOffAddress" && bookingType === AIRPORT_PICKUP_BOOKING_TYPE) {
                       handleDropOffAddressSelected(value);
@@ -806,11 +828,10 @@ export default function BookingCard({
           <CardFooter className="hidden lg:flex flex-col items-stretch space-y-4 bg-gray-50 p-4 border-t">
             {/* Show trip duration for airport pickup bookings */}
             {bookingType === AIRPORT_PICKUP_BOOKING_TYPE &&
-              validatedFlight?.estimatedArrival &&
-              tripDuration &&
-              fields.dropOffAddress.value && (
+              tripDetailsArrivalTime &&
+              tripDuration && (
                 <TripDetails
-                  estimatedArrival={validatedFlight.estimatedArrival}
+                  estimatedArrival={tripDetailsArrivalTime}
                   durationInMinutes={tripDuration.durationInMinutes}
                   distanceText={tripDuration.distanceText}
                   status={tripDuration.status}
@@ -870,11 +891,10 @@ export default function BookingCard({
 
             {/* Trip details for airport pickup */}
             {bookingType === AIRPORT_PICKUP_BOOKING_TYPE &&
-              validatedFlight?.estimatedArrival &&
-              tripDuration &&
-              fields.dropOffAddress.value && (
+              tripDetailsArrivalTime &&
+              tripDuration && (
                 <TripDetails
-                  estimatedArrival={validatedFlight.estimatedArrival}
+                  estimatedArrival={tripDetailsArrivalTime}
                   durationInMinutes={tripDuration.durationInMinutes}
                   distanceText={tripDuration.distanceText}
                   status={tripDuration.status}

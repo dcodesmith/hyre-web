@@ -11,7 +11,7 @@ export type SendEmailOptions = {
 };
 
 export async function sendEmail(options: SendEmailOptions) {
-  const from = `Damola from ${env.APP_NAME} <no-reply@dcodesmith.com>`;
+  const from = `Yomide from ${env.APP_NAME} <no-reply@dcodesmith.com>`;
   const email = { from, ...options };
 
   const response = await fetch("https://api.resend.com/emails", {

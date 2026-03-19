@@ -17,7 +17,12 @@ interface AutocompleteFlightProps {
   readonly nigeriaOnly?: boolean;
   readonly pickupDate?: string; // ISO date for validation (e.g., "2025-12-25")
   readonly onFlightValidated?: (flight: ValidatedFlight | null) => void; // Callback with flight details
-  readonly onValidationError?: (message: string | null, isWarning: boolean) => void; // Optional error callback
+  readonly onValidationError?: (
+    message: string | null,
+    isWarning: boolean,
+    shortMessage?: string | null,
+    errorType?: string | null,
+  ) => void;
   readonly showValidation?: boolean; // Whether to render inline validation UI
 }
 
@@ -44,10 +49,13 @@ export function AutocompleteFlight({
   const { filterAirlines } = useAirlineData({ nigeriaOnly });
   const {
     validateFlight,
+    resetValidation,
     isValidating,
     message: validationMessage,
+    shortMessage: validationShortMessage,
     flight: validatedFlight,
     isWarning: validationIsWarning,
+    errorType: validationErrorType,
   } = useFlightValidation();
 
   // Effect to handle initial value - syncs from form state to component state
@@ -195,7 +203,23 @@ export function AutocompleteFlight({
 
   const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = event.target.value;
+    const isClearingInput = newValue.length < query.length;
     setQuery(newValue);
+
+    if (isClearingInput) {
+      resetValidation();
+      onFlightValidated?.(null);
+      onValidationError?.(null, false);
+      if (newValue.trim().length === 0) {
+        onSelect("");
+      }
+    }
+
+    if (newValue.trim().length === 0) {
+      setSuggestions([]);
+      setOpen(false);
+      return;
+    }
 
     if (newValue.length >= 2) {
       fetchSuggestions(newValue);
@@ -222,9 +246,20 @@ export function AutocompleteFlight({
   // Notify parent of validation messages when they occur
   useEffect(() => {
     if (onValidationError) {
-      onValidationError(validationMessage, validationIsWarning);
+      onValidationError(
+        validationMessage,
+        validationIsWarning,
+        validationShortMessage,
+        validationErrorType,
+      );
     }
-  }, [validationMessage, validationIsWarning, onValidationError]);
+  }, [
+    validationMessage,
+    validationIsWarning,
+    validationShortMessage,
+    validationErrorType,
+    onValidationError,
+  ]);
 
   return (
     <div className="w-full">

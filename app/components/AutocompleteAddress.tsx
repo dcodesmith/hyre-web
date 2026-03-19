@@ -1,4 +1,4 @@
-import { Popover, PopoverContent, PopoverTrigger } from "@radix-ui/react-popover";
+import { Popover, PopoverContent, PopoverPortal, PopoverTrigger } from "@radix-ui/react-popover";
 import { MapPin, Loader2 } from "lucide-react";
 import { useRef, useState, useEffect, useCallback } from "react";
 import { cn } from "~/lib/utils";
@@ -24,7 +24,14 @@ export function AutocompleteAddress({
   initialValue = "",
   countryRestriction = "NG",
 }: AutocompleteProps) {
-  const [query, setQuery] = useState<string>(initialValue);
+  let resolvedExternalValue = initialValue;
+  if (typeof inputProps?.defaultValue === "string") {
+    resolvedExternalValue = inputProps.defaultValue;
+  }
+  if (typeof inputProps?.value === "string") {
+    resolvedExternalValue = inputProps.value;
+  }
+  const [query, setQuery] = useState<string>(resolvedExternalValue);
   const [suggestions, setSuggestions] = useState<google.maps.places.AutocompleteSuggestion[]>([]);
   const [open, setOpen] = useState<boolean>(false);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState<boolean>(false);
@@ -52,8 +59,8 @@ export function AutocompleteAddress({
 
   // Effect to handle initial value
   useEffect(() => {
-    setQuery(initialValue);
-  }, [initialValue]);
+    setQuery(resolvedExternalValue);
+  }, [resolvedExternalValue]);
 
   const fetchSuggestions = useCallback(
     async (input: string) => {
@@ -143,6 +150,9 @@ export function AutocompleteAddress({
   const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = event.target.value;
     setQuery(newValue);
+    if (newValue.trim().length === 0) {
+      onSelect("");
+    }
     if (!sessionToken && newValue.length > 0) {
       createSessionToken(); // Create token if user starts typing
     }
@@ -200,31 +210,33 @@ export function AutocompleteAddress({
           )}
         </div>
       </PopoverTrigger>
-      <PopoverContent
-        className="w-[--radix-popover-trigger-width] bg-white shadow-md rounded-md p-2 z-50"
-        style={{ width: "var(--radix-popover-trigger-width)" }}
-        onOpenAutoFocus={(event) => event.preventDefault()}
-        // Consider default closing behavior for onInteractOutside
-      >
-        <div className="flex flex-col gap-1">
-          {suggestions.map((prediction) => (
-            <button
-              key={prediction.placePrediction?.placeId}
-              type="button"
-              className="flex items-center gap-2 p-2 cursor-pointer hover:bg-gray-100 rounded text-left w-full touch-manipulation"
-              onMouseDown={(event) => event.preventDefault()}
-              onClick={(event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                handleSelect(prediction);
-              }}
-            >
-              <MapPin className="w-4 h-4 items-center flex-shrink-0 text-gray-500" />
-              <span>{`${prediction.placePrediction?.mainText?.text}, ${prediction.placePrediction?.secondaryText?.text}`}</span>
-            </button>
-          ))}
-        </div>
-      </PopoverContent>
+      <PopoverPortal>
+        <PopoverContent
+          className="w-[--radix-popover-trigger-width] bg-white shadow-md rounded-md p-2 z-[100] text-sm"
+          style={{ width: "var(--radix-popover-trigger-width)" }}
+          onOpenAutoFocus={(event) => event.preventDefault()}
+          // Consider default closing behavior for onInteractOutside
+        >
+          <div className="flex flex-col gap-1">
+            {suggestions.map((prediction) => (
+              <button
+                key={prediction.placePrediction?.placeId}
+                type="button"
+                className="flex items-center gap-2 p-2 cursor-pointer hover:bg-gray-100 rounded text-left w-full touch-manipulation"
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handleSelect(prediction);
+                }}
+              >
+                <MapPin className="w-4 h-4 items-center flex-shrink-0 text-gray-500" />
+                <span>{`${prediction.placePrediction?.mainText?.text}, ${prediction.placePrediction?.secondaryText?.text}`}</span>
+              </button>
+            ))}
+          </div>
+        </PopoverContent>
+      </PopoverPortal>
     </Popover>
   );
 }

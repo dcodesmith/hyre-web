@@ -27,7 +27,7 @@ export function RatingSummary({
     );
   }
 
-  const roundedAverage = Math.round(averageRating * 10) / 10;
+  const roundedAverage = averageRating.toFixed(1);
 
   return (
     <Card className={className}>

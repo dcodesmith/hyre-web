@@ -181,7 +181,7 @@ const columns = [
       const rating = info.getValue();
       return (
         <div className="flex items-center gap-1">
-          <span className="font-medium">{rating}</span>
+          <span className="font-medium">{rating.toFixed(1)}</span>
           <span className="text-yellow-500">★</span>
         </div>
       );
@@ -193,7 +193,7 @@ const columns = [
       const rating = info.getValue();
       return (
         <div className="flex items-center gap-1">
-          <span className="font-medium">{rating}</span>
+          <span className="font-medium">{rating.toFixed(1)}</span>
           <span className="text-yellow-500">★</span>
         </div>
       );
@@ -208,7 +208,7 @@ const columns = [
       }
       return (
         <div className="flex items-center gap-1">
-          <span className="font-medium">{rating}</span>
+          <span className="font-medium">{rating.toFixed(1)}</span>
           <span className="text-yellow-500">★</span>
         </div>
       );
@@ -220,7 +220,7 @@ const columns = [
       const rating = info.getValue();
       return (
         <div className="flex items-center gap-1">
-          <span className="font-medium">{rating}</span>
+          <span className="font-medium">{rating.toFixed(1)}</span>
           <span className="text-yellow-500">★</span>
         </div>
       );

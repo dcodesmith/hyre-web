@@ -177,6 +177,7 @@ export function BookingFormFields({
               type: "text",
               ariaAttributes: true,
             })}
+            initialValue={fields.pickupAddress.value ?? ""}
             className={fields.pickupAddress.errors ? errorRingClasses : ""}
           />
         )}
@@ -223,6 +224,7 @@ export function BookingFormFields({
               type: "text",
               ariaAttributes: true,
             })}
+            initialValue={fields.dropOffAddress.value ?? ""}
             className={fields.dropOffAddress.errors ? errorRingClasses : ""}
           />
           <FieldError errors={fields.dropOffAddress.errors} />

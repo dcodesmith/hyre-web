@@ -1,26 +1,32 @@
-import { ArrowLeftIcon } from "@heroicons/react/24/outline";
+import {
+  ArrowLeftIcon,
+  WrenchScrewdriverIcon,
+  UserIcon,
+  SparklesIcon,
+} from "@heroicons/react/24/outline";
 import { Booking, BookingStatus, BookingType, Car } from "@prisma/client";
 import { ActionFunctionArgs, type LoaderFunctionArgs, type MetaFunction } from "@remix-run/node";
-import { Link, redirect, useLoaderData, useSearchParams } from "@remix-run/react";
+import { redirect, useLoaderData, useNavigate } from "@remix-run/react";
 import { fromZonedTime } from "date-fns-tz";
+import { useState } from "react";
 import invariant from "tiny-invariant";
 import CarCarousel from "~/components/Carousel";
 import BookingCard from "~/components/booking/BookingCard";
+import { ReviewList } from "~/components/reviews/ReviewList";
+import { StarRating } from "~/components/reviews/StarRating";
 import { VehicleSchema, BreadcrumbSchema } from "~/components/seo/StructuredData";
-import { RatingSummary } from "~/components/reviews/RatingSummary";
-import { ReviewCarousel } from "~/components/reviews/ReviewCarousel";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from "~/components/ui/accordion";
+import { Sheet, SheetContent } from "~/components/ui/sheet";
 import logger from "~/lib/logger.server";
 import { getSessionUser, requireUser } from "~/modules/auth/auth.server";
 import { prisma } from "~/modules/db/db.server";
 import { availableCarsForSpecificRequest } from "~/services/availability-engine.server";
 import { getRates } from "~/services/extensions.server";
-import { getCarRatings } from "~/services/reviews.server";
 import type { AggregatedRatings } from "~/services/reviews.server";
 import {
   getVehicleKeywords,
@@ -30,6 +36,7 @@ import {
 } from "~/utils/seo";
 import { LAGOS_TIMEZONE } from "~/utils/timezone";
 import { validateCSRF } from "~/utils/csrf-action.server";
+import { formatRating } from "~/utils/review-formatting";
 import { env } from "~/utils/server/env.server";
 
 /** Find a car by slug or full ID */
@@ -212,8 +219,51 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
     totalReviews: 0,
     ratingDistribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
   };
+  let subRatings: { car: number; chauffeur: number | null; service: number } = {
+    car: 0,
+    chauffeur: null,
+    service: 0,
+  };
   try {
-    ratings = await getCarRatings(car.id);
+    const subRatingRows = await prisma.review.findMany({
+      where: { isVisible: true, booking: { carId: car.id } },
+      select: { carRating: true, chauffeurRating: true, serviceRating: true },
+    });
+    if (subRatingRows.length > 0) {
+      const avg = (vals: number[]) =>
+        Math.round((vals.reduce((a, b) => a + b, 0) / vals.length) * 10) / 10;
+      const overallRatings = subRatingRows.map((row) => {
+        const values = [row.carRating, row.serviceRating];
+        if (row.chauffeurRating != null) values.push(row.chauffeurRating);
+        return values.reduce((sum, value) => sum + value, 0) / values.length;
+      });
+      const ratingDistribution: AggregatedRatings["ratingDistribution"] = {
+        1: 0,
+        2: 0,
+        3: 0,
+        4: 0,
+        5: 0,
+      };
+      for (const overallScore of overallRatings) {
+        const bucket = Math.max(1, Math.min(5, Math.round(overallScore))) as 1 | 2 | 3 | 4 | 5;
+        ratingDistribution[bucket] += 1;
+      }
+
+      const chauffeurRatings = subRatingRows
+        .map((r) => r.chauffeurRating)
+        .filter((value): value is number => value != null);
+
+      ratings = {
+        averageRating: avg(overallRatings),
+        totalReviews: subRatingRows.length,
+        ratingDistribution,
+      };
+      subRatings = {
+        car: avg(subRatingRows.map((r) => r.carRating)),
+        chauffeur: chauffeurRatings.length > 0 ? avg(chauffeurRatings) : null,
+        service: avg(subRatingRows.map((r) => r.serviceRating)),
+      };
+    }
   } catch (error) {
     logger.error("[CAR_DETAILS] Error fetching car ratings", {
       carId: car.id,
@@ -226,6 +276,7 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
     car,
     isAvailable,
     ratings,
+    subRatings,
     user: user
       ? {
           ...user,
@@ -276,9 +327,18 @@ export const meta: MetaFunction<typeof loader> = ({ data }) => {
 };
 
 export default function CarDetails() {
-  const { car, isAvailable, ratings, user, vatRate, platformServiceFeeRate, securityDetailRate } =
-    useLoaderData<typeof loader>();
-  const [searchParams] = useSearchParams();
+  const {
+    car,
+    isAvailable,
+    ratings,
+    subRatings,
+    user,
+    vatRate,
+    platformServiceFeeRate,
+    securityDetailRate,
+  } = useLoaderData<typeof loader>();
+  const navigate = useNavigate();
+  const [isReviewsOpen, setIsReviewsOpen] = useState(false);
 
   const carWithDates = {
     ...car,
@@ -287,6 +347,12 @@ export default function CarDetails() {
   };
 
   const carImages = car.images.length > 0 ? car.images.map(({ url }) => url) : undefined;
+  const roundedRating = formatRating(ratings.averageRating);
+  const ratingBreakdown = [5, 4, 3, 2, 1].map((stars) => {
+    const count = ratings.ratingDistribution[stars as keyof typeof ratings.ratingDistribution] ?? 0;
+    const percentage = ratings.totalReviews > 0 ? (count / ratings.totalReviews) * 100 : 0;
+    return { stars, count, percentage };
+  });
 
   // SEO structured data
   const baseUrl = "https://tripdly.com";
@@ -327,21 +393,45 @@ export default function CarDetails() {
       <div className="lg:hidden bg-white">
         <div className="relative">
           <CarCarousel variant="booking" images={carImages} priority carName={carName} />
-          <Link
-            to={`/search?${searchParams.toString()}`}
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
             className="absolute top-4 left-4 z-10 bg-black/50 text-white p-2 rounded-full hover:bg-black/70 transition-colors"
             aria-label="Back to search results"
           >
             <ArrowLeftIcon className="w-4 h-4" />
-          </Link>
+          </button>
         </div>
+        {ratings.totalReviews > 0 && (
+          <button
+            type="button"
+            className="w-full pt-4 pb-2 px-4 flex items-center justify-center gap-6"
+            onClick={() => setIsReviewsOpen(true)}
+          >
+            <div className="flex flex-col items-center">
+              <span className="text-sm text-gray-900 leading-none">{roundedRating}</span>
+              <StarRating rating={ratings.averageRating} size="sm" />
+            </div>
+            <div className="w-px h-8 bg-gray-300" />
+            <div className="flex flex-col items-center">
+              <span className="text-sm text-gray-900 leading-none">{ratings.totalReviews}</span>
+              <span className="text-sm text-gray-800 leading-none">
+                {ratings.totalReviews === 1 ? "Review" : "Reviews"}
+              </span>
+            </div>
+          </button>
+        )}
       </div>
 
       {/* Desktop: Back link and title */}
       <div className="hidden lg:block">
-        <Link to={`/search?${searchParams.toString()}`} className="hover:underline mb-1 block">
+        <button
+          type="button"
+          onClick={() => navigate(-1)}
+          className="hover:underline mb-1 block"
+        >
           &larr; Back to search results
-        </Link>
+        </button>
         <h2 className="text-2xl sm:text-3xl font-bold mb-4">
           {car.make} {car.model} - {car.year}
         </h2>
@@ -354,17 +444,24 @@ export default function CarDetails() {
           {/* Desktop carousel */}
           <div className="hidden lg:block">
             <CarCarousel variant="booking" images={carImages} priority carName={carName} />
+            {ratings.totalReviews > 0 && (
+              <div className="mt-2 flex items-center gap-2 text-base text-gray-900">
+                <span className="text-gray-900">&#9733;</span>
+                <span className="font-semibold">{roundedRating}</span>
+                <span className="text-gray-400">&middot;</span>
+                <button
+                  type="button"
+                  className="underline underline-offset-2 hover:no-underline"
+                  onClick={() => setIsReviewsOpen(true)}
+                >
+                  {ratings.totalReviews} {ratings.totalReviews === 1 ? "review" : "reviews"}
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Car details - accordion on mobile, regular on desktop */}
           <div className="px-4 lg:px-0">
-            {/* Ratings Summary - Mobile */}
-            {ratings.totalReviews > 0 && (
-              <div className="mb-4 lg:hidden">
-                <RatingSummary ratings={ratings} showDistribution={false} />
-              </div>
-            )}
-
             <Accordion type="single" collapsible className="w-full lg:hidden">
               <AccordionItem value="car-details" className="border-none">
                 <AccordionTrigger className="text-sm font-semibold leading-7 text-gray-900 border-none py-2">
@@ -399,13 +496,6 @@ export default function CarDetails() {
 
             {/* Desktop car details */}
             <div className="hidden lg:block">
-              {/* Ratings Summary */}
-              {ratings.totalReviews > 0 && (
-                <div className="mb-6">
-                  <RatingSummary ratings={ratings} showDistribution={true} />
-                </div>
-              )}
-
               <h3 className="text-base font-semibold leading-7 text-gray-900">
                 Car information and features
               </h3>
@@ -439,17 +529,6 @@ export default function CarDetails() {
                 </dl>
               </div>
             </div>
-
-            {/* Reviews Carousel - Visible on all screen sizes */}
-            {ratings.totalReviews > 0 && (
-              <div className="mt-8">
-                <ReviewCarousel
-                  endpoint={`/api/reviews/car/${car.id}`}
-                  title="Reviews"
-                  limit={10}
-                />
-              </div>
-            )}
           </div>
         </div>
 
@@ -465,6 +544,134 @@ export default function CarDetails() {
           />
         </div>
       </div>
+
+      {ratings.totalReviews > 0 && (
+        <Sheet open={isReviewsOpen} onOpenChange={setIsReviewsOpen}>
+          <SheetContent
+            side="bottom"
+            className="h-[92vh] max-h-[92vh] w-full overflow-y-auto rounded-t-3xl px-4 sm:px-6 lg:px-8"
+          >
+            <div className="mx-auto w-full max-w-5xl py-4 sm:py-6">
+              {/* Mobile: stacked header then reviews. Desktop: two-column */}
+              <div className="lg:grid lg:grid-cols-[280px,1fr] lg:gap-12">
+                {/* Left panel (desktop) / Top section (mobile) */}
+                <div className="mb-2 lg:mb-0">
+                  {(() => {
+                    const categoryRatings = [
+                      {
+                        label: "Vehicle quality",
+                        value: subRatings.car,
+                        Icon: WrenchScrewdriverIcon,
+                      },
+                      { label: "Driver quality", value: subRatings.chauffeur, Icon: UserIcon },
+                      { label: "Service quality", value: subRatings.service, Icon: SparklesIcon },
+                    ];
+                    return (
+                      <>
+                        {/* Star + rating */}
+                        <div className="flex items-center gap-3 mb-2">
+                          <span className="text-xl">&#9733;</span>
+                          <span className="text-xl font-medium">{roundedRating}</span>
+                        </div>
+
+                        {/* Mobile: one horizontal strip (overall + categories) */}
+                        <div className="-mx-4 mb-2 px-4 overflow-x-auto lg:hidden bg-gray-50 border-b scrollbar-hide [scrollbar-width:none] [-ms-overflow-style:none]">
+                          <div className="inline-flex w-max items-stretch">
+                            <div className="shrink-0 py-4 pr-4 border-r border-gray-200">
+                              <p className="text-xs font-semibold text-gray-900 mb-3">
+                                Overall rating
+                              </p>
+                              <div className="flex flex-col gap-1">
+                                {ratingBreakdown.map(({ stars, percentage }) => (
+                                  <div key={stars} className="flex items-center gap-2">
+                                    <span className="w-3 text-xs leading-none text-gray-700">
+                                      {stars}
+                                    </span>
+                                    <div className="h-1 w-40 rounded-full bg-gray-200 overflow-hidden">
+                                      <div
+                                        className="h-full bg-gray-900 transition-all duration-300"
+                                        style={{ width: `${percentage}%` }}
+                                      />
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                            {categoryRatings.map(({ label, value, Icon }) => (
+                              <div
+                                key={label}
+                                className="shrink-0 px-4 py-4 border-r border-gray-200 last:border-r-0 flex flex-col justify-between"
+                              >
+                                <div className="flex flex-col">
+                                  <p className="text-xs font-semibold text-gray-900 mb-2">
+                                    {label}
+                                  </p>
+                                  <p className="text-xs leading-none font-semibold text-gray-900 mb-3">
+                                    {value != null && value > 0 ? formatRating(value) : "—"}
+                                  </p>
+                                </div>
+
+                                <Icon className="h-8 w-8 text-gray-700" />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Desktop overall rating bars */}
+                        <p className="hidden lg:block text-base font-semibold text-gray-900 mb-3">
+                          Overall rating
+                        </p>
+                        <div className="hidden lg:flex lg:flex-col lg:gap-2 lg:mb-6">
+                          {ratingBreakdown.map(({ stars, count, percentage }) => (
+                            <div key={stars} className="flex items-center gap-3">
+                              <span className="w-3 text-sm text-gray-700">{stars}</span>
+                              <div className="h-1.5 flex-1 rounded-full bg-gray-200 overflow-hidden">
+                                <div
+                                  className="h-full bg-gray-900 transition-all duration-300"
+                                  style={{ width: `${percentage}%` }}
+                                />
+                              </div>
+                              <span className="w-6 text-right text-sm text-gray-600">{count}</span>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Desktop: stacked category rows on the left */}
+                        <div className="hidden lg:block border-t border-gray-200">
+                          {categoryRatings.map(({ label, value, Icon }) => (
+                            <div
+                              key={label}
+                              className="flex items-center justify-between border-b border-gray-200 py-4"
+                            >
+                              <div className="flex items-center gap-3">
+                                <Icon className="h-5 w-5 text-gray-700" />
+                                <span className="text-[15px] font-medium text-gray-900">
+                                  {label}
+                                </span>
+                              </div>
+                              <span className="text-[15px] font-semibold text-gray-900">
+                                {value != null && value > 0 ? formatRating(value) : "—"}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </>
+                    );
+                  })()}
+                </div>
+
+                {/* Right: reviews list */}
+                <div className="space-y-2">
+                  <h3 className="text-xl font-medium">
+                    {ratings.totalReviews} {ratings.totalReviews === 1 ? "review" : "reviews"}
+                  </h3>
+                  <ReviewList endpoint={`/api/reviews/car/${car.id}`} />
+                </div>
+              </div>
+            </div>
+          </SheetContent>
+        </Sheet>
+      )}
     </div>
   );
 }

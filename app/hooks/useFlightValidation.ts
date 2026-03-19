@@ -4,18 +4,30 @@ import type { ValidatedFlight } from "~/services/flight-validation.server";
 interface FlightValidationResponse {
   success: boolean;
   flight?: ValidatedFlight;
-  error?: string;
+  error?: string | { code?: string; message?: string };
+  shortError?: string;
   message?: string;
-  warning?: string; // Warning message for successful validations with caveats
-  errorType?: "already_landed" | "insufficient_notice";
+  shortMessage?: string;
+  warning?: string;
+  shortWarning?: string;
+  errorType?:
+    | "non_lagos_destination"
+    | "already_landed"
+    | "not_found"
+    | "invalid_format"
+    | "past_date"
+    | "insufficient_notice";
 }
 
 interface UseFlightValidationReturn {
   validateFlight: (flightNumber: string, date: string) => Promise<ValidatedFlight | null>;
+  resetValidation: () => void;
   isValidating: boolean;
-  message: string | null; // Message for both success and error cases
+  message: string | null;
+  shortMessage: string | null;
   flight: ValidatedFlight | null;
-  isWarning: boolean; // True if message is a warning (not a hard error)
+  isWarning: boolean;
+  errorType: FlightValidationResponse["errorType"] | null;
 }
 
 /**
@@ -33,8 +45,18 @@ interface UseFlightValidationReturn {
 export function useFlightValidation(): UseFlightValidationReturn {
   const [isValidating, setIsValidating] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [shortMessage, setShortMessage] = useState<string | null>(null);
   const [flight, setFlight] = useState<ValidatedFlight | null>(null);
   const [isWarning, setIsWarning] = useState(false);
+  const [errorType, setErrorType] = useState<FlightValidationResponse["errorType"] | null>(null);
+
+  const resetValidation = useCallback(() => {
+    setMessage(null);
+    setShortMessage(null);
+    setFlight(null);
+    setIsWarning(false);
+    setErrorType(null);
+  }, []);
 
   const validateFlight = useCallback(async (flightNumber: string, date: string) => {
     // biome-ignore lint/suspicious/noConsoleLog: Debug flight validation
@@ -42,8 +64,10 @@ export function useFlightValidation(): UseFlightValidationReturn {
 
     setIsValidating(true);
     setMessage(null);
+    setShortMessage(null);
     setFlight(null);
     setIsWarning(false);
+    setErrorType(null);
 
     try {
       const params = new URLSearchParams({
@@ -59,29 +83,37 @@ export function useFlightValidation(): UseFlightValidationReturn {
 
         if (data.warning) {
           setMessage(data.warning);
+          setShortMessage(data.shortWarning ?? data.warning);
           setIsWarning(true);
         }
 
         return data.flight;
       }
 
-      // Handle informational message case (success=true but flight=null, e.g., doesn't fly to Lagos)
       if (data.success && data.message) {
         setMessage(data.message);
-        setIsWarning(false); // Informational, not a warning
+        setShortMessage(data.shortMessage ?? data.message);
+        setIsWarning(false);
+        setErrorType(data.errorType ?? null);
         return null;
       }
 
-      // Handle hard error case (success=false, no errorType - flight not found, etc.)
-
-      setMessage(data.error || "Flight validation failed");
+      const errorMsg =
+        typeof data.error === "string"
+          ? data.error
+          : data.error?.message || "Flight validation failed";
+      setMessage(errorMsg);
+      setShortMessage(data.shortError ?? errorMsg);
       setIsWarning(false);
+      setErrorType(data.errorType ?? (typeof data.error === "object" ? data.error?.code : null));
       return null;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "An unexpected error occurred";
 
       setMessage(errorMessage);
+      setShortMessage("Something went wrong");
       setIsWarning(false);
+      setErrorType(null);
       return null;
     } finally {
       setIsValidating(false);
@@ -90,9 +122,12 @@ export function useFlightValidation(): UseFlightValidationReturn {
 
   return {
     validateFlight,
+    resetValidation,
     isValidating,
     message,
+    shortMessage,
     flight,
     isWarning,
+    errorType,
   };
 }

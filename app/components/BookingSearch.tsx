@@ -85,14 +85,7 @@ export function BookingSearchDraftProvider({ children }: { readonly children: Re
       flightValidationError,
       setFlightValidationError,
     }),
-    [
-      bookingType,
-      dateRange,
-      pickupTime,
-      flightNumber,
-      validatedFlight,
-      flightValidationError,
-    ],
+    [bookingType, dateRange, pickupTime, flightNumber, validatedFlight, flightValidationError],
   );
 
   return (
@@ -111,9 +104,15 @@ interface BookingTypeInputProps {
   readonly onFlightNumberChange: (value: string) => void;
   readonly onFlightNumberSelect: (value: string) => void;
   readonly onFlightValidated: (flight: ValidatedFlight | null) => void;
-  readonly onValidationError: (message: string | null, isWarning: boolean) => void;
+  readonly onValidationError: (
+    message: string | null,
+    isWarning: boolean,
+    shortMessage?: string | null,
+    errorType?: string | null,
+  ) => void;
   readonly validatedFlight?: ValidatedFlight | null;
   readonly validationMessage?: string | null;
+  readonly shortValidationMessage?: string | null;
   readonly isCompact?: boolean;
 }
 
@@ -129,6 +128,7 @@ function BookingTypeInput({
   onValidationError,
   validatedFlight,
   validationMessage,
+  shortValidationMessage,
   isCompact = false,
 }: BookingTypeInputProps) {
   const containerClass = "w-full h-[38px] flex flex-col justify-center";
@@ -159,12 +159,26 @@ function BookingTypeInput({
       );
       validationContent = (
         <span className="text-green-600">
-          ✓ {validatedFlight.originIATA || validatedFlight.origin} →{" "}
-          {validatedFlight.destinationIATA || validatedFlight.destination} • {arrivalTime}
+          <span className="sm:hidden">
+            {validatedFlight.originIATA || validatedFlight.origin} →{" "}
+            {validatedFlight.destinationIATA || validatedFlight.destination} • {arrivalTime}
+          </span>
+          <span className="hidden sm:inline-flex items-center gap-1">
+            {/* <span>✓</span> */}
+            <span>
+              <span className="block">
+                {validatedFlight.originIATA || validatedFlight.origin} →{" "}
+                {validatedFlight.destinationIATA || validatedFlight.destination}
+              </span>
+              <span className="block">{arrivalTime}</span>
+            </span>
+          </span>
         </span>
       );
     } else if (validationMessage) {
-      validationContent = <span className="text-gray-500">{validationMessage}</span>;
+      validationContent = (
+        <span className="text-gray-500">{shortValidationMessage ?? validationMessage}</span>
+      );
     }
 
     return (
@@ -224,10 +238,11 @@ function BookingTypeInput({
 interface SearchButtonProps {
   readonly isCompact: boolean;
   readonly isSearching: boolean;
+  readonly disabled?: boolean;
   readonly onClick: () => void;
 }
 
-function SearchButton({ isCompact, isSearching, onClick }: SearchButtonProps) {
+function SearchButton({ isCompact, isSearching, disabled = false, onClick }: SearchButtonProps) {
   return (
     <div
       className={cn(
@@ -245,7 +260,7 @@ function SearchButton({ isCompact, isSearching, onClick }: SearchButtonProps) {
             : "w-full md:w-auto h-12 md:h-12 px-6 md:px-8 text-sm md:text-base",
         )}
         onClick={onClick}
-        disabled={isSearching}
+        disabled={isSearching || disabled}
       >
         {isSearching ? (
           <>
@@ -254,10 +269,7 @@ function SearchButton({ isCompact, isSearching, onClick }: SearchButtonProps) {
           </>
         ) : (
           <>
-            <Search
-              className={cn(isCompact ? "h-4 w-4" : "h-5 w-5 mr-2")}
-              aria-label="Search"
-            />
+            <Search className={cn(isCompact ? "h-4 w-4" : "h-5 w-5 mr-2")} aria-label="Search" />
             {!isCompact && <span className="ml-2 md:hidden">Search</span>}
           </>
         )}
@@ -318,6 +330,7 @@ export function BookingSearch({
     flightValidationError,
     setFlightValidationError,
   } = sharedDraft;
+  const [isFlightUnbookable, setIsFlightUnbookable] = useState(false);
 
   // Sync state when URL changes (e.g., navigating back from car details page)
   useEffect(() => {
@@ -381,24 +394,33 @@ export function BookingSearch({
     ],
   );
 
-  const handlePickupTimeChange = useCallback((value: string) => {
-    // Update local state only, don't update URL yet
-    setPickupTime(value);
-  }, [setPickupTime]);
+  const handlePickupTimeChange = useCallback(
+    (value: string) => {
+      // Update local state only, don't update URL yet
+      setPickupTime(value);
+    },
+    [setPickupTime],
+  );
 
-  const handleFlightNumberChange = useCallback((value: string) => {
-    // Update local state only, don't update URL yet
-    setFlightNumber(value);
-    // Clear validation when user manually types (not when autocomplete selects)
-    setValidatedFlight(null);
-    setFlightValidationError(null);
-  }, [setFlightNumber, setValidatedFlight, setFlightValidationError]);
+  const handleFlightNumberChange = useCallback(
+    (value: string) => {
+      // Update local state only, don't update URL yet
+      setFlightNumber(value);
+      // Clear validation when user manually types (not when autocomplete selects)
+      setValidatedFlight(null);
+      setFlightValidationError(null);
+    },
+    [setFlightNumber, setValidatedFlight, setFlightValidationError],
+  );
 
-  const handleFlightNumberSelect = useCallback((value: string) => {
-    // Update local state when autocomplete selection is made
-    // Don't clear validation state - the validation callback will set it
-    setFlightNumber(value);
-  }, [setFlightNumber]);
+  const handleFlightNumberSelect = useCallback(
+    (value: string) => {
+      // Update local state when autocomplete selection is made
+      // Don't clear validation state - the validation callback will set it
+      setFlightNumber(value);
+    },
+    [setFlightNumber],
+  );
 
   const handleFromDateChange = useCallback(
     (date: Date | undefined) => {
@@ -449,23 +471,66 @@ export function BookingSearch({
       setValidatedFlight(null);
       setFlightValidationError(null);
     },
-    [
-      bookingType,
-      dateRange.from,
-      setDateRange,
-      setValidatedFlight,
-      setFlightValidationError,
-    ],
+    [bookingType, dateRange.from, setDateRange, setValidatedFlight, setFlightValidationError],
   );
 
-  const handleFlightValidated = useCallback((flight: ValidatedFlight | null) => {
-    setValidatedFlight(flight);
-    setFlightValidationError(null);
-  }, [setValidatedFlight, setFlightValidationError]);
+  const handleFlightValidated = useCallback(
+    (flight: ValidatedFlight | null) => {
+      setValidatedFlight(flight);
+      setFlightValidationError(null);
+      if (flight) {
+        setIsFlightUnbookable(false);
+      }
+    },
+    [setValidatedFlight, setFlightValidationError],
+  );
 
-  const handleValidationError = useCallback((message: string | null, _isWarning: boolean) => {
-    setFlightValidationError(message);
-  }, [setFlightValidationError]);
+  const [shortFlightValidationError, setShortFlightValidationError] = useState<string | null>(null);
+
+  const handleValidationError = useCallback(
+    (
+      message: string | null,
+      isWarning: boolean,
+      shortMessage?: string | null,
+      errorType?: string | null,
+    ) => {
+      setFlightValidationError(message);
+      setShortFlightValidationError(shortMessage ?? null);
+      if (!message) {
+        setIsFlightUnbookable(false);
+        return;
+      }
+
+      const explicitErrorType = errorType ?? null;
+      if (explicitErrorType) {
+        const unbookableErrorTypes = new Set([
+          "non_lagos_destination",
+          "already_landed",
+          "not_found",
+          "invalid_format",
+          "past_date",
+        ]);
+        setIsFlightUnbookable(unbookableErrorTypes.has(explicitErrorType));
+        return;
+      }
+
+      const normalizedMessage = message.toLowerCase();
+      const isExplicitlyUnbookable =
+        normalizedMessage.includes("doesn't arrive in lagos") ||
+        normalizedMessage.includes("does not fly to lagos") ||
+        normalizedMessage.includes("only provide airport pickup for flights arriving in lagos") ||
+        normalizedMessage.includes("already landed") ||
+        normalizedMessage.includes("not found") ||
+        normalizedMessage.includes("invalid flight number format") ||
+        normalizedMessage.includes("cannot search for flights in the past");
+
+      console.warn("[BookingSearch] Falling back to substring-based unbookable detection", {
+        message,
+      });
+      setIsFlightUnbookable(isExplicitlyUnbookable);
+    },
+    [setFlightValidationError],
+  );
 
   const handleSearch = useCallback(() => {
     // Set flag to show loading indicator
@@ -538,8 +603,12 @@ export function BookingSearch({
     onValidationError: handleValidationError,
     validatedFlight,
     validationMessage: flightValidationError,
+    shortValidationMessage: shortFlightValidationError,
     isCompact,
   };
+
+  const isSearchDisabled =
+    bookingType === AIRPORT_PICKUP_BOOKING_TYPE ? isFlightUnbookable : false;
 
   return (
     <div className="w-full">
@@ -732,6 +801,7 @@ export function BookingSearch({
               <SearchButton
                 isCompact={isCompact}
                 isSearching={isSearching}
+                disabled={isSearchDisabled}
                 onClick={handleSearch}
               />
             </div>

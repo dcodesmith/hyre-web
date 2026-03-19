@@ -3,13 +3,14 @@ import { useState } from "react";
 import { Card, CardContent } from "../ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { StarRating } from "./StarRating";
+import { cn } from "~/lib/utils";
 
 interface ReviewCardProps {
   readonly review: {
     readonly id: string;
     readonly overallRating: number;
     readonly carRating: number;
-    readonly chauffeurRating: number;
+    readonly chauffeurRating: number | null;
     readonly serviceRating: number;
     readonly comment: string | null;
     readonly createdAt: string | Date;
@@ -43,6 +44,7 @@ export function ReviewCard({
     typeof review.createdAt === "string" ? new Date(review.createdAt) : review.createdAt;
   const timeAgo = formatDistanceToNow(createdAt, { addSuffix: true });
   const [isExpanded, setIsExpanded] = useState(false);
+  const chauffeur = review.chauffeurRating ?? null;
 
   // Carousel variant: Airbnb-style layout
   if (variant === "carousel") {
@@ -57,7 +59,7 @@ export function ReviewCard({
             <StarRating
               rating={review.overallRating}
               size="sm"
-              ariaLabel={`${review.overallRating} out of 5 stars`}
+              ariaLabel={`${review.overallRating.toFixed(1)} out of 5 stars`}
             />
             <span className="text-xs text-gray-500">{timeAgo}</span>
           </div>
@@ -102,7 +104,7 @@ export function ReviewCard({
   }
 
   const content = (
-    <div className="space-y-4">
+    <div className="space-y-2">
       <div className="flex items-start gap-4">
         <Avatar className="h-10 w-10">
           <AvatarImage src={review.user.image ?? undefined} alt={userName} />
@@ -113,14 +115,14 @@ export function ReviewCard({
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2">
             <div>
-              <p className="font-medium text-gray-900">{userName}</p>
-              <p className="text-sm text-gray-500">{timeAgo}</p>
+              <p className="font-medium text-gray-900 text-sm">{userName}</p>
+              <p className="text-xs text-gray-500">{timeAgo}</p>
             </div>
             <div className="flex-shrink-0">
               <StarRating
                 rating={review.overallRating}
                 size="sm"
-                ariaLabel={`${review.overallRating} out of 5 stars`}
+                ariaLabel={`${review.overallRating.toFixed(1)} out of 5 stars`}
               />
             </div>
           </div>
@@ -134,15 +136,19 @@ export function ReviewCard({
             <StarRating
               rating={review.carRating}
               size="sm"
-              ariaLabel={`Car rating: ${review.carRating} stars`}
+              ariaLabel={`Car rating: ${review.carRating.toFixed(1)} stars`}
             />
           </div>
           <div className="space-y-1">
             <p className="text-xs text-gray-600">Chauffeur</p>
             <StarRating
-              rating={review.chauffeurRating}
+              rating={chauffeur}
               size="sm"
-              ariaLabel={`Chauffeur rating: ${review.chauffeurRating} stars`}
+              ariaLabel={
+                chauffeur === null
+                  ? "No chauffeur rating"
+                  : `Chauffeur rating: ${chauffeur.toFixed(1)} stars`
+              }
             />
           </div>
           <div className="space-y-1">
@@ -150,18 +156,16 @@ export function ReviewCard({
             <StarRating
               rating={review.serviceRating}
               size="sm"
-              ariaLabel={`Service rating: ${review.serviceRating} stars`}
+              ariaLabel={`Service rating: ${review.serviceRating.toFixed(1)} stars`}
             />
           </div>
         </div>
       )}
 
       {review.comment && (
-        <div className="pt-2">
-          <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
-            {review.comment}
-          </p>
-        </div>
+        <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
+          {review.comment}
+        </p>
       )}
     </div>
   );
@@ -171,8 +175,8 @@ export function ReviewCard({
   }
 
   return (
-    <Card className={className}>
-      <CardContent className="p-6">{content}</CardContent>
+    <Card className={cn(className, "border-none")}>
+      <CardContent className="p-2">{content}</CardContent>
     </Card>
   );
 }

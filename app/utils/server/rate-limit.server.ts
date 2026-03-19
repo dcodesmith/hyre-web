@@ -4,10 +4,74 @@ import { createHash } from "node:crypto";
 import logger from "~/lib/logger.server";
 import { env } from "~/utils/server/env.server";
 
-const redis = new Redis({
-  url: env.UPSTASH_REDIS_REST_URL || env.KV_REST_API_URL,
-  token: env.UPSTASH_REDIS_REST_TOKEN || env.KV_REST_API_TOKEN,
-});
+const hasRedis =
+  Boolean(env.UPSTASH_REDIS_REST_URL || env.KV_REST_API_URL) &&
+  Boolean(env.UPSTASH_REDIS_REST_TOKEN || env.KV_REST_API_TOKEN);
+
+/**
+ * In-memory Redis-compatible store for local development when Redis is not configured.
+ * This shim intentionally supports only get/set/incr/del/ttl/expire, which are
+ * the only commands used in this module's rate-limit flows.
+ */
+function createInMemoryRedis(): Redis {
+  const store = new Map<string, { value: string; expiresAt?: number }>();
+
+  return {
+    async get(key: string) {
+      const entry = store.get(key);
+      if (!entry) return null;
+      const expiry = entry.expiresAt;
+      const expired = typeof expiry === "number" && Date.now() > expiry;
+      if (expired) {
+        store.delete(key);
+        return null;
+      }
+      return entry.value;
+    },
+    async set(key: string, value: string, options?: { ex?: number }) {
+      const ex = options?.ex;
+      const expiresAt = typeof ex === "number" ? Date.now() + ex * 1000 : undefined;
+      store.set(key, { value: String(value), expiresAt });
+      return "OK" as const;
+    },
+    async incr(key: string) {
+      const entry = store.get(key);
+      const next = (entry ? Number(entry.value) || 0 : 0) + 1;
+      store.set(key, { value: String(next), expiresAt: entry?.expiresAt });
+      return next;
+    },
+    async del(...keys: string[]) {
+      let deleted = 0;
+      for (const key of keys) {
+        if (store.delete(key)) deleted++;
+      }
+      return deleted;
+    },
+    async ttl(key: string) {
+      const entry = store.get(key);
+      if (!entry?.expiresAt) return -1;
+      const remaining = Math.ceil((entry.expiresAt - Date.now()) / 1000);
+      return remaining <= 0 ? -2 : remaining;
+    },
+    async expire(key: string, seconds: number) {
+      const entry = store.get(key);
+      if (!entry) return 0 as const;
+      store.set(key, { value: entry.value, expiresAt: Date.now() + seconds * 1000 });
+      return 1 as const;
+    },
+  } as Redis;
+}
+
+const redis: Redis = hasRedis
+  ? new Redis({
+      url: env.UPSTASH_REDIS_REST_URL || env.KV_REST_API_URL,
+      token: env.UPSTASH_REDIS_REST_TOKEN || env.KV_REST_API_TOKEN,
+    })
+  : createInMemoryRedis();
+
+if (!hasRedis) {
+  logger.info("[RATE_LIMIT] Redis not configured; using in-memory store (development only)");
+}
 
 const aiSearchByIpLimiter = new Ratelimit({
   redis,
