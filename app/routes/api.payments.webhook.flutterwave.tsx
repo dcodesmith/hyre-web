@@ -1,5 +1,5 @@
 import type { PaymentAttemptStatus, Prisma } from "@prisma/client";
-import { type ActionFunctionArgs } from "@remix-run/node";
+import { type ActionFunctionArgs } from "react-router";
 import logger from "~/lib/logger.server";
 import {
   formatCurrency,

@@ -1,5 +1,5 @@
 import type { User } from "@prisma/client";
-import { redirect } from "@remix-run/node";
+import { redirect } from "react-router";
 import { betterAuth, type BetterAuthOptions } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { emailOTP } from "better-auth/plugins";

@@ -1,13 +1,15 @@
 import { Booking, BookingType, Car, User, VehicleImage } from "@prisma/client";
-import { ActionFunctionArgs, type LoaderFunctionArgs, data } from "@remix-run/node";
 import {
+  ActionFunctionArgs,
+  type LoaderFunctionArgs,
+  data,
   Link,
   redirect,
   useFetcher,
   useLoaderData,
   useNavigate,
   useSearchParams,
-} from "@remix-run/react";
+} from "react-router";
 import { addHours, differenceInCalendarDays } from "date-fns";
 import { format, toZonedTime } from "date-fns-tz";
 import { ChevronRight } from "lucide-react";

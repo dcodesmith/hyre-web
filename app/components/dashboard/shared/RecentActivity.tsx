@@ -1,5 +1,5 @@
 import { CheckCircle2, ArrowRight, Clock } from "lucide-react";
-import { Link } from "@remix-run/react";
+import { Link } from "react-router";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Button } from "~/components/ui/button";
 import { formatCurrency } from "~/lib/utils";

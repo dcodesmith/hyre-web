@@ -1,7 +1,7 @@
 import { type FieldMetadata, getFormProps, useForm } from "@conform-to/react";
 import { parseWithZod } from "@conform-to/zod/v4";
 import type { Car, User } from "@prisma/client";
-import { Link, useFetcher, useNavigate, useNavigation, useSearchParams } from "@remix-run/react";
+import { Link, useFetcher, useNavigate, useNavigation, useSearchParams } from "react-router";
 import {
   differenceInCalendarDays,
   eachDayOfInterval,
@@ -133,9 +133,7 @@ function BookingActionsPlacement({
     return null;
   }
 
-  return (
-    <BookingActions user={user} isPending={isPending} onNavigateToAuth={onNavigateToAuth} />
-  );
+  return <BookingActions user={user} isPending={isPending} onNavigateToAuth={onNavigateToAuth} />;
 }
 
 export default function BookingCard({

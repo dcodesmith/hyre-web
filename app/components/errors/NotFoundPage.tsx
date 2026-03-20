@@ -1,4 +1,4 @@
-import { Link } from "@remix-run/react";
+import { Link } from "react-router";
 import { Button } from "~/components/ui/button";
 import { HomeIcon, TruckIcon } from "@heroicons/react/24/outline";
 

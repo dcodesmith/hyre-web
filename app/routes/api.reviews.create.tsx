@@ -1,4 +1,4 @@
-import { type ActionFunctionArgs } from "@remix-run/node";
+import { type ActionFunctionArgs } from "react-router";
 import logger from "~/lib/logger.server";
 import { requireUser } from "~/modules/auth/auth.server";
 import { createReviewSchema, type CreateReviewInput } from "~/schemas/review.schema";

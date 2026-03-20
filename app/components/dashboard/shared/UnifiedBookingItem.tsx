@@ -1,4 +1,4 @@
-import { useFetcher } from "@remix-run/react";
+import { useFetcher } from "react-router";
 import { format } from "date-fns";
 import { toZonedTime } from "date-fns-tz";
 import { Calendar, Clock, MapPin, User } from "lucide-react";

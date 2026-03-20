@@ -1,4 +1,4 @@
-import { type LoaderFunctionArgs } from "@remix-run/node";
+import { type LoaderFunctionArgs } from "react-router";
 import { z } from "zod";
 import logger from "~/lib/logger.server";
 import { calculateAirportTripDuration } from "~/services/google-maps.server";

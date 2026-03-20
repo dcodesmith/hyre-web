@@ -1,5 +1,5 @@
 import { CarApprovalStatus, DocumentStatus } from "@prisma/client";
-import { type ActionFunctionArgs, data } from "@remix-run/node";
+import { type ActionFunctionArgs, data } from "react-router";
 import { requireAdminOrStaffWithRedirect } from "~/modules/auth/auth.server";
 import { prisma } from "~/modules/db/db.server";
 import { validateCSRF } from "~/utils/csrf-action.server";

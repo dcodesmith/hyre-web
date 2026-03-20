@@ -1,6 +1,13 @@
 import { parseWithZod } from "@conform-to/zod/v4";
-import { type ActionFunctionArgs, type LoaderFunctionArgs, data } from "@remix-run/node";
-import { Link, useLoaderData, useSubmit, useSearchParams } from "@remix-run/react";
+import {
+  type ActionFunctionArgs,
+  type LoaderFunctionArgs,
+  data,
+  Link,
+  useLoaderData,
+  useSubmit,
+  useSearchParams,
+} from "react-router";
 import { createColumnHelper, type ColumnDef, type Row } from "@tanstack/react-table";
 import { useAuthenticityToken } from "remix-utils/csrf/react";
 import { Eye, EyeOff, Trash2, MoreHorizontal, ChevronLeft, ChevronRight } from "lucide-react";

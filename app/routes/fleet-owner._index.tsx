@@ -1,7 +1,6 @@
 import { BookingStatus, PaymentStatus } from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/library";
-import type { LoaderFunctionArgs } from "@remix-run/node";
-import { useLoaderData } from "@remix-run/react";
+import { type LoaderFunctionArgs, useLoaderData } from "react-router";
 import { subDays } from "date-fns";
 import { FleetOwnerDashboard } from "~/components/dashboard/fleet-owner";
 import { OwnerDriverDashboard } from "~/components/dashboard/owner-driver";

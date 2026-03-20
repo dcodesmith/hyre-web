@@ -1,5 +1,4 @@
-import { type LoaderFunctionArgs } from "@remix-run/node";
-import { useLoaderData, useSearchParams, Link } from "@remix-run/react";
+import { type LoaderFunctionArgs, useLoaderData, useSearchParams, Link } from "react-router";
 import { requireAdminOrStaffWithRedirect } from "~/modules/auth/auth.server";
 import { prisma } from "~/modules/db/db.server";
 import { LazyTable } from "~/components/Table/LazyTable";

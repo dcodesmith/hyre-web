@@ -1,17 +1,15 @@
 import { CarApprovalStatus, Status } from "@prisma/client";
-import type { MetaFunction } from "@remix-run/node";
-import { data } from "@remix-run/node";
-import { Link, useLoaderData } from "@remix-run/react";
 import { Fingerprint, ShieldCheck } from "lucide-react";
+import { type MetaFunction, data, Link, useLoaderData } from "react-router";
 import { BookingSearch } from "~/components/BookingSearch";
 
 import logger from "~/lib/logger.server";
 import { prisma } from "~/modules/db/db.server";
-import { env } from "~/utils/server/env.server";
 import { getBatchCarRatings } from "~/services/reviews.server";
 import type { AggregatedRatings } from "~/services/reviews.server";
+import { env } from "~/utils/server/env.server";
 
-import { lazy, Suspense, useState } from "react";
+import { Suspense, lazy, useState } from "react";
 import { CarCard } from "~/components/CarCard";
 import { CarouselSection } from "~/components/CarouselSection";
 
@@ -59,10 +57,10 @@ const LazyAccordion = lazy(() =>
   })),
 );
 import {
+  FAQSchema,
   LocalBusinessSchema,
   ServiceSchema,
   WebSiteSchema,
-  FAQSchema,
 } from "~/components/seo/StructuredData";
 import { getHeroHeightClasses } from "~/hooks/useHeroScroll";
 import { useRootScrollState } from "~/root";
@@ -340,8 +338,12 @@ export default function IndexPage() {
   const isDesktopCollapsed = isDesktop && hasScrolled;
   const isMobileScrolled = isMobile && hasScrolled;
   const heroScrollState = { isDesktopCollapsed, isMobileScrolled };
-  const { desktopHeight, containerClass: heroContainerClass, heroOpacity, contentTransform } =
-    getHeroHeightClasses(heroScrollState);
+  const {
+    desktopHeight,
+    containerClass: heroContainerClass,
+    heroOpacity,
+    contentTransform,
+  } = getHeroHeightClasses(heroScrollState);
 
   // Mobile search modal state
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
@@ -402,7 +404,9 @@ export default function IndexPage() {
       )}
 
       {/* Hero Section - Fixed on desktop, relative on mobile */}
-      <div className={`w-full transition-all duration-300 ease-out ${heroContainerClass} ${heroOpacity}`}>
+      <div
+        className={`w-full transition-all duration-300 ease-out ${heroContainerClass} ${heroOpacity}`}
+      >
         {/* Hero Image - fades out when collapsed (desktop only) */}
         <div
           className={`absolute inset-0 transition-opacity duration-300 ${
@@ -495,7 +499,9 @@ export default function IndexPage() {
       <div className={`hidden md:block transition-all duration-300 ${desktopHeight}`} />
 
       {/* Main Content Container - Scrolls underneath fixed hero */}
-      <div className={`relative z-0 bg-white py-8 md:py-12 space-y-6 transition-transform duration-300 ${contentTransform}`}>
+      <div
+        className={`relative z-0 bg-white py-8 md:py-12 space-y-6 transition-transform duration-300 ${contentTransform}`}
+      >
         {categories.allCars.length ? (
           <div className="space-y-6">
             {/* Category Filter Pills - Link to /search with filters */}

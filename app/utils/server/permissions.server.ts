@@ -1,4 +1,4 @@
-import { data } from "@remix-run/node";
+import { data } from "react-router";
 import logger from "~/lib/logger.server";
 import { requireUser } from "~/modules/auth/auth.server";
 import { RoleName, userHasRole } from "~/utils/shared/roles";

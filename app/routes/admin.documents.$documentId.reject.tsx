@@ -1,4 +1,4 @@
-import { type ActionFunctionArgs, redirect } from "@remix-run/node";
+import { type ActionFunctionArgs, redirect } from "react-router";
 import { prisma } from "~/modules/db/db.server";
 import { requireAdminOrStaffWithRedirect } from "~/modules/auth/auth.server";
 import { DocumentStatus, CarApprovalStatus } from "@prisma/client";

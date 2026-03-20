@@ -1,5 +1,5 @@
 import { parseWithZod } from "@conform-to/zod/v4";
-import { ActionFunctionArgs, data } from "@remix-run/node";
+import { ActionFunctionArgs, data } from "react-router";
 import logger from "~/lib/logger.server";
 import { requireUser } from "~/modules/auth/auth.server";
 import { prisma } from "~/modules/db/db.server";

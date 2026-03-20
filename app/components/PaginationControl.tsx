@@ -37,9 +37,7 @@ export function PaginationControl({
       {Array.from({ length: totalPages }, (_, i) => i + 1)
         .filter(
           (pageNum) =>
-            pageNum === 1 ||
-            pageNum === totalPages ||
-            Math.abs(pageNum - currentPage) <= 2
+            pageNum === 1 || pageNum === totalPages || Math.abs(pageNum - currentPage) <= 2,
         )
         .map((pageNum) => (
           <a key={pageNum} href={buildPageUrl(pageNum)}>

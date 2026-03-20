@@ -1,8 +1,17 @@
 import { getFormProps, getInputProps, useForm, useInputControl } from "@conform-to/react";
 import { getZodConstraint, parseWithZod } from "@conform-to/zod/v4";
 import { CogIcon } from "@heroicons/react/24/outline";
-import { ActionFunctionArgs, LoaderFunctionArgs, data, redirect } from "@remix-run/node";
-import { Link, Outlet, useActionData, useLoaderData, useSearchParams } from "@remix-run/react";
+import {
+  ActionFunctionArgs,
+  LoaderFunctionArgs,
+  data,
+  redirect,
+  Link,
+  Outlet,
+  useActionData,
+  useLoaderData,
+  useSearchParams,
+} from "react-router";
 import { Form } from "~/components/CSRFForm";
 import { LoginSchema } from "~/schemas/auth.schema";
 import { Button } from "~/components/ui/button";
@@ -148,128 +157,128 @@ export default function Login() {
 
       <div className="fade-up anim-delay-200">
         <Form method="post" {...getFormProps(form)}>
-        <div className="flex flex-col gap-4">
-          <div className="space-y-1.5">
-            <label
-              htmlFor={email.id}
-              className="block text-[11px] font-medium uppercase tracking-[0.12em] text-neutral-500"
-            >
-              Email address
-            </label>
-            <Input
-              className={`h-11 rounded-lg border-neutral-200 px-4 text-[#1A1814] placeholder:text-neutral-400 focus-visible:ring-[#B8922A]/20 ${
-                email.errors
-                  ? "border-destructive focus-visible:ring-destructive"
-                  : "focus-visible:border-[#B8922A]"
-              }`}
-              {...getInputProps(email, { type: "email" })}
-              placeholder="you@example.com"
-            />
-            {email.errors && (
-              <div className="text-sm text-destructive">{email.errors.join(", ")}</div>
-            )}
-          </div>
-
-          {!referralCodeFromUrl && (
+          <div className="flex flex-col gap-4">
             <div className="space-y-1.5">
               <label
-                htmlFor={referralCode.id}
-                className="flex items-baseline gap-1.5 text-[11px] font-medium uppercase tracking-[0.12em] text-neutral-500"
+                htmlFor={email.id}
+                className="block text-[11px] font-medium uppercase tracking-[0.12em] text-neutral-500"
               >
-                <span>Referral code</span>
-                <span className="text-[11px] font-light normal-case tracking-normal text-neutral-400">
-                  (optional)
-                </span>
+                Email address
               </label>
               <Input
                 className={`h-11 rounded-lg border-neutral-200 px-4 text-[#1A1814] placeholder:text-neutral-400 focus-visible:ring-[#B8922A]/20 ${
-                  referralCode.errors
+                  email.errors
                     ? "border-destructive focus-visible:ring-destructive"
                     : "focus-visible:border-[#B8922A]"
                 }`}
-                {...getInputProps(referralCode, { type: "text" })}
-                placeholder="e.g. TRIP-XXXX"
+                {...getInputProps(email, { type: "email" })}
+                placeholder="you@example.com"
               />
-              {referralCode.errors && (
-                <div className="text-sm text-destructive">{referralCode.errors.join(", ")}</div>
+              {email.errors && (
+                <div className="text-sm text-destructive">{email.errors.join(", ")}</div>
               )}
-              <p className="mt-1.5 text-xs font-light text-neutral-500">
-                Have a code? You&apos;ll both receive a ride credit.
-              </p>
             </div>
-          )}
 
-          {referralCodeFromUrl && (
-            <div className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-neutral-600">
-              🎉 You&apos;re signing up with referral code:{" "}
-              <span className="font-semibold">{referralCodeFromUrl}</span>
-              <input type="hidden" name="referralCode" value={referralCodeFromUrl} />
+            {!referralCodeFromUrl && (
+              <div className="space-y-1.5">
+                <label
+                  htmlFor={referralCode.id}
+                  className="flex items-baseline gap-1.5 text-[11px] font-medium uppercase tracking-[0.12em] text-neutral-500"
+                >
+                  <span>Referral code</span>
+                  <span className="text-[11px] font-light normal-case tracking-normal text-neutral-400">
+                    (optional)
+                  </span>
+                </label>
+                <Input
+                  className={`h-11 rounded-lg border-neutral-200 px-4 text-[#1A1814] placeholder:text-neutral-400 focus-visible:ring-[#B8922A]/20 ${
+                    referralCode.errors
+                      ? "border-destructive focus-visible:ring-destructive"
+                      : "focus-visible:border-[#B8922A]"
+                  }`}
+                  {...getInputProps(referralCode, { type: "text" })}
+                  placeholder="e.g. TRIP-XXXX"
+                />
+                {referralCode.errors && (
+                  <div className="text-sm text-destructive">{referralCode.errors.join(", ")}</div>
+                )}
+                <p className="mt-1.5 text-xs font-light text-neutral-500">
+                  Have a code? You&apos;ll both receive a ride credit.
+                </p>
+              </div>
+            )}
+
+            {referralCodeFromUrl && (
+              <div className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-neutral-600">
+                🎉 You&apos;re signing up with referral code:{" "}
+                <span className="font-semibold">{referralCodeFromUrl}</span>
+                <input type="hidden" name="referralCode" value={referralCodeFromUrl} />
+              </div>
+            )}
+
+            <div className="my-1 h-px bg-neutral-100" />
+
+            <div className="space-y-1">
+              <label
+                htmlFor={acceptTerms.id}
+                className="flex cursor-pointer items-start gap-2.5 text-xs font-light leading-relaxed text-neutral-500"
+              >
+                <Checkbox
+                  id={acceptTerms.id}
+                  name={acceptTerms.name}
+                  className="shrink-0"
+                  checked={acceptTermsControl.value === "on"}
+                  onCheckedChange={(checked) => {
+                    acceptTermsControl.change(checked ? "on" : "");
+                  }}
+                  onBlur={acceptTermsControl.blur}
+                />
+                <span>
+                  I agree to Tripdly&apos;s{" "}
+                  <Link
+                    to="/terms"
+                    className="text-[#B8922A] hover:underline"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Terms of Service
+                  </Link>{" "}
+                  and{" "}
+                  <Link
+                    to="/privacy"
+                    className="text-[#B8922A] hover:underline"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Privacy Policy
+                  </Link>
+                </span>
+              </label>
+              {acceptTerms.errors && (
+                <div className="text-sm text-destructive">{acceptTerms.errors.join(", ")}</div>
+              )}
             </div>
-          )}
 
-          <div className="my-1 h-px bg-neutral-100" />
+            {errorMessage && (
+              <span className="mb-1 text-sm text-destructive dark:text-destructive-foreground">
+                {errorMessage}
+              </span>
+            )}
 
-          <div className="space-y-1">
-            <label
-              htmlFor={acceptTerms.id}
-              className="flex cursor-pointer items-start gap-2.5 text-xs font-light leading-relaxed text-neutral-500"
+            <Button
+              type="submit"
+              className="h-12 w-full rounded-lg bg-[#1A1814] px-6 py-3.5 text-xs font-medium uppercase tracking-[0.08em] text-white hover:bg-neutral-800"
+              disabled={isPending}
             >
-              <Checkbox
-                id={acceptTerms.id}
-                name={acceptTerms.name}
-                className="shrink-0"
-                checked={acceptTermsControl.value === "on"}
-                onCheckedChange={(checked) => {
-                  acceptTermsControl.change(checked ? "on" : "");
-                }}
-                onBlur={acceptTermsControl.blur}
-              />
-              <span>
-                I agree to Tripdly&apos;s{" "}
-                <Link
-                  to="/terms"
-                  className="text-[#B8922A] hover:underline"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Terms of Service
-                </Link>{" "}
-                and{" "}
-                <Link
-                  to="/privacy"
-                  className="text-[#B8922A] hover:underline"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Privacy Policy
-                </Link>
-              </span>
-            </label>
-            {acceptTerms.errors && (
-              <div className="text-sm text-destructive">{acceptTerms.errors.join(", ")}</div>
-            )}
+              {isPending ? (
+                <CogIcon className="h-5 w-5 animate-spin" />
+              ) : (
+                <span className="flex gap-2">
+                  Continue with Email <ArrowRight />
+                </span>
+              )}
+            </Button>
           </div>
-
-          {errorMessage && (
-            <span className="mb-1 text-sm text-destructive dark:text-destructive-foreground">
-              {errorMessage}
-            </span>
-          )}
-
-          <Button
-            type="submit"
-            className="h-12 w-full rounded-lg bg-[#1A1814] px-6 py-3.5 text-xs font-medium uppercase tracking-[0.08em] text-white hover:bg-neutral-800"
-            disabled={isPending}
-          >
-            {isPending ? (
-              <CogIcon className="h-5 w-5 animate-spin" />
-            ) : (
-              <span className="flex gap-2">
-                Continue with Email <ArrowRight />
-              </span>
-            )}
-          </Button>
-        </div>
         </Form>
       </div>
 

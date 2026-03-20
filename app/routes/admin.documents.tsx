@@ -1,5 +1,4 @@
-import { type LoaderFunctionArgs } from "@remix-run/node";
-import { useFetcher, useLoaderData } from "@remix-run/react";
+import { type LoaderFunctionArgs, useFetcher, useLoaderData } from "react-router";
 import { useAuthenticityToken } from "remix-utils/csrf/react";
 import { Car, FileText } from "lucide-react";
 import { useEffect, useState } from "react";

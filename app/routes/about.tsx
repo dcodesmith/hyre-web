@@ -1,23 +1,21 @@
-import type { MetaFunction } from "@remix-run/node";
-import { data } from "@remix-run/node";
-import { Link, useLoaderData } from "@remix-run/react";
-import { ShieldCheck, Clock, CheckCircle2, ArrowRight, Building2, UserCheck } from "lucide-react";
+import { ArrowRight, Building2, CheckCircle2, Clock, ShieldCheck, UserCheck } from "lucide-react";
+import { type MetaFunction, Link, useLoaderData } from "react-router";
 import { BreadcrumbSchema } from "~/components/seo/StructuredData";
 import { Button } from "~/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
-import { env } from "~/utils/server/env.server";
 import { generateMetaTags } from "~/utils/seo";
+import { env } from "~/utils/server/env.server";
 
 export async function loader() {
-  return data({
+  return {
     ENV: {
       DOMAIN: env.DOMAIN,
     },
-  });
+  };
 }
 
-export const meta: MetaFunction<typeof loader> = ({ data }) => {
-  const baseUrl = data?.ENV?.DOMAIN ?? "http://localhost:5173";
+export const meta: MetaFunction<typeof loader> = ({ loaderData }) => {
+  const baseUrl = loaderData?.ENV?.DOMAIN ?? "http://localhost:5173";
 
   const title = "About Us - Connecting Fleet Owners with Customers | Tripdly";
   const description =

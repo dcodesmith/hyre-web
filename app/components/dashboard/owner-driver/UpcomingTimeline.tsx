@@ -1,5 +1,5 @@
 import { Calendar, ArrowRight, Clock } from "lucide-react";
-import { Link } from "@remix-run/react";
+import { Link } from "react-router";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import type { BookingWithRelations } from "~/types";
 import { UnifiedBookingItem } from "../shared";

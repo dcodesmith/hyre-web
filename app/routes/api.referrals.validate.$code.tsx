@@ -1,4 +1,4 @@
-import { LoaderFunctionArgs, data } from "@remix-run/node";
+import { LoaderFunctionArgs, data } from "react-router";
 import { z } from "zod";
 import logger from "~/lib/logger.server";
 import { validateReferralCode } from "~/services/referral.server";

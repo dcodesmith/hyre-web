@@ -1,5 +1,4 @@
-import { LoaderFunctionArgs } from "@remix-run/node";
-import { Link, Outlet, useLoaderData, useLocation } from "@remix-run/react";
+import { LoaderFunctionArgs, Link, Outlet, useLoaderData, useLocation } from "react-router";
 import { ScrollArea } from "~/components/ui/scroll-area";
 import { requireAdminOrStaffWithRedirect } from "~/modules/auth/auth.server";
 

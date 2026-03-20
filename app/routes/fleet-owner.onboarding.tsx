@@ -8,15 +8,17 @@ import {
 } from "@conform-to/react";
 import { parseWithZod } from "@conform-to/zod/v4";
 import { CogIcon } from "@heroicons/react/24/outline";
+import { parseFormData } from "@remix-run/form-data-parser";
 import { DocumentStatus, DocumentType } from "@prisma/client";
-import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import {
+  type ActionFunctionArgs,
+  type LoaderFunctionArgs,
   data,
   redirect,
-  unstable_createMemoryUploadHandler,
-  unstable_parseMultipartFormData,
-} from "@remix-run/node";
-import { useActionData, useFetcher, useLoaderData } from "@remix-run/react";
+  useActionData,
+  useFetcher,
+  useLoaderData,
+} from "react-router";
 import axios from "axios";
 import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
@@ -128,11 +130,18 @@ export async function action({ request }: ActionFunctionArgs) {
     }
   }
 
-  const uploadHandler = unstable_createMemoryUploadHandler({
-    maxPartSize: 10 * 1024 * 1024,
-  });
-
-  const formData = await unstable_parseMultipartFormData(request, uploadHandler);
+  let formData: FormData;
+  try {
+    formData = await parseFormData(
+      request,
+      { maxFiles: 5 },
+      (file) => file,
+    );
+  } catch (error) {
+    logger.error({ error }, "Failed to parse onboarding multipart form data");
+    const message = "Unable to process uploaded documents. Please try again.";
+    return data({ error: message }, { status: 400 });
+  }
   const submission = parseWithZod(formData, { schema: onboardingSchema });
 
   if (submission.status !== "success") {

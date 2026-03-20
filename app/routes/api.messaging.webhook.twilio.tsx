@@ -1,4 +1,4 @@
-import type { ActionFunctionArgs } from "@remix-run/node"; // or cloudflare/deno
+import type { ActionFunctionArgs } from "react-router"; // or cloudflare/deno
 import twilio from "twilio";
 import logger from "~/lib/logger.server";
 import { env } from "~/utils/server/env.server";

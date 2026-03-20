@@ -1,5 +1,4 @@
-import { LoaderFunctionArgs } from "@remix-run/node";
-import { useLoaderData } from "@remix-run/react";
+import { LoaderFunctionArgs, useLoaderData } from "react-router";
 import { requireUserWithRole } from "~/utils/server/permissions.server";
 import {
   getUserReferralInfo,

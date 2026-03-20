@@ -1,4 +1,4 @@
-import { useFetcher } from "@remix-run/react";
+import { useFetcher } from "react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "../ui/button";
 import { Card } from "../ui/card";
@@ -101,13 +101,7 @@ export function ReviewList({
     if (!hasSsrData || !hasValidInitialPage || !hasValidCurrentPage) {
       loadPage(1);
     }
-  }, [
-    currentPage,
-    initialPagination,
-    initialReviews,
-    loadPage,
-    pagination?.totalPages,
-  ]);
+  }, [currentPage, initialPagination, initialReviews, loadPage, pagination?.totalPages]);
 
   // Update reviews when fetcher data changes
   useEffect(() => {

@@ -111,10 +111,14 @@ export function getHeroHeightClasses(state: HeroScrollState): {
   // Hero is always 540px height but uses opacity to hide when collapsed (no layout shift)
   const containerClass = `relative md:fixed left-0 right-0 z-40 top-0 md:top-0 md:py-0 md:h-[540px] ${mobileHeight}`;
   // Use opacity instead of height to hide hero - prevents layout shift
-  const heroOpacity = state.isDesktopCollapsed ? "md:opacity-0 md:pointer-events-none" : "md:opacity-100";
+  const heroOpacity = state.isDesktopCollapsed
+    ? "md:opacity-0 md:pointer-events-none"
+    : "md:opacity-100";
   // Use transform to move content up when collapsed (no layout shift, just visual repositioning)
   // Move up by 440px to position content just below the header (540px spacer - ~100px for header area)
-  const contentTransform = state.isDesktopCollapsed ? "md:-translate-y-[440px]" : "md:translate-y-0";
+  const contentTransform = state.isDesktopCollapsed
+    ? "md:-translate-y-[440px]"
+    : "md:translate-y-0";
 
   return { mobileHeight, desktopHeight, containerClass, heroOpacity, contentTransform };
 }

@@ -5,8 +5,14 @@ import {
   SparklesIcon,
 } from "@heroicons/react/24/outline";
 import { Booking, BookingStatus, BookingType, Car } from "@prisma/client";
-import { ActionFunctionArgs, type LoaderFunctionArgs, type MetaFunction } from "@remix-run/node";
-import { redirect, useLoaderData, useNavigate } from "@remix-run/react";
+import {
+  ActionFunctionArgs,
+  type LoaderFunctionArgs,
+  type MetaFunction,
+  redirect,
+  useLoaderData,
+  useNavigate,
+} from "react-router";
 import { fromZonedTime } from "date-fns-tz";
 import { useState } from "react";
 import invariant from "tiny-invariant";
@@ -425,11 +431,7 @@ export default function CarDetails() {
 
       {/* Desktop: Back link and title */}
       <div className="hidden lg:block">
-        <button
-          type="button"
-          onClick={() => navigate(-1)}
-          className="hover:underline mb-1 block"
-        >
+        <button type="button" onClick={() => navigate(-1)} className="hover:underline mb-1 block">
           &larr; Back to search results
         </button>
         <h2 className="text-2xl sm:text-3xl font-bold mb-4">

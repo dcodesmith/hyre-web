@@ -1,4 +1,4 @@
-import { ActionFunctionArgs } from "@remix-run/node";
+import { ActionFunctionArgs } from "react-router";
 import logger from "~/lib/logger.server";
 import { requireUser } from "~/modules/auth/auth.server";
 import { deleteUserAccount } from "~/services/account-deletion.server";

@@ -1,13 +1,15 @@
 import { getFormProps, useForm } from "@conform-to/react";
 import { parseWithZod } from "@conform-to/zod/v4";
 import { CogIcon } from "@heroicons/react/24/outline";
-import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
-import { data, redirect } from "@remix-run/node";
+import { parseFormData } from "@remix-run/form-data-parser";
 import {
-  unstable_createMemoryUploadHandler,
-  unstable_parseMultipartFormData,
-} from "@remix-run/node";
-import { useActionData, useNavigation } from "@remix-run/react";
+  type ActionFunctionArgs,
+  type LoaderFunctionArgs,
+  data,
+  redirect,
+  useActionData,
+  useNavigation,
+} from "react-router";
 import { Form } from "~/components/CSRFForm";
 import { chauffeurSchema } from "~/schemas/chauffeur.schema";
 import { Button } from "~/components/ui/button";
@@ -42,11 +44,18 @@ export async function action({ request }: ActionFunctionArgs) {
     return redirect("/fleet-owner/cars");
   }
 
-  const uploadHandler = unstable_createMemoryUploadHandler({
-    maxPartSize: 10 * 1024 * 1024, // 10MB limit
-  });
-
-  const formData = await unstable_parseMultipartFormData(request, uploadHandler);
+  let formData: FormData;
+  try {
+    formData = await parseFormData(
+      request,
+      { maxFiles: 2 },
+      (file) => file,
+    );
+  } catch (error) {
+    console.error("Failed to parse chauffeur multipart form data", error);
+    const message = "Unable to process uploaded documents. Please try again.";
+    return data({ error: { errors: [message] } }, { status: 400 });
+  }
   const submission = parseWithZod(formData, {
     schema: chauffeurSchema,
   });

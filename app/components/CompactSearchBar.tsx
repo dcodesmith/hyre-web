@@ -1,4 +1,4 @@
-import { useSearchParams } from "@remix-run/react";
+import { useSearchParams } from "react-router";
 import { format } from "date-fns";
 import { Search } from "lucide-react";
 import { BOOKING_TYPE_OPTIONS_MAP, DAY_BOOKING_TYPE, type BookingType } from "./bookingTypes";

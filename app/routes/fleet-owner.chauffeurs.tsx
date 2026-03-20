@@ -1,16 +1,17 @@
 import { getFormProps, getInputProps, useForm } from "@conform-to/react";
 import { parseWithZod } from "@conform-to/zod/v4";
 import { CheckBadgeIcon, CogIcon } from "@heroicons/react/24/outline";
+import { parseFormData } from "@remix-run/form-data-parser";
 import { BookingStatus } from "@prisma/client";
 import {
   type ActionFunctionArgs,
   type LoaderFunctionArgs,
   data,
   redirect,
-  unstable_createMemoryUploadHandler,
-  unstable_parseMultipartFormData,
-} from "@remix-run/node";
-import { useActionData, useLoaderData, useNavigation } from "@remix-run/react";
+  useActionData,
+  useLoaderData,
+  useNavigation,
+} from "react-router";
 import { ColumnDef } from "@tanstack/react-table";
 import { PlusCircle } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -151,11 +152,18 @@ export async function action({ request }: ActionFunctionArgs) {
   await validateCSRF(request);
   const user = await requireUserWithRole(request, "fleetOwner");
 
-  // Parse as multipart form data for file uploads
-  const uploadHandler = unstable_createMemoryUploadHandler({
-    maxPartSize: 10 * 1024 * 1024, // 10MB limit
-  });
-  const formData = await unstable_parseMultipartFormData(request, uploadHandler);
+  let formData: FormData;
+  try {
+    formData = await parseFormData(
+      request,
+      { maxFiles: 2 },
+      (file) => file,
+    );
+  } catch (error) {
+    logger.error({ error }, "Failed to parse chauffeur multipart form data");
+    const message = "Unable to process uploaded documents. Please try again.";
+    return data({ success: false, error: message }, { status: 400 });
+  }
   const intentValue = formData.get("intent");
   const intent = typeof intentValue === "string" ? intentValue : "";
 

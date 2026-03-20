@@ -1,4 +1,4 @@
-import { type LoaderFunctionArgs } from "@remix-run/node";
+import { type LoaderFunctionArgs } from "react-router";
 import { type ZodSchema } from "zod";
 import logger from "~/lib/logger.server";
 import { reviewQueryParamsSchema } from "~/schemas/review.schema";

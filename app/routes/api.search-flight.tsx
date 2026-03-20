@@ -1,4 +1,4 @@
-import type { LoaderFunctionArgs } from "@remix-run/node";
+import type { LoaderFunctionArgs } from "react-router";
 import { formatDistanceToNow } from "date-fns";
 import logger from "~/lib/logger.server";
 import { isValidFlightNumberFormat, validateFlight } from "~/services/flight-validation.server";

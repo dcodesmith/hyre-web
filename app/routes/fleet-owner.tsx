@@ -1,9 +1,14 @@
-import type { LoaderFunctionArgs } from "@remix-run/node";
-import { Link, Outlet, useLocation, useLoaderData } from "@remix-run/react";
-import { ScrollArea, ScrollBar } from "~/components/ui/scroll-area";
+import { ScrollArea } from "@radix-ui/react-scroll-area";
+import {
+  type LoaderFunctionArgs,
+  Link,
+  Outlet,
+  useLocation,
+  useLoaderData,
+  redirect,
+} from "react-router";
+import { ScrollBar } from "~/components/ui/scroll-area";
 import { requireUserWithRole } from "~/utils/server/permissions.server";
-import { redirect } from "@remix-run/node";
-
 interface NavLinkProps {
   readonly to: string;
   readonly children: React.ReactNode;

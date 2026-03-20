@@ -1,7 +1,7 @@
 import { getFormProps, getInputProps, useForm, useInputControl } from "@conform-to/react";
 import { parseWithZod } from "@conform-to/zod/v4";
 import { EllipsisHorizontalIcon } from "@heroicons/react/24/outline";
-import { useFetcher, useNavigate } from "@remix-run/react";
+import { useFetcher, useNavigate } from "react-router";
 import { Row } from "@tanstack/react-table";
 import { Dispatch, SetStateAction, useEffect, useState } from "react";
 import { useAuthenticityToken } from "remix-utils/csrf/react";

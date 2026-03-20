@@ -1,5 +1,11 @@
-import { type LoaderFunctionArgs, type ActionFunctionArgs, data } from "@remix-run/node";
-import { useLoaderData, useSubmit, useNavigate } from "@remix-run/react";
+import {
+  type LoaderFunctionArgs,
+  type ActionFunctionArgs,
+  data,
+  useLoaderData,
+  useSubmit,
+  useNavigate,
+} from "react-router";
 import { prisma } from "~/modules/db/db.server"; // Update the import path
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";

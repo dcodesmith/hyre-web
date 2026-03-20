@@ -1,4 +1,4 @@
-import { type LoaderFunctionArgs } from "@remix-run/node";
+import { type LoaderFunctionArgs } from "react-router";
 import { carIdParamSchema } from "~/schemas/review.schema";
 import { handleEntityReviewsRequest } from "~/utils/review-api-helpers.server";
 

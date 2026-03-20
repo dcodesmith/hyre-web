@@ -135,11 +135,7 @@ export function BookingTimeSelect({
       >
         <SelectValue
           placeholder={
-            containerClassName ? (
-              <span className="text-gray-500">{placeholder}</span>
-            ) : (
-              placeholder
-            )
+            containerClassName ? <span className="text-gray-500">{placeholder}</span> : placeholder
           }
         />
       </SelectTrigger>

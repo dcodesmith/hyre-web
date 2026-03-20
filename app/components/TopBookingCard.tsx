@@ -1,4 +1,4 @@
-import { Link } from "@remix-run/react";
+import { Link } from "react-router";
 import { formatCurrency } from "~/lib/utils";
 import { generateCarSlug } from "~/utils/seo";
 import type { AggregatedRatings } from "~/services/reviews.server";

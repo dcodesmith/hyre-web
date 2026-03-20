@@ -1,4 +1,4 @@
-import { Link } from "@remix-run/react";
+import { Link } from "react-router";
 import { differenceInHours, differenceInMinutes, format } from "date-fns";
 import { toZonedTime } from "date-fns-tz";
 import { CheckCircle2, Clock, ExternalLink, MapPin, Phone, User } from "lucide-react";
@@ -81,9 +81,7 @@ export function NowCard({ booking }: NowCardProps) {
             {isActive ? "Active Booking" : "Next Booking"}
           </Badge>
           <span className="text-sm font-medium text-blue-600 dark:text-blue-400">
-            {isActive
-              ? `Ends in ${timeRemaining}`
-              : `Starts ${format(startDate, "MMM d, h:mm a")}`}
+            {isActive ? `Ends in ${timeRemaining}` : `Starts ${format(startDate, "MMM d, h:mm a")}`}
           </span>
         </div>
 
@@ -126,8 +124,7 @@ export function NowCard({ booking }: NowCardProps) {
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Clock className="h-4 w-4" />
             <span>
-              {format(startDate, "MMM d, h:mm a")} -{" "}
-              {format(endDate, "MMM d, h:mm a")}
+              {format(startDate, "MMM d, h:mm a")} - {format(endDate, "MMM d, h:mm a")}
             </span>
           </div>
         </div>

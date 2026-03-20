@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Link } from "@remix-run/react";
+import { Link } from "react-router";
 import { BrandLogo } from "./BrandLogo";
 
 interface AuthSplitLayoutProps {
@@ -39,7 +39,6 @@ export function AuthSplitLayout({ children }: AuthSplitLayoutProps) {
               Muhammed or heading to your next meeting - Tripdly handles the road.
             </p>
           </div>
-
         </div>
 
         <div className="flex flex-col items-center justify-center bg-white px-8 py-14 lg:px-16">

@@ -1,5 +1,13 @@
-import { type LoaderFunctionArgs, type ActionFunctionArgs, data, redirect } from "@remix-run/node";
-import { useLoaderData, useActionData, Link, useSearchParams } from "@remix-run/react";
+import {
+  type LoaderFunctionArgs,
+  type ActionFunctionArgs,
+  data,
+  redirect,
+  useLoaderData,
+  useActionData,
+  Link,
+  useSearchParams,
+} from "react-router";
 import { requireAdminWithRedirect } from "~/modules/auth/auth.server";
 import { prisma } from "~/modules/db/db.server";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";

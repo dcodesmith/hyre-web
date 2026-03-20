@@ -1,4 +1,4 @@
-import { data, type ActionFunctionArgs } from "@remix-run/node";
+import { data, type ActionFunctionArgs } from "react-router";
 import { Flight, FlightStatus } from "@prisma/client";
 import { format, formatDuration } from "date-fns";
 import logger from "~/lib/logger.server";
@@ -642,7 +642,11 @@ async function sendFlightNotifications({
   const newStatus = flight.status;
 
   // Build recipient info
-  const guestUser = booking.guestUser as { email?: string; name?: string; phoneNumber?: string } | null;
+  const guestUser = booking.guestUser as {
+    email?: string;
+    name?: string;
+    phoneNumber?: string;
+  } | null;
 
   const customer: RecipientInfo = {
     email: booking.user ? booking.user.email : (guestUser?.email ?? ""),

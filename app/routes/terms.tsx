@@ -1,5 +1,4 @@
-import type { MetaFunction } from "@remix-run/node";
-import { Link } from "@remix-run/react";
+import { type MetaFunction, Link } from "react-router";
 import { LEGAL_CONSTANTS } from "~/constants/legal";
 
 export const meta: MetaFunction = () => {
@@ -95,7 +94,9 @@ export default function TermsOfService() {
           <section className="mb-8">
             <h2 className="text-xl font-semibold text-gray-900 mb-4">5. Fleet Owner Terms</h2>
 
-            <h3 className="text-lg font-medium text-gray-900 mb-2">5.1 Registration Requirements</h3>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              5.1 Registration Requirements
+            </h3>
             <p className="text-gray-600 mb-2">Fleet owners must provide:</p>
             <ul className="list-disc pl-6 text-gray-600 mb-4">
               <li>Valid National Identification Number (NIN)</li>
@@ -215,9 +216,7 @@ export default function TermsOfService() {
 
           <section className="mb-8">
             <h2 className="text-xl font-semibold text-gray-900 mb-4">15. Contact Us</h2>
-            <p className="text-gray-600 mb-4">
-              For questions about these Terms, contact us at:
-            </p>
+            <p className="text-gray-600 mb-4">For questions about these Terms, contact us at:</p>
             <address className="text-gray-600 not-italic">
               <strong>{companyName}</strong>
               <br />

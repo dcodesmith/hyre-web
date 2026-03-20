@@ -72,10 +72,14 @@ export function VerifyOTPForm({ authEmail, authError, actionData }: VerifyOTPFor
   const authErrorMessage = authError ? getErrorMessage(authError) : undefined;
   const shouldShowBackendError = hasResentSuccessfully === false;
   const rateLimitError =
-    shouldShowBackendError && actionError.isRateLimit && actionError.message ? actionError : undefined;
+    shouldShowBackendError && actionError.isRateLimit && actionError.message
+      ? actionError
+      : undefined;
   let visibleError: string | undefined;
   if (shouldShowBackendError) {
-    visibleError = actionError.isRateLimit ? authErrorMessage : actionError.message || authErrorMessage;
+    visibleError = actionError.isRateLimit
+      ? authErrorMessage
+      : actionError.message || authErrorMessage;
   }
 
   const [codeForm, { code }] = useForm({
@@ -105,65 +109,65 @@ export function VerifyOTPForm({ authEmail, authError, actionData }: VerifyOTPFor
 
       <div className="fade-up anim-delay-200">
         <Form method="post" {...getFormProps(codeForm)}>
-        <div className="flex flex-col gap-4">
-          {rateLimitError && (
-            <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3">
-              <p className="text-sm font-medium text-destructive">{rateLimitError.message}</p>
-              {typeof rateLimitError.retryAfterSeconds === "number" &&
-                rateLimitError.retryAfterSeconds > 0 && (
-                  <p className="mt-1 text-xs text-destructive/80">
-                    Try again in {formatRetryAfterSeconds(rateLimitError.retryAfterSeconds)}.
-                  </p>
-                )}
+          <div className="flex flex-col gap-4">
+            {rateLimitError && (
+              <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3">
+                <p className="text-sm font-medium text-destructive">{rateLimitError.message}</p>
+                {typeof rateLimitError.retryAfterSeconds === "number" &&
+                  rateLimitError.retryAfterSeconds > 0 && (
+                    <p className="mt-1 text-xs text-destructive/80">
+                      Try again in {formatRetryAfterSeconds(rateLimitError.retryAfterSeconds)}.
+                    </p>
+                  )}
+              </div>
+            )}
+
+            <div className="space-y-1.5">
+              <label
+                htmlFor={code.id}
+                className="block text-[11px] font-medium uppercase tracking-[0.12em] text-neutral-500"
+              >
+                Verification code
+              </label>
+              <Input
+                maxLength={6}
+                required
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                placeholder="000000"
+                className={`h-11 rounded-lg border-neutral-200 px-4 text-[#1A1814] tracking-[0.3em] placeholder:tracking-normal placeholder:text-neutral-400 focus-visible:ring-[#B8922A]/20 ${
+                  codeErrors.length > 0
+                    ? "border-destructive focus-visible:ring-destructive"
+                    : "focus-visible:border-[#B8922A]"
+                }`}
+                {...getInputProps(code, { type: "text" })}
+              />
+              <p className="text-xs font-light text-neutral-500">
+                Enter the 6-digit code sent to your email.
+              </p>
             </div>
-          )}
 
-          <div className="space-y-1.5">
-            <label
-              htmlFor={code.id}
-              className="block text-[11px] font-medium uppercase tracking-[0.12em] text-neutral-500"
+            <div className="flex flex-col">
+              {codeErrors.length > 0 && (
+                <span className="mb-2 text-sm text-destructive dark:text-destructive-foreground">
+                  {codeErrors.join(" ")}
+                </span>
+              )}
+              {visibleError && (
+                <span className="mb-2 text-sm text-destructive dark:text-destructive-foreground">
+                  {visibleError}
+                </span>
+              )}
+            </div>
+
+            <Button
+              type="submit"
+              className="h-12 w-full rounded-lg bg-[#1A1814] px-6 py-3.5 text-xs font-medium uppercase tracking-[0.08em] text-white hover:bg-neutral-800"
+              disabled={isPending}
             >
-              Verification code
-            </label>
-            <Input
-              maxLength={6}
-              required
-              inputMode="numeric"
-              autoComplete="one-time-code"
-              placeholder="000000"
-              className={`h-11 rounded-lg border-neutral-200 px-4 text-[#1A1814] tracking-[0.3em] placeholder:tracking-normal placeholder:text-neutral-400 focus-visible:ring-[#B8922A]/20 ${
-                codeErrors.length > 0
-                  ? "border-destructive focus-visible:ring-destructive"
-                  : "focus-visible:border-[#B8922A]"
-              }`}
-              {...getInputProps(code, { type: "text" })}
-            />
-            <p className="text-xs font-light text-neutral-500">
-              Enter the 6-digit code sent to your email.
-            </p>
+              {isPending ? <CogIcon className="h-5 w-5 animate-spin" /> : "Verify"}
+            </Button>
           </div>
-
-          <div className="flex flex-col">
-            {codeErrors.length > 0 && (
-              <span className="mb-2 text-sm text-destructive dark:text-destructive-foreground">
-                {codeErrors.join(" ")}
-              </span>
-            )}
-            {visibleError && (
-              <span className="mb-2 text-sm text-destructive dark:text-destructive-foreground">
-                {visibleError}
-              </span>
-            )}
-          </div>
-
-          <Button
-            type="submit"
-            className="h-12 w-full rounded-lg bg-[#1A1814] px-6 py-3.5 text-xs font-medium uppercase tracking-[0.08em] text-white hover:bg-neutral-800"
-            disabled={isPending}
-          >
-            {isPending ? <CogIcon className="h-5 w-5 animate-spin" /> : "Verify"}
-          </Button>
-        </div>
         </Form>
       </div>
 

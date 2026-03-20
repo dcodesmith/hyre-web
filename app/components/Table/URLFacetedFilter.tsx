@@ -1,5 +1,5 @@
 import { CheckIcon } from "@heroicons/react/24/outline";
-import { useSearchParams } from "@remix-run/react";
+import { useSearchParams } from "react-router";
 import { ListFilter } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { cn } from "~/lib/utils";

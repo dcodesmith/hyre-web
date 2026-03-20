@@ -1,5 +1,5 @@
 import { CheckIcon } from "@heroicons/react/24/outline";
-import { useSearchParams } from "@remix-run/react";
+import { useSearchParams } from "react-router";
 import { Column } from "@tanstack/react-table";
 import { ChevronsDownUp, ChevronsUpDown } from "lucide-react";
 import { useState } from "react";

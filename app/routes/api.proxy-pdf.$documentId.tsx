@@ -1,4 +1,4 @@
-import { LoaderFunctionArgs } from "@remix-run/node";
+import { LoaderFunctionArgs } from "react-router";
 import { prisma } from "~/modules/db/db.server";
 import { requireAdminWithRedirect } from "~/modules/auth/auth.server";
 

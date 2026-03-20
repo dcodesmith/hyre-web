@@ -1,4 +1,4 @@
-import type { LoaderFunctionArgs } from "@remix-run/node";
+import type { LoaderFunctionArgs } from "react-router";
 import { prisma } from "~/modules/db/db.server";
 import { generateCarSlug } from "~/utils/seo";
 import { env } from "~/utils/server/env.server";

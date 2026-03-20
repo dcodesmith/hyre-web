@@ -6,8 +6,7 @@ import {
   UsersIcon,
 } from "@heroicons/react/24/outline";
 import { ReferralRewardStatus } from "@prisma/client";
-import { type LoaderFunctionArgs } from "@remix-run/node";
-import { Link, useLoaderData } from "@remix-run/react";
+import { type LoaderFunctionArgs, Link, useLoaderData } from "react-router";
 import { Badge, BadgeProps } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";

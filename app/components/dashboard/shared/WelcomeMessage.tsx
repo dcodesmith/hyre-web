@@ -65,4 +65,3 @@ export function WelcomeMessage({ name, activeBookingCount, weeklyEarnings }: Wel
     </div>
   );
 }
-

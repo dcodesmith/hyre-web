@@ -1,5 +1,4 @@
-import type { MetaFunction } from "@remix-run/node";
-import { Link } from "@remix-run/react";
+import { type MetaFunction, Link } from "react-router";
 import { Button } from "~/components/ui/button";
 import { LEGAL_CONSTANTS } from "~/constants/legal";
 import { useCookieConsent } from "~/hooks/useCookieConsent";
@@ -141,7 +140,8 @@ export default function CookiePolicy() {
                       <code className="bg-gray-100 px-1 rounded">csrf_token</code>
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-600 border-b">
-                      Protects against cross-site request forgery attacks to keep your account secure
+                      Protects against cross-site request forgery attacks to keep your account
+                      secure
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-600 border-b">Session</td>
                   </tr>
@@ -149,7 +149,9 @@ export default function CookiePolicy() {
               </table>
             </div>
 
-            <h3 className="text-lg font-medium text-gray-900 mb-2 mt-6">Analytics Cookies (Optional)</h3>
+            <h3 className="text-lg font-medium text-gray-900 mb-2 mt-6">
+              Analytics Cookies (Optional)
+            </h3>
             <p className="text-gray-600 mb-4">
               With your consent, we use analytics cookies to understand how visitors interact with
               our platform. This helps us improve our services. These cookies are only set if you
@@ -188,9 +190,7 @@ export default function CookiePolicy() {
           </section>
 
           <section className="mb-8">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">
-              4. Third-Party Cookies
-            </h2>
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">4. Third-Party Cookies</h2>
             <p className="text-gray-600 mb-4">
               We do not use any third-party advertising or marketing cookies. Our platform does not
               share your browsing data with advertisers or marketing networks. The only third-party
@@ -262,9 +262,7 @@ export default function CookiePolicy() {
           </section>
 
           <section className="mb-8">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">
-              7. Changes to This Policy
-            </h2>
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">7. Changes to This Policy</h2>
             <p className="text-gray-600 mb-4">
               We may update this Cookie Policy from time to time to reflect changes in technology or
               legal requirements. Any changes will be posted on this page with an updated revision

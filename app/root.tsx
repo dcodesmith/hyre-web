@@ -1,11 +1,8 @@
-import { cssBundleHref } from "@remix-run/css-bundle";
 import {
   type LinksFunction,
   type LoaderFunctionArgs,
   type MetaFunction,
   data,
-} from "@remix-run/node";
-import {
   Await,
   Link,
   Links,
@@ -18,7 +15,7 @@ import {
   useLocation,
   useRouteError,
   useOutletContext,
-} from "@remix-run/react";
+} from "react-router";
 import {
   lazy,
   Suspense,
@@ -127,15 +124,15 @@ function subscribeToConsent(callback: () => void): () => void {
       callback();
     }
   };
-  window.addEventListener("storage", handleStorage);
+  globalThis.addEventListener("storage", handleStorage);
 
   // Also listen for custom event (same-tab updates)
   const handleCustom = () => callback();
-  window.addEventListener("cookie-consent-change", handleCustom);
+  globalThis.addEventListener("cookie-consent-change", handleCustom);
 
   return () => {
-    window.removeEventListener("storage", handleStorage);
-    window.removeEventListener("cookie-consent-change", handleCustom);
+    globalThis.removeEventListener("storage", handleStorage);
+    globalThis.removeEventListener("cookie-consent-change", handleCustom);
   };
 }
 
@@ -247,9 +244,9 @@ const getPageTitle = (error: unknown): string => {
   return "Error";
 };
 
-export const meta: MetaFunction<typeof loader> = ({ data }) => {
-  const baseUrl = data?.ENV?.DOMAIN ?? "http://localhost:5173";
-  const appName = data?.ENV?.APP_NAME ?? "Tripdly";
+export const meta: MetaFunction<typeof loader> = ({ loaderData }) => {
+  const baseUrl = loaderData?.ENV?.DOMAIN ?? "http://localhost:5173";
+  const appName = loaderData?.ENV?.APP_NAME ?? "Tripdly";
 
   return generateMetaTags({
     title: `${appName} - Effortless, Reliable, Safe, and Exceptional Service.`,
@@ -262,7 +259,6 @@ export const meta: MetaFunction<typeof loader> = ({ data }) => {
 
 export const links: LinksFunction = () => {
   const linksArray = [
-    ...(cssBundleHref ? [{ rel: "stylesheet" as const, href: cssBundleHref }] : []),
     // Preload critical Tailwind CSS to reduce blocking time
     { rel: "preload" as const, href: tailwindStyles, as: "style" as const },
     { rel: "stylesheet" as const, href: tailwindStyles },

@@ -1,4 +1,4 @@
-import { Link } from "@remix-run/react";
+import { Link } from "react-router";
 import { Mail, Phone, MapPin } from "lucide-react";
 import { FacebookIcon } from "~/components/icons/FacebookIcon";
 import { InstagramIcon } from "~/components/icons/InstagramIcon";

@@ -1,17 +1,19 @@
 import { parseWithZod } from "@conform-to/zod/v4";
-import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
-import {
-  data,
-  unstable_createMemoryUploadHandler,
-  unstable_parseMultipartFormData,
-} from "@remix-run/node";
-import { useFetcher, useLoaderData } from "@remix-run/react";
+import { User } from "@prisma/client";
 import { ColumnDef } from "@tanstack/react-table";
+import { parseFormData } from "@remix-run/form-data-parser";
 import { CheckCircle2, PlusCircle } from "lucide-react";
 import { useEffect, useState } from "react";
+import {
+  type ActionFunctionArgs,
+  type LoaderFunctionArgs,
+  data,
+  useFetcher,
+  useLoaderData,
+} from "react-router";
 import { ColumnHeader } from "~/components/Table/ColumnHeader";
-import { RowActions } from "~/components/Table/RowActions";
 import { LazyTable } from "~/components/Table/LazyTable";
+import { RowActions } from "~/components/Table/RowActions";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import {
@@ -23,16 +25,15 @@ import {
   SheetTrigger,
 } from "~/components/ui/sheet";
 import { useToast } from "~/hooks/use-toast";
-import { cn, formatCurrency } from "~/lib/utils";
-import { requireUserWithRole } from "~/utils/server/permissions.server";
-import { prisma } from "~/modules/db/db.server";
-import { createCar, hasReachedOwnerDriverCarLimit } from "~/services/cars.server";
-import { validateCSRF } from "~/utils/csrf-action.server";
-import { NewCarForm } from "./fleet-owner.cars_.new";
-import { carSchema } from "~/schemas/car.schema";
-import { SerializedCar } from "~/types";
 import logger from "~/lib/logger.server";
-import { User } from "@prisma/client";
+import { cn, formatCurrency } from "~/lib/utils";
+import { prisma } from "~/modules/db/db.server";
+import { carSchema } from "~/schemas/car.schema";
+import { createCar, hasReachedOwnerDriverCarLimit } from "~/services/cars.server";
+import { SerializedCar } from "~/types";
+import { validateCSRF } from "~/utils/csrf-action.server";
+import { requireUserWithRole } from "~/utils/server/permissions.server";
+import { NewCarForm } from "./fleet-owner.cars_.new";
 
 const Status = {
   AVAILABLE: "AVAILABLE",
@@ -128,13 +129,16 @@ export async function action({ request }: ActionFunctionArgs) {
   // Parse form data based on intent
   let formData: FormData;
 
-  if (intent === "create") {
-    const uploadHandler = unstable_createMemoryUploadHandler({
-      maxPartSize: 10 * 1024 * 1024, // 10MB limit
-    });
-    formData = await unstable_parseMultipartFormData(request, uploadHandler);
-  } else {
-    formData = await request.formData();
+  try {
+    formData = await parseFormData(
+      request,
+      { maxFiles: 8 },
+      (file) => file,
+    );
+  } catch (error) {
+    logger.error({ error }, "Failed to parse multipart form data");
+    const message = "Unable to process uploaded files. Please try again.";
+    return data({ success: false, error: message }, { status: 400 });
   }
 
   try {

@@ -1,4 +1,4 @@
-import { LoaderFunctionArgs } from "@remix-run/node";
+import { LoaderFunctionArgs } from "react-router";
 import logger from "~/lib/logger.server";
 import { requireUserWithRole } from "~/utils/server/permissions.server";
 import {

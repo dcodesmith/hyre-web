@@ -1,7 +1,5 @@
 import { CarApprovalStatus, Status } from "@prisma/client";
-import type { MetaFunction } from "@remix-run/node";
-import { data } from "@remix-run/node";
-import { Link, useLoaderData } from "@remix-run/react";
+import { type MetaFunction, data, Link, useLoaderData } from "react-router";
 import {
   Plane,
   Building2,

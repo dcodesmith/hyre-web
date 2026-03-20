@@ -1,4 +1,4 @@
-import { type LoaderFunctionArgs } from "@remix-run/node";
+import { type LoaderFunctionArgs } from "react-router";
 
 /**
  * Splat route to catch all unmatched routes and throw a 404 error.

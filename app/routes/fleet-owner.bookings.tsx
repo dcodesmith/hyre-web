@@ -1,6 +1,5 @@
 import { BookingStatus, PaymentStatus } from "@prisma/client";
-import type { LoaderFunctionArgs } from "@remix-run/node";
-import { Link, useLoaderData } from "@remix-run/react";
+import { type LoaderFunctionArgs, Link, useLoaderData } from "react-router";
 import { ColumnDef } from "@tanstack/react-table";
 import { MoreHorizontal } from "lucide-react";
 import { ColumnHeader } from "~/components/Table/ColumnHeader";

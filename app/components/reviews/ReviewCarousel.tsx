@@ -1,4 +1,4 @@
-import { useFetcher } from "@remix-run/react";
+import { useFetcher } from "react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ReviewCard } from "./ReviewCard";
 import { Skeleton } from "../ui/skeleton";

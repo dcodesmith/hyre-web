@@ -1,7 +1,7 @@
 import { getFormProps, getInputProps, useForm, useInputControl } from "@conform-to/react";
 import { parseWithZod } from "@conform-to/zod/v4";
 import type { Role, User } from "@prisma/client";
-import { useFetcher, useNavigate } from "@remix-run/react";
+import { useFetcher, useNavigate } from "react-router";
 import { useEffect } from "react";
 import { useAuthenticityToken } from "remix-utils/csrf/react";
 import { profileFormSchema } from "~/schemas/user";

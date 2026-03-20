@@ -49,7 +49,8 @@ function ReviewSummarySection({
       <Text className="font-semibold mb-3 underline">Review Summary</Text>
       {ratings.map(({ label, value }) => (
         <Text key={label} className="m-0 py-1">
-          <span className="font-semibold">{label}:</span> {getRatingStars(value)} ({formatRating(value)}/5)
+          <span className="font-semibold">{label}:</span> {getRatingStars(value)} (
+          {formatRating(value)}/5)
         </Text>
       ))}
       {reviewData.comment && (
@@ -94,8 +95,7 @@ export async function renderReviewReceivedEmailForOwner(ownerName: string, revie
       <Text className="mb-3">
         Great news! <span className="font-semibold">{reviewData.customerName}</span> has left a{" "}
         <span className="font-semibold">{formatRating(reviewData.overallRating)}-star review</span>{" "}
-        for your
-        vehicle, <span className="font-semibold">{reviewData.carName}</span>.
+        for your vehicle, <span className="font-semibold">{reviewData.carName}</span>.
       </Text>
 
       <ReviewSummarySection reviewData={reviewData} ratingOrder="owner" />
@@ -126,10 +126,11 @@ export async function renderReviewReceivedEmailForChauffeur(
       <Text className="mb-3">Hello {chauffeurName},</Text>
       <Text className="mb-3">
         Great news! <span className="font-semibold">{reviewData.customerName}</span> has left a{" "}
-        <span className="font-semibold">{formatRating(reviewData.chauffeurRating)}-star review</span>{" "}
-        for your
-        service as chauffeur for the <span className="font-semibold">{reviewData.carName}</span>{" "}
-        booking.
+        <span className="font-semibold">
+          {formatRating(reviewData.chauffeurRating)}-star review
+        </span>{" "}
+        for your service as chauffeur for the{" "}
+        <span className="font-semibold">{reviewData.carName}</span> booking.
       </Text>
 
       <ReviewSummarySection reviewData={reviewData} ratingOrder="chauffeur" />

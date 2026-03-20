@@ -1,6 +1,4 @@
-import type { MetaFunction } from "@remix-run/node";
-import { data } from "@remix-run/node";
-import { useLoaderData } from "@remix-run/react";
+import { type MetaFunction, data, useLoaderData } from "react-router";
 import { Search, Phone, Mail } from "lucide-react";
 import { useState } from "react";
 import { FAQSchema, BreadcrumbSchema } from "~/components/seo/StructuredData";
@@ -254,7 +252,6 @@ export default function FAQPage() {
           ],
         }}
       />
-
       {/* Header */}
       <section className="bg-gray-50 py-12 md:py-16 border-b">
         <div className="max-w-4xl mx-auto px-4 text-center">
@@ -276,7 +273,6 @@ export default function FAQPage() {
           </div>
         </div>
       </section>
-
       <section className="py-12 md:py-16">
         <div className="max-w-5xl mx-auto px-4">
           {searchQuery ? (
@@ -336,7 +332,6 @@ export default function FAQPage() {
                   </TabsTrigger>
                 ))}
               </TabsList>
-
               {/* Questions Content */}
               <div className="flex-1 min-w-0">
                 {faqCategories.map((category) => (
@@ -365,7 +360,6 @@ export default function FAQPage() {
           )}
         </div>
       </section>
-
       <section className="bg-gray-50 py-12 md:py-16 border-t">
         <div className="max-w-3xl mx-auto px-4 text-center">
           <h2 className="text-2xl font-bold mb-4">Still Have Questions?</h2>

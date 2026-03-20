@@ -1,4 +1,4 @@
-import { Link } from "@remix-run/react";
+import { Link } from "react-router";
 import { ArrowRight } from "lucide-react";
 import { useCallback, type ReactNode } from "react";
 import { CarouselNavigation } from "./ui/carousel-navigation";

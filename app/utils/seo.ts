@@ -3,7 +3,7 @@
  * Helper functions for generating meta tags and SEO-related content
  */
 
-import type { MetaDescriptor } from "@remix-run/node";
+import type { MetaDescriptor } from "react-router";
 
 interface MetaTagsOptions {
   title: string;

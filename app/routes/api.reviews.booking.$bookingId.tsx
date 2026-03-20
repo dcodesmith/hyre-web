@@ -1,4 +1,4 @@
-import { type LoaderFunctionArgs } from "@remix-run/node";
+import { type LoaderFunctionArgs } from "react-router";
 import logger from "~/lib/logger.server";
 import { bookingIdParamSchema } from "~/schemas/review.schema";
 import { getReviewByBookingId } from "~/services/reviews.server";

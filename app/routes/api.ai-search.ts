@@ -1,4 +1,4 @@
-import { type ActionFunctionArgs } from "@remix-run/node";
+import { type ActionFunctionArgs } from "react-router";
 import { add } from "date-fns";
 import { formatInTimeZone } from "date-fns-tz";
 import OpenAI from "openai";

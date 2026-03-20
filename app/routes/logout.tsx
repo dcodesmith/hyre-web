@@ -1,5 +1,4 @@
-import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
-import { redirect } from "@remix-run/node";
+import { type ActionFunctionArgs, type LoaderFunctionArgs, redirect } from "react-router";
 import { validateCSRF } from "~/utils/csrf-action.server";
 import { auth } from "~/modules/auth/auth.server";
 import logger from "~/lib/logger.server";

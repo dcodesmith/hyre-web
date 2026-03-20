@@ -1,4 +1,4 @@
-import { useNavigate, useNavigation, useSearchParams } from "@remix-run/react";
+import { useNavigate, useNavigation, useSearchParams } from "react-router";
 import { format } from "date-fns";
 import { Loader2, Search } from "lucide-react";
 import {
@@ -607,8 +607,7 @@ export function BookingSearch({
     isCompact,
   };
 
-  const isSearchDisabled =
-    bookingType === AIRPORT_PICKUP_BOOKING_TYPE ? isFlightUnbookable : false;
+  const isSearchDisabled = bookingType === AIRPORT_PICKUP_BOOKING_TYPE ? isFlightUnbookable : false;
 
   return (
     <div className="w-full">

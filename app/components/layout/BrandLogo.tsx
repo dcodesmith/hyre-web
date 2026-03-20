@@ -21,7 +21,10 @@ export function BrandLogo({ iconContainerClassName, textClassName }: BrandLogoPr
         </svg>
       </div>
       <span
-        className={mergeClassNames("text-2xl font-medium tracking-wide text-[#1A1814]", textClassName)}
+        className={mergeClassNames(
+          "text-2xl font-medium tracking-wide text-[#1A1814]",
+          textClassName,
+        )}
       >
         Tripdly
       </span>

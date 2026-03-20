@@ -1,4 +1,4 @@
-import { Link } from "@remix-run/react";
+import { Link } from "react-router";
 import { Button } from "~/components/ui/button";
 import { HomeIcon, ArrowPathIcon } from "@heroicons/react/24/outline";
 
@@ -30,10 +30,7 @@ export function ServerErrorPage({
     <div className="min-h-screen bg-gradient-to-b from-neutral-50 to-white flex flex-col">
       {/* Header */}
       <header className="p-4 md:p-6">
-        <Link
-          to="/"
-          className="text-2xl md:text-3xl font-bold font-dancingscript text-neutral-900"
-        >
+        <Link to="/" className="text-2xl md:text-3xl font-bold font-dancingscript text-neutral-900">
           {appName}
         </Link>
       </header>
@@ -48,11 +45,7 @@ export function ServerErrorPage({
               <div className="w-32 h-32 md:w-40 md:h-40 rounded-full bg-red-50 flex items-center justify-center">
                 <div className="relative">
                   {/* Gear with warning */}
-                  <svg
-                    viewBox="0 0 100 100"
-                    className="w-20 h-20 md:w-24 md:h-24"
-                    fill="none"
-                  >
+                  <svg viewBox="0 0 100 100" className="w-20 h-20 md:w-24 md:h-24" fill="none">
                     {/* Gear */}
                     <path
                       d="M50 20 L55 25 L60 20 L65 25 L70 20 L72 28 L80 30 L78 38 L85 43 L80 50 L85 57 L78 62 L80 70 L72 72 L70 80 L65 75 L60 80 L55 75 L50 80 L45 75 L40 80 L35 75 L30 80 L28 72 L20 70 L22 62 L15 57 L20 50 L15 43 L22 38 L20 30 L28 28 L30 20 L35 25 L40 20 L45 25 Z"
@@ -97,9 +90,7 @@ export function ServerErrorPage({
               <p className="text-sm font-medium text-red-800 mb-1">
                 {statusCode} - {statusText}
               </p>
-              <p className="text-xs text-red-600 font-mono break-all">
-                {error.message}
-              </p>
+              <p className="text-xs text-red-600 font-mono break-all">{error.message}</p>
             </div>
           )}
 

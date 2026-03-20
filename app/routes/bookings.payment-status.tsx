@@ -1,7 +1,5 @@
 import type { Booking, Prisma } from "@prisma/client";
-import type { LoaderFunctionArgs } from "@remix-run/node";
-import { data } from "@remix-run/node";
-import { Link, useFetcher, useLoaderData } from "@remix-run/react";
+import { type LoaderFunctionArgs, data, Link, useFetcher, useLoaderData } from "react-router";
 import { useEffect, useState } from "react";
 import { ArrowPathIcon } from "@heroicons/react/24/outline";
 import { Button } from "~/components/ui/button";

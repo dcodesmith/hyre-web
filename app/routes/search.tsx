@@ -7,9 +7,15 @@ import {
   Prisma,
   Status,
 } from "@prisma/client";
-import type { LoaderFunctionArgs, MetaFunction } from "@remix-run/node";
-import { data } from "@remix-run/node";
-import { Link, useLoaderData, useMatches, useSearchParams } from "@remix-run/react";
+import {
+  type LoaderFunctionArgs,
+  type MetaFunction,
+  data,
+  Link,
+  useLoaderData,
+  useMatches,
+  useSearchParams,
+} from "react-router";
 import { fromZonedTime } from "date-fns-tz";
 import { useCallback, useState } from "react";
 

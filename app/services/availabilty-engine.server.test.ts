@@ -16,7 +16,7 @@ const confirmedBooking = (
   carId: string,
   startDate: string,
   endDate: string,
-  options?: { id?: string; type?: BookingType; status?: BookingStatus }
+  options?: { id?: string; type?: BookingType; status?: BookingStatus },
 ) =>
   makeBooking({
     id: options?.id ?? `b-${carId}`,
@@ -28,11 +28,7 @@ const confirmedBooking = (
   });
 
 // Helper to check availability for a single car
-const checkAvailability = (
-  carId: string,
-  bookings: Booking[],
-  opts: { from: Date; to?: Date }
-) => {
+const checkAvailability = (carId: string, bookings: Booking[], opts: { from: Date; to?: Date }) => {
   const cars = [makeCar({ id: carId })] as Car[];
   const [res] = availabilityByType(cars, bookings as Booking[], opts);
   return res.available;
@@ -42,7 +38,7 @@ const checkAvailability = (
 const canBook = (
   carId: string,
   bookings: Booking[],
-  request: { bookingType: BookingType; from: Date; to?: Date }
+  request: { bookingType: BookingType; from: Date; to?: Date },
 ) => {
   const cars = [makeCar({ id: carId })] as Car[];
   return availableCarsForSpecificRequest(cars, bookings as Booking[], request);
@@ -162,7 +158,9 @@ describe("pure availability engine", () => {
     //   which overlap the 11th's 07:00–19:00.
     // - NIGHT remains available since there is no night overlap.
     const bookings = [
-      confirmedBooking("carX", "2025-10-11T07:00:00.000Z", "2025-10-11T19:00:00.000Z", { id: "b-day-mid" }),
+      confirmedBooking("carX", "2025-10-11T07:00:00.000Z", "2025-10-11T19:00:00.000Z", {
+        id: "b-day-mid",
+      }),
     ];
 
     const result = checkAvailability("carX", bookings, {
@@ -210,7 +208,7 @@ describe("pure availability engine", () => {
         carId: "carG",
         status: BookingStatus.CONFIRMED,
         startDate: d("2025-10-09T22:00:00.000Z"), // 23:00 Lagos
-        endDate: d("2025-10-10T04:00:00.000Z"),   // 05:00 Lagos
+        endDate: d("2025-10-10T04:00:00.000Z"), // 05:00 Lagos
         type: BookingType.NIGHT,
       }),
     ];
@@ -272,7 +270,9 @@ describe("pure availability engine", () => {
     // Scenario:
     // - from is later than to, indicating an invalid or reversed range.
     const bookings = [
-      confirmedBooking("carR", "2025-10-10T07:00:00.000Z", "2025-10-10T19:00:00.000Z", { id: "b-day" }),
+      confirmedBooking("carR", "2025-10-10T07:00:00.000Z", "2025-10-10T19:00:00.000Z", {
+        id: "b-day",
+      }),
     ];
 
     const result = checkAvailability("carR", bookings, {
@@ -466,21 +466,27 @@ describe("pure availability engine", () => {
     ];
 
     // DAY at 07:00 should be allowed (exactly 2hr gap, half-open interval)
-    expect(canBook("carBuffer", bookings, {
-      bookingType: BookingType.DAY,
-      from: d("2025-10-11T07:00:00.000Z"),
-    })).toEqual(["carBuffer"]);
+    expect(
+      canBook("carBuffer", bookings, {
+        bookingType: BookingType.DAY,
+        from: d("2025-10-11T07:00:00.000Z"),
+      }),
+    ).toEqual(["carBuffer"]);
 
     // FULL_DAY at 06:00 should be blocked (only 1hr gap)
-    expect(canBook("carBuffer", bookings, {
-      bookingType: BookingType.FULL_DAY,
-      from: d("2025-10-11T06:00:00.000Z"),
-    })).toEqual([]);
+    expect(
+      canBook("carBuffer", bookings, {
+        bookingType: BookingType.FULL_DAY,
+        from: d("2025-10-11T06:00:00.000Z"),
+      }),
+    ).toEqual([]);
 
     // FULL_DAY at 07:00 should be allowed (2hr gap)
-    expect(canBook("carBuffer", bookings, {
-      bookingType: BookingType.FULL_DAY,
-      from: d("2025-10-11T07:00:00.000Z"),
-    })).toEqual(["carBuffer"]);
+    expect(
+      canBook("carBuffer", bookings, {
+        bookingType: BookingType.FULL_DAY,
+        from: d("2025-10-11T07:00:00.000Z"),
+      }),
+    ).toEqual(["carBuffer"]);
   });
 });

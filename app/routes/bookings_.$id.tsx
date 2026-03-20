@@ -5,15 +5,13 @@ import {
   type LoaderFunctionArgs,
   type MetaFunction,
   data,
-} from "@remix-run/node";
-import {
   Link,
   useActionData,
   useLoaderData,
   useNavigation,
   useRevalidator,
   useSearchParams,
-} from "@remix-run/react";
+} from "react-router";
 import { Calendar, CheckCircle, CreditCard, Loader2, MapPin, Plane, User } from "lucide-react";
 import { subDays } from "date-fns";
 import { useEffect, useState } from "react";
@@ -268,7 +266,7 @@ async function handleBookingCancellation(bookingId: string, sessionUser: PrismaU
         callbackurl,
       );
 
-      if (refund.success && refund.refundId) {
+      if (refund.success && "refundId" in refund && refund.refundId) {
         logger.info("[Booking Cancellation] Refund initiated successfully", {
           bookingId: booking.id,
           transactionId: booking.paymentId,
@@ -277,11 +275,13 @@ async function handleBookingCancellation(bookingId: string, sessionUser: PrismaU
           refundStatus: refund.status,
         });
       } else {
+        const refundError =
+          "error" in refund ? refund.error : "message" in refund ? refund.message : "";
         logger.error("[Booking Cancellation] Failed to initiate refund - MANUAL REFUND REQUIRED", {
           bookingId: booking.id,
           transactionId: booking.paymentId,
           refundAmount: booking.totalAmount.toNumber(),
-          error: refund.error || refund.message,
+          error: refundError,
         });
       }
     } else {
@@ -542,7 +542,7 @@ export const meta: MetaFunction<typeof loader> = ({ data }) => {
   ];
 };
 
-function BookingHeader({ booking }: { booking: Booking }) {
+function BookingHeader({ booking }: Readonly<{ booking: Booking }>) {
   const getPaymentStatusClass = () => {
     if (booking.paymentStatus === "REFUNDED") return "bg-blue-100 text-blue-800 border-blue-200";
     if (booking.paymentStatus === "PAID") return "bg-green-100 text-green-800 border-green-200";
@@ -551,7 +551,7 @@ function BookingHeader({ booking }: { booking: Booking }) {
 
   return (
     <div className="flex flex-col md:flex-row md:justify-between md:items-end gap-3">
-      <p className="text-base flex flex-row gap-2 items-center">
+      <p className="text-base flex flex-col md:flex-row gap-2 md:items-center">
         <span className="font-semibold">
           {booking.car.make} {booking.car.model} ({booking.car.year})
         </span>

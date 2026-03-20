@@ -1,4 +1,4 @@
-import { data } from "@remix-run/node";
+import { data } from "react-router";
 import logger from "~/lib/logger.server";
 import { csrf, CSRFError } from "~/utils/csrf.server";
 

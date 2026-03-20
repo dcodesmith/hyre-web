@@ -1,4 +1,4 @@
-import { createCookieSessionStorage } from "@remix-run/node";
+import { createCookieSessionStorage } from "react-router";
 import { env } from "~/utils/server/env.server";
 
 const rotated = env.SESSION_SECRETS

@@ -1,4 +1,4 @@
-import { data, redirect } from "@remix-run/node";
+import { data, redirect } from "react-router";
 import logger from "~/lib/logger.server";
 import { auth } from "~/modules/auth/auth.server";
 import { commitSession, getSession } from "~/modules/auth/session.server";
@@ -12,7 +12,12 @@ export class OtpSignInError extends Error {
   readonly kind: OtpSignInErrorKind;
   readonly details: unknown;
 
-  constructor(args: { message: string; status: number; kind: OtpSignInErrorKind; details?: unknown }) {
+  constructor(args: {
+    message: string;
+    status: number;
+    kind: OtpSignInErrorKind;
+    details?: unknown;
+  }) {
     super(args.message);
     this.name = "OtpSignInError";
     this.status = args.status;
@@ -41,7 +46,11 @@ function extractOtpErrorCode(payload: unknown): string | undefined {
   return undefined;
 }
 
-function classifyOtpSignInError(args: { status: number; message: string; code?: string }): OtpSignInErrorKind {
+function classifyOtpSignInError(args: {
+  status: number;
+  message: string;
+  code?: string;
+}): OtpSignInErrorKind {
   const { status, message, code } = args;
   const normalizedMessage = message.toLowerCase();
   const normalizedCode = code?.toLowerCase() ?? "";

@@ -277,7 +277,10 @@ function readString(record: Record<string, unknown>, key: string): string | unde
   return typeof value === "string" && value.length > 0 ? value : undefined;
 }
 
-function getAirportField(record: Record<string, unknown>, key: "origin" | "destination"): {
+function getAirportField(
+  record: Record<string, unknown>,
+  key: "origin" | "destination",
+): {
   code?: string;
   codeIata?: string;
   name?: string;
@@ -444,7 +447,9 @@ function buildManifestSuccessResult(
       aircraftType: readString(record, "aircraft_type"),
       isLive: true,
       arrivalAddress:
-        destination.name && destination.city ? `${destination.name}, ${destination.city}` : undefined,
+        destination.name && destination.city
+          ? `${destination.name}, ${destination.city}`
+          : undefined,
     },
   };
 }
@@ -853,32 +858,35 @@ async function fetchScheduledFlight(
       return 0;
     };
 
-    const scheduledFlight = flightsOnPickupDate.reduce((best, current) => {
-      if (!best) return current;
+    const scheduledFlight = flightsOnPickupDate.reduce(
+      (best, current) => {
+        if (!best) return current;
 
-      const bestIdScore = getIdentifierMatchScore(best);
-      const currentIdScore = getIdentifierMatchScore(current);
-      if (currentIdScore !== bestIdScore) {
-        return currentIdScore > bestIdScore ? current : best;
-      }
+        const bestIdScore = getIdentifierMatchScore(best);
+        const currentIdScore = getIdentifierMatchScore(current);
+        if (currentIdScore !== bestIdScore) {
+          return currentIdScore > bestIdScore ? current : best;
+        }
 
-      const isLagosDestination = (flight: FlightAwareScheduledFlight): boolean => {
-        return [flight.destination_iata, flight.destination, flight.destination_icao].some(
-          (destinationCode) => destinationCode?.toUpperCase() === "LOS",
-        );
-      };
-      const bestIsLagos = isLagosDestination(best);
-      const currentIsLagos = isLagosDestination(current);
-      if (currentIsLagos !== bestIsLagos) {
-        return currentIsLagos ? current : best;
-      }
+        const isLagosDestination = (flight: FlightAwareScheduledFlight): boolean => {
+          return [flight.destination_iata, flight.destination, flight.destination_icao].some(
+            (destinationCode) => destinationCode?.toUpperCase() === "LOS",
+          );
+        };
+        const bestIsLagos = isLagosDestination(best);
+        const currentIsLagos = isLagosDestination(current);
+        if (currentIsLagos !== bestIsLagos) {
+          return currentIsLagos ? current : best;
+        }
 
-      const bestArrival = getArrivalTime(best);
-      const currentArrival = getArrivalTime(current);
-      if (!bestArrival || !currentArrival) return best;
+        const bestArrival = getArrivalTime(best);
+        const currentArrival = getArrivalTime(current);
+        if (!bestArrival || !currentArrival) return best;
 
-      return new Date(currentArrival) < new Date(bestArrival) ? current : best;
-    }, null as FlightAwareScheduledFlight | null);
+        return new Date(currentArrival) < new Date(bestArrival) ? current : best;
+      },
+      null as FlightAwareScheduledFlight | null,
+    );
 
     if (!scheduledFlight) {
       return { type: "notFound" };
@@ -1059,7 +1067,10 @@ export async function validateFlight(
     }
 
     if (result.type === "notFound") {
-      const fallbackResult = await resolveFromLosArrivalsManifest(normalizedFlightNumber, pickupDate);
+      const fallbackResult = await resolveFromLosArrivalsManifest(
+        normalizedFlightNumber,
+        pickupDate,
+      );
       if (fallbackResult) {
         result = fallbackResult;
       }
@@ -1081,4 +1092,3 @@ export async function validateFlight(
     };
   }
 }
-

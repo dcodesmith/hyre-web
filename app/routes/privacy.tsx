@@ -1,5 +1,4 @@
-import type { MetaFunction } from "@remix-run/node";
-import { Link } from "@remix-run/react";
+import { type MetaFunction, Link } from "react-router";
 import { LEGAL_CONSTANTS } from "~/constants/legal";
 
 export const meta: MetaFunction = () => {
@@ -34,9 +33,7 @@ export default function PrivacyPolicy() {
           </section>
 
           <section className="mb-8">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">
-              2. Information We Collect
-            </h2>
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">2. Information We Collect</h2>
 
             <h3 className="text-lg font-medium text-gray-900 mb-2">2.1 Personal Information</h3>
             <p className="text-gray-600 mb-2">We collect the following personal data:</p>
@@ -63,9 +60,7 @@ export default function PrivacyPolicy() {
             <h3 className="text-lg font-medium text-gray-900 mb-2">
               2.2 Fleet Owner Additional Data
             </h3>
-            <p className="text-gray-600 mb-2">
-              If you register as a fleet owner, we also collect:
-            </p>
+            <p className="text-gray-600 mb-2">If you register as a fleet owner, we also collect:</p>
             <ul className="list-disc pl-6 text-gray-600 mb-4">
               <li>National Identification Number (NIN)</li>
               <li>Driver's license details</li>
@@ -210,9 +205,7 @@ export default function PrivacyPolicy() {
           </section>
 
           <section className="mb-8">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">
-              10. Changes to This Policy
-            </h2>
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">10. Changes to This Policy</h2>
             <p className="text-gray-600 mb-4">
               We may update this Privacy Policy from time to time. We will notify you of significant
               changes by email or through a notice on our platform. Your continued use of our
