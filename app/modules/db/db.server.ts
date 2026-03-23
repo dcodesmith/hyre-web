@@ -1,15 +1,16 @@
+import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 import logger from "~/lib/logger.server";
 import { singleton } from "~/utils/server/misc.server";
 import { env } from "~/utils/server/env.server";
 
 const prisma = singleton("prisma", () => {
+  const adapter = new PrismaPg({
+    connectionString: env.DATABASE_URL,
+  });
+
   const client = new PrismaClient({
-    datasources: {
-      db: {
-        url: env.DATABASE_URL,
-      },
-    },
+    adapter,
     log:
       process.env.NODE_ENV === "development"
         ? [

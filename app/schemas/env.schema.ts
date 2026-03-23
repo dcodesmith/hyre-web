@@ -10,7 +10,7 @@ export const envSchema = z
     SESSION_SECRET: z.string(),
     SESSION_SECRETS: z.string().optional(),
     ENCRYPTION_SECRET: z.string(),
-    DATABASE_URL: z.url().optional(),
+    DATABASE_URL: z.url(),
     RESEND_API_KEY: z.string(),
     OPENAI_API_KEY: z.string(),
     UPSTASH_REDIS_REST_URL: z.string().optional(),

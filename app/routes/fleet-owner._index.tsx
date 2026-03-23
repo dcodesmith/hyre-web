@@ -1,5 +1,5 @@
 import { BookingStatus, PaymentStatus } from "@prisma/client";
-import { Decimal } from "@prisma/client/runtime/library";
+import Decimal from "decimal.js";
 import { type LoaderFunctionArgs, useLoaderData } from "react-router";
 import { subDays } from "date-fns";
 import { FleetOwnerDashboard } from "~/components/dashboard/fleet-owner";

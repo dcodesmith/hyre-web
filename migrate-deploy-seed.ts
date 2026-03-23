@@ -1,4 +1,5 @@
 import { exec } from "node:child_process";
+import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 
 // Function to execute a command and return a promise
@@ -28,7 +29,10 @@ const runMigrationsAndSeed = async () => {
     return;
   }
 
-  const prisma = new PrismaClient();
+  const adapter = new PrismaPg({
+    connectionString: process.env.DATABASE_URL,
+  });
+  const prisma = new PrismaClient({ adapter });
 
   try {
     // Apply pending migrations (production-safe)
