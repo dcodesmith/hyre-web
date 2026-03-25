@@ -12,7 +12,7 @@
     "start": "react-router-serve ./build/server/index.js",
     "typecheck": "react-router typegen && tsc",
     "postinstall": "npx prisma generate",
-    "vercel-build": "npx prisma migrate deploy && npx prisma generate && react-router build",
+    "vercel-build": "npx prisma migrate resolve --rolled-back 20260324123000_reconcile_existing_db_drift || true && npx prisma migrate deploy && npx prisma generate && react-router build",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:ai-search-rate-limit": "k6 run scripts/k6-ai-search-load-test.js"

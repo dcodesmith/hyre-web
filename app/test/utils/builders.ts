@@ -1,5 +1,6 @@
 import {
   Booking,
+  BookingAcquisitionChannel,
   BookingType,
   Car,
   BookingStatus,
@@ -76,6 +77,9 @@ export function makeBooking(overrides: Partial<Booking> = {}): Booking {
     bookingReference: "REF-TEST",
     securityDetailCost: null,
     fuelUpgradeCost: null,
+    acquisitionChannel: BookingAcquisitionChannel.GLOBAL,
+    acquisitionPartnerOwnerId: null,
+    acquisitionPartnerSlug: null,
     referralReferrerUserId: null,
     referralDiscountAmount: new Prisma.Decimal(0),
     referralStatus: BookingReferralStatus.NONE,

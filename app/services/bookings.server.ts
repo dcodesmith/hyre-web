@@ -36,6 +36,10 @@ import { findOrCreateFlight, disableFlightAlertTracking } from "~/services/fligh
 import { getOrCreateFlightAlert, disableFlightAlert } from "~/services/flight-alert.server";
 import { validateFlight } from "~/services/flight-validation.server";
 import { BookingWithRelations } from "~/types";
+import {
+  resolveBookingAcquisition,
+  type BookingAcquisitionInput,
+} from "~/services/booking-acquisition.server";
 
 export type CreateBookingParams = {
   startDate: Date;
@@ -53,7 +57,7 @@ export type CreateBookingParams = {
   includeSecurityDetail?: boolean;
   flightNumber?: string;
   estimatedDuration?: number;
-};
+} & BookingAcquisitionInput;
 
 // Define your alphabet (e.g., uppercase letters and numbers, avoiding ambiguous chars like 0/O, 1/I)
 const alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -434,6 +438,9 @@ export async function createPendingBooking({
   requiresFullTank,
   flightNumber,
   estimatedDuration,
+  acquisitionChannel,
+  acquisitionPartnerOwnerId,
+  acquisitionPartnerSlug,
 }: Omit<CreateBookingParams, "paymentId" | "status" | "paymentStatus"> & {
   paymentIntent: string;
   requiresFullTank?: boolean;
@@ -580,6 +587,11 @@ export async function createPendingBooking({
 
     const query = {
       data: {
+        ...resolveBookingAcquisition({
+          acquisitionChannel,
+          acquisitionPartnerOwnerId,
+          acquisitionPartnerSlug,
+        }),
         bookingReference,
         startDate,
         endDate,

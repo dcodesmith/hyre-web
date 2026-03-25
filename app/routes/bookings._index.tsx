@@ -1,4 +1,4 @@
-import { Booking, BookingType, Car, User, VehicleImage } from "@prisma/client";
+import { Booking, BookingAcquisitionChannel, BookingType, Car, User, VehicleImage } from "@prisma/client";
 import {
   ActionFunctionArgs,
   type LoaderFunctionArgs,
@@ -391,6 +391,7 @@ async function createBookingWithPayment(params: {
     useCredits: params.useCreditsValue,
     flightNumber: params.flightNumber,
     estimatedDuration: params.estimatedDuration,
+    acquisitionChannel: BookingAcquisitionChannel.GLOBAL,
     user: params.user,
   });
 
