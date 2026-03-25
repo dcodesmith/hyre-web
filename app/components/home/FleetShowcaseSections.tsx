@@ -1,10 +1,10 @@
-import { lazy, Suspense } from "react";
+import { Suspense, lazy } from "react";
 import { Link } from "react-router";
 import { CarCard } from "~/components/CarCard";
 import { CarouselSection } from "~/components/CarouselSection";
-import type { AggregatedRatings } from "~/services/reviews.server";
 import type { CarCategories, HomePageCar } from "~/features/home/homepage.shared";
 import { faqData } from "~/features/home/homepage.shared";
+import type { AggregatedRatings } from "~/services/reviews.server";
 
 const LazyAccordion = lazy(() =>
   import("~/components/ui/accordion").then((mod) => ({
@@ -36,9 +36,31 @@ const LazyAccordion = lazy(() =>
 interface FleetShowcaseSectionsProps {
   readonly categories: CarCategories;
   readonly ratings: Record<string, AggregatedRatings>;
+  readonly preservedSearchParams?: URLSearchParams;
 }
 
-export function FleetShowcaseSections({ categories, ratings }: FleetShowcaseSectionsProps) {
+function buildSearchPath(path: string, preservedSearchParams?: URLSearchParams): string {
+  if (!preservedSearchParams || Array.from(preservedSearchParams.entries()).length === 0) {
+    return path;
+  }
+
+  const [pathname, query = ""] = path.split("?");
+  const merged = new URLSearchParams(query);
+  preservedSearchParams.forEach((value, key) => {
+    // Keep explicit route/query params authoritative (e.g. vehicleType from category links).
+    if (!merged.has(key)) {
+      merged.set(key, value);
+    }
+  });
+  const nextQuery = merged.toString();
+  return nextQuery ? `${pathname}?${nextQuery}` : pathname;
+}
+
+export function FleetShowcaseSections({
+  categories,
+  ratings,
+  preservedSearchParams,
+}: FleetShowcaseSectionsProps) {
   const getRateForDisplay = (car: HomePageCar) => car.dayRate;
 
   return (
@@ -49,7 +71,7 @@ export function FleetShowcaseSections({ categories, ratings }: FleetShowcaseSect
             <div className="flex items-center gap-2 md:gap-3 overflow-x-auto scrollbar-hide">
               {categories.suvs.length > 0 && (
                 <Link
-                  to="/search?vehicleType=SUV"
+                  to={buildSearchPath("/search?vehicleType=SUV", preservedSearchParams)}
                   className="flex-shrink-0 px-3 md:px-4 py-1.5 md:py-2 rounded-full border border-gray-300 hover:border-gray-900 hover:bg-gray-50 transition-all text-xs md:text-sm font-medium whitespace-nowrap"
                 >
                   SUV ({categories.suvs.length})
@@ -57,7 +79,7 @@ export function FleetShowcaseSections({ categories, ratings }: FleetShowcaseSect
               )}
               {categories.luxury.length > 0 && (
                 <Link
-                  to="/search?serviceTier=LUXURY"
+                  to={buildSearchPath("/search?serviceTier=LUXURY", preservedSearchParams)}
                   className="flex-shrink-0 px-3 md:px-4 py-1.5 md:py-2 rounded-full border border-gray-300 hover:border-gray-900 hover:bg-gray-50 transition-all text-xs md:text-sm font-medium whitespace-nowrap"
                 >
                   Luxury ({categories.luxury.length})
@@ -65,7 +87,7 @@ export function FleetShowcaseSections({ categories, ratings }: FleetShowcaseSect
               )}
               {categories.executive.length > 0 && (
                 <Link
-                  to="/search?serviceTier=EXECUTIVE"
+                  to={buildSearchPath("/search?serviceTier=EXECUTIVE", preservedSearchParams)}
                   className="flex-shrink-0 px-3 md:px-4 py-1.5 md:py-2 rounded-full border border-gray-300 hover:border-gray-900 hover:bg-gray-50 transition-all text-xs md:text-sm font-medium whitespace-nowrap"
                 >
                   Executive ({categories.executive.length})
@@ -73,7 +95,7 @@ export function FleetShowcaseSections({ categories, ratings }: FleetShowcaseSect
               )}
               {categories.budget.length > 0 && (
                 <Link
-                  to="/search?serviceTier=STANDARD"
+                  to={buildSearchPath("/search?serviceTier=STANDARD", preservedSearchParams)}
                   className="flex-shrink-0 px-3 md:px-4 py-1.5 md:py-2 rounded-full border border-gray-300 hover:border-gray-900 hover:bg-gray-50 transition-all text-xs md:text-sm font-medium whitespace-nowrap"
                 >
                   Budget-friendly ({categories.budget.length})
@@ -81,7 +103,7 @@ export function FleetShowcaseSections({ categories, ratings }: FleetShowcaseSect
               )}
               {categories.popular.length > 0 && (
                 <Link
-                  to="/search"
+                  to={buildSearchPath("/search", preservedSearchParams)}
                   className="flex-shrink-0 px-3 md:px-4 py-1.5 md:py-2 rounded-full border border-gray-300 hover:border-gray-900 hover:bg-gray-50 transition-all text-xs md:text-sm font-medium whitespace-nowrap"
                 >
                   Popular ({categories.popular.length})
@@ -89,7 +111,7 @@ export function FleetShowcaseSections({ categories, ratings }: FleetShowcaseSect
               )}
               {categories.sedans.length > 0 && (
                 <Link
-                  to="/search?vehicleType=SEDAN"
+                  to={buildSearchPath("/search?vehicleType=SEDAN", preservedSearchParams)}
                   className="flex-shrink-0 px-3 md:px-4 py-1.5 md:py-2 rounded-full border border-gray-300 hover:border-gray-900 hover:bg-gray-50 transition-all text-xs md:text-sm font-medium whitespace-nowrap"
                 >
                   Sedans ({categories.sedans.length})
@@ -99,11 +121,16 @@ export function FleetShowcaseSections({ categories, ratings }: FleetShowcaseSect
           </div>
 
           {categories.suvs.length > 0 && (
-            <CarouselSection title="SUV" id="suvs" href="/search?vehicleType=SUV">
+            <CarouselSection
+              title="SUV"
+              id="suvs"
+              href={buildSearchPath("/search?vehicleType=SUV", preservedSearchParams)}
+            >
               {categories.suvs.map((car, index) => (
                 <CarCard
                   key={car.id}
                   car={car}
+                  searchParams={preservedSearchParams}
                   priority={index < 5}
                   price={getRateForDisplay(car)}
                   showTotal={false}
@@ -114,11 +141,16 @@ export function FleetShowcaseSections({ categories, ratings }: FleetShowcaseSect
           )}
 
           {categories.luxury.length > 0 && (
-            <CarouselSection title="Luxury" id="luxury" href="/search?serviceTier=LUXURY">
+            <CarouselSection
+              title="Luxury"
+              id="luxury"
+              href={buildSearchPath("/search?serviceTier=LUXURY", preservedSearchParams)}
+            >
               {categories.luxury.map((car) => (
                 <CarCard
                   key={car.id}
                   car={car}
+                  searchParams={preservedSearchParams}
                   priority={false}
                   price={getRateForDisplay(car)}
                   showTotal={false}
@@ -129,11 +161,16 @@ export function FleetShowcaseSections({ categories, ratings }: FleetShowcaseSect
           )}
 
           {categories.executive.length > 0 && (
-            <CarouselSection title="Executive" id="executive" href="/search?serviceTier=EXECUTIVE">
+            <CarouselSection
+              title="Executive"
+              id="executive"
+              href={buildSearchPath("/search?serviceTier=EXECUTIVE", preservedSearchParams)}
+            >
               {categories.executive.map((car) => (
                 <CarCard
                   key={car.id}
                   car={car}
+                  searchParams={preservedSearchParams}
                   priority={false}
                   price={getRateForDisplay(car)}
                   showTotal={false}
@@ -144,11 +181,16 @@ export function FleetShowcaseSections({ categories, ratings }: FleetShowcaseSect
           )}
 
           {categories.budget.length > 0 && (
-            <CarouselSection title="Budget-friendly" id="budget" href="/search?serviceTier=STANDARD">
+            <CarouselSection
+              title="Budget-friendly"
+              id="budget"
+              href={buildSearchPath("/search?serviceTier=STANDARD", preservedSearchParams)}
+            >
               {categories.budget.map((car) => (
                 <CarCard
                   key={car.id}
                   car={car}
+                  searchParams={preservedSearchParams}
                   priority={false}
                   price={getRateForDisplay(car)}
                   showTotal={false}
@@ -159,11 +201,16 @@ export function FleetShowcaseSections({ categories, ratings }: FleetShowcaseSect
           )}
 
           {categories.popular.length > 0 && (
-            <CarouselSection title="Popular" id="popular" href="/search">
+            <CarouselSection
+              title="Popular"
+              id="popular"
+              href={buildSearchPath("/search", preservedSearchParams)}
+            >
               {categories.popular.map((car) => (
                 <CarCard
                   key={car.id}
                   car={car}
+                  searchParams={preservedSearchParams}
                   priority={false}
                   price={getRateForDisplay(car)}
                   showTotal={false}
@@ -174,11 +221,16 @@ export function FleetShowcaseSections({ categories, ratings }: FleetShowcaseSect
           )}
 
           {categories.sedans.length > 0 && (
-            <CarouselSection title="Sedans" id="sedans" href="/search?vehicleType=SEDAN">
+            <CarouselSection
+              title="Sedans"
+              id="sedans"
+              href={buildSearchPath("/search?vehicleType=SEDAN", preservedSearchParams)}
+            >
               {categories.sedans.map((car) => (
                 <CarCard
                   key={car.id}
                   car={car}
+                  searchParams={preservedSearchParams}
                   priority={false}
                   price={getRateForDisplay(car)}
                   showTotal={false}
@@ -188,11 +240,15 @@ export function FleetShowcaseSections({ categories, ratings }: FleetShowcaseSect
             </CarouselSection>
           )}
 
-          <CarouselSection title="All vehicles" href="/search">
+          <CarouselSection
+            title="All vehicles"
+            href={buildSearchPath("/search", preservedSearchParams)}
+          >
             {categories.allCars.map((car, index) => (
               <CarCard
                 key={car.id}
                 car={car}
+                searchParams={preservedSearchParams}
                 priority={index < 5}
                 price={getRateForDisplay(car)}
                 showTotal={false}

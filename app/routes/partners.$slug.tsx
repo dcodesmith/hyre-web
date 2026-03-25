@@ -198,7 +198,11 @@ export default function PartnerPublicFleetPage() {
       <div className={`hidden md:block transition-all duration-300 ${desktopHeight}`} />
 
       <div className={`transition-transform duration-300 ${contentTransform}`}>
-        <FleetShowcaseSections categories={categories} ratings={ratings} />
+        <FleetShowcaseSections
+          categories={categories}
+          ratings={ratings}
+          preservedSearchParams={partnerSearchParams}
+        />
 
         <div className="max-w-6xl mx-auto px-4 pb-8">
           <div className="flex flex-wrap justify-center gap-3">

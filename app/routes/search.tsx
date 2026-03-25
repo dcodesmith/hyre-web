@@ -7,17 +7,17 @@ import {
   Prisma,
   Status,
 } from "@prisma/client";
+import { fromZonedTime } from "date-fns-tz";
+import { useCallback, useState } from "react";
 import {
+  Link,
   type LoaderFunctionArgs,
   type MetaFunction,
   data,
-  Link,
   useLoaderData,
   useMatches,
   useSearchParams,
 } from "react-router";
-import { fromZonedTime } from "date-fns-tz";
-import { useCallback, useState } from "react";
 
 import { BookingSearch, BookingSearchDraftProvider } from "~/components/BookingSearch";
 import { CarCard } from "~/components/CarCard";
@@ -25,7 +25,6 @@ import { CarSkeleton } from "~/components/CarSkeleton";
 import { CompactSearchBar } from "~/components/CompactSearchBar";
 import { PaginationControl } from "~/components/PaginationControl";
 import { SearchModal } from "~/components/SearchModal";
-import { useInfiniteScroll } from "~/hooks/useInfiniteScroll";
 import {
   AIRPORT_PICKUP_BOOKING_TYPE,
   BOOKING_TYPE_OPTIONS,
@@ -34,11 +33,13 @@ import {
   NIGHT_BOOKING_TYPE,
 } from "~/components/bookingTypes";
 import { Button } from "~/components/ui/button";
+import { useInfiniteScroll } from "~/hooks/useInfiniteScroll";
 import { calculateBookingUnits } from "~/lib/booking-utils";
 import logger from "~/lib/logger.server";
 import { prisma } from "~/modules/db/db.server";
 import { availableCarsForSpecificRequest } from "~/services/availability-engine.server";
 import { validateFlight } from "~/services/flight-validation.server";
+import { getPublicPartnerBySlug } from "~/services/partners.server";
 import { getBatchCarRatings } from "~/services/reviews.server";
 import type { AggregatedRatings } from "~/services/reviews.server";
 import type { SerializedCar, ServiceTier, VehicleType } from "~/types";
@@ -50,8 +51,8 @@ import {
   serviceTierLabels,
   vehicleTypeLabels,
 } from "~/types";
-import { LAGOS_TIMEZONE } from "~/utils/timezone";
 import { generateMetaTags } from "~/utils/seo";
+import { LAGOS_TIMEZONE } from "~/utils/timezone";
 
 interface PickupTimeWindow {
   specificFrom: Date;
@@ -508,6 +509,7 @@ function parseSearchParams(url: URL) {
     extractedMakeModelQuery?.trim() || (q && !serviceTier && !vehicleType ? q.trim() : null);
 
   return {
+    partnerSlug: url.searchParams.get("partner"),
     serviceTier,
     vehicleType,
     colorParam,
@@ -526,6 +528,7 @@ function parseSearchParams(url: URL) {
  * Builds Prisma where clause for car search
  */
 function buildCarWhereClause(params: {
+  partnerOwnerId?: string;
   fleetOwnersToExclude: string[];
   serviceTier: ServiceTier | undefined;
   vehicleType: VehicleType | undefined;
@@ -534,34 +537,37 @@ function buildCarWhereClause(params: {
   modelParam: string | null;
   makeModelQuery: string | null;
 }): Prisma.CarWhereInput {
+  const andClauses: Prisma.CarWhereInput[] = [
+    ...(params.partnerOwnerId ? [{ ownerId: params.partnerOwnerId }] : []),
+    ...(params.fleetOwnersToExclude.length > 0
+      ? [{ ownerId: { notIn: params.fleetOwnersToExclude } }]
+      : []),
+    {
+      status: { in: [Status.AVAILABLE, Status.BOOKED] },
+      approvalStatus: { in: [CarApprovalStatus.APPROVED] },
+      owner: { fleetOwnerStatus: "APPROVED", hasOnboarded: true },
+      ...(params.serviceTier && { serviceTier: params.serviceTier }),
+      ...(params.vehicleType && { vehicleType: params.vehicleType }),
+      ...(params.colorParam && {
+        color: { contains: params.colorParam, mode: Prisma.QueryMode.insensitive },
+      }),
+      ...(params.makeParam && {
+        make: { contains: params.makeParam, mode: Prisma.QueryMode.insensitive },
+      }),
+      ...(params.modelParam && {
+        model: { contains: params.modelParam, mode: Prisma.QueryMode.insensitive },
+      }),
+      ...(params.makeModelQuery && {
+        OR: [
+          { make: { contains: params.makeModelQuery, mode: Prisma.QueryMode.insensitive } },
+          { model: { contains: params.makeModelQuery, mode: Prisma.QueryMode.insensitive } },
+        ],
+      }),
+    },
+  ];
+
   return {
-    AND: [
-      {
-        ...(params.fleetOwnersToExclude.length > 0 && {
-          ownerId: { notIn: params.fleetOwnersToExclude },
-        }),
-        status: { in: [Status.AVAILABLE, Status.BOOKED] },
-        approvalStatus: { in: [CarApprovalStatus.APPROVED] },
-        owner: { fleetOwnerStatus: "APPROVED", hasOnboarded: true },
-        ...(params.serviceTier && { serviceTier: params.serviceTier }),
-        ...(params.vehicleType && { vehicleType: params.vehicleType }),
-        ...(params.colorParam && {
-          color: { contains: params.colorParam, mode: Prisma.QueryMode.insensitive },
-        }),
-        ...(params.makeParam && {
-          make: { contains: params.makeParam, mode: Prisma.QueryMode.insensitive },
-        }),
-        ...(params.modelParam && {
-          model: { contains: params.modelParam, mode: Prisma.QueryMode.insensitive },
-        }),
-        ...(params.makeModelQuery && {
-          OR: [
-            { make: { contains: params.makeModelQuery, mode: Prisma.QueryMode.insensitive } },
-            { model: { contains: params.makeModelQuery, mode: Prisma.QueryMode.insensitive } },
-          ],
-        }),
-      },
-    ],
+    AND: andClauses,
   };
 }
 
@@ -573,7 +579,7 @@ function createErrorResponse(status: number) {
     {
       cars: [],
       ratings: {},
-      filters: { serviceTier: null, vehicleType: null, bookingType: null },
+      filters: { serviceTier: null, vehicleType: null, bookingType: null, partnerSlug: null },
       pagination: {
         page: 1,
         limit: 12,
@@ -629,23 +635,33 @@ export async function loader({ request }: LoaderFunctionArgs) {
     return createErrorResponse(400);
   }
 
-  logger.info("[SEARCH] Query params", {
-    q: url.searchParams.get("q"),
-    serviceTier: params.serviceTier,
-    vehicleType: params.vehicleType,
-    color: params.colorParam,
-    make: params.makeParam,
-    model: params.modelParam,
-    from: params.from,
-    to: params.to,
-    bookingType: params.bookingType,
-    pickupTime: params.pickupTime,
-    flightNumber: params.flightNumber,
-    makeModelQuery: params.makeModelQuery,
-  });
+  const normalizedPartnerSlug = params.partnerSlug?.trim().toLowerCase();
 
   try {
     const startTime = Date.now();
+    const partner = normalizedPartnerSlug
+      ? await getPublicPartnerBySlug(normalizedPartnerSlug)
+      : null;
+
+    if (normalizedPartnerSlug && !partner) {
+      return createErrorResponse(404);
+    }
+
+    logger.info("[SEARCH] Query params", {
+      q: url.searchParams.get("q"),
+      serviceTier: params.serviceTier,
+      vehicleType: params.vehicleType,
+      color: params.colorParam,
+      make: params.makeParam,
+      model: params.modelParam,
+      from: params.from,
+      to: params.to,
+      bookingType: params.bookingType,
+      pickupTime: params.pickupTime,
+      flightNumber: params.flightNumber,
+      makeModelQuery: params.makeModelQuery,
+      partnerSlug: normalizedPartnerSlug,
+    });
 
     // Parse page parameter for pagination
     const pageParam = url.searchParams.get("page");
@@ -668,6 +684,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     // Build where clause for count and findMany (same conditions)
     const whereClause = buildCarWhereClause({
       fleetOwnersToExclude,
+      partnerOwnerId: partner?.id,
       serviceTier: params.serviceTier,
       vehicleType: params.vehicleType,
       colorParam: params.colorParam,
@@ -754,6 +771,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
           serviceTier: params.serviceTier ?? null,
           vehicleType: params.vehicleType ?? null,
           bookingType: params.bookingType ?? null,
+          partnerSlug: partner?.publicSlug ?? null,
         },
         pagination,
       },
@@ -778,6 +796,7 @@ type LoaderData = {
     serviceTier: ServiceTier | null;
     vehicleType: VehicleType | null;
     bookingType: string | null;
+    partnerSlug: string | null;
   };
   pagination: {
     page: number;

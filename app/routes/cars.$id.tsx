@@ -1,26 +1,26 @@
 import {
   ArrowLeftIcon,
-  WrenchScrewdriverIcon,
-  UserIcon,
   SparklesIcon,
+  UserIcon,
+  WrenchScrewdriverIcon,
 } from "@heroicons/react/24/outline";
 import { Booking, BookingStatus, BookingType, Car } from "@prisma/client";
+import { fromZonedTime } from "date-fns-tz";
+import { useState } from "react";
 import {
   ActionFunctionArgs,
+  Link,
   type LoaderFunctionArgs,
   type MetaFunction,
   redirect,
   useLoaderData,
-  useNavigate,
 } from "react-router";
-import { fromZonedTime } from "date-fns-tz";
-import { useState } from "react";
 import invariant from "tiny-invariant";
 import CarCarousel from "~/components/Carousel";
 import BookingCard from "~/components/booking/BookingCard";
 import { ReviewList } from "~/components/reviews/ReviewList";
 import { StarRating } from "~/components/reviews/StarRating";
-import { VehicleSchema, BreadcrumbSchema } from "~/components/seo/StructuredData";
+import { BreadcrumbSchema, VehicleSchema } from "~/components/seo/StructuredData";
 import {
   Accordion,
   AccordionContent,
@@ -34,16 +34,16 @@ import { prisma } from "~/modules/db/db.server";
 import { availableCarsForSpecificRequest } from "~/services/availability-engine.server";
 import { getRates } from "~/services/extensions.server";
 import type { AggregatedRatings } from "~/services/reviews.server";
-import {
-  getVehicleKeywords,
-  generateCarSlug,
-  extractCarIdFromSlug,
-  generateMetaTags,
-} from "~/utils/seo";
-import { LAGOS_TIMEZONE } from "~/utils/timezone";
 import { validateCSRF } from "~/utils/csrf-action.server";
 import { formatRating } from "~/utils/review-formatting";
+import {
+  extractCarIdFromSlug,
+  generateCarSlug,
+  generateMetaTags,
+  getVehicleKeywords,
+} from "~/utils/seo";
 import { env } from "~/utils/server/env.server";
+import { LAGOS_TIMEZONE } from "~/utils/timezone";
 
 /** Find a car by slug or full ID */
 async function findCarBySlugOrId(slugOrId: string) {
@@ -96,6 +96,33 @@ function parsePickupTimeHours(pickupTime: string): number | null {
 function getEffectivePickupTime(bookingType: string, pickupTime: string | null): string | null {
   if (bookingType === BookingType.NIGHT && !pickupTime) return "11 PM";
   return pickupTime;
+}
+
+function buildSearchBackLink(url: URL): string {
+  const allowedParams = [
+    "q",
+    "serviceTier",
+    "vehicleType",
+    "color",
+    "make",
+    "model",
+    "from",
+    "to",
+    "bookingType",
+    "pickupTime",
+    "flightNumber",
+    "partner",
+    "page",
+  ];
+  const backParams = new URLSearchParams();
+  for (const key of allowedParams) {
+    const value = url.searchParams.get(key);
+    if (value) {
+      backParams.set(key, value);
+    }
+  }
+  const query = backParams.toString();
+  return query ? `/search?${query}` : "/search";
 }
 
 /** Check car availability for the given parameters */
@@ -187,6 +214,7 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   const bookingType = url.searchParams.get("bookingType");
   const pickupTime = url.searchParams.get("pickupTime");
   const flightNumber = url.searchParams.get("flightNumber");
+  const backToSearch = buildSearchBackLink(url);
 
   // Run all independent queries in parallel for better performance
   const [user, car, rates] = await Promise.all([
@@ -281,6 +309,7 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   return {
     car,
     isAvailable,
+    backToSearch,
     ratings,
     subRatings,
     user: user
@@ -336,6 +365,7 @@ export default function CarDetails() {
   const {
     car,
     isAvailable,
+    backToSearch,
     ratings,
     subRatings,
     user,
@@ -343,7 +373,6 @@ export default function CarDetails() {
     platformServiceFeeRate,
     securityDetailRate,
   } = useLoaderData<typeof loader>();
-  const navigate = useNavigate();
   const [isReviewsOpen, setIsReviewsOpen] = useState(false);
 
   const carWithDates = {
@@ -399,14 +428,13 @@ export default function CarDetails() {
       <div className="lg:hidden bg-white">
         <div className="relative">
           <CarCarousel variant="booking" images={carImages} priority carName={carName} />
-          <button
-            type="button"
-            onClick={() => navigate(-1)}
+          <Link
+            to={backToSearch}
             className="absolute top-4 left-4 z-10 bg-black/50 text-white p-2 rounded-full hover:bg-black/70 transition-colors"
             aria-label="Back to search results"
           >
             <ArrowLeftIcon className="w-4 h-4" />
-          </button>
+          </Link>
         </div>
         {ratings.totalReviews > 0 && (
           <button
@@ -431,9 +459,9 @@ export default function CarDetails() {
 
       {/* Desktop: Back link and title */}
       <div className="hidden lg:block">
-        <button type="button" onClick={() => navigate(-1)} className="hover:underline mb-1 block">
+        <Link to={backToSearch} className="hover:underline mb-1 block">
           &larr; Back to search results
-        </button>
+        </Link>
         <h2 className="text-2xl sm:text-3xl font-bold mb-4">
           {car.make} {car.model} - {car.year}
         </h2>
