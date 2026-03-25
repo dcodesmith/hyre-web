@@ -1,20 +1,27 @@
-import { Booking, BookingAcquisitionChannel, BookingType, Car, User, VehicleImage } from "@prisma/client";
+import crypto from "node:crypto";
+import {
+  Booking,
+  BookingAcquisitionChannel,
+  BookingType,
+  Car,
+  User,
+  VehicleImage,
+} from "@prisma/client";
+import { addHours, differenceInCalendarDays } from "date-fns";
+import { format, toZonedTime } from "date-fns-tz";
+import { ChevronRight } from "lucide-react";
+import { Fragment, useEffect, useState } from "react";
 import {
   ActionFunctionArgs,
+  Link,
   type LoaderFunctionArgs,
   data,
-  Link,
   redirect,
   useFetcher,
   useLoaderData,
   useNavigate,
   useSearchParams,
 } from "react-router";
-import { addHours, differenceInCalendarDays } from "date-fns";
-import { format, toZonedTime } from "date-fns-tz";
-import { ChevronRight } from "lucide-react";
-import crypto from "node:crypto";
-import { Fragment, useEffect, useState } from "react";
 import { useAuthenticityToken } from "remix-utils/csrf/react";
 import invariant from "tiny-invariant";
 import { AutocompleteAddress } from "~/components/AutocompleteAddress";
@@ -48,6 +55,7 @@ import {
 } from "~/services/bookings.server";
 import { validateFlight } from "~/services/flight-validation.server";
 import { calculateAirportTripDuration } from "~/services/google-maps.server";
+import { getPublicPartnerBySlug } from "~/services/partners.server";
 import { createPaymentIntent } from "~/services/payment.server";
 import { validateCSRF } from "~/utils/csrf-action.server";
 import { env } from "~/utils/server/env.server";
@@ -357,6 +365,9 @@ async function createBookingWithPayment(params: {
   flightNumber: string | undefined;
   estimatedDuration: number | undefined;
   callbackUrl: string;
+  acquisitionChannel: BookingAcquisitionChannel;
+  acquisitionPartnerOwnerId?: string | null;
+  acquisitionPartnerSlug?: string | null;
 }) {
   const idempotencyKey = crypto.randomUUID();
 
@@ -391,13 +402,62 @@ async function createBookingWithPayment(params: {
     useCredits: params.useCreditsValue,
     flightNumber: params.flightNumber,
     estimatedDuration: params.estimatedDuration,
-    acquisitionChannel: BookingAcquisitionChannel.GLOBAL,
+    acquisitionChannel: params.acquisitionChannel,
+    acquisitionPartnerOwnerId: params.acquisitionPartnerOwnerId,
+    acquisitionPartnerSlug: params.acquisitionPartnerSlug,
     user: params.user,
   });
 
   logger.info(`Created pending booking ${booking.id} with payment intent ${paymentIntentId}`);
 
   return { checkoutUrl };
+}
+
+async function resolveBookingAcquisitionForRequest(
+  request: Request,
+  car: Car,
+):
+  | {
+      acquisitionChannel: BookingAcquisitionChannel.GLOBAL;
+      acquisitionPartnerOwnerId: null;
+      acquisitionPartnerSlug: null;
+    }
+  | {
+      acquisitionChannel: BookingAcquisitionChannel.PARTNER;
+      acquisitionPartnerOwnerId: string;
+      acquisitionPartnerSlug: string;
+    }
+  | { error: string } {
+  const url = new URL(request.url);
+  const rawPartnerSlug = url.searchParams.get("partner");
+  if (!rawPartnerSlug) {
+    return {
+      acquisitionChannel: BookingAcquisitionChannel.GLOBAL,
+      acquisitionPartnerOwnerId: null,
+      acquisitionPartnerSlug: null,
+    };
+  }
+
+  const normalizedSlug = rawPartnerSlug.trim().toLowerCase();
+  if (!normalizedSlug) {
+    return { error: "Invalid partner attribution." };
+  }
+
+  const partner = await getPublicPartnerBySlug(normalizedSlug);
+  if (!partner) {
+    return { error: "Invalid partner attribution." };
+  }
+
+  // Server-side guard: partner attribution is only valid for that partner's own fleet.
+  if (partner.id !== car.ownerId) {
+    return { error: "Partner attribution does not match selected vehicle." };
+  }
+
+  return {
+    acquisitionChannel: BookingAcquisitionChannel.PARTNER,
+    acquisitionPartnerOwnerId: partner.id,
+    acquisitionPartnerSlug: partner.publicSlug,
+  };
 }
 
 async function handleCreateBooking(request: Request, formData: FormData, user: BookingUser) {
@@ -456,6 +516,11 @@ async function handleCreateBooking(request: Request, formData: FormData, user: B
   }
   const { car } = availabilityResult;
 
+  const acquisition = await resolveBookingAcquisitionForRequest(request, car);
+  if ("error" in acquisition) {
+    return data({ error: acquisition.error }, { status: 400 });
+  }
+
   const userId = "id" in user ? user.id : "N/A";
   logger.info(
     `Booking calculation inputs: useCredits=${useCreditsValue}, user.id=${userId}, includeSecurityDetail=${includeSecurityDetail}, requiresFullTank=${requiresFullTank}`,
@@ -508,6 +573,9 @@ async function handleCreateBooking(request: Request, formData: FormData, user: B
       flightNumber: bookingData.flightNumber,
       estimatedDuration,
       callbackUrl: `${env.DOMAIN}/bookings/payment-status?transactionType=booking_creation`,
+      acquisitionChannel: acquisition.acquisitionChannel,
+      acquisitionPartnerOwnerId: acquisition.acquisitionPartnerOwnerId,
+      acquisitionPartnerSlug: acquisition.acquisitionPartnerSlug,
     });
 
     return redirect(checkoutUrl);
