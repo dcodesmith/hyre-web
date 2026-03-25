@@ -1,17 +1,13 @@
-import { CarApprovalStatus, Status } from "@prisma/client";
 import { Fingerprint, ShieldCheck } from "lucide-react";
-import { type MetaFunction, data, Link, useLoaderData } from "react-router";
+import { type MetaFunction, data, useLoaderData } from "react-router";
 import { BookingSearch } from "~/components/BookingSearch";
 
-import logger from "~/lib/logger.server";
-import { prisma } from "~/modules/db/db.server";
-import { getBatchCarRatings } from "~/services/reviews.server";
 import type { AggregatedRatings } from "~/services/reviews.server";
 import { env } from "~/utils/server/env.server";
 
 import { Suspense, lazy, useState } from "react";
-import { CarCard } from "~/components/CarCard";
-import { CarouselSection } from "~/components/CarouselSection";
+import { FleetShowcaseSections } from "~/components/home/FleetShowcaseSections";
+import { getHomePageFleetData } from "~/features/home/homepage-data.server";
 
 // Lazy-load components that aren't needed for initial render
 const CompactSearchBar = lazy(() =>
@@ -64,95 +60,8 @@ import {
 } from "~/components/seo/StructuredData";
 import { getHeroHeightClasses } from "~/hooks/useHeroScroll";
 import { useRootScrollState } from "~/root";
-import { ServiceTiers, VehicleTypes } from "~/types";
-import type { ServiceTier, VehicleType } from "~/types";
+import { faqData, type CarCategories } from "~/features/home/homepage.shared";
 import { companyInfo, defaultKeywords, generateMetaTags } from "~/utils/seo";
-
-/** Minimum number of cars needed to show a category */
-const MIN_CATEGORY_SIZE = 3;
-
-/** Popular car makes for the "Popular" category */
-const POPULAR_MAKES = new Set(["toyota", "honda", "lexus"]);
-
-/**
- * Lightweight car type for homepage display (server-serialization optimization)
- * Only includes fields actually used by CarCard and TopBookingCard components
- */
-interface HomePageCar {
-  id: string;
-  make: string;
-  model: string;
-  year: number;
-  createdAt: string;
-  dayRate: number;
-  passengerCapacity: number;
-  pricingIncludesFuel: boolean;
-  vehicleType: VehicleType;
-  serviceTier: ServiceTier;
-  images: { url: string }[];
-}
-
-interface CarCategories {
-  suvs: HomePageCar[];
-  luxury: HomePageCar[];
-  budget: HomePageCar[];
-  sedans: HomePageCar[];
-  executive: HomePageCar[];
-  popular: HomePageCar[];
-  allCars: HomePageCar[];
-}
-
-/**
- * Categorizes cars into meaningful groups for display
- * Uses database fields (serviceTier, vehicleType) for categorization
- * Single iteration over cars array for better performance (js-combine-iterations)
- */
-function categorizeCars(cars: HomePageCar[]): CarCategories {
-  const suvs: HomePageCar[] = [];
-  const luxury: HomePageCar[] = [];
-  const budget: HomePageCar[] = [];
-  const sedans: HomePageCar[] = [];
-  const executive: HomePageCar[] = [];
-  const popular: HomePageCar[] = [];
-
-  for (const car of cars) {
-    // SUVs - by vehicleType
-    if (car.vehicleType === VehicleTypes.SUV || car.vehicleType === VehicleTypes.LUXURY_SUV) {
-      suvs.push(car);
-    }
-    // Luxury - by serviceTier (LUXURY or ULTRA_LUXURY)
-    if (car.serviceTier === ServiceTiers.LUXURY || car.serviceTier === ServiceTiers.ULTRA_LUXURY) {
-      luxury.push(car);
-    }
-    // Budget-Friendly - by STANDARD tier
-    if (car.serviceTier === ServiceTiers.STANDARD) {
-      budget.push(car);
-    }
-    // Sedans - by vehicleType
-    if (car.vehicleType === VehicleTypes.SEDAN || car.vehicleType === VehicleTypes.LUXURY_SEDAN) {
-      sedans.push(car);
-    }
-    // Executive - by serviceTier
-    if (car.serviceTier === ServiceTiers.EXECUTIVE) {
-      executive.push(car);
-    }
-    // Popular - by common makes (Toyota, Honda, Lexus)
-    if (POPULAR_MAKES.has(car.make.toLowerCase())) {
-      popular.push(car);
-    }
-  }
-
-  // Only return categories with enough cars
-  return {
-    suvs: suvs.length >= MIN_CATEGORY_SIZE ? suvs : [],
-    luxury: luxury.length >= MIN_CATEGORY_SIZE ? luxury : [],
-    budget: budget.length >= MIN_CATEGORY_SIZE ? budget : [],
-    sedans: sedans.length >= MIN_CATEGORY_SIZE ? sedans : [],
-    executive: executive.length >= MIN_CATEGORY_SIZE ? executive : [],
-    popular: popular.length >= MIN_CATEGORY_SIZE ? popular : [],
-    allCars: cars,
-  };
-}
 
 export const meta: MetaFunction<typeof loader> = ({ data }) => {
   const baseUrl = data?.ENV?.DOMAIN ?? "http://localhost:5173";
@@ -203,88 +112,23 @@ export const links = () => [
 ];
 
 export async function loader() {
-  try {
-    // Select only fields needed for homepage display (server-serialization)
-    const cars = await prisma.car.findMany({
-      where: {
-        status: { in: [Status.AVAILABLE, Status.BOOKED] },
-        approvalStatus: CarApprovalStatus.APPROVED,
-        owner: { fleetOwnerStatus: "APPROVED", hasOnboarded: true },
-      },
-      select: {
-        id: true,
-        make: true,
-        model: true,
-        year: true,
-        createdAt: true,
-        dayRate: true,
-        passengerCapacity: true,
-        pricingIncludesFuel: true,
-        vehicleType: true,
-        serviceTier: true,
-        images: { select: { url: true }, orderBy: { createdAt: "asc" }, take: 3 },
-      },
-      orderBy: [{ updatedAt: "desc" }, { dayRate: "asc" }],
-      take: 50, // Reduced from 100 - users rarely scroll through all cars
-    });
+  const { categories, ratings } = await getHomePageFleetData({ logContext: "HOME" });
 
-    // Serialize dates for client (Remix handles this automatically for full objects,
-    // but with select we need to do it manually)
-    const serializedCars: HomePageCar[] = cars.map((car) => ({
-      ...car,
-      createdAt: car.createdAt.toISOString(),
-    }));
-
-    const categories = categorizeCars(serializedCars);
-
-    // Fetch ratings for all cars in a single batch query
-    let ratings: Record<string, AggregatedRatings> = {};
-    try {
-      const carIds = cars.map((car) => car.id);
-      ratings = await getBatchCarRatings(carIds);
-    } catch (error) {
-      // Continue without ratings if there's an error
-    }
-
-    return data(
-      {
-        categories,
-        ratings,
-        ENV: {
-          DOMAIN: env.DOMAIN,
-        },
+  return data(
+    {
+      categories,
+      ratings,
+      ENV: {
+        DOMAIN: env.DOMAIN,
       },
-      {
-        headers: {
-          "Cache-Control": "public, max-age=300, stale-while-revalidate=1800",
-          Vary: "Accept-Encoding",
-        },
+    },
+    {
+      headers: {
+        "Cache-Control": "public, max-age=300, stale-while-revalidate=1800",
+        Vary: "Accept-Encoding",
       },
-    );
-  } catch (error) {
-    logger.error(
-      "[HOME] Error in loader:",
-      error instanceof Error ? error.message : "Unknown error",
-    );
-    return data(
-      {
-        categories: {
-          suvs: [],
-          luxury: [],
-          budget: [],
-          sedans: [],
-          executive: [],
-          popular: [],
-          allCars: [],
-        },
-        ratings: {},
-        ENV: {
-          DOMAIN: env.DOMAIN,
-        },
-      },
-      { status: 500, headers: { "Cache-Control": "no-store" } },
-    );
-  }
+    },
+  );
 }
 
 type LoaderData = {
@@ -295,36 +139,8 @@ type LoaderData = {
   };
 };
 
-const faqData = {
-  questions: [
-    {
-      question: "How do I book a chauffeur service in Lagos?",
-      answer:
-        "Simply visit our website, select your bookingn type, date, and time, choose your preferred vehicle, and complete the booking. You'll receive instant confirmation.",
-    },
-    {
-      question: "What types of vehicles are available?",
-      answer:
-        "We offer a wide range of vehicles including standard, economy, budget-friendly, luxury sedans, SUVs, executive cars, and premium vehicles from brands like Toyota, Lexus and Mercedes-Benz.",
-    },
-    {
-      question: "Are your chauffeurs professional and vetted?",
-      answer:
-        "Yes, all our chauffeurs are professionally trained, background-checked via the fleet owners, and experienced in providing premium transportation services.",
-    },
-    {
-      question: "Do you offer airport pickup services?",
-      answer:
-        "Yes, we specialize in airport pickups from Murtala Muhammed International Airport (Lagos).",
-    },
-  ],
-};
-
 export default function IndexPage() {
   const { categories, ratings, ENV } = useLoaderData<LoaderData>();
-
-  // Use dayRate for default price display on homepage
-  const getRateForDisplay = (car: HomePageCar) => car.dayRate;
 
   // Filter cars with 4.5+ rating for Top Bookings section
   // const topBookings = filterTopBookings(categories.allCars, ratings);
@@ -499,234 +315,8 @@ export default function IndexPage() {
       <div className={`hidden md:block transition-all duration-300 ${desktopHeight}`} />
 
       {/* Main Content Container - Scrolls underneath fixed hero */}
-      <div
-        className={`relative z-0 bg-white py-8 md:py-12 space-y-6 transition-transform duration-300 ${contentTransform}`}
-      >
-        {categories.allCars.length ? (
-          <div className="space-y-6">
-            {/* Category Filter Pills - Link to /search with filters */}
-            <div className="max-w-[1400px] mx-auto px-4 md:px-8">
-              <div className="flex items-center gap-2 md:gap-3 overflow-x-auto scrollbar-hide">
-                {categories.suvs.length > 0 && (
-                  <Link
-                    to="/search?vehicleType=SUV"
-                    className="flex-shrink-0 px-3 md:px-4 py-1.5 md:py-2 rounded-full border border-gray-300 hover:border-gray-900 hover:bg-gray-50 transition-all text-xs md:text-sm font-medium whitespace-nowrap"
-                  >
-                    SUV ({categories.suvs.length})
-                  </Link>
-                )}
-                {categories.luxury.length > 0 && (
-                  <Link
-                    to="/search?serviceTier=LUXURY"
-                    className="flex-shrink-0 px-3 md:px-4 py-1.5 md:py-2 rounded-full border border-gray-300 hover:border-gray-900 hover:bg-gray-50 transition-all text-xs md:text-sm font-medium whitespace-nowrap"
-                  >
-                    Luxury ({categories.luxury.length})
-                  </Link>
-                )}
-                {categories.executive.length > 0 && (
-                  <Link
-                    to="/search?serviceTier=EXECUTIVE"
-                    className="flex-shrink-0 px-3 md:px-4 py-1.5 md:py-2 rounded-full border border-gray-300 hover:border-gray-900 hover:bg-gray-50 transition-all text-xs md:text-sm font-medium whitespace-nowrap"
-                  >
-                    Executive ({categories.executive.length})
-                  </Link>
-                )}
-                {categories.budget.length > 0 && (
-                  <Link
-                    to="/search?serviceTier=STANDARD"
-                    className="flex-shrink-0 px-3 md:px-4 py-1.5 md:py-2 rounded-full border border-gray-300 hover:border-gray-900 hover:bg-gray-50 transition-all text-xs md:text-sm font-medium whitespace-nowrap"
-                  >
-                    Budget-friendly ({categories.budget.length})
-                  </Link>
-                )}
-                {categories.popular.length > 0 && (
-                  <Link
-                    to="/search"
-                    className="flex-shrink-0 px-3 md:px-4 py-1.5 md:py-2 rounded-full border border-gray-300 hover:border-gray-900 hover:bg-gray-50 transition-all text-xs md:text-sm font-medium whitespace-nowrap"
-                  >
-                    Popular ({categories.popular.length})
-                  </Link>
-                )}
-                {categories.sedans.length > 0 && (
-                  <Link
-                    to="/search?vehicleType=SEDAN"
-                    className="flex-shrink-0 px-3 md:px-4 py-1.5 md:py-2 rounded-full border border-gray-300 hover:border-gray-900 hover:bg-gray-50 transition-all text-xs md:text-sm font-medium whitespace-nowrap"
-                  >
-                    Sedans ({categories.sedans.length})
-                  </Link>
-                )}
-              </div>
-            </div>
-
-            {/* Top Bookings Section - Cars with 4.5+ rating */}
-            {/* {topBookings.length > 0 && (
-              <CarouselSection title="Top Rated" id="top-bookings">
-                {topBookings.map(({ car, ratings: carRatings }, index) => (
-                  <TopBookingCard
-                    key={car.id}
-                    car={car}
-                    priority={index < 3}
-                    price={car.dayRate}
-                    ratings={carRatings}
-                  />
-                ))}
-              </CarouselSection>
-            )} */}
-
-            {/* SUVs Section */}
-            {categories.suvs.length > 0 && (
-              <CarouselSection title="SUV" id="suvs" href="/search?vehicleType=SUV">
-                {categories.suvs.map((car, index) => {
-                  return (
-                    <CarCard
-                      key={car.id}
-                      car={car}
-                      priority={index < 5}
-                      price={getRateForDisplay(car)}
-                      showTotal={false}
-                      ratings={ratings[car.id]}
-                    />
-                  );
-                })}
-              </CarouselSection>
-            )}
-
-            {/* Luxury Section */}
-            {categories.luxury.length > 0 && (
-              <CarouselSection title="Luxury" id="luxury" href="/search?serviceTier=LUXURY">
-                {categories.luxury.map((car) => (
-                  <CarCard
-                    key={car.id}
-                    car={car}
-                    priority={false}
-                    price={getRateForDisplay(car)}
-                    showTotal={false}
-                    ratings={ratings[car.id]}
-                  />
-                ))}
-              </CarouselSection>
-            )}
-
-            {/* Executive Section */}
-            {categories.executive.length > 0 && (
-              <CarouselSection
-                title="Executive"
-                id="executive"
-                href="/search?serviceTier=EXECUTIVE"
-              >
-                {categories.executive.map((car) => (
-                  <CarCard
-                    key={car.id}
-                    car={car}
-                    priority={false}
-                    price={getRateForDisplay(car)}
-                    showTotal={false}
-                    ratings={ratings[car.id]}
-                  />
-                ))}
-              </CarouselSection>
-            )}
-
-            {/* Budget-Friendly Section */}
-            {categories.budget.length > 0 && (
-              <CarouselSection
-                title="Budget-friendly"
-                id="budget"
-                href="/search?serviceTier=STANDARD"
-              >
-                {categories.budget.map((car) => (
-                  <CarCard
-                    key={car.id}
-                    car={car}
-                    priority={false}
-                    price={getRateForDisplay(car)}
-                    showTotal={false}
-                    ratings={ratings[car.id]}
-                  />
-                ))}
-              </CarouselSection>
-            )}
-
-            {/* Popular Section */}
-            {categories.popular.length > 0 && (
-              <CarouselSection title="Popular" id="popular" href="/search">
-                {categories.popular.map((car) => (
-                  <CarCard
-                    key={car.id}
-                    car={car}
-                    priority={false}
-                    price={getRateForDisplay(car)}
-                    showTotal={false}
-                    ratings={ratings[car.id]}
-                  />
-                ))}
-              </CarouselSection>
-            )}
-
-            {/* Sedans Section */}
-            {categories.sedans.length > 0 && (
-              <CarouselSection title="Sedans" id="sedans" href="/search?vehicleType=SEDAN">
-                {categories.sedans.map((car) => (
-                  <CarCard
-                    key={car.id}
-                    car={car}
-                    priority={false}
-                    price={getRateForDisplay(car)}
-                    showTotal={false}
-                    ratings={ratings[car.id]}
-                  />
-                ))}
-              </CarouselSection>
-            )}
-
-            {/* All Vehicles Section - Carousel only (no search results grid) */}
-            <CarouselSection title="All vehicles" href="/search">
-              {categories.allCars.map((car, index) => (
-                <CarCard
-                  key={car.id}
-                  car={car}
-                  priority={index < 5}
-                  price={getRateForDisplay(car)}
-                  showTotal={false}
-                  ratings={ratings[car.id]}
-                />
-              ))}
-            </CarouselSection>
-          </div>
-        ) : (
-          <div className="max-w-7xl mx-auto px-4 md:px-6 lg:px-8">
-            <div className="text-center py-16">
-              <p className="text-xl text-gray-600 mb-4">No cars available at the moment</p>
-              <p className="text-gray-500 mb-6">Please check back later for available vehicles</p>
-            </div>
-          </div>
-        )}
-
-        {/* FAQ Section */}
-        <section className="bg-gray-50 py-12 md:py-16 border-t">
-          <div className="max-w-4xl mx-auto px-4 md:px-8">
-            <h2 className="text-2xl md:text-3xl font-bold text-center mb-8">
-              Frequently Asked Questions
-            </h2>
-            <Suspense
-              fallback={
-                <div className="bg-white rounded-lg border p-8 text-center text-gray-500">
-                  Loading FAQ...
-                </div>
-              }
-            >
-              <LazyAccordion faqData={faqData} />
-            </Suspense>
-            <div className="text-center mt-6">
-              <Link
-                to="/faq"
-                className="text-gray-900 font-medium hover:underline inline-flex items-center gap-1"
-              >
-                View all FAQs <span>→</span>
-              </Link>
-            </div>
-          </div>
-        </section>
+      <div className={`transition-transform duration-300 ${contentTransform}`}>
+        <FleetShowcaseSections categories={categories} ratings={ratings} />
       </div>
     </div>
   );

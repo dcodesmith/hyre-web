@@ -1,58 +1,58 @@
+import { Gift } from "lucide-react";
 import {
-  type LinksFunction,
-  type LoaderFunctionArgs,
-  type MetaFunction,
-  data,
-  Await,
-  Link,
-  Links,
-  Meta,
-  Outlet,
-  Scripts,
-  ScrollRestoration,
-  isRouteErrorResponse,
-  useLoaderData,
-  useLocation,
-  useRouteError,
-  useOutletContext,
-} from "react-router";
-import {
-  lazy,
   Suspense,
+  lazy,
   useCallback,
   useEffect,
   useMemo,
   useState,
   useSyncExternalStore,
 } from "react";
+import {
+  Await,
+  Link,
+  Links,
+  type LinksFunction,
+  type LoaderFunctionArgs,
+  Meta,
+  type MetaFunction,
+  Outlet,
+  Scripts,
+  ScrollRestoration,
+  data,
+  isRouteErrorResponse,
+  useLoaderData,
+  useLocation,
+  useOutletContext,
+  useRouteError,
+} from "react-router";
 import { AuthenticityTokenProvider } from "remix-utils/csrf/react";
 import tailwindStyles from "~/tailwind.css?url";
 import { csrf } from "~/utils/csrf.server";
+import { AISearchModal } from "./components/AISearchModal";
+import { BookingSearch, BookingSearchDraftProvider } from "./components/BookingSearch";
+import { CookieConsentBanner } from "./components/CookieConsentBanner";
+import { MaintenancePage } from "./components/MaintenancePage";
 import { ForbiddenPage, NotFoundPage, ServerErrorPage } from "./components/errors";
+import { ProfileFormSheet } from "./components/forms/ProfileFormSheet";
 import { Footer } from "./components/layout/Footer";
 import { MobileBottomNav } from "./components/layout/MobileBottomNav";
 import { UserNav } from "./components/layout/UserNav";
-import { Toaster } from "./components/ui/toaster";
-import { getSessionUser } from "./modules/auth/auth.server";
-import { touchSession } from "./modules/auth/session.server";
-import { env } from "./utils/server/env.server";
-import { ProfileFormSheet } from "./components/forms/ProfileFormSheet";
-import { userHasRole } from "./utils/shared/roles";
 import { Button } from "./components/ui/button";
-import { Gift } from "lucide-react";
-import { BookingSearch, BookingSearchDraftProvider } from "./components/BookingSearch";
-import { AISearchModal } from "./components/AISearchModal";
-import { getReferralConfig } from "./services/referral.server";
-import { cn, formatCurrency } from "./lib/utils";
-import { generateMetaTags } from "./utils/seo";
-import { MaintenancePage } from "./components/MaintenancePage";
-import { CookieConsentBanner } from "./components/CookieConsentBanner";
-import { COOKIE_CONSENT_KEY } from "./hooks/useCookieConsent";
+import { Toaster } from "./components/ui/toaster";
 import {
+  MOBILE_BREAKPOINT,
   SCROLL_COLLAPSE_THRESHOLD,
   SCROLL_EXPAND_THRESHOLD,
-  MOBILE_BREAKPOINT,
 } from "./constants/ui";
+import { COOKIE_CONSENT_KEY } from "./hooks/useCookieConsent";
+import { cn, formatCurrency } from "./lib/utils";
+import { getSessionUser } from "./modules/auth/auth.server";
+import { touchSession } from "./modules/auth/session.server";
+import { getReferralConfig } from "./services/referral.server";
+import { generateMetaTags } from "./utils/seo";
+import { env } from "./utils/server/env.server";
+import { userHasRole } from "./utils/shared/roles";
 
 // Type for outlet context - shared scroll state
 export interface RootOutletContext {
@@ -376,6 +376,9 @@ function AppContent() {
   // Route checks - simple string comparisons don't need memoization
   const isAuthPage = isAuthRoute(location.pathname);
   const isHomePage = location.pathname === "/";
+  const isPartnerPage = location.pathname.startsWith("/partners/");
+  const isHeroPage = isHomePage || isPartnerPage;
+  const partnerSlug = isPartnerPage ? location.pathname.split("/")[2] : null;
   const isCarDetailPage = location.pathname.startsWith("/cars/");
   const isAdminRoute = location.pathname.startsWith("/admin");
   const isFleetOwnerRoute = location.pathname.startsWith("/fleet-owner");
@@ -385,6 +388,10 @@ function AppContent() {
   const dashboardLink = getDashboardLinkFromUser(user);
   const mainClassName = getMainClassName(isAuthPage, isHomePage, isCarDetailPage);
   const mainPaddingClass = isCarDetailPage ? "pb-0" : "pb-20";
+  const headerPreservedSearchParams = useMemo(() => {
+    if (!partnerSlug) return undefined;
+    return new URLSearchParams({ partner: decodeURIComponent(partnerSlug).toLowerCase() });
+  }, [partnerSlug]);
 
   // Track scroll and mobile state for hero collapse
   // This state is shared with child routes via outlet context to prevent flash
@@ -396,7 +403,7 @@ function AppContent() {
     updateMobile();
     window.addEventListener("resize", updateMobile, { passive: true });
 
-    if (!isHomePage) {
+    if (!isHeroPage) {
       setHasScrolled(false);
       return () => window.removeEventListener("resize", updateMobile);
     }
@@ -423,7 +430,7 @@ function AppContent() {
       window.removeEventListener("scroll", handleScroll);
       window.removeEventListener("resize", updateMobile);
     };
-  }, [isHomePage]);
+  }, [isHeroPage]);
 
   // Memoize callbacks passed to child components
   const handleProfileOpen = useCallback(() => {
@@ -453,8 +460,8 @@ function AppContent() {
               <header
                 className={cn(
                   "hidden md:flex p-4 justify-between z-50 fixed top-0 left-0 right-0 transition-all duration-300",
-                  isHomePage && hasScrolled ? "items-start" : "items-center",
-                  isHomePage && !hasScrolled
+                  isHeroPage && hasScrolled ? "items-start" : "items-center",
+                  isHeroPage && !hasScrolled
                     ? "bg-transparent border-transparent"
                     : "bg-white border-b border-gray-200 shadow-sm",
                 )}
@@ -462,17 +469,21 @@ function AppContent() {
                 <Link
                   to={dashboardLink}
                   className={`text-2xl md:text-3xl font-bold font-dancingscript transition-colors duration-300 shrink-0 ${
-                    isHomePage && !hasScrolled ? "text-white" : "text-gray-900"
+                    isHeroPage && !hasScrolled ? "text-white" : "text-gray-900"
                   }`}
                 >
                   {ENV.APP_NAME}
                 </Link>
 
-                {/* Compact search in header - only on homepage when scrolled */}
-                {isHomePage && hasScrolled && (
+                {/* Compact search in header - shown on hero pages when scrolled */}
+                {isHeroPage && hasScrolled && (
                   <div className="flex-1 max-w-3xl mx-4 flex flex-col items-center gap-1">
                     <div className="w-full">
-                      <BookingSearch isCompact navigateToSearch />
+                      <BookingSearch
+                        isCompact
+                        navigateToSearch
+                        preservedSearchParams={headerPreservedSearchParams}
+                      />
                     </div>
                     <AISearchModal />
                   </div>
@@ -487,7 +498,7 @@ function AppContent() {
                             variant="outline"
                             asChild
                             className={`text-sm transition-colors duration-300 ${
-                              isHomePage && !hasScrolled
+                              isHeroPage && !hasScrolled
                                 ? "bg-white/20 border-white/40 text-white hover:bg-white/30"
                                 : ""
                             }`}
@@ -503,7 +514,7 @@ function AppContent() {
                       </Await>
                     </Suspense>
                   )}
-                  <UserNav user={user} isTransparent={isHomePage && !hasScrolled} />
+                  <UserNav user={user} isTransparent={isHeroPage && !hasScrolled} />
                 </div>
               </header>
             )}

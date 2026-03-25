@@ -7,6 +7,7 @@ interface SearchModalProps {
   readonly isOpen: boolean;
   readonly onClose: () => void;
   readonly navigateToSearch?: boolean;
+  readonly preservedSearchParams?: URLSearchParams;
 }
 
 const dialogContentClasses = cn(
@@ -21,7 +22,12 @@ const dialogContentClasses = cn(
   "md:data-[state=open]:slide-in-from-top-[48%]",
 );
 
-export function SearchModal({ isOpen, onClose, navigateToSearch = false }: SearchModalProps) {
+export function SearchModal({
+  isOpen,
+  onClose,
+  navigateToSearch = false,
+  preservedSearchParams,
+}: SearchModalProps) {
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className={dialogContentClasses}>
@@ -35,6 +41,7 @@ export function SearchModal({ isOpen, onClose, navigateToSearch = false }: Searc
               isCompact={false}
               context="modal"
               navigateToSearch={navigateToSearch}
+              preservedSearchParams={preservedSearchParams}
               onSearchComplete={onClose}
             />
           </BookingSearchDraftProvider>

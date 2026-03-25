@@ -1,23 +1,25 @@
-import { useNavigate, useNavigation, useSearchParams } from "react-router";
 import { format } from "date-fns";
 import { Loader2, Search } from "lucide-react";
 import {
+  type ReactNode,
   createContext,
   useCallback,
   useContext,
   useEffect,
   useMemo,
   useState,
-  type ReactNode,
 } from "react";
 import { DateRange } from "react-day-picker";
+import { useNavigate, useNavigation, useSearchParams } from "react-router";
 import { SingleDatePicker } from "./booking/SingleDatePicker";
 
 import { formatInTimeZone } from "date-fns-tz";
+import { getToDateMinDate, isValidToDateSelection } from "~/lib/booking-utils";
+import { cn } from "~/lib/utils";
 import type { ValidatedFlight } from "~/services/flight-validation.server";
 import { LAGOS_TIMEZONE } from "~/utils/timezone";
-import { isValidToDateSelection, getToDateMinDate } from "~/lib/booking-utils";
 import { AutocompleteFlight } from "./AutocompleteFlight";
+import { BookingTypeTabs } from "./BookingTypeTabs";
 import { BookingTimeSelect } from "./booking/BookingTimeSelect";
 import {
   AIRPORT_PICKUP_BOOKING_TYPE,
@@ -29,9 +31,7 @@ import {
   NIGHT_BOOKING_TYPE,
   TAB_VALUE_TO_BOOKING_TYPE,
 } from "./bookingTypes";
-import { BookingTypeTabs } from "./BookingTypeTabs";
 import { Button } from "./ui/button";
-import { cn } from "~/lib/utils";
 
 type BookingSearchDraftContextValue = {
   bookingType: BookingType;
@@ -283,6 +283,8 @@ interface BookingSearchProps {
   readonly context?: "hero" | "modal";
   /** When true, navigates to /search route instead of updating current page URL params */
   readonly navigateToSearch?: boolean;
+  /** Additional query params that should always be preserved on search navigation */
+  readonly preservedSearchParams?: URLSearchParams;
   /** Called after search is triggered (useful for closing modals) */
   readonly onSearchComplete?: () => void;
 }
@@ -291,6 +293,7 @@ export function BookingSearch({
   isCompact = false,
   context = "hero",
   navigateToSearch = false,
+  preservedSearchParams,
   onSearchComplete,
 }: BookingSearchProps) {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -542,12 +545,19 @@ export function BookingSearch({
     // Preserve existing category filters when on search page
     const existingServiceTier = searchParams.get("serviceTier");
     const existingVehicleType = searchParams.get("vehicleType");
+    const existingPartner = searchParams.get("partner");
     if (existingServiceTier) {
       newSearchParams.set("serviceTier", existingServiceTier);
     }
     if (existingVehicleType) {
       newSearchParams.set("vehicleType", existingVehicleType);
     }
+    if (existingPartner) {
+      newSearchParams.set("partner", existingPartner);
+    }
+    preservedSearchParams?.forEach((value, key) => {
+      newSearchParams.set(key, value);
+    });
 
     // Set booking params
     newSearchParams.set("bookingType", bookingType);
@@ -588,6 +598,7 @@ export function BookingSearch({
     navigate,
     setSearchParams,
     searchParams,
+    preservedSearchParams,
     onSearchComplete,
   ]);
 
