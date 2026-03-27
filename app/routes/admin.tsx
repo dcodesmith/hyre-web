@@ -1,4 +1,4 @@
-import { LoaderFunctionArgs, Link, Outlet, useLoaderData, useLocation } from "react-router";
+import { Link, LoaderFunctionArgs, Outlet, useLoaderData, useLocation } from "react-router";
 import { ScrollArea } from "~/components/ui/scroll-area";
 import { requireAdminOrStaffWithRedirect } from "~/modules/auth/auth.server";
 
@@ -25,6 +25,7 @@ function NavLink({ to, children }: NavLinkProps) {
 
 const adminNavLinks = [
   { to: "/admin", label: "Dashboard" },
+  { to: "/admin/reports", label: "Reports" },
   { to: "/admin/owners", label: "Fleet Owners" },
   { to: "/admin/documents", label: "Documents" },
   { to: "/admin/referrals", label: "Referrals" },
@@ -36,6 +37,7 @@ const adminNavLinks = [
 
 const staffNavLinks = [
   { to: "/admin", label: "Dashboard" },
+  { to: "/admin/reports", label: "Reports" },
   { to: "/admin/owners", label: "Fleet Owners" },
   { to: "/admin/documents", label: "Documents" },
   { to: "/admin/referrals", label: "Referrals" },

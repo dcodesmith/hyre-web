@@ -322,7 +322,7 @@ export const meta: MetaFunction<typeof loader> = ({ data, matches, location }) =
   const pagination = data?.pagination;
   const baseUrl = rootData?.ENV?.DOMAIN ?? "http://localhost:5173";
   const partnerSlugFromPath = /^\/partners\/([^/]+)\/search/.exec(location.pathname)?.[1] ?? null;
-  const effectivePartnerSlug = partnerSlugFromPath ?? filters?.partnerSlug ?? null;
+  const effectivePartnerSlug = partnerSlugFromPath ?? null;
   const searchPath = effectivePartnerSlug ? `/partners/${effectivePartnerSlug}/search` : "/search";
 
   // Build dynamic title parts
@@ -582,7 +582,7 @@ function createErrorResponse(status: number) {
     {
       cars: [],
       ratings: {},
-      filters: { serviceTier: null, vehicleType: null, bookingType: null, partnerSlug: null },
+      filters: { serviceTier: null, vehicleType: null, bookingType: null },
       pagination: {
         page: 1,
         limit: 12,
@@ -900,10 +900,7 @@ export default function SearchPage() {
           {/* Desktop: Search bar */}
           <div className="hidden md:block max-w-4xl mx-auto">
             <BookingSearchDraftProvider>
-              <BookingSearch
-                isCompact={true}
-                searchBasePath={searchBasePath}
-              />
+              <BookingSearch isCompact={true} searchBasePath={searchBasePath} />
             </BookingSearchDraftProvider>
           </div>
 

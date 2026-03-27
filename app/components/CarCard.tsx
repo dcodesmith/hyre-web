@@ -93,7 +93,6 @@ export function CarCard({
               <StarRating
                 rating={ratings.averageRating}
                 mode="compact"
-                variant="black"
                 size="sm"
                 ariaLabel={`Average rating: ${ratings.averageRating.toFixed(1)} out of 5 stars`}
               />
