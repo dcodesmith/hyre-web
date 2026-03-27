@@ -1,5 +1,5 @@
-import { useFetcher } from "react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useFetcher } from "react-router";
 
 interface PaginationData {
   readonly page: number;
@@ -15,6 +15,7 @@ interface UseInfiniteScrollOptions<TItem, TRatings> {
   readonly initialRatings: TRatings;
   readonly initialPagination: PaginationData | undefined;
   readonly searchParams: URLSearchParams;
+  readonly searchPath?: string;
 }
 
 interface UseInfiniteScrollReturn<TItem, TRatings> {
@@ -40,6 +41,7 @@ export function useInfiniteScroll<
   initialRatings,
   initialPagination,
   searchParams,
+  searchPath = "/search",
 }: UseInfiniteScrollOptions<TItem, TRatings>): UseInfiniteScrollReturn<TItem, TRatings> {
   const fetcher = useFetcher<{
     cars?: TItem[];
@@ -103,7 +105,7 @@ export function useInfiniteScroll<
           const nextPage = currentPage + 1;
           const params = new URLSearchParams(searchParams);
           params.set("page", nextPage.toString());
-          fetcher.load(`/search?${params.toString()}`);
+          fetcher.load(`${searchPath}?${params.toString()}`);
         }
       },
       { rootMargin: "300px" },
@@ -116,7 +118,7 @@ export function useInfiniteScroll<
     return () => {
       observer.disconnect();
     };
-  }, [hasMore, currentPage, searchParams, fetcher.state, fetcher]);
+  }, [hasMore, currentPage, searchParams, fetcher.state, fetcher, searchPath]);
 
   // Retry function
   const retry = useCallback(() => {
@@ -125,8 +127,8 @@ export function useInfiniteScroll<
     const nextPage = currentPage + 1;
     const params = new URLSearchParams(searchParams);
     params.set("page", nextPage.toString());
-    fetcher.load(`/search?${params.toString()}`);
-  }, [currentPage, searchParams, fetcher]);
+    fetcher.load(`${searchPath}?${params.toString()}`);
+  }, [currentPage, searchParams, fetcher, searchPath]);
 
   return {
     allItems,

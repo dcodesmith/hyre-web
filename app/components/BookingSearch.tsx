@@ -283,6 +283,8 @@ interface BookingSearchProps {
   readonly context?: "hero" | "modal";
   /** When true, navigates to /search route instead of updating current page URL params */
   readonly navigateToSearch?: boolean;
+  /** Optional path to use instead of /search */
+  readonly searchBasePath?: string;
   /** Additional query params that should always be preserved on search navigation */
   readonly preservedSearchParams?: URLSearchParams;
   /** Called after search is triggered (useful for closing modals) */
@@ -293,6 +295,7 @@ export function BookingSearch({
   isCompact = false,
   context = "hero",
   navigateToSearch = false,
+  searchBasePath = "/search",
   preservedSearchParams,
   onSearchComplete,
 }: BookingSearchProps) {
@@ -545,15 +548,11 @@ export function BookingSearch({
     // Preserve existing category filters when on search page
     const existingServiceTier = searchParams.get("serviceTier");
     const existingVehicleType = searchParams.get("vehicleType");
-    const existingPartner = searchParams.get("partner");
     if (existingServiceTier) {
       newSearchParams.set("serviceTier", existingServiceTier);
     }
     if (existingVehicleType) {
       newSearchParams.set("vehicleType", existingVehicleType);
-    }
-    if (existingPartner) {
-      newSearchParams.set("partner", existingPartner);
     }
     preservedSearchParams?.forEach((value, key) => {
       newSearchParams.set(key, value);
@@ -583,7 +582,7 @@ export function BookingSearch({
 
     // Navigate to /search route or update current page params
     if (navigateToSearch) {
-      return navigate(`/search?${newSearchParams.toString()}`);
+      return navigate(`${searchBasePath}?${newSearchParams.toString()}`);
     }
 
     setSearchParams(newSearchParams, { replace: true, preventScrollReset: true });
@@ -595,6 +594,7 @@ export function BookingSearch({
     pickupTime,
     flightNumber,
     navigateToSearch,
+    searchBasePath,
     navigate,
     setSearchParams,
     searchParams,

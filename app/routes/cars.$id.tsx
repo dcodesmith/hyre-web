@@ -74,8 +74,9 @@ export async function action({ request, params }: ActionFunctionArgs) {
   await validateCSRF(request);
 
   // Use the slug as-is for the redirect (it will be resolved in loader)
+  const partnerPrefix = params.slug ? `/partners/${params.slug}` : "";
   await requireUser(request, {
-    redirectTo: `/auth?redirectTo=/cars/${params.id}`,
+    redirectTo: `/auth?redirectTo=${partnerPrefix}/cars/${params.id}`,
   });
 }
 
@@ -98,7 +99,7 @@ function getEffectivePickupTime(bookingType: string, pickupTime: string | null):
   return pickupTime;
 }
 
-function buildSearchBackLink(url: URL): string {
+function buildSearchBackLink(url: URL, partnerSlug?: string): string {
   const allowedParams = [
     "q",
     "serviceTier",
@@ -111,7 +112,6 @@ function buildSearchBackLink(url: URL): string {
     "bookingType",
     "pickupTime",
     "flightNumber",
-    "partner",
     "page",
   ];
   const backParams = new URLSearchParams();
@@ -122,7 +122,8 @@ function buildSearchBackLink(url: URL): string {
     }
   }
   const query = backParams.toString();
-  return query ? `/search?${query}` : "/search";
+  const baseSearchPath = partnerSlug ? `/partners/${partnerSlug}/search` : "/search";
+  return query ? `${baseSearchPath}?${query}` : baseSearchPath;
 }
 
 /** Check car availability for the given parameters */
@@ -207,6 +208,7 @@ async function checkCarAvailability(
 export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   invariant(params.id, "Car ID is required");
   const slugOrId = params.id;
+  const partnerSlug = params.slug;
   const url = new URL(request.url);
 
   const fromDate = url.searchParams.get("from");
@@ -214,7 +216,7 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   const bookingType = url.searchParams.get("bookingType");
   const pickupTime = url.searchParams.get("pickupTime");
   const flightNumber = url.searchParams.get("flightNumber");
-  const backToSearch = buildSearchBackLink(url);
+  const backToSearch = buildSearchBackLink(url, partnerSlug);
 
   // Run all independent queries in parallel for better performance
   const [user, car, rates] = await Promise.all([
@@ -234,7 +236,8 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   if (slugOrId !== canonicalSlug) {
     const searchParams = url.searchParams.toString();
     const queryString = searchParams ? `?${searchParams}` : "";
-    const redirectUrl = `/cars/${canonicalSlug}${queryString}`;
+    const carBasePath = partnerSlug ? `/partners/${partnerSlug}/cars` : "/cars";
+    const redirectUrl = `${carBasePath}/${canonicalSlug}${queryString}`;
     throw redirect(redirectUrl, 301);
   }
 
@@ -309,6 +312,7 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   return {
     car,
     isAvailable,
+    partnerSlug: partnerSlug ?? null,
     backToSearch,
     ratings,
     subRatings,
@@ -341,9 +345,10 @@ export const meta: MetaFunction<typeof loader> = ({ data }) => {
   const carName = `${car.make} ${car.model} ${car.year}`;
   const price = `₦${Number(car.dayRate).toLocaleString()}`;
   const baseUrl = data?.ENV?.DOMAIN ?? "http://localhost:5173";
+  const partnerPrefix = data?.partnerSlug ? `/partners/${data.partnerSlug}` : "";
   // Use SEO-friendly slug for canonical URL
   const slug = generateCarSlug({ id: car.id, make: car.make, model: car.model, year: car.year });
-  const carUrl = `${baseUrl}/cars/${slug}`;
+  const carUrl = `${baseUrl}${partnerPrefix}/cars/${slug}`;
   const imageUrl = car.images?.[0]?.url || `${baseUrl}/og-image.jpg`;
 
   const title = `${carName} in Lagos, Nigeria - Book Now | Tripdly`;
@@ -365,6 +370,7 @@ export default function CarDetails() {
   const {
     car,
     isAvailable,
+    partnerSlug,
     backToSearch,
     ratings,
     subRatings,
@@ -391,6 +397,7 @@ export default function CarDetails() {
 
   // SEO structured data
   const baseUrl = "https://tripdly.com";
+  const partnerPrefix = partnerSlug ? `/partners/${partnerSlug}` : "";
   const carName = `${car.year} ${car.make} ${car.model}`;
   const carSlug = generateCarSlug(car);
 
@@ -402,7 +409,7 @@ export default function CarDetails() {
           name: carName,
           description: `Book a ${car.color} ${carName} with professional chauffeur service in Nigeria. ${car.vehicleType} with ${car.passengerCapacity} passenger capacity.`,
           image: car.images?.[0]?.url || `${baseUrl}/og-image.jpg`,
-          url: `${baseUrl}/cars/${carSlug}`,
+          url: `${baseUrl}${partnerPrefix}/cars/${carSlug}`,
           brand: car.make,
           model: car.model,
           year: car.year,
@@ -420,8 +427,8 @@ export default function CarDetails() {
         data={{
           items: [
             { name: "Home", url: baseUrl },
-            { name: "Search", url: `${baseUrl}/search` },
-            { name: carName, url: `${baseUrl}/cars/${carSlug}` },
+            { name: "Search", url: `${baseUrl}${partnerPrefix}/search` },
+            { name: carName, url: `${baseUrl}${partnerPrefix}/cars/${carSlug}` },
           ],
         }}
       />
@@ -571,6 +578,7 @@ export default function CarDetails() {
             vatRate={vatRate}
             platformServiceFeeRate={platformServiceFeeRate}
             securityDetailRate={securityDetailRate}
+            partnerSlug={partnerSlug}
           />
         </div>
       </div>

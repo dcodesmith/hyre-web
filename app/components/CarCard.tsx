@@ -1,8 +1,8 @@
-import { Link } from "react-router";
 import { Sparkles } from "lucide-react";
+import { Link } from "react-router";
 import { formatCurrency } from "~/lib/utils";
-import { generateCarSlug } from "~/utils/seo";
 import type { AggregatedRatings } from "~/services/reviews.server";
+import { generateCarSlug } from "~/utils/seo";
 import Carousel from "./Carousel";
 import { StarRating } from "./reviews/StarRating";
 
@@ -29,6 +29,7 @@ interface CarCardCar {
 interface CarCardProps {
   readonly car: CarCardCar;
   readonly searchParams?: URLSearchParams;
+  readonly detailsBasePath?: string;
   readonly priority?: boolean;
   readonly price: number;
   readonly priceLabel?: string;
@@ -41,6 +42,7 @@ interface CarCardProps {
 export function CarCard({
   car,
   searchParams,
+  detailsBasePath = "/cars",
   priority = false,
   price,
   priceLabel = "/ day",
@@ -57,7 +59,11 @@ export function CarCard({
   if (!linkParams.has("bookingType")) {
     linkParams.set("bookingType", "DAY");
   }
-  const linkUrl = `/cars/${carSlug}?${linkParams.toString()}`;
+  const query = linkParams.toString();
+
+  const normalizedDetailsBasePath = detailsBasePath.replace(/\/+$/, "");
+  const linkPath = `${normalizedDetailsBasePath}/${carSlug}`;
+  const linkUrl = query ? `${linkPath}?${query}` : linkPath;
 
   const carName = `${car.year} ${car.make} ${car.model}`;
 

@@ -73,7 +73,8 @@ export async function loader({ params }: LoaderFunctionArgs) {
 export default function PartnerPublicFleetPage() {
   const { partner, categories, ratings } = useLoaderData<typeof loader>();
   const partnerDisplayName = partner.name ?? `@${partner.publicSlug}`;
-  const partnerSearchParams = new URLSearchParams({ partner: partner.publicSlug });
+  const partnerSearchBasePath = `/partners/${partner.publicSlug}/search`;
+  const partnerCarBasePath = `/partners/${partner.publicSlug}/cars`;
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const { hasScrolled, isMobile } = useRootScrollState();
   const isDesktop = !isMobile;
@@ -103,7 +104,7 @@ export default function PartnerPublicFleetPage() {
             isOpen={isSearchModalOpen}
             onClose={() => setIsSearchModalOpen(false)}
             navigateToSearch
-            preservedSearchParams={partnerSearchParams}
+            searchBasePath={partnerSearchBasePath}
           />
         </Suspense>
       )}
@@ -170,7 +171,7 @@ export default function PartnerPublicFleetPage() {
               isDesktopCollapsed ? "md:opacity-0 md:max-h-0 md:overflow-hidden" : ""
             }`}
           >
-            <BookingSearch navigateToSearch preservedSearchParams={partnerSearchParams} />
+            <BookingSearch navigateToSearch searchBasePath={partnerSearchBasePath} />
             <div className="flex justify-center">
               <Suspense fallback={null}>
                 <AISearchModal />
@@ -201,7 +202,8 @@ export default function PartnerPublicFleetPage() {
         <FleetShowcaseSections
           categories={categories}
           ratings={ratings}
-          preservedSearchParams={partnerSearchParams}
+          searchBasePath={partnerSearchBasePath}
+          carDetailsBasePath={partnerCarBasePath}
         />
 
         <div className="max-w-6xl mx-auto px-4 pb-8">
@@ -210,7 +212,7 @@ export default function PartnerPublicFleetPage() {
               Back to Home
             </Link>
             <Link
-              to={`/search?${partnerSearchParams.toString()}`}
+              to={partnerSearchBasePath}
               className="text-sm text-gray-700 underline underline-offset-4"
             >
               Browse all vehicles

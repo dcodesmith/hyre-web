@@ -376,21 +376,28 @@ function AppContent() {
   // Route checks - simple string comparisons don't need memoization
   const isAuthPage = isAuthRoute(location.pathname);
   const isHomePage = location.pathname === "/";
-  const isPartnerPage = location.pathname.startsWith("/partners/");
-  const isHeroPage = isHomePage || isPartnerPage;
-  const partnerSlug = isPartnerPage ? location.pathname.split("/")[2] : null;
-  const isCarDetailPage = location.pathname.startsWith("/cars/");
+  const partnerLandingMatch = /^\/partners\/([^/]+)\/?$/.exec(location.pathname);
+  const isPartnerLandingPage = Boolean(partnerLandingMatch);
+  const isHeroPage = isHomePage || isPartnerLandingPage;
+  const partnerSlug = partnerLandingMatch?.[1] ?? null;
+  const isCarDetailPage =
+    location.pathname.startsWith("/cars/") || /^\/partners\/[^/]+\/cars\//.test(location.pathname);
   const isAdminRoute = location.pathname.startsWith("/admin");
   const isFleetOwnerRoute = location.pathname.startsWith("/fleet-owner");
   const isInternalDashboardRoute = isAdminRoute || isFleetOwnerRoute;
 
   // Computed values
   const dashboardLink = getDashboardLinkFromUser(user);
-  const mainClassName = getMainClassName(isAuthPage, isHomePage, isCarDetailPage);
+
+  const mainClassName = getMainClassName(isAuthPage, isHeroPage, isCarDetailPage);
   const mainPaddingClass = isCarDetailPage ? "pb-0" : "pb-20";
-  const headerPreservedSearchParams = useMemo(() => {
-    if (!partnerSlug) return undefined;
-    return new URLSearchParams({ partner: decodeURIComponent(partnerSlug).toLowerCase() });
+  const headerSearchBasePath = useMemo(() => {
+    if (!partnerSlug) return "/search";
+    try {
+      return `/partners/${decodeURIComponent(partnerSlug).toLowerCase()}/search`;
+    } catch {
+      return `/partners/${partnerSlug.toLowerCase()}/search`;
+    }
   }, [partnerSlug]);
 
   // Track scroll and mobile state for hero collapse
@@ -482,7 +489,7 @@ function AppContent() {
                       <BookingSearch
                         isCompact
                         navigateToSearch
-                        preservedSearchParams={headerPreservedSearchParams}
+                        searchBasePath={headerSearchBasePath}
                       />
                     </div>
                     <AISearchModal />

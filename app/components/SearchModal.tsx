@@ -7,6 +7,7 @@ interface SearchModalProps {
   readonly isOpen: boolean;
   readonly onClose: () => void;
   readonly navigateToSearch?: boolean;
+  readonly searchBasePath?: string;
   readonly preservedSearchParams?: URLSearchParams;
 }
 
@@ -26,6 +27,7 @@ export function SearchModal({
   isOpen,
   onClose,
   navigateToSearch = false,
+  searchBasePath = "/search",
   preservedSearchParams,
 }: SearchModalProps) {
   return (
@@ -41,6 +43,7 @@ export function SearchModal({
               isCompact={false}
               context="modal"
               navigateToSearch={navigateToSearch}
+              searchBasePath={searchBasePath}
               preservedSearchParams={preservedSearchParams}
               onSearchComplete={onClose}
             />

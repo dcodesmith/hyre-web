@@ -1,7 +1,6 @@
 import { type FieldMetadata, getFormProps, useForm } from "@conform-to/react";
 import { parseWithZod } from "@conform-to/zod/v4";
 import type { Car, User } from "@prisma/client";
-import { Link, useFetcher, useNavigate, useNavigation, useSearchParams } from "react-router";
 import {
   differenceInCalendarDays,
   eachDayOfInterval,
@@ -14,16 +13,24 @@ import {
 import { formatInTimeZone } from "date-fns-tz";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DateRange } from "react-day-picker";
+import { Link, useFetcher, useNavigate, useNavigation, useSearchParams } from "react-router";
 import { useAuthenticityToken } from "remix-utils/csrf/react";
-import { LAGOS_TIMEZONE } from "~/utils/timezone";
 import { Form } from "~/components/CSRFForm";
+import { useIsMobile } from "~/hooks/use-mobile";
+import { useBookingFlight } from "~/hooks/useBookingFlight";
+import { useBookingPricing, useFinalPricing } from "~/hooks/useBookingPricing";
+import { useReferralCredits } from "~/hooks/useReferralCredits";
 import {
   calculateBookingUnits,
-  isValidToDateSelection,
   getToDateMinDate,
+  isValidToDateSelection,
 } from "~/lib/booking-utils";
 import { cn, formatCurrency } from "~/lib/utils";
+import { getBookingSchema } from "~/schemas/booking.schema";
+import { LAGOS_TIMEZONE } from "~/utils/timezone";
+import { BookingTypeTabs } from "../BookingTypeTabs";
 import {
+  AIRPORT_PICKUP_BOOKING_TYPE,
   BOOKING_TYPE_LABELS,
   BOOKING_TYPE_OPTIONS,
   BOOKING_TYPE_OPTIONS_MAP,
@@ -31,10 +38,8 @@ import {
   DAY_BOOKING_TYPE,
   FULL_DAY_BOOKING_TYPE,
   NIGHT_BOOKING_TYPE,
-  AIRPORT_PICKUP_BOOKING_TYPE,
   TAB_VALUE_TO_BOOKING_TYPE,
 } from "../bookingTypes";
-import { BookingTypeTabs } from "../BookingTypeTabs";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "../ui/card";
 import { Label } from "../ui/label";
 import { BookingActions } from "./BookingActions";
@@ -45,11 +50,6 @@ import { GuestDetails } from "./GuestDetails";
 import { SingleDatePicker } from "./SingleDatePicker";
 import { TripDetails } from "./TripDetails";
 import { getOrdinal } from "./helpers";
-import { getBookingSchema } from "~/schemas/booking.schema";
-import { useBookingFlight } from "~/hooks/useBookingFlight";
-import { useBookingPricing, useFinalPricing } from "~/hooks/useBookingPricing";
-import { useIsMobile } from "~/hooks/use-mobile";
-import { useReferralCredits } from "~/hooks/useReferralCredits";
 
 const ERROR_RING_CLASSES = "border-red-500 focus-visible:ring-red-500 focus-visible:ring-2";
 
@@ -73,6 +73,7 @@ type BookingCardProps = {
   readonly vatRate: number;
   readonly platformServiceFeeRate: number;
   readonly securityDetailRate: number;
+  readonly partnerSlug?: string | null;
 };
 
 interface BookingCredits {
@@ -142,6 +143,7 @@ export default function BookingCard({
   user,
   vatRate,
   platformServiceFeeRate,
+  partnerSlug = null,
 }: BookingCardProps) {
   const navigate = useNavigate();
   const csrfToken = useAuthenticityToken();
@@ -330,15 +332,17 @@ export default function BookingCard({
         currentParams.set("bookingType", bookingType);
 
         currentParams.set("requiresFullTank", String(requiresFullTank));
-        const redirectTo = `/cars/${car.id}?${currentParams.toString()}`;
+        const carBasePath = partnerSlug ? `/partners/${partnerSlug}/cars` : "/cars";
+        const redirectTo = `${carBasePath}/${car.id}?${currentParams.toString()}`;
 
         return navigate(`/auth?redirectTo=${encodeURIComponent(redirectTo)}`);
       }
 
       formData.append("csrf", csrfToken);
+      const bookingQuery = searchParams.toString();
       bookingFetcher.submit(formData, {
         method: "POST",
-        action: `/bookings?${searchParams.toString()}`,
+        action: bookingQuery ? `/bookings?${bookingQuery}` : "/bookings",
       });
     },
   });
@@ -650,7 +654,8 @@ export default function BookingCard({
     currentParams.set("role", "user");
     currentParams.set("requiresFullTank", String(requiresFullTank));
 
-    const redirectTo = `/cars/${car.id}?${currentParams.toString()}`;
+    const carBasePath = partnerSlug ? `/partners/${partnerSlug}/cars` : "/cars";
+    const redirectTo = `${carBasePath}/${car.id}?${currentParams.toString()}`;
     navigate(`/auth?redirectTo=${encodeURIComponent(redirectTo)}`);
   }, [
     searchParams,
@@ -660,6 +665,7 @@ export default function BookingCard({
     bookingType,
     requiresFullTank,
     car.id,
+    partnerSlug,
     navigate,
   ]);
 
@@ -669,6 +675,7 @@ export default function BookingCard({
       <input type="hidden" name="totalAmount" value={finalTotalCost} />
       <input type="hidden" name="requiresFullTank" value={String(requiresFullTank)} />
       <input type="hidden" name="useCredits" value={useCreditsAmount} />
+      {partnerSlug ? <input type="hidden" name="partnerSlug" value={partnerSlug} /> : null}
 
       <Card className="rounded shadow-xl inset-shadow-sm transform-gpu">
         <CardHeader className="px-4 lg:px-6 py-4">

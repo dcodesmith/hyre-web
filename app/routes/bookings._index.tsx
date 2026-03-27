@@ -414,22 +414,30 @@ async function createBookingWithPayment(params: {
 }
 
 async function resolveBookingAcquisitionForRequest(
-  request: Request,
+  formData: FormData,
   car: Car,
-):
+): Promise<
   | {
-      acquisitionChannel: BookingAcquisitionChannel.GLOBAL;
+      acquisitionChannel: "GLOBAL";
       acquisitionPartnerOwnerId: null;
       acquisitionPartnerSlug: null;
     }
   | {
-      acquisitionChannel: BookingAcquisitionChannel.PARTNER;
+      acquisitionChannel: "PARTNER";
       acquisitionPartnerOwnerId: string;
       acquisitionPartnerSlug: string;
     }
-  | { error: string } {
-  const url = new URL(request.url);
-  const rawPartnerSlug = url.searchParams.get("partner");
+  | { error: string }
+> {
+  const rawPartnerSlug = formData.get("partnerSlug");
+  if (typeof rawPartnerSlug !== "string") {
+    return {
+      acquisitionChannel: BookingAcquisitionChannel.GLOBAL,
+      acquisitionPartnerOwnerId: null,
+      acquisitionPartnerSlug: null,
+    };
+  }
+
   if (!rawPartnerSlug) {
     return {
       acquisitionChannel: BookingAcquisitionChannel.GLOBAL,
@@ -516,7 +524,7 @@ async function handleCreateBooking(request: Request, formData: FormData, user: B
   }
   const { car } = availabilityResult;
 
-  const acquisition = await resolveBookingAcquisitionForRequest(request, car);
+  const acquisition = await resolveBookingAcquisitionForRequest(formData, car);
   if ("error" in acquisition) {
     return data({ error: acquisition.error }, { status: 400 });
   }

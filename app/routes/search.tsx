@@ -8,7 +8,7 @@ import {
   Status,
 } from "@prisma/client";
 import { fromZonedTime } from "date-fns-tz";
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   Link,
   type LoaderFunctionArgs,
@@ -16,6 +16,7 @@ import {
   data,
   useLoaderData,
   useMatches,
+  useParams,
   useSearchParams,
 } from "react-router";
 
@@ -320,6 +321,9 @@ export const meta: MetaFunction<typeof loader> = ({ data, matches, location }) =
   const filters = data?.filters;
   const pagination = data?.pagination;
   const baseUrl = rootData?.ENV?.DOMAIN ?? "http://localhost:5173";
+  const partnerSlugFromPath = /^\/partners\/([^/]+)\/search/.exec(location.pathname)?.[1] ?? null;
+  const effectivePartnerSlug = partnerSlugFromPath ?? filters?.partnerSlug ?? null;
+  const searchPath = effectivePartnerSlug ? `/partners/${effectivePartnerSlug}/search` : "/search";
 
   // Build dynamic title parts
   const titleParts: string[] = [];
@@ -364,9 +368,9 @@ export const meta: MetaFunction<typeof loader> = ({ data, matches, location }) =
   const tags = generateMetaTags({
     title: dynamicTitle,
     description: dynamicDescription,
-    url: `${baseUrl}/search`,
+    url: `${baseUrl}${searchPath}`,
     image: `${baseUrl}/og-image.jpg`,
-    canonical: `${baseUrl}/search`,
+    canonical: `${baseUrl}${searchPath}`,
   });
 
   // Add pagination links (rel="next" and rel="prev")
@@ -380,7 +384,7 @@ export const meta: MetaFunction<typeof loader> = ({ data, matches, location }) =
       tags.push({
         tagName: "link",
         rel: "next",
-        href: `${baseUrl}/search?${nextParams.toString()}`,
+        href: `${baseUrl}${searchPath}?${nextParams.toString()}`,
       });
     }
 
@@ -391,7 +395,7 @@ export const meta: MetaFunction<typeof loader> = ({ data, matches, location }) =
       tags.push({
         tagName: "link",
         rel: "prev",
-        href: `${baseUrl}/search?${prevParams.toString()}`,
+        href: `${baseUrl}${searchPath}?${prevParams.toString()}`,
       });
     }
   }
@@ -509,7 +513,6 @@ function parseSearchParams(url: URL) {
     extractedMakeModelQuery?.trim() || (q && !serviceTier && !vehicleType ? q.trim() : null);
 
   return {
-    partnerSlug: url.searchParams.get("partner"),
     serviceTier,
     vehicleType,
     colorParam,
@@ -625,7 +628,7 @@ function calculatePagination(
   };
 }
 
-export async function loader({ request }: LoaderFunctionArgs) {
+export async function loader({ request, params: routeParams }: LoaderFunctionArgs) {
   const url = new URL(request.url);
   const params = parseSearchParams(url);
 
@@ -635,7 +638,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     return createErrorResponse(400);
   }
 
-  const normalizedPartnerSlug = params.partnerSlug?.trim().toLowerCase();
+  const normalizedPartnerSlug = routeParams.slug?.trim().toLowerCase();
 
   try {
     const startTime = Date.now();
@@ -811,7 +814,15 @@ type LoaderData = {
 export default function SearchPage() {
   const { cars, ratings, filters, pagination } = useLoaderData<LoaderData>();
   const [searchParams] = useSearchParams();
+  const { slug: routePartnerSlug } = useParams();
   const matches = useMatches();
+  const effectivePartnerSlug = routePartnerSlug ?? filters.partnerSlug ?? null;
+  const searchBasePath = effectivePartnerSlug
+    ? `/partners/${effectivePartnerSlug}/search`
+    : "/search";
+  const carDetailsBasePath = effectivePartnerSlug
+    ? `/partners/${effectivePartnerSlug}/cars`
+    : "/cars";
 
   // Get domain from root loader data
   const rootData = matches.find((match) => match.id === "root")?.data as
@@ -837,6 +848,7 @@ export default function SearchPage() {
     initialRatings: ratings,
     initialPagination: pagination,
     searchParams,
+    searchPath: searchBasePath,
   });
 
   // Parse URL params for display
@@ -872,12 +884,13 @@ export default function SearchPage() {
   const hasActiveFilters = !!(filters.serviceTier || filters.vehicleType);
 
   // Clear all category filters
-  const clearAllFilters = () => {
+  const clearAllFiltersPath = useMemo(() => {
     const params = new URLSearchParams(searchParams);
     params.delete("serviceTier");
     params.delete("vehicleType");
-    return `/search?${params.toString()}`;
-  };
+    const query = params.toString();
+    return query ? `${searchBasePath}?${query}` : searchBasePath;
+  }, [searchParams, searchBasePath]);
 
   return (
     <div className="min-h-screen">
@@ -887,7 +900,10 @@ export default function SearchPage() {
           {/* Desktop: Search bar */}
           <div className="hidden md:block max-w-4xl mx-auto">
             <BookingSearchDraftProvider>
-              <BookingSearch isCompact={true} />
+              <BookingSearch
+                isCompact={true}
+                searchBasePath={searchBasePath}
+              />
             </BookingSearchDraftProvider>
           </div>
 
@@ -899,7 +915,11 @@ export default function SearchPage() {
       </div>
 
       {/* Mobile Search Modal */}
-      <SearchModal isOpen={isSearchModalOpen} onClose={() => setIsSearchModalOpen(false)} />
+      <SearchModal
+        isOpen={isSearchModalOpen}
+        onClose={() => setIsSearchModalOpen(false)}
+        searchBasePath={searchBasePath}
+      />
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto my-24">
@@ -930,6 +950,7 @@ export default function SearchPage() {
                 <CarCard
                   key={car.id}
                   car={car}
+                  detailsBasePath={carDetailsBasePath}
                   searchParams={searchParams}
                   priority={index < 6}
                   price={getRateForBookingType(car)}
@@ -954,7 +975,7 @@ export default function SearchPage() {
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
                 {hasActiveFilters && (
                   <Button variant="outline" asChild>
-                    <Link to={clearAllFilters()}>Clear filters</Link>
+                    <Link to={clearAllFiltersPath}>Clear filters</Link>
                   </Button>
                 )}
                 <Button asChild>

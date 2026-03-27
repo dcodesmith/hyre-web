@@ -1,13 +1,11 @@
 import { Fingerprint, ShieldCheck } from "lucide-react";
+import { Suspense, lazy, useState } from "react";
 import { type MetaFunction, data, useLoaderData } from "react-router";
 import { BookingSearch } from "~/components/BookingSearch";
-
-import type { AggregatedRatings } from "~/services/reviews.server";
-import { env } from "~/utils/server/env.server";
-
-import { Suspense, lazy, useState } from "react";
 import { FleetShowcaseSections } from "~/components/home/FleetShowcaseSections";
 import { getHomePageFleetData } from "~/features/home/homepage-data.server";
+import type { AggregatedRatings } from "~/services/reviews.server";
+import { env } from "~/utils/server/env.server";
 
 // Lazy-load components that aren't needed for initial render
 const CompactSearchBar = lazy(() =>
@@ -25,46 +23,20 @@ const AISearchModal = lazy(() =>
     default: mod.AISearchModal,
   })),
 );
-// Lazy-load Accordion components - create wrapper since they're named exports
-const LazyAccordion = lazy(() =>
-  import("~/components/ui/accordion").then((mod) => ({
-    default: ({
-      faqData,
-    }: {
-      faqData: { questions: Array<{ question: string; answer: string }> };
-    }) => (
-      <mod.Accordion type="single" collapsible className="bg-white rounded-lg border">
-        {faqData.questions.map((faq, index) => (
-          <mod.AccordionItem
-            key={faq.question}
-            value={`item-${index}`}
-            className="border-b border-gray-200 last:border-0 px-6"
-          >
-            <mod.AccordionTrigger className="text-left hover:no-underline">
-              <span className="font-medium text-gray-900 pr-4">{faq.question}</span>
-            </mod.AccordionTrigger>
-            <mod.AccordionContent>
-              <p className="text-gray-600 leading-relaxed">{faq.answer}</p>
-            </mod.AccordionContent>
-          </mod.AccordionItem>
-        ))}
-      </mod.Accordion>
-    ),
-  })),
-);
+
 import {
   FAQSchema,
   LocalBusinessSchema,
   ServiceSchema,
   WebSiteSchema,
 } from "~/components/seo/StructuredData";
+import { type CarCategories, faqData } from "~/features/home/homepage.shared";
 import { getHeroHeightClasses } from "~/hooks/useHeroScroll";
 import { useRootScrollState } from "~/root";
-import { faqData, type CarCategories } from "~/features/home/homepage.shared";
 import { companyInfo, defaultKeywords, generateMetaTags } from "~/utils/seo";
 
-export const meta: MetaFunction<typeof loader> = ({ data }) => {
-  const baseUrl = data?.ENV?.DOMAIN ?? "http://localhost:5173";
+export const meta: MetaFunction<typeof loader> = ({ loaderData }) => {
+  const baseUrl = loaderData?.ENV?.DOMAIN ?? "http://localhost:5173";
 
   const title = "Car Rental in Lagos with Driver | Chauffeur Service | Tripdly";
 
