@@ -50,12 +50,12 @@ export const faqData = {
     {
       question: "How do I book a chauffeur service in Lagos?",
       answer:
-        "Simply visit our website, select your bookingn type, date, and time, choose your preferred vehicle, and complete the booking. You'll receive instant confirmation.",
+        "Simply visit our website, select your booking type, date, and time, choose your preferred vehicle, and complete the booking. You'll receive instant confirmation, and subsequent updates.",
     },
     {
       question: "What types of vehicles are available?",
       answer:
-        "We offer a wide range of vehicles including standard, economy, budget-friendly, luxury sedans, SUVs, executive cars, and premium vehicles from brands like Toyota, Lexus and Mercedes-Benz.",
+        "We offer a wide range of vehicles including standard, economy, budget-friendly, luxury, sedans, SUVs, executive cars, and premium vehicles from brands like Toyota and Lexus",
     },
     {
       question: "Are your chauffeurs professional and vetted?",
@@ -65,7 +65,7 @@ export const faqData = {
     {
       question: "Do you offer airport pickup services?",
       answer:
-        "Yes, we specialize in airport pickups from Murtala Muhammed International Airport (Lagos).",
+        "Yes, for now, we specialize in airport pickups from Murtala Muhammed International Airport (Lagos).",
     },
   ],
 };

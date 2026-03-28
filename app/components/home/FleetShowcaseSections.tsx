@@ -76,7 +76,7 @@ export function FleetShowcaseSections({
     : undefined;
 
   return (
-    <div className="relative z-0 bg-white py-8 md:py-12 space-y-6">
+    <div className="relative z-0 bg-white pt-8 md:pt-12 space-y-6">
       {categories.allCars.length ? (
         <div className="space-y-6">
           <div className="max-w-[1400px] mx-auto px-4 md:px-8">

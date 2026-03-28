@@ -390,7 +390,8 @@ function AppContent() {
   const dashboardLink = getDashboardLinkFromUser(user);
 
   const mainClassName = getMainClassName(isAuthPage, isHeroPage, isCarDetailPage);
-  const mainPaddingClass = isCarDetailPage ? "pb-0" : "pb-20";
+  const showsFooter = !isAuthPage && !isInternalDashboardRoute;
+  const mainPaddingClass = isCarDetailPage || showsFooter ? "pb-0" : "pb-20";
   const headerSearchBasePath = useMemo(() => {
     if (!partnerSlug) return "/search";
     try {
