@@ -1,5 +1,6 @@
 import type { LoaderFunctionArgs } from "react-router";
 import { prisma } from "~/modules/db/db.server";
+import { listPublicPartnersForSitemap } from "~/services/partners.server";
 import { generateCarSlug } from "~/utils/seo";
 import { env } from "~/utils/server/env.server";
 
@@ -10,23 +11,26 @@ import { env } from "~/utils/server/env.server";
 export async function loader({ request }: LoaderFunctionArgs) {
   const domain = env.DOMAIN || "https://tripdly.com";
 
-  // Fetch all approved and available cars for individual car pages
-  const cars = await prisma.car.findMany({
-    where: {
-      status: "AVAILABLE",
-      approvalStatus: "APPROVED",
-    },
-    select: {
-      id: true,
-      make: true,
-      model: true,
-      year: true,
-      updatedAt: true,
-    },
-    orderBy: {
-      updatedAt: "desc",
-    },
-  });
+  const [cars, partners] = await Promise.all([
+    // Fetch all approved and available cars for individual car pages
+    prisma.car.findMany({
+      where: {
+        status: "AVAILABLE",
+        approvalStatus: "APPROVED",
+      },
+      select: {
+        id: true,
+        make: true,
+        model: true,
+        year: true,
+        updatedAt: true,
+      },
+      orderBy: {
+        updatedAt: "desc",
+      },
+    }),
+    listPublicPartnersForSitemap(),
+  ]);
 
   // Static pages with their priorities and change frequencies
   const staticPages = [
@@ -59,6 +63,17 @@ export async function loader({ request }: LoaderFunctionArgs) {
     <lastmod>${car.updatedAt.toISOString()}</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
+  </url>`,
+    )
+    .join("")}
+  ${partners
+    .map(
+      (partner) => `
+  <url>
+    <loc>${domain}/partners/${encodeURIComponent(partner.publicSlug)}</loc>
+    <lastmod>${partner.lastModifiedAt.toISOString()}</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.85</priority>
   </url>`,
     )
     .join("")}

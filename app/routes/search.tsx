@@ -513,6 +513,7 @@ function parseSearchParams(url: URL) {
     extractedMakeModelQuery?.trim() || (q && !serviceTier && !vehicleType ? q.trim() : null);
 
   return {
+    partnerSlug: url.searchParams.get("partner"),
     serviceTier,
     vehicleType,
     colorParam,
@@ -582,7 +583,7 @@ function createErrorResponse(status: number) {
     {
       cars: [],
       ratings: {},
-      filters: { serviceTier: null, vehicleType: null, bookingType: null },
+      filters: { serviceTier: null, vehicleType: null, bookingType: null, partnerSlug: null },
       pagination: {
         page: 1,
         limit: 12,

@@ -548,7 +548,6 @@ export function BookingSearch({
     // Preserve existing category filters when on search page
     const existingServiceTier = searchParams.get("serviceTier");
     const existingVehicleType = searchParams.get("vehicleType");
-
     if (existingServiceTier) {
       newSearchParams.set("serviceTier", existingServiceTier);
     }

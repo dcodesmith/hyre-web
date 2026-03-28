@@ -3,6 +3,7 @@ import { Suspense, lazy, useState } from "react";
 import { Link, type LoaderFunctionArgs, type MetaFunction, useLoaderData } from "react-router";
 import { BookingSearch } from "~/components/BookingSearch";
 import { FleetShowcaseSections } from "~/components/home/FleetShowcaseSections";
+import { BreadcrumbSchema, ServiceSchema } from "~/components/seo/StructuredData";
 import { getHomePageFleetData } from "~/features/home/homepage-data.server";
 import { getHeroHeightClasses } from "~/hooks/useHeroScroll";
 import { useRootScrollState } from "~/root";
@@ -33,11 +34,14 @@ export const meta: MetaFunction<typeof loader> = ({ loaderData }) => {
   const slug = loaderData?.partner.publicSlug;
   const partnerDisplayName = loaderData?.partner.name ?? (slug ? `@${slug}` : "Partner");
   const count = loaderData?.categories.allCars.length ?? 0;
+  const normalizedCity = loaderData?.partner.city?.trim();
+  const location = normalizedCity || "Lagos";
+  const locationLabel = ` in ${location}`;
   const partnerUrl = slug ? `${baseUrl}/partners/${slug}` : `${baseUrl}/partners`;
 
   return generateMetaTags({
-    title: `${partnerDisplayName} Fleet | Tripdly`,
-    description: `Browse ${count} verified vehicles from ${partnerDisplayName} on Tripdly.`,
+    title: `${partnerDisplayName} Fleet${locationLabel} | Tripdly`,
+    description: `Book from ${count} verified vehicle${count === 1 ? "" : "s"} by ${partnerDisplayName}${locationLabel} with professional chauffeur service on Tripdly.`,
     url: partnerUrl,
     canonical: partnerUrl,
     image: `${baseUrl}/og-image.jpg`,
@@ -71,8 +75,11 @@ export async function loader({ params }: LoaderFunctionArgs) {
 }
 
 export default function PartnerPublicFleetPage() {
-  const { partner, categories, ratings } = useLoaderData<typeof loader>();
+  const { partner, categories, ratings, ENV } = useLoaderData<typeof loader>();
+  const baseUrl = ENV.DOMAIN ?? "http://localhost:5173";
   const partnerDisplayName = partner.name ?? `@${partner.publicSlug}`;
+  const normalizedCity = partner.city?.trim();
+  const location = normalizedCity || "Lagos";
   const partnerSearchBasePath = `/partners/${partner.publicSlug}/search`;
   const partnerCarBasePath = `/partners/${partner.publicSlug}/cars`;
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
@@ -90,6 +97,26 @@ export default function PartnerPublicFleetPage() {
 
   return (
     <div className="w-full">
+      <ServiceSchema
+        data={{
+          name: `${partnerDisplayName} Chauffeur Fleet`,
+          description: `Browse and book ${partner.carsCount} vetted vehicles from ${partnerDisplayName} in ${location}.`,
+          provider: "Tripdly",
+          providerUrl: baseUrl,
+          serviceType: "Chauffeur Service",
+          areaServed: [location],
+          image: `${baseUrl}/og-image.jpg`,
+        }}
+      />
+      <BreadcrumbSchema
+        data={{
+          items: [
+            { name: "Home", url: baseUrl },
+            { name: partnerDisplayName, url: `${baseUrl}/partners/${partner.publicSlug}` },
+          ],
+        }}
+      />
+
       {isMobileScrolled && (
         <div className="md:hidden fixed top-0 left-0 right-0 z-50 px-4 py-3 bg-white border-b border-gray-200 shadow-md">
           <Suspense fallback={null}>
@@ -162,7 +189,7 @@ export default function PartnerPublicFleetPage() {
             </h1>
             <p className="text-base md:text-lg text-white/90 text-center max-w-2xl leading-relaxed">
               {partner.carsCount} verified {partner.carsCount === 1 ? "vehicle" : "vehicles"}
-              {partner.city ? ` in ${partner.city}` : ""}.
+              {` in ${location}`}.
             </p>
           </div>
 

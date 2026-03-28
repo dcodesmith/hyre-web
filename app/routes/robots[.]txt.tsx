@@ -15,6 +15,8 @@ User-agent: *
 Allow: /
 Allow: /search
 Allow: /cars/
+Allow: /partners/
+Allow: /partners/*/cars/
 
 # Disallow admin and private areas
 Disallow: /admin
@@ -30,6 +32,9 @@ Disallow: /debug*
 
 # Disallow query parameters that create duplicate content
 Disallow: /*?*sort=
+# Keep partner search result URLs out of index; partner landing pages are canonical entry points.
+Disallow: /partners/*/search
+Disallow: /partners/*/search?*
 
 # Sitemaps
 Sitemap: ${domain}/sitemap.xml
