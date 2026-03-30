@@ -6,7 +6,7 @@ export const extractedParamsSchema = z
     make: z.string().optional(),
     model: z.string().optional(),
     vehicleType: z
-      .enum(["SEDAN", "SUV", "LUXURY_SEDAN", "LUXURY_SUV", "VAN", "CROSSOVER"])
+      .enum(["SEDAN", "SUV", "VAN", "CROSSOVER"])
       .optional(),
     serviceTier: z.enum(["STANDARD", "EXECUTIVE", "LUXURY", "ULTRA_LUXURY"]).optional(),
     from: z.iso.date().optional(),

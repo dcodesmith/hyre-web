@@ -6,6 +6,7 @@ import logger from "~/lib/logger.server";
 import { getSessionUserId } from "~/modules/auth/auth.server";
 import { extractedParamsSchema } from "~/schemas/ai.search.schema";
 import { env } from "~/utils/server/env.server";
+import type { BookingTypeValue, ServiceTier, VehicleType } from "~/types";
 import { checkAiSearchRateLimit } from "~/utils/server/rate-limit.server";
 import { LAGOS_TIMEZONE } from "~/utils/timezone";
 
@@ -18,12 +19,12 @@ interface ExtractedParams {
   color?: string;
   make?: string;
   model?: string;
-  vehicleType?: "SEDAN" | "SUV" | "LUXURY_SEDAN" | "LUXURY_SUV" | "VAN" | "CROSSOVER";
-  serviceTier?: "STANDARD" | "EXECUTIVE" | "LUXURY" | "ULTRA_LUXURY";
-  from?: string; // YYYY-MM-DD
-  to?: string; // YYYY-MM-DD
-  bookingType?: "DAY" | "NIGHT" | "FULL_DAY" | "AIRPORT_PICKUP";
-  pickupTime?: string; // "10 AM", "2 PM"
+  vehicleType?: VehicleType;
+  serviceTier?: ServiceTier;
+  from?: string;
+  to?: string;
+  bookingType?: BookingTypeValue;
+  pickupTime?: string;
   flightNumber?: string;
 }
 
@@ -102,7 +103,7 @@ Extract the following fields when mentioned:
 - color: Vehicle color (e.g., "black", "white", "silver", "blue", "red")
 - make: Car brand (e.g., "Toyota", "Mercedes", "BMW", "Lexus")
 - model: Car model (e.g., "Camry", "E-Class", "X5")
-- vehicleType: One of: SEDAN, SUV, LUXURY_SEDAN, LUXURY_SUV, VAN, CROSSOVER
+- vehicleType: One of: SEDAN, SUV, VAN, CROSSOVER (body style only — luxury/executive is handled by serviceTier)
 - serviceTier: One of: STANDARD, EXECUTIVE, LUXURY, ULTRA_LUXURY
 - from: Start date in YYYY-MM-DD format
 - to: End date in YYYY-MM-DD format
@@ -117,13 +118,13 @@ Date parsing rules:
 - "X days" = duration from start date
 - "X nights" = duration + set bookingType to NIGHT
 
-Vehicle type mapping:
+Vehicle type mapping (body style only):
 - "sedan", "car", "saloon" → SEDAN
 - "suv", "jeep" → SUV
-- "luxury sedan", "premium sedan" → LUXURY_SEDAN
-- "luxury suv", "premium suv" → LUXURY_SUV
 - "van", "bus", "minibus" → VAN
 - "crossover" → CROSSOVER
+- "luxury sedan" → vehicleType: SEDAN + serviceTier: LUXURY
+- "luxury suv", "premium suv" → vehicleType: SUV + serviceTier: LUXURY
 
 Service tier mapping:
 - "standard", "budget", "cheap", "affordable" → STANDARD

@@ -8,19 +8,13 @@ import {
   startOfDay,
 } from "date-fns";
 import { toZonedTime } from "date-fns-tz";
-import type { BookingWithRelations } from "~/types";
+import type { BookingWithRelations, BookingTypeValue } from "~/types";
 import { LAGOS_TIMEZONE } from "~/utils/timezone";
 import {
   FULL_DAY_BOOKING_TYPE,
   NIGHT_BOOKING_TYPE,
   type BookingType,
 } from "~/components/bookingTypes";
-
-/**
- * Booking type as string literals to avoid Prisma client-side hydration issues.
- * This matches the Prisma BookingType enum values but works on both client and server.
- */
-export type BookingTypeValue = "DAY" | "NIGHT" | "FULL_DAY" | "AIRPORT_PICKUP";
 
 /**
  * Payment summary result type

@@ -82,7 +82,7 @@ export function categorizeCars(cars: HomePageCar[]): CarCategories {
   const popular: HomePageCar[] = [];
 
   for (const car of cars) {
-    if (car.vehicleType === VehicleTypes.SUV || car.vehicleType === VehicleTypes.LUXURY_SUV) {
+    if (car.vehicleType === VehicleTypes.SUV) {
       suvs.push(car);
     }
     if (car.serviceTier === ServiceTiers.LUXURY || car.serviceTier === ServiceTiers.ULTRA_LUXURY) {
@@ -91,7 +91,7 @@ export function categorizeCars(cars: HomePageCar[]): CarCategories {
     if (car.serviceTier === ServiceTiers.STANDARD) {
       budget.push(car);
     }
-    if (car.vehicleType === VehicleTypes.SEDAN || car.vehicleType === VehicleTypes.LUXURY_SEDAN) {
+    if (car.vehicleType === VehicleTypes.SEDAN) {
       sedans.push(car);
     }
     if (car.serviceTier === ServiceTiers.EXECUTIVE) {

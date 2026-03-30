@@ -1,11 +1,11 @@
 import type { Car, ChauffeurApprovalStatus, DocumentApproval, Prisma } from "@prisma/client";
 
+export type BookingTypeValue = "DAY" | "NIGHT" | "FULL_DAY" | "AIRPORT_PICKUP";
+
 // Re-export Prisma enums as runtime values for frontend use
 export const VehicleTypes = {
   SEDAN: "SEDAN",
   SUV: "SUV",
-  LUXURY_SEDAN: "LUXURY_SEDAN",
-  LUXURY_SUV: "LUXURY_SUV",
   VAN: "VAN",
   CROSSOVER: "CROSSOVER",
 } as const;
@@ -18,14 +18,7 @@ export const ServiceTiers = {
 } as const;
 
 // Const tuples for Zod validation (must be explicit for proper type inference)
-export const VEHICLE_TYPES = [
-  "SEDAN",
-  "SUV",
-  "LUXURY_SEDAN",
-  "LUXURY_SUV",
-  "VAN",
-  "CROSSOVER",
-] as const;
+export const VEHICLE_TYPES = ["SEDAN", "SUV", "VAN", "CROSSOVER"] as const;
 
 export const SERVICE_TIERS = ["STANDARD", "EXECUTIVE", "LUXURY", "ULTRA_LUXURY"] as const;
 
@@ -36,8 +29,6 @@ export type ServiceTier = (typeof ServiceTiers)[keyof typeof ServiceTiers];
 export const vehicleTypeLabels: Record<VehicleType, string> = {
   SEDAN: "Sedan",
   SUV: "SUV",
-  LUXURY_SEDAN: "Luxury Sedan",
-  LUXURY_SUV: "Luxury SUV",
   VAN: "Van / Minibus",
   CROSSOVER: "Crossover",
 };

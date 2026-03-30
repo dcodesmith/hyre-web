@@ -781,8 +781,6 @@ enum CarApprovalStatus {
 enum VehicleType {
   SEDAN
   SUV
-  LUXURY_SEDAN
-  LUXURY_SUV
   VAN
   CROSSOVER
 }
