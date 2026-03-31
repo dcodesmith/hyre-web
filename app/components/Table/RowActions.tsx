@@ -132,7 +132,7 @@ function EditCarForm({ car, setIsEditOpen }: EditCarFormProps) {
       </div>
 
       <div className="space-y-0.5">
-        <Label htmlFor="nightRate">Nightly Rate</Label>
+        <Label htmlFor="nightRate">Nightly Rate (11pm to 5am)</Label>
         <Input
           {...getInputProps(nightRate, { type: "number" })}
           step="500"
@@ -146,7 +146,7 @@ function EditCarForm({ car, setIsEditOpen }: EditCarFormProps) {
       </div>
 
       <div className="space-y-0.5">
-        <Label htmlFor="fullDayRate">24-Hour Rate</Label>
+        <Label htmlFor="fullDayRate">Full Day Rate (24 hours)</Label>
         <Input
           {...getInputProps(fullDayRate, { type: "number" })}
           step="1000"

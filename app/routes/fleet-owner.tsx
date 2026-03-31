@@ -1,6 +1,7 @@
 import { ScrollArea } from "@radix-ui/react-scroll-area";
 import {
   type LoaderFunctionArgs,
+  type ShouldRevalidateFunctionArgs,
   Link,
   Outlet,
   useLocation,
@@ -40,8 +41,12 @@ const navLinks = [
   { to: "/fleet-owner/payout-transactions", label: "Payout Transactions" },
 ] as const;
 
-export function shouldRevalidate() {
-  return true;
+export function shouldRevalidate({
+  formAction,
+  defaultShouldRevalidate,
+}: ShouldRevalidateFunctionArgs) {
+  if (formAction) return true;
+  return defaultShouldRevalidate;
 }
 
 export async function loader({ request }: LoaderFunctionArgs) {

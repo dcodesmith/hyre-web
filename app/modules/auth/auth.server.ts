@@ -191,15 +191,29 @@ const config = {
 export const auth = betterAuth(config);
 
 async function getSession(request: Request): Promise<BetterAuthSession | null> {
-  try {
-    const session = await auth.api.getSession({
-      headers: request.headers,
-    });
-    return session;
-  } catch (error) {
-    logger.error("Error getting session", { error });
-    return null;
+  const maxAttempts = env.NODE_ENV === "development" ? 2 : 1;
+  const retryDelayMs = 100;
+  const timeoutMs = 1500;
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    try {
+      const session = (await Promise.race([
+        auth.api.getSession({ headers: request.headers }),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("Session fetch timed out")), timeoutMs),
+        ),
+      ])) as BetterAuthSession | null;
+      return session;
+    } catch (error) {
+      if (attempt < maxAttempts - 1) {
+        logger.warn("Session fetch failed, retrying once", { error });
+        await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
+        continue;
+      }
+      logger.error("Session fetch failed after retry", { error });
+      return null;
+    }
   }
+  return null;
 }
 
 export async function getSessionUserId(request: Request): Promise<string | null> {

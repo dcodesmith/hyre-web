@@ -130,11 +130,7 @@ export async function action({ request }: ActionFunctionArgs) {
   let formData: FormData;
 
   try {
-    formData = await parseFormData(
-      request,
-      { maxFiles: 8 },
-      (file) => file,
-    );
+    formData = await parseFormData(request, { maxFiles: 8 }, (file) => file);
   } catch (error) {
     logger.error({ error }, "Failed to parse multipart form data");
     const message = "Unable to process uploaded files. Please try again.";
@@ -251,7 +247,7 @@ export const columns: ColumnDef<SerializedCar>[] = [
   {
     accessorKey: "dayRate",
     enableColumnFilter: false,
-    header: ({ column }) => <ColumnHeader column={column} title="Daily Rate" />,
+    header: ({ column }) => <ColumnHeader column={column} title="Daily Rate (12 hours)" />,
     cell: ({ row }) => <div className="w-[150px]">{formatCurrency(row.original.dayRate)}</div>,
   },
   {
@@ -263,13 +259,13 @@ export const columns: ColumnDef<SerializedCar>[] = [
   {
     accessorKey: "nightRate",
     enableColumnFilter: false,
-    header: ({ column }) => <ColumnHeader column={column} title="Nightly Rate" />,
+    header: ({ column }) => <ColumnHeader column={column} title="Nightly Rate (11pm to 5am)" />,
     cell: ({ row }) => <div className="w-[150px]">{formatCurrency(row.original.nightRate)}</div>,
   },
   {
     accessorKey: "fullDayRate",
     enableColumnFilter: false,
-    header: ({ column }) => <ColumnHeader column={column} title="24-Hour Rate" />,
+    header: ({ column }) => <ColumnHeader column={column} title="Full Day Rate (24 hours)" />,
     cell: ({ row }) => <div className="w-[150px]">{formatCurrency(row.original.fullDayRate)}</div>,
   },
   {

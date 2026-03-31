@@ -1,7 +1,10 @@
 import { getFormProps, getInputProps, useForm, useInputControl } from "@conform-to/react";
 import { parseWithZod } from "@conform-to/zod/v4";
+import { useEffect, useRef, useState } from "react";
 import type { z } from "zod";
 import { CogIcon } from "@heroicons/react/24/outline";
+import { CircleX } from "lucide-react";
+
 import { useFetcher } from "react-router";
 import { useAuthenticityToken } from "remix-utils/csrf/react";
 import { Button } from "~/components/ui/button";
@@ -80,6 +83,50 @@ export function NewCarForm() {
 
   const pricingIncludesFuelControl = useInputControl(pricingIncludesFuel);
 
+  const [selectedImages, setSelectedImages] = useState<{ file: File; preview: string }[]>([]);
+  const currentImagesRef = useRef(selectedImages);
+  const hiddenFileInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  function updateImages(next: { file: File; preview: string }[]) {
+    currentImagesRef.current = next;
+    setSelectedImages(next);
+    if (hiddenFileInputRef.current) {
+      const dt = new DataTransfer();
+      for (const { file } of next) dt.items.add(file);
+      hiddenFileInputRef.current.files = dt.files;
+    }
+  }
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const newFiles = Array.from(e.target.files ?? []);
+    const newEntries = newFiles.map((file) => ({
+      file,
+      preview: URL.createObjectURL(file),
+    }));
+    const all = [...currentImagesRef.current, ...newEntries];
+    const combined = all.slice(0, 5);
+    for (let i = 5; i < all.length; i++) {
+      URL.revokeObjectURL(all[i].preview);
+    }
+    updateImages(combined);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  function handleRemoveImage(index: number) {
+    const current = currentImagesRef.current;
+    URL.revokeObjectURL(current[index].preview);
+    updateImages(current.filter((_, i) => i !== index));
+  }
+
+  useEffect(() => {
+    return () => {
+      for (const img of currentImagesRef.current) {
+        URL.revokeObjectURL(img.preview);
+      }
+    };
+  }, []);
+
   return (
     <fetcher.Form
       method="post"
@@ -147,7 +194,7 @@ export function NewCarForm() {
       </div>
 
       <div className="space-y-0.5">
-        <Label htmlFor={dayRate.id}>Daily Rate</Label>
+        <Label htmlFor={dayRate.id}>Daily Rate (12 hours)</Label>
         <Input
           {...getInputProps(dayRate, { type: "number", step: "1000" })}
           className={`rounded ${dayRate.errors ? errorRingClasses : ""}`}
@@ -165,7 +212,7 @@ export function NewCarForm() {
       </div>
 
       <div className="space-y-0.5">
-        <Label htmlFor={nightRate.id}>Nightly Rate</Label>
+        <Label htmlFor={nightRate.id}>Nightly Rate (11pm to 5am)</Label>
         <Input
           {...getInputProps(nightRate, { type: "number", step: "1000" })}
           className={`rounded ${nightRate.errors ? errorRingClasses : ""}`}
@@ -174,7 +221,7 @@ export function NewCarForm() {
       </div>
 
       <div className="space-y-0.5">
-        <Label htmlFor={fullDayRate.id}>24-Hour Rate</Label>
+        <Label htmlFor={fullDayRate.id}>Full Day Rate (24 hours)</Label>
         <Input
           {...getInputProps(fullDayRate, { type: "number", step: "1000" })}
           className={`rounded ${fullDayRate.errors ? errorRingClasses : ""}`}
@@ -249,14 +296,67 @@ export function NewCarForm() {
       </div>
 
       <div className="space-y-0.5">
-        <Label htmlFor={images.id}>Pictures</Label>
-        <Input
-          {...getInputProps(images, { type: "file" })}
+        <Label htmlFor={`${images.id}-picker`}>
+          Pictures{" "}
+          <span className="text-xs text-gray-500">
+            (JPEG, PNG or WebP. Max 5 images, 5MB each.)
+          </span>
+        </Label>
+        <input
+          ref={fileInputRef}
+          id={`${images.id}-picker`}
+          type="file"
+          multiple
+          accept="image/jpeg,image/png,image/webp"
+          onChange={handleFileChange}
+          className="sr-only"
+        />
+
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          className={`flex h-9 w-full items-center rounded border bg-transparent px-3 py-1 text-sm shadow-xs transition-colors ${
+            images.errors
+              ? errorRingClasses
+              : "border-input hover:bg-accent hover:text-accent-foreground"
+          }`}
+        >
+          {selectedImages.length === 0 && "Choose files"}
+          {selectedImages.length === 1 && "1 image selected"}
+          {selectedImages.length > 1 && `${selectedImages.length} images selected`}
+        </button>
+        <input
+          ref={hiddenFileInputRef}
+          type="file"
           multiple
           id={images.id}
-          accept="image/*"
-          className={`rounded ${images.errors ? errorRingClasses : ""}`}
+          name={images.name}
+          className="sr-only"
+          tabIndex={-1}
         />
+
+        {selectedImages.length > 0 && (
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4 px-1 pt-2">
+            {selectedImages.map((img, index) => (
+              <div key={img.preview} className="group relative aspect-square overflow-visible">
+                <img
+                  src={img.preview}
+                  alt={`Preview ${index + 1}`}
+                  className="h-full w-full rounded-lg object-cover border border-gray-200"
+                />
+                <button
+                  type="button"
+                  onClick={() => handleRemoveImage(index)}
+                  className="absolute -right-1.5 -top-1.5 text-red-500 hover:text-red-600 focus:outline-none focus:ring-2 focus:ring-red-400 rounded-full transition-opacity md:opacity-0 md:group-hover:opacity-100 md:focus:opacity-100 md:focus-visible:opacity-100"
+                  aria-label={`Remove image ${index + 1}`}
+                >
+                  <CircleX className="h-5 w-5 fill-white" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
         {images.errors && <p className="text-red-500 text-sm">{images.errors.join(" ")}</p>}
       </div>
 
