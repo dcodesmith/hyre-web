@@ -232,20 +232,6 @@ export default function PartnerPublicFleetPage() {
           searchBasePath={partnerSearchBasePath}
           carDetailsBasePath={partnerCarBasePath}
         />
-
-        <div className="max-w-6xl mx-auto px-4 pb-8">
-          <div className="flex flex-wrap justify-center gap-3">
-            <Link to="/" className="text-sm text-gray-700 underline underline-offset-4">
-              Back to Home
-            </Link>
-            <Link
-              to={partnerSearchBasePath}
-              className="text-sm text-gray-700 underline underline-offset-4"
-            >
-              Browse all vehicles
-            </Link>
-          </div>
-        </div>
       </div>
     </div>
   );
