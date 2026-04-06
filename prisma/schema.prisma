@@ -1,6 +1,5 @@
 generator client {
-  provider              = "prisma-client-js"
-  skipDefaultValidation = true
+  provider = "prisma-client-js"
 }
 
 datasource db {
@@ -94,6 +93,7 @@ model User {
   approvedVehicleImages     VehicleImage[]             @relation("ApprovedVehicleImages")
   sessions                  Session[]
   roles                     Role[]                     @relation("RoleToUser")
+  whatsAppConversations     WhatsAppConversation[]     @relation("WhatsAppConversationLinkedUser")
 
   @@index([fleetOwnerId])
   @@index([fleetOwnerStatus, hasOnboarded])
@@ -425,7 +425,7 @@ model Review {
   moderationNotes String?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
-  booking         Booking   @relation("BookingReview", fields: [bookingId], references: [id])
+  booking         Booking   @relation("BookingReview", fields: [bookingId], references: [id], onDelete: Restrict)
   moderator       User?     @relation("ReviewModerator", fields: [moderatedBy], references: [id])
   user            User      @relation("CustomerReviews", fields: [userId], references: [id], onDelete: Cascade)
 
@@ -622,6 +622,10 @@ model WhatsAppConversation {
   waId                    String?                    @unique
   profileName             String?
   status                  WhatsAppConversationStatus @default(ACTIVE)
+  linkedUserId            String?
+  linkStatus              WhatsAppLinkStatus         @default(UNLINKED)
+  linkRequestedAt         DateTime?
+  linkVerifiedAt          DateTime?
   lastInboundAt           DateTime?
   lastOutboundAt          DateTime?
   windowExpiresAt         DateTime?
@@ -629,6 +633,7 @@ model WhatsAppConversation {
   handoffAt               DateTime?
   activeBookingDraftId    String?
   activeBookingDraft      BookingDraft?              @relation("ActiveConversationDraft", fields: [activeBookingDraftId], references: [id], onDelete: SetNull)
+  linkedUser              User?                      @relation("WhatsAppConversationLinkedUser", fields: [linkedUserId], references: [id], onDelete: SetNull)
   processingLockToken     String?
   processingLockExpiresAt DateTime?
   messages                WhatsAppMessage[]
@@ -638,57 +643,59 @@ model WhatsAppConversation {
   updatedAt               DateTime                   @updatedAt
 
   @@index([status])
+  @@index([linkedUserId])
+  @@index([linkStatus])
   @@index([windowExpiresAt])
   @@index([processingLockExpiresAt])
 }
 
 model WhatsAppMessage {
-  id                   String                   @id
-  conversationId       String
-  providerMessageSid   String?                  @unique
-  dedupeKey            String                   @unique
-  direction            WhatsAppMessageDirection
-  kind                 WhatsAppMessageKind      @default(UNKNOWN)
-  status               WhatsAppMessageStatus    @default(RECEIVED)
-  body                 String?
-  mediaUrl             String?
-  mediaContentType     String?
-  providerStatus       String?
-  errorCode            String?
-  errorMessage         String?
-  rawPayload           Json
-  receivedAt           DateTime                 @default(now())
-  processedAt          DateTime?
-  sentAt               DateTime?
-  createdAt            DateTime                 @default(now())
-  updatedAt            DateTime
-  WhatsAppConversation WhatsAppConversation     @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  id                 String                   @id
+  conversationId     String
+  providerMessageSid String?                  @unique
+  dedupeKey          String                   @unique
+  direction          WhatsAppMessageDirection
+  kind               WhatsAppMessageKind      @default(UNKNOWN)
+  status             WhatsAppMessageStatus    @default(RECEIVED)
+  body               String?
+  mediaUrl           String?
+  mediaContentType   String?
+  providerStatus     String?
+  errorCode          String?
+  errorMessage       String?
+  rawPayload         Json
+  receivedAt         DateTime                 @default(now())
+  processedAt        DateTime?
+  sentAt             DateTime?
+  createdAt          DateTime                 @default(now())
+  updatedAt          DateTime                 @updatedAt
+  conversation       WhatsAppConversation     @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
   @@index([conversationId, receivedAt(sort: Desc)])
   @@index([direction, status])
 }
 
 model WhatsAppOutbox {
-  id                   String               @id
-  conversationId       String
-  dedupeKey            String               @unique
-  mode                 WhatsAppDeliveryMode
-  status               WhatsAppOutboxStatus @default(PENDING)
-  textBody             String?
-  mediaUrl             String?
-  templateName         String?
-  templateVariables    Json?
-  payload              Json?
-  providerMessageSid   String?
-  failureReason        String?
-  attempts             Int                  @default(0)
-  maxAttempts          Int                  @default(5)
-  nextAttemptAt        DateTime             @default(now())
-  lastAttemptAt        DateTime?
-  sentAt               DateTime?
-  createdAt            DateTime             @default(now())
-  updatedAt            DateTime
-  WhatsAppConversation WhatsAppConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  id                 String               @id
+  conversationId     String
+  dedupeKey          String               @unique
+  mode               WhatsAppDeliveryMode
+  status             WhatsAppOutboxStatus @default(PENDING)
+  textBody           String?
+  mediaUrl           String?
+  templateName       String?
+  templateVariables  Json?
+  payload            Json?
+  providerMessageSid String?
+  failureReason      String?
+  attempts           Int                  @default(0)
+  maxAttempts        Int                  @default(5)
+  nextAttemptAt      DateTime             @default(now())
+  lastAttemptAt      DateTime?
+  sentAt             DateTime?
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  conversation       WhatsAppConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
   @@index([conversationId, createdAt(sort: Desc)])
   @@index([status, nextAttemptAt])
@@ -868,6 +875,13 @@ enum WhatsAppConversationStatus {
   ACTIVE
   HANDOFF
   CLOSED
+}
+
+enum WhatsAppLinkStatus {
+  UNLINKED
+  PENDING_VERIFICATION
+  LINKED
+  REVOKED
 }
 
 enum WhatsAppDeliveryMode {
