@@ -34,6 +34,11 @@ import { disableFlightAlert, getOrCreateFlightAlert } from "~/services/flight-al
 import { validateFlight } from "~/services/flight-validation.server";
 import { disableFlightAlertTracking, findOrCreateFlight } from "~/services/flight.server";
 import {
+  type ActivePromotion,
+  getActivePromotionForCar,
+  getDiscountedCarRates,
+} from "~/services/promotions.server";
+import {
   sendReferralDiscountAppliedNotification,
   sendReferralRewardEarnedNotification,
 } from "~/services/referral-notifications.server";
@@ -161,6 +166,7 @@ export async function calculateBookingCost({
     fuelUpgradeRate: number | null;
     airportPickupRate: number;
     id: string;
+    ownerId: string;
     pricingIncludesFuel: boolean;
   };
   startDate: Date;
@@ -193,6 +199,39 @@ export async function calculateBookingCost({
     `From calculateBookingCost: effectiveEndDateForLegGeneration: ${effectiveEndDateForLegGeneration.toISOString()}`,
   );
 
+  // Resolve active promotion for this car
+  let activePromotion: ActivePromotion | null = null;
+  try {
+    const baseRateForSelection =
+      type === BookingType.NIGHT
+        ? car.nightRate
+        : type === BookingType.FULL_DAY
+          ? car.fullDayRate
+          : type === BookingType.AIRPORT_PICKUP
+            ? car.airportPickupRate
+            : car.dayRate;
+
+    activePromotion = await getActivePromotionForCar(
+      car.id,
+      car.ownerId,
+      startDate,
+      baseRateForSelection,
+    );
+    if (activePromotion) {
+      logger.debug(
+        `Active promotion found for car ${car.id}: ${activePromotion.id} (${activePromotion.discountType} ${activePromotion.discountValue})`,
+      );
+    }
+  } catch (error) {
+    logger.error("Failed to fetch promotion for car, proceeding without discount", {
+      carId: car.id,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+
+  // Apply promotion discount to car rates if an active promotion exists
+  const effectiveRates = activePromotion ? getDiscountedCarRates(car, activePromotion) : car;
+
   const bookingDates = generateBookingDates(
     type,
     startDate,
@@ -211,7 +250,7 @@ export async function calculateBookingCost({
   const tempBookingDataForPricing = { startDate, endDate, type };
 
   for (const legDate of bookingDates) {
-    const dailyPrice = calculateBookingLegPrice(car, tempBookingDataForPricing, legDate);
+    const dailyPrice = calculateBookingLegPrice(effectiveRates, tempBookingDataForPricing, legDate);
     legPrices.push(dailyPrice);
   }
 
@@ -430,6 +469,7 @@ export async function calculateBookingCost({
     startHours,
     endHours,
     legPrices,
+    activePromotion,
   };
 }
 
