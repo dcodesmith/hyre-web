@@ -1,4 +1,4 @@
-import { Sparkles } from "lucide-react";
+import { Sparkles, Tag } from "lucide-react";
 import { Link } from "react-router";
 import { formatCurrency } from "~/lib/utils";
 import type { AggregatedRatings } from "~/services/reviews.server";
@@ -37,6 +37,9 @@ interface CarCardProps {
   readonly totalPrice?: number;
   readonly variant?: "carousel" | "grid";
   readonly ratings?: AggregatedRatings;
+  readonly originalPrice?: number;
+  readonly isOnPromotion?: boolean;
+  readonly promotionLabel?: string;
 }
 
 export function CarCard({
@@ -50,6 +53,9 @@ export function CarCard({
   totalPrice,
   variant = "carousel",
   ratings,
+  originalPrice,
+  isOnPromotion = false,
+  promotionLabel,
 }: CarCardProps) {
   const isGrid = variant === "grid";
 
@@ -80,12 +86,21 @@ export function CarCard({
             priority={priority}
             carName={carName}
           />
-          {/* New Listing Badge - only shows for cars added in last 7 days */}
-          {isNewListing(car.createdAt) && (
-            <div className="absolute top-3 left-3 px-2 py-1.5 bg-white/90 rounded-full shadow-md flex items-center gap-1">
-              <Sparkles className="h-3 w-3 text-amber-500" />
-              <span className="text-xs font-medium text-gray-800 leading-none">New</span>
+          {/* Promotion Badge - takes priority over New badge */}
+          {isOnPromotion ? (
+            <div className="absolute top-3 left-3 px-2 py-1.5 bg-red-500 rounded-full shadow-md flex items-center gap-1">
+              <Tag className="h-3 w-3 text-white" />
+              <span className="text-xs font-semibold text-white leading-none">
+                {promotionLabel || "SALE"}
+              </span>
             </div>
+          ) : (
+            isNewListing(car.createdAt) && (
+              <div className="absolute top-3 left-3 px-2 py-1.5 bg-white/90 rounded-full shadow-md flex items-center gap-1">
+                <Sparkles className="h-3 w-3 text-amber-500" />
+                <span className="text-xs font-medium text-gray-800 leading-none">New</span>
+              </div>
+            )
           )}
           {/* Ratings display in top right corner */}
           {ratings && ratings.totalReviews > 0 && (
@@ -118,7 +133,7 @@ export function CarCard({
             )}
           </div>
 
-          <div className="flex items-baseline gap-1">
+          <div className="flex items-baseline gap-1 flex-wrap">
             {showTotal && totalPrice ? (
               <>
                 <span className="font-semibold text-sm">{formatCurrency(totalPrice)}</span>
@@ -126,7 +141,14 @@ export function CarCard({
               </>
             ) : (
               <>
-                <span className="font-semibold text-sm">{formatCurrency(price)}</span>
+                {isOnPromotion && originalPrice != null && originalPrice !== price && (
+                  <span className="text-sm text-gray-400 line-through">
+                    {formatCurrency(originalPrice)}
+                  </span>
+                )}
+                <span className={`font-semibold text-sm ${isOnPromotion ? "text-red-600" : ""}`}>
+                  {formatCurrency(price)}
+                </span>
                 <span className="text-sm text-gray-600">{priceLabel}</span>
               </>
             )}
