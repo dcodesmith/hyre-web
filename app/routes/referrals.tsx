@@ -197,7 +197,7 @@ export default function ReferralsPage() {
           {referralCode ? (
             <div className="space-y-4">
               <div className="flex items-center gap-4 p-4 bg-muted rounded-lg">
-                <code className="text-lg font-mono font-bold">{referralCode}</code>
+                <code aria-label="Referral code" className="text-lg font-mono font-bold">{referralCode}</code>
                 <Button variant="outline" size="sm" onClick={() => copyToClipboard(referralCode)}>
                   <ClipboardIcon className="h-4 w-4 mr-2" />
                   {copied ? "Copied!" : "Copy"}

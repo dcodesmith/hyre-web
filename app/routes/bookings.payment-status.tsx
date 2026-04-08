@@ -231,7 +231,7 @@ export default function BookingPaymentStatusPage() {
         </p>
         <div className="text-left space-y-2 mb-6 bg-white p-4 rounded-md border border-green-200">
           {amount !== null && amount !== undefined && (
-            <p>
+            <p aria-label="Amount paid">
               <strong>Amount Paid:</strong> {formatCurrency(Number(amount))}
             </p>
           )}

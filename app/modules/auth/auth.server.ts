@@ -9,6 +9,7 @@ import { sendAuthEmail } from "~/modules/email/email.server";
 import { userHasRole } from "~/utils/shared/roles";
 import { safeRedirect } from "~/utils/safe-redirect";
 import { env } from "~/utils/server/env.server";
+import { storeTestOTP } from "~/modules/auth/otp-test-store.server";
 
 type SessionUser = {
   id: string;
@@ -152,6 +153,8 @@ const config = {
       allowedAttempts: 5,
       async sendVerificationOTP({ email, otp, type }) {
         try {
+          storeTestOTP(email, otp);
+
           const user = await prisma.user.findUnique({
             where: { email },
             include: { roles: true },

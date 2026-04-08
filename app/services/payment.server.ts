@@ -1,6 +1,7 @@
 import axios from "axios";
 import crypto from "node:crypto";
 import logger from "~/lib/logger.server";
+import { isE2ETesting } from "~/modules/auth/otp-test-store.server";
 import { prisma } from "~/modules/db/db.server";
 import { BookingWithRelations } from "~/types";
 import { env } from "~/utils/server/env.server";
@@ -29,6 +30,21 @@ export async function createPaymentIntent({
   idempotencyKey = crypto.randomUUID(),
   callbackUrl,
 }: PaymentIntentOptions) {
+  if (isE2ETesting()) {
+    const tx_ref = idempotencyKey;
+    const mockCallbackUrl = new URL(callbackUrl);
+    mockCallbackUrl.searchParams.set("tx_ref", tx_ref);
+    mockCallbackUrl.searchParams.set("status", "successful");
+    mockCallbackUrl.searchParams.set("transaction_id", `test-${tx_ref}`);
+
+    logger.info("[E2E Mock] Returning mock payment intent", { tx_ref, amount });
+    return {
+      paymentIntentId: tx_ref,
+      checkoutUrl: mockCallbackUrl.toString(),
+      transactionId: `test-${tx_ref}`,
+    };
+  }
+
   const { FLUTTERWAVE_SECRET_KEY, FLUTTERWAVE_PUBLIC_KEY, FLUTTERWAVE_WEBHOOK_SECRET } = env;
 
   if (!FLUTTERWAVE_SECRET_KEY || !FLUTTERWAVE_PUBLIC_KEY || !FLUTTERWAVE_WEBHOOK_SECRET) {

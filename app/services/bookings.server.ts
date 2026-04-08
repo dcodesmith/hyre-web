@@ -23,6 +23,17 @@ import { customAlphabet } from "nanoid";
 import logger from "~/lib/logger.server";
 import { prisma } from "~/modules/db/db.server";
 import {
+  type BookingAcquisitionInput,
+  resolveBookingAcquisition,
+} from "~/services/booking-acquisition.server";
+import {
+  calculateCustomerChargeBreakdown,
+  calculateFleetOwnerPayoutAmountNet,
+} from "~/services/booking-financials";
+import { disableFlightAlert, getOrCreateFlightAlert } from "~/services/flight-alert.server";
+import { validateFlight } from "~/services/flight-validation.server";
+import { disableFlightAlertTracking, findOrCreateFlight } from "~/services/flight.server";
+import {
   sendReferralDiscountAppliedNotification,
   sendReferralRewardEarnedNotification,
 } from "~/services/referral-notifications.server";
@@ -32,14 +43,7 @@ import {
   getReferralConfig,
   releaseReferralReward,
 } from "~/services/referral.server";
-import { findOrCreateFlight, disableFlightAlertTracking } from "~/services/flight.server";
-import { getOrCreateFlightAlert, disableFlightAlert } from "~/services/flight-alert.server";
-import { validateFlight } from "~/services/flight-validation.server";
 import { BookingWithRelations } from "~/types";
-import {
-  resolveBookingAcquisition,
-  type BookingAcquisitionInput,
-} from "~/services/booking-acquisition.server";
 
 export type CreateBookingParams = {
   startDate: Date;
@@ -296,8 +300,8 @@ export async function calculateBookingCost({
 
   // Only apply platform service fee if the fee percent is greater than 0
   // Per policy, platform fee excludes security detail but includes fuel upgrade
-  const platformFeeBase = netTotal.plus(fuelUpgradeCost);
-  const platformCustomerServiceFeeAmount = platformFeeBase
+  const bookingRevenue = netTotal.plus(fuelUpgradeCost);
+  const platformCustomerServiceFeeAmount = bookingRevenue
     .mul(Decimal.max(platformCustomerServiceFeeRatePercent, new Decimal(0)))
     .div(100);
   logger.debug(`Platform Service Fee Amount: ${platformCustomerServiceFeeAmount.toString()}`);
@@ -319,10 +323,13 @@ export async function calculateBookingCost({
   // Only apply fleet owner commission if rate is greater than 0
   // Commission calculated on same base as platform fee (excludes security detail but includes fuel upgrade)
   const platformFleetOwnerCommissionAmount = platformFleetOwnerCommissionRatePercent.gt(0)
-    ? platformFeeBase.mul(platformFleetOwnerCommissionRatePercent).div(100)
+    ? bookingRevenue.mul(platformFleetOwnerCommissionRatePercent).div(100)
     : new Decimal(0);
   logger.debug(`Fleet Owner Commission Amount: ${platformFleetOwnerCommissionAmount.toString()}`);
-  const fleetOwnerPayoutAmountNet = platformFeeBase.minus(platformFleetOwnerCommissionAmount);
+  const fleetOwnerPayoutAmountNet = calculateFleetOwnerPayoutAmountNet({
+    bookingRevenue,
+    platformFleetOwnerCommissionAmount,
+  });
   logger.debug(`Fleet Owner Payout Amount (Net): ${fleetOwnerPayoutAmountNet.toString()}`);
 
   // Check for referral discount eligibility and calculate discount
@@ -364,20 +371,23 @@ export async function calculateBookingCost({
     }
   }
 
-  // Calculate subtotal after discounts
-  const subtotalAfterDiscounts = subtotalBeforeDiscounts
-    .minus(referralDiscountAmount)
-    .minus(bookingCreditsUsed);
-  logger.debug(`Subtotal After Discounts: ${subtotalAfterDiscounts.toString()}`);
-
-  // Calculate VAT on the discounted amount
   const vatRatePercent = new Decimal(vatRate.ratePercent.toString());
-  logger.debug(`VAT Rate: ${vatRatePercent.toString()}%`);
-  const vatAmount = subtotalAfterDiscounts.mul(vatRatePercent).div(100);
-  logger.debug(`VAT Amount: ${vatAmount.toString()}`);
+  const customerChargeBreakdown = calculateCustomerChargeBreakdown({
+    subtotalBeforeDiscounts,
+    referralDiscountAmount,
+    bookingCreditsUsed,
+    vatRatePercent,
+  });
+  const {
+    subtotalAfterDiscounts,
+    vatAmount,
+    totalAmount: finalTotalAmountWithCredits,
+    customerBenefitAmount,
+  } = customerChargeBreakdown;
 
-  // Calculate final total amount (gross)
-  const finalTotalAmountWithCredits = subtotalAfterDiscounts.plus(vatAmount);
+  logger.debug(`Subtotal After Discounts: ${subtotalAfterDiscounts.toString()}`);
+  logger.debug(`VAT Rate: ${vatRatePercent.toString()}%`);
+  logger.debug(`VAT Amount: ${vatAmount.toString()}`);
   logger.debug(`Final Total Amount (Gross): ${finalTotalAmountWithCredits.toString()}`);
 
   // Log the complete breakdown
@@ -386,11 +396,12 @@ export async function calculateBookingCost({
       Security Detail Cost: ${securityDetailCost.toString()}
       Fuel Upgrade Cost: ${fuelUpgradeCost.toString()}
       Net Total with Security and Fuel: ${netTotalWithSecurityAndFuel.toString()}
-      Platform Fee Base (Net + Fuel): ${platformFeeBase.toString()}
+      Booking Revenue (Net + Fuel): ${bookingRevenue.toString()}
       Platform Service Fee (${platformCustomerServiceFeeRatePercent.toString()}%): ${platformCustomerServiceFeeAmount.toString()}
       Subtotal Before Discounts: ${subtotalBeforeDiscounts.toString()}
       Referral Discount: ${referralDiscountAmount.toString()}
       Booking Credits Used: ${bookingCreditsUsed.toString()}
+      Customer Benefit Amount: ${customerBenefitAmount.toString()}
       Subtotal After Discounts: ${subtotalAfterDiscounts.toString()}
       VAT (${vatRatePercent.toString()}%): ${vatAmount.toString()}
       Final Total Amount (Gross): ${finalTotalAmountWithCredits.toString()}
@@ -790,13 +801,26 @@ export async function findBookingByPaymentIntent(paymentIntent: string) {
   });
 }
 
+// Find all bookings by payment intent (used by strict call sites)
+export async function findBookingsByPaymentIntent(paymentIntent: string) {
+  return prisma.booking.findMany({
+    where: { paymentIntent },
+    include: {
+      car: { include: { owner: true } },
+      user: true,
+    },
+  });
+}
+
 // Activate a booking after successful payment
 export async function activateBooking(
   bookingId: string,
   paymentId: string,
 ): Promise<BookingWithRelations> {
   logger.info(`Activating booking ${bookingId} with payment ID ${paymentId}`);
-  const booking = await prisma.$transaction(async (transaction) => {
+  const { booking, shouldReleaseReferralReward } = await prisma.$transaction(async (transaction) => {
+    let shouldReleaseReferralReward = false;
+
     // First, get the current booking to retrieve reserved credits
     const currentBooking = await transaction.booking.findUnique({
       where: { id: bookingId },
@@ -838,9 +862,14 @@ export async function activateBooking(
 
     // Release referral reward if payment is the release condition
     try {
-      const config = await getReferralConfig();
+      const releaseConditionConfig = await transaction.referralProgramConfig.findUnique({
+        where: { key: "REFERRAL_RELEASE_CONDITION" },
+        select: { value: true },
+      });
+      const releaseCondition = releaseConditionConfig?.value ?? "PAID";
+
       if (
-        config.REFERRAL_RELEASE_CONDITION === "PAID" &&
+        releaseCondition === "PAID" &&
         booking.referralStatus === BookingReferralStatus.APPLIED
       ) {
         // For "PAID" release condition: mark discount as used immediately after payment
@@ -855,8 +884,8 @@ export async function activateBooking(
           });
         }
 
-        await releaseReferralReward(booking.id);
-        logger.info("Referral reward released on payment", { bookingId: booking.id });
+        // Release reward after commit to avoid nested transaction work.
+        shouldReleaseReferralReward = true;
       }
 
       // Note: For "COMPLETED" release condition, discount should be marked as used in completeBooking()
@@ -869,8 +898,20 @@ export async function activateBooking(
       // Don't fail the booking activation if referral processing fails
     }
 
-    return booking;
+    return { booking, shouldReleaseReferralReward };
   });
+
+  if (shouldReleaseReferralReward) {
+    try {
+      await releaseReferralReward(booking.id);
+      logger.info("Referral reward released on payment", { bookingId: booking.id });
+    } catch (error) {
+      logger.error("Failed to release referral reward on payment", {
+        bookingId: booking.id,
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  }
 
   // Create FlightAware alert if booking has a linked flight (AIRPORT_PICKUP with flight)
   // Fetch flightId and flightNumber from the booking (they're not in BookingWithRelations type)

@@ -108,52 +108,69 @@ export async function loader({ request }: LoaderFunctionArgs) {
     createdAt: { gte: from, lte: to },
   };
 
-  const [overall, overallPaid, channelTotals, channelPaidTotals, partnerTotals, partnerPaidTotals] =
-    await Promise.all([
-      prisma.booking.aggregate({
-        where: baseWhere,
-        _count: { _all: true },
-        _sum: { totalAmount: true },
-      }),
-      prisma.booking.aggregate({
-        where: { ...baseWhere, paymentStatus: PaymentStatus.PAID },
-        _count: { _all: true },
-        _sum: { totalAmount: true },
-      }),
-      prisma.booking.groupBy({
-        by: ["acquisitionChannel"],
-        where: baseWhere,
-        _count: { _all: true },
-        _sum: { totalAmount: true },
-      }),
-      prisma.booking.groupBy({
-        by: ["acquisitionChannel"],
-        where: { ...baseWhere, paymentStatus: PaymentStatus.PAID },
-        _count: { _all: true },
-        _sum: { totalAmount: true },
-      }),
-      prisma.booking.groupBy({
-        by: ["acquisitionPartnerOwnerId", "acquisitionPartnerSlug"],
-        where: {
-          ...baseWhere,
-          acquisitionChannel: BookingAcquisitionChannel.PARTNER,
-          acquisitionPartnerOwnerId: { not: null },
-        },
-        _count: { _all: true },
-        _sum: { totalAmount: true },
-      }),
-      prisma.booking.groupBy({
-        by: ["acquisitionPartnerOwnerId", "acquisitionPartnerSlug"],
-        where: {
-          ...baseWhere,
-          paymentStatus: PaymentStatus.PAID,
-          acquisitionChannel: BookingAcquisitionChannel.PARTNER,
-          acquisitionPartnerOwnerId: { not: null },
-        },
-        _count: { _all: true },
-        _sum: { totalAmount: true },
-      }),
-    ]);
+  const [
+    overall,
+    overallPaid,
+    paidFinancials,
+    channelTotals,
+    channelPaidTotals,
+    partnerTotals,
+    partnerPaidTotals,
+  ] = await Promise.all([
+    prisma.booking.aggregate({
+      where: baseWhere,
+      _count: { _all: true },
+      _sum: { totalAmount: true },
+    }),
+    prisma.booking.aggregate({
+      where: { ...baseWhere, paymentStatus: PaymentStatus.PAID },
+      _count: { _all: true },
+      _sum: { totalAmount: true },
+    }),
+    prisma.booking.aggregate({
+      where: { ...baseWhere, paymentStatus: PaymentStatus.PAID },
+      _sum: {
+        referralDiscountAmount: true,
+        referralCreditsUsed: true,
+        fleetOwnerPayoutAmountNet: true,
+        vatAmount: true,
+        platformFleetOwnerCommissionAmount: true,
+      },
+    }),
+    prisma.booking.groupBy({
+      by: ["acquisitionChannel"],
+      where: baseWhere,
+      _count: { _all: true },
+      _sum: { totalAmount: true },
+    }),
+    prisma.booking.groupBy({
+      by: ["acquisitionChannel"],
+      where: { ...baseWhere, paymentStatus: PaymentStatus.PAID },
+      _count: { _all: true },
+      _sum: { totalAmount: true },
+    }),
+    prisma.booking.groupBy({
+      by: ["acquisitionPartnerOwnerId", "acquisitionPartnerSlug"],
+      where: {
+        ...baseWhere,
+        acquisitionChannel: BookingAcquisitionChannel.PARTNER,
+        acquisitionPartnerOwnerId: { not: null },
+      },
+      _count: { _all: true },
+      _sum: { totalAmount: true },
+    }),
+    prisma.booking.groupBy({
+      by: ["acquisitionPartnerOwnerId", "acquisitionPartnerSlug"],
+      where: {
+        ...baseWhere,
+        paymentStatus: PaymentStatus.PAID,
+        acquisitionChannel: BookingAcquisitionChannel.PARTNER,
+        acquisitionPartnerOwnerId: { not: null },
+      },
+      _count: { _all: true },
+      _sum: { totalAmount: true },
+    }),
+  ]);
 
   const paidChannelMap = new Map(
     channelPaidTotals.map((item) => [
@@ -237,6 +254,14 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const paidBookings = overallPaid._count._all;
   const totalGmv = toNumber(overall._sum.totalAmount);
   const paidGmv = toNumber(overallPaid._sum.totalAmount);
+  const totalReferralDiscount = toNumber(paidFinancials._sum.referralDiscountAmount);
+  const totalReferralCreditsUsed = toNumber(paidFinancials._sum.referralCreditsUsed);
+  const totalCustomerBenefit = totalReferralDiscount + totalReferralCreditsUsed;
+  const totalFleetOwnerPayout = toNumber(paidFinancials._sum.fleetOwnerPayoutAmountNet);
+  const totalVat = toNumber(paidFinancials._sum.vatAmount);
+  const totalFleetOwnerCommission = toNumber(
+    paidFinancials._sum.platformFleetOwnerCommissionAmount,
+  );
 
   return data(
     {
@@ -250,6 +275,12 @@ export async function loader({ request }: LoaderFunctionArgs) {
         conversionRate: asPercent(paidBookings, totalBookings),
         totalGmv,
         paidGmv,
+        totalReferralDiscount,
+        totalReferralCreditsUsed,
+        totalCustomerBenefit,
+        totalFleetOwnerPayout,
+        totalVat,
+        totalFleetOwnerCommission,
       },
       channelRows,
       partnerRows,
@@ -349,6 +380,49 @@ export default function AdminReportsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatCurrency(summary.paidGmv)}</div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Customer benefit (paid)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{formatCurrency(summary.totalCustomerBenefit)}</div>
+            <p className="text-xs text-muted-foreground">
+              Discount {formatCurrency(summary.totalReferralDiscount)} + credits{" "}
+              {formatCurrency(summary.totalReferralCreditsUsed)}
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Fleet payout base (paid)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {formatCurrency(summary.totalFleetOwnerPayout)}
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">VAT (paid)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{formatCurrency(summary.totalVat)}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Commission (paid)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {formatCurrency(summary.totalFleetOwnerCommission)}
+            </div>
           </CardContent>
         </Card>
       </div>

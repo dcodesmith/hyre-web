@@ -43,16 +43,17 @@ export function BookingCostBreakdown({
       : `${formatCurrency(currentCarPrice)} × ${totalDays} ${unitLabel}`;
 
   return (
-    <div className="w-full mb-8 lg:mb-0">
+    <section aria-label="Cost breakdown" className="w-full mb-8 lg:mb-0">
       <h3 className="text-sm font-semibold mb-2">Cost Breakdown</h3>
       <div className="bg-white border border-neutral-200 lg:border-none rounded shadow-xl inset-shadow-sm transform-gpu p-4 lg:bg-transparent lg:shadow-none lg:rounded-none lg:px-0 lg:py-0">
         <dl className="text-gray-950 text-sm transition-all duration-200">
-          <div className="flex justify-between mb-1.5">
+          <div className="flex justify-between mb-1.5" aria-label="Base price">
             <dt className="text-gray-600">{bookingTypeLabel}</dt>
             <dd className="font-medium">{formatCurrency(baseTotal)}</dd>
           </div>
           {!pricingIncludesFuel && bookingType !== AIRPORT_PICKUP_BOOKING_TYPE && (
             <div
+              aria-label="Fuel upgrade"
               className={cn(
                 "flex justify-between transition-all duration-200 ease-out",
                 fuelUpgradeCost > 0
@@ -65,6 +66,7 @@ export function BookingCostBreakdown({
             </div>
           )}
           <div
+            aria-label="Platform fee"
             className={cn(
               "flex justify-between transition-all duration-200 ease-out",
               platformFee > 0 ? "opacity-100 h-6 mb-1.5" : "opacity-0 h-0 mb-0 overflow-hidden",
@@ -74,6 +76,7 @@ export function BookingCostBreakdown({
             <dd className="font-medium">{formatCurrency(platformFee)}</dd>
           </div>
           <div
+            aria-label="Referral discount"
             className={cn(
               "flex justify-between transition-all duration-200 ease-out",
               referralDiscountAmount > 0
@@ -87,6 +90,7 @@ export function BookingCostBreakdown({
             </dd>
           </div>
           <div
+            aria-label="Booking credits"
             className={cn(
               "flex justify-between transition-all duration-200 ease-out",
               useCreditsAmount > 0
@@ -97,20 +101,20 @@ export function BookingCostBreakdown({
             <dt className="text-gray-600">Booking Credits</dt>
             <dd className="font-medium">-{formatCurrency(useCreditsAmount)}</dd>
           </div>
-          <div className="flex justify-between">
+          <div className="flex justify-between" aria-label="VAT">
             <dt className="text-gray-600">VAT ({vatRate.toFixed(1)}%)</dt>
             <dd className="font-medium">{formatCurrency(vat)}</dd>
           </div>
           {/* Hide total on mobile (shown in sticky footer), show on desktop */}
           <div className="hidden lg:block">
             <hr className="border-t border-gray-200 my-2" />
-            <div className="flex justify-between text-base font-semibold">
+            <div className="flex justify-between text-base font-semibold" aria-label="Total cost">
               <dt className="text-gray-600">Total</dt>
               <dd>{formatCurrency(finalTotalCost)}</dd>
             </div>
           </div>
         </dl>
       </div>
-    </div>
+    </section>
   );
 }

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { resolveEmailProvider } from "~/modules/email/email-provider";
 
 export const envSchema = z
   .object({
@@ -7,11 +8,19 @@ export const envSchema = z
         message: "NODE_ENV must be one of: development, production, test",
       })
       .default("development"),
+    VERCEL: z.string().optional(),
     SESSION_SECRET: z.string(),
     SESSION_SECRETS: z.string().optional(),
     ENCRYPTION_SECRET: z.string(),
     DATABASE_URL: z.url(),
-    RESEND_API_KEY: z.string(),
+    EMAIL_PROVIDER: z.enum(["resend", "smtp", "console"]).optional(),
+    RESEND_API_KEY: z.string().optional(),
+    EMAIL_FROM: z.string().optional(),
+    SMTP_HOST: z.string().optional(),
+    SMTP_PORT: z.coerce.number().int().optional(),
+    SMTP_USER: z.string().optional(),
+    SMTP_PASS: z.string().optional(),
+    SMTP_SECURE: z.enum(["true", "false"]).optional(),
     OPENAI_API_KEY: z.string(),
     UPSTASH_REDIS_REST_URL: z.string().optional(),
     UPSTASH_REDIS_REST_TOKEN: z.string().optional(),
@@ -62,6 +71,16 @@ export const envSchema = z
         message:
           "Provide Redis credentials via UPSTASH_REDIS_REST_URL/TOKEN or KV_REST_API_URL/TOKEN.",
         path: ["UPSTASH_REDIS_REST_URL"],
+      });
+    }
+
+    const effectiveEmailProvider = resolveEmailProvider(value);
+
+    if (effectiveEmailProvider === "resend" && !value.RESEND_API_KEY) {
+      ctx.addIssue({
+        code: "custom",
+        message: "RESEND_API_KEY is required when EMAIL_PROVIDER=resend.",
+        path: ["RESEND_API_KEY"],
       });
     }
   });
