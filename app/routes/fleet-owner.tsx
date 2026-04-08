@@ -36,6 +36,7 @@ function NavLink({ to, children }: NavLinkProps) {
 const navLinks = [
   { to: "/fleet-owner", label: "Dashboard" },
   { to: "/fleet-owner/cars", label: "Cars" },
+  { to: "/fleet-owner/promotions", label: "Promotions" },
   { to: "/fleet-owner/chauffeurs", label: "Chauffeurs" },
   { to: "/fleet-owner/bookings", label: "Bookings" },
   { to: "/fleet-owner/payout-transactions", label: "Payout Transactions" },
