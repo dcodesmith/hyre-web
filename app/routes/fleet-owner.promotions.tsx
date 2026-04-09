@@ -1,4 +1,5 @@
-import { DiscountType } from "@prisma/client";
+import { getFormProps, useForm } from "@conform-to/react";
+import { parseWithZod } from "@conform-to/zod/v4";
 import { CalendarIcon, Percent, PlusCircle, Tag, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
@@ -29,7 +30,7 @@ import {
 } from "~/components/ui/sheet";
 import { useToast } from "~/hooks/use-toast";
 import { useAuthenticityToken } from "remix-utils/csrf/react";
-import { formatCurrency } from "~/lib/utils";
+import { MAX_PROMOTION_PERCENTAGE, promotionSchema } from "~/schemas/promotion.schema";
 import { prisma } from "~/modules/db/db.server";
 import {
   createPromotion,
@@ -70,33 +71,25 @@ export async function action({ request }: ActionFunctionArgs) {
   const intent = formData.get("intent");
 
   if (intent === "create") {
-    const name = formData.get("name") as string | null;
-    const discountType = formData.get("discountType") as string;
-    const discountValue = Number(formData.get("discountValue"));
-    const startDate = formData.get("startDate") as string;
-    const endDate = formData.get("endDate") as string;
-    const carId = formData.get("carId") as string | null;
+    const submission = parseWithZod(formData, { schema: promotionSchema });
 
-    if (!discountType || !discountValue || !startDate || !endDate) {
-      return data({ success: false, error: "All fields are required" }, { status: 400 });
+    if (submission.status !== "success") {
+      return data({ success: false, submission: submission.reply() }, { status: 400 });
     }
 
-    if (!["PERCENTAGE", "FIXED_AMOUNT"].includes(discountType)) {
-      return data({ success: false, error: "Invalid discount type" }, { status: 400 });
-    }
+    const { name, carId, discountValue, startDate, endDate } = submission.value;
 
     try {
       await createPromotion({
         ownerId: user.id,
         carId: carId === "all" ? null : carId,
         name: name || undefined,
-        discountType: discountType as DiscountType,
         discountValue,
         startDate: new Date(startDate),
         endDate: new Date(endDate),
       });
 
-      return data({ success: true });
+      return data({ success: true, submission: submission.reply() });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to create promotion";
       return data({ success: false, error: message }, { status: 400 });
@@ -137,7 +130,7 @@ const statusConfig = {
   inactive: { label: "Inactive", className: "bg-red-50 text-red-600 ring-red-500/10" },
 } as const;
 
-type ActionResponse = { success: boolean; error?: string | null } | undefined;
+type ActionResponse = { success: boolean; error?: string | null; submission?: unknown } | undefined;
 
 export default function PromotionsPage() {
   const { promotions, cars } = useLoaderData<typeof loader>();
@@ -154,7 +147,7 @@ export default function PromotionsPage() {
   }, [fetcher.state, fetcher.data, toast]);
 
   useEffect(() => {
-    if (fetcher.state === "idle" && fetcher.data?.error) {
+    if (fetcher.state === "idle" && typeof fetcher.data?.error === "string") {
       toast({ title: "Error", description: fetcher.data.error, variant: "destructive" });
     }
   }, [fetcher.state, fetcher.data, toast]);
@@ -179,10 +172,16 @@ export default function PromotionsPage() {
           <SheetContent className="sm:max-w-[400px] w-full px-8 overflow-y-auto">
             <SheetHeader>
               <SheetTitle>Create Promotion</SheetTitle>
-              <SheetDescription>Set up a discount for your fleet or a specific car.</SheetDescription>
+              <SheetDescription>
+                Set up a discount for your fleet or a specific car.
+              </SheetDescription>
             </SheetHeader>
             <div className="mt-6">
-              <CreatePromotionForm cars={cars} isSubmitting={fetcher.state !== "idle"} csrfToken={csrfToken} />
+              <CreatePromotionForm
+                cars={cars}
+                isSubmitting={fetcher.state !== "idle"}
+                csrfToken={csrfToken}
+              />
             </div>
           </SheetContent>
         </Sheet>
@@ -221,9 +220,7 @@ export default function PromotionsPage() {
                   <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
                     <span className="flex items-center gap-1">
                       <Percent className="h-3.5 w-3.5" />
-                      {promo.discountType === "PERCENTAGE"
-                        ? `${promo.discountValue}% off`
-                        : `${formatCurrency(promo.discountValue)} off`}
+                      {promo.discountValue}% off
                     </span>
                     <span className="flex items-center gap-1">
                       <CalendarIcon className="h-3.5 w-3.5" />
@@ -267,26 +264,44 @@ function CreatePromotionForm({
   isSubmitting,
   csrfToken,
 }: {
-  cars: { id: string; make: string; model: string; year: number }[];
-  isSubmitting: boolean;
-  csrfToken: string;
+  readonly cars: readonly { id: string; make: string; model: string; year: number }[];
+  readonly isSubmitting: boolean;
+  readonly csrfToken: string;
 }) {
-  const fetcher = useFetcher({ key: "promotion" });
+  const fetcher = useFetcher<ActionResponse>({ key: "promotion" });
+  const lastResult = fetcher.data;
+
+  const [form, { name, carId, discountValue, startDate, endDate }] = useForm({
+    lastResult: fetcher.state === "idle" && lastResult?.submission ? lastResult.submission : null,
+    onValidate({ formData }) {
+      return parseWithZod(formData, { schema: promotionSchema });
+    },
+    shouldValidate: "onBlur",
+    shouldRevalidate: "onInput",
+  });
+
+  const errorClasses = "border-red-500 focus-visible:ring-red-500 focus-visible:ring-2";
 
   return (
-    <fetcher.Form method="post" className="space-y-4">
+    <fetcher.Form method="post" {...getFormProps(form)} className="space-y-4">
       <input type="hidden" name="csrf" value={csrfToken} />
       <input type="hidden" name="intent" value="create" />
 
       <div className="space-y-2">
-        <Label htmlFor="name">Promotion Name (optional)</Label>
-        <Input id="name" name="name" placeholder="e.g. Easter Special" />
+        <Label htmlFor={name.id}>Promotion Name (optional)</Label>
+        <Input
+          id={name.id}
+          name={name.name}
+          placeholder="e.g. Easter Special"
+          className={name.errors ? errorClasses : ""}
+        />
+        {name.errors && <p className="text-sm text-destructive">{name.errors.join(" ")}</p>}
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="carId">Apply To</Label>
-        <Select name="carId" defaultValue="all">
-          <SelectTrigger>
+        <Label htmlFor={carId.id}>Apply To</Label>
+        <Select name={carId.name} defaultValue="all">
+          <SelectTrigger className={carId.errors ? errorClasses : ""}>
             <SelectValue placeholder="Select target" />
           </SelectTrigger>
           <SelectContent>
@@ -298,42 +313,52 @@ function CreatePromotionForm({
             ))}
           </SelectContent>
         </Select>
+        {carId.errors && <p className="text-sm text-destructive">{carId.errors.join(" ")}</p>}
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="discountType">Discount Type</Label>
-        <Select name="discountType" defaultValue="PERCENTAGE">
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="PERCENTAGE">Percentage (%)</SelectItem>
-            <SelectItem value="FIXED_AMOUNT">Fixed Amount (₦)</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="discountValue">Discount Value</Label>
+        <Label htmlFor={discountValue.id}>Discount (%)</Label>
         <Input
-          id="discountValue"
-          name="discountValue"
+          id={discountValue.id}
+          name={discountValue.name}
           type="number"
           min="1"
+          max={MAX_PROMOTION_PERCENTAGE}
           step="any"
-          required
-          placeholder="e.g. 20"
+          placeholder="e.g. 10"
+          className={discountValue.errors ? errorClasses : ""}
         />
+        {discountValue.errors ? (
+          <p className="text-sm text-destructive">{discountValue.errors.join(" ")}</p>
+        ) : (
+          <p className="text-xs text-muted-foreground">
+            Maximum {MAX_PROMOTION_PERCENTAGE}%. Applied to all booking types.
+          </p>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-2">
-          <Label htmlFor="startDate">Start Date</Label>
-          <Input id="startDate" name="startDate" type="date" required />
+          <Label htmlFor={startDate.id}>Start Date</Label>
+          <Input
+            id={startDate.id}
+            name={startDate.name}
+            type="date"
+            className={startDate.errors ? errorClasses : ""}
+          />
+          {startDate.errors && (
+            <p className="text-sm text-destructive">{startDate.errors.join(" ")}</p>
+          )}
         </div>
         <div className="space-y-2">
-          <Label htmlFor="endDate">End Date</Label>
-          <Input id="endDate" name="endDate" type="date" required />
+          <Label htmlFor={endDate.id}>End Date</Label>
+          <Input
+            id={endDate.id}
+            name={endDate.name}
+            type="date"
+            className={endDate.errors ? errorClasses : ""}
+          />
+          {endDate.errors && <p className="text-sm text-destructive">{endDate.errors.join(" ")}</p>}
         </div>
       </div>
 

@@ -776,8 +776,7 @@ export async function loader({ request, params: routeParams }: LoaderFunctionArg
         ...car,
         isOnPromotion: true as const,
         promotionLabel: getPromotionBadgeLabel(promo),
-        promotionDiscountType: promo.discountType,
-        promotionDiscountValue: Number(promo.discountValue),
+        promotionDiscountPercent: Number(promo.discountValue),
       };
     });
 
@@ -821,7 +820,7 @@ export async function loader({ request, params: routeParams }: LoaderFunctionArg
 
 type SearchCar = SerializedCar & (
   | { isOnPromotion: false }
-  | { isOnPromotion: true; promotionLabel: string; promotionDiscountType: string; promotionDiscountValue: number }
+  | { isOnPromotion: true; promotionLabel: string; promotionDiscountPercent: number }
 );
 
 type LoaderData = {
@@ -978,12 +977,7 @@ export default function SearchPage() {
               {allCars.map((car, index) => {
                 const originalRate = getRateForBookingType(car);
                 const displayRate = car.isOnPromotion
-                  ? Math.max(
-                      1,
-                      car.promotionDiscountType === "PERCENTAGE"
-                        ? originalRate * (1 - car.promotionDiscountValue / 100)
-                        : originalRate - car.promotionDiscountValue,
-                    )
+                  ? Math.max(1, originalRate * (1 - car.promotionDiscountPercent / 100))
                   : originalRate;
 
                 return (

@@ -1,19 +1,17 @@
-import { DiscountType, type Promotion } from "@prisma/client";
+import type { Promotion } from "@prisma/client";
 import { Decimal } from "decimal.js";
 import logger from "~/lib/logger.server";
 import { prisma } from "~/modules/db/db.server";
+import { MAX_PROMOTION_PERCENTAGE } from "~/schemas/promotion.schema";
 
 export type ActivePromotion = Pick<
   Promotion,
-  "id" | "name" | "discountType" | "discountValue" | "startDate" | "endDate" | "carId" | "createdAt"
+  "id" | "name" | "discountValue" | "startDate" | "endDate" | "carId" | "createdAt"
 >;
 
 function getPromotionDiscountAmount(promotion: ActivePromotion, baseAmount: number): Decimal {
   const value = new Decimal(promotion.discountValue.toString());
-  if (promotion.discountType === DiscountType.PERCENTAGE) {
-    return new Decimal(baseAmount).mul(value).div(100);
-  }
-  return value;
+  return new Decimal(baseAmount).mul(value).div(100);
 }
 
 /**
@@ -39,7 +37,6 @@ export async function getActivePromotionForCar(
     select: {
       id: true,
       name: true,
-      discountType: true,
       discountValue: true,
       startDate: true,
       endDate: true,
@@ -80,20 +77,15 @@ export async function getActivePromotionForCar(
 }
 
 /**
- * Apply a promotion discount to an original rate.
+ * Apply a percentage promotion discount to an original rate.
  * Returns the discounted rate, clamped to a minimum of 1 (smallest currency
  * unit) so no rate ever reaches zero — a zero-rate booking would break
  * platform fee and payout calculations.
  */
 export function applyPromotionDiscount(originalRate: number, promotion: ActivePromotion): number {
   const value = new Decimal(promotion.discountValue.toString());
-
-  if (promotion.discountType === DiscountType.PERCENTAGE) {
-    const discount = new Decimal(originalRate).mul(value).div(100);
-    return Math.max(1, new Decimal(originalRate).minus(discount).toNumber());
-  }
-
-  return Math.max(1, new Decimal(originalRate).minus(value).toNumber());
+  const discount = new Decimal(originalRate).mul(value).div(100);
+  return Math.max(1, new Decimal(originalRate).minus(discount).toNumber());
 }
 
 /**
@@ -143,7 +135,6 @@ export async function getActivePromotionsForCars(
     select: {
       id: true,
       name: true,
-      discountType: true,
       discountValue: true,
       startDate: true,
       endDate: true,
@@ -192,23 +183,11 @@ export async function getActivePromotionsForCars(
 
 /**
  * Compute the display-friendly promotion label for a car card badge.
- * e.g. "20% OFF" or "₦5,000 OFF"
+ * e.g. "20% OFF"
  */
 export function getPromotionBadgeLabel(promotion: ActivePromotion): string {
   const value = new Decimal(promotion.discountValue.toString());
-
-  if (promotion.discountType === DiscountType.PERCENTAGE) {
-    return `${value.toNumber()}% OFF`;
-  }
-
-  const formatted = new Intl.NumberFormat("en-NG", {
-    style: "currency",
-    currency: "NGN",
-    maximumFractionDigits: 0,
-    minimumFractionDigits: 0,
-  }).format(value.toNumber());
-
-  return `${formatted} OFF`;
+  return `${value.toNumber()}% OFF`;
 }
 
 /**
@@ -229,16 +208,15 @@ export async function createPromotion(data: {
   ownerId: string;
   carId?: string | null;
   name?: string;
-  discountType: DiscountType;
   discountValue: number;
   startDate: Date;
   endDate: Date;
 }) {
-  if (data.discountType === DiscountType.PERCENTAGE && data.discountValue > 100) {
-    throw new Error("Percentage discount cannot exceed 100%");
-  }
   if (data.discountValue <= 0) {
     throw new Error("Discount value must be positive");
+  }
+  if (data.discountValue > MAX_PROMOTION_PERCENTAGE) {
+    throw new Error(`Discount cannot exceed ${MAX_PROMOTION_PERCENTAGE}%`);
   }
   if (data.endDate <= data.startDate) {
     throw new Error("End date must be after start date");
@@ -278,7 +256,6 @@ export async function createPromotion(data: {
       ownerId: data.ownerId,
       carId: data.carId ?? null,
       name: data.name,
-      discountType: data.discountType,
       discountValue: data.discountValue,
       startDate: data.startDate,
       endDate: data.endDate,
@@ -289,8 +266,7 @@ export async function createPromotion(data: {
     promotionId: promotion.id,
     ownerId: data.ownerId,
     carId: data.carId,
-    discountType: data.discountType,
-    discountValue: data.discountValue,
+    discountPercent: data.discountValue,
   });
 
   return promotion;

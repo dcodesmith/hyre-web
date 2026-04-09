@@ -219,7 +219,7 @@ export async function calculateBookingCost({
     );
     if (activePromotion) {
       logger.debug(
-        `Active promotion found for car ${car.id}: ${activePromotion.id} (${activePromotion.discountType} ${activePromotion.discountValue})`,
+        `Active promotion found for car ${car.id}: ${activePromotion.id} (${activePromotion.discountValue}% off)`,
       );
     }
   } catch (error) {

@@ -74,6 +74,7 @@ jobs:
         run: |
           pnpm exec prisma migrate resolve --applied 20260324123000_reconcile_existing_db_drift || true
           pnpm exec prisma migrate resolve --rolled-back 20260406134708_add_whatsapp_linking_fields || true
+          pnpm exec prisma migrate resolve --rolled-back 20260409120000_remove_fixed_amount_discount_type || true
           pnpm exec prisma migrate deploy
         env:
           DATABASE_URL: ${{ steps.create_neon_branch.outputs.db_url_pooled }}

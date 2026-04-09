@@ -486,7 +486,6 @@ model Promotion {
   ownerId       String
   carId         String?
   name          String?
-  discountType  DiscountType
   discountValue Decimal      @db.Decimal(10, 2)
   startDate     DateTime
   endDate       DateTime
@@ -860,10 +859,6 @@ enum AddonType {
   SECURITY_DETAIL
 }
 
-enum DiscountType {
-  PERCENTAGE
-  FIXED_AMOUNT
-}
 
 enum ReferralAttributionSource {
   LINK

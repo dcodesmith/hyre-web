@@ -12,7 +12,7 @@
     "start": "react-router-serve ./build/server/index.js",
     "typecheck": "react-router typegen && tsc",
     "postinstall": "npx prisma generate",
-    "vercel-build": "npx prisma migrate resolve --rolled-back 20260406134708_add_whatsapp_linking_fields || true && npx prisma migrate deploy && npx prisma generate && react-router build",
+    "vercel-build": "npx prisma migrate resolve --rolled-back 20260406134708_add_whatsapp_linking_fields || true && npx prisma migrate resolve --rolled-back 20260409120000_remove_fixed_amount_discount_type || true && npx prisma migrate deploy && npx prisma generate && react-router build",
     "test": "vitest run",
     "test:watch": "vitest",
     "mail:dev": "docker run --rm -p 1025:1025 -p 8025:8025 axllent/mailpit",
