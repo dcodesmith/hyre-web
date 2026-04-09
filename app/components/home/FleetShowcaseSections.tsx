@@ -70,7 +70,15 @@ export function FleetShowcaseSections({
   carDetailsBasePath = "/cars",
   preservedSearchParams,
 }: FleetShowcaseSectionsProps) {
-  const getRateForDisplay = (car: HomePageCar) => car.dayRate;
+  const getCarCardPriceProps = (car: HomePageCar) => ({
+    price: car.dayRate,
+    ...(car.isOnPromotion && {
+      originalPrice: car.originalDayRate,
+      isOnPromotion: true as const,
+      promotionLabel: car.promotionLabel,
+    }),
+  });
+
   const carLinkSearchParams = preservedSearchParams
     ? new URLSearchParams(Array.from(preservedSearchParams.entries()))
     : undefined;
@@ -152,6 +160,23 @@ export function FleetShowcaseSections({
             </div>
           </div>
 
+          {categories.onSale.length > 0 && (
+            <CarouselSection title="On Sale" id="on-sale">
+              {categories.onSale.map((car, index) => (
+                <CarCard
+                  key={car.id}
+                  car={car}
+                  detailsBasePath={carDetailsBasePath}
+                  searchParams={carLinkSearchParams}
+                  priority={index < 5}
+                  {...getCarCardPriceProps(car)}
+                  showTotal={false}
+                  ratings={ratings[car.id]}
+                />
+              ))}
+            </CarouselSection>
+          )}
+
           {categories.suvs.length > 0 && (
             <CarouselSection
               title="SUV"
@@ -169,7 +194,7 @@ export function FleetShowcaseSections({
                   detailsBasePath={carDetailsBasePath}
                   searchParams={carLinkSearchParams}
                   priority={index < 5}
-                  price={getRateForDisplay(car)}
+                  {...getCarCardPriceProps(car)}
                   showTotal={false}
                   ratings={ratings[car.id]}
                 />
@@ -194,7 +219,7 @@ export function FleetShowcaseSections({
                   detailsBasePath={carDetailsBasePath}
                   searchParams={carLinkSearchParams}
                   priority={false}
-                  price={getRateForDisplay(car)}
+                  {...getCarCardPriceProps(car)}
                   showTotal={false}
                   ratings={ratings[car.id]}
                 />
@@ -219,7 +244,7 @@ export function FleetShowcaseSections({
                   detailsBasePath={carDetailsBasePath}
                   searchParams={carLinkSearchParams}
                   priority={false}
-                  price={getRateForDisplay(car)}
+                  {...getCarCardPriceProps(car)}
                   showTotal={false}
                   ratings={ratings[car.id]}
                 />
@@ -244,7 +269,7 @@ export function FleetShowcaseSections({
                   detailsBasePath={carDetailsBasePath}
                   searchParams={carLinkSearchParams}
                   priority={false}
-                  price={getRateForDisplay(car)}
+                  {...getCarCardPriceProps(car)}
                   showTotal={false}
                   ratings={ratings[car.id]}
                 />
@@ -265,7 +290,7 @@ export function FleetShowcaseSections({
                   detailsBasePath={carDetailsBasePath}
                   searchParams={carLinkSearchParams}
                   priority={false}
-                  price={getRateForDisplay(car)}
+                  {...getCarCardPriceProps(car)}
                   showTotal={false}
                   ratings={ratings[car.id]}
                 />
@@ -290,7 +315,7 @@ export function FleetShowcaseSections({
                   detailsBasePath={carDetailsBasePath}
                   searchParams={carLinkSearchParams}
                   priority={false}
-                  price={getRateForDisplay(car)}
+                  {...getCarCardPriceProps(car)}
                   showTotal={false}
                   ratings={ratings[car.id]}
                 />
@@ -309,7 +334,7 @@ export function FleetShowcaseSections({
                 detailsBasePath={carDetailsBasePath}
                 searchParams={carLinkSearchParams}
                 priority={index < 5}
-                price={getRateForDisplay(car)}
+                {...getCarCardPriceProps(car)}
                 showTotal={false}
                 ratings={ratings[car.id]}
               />

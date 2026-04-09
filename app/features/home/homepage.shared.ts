@@ -23,9 +23,13 @@ export interface HomePageCar {
   vehicleType: VehicleType;
   serviceTier: ServiceTier;
   images: { url: string }[];
+  isOnPromotion?: boolean;
+  originalDayRate?: number;
+  promotionLabel?: string;
 }
 
 export interface CarCategories {
+  onSale: HomePageCar[];
   suvs: HomePageCar[];
   luxury: HomePageCar[];
   budget: HomePageCar[];
@@ -36,6 +40,7 @@ export interface CarCategories {
 }
 
 export const emptyCarCategories = (): CarCategories => ({
+  onSale: [],
   suvs: [],
   luxury: [],
   budget: [],
@@ -74,6 +79,7 @@ export const faqData = {
  * Categorizes cars into meaningful groups for display.
  */
 export function categorizeCars(cars: HomePageCar[]): CarCategories {
+  const onSale: HomePageCar[] = [];
   const suvs: HomePageCar[] = [];
   const luxury: HomePageCar[] = [];
   const budget: HomePageCar[] = [];
@@ -82,6 +88,9 @@ export function categorizeCars(cars: HomePageCar[]): CarCategories {
   const popular: HomePageCar[] = [];
 
   for (const car of cars) {
+    if (car.isOnPromotion) {
+      onSale.push(car);
+    }
     if (car.vehicleType === VehicleTypes.SUV) {
       suvs.push(car);
     }
@@ -103,6 +112,7 @@ export function categorizeCars(cars: HomePageCar[]): CarCategories {
   }
 
   return {
+    onSale,
     suvs: suvs.length >= MIN_CATEGORY_SIZE ? suvs : [],
     luxury: luxury.length >= MIN_CATEGORY_SIZE ? luxury : [],
     budget: budget.length >= MIN_CATEGORY_SIZE ? budget : [],

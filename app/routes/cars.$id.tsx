@@ -33,6 +33,12 @@ import { getSessionUser, requireUser } from "~/modules/auth/auth.server";
 import { prisma } from "~/modules/db/db.server";
 import { availableCarsForSpecificRequest } from "~/services/availability-engine.server";
 import { getRates } from "~/services/extensions.server";
+import {
+  getActivePromotionForCar,
+  getDiscountedCarRates,
+  getPromotionBadgeLabel,
+  type ActivePromotion,
+} from "~/services/promotions.server";
 import type { AggregatedRatings } from "~/services/reviews.server";
 import { validateCSRF } from "~/utils/csrf-action.server";
 import { formatRating } from "~/utils/review-formatting";
@@ -309,13 +315,43 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
     // Continue with empty ratings - page can still render
   }
 
+  // Fetch active promotion and apply discounted rates
+  let promotion: { label: string; endDate: string } | null = null;
+  let originalRates: { dayRate: number; nightRate: number; fullDayRate: number; airportPickupRate: number } | null = null;
+  let effectiveCar = car;
+
+  try {
+    const activePromo = await getActivePromotionForCar(car.id, car.ownerId);
+    if (activePromo) {
+      const discounted = getDiscountedCarRates(car, activePromo);
+      originalRates = {
+        dayRate: car.dayRate,
+        nightRate: car.nightRate,
+        fullDayRate: car.fullDayRate,
+        airportPickupRate: car.airportPickupRate,
+      };
+      effectiveCar = { ...car, ...discounted };
+      promotion = {
+        label: getPromotionBadgeLabel(activePromo),
+        endDate: activePromo.endDate.toISOString(),
+      };
+    }
+  } catch (error) {
+    logger.error("[CAR_DETAILS] Error fetching promotion", {
+      carId: car.id,
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
+
   return {
-    car,
+    car: effectiveCar,
     isAvailable,
     partnerSlug: partnerSlug ?? null,
     backToSearch,
     ratings,
     subRatings,
+    promotion,
+    originalRates,
     user: user
       ? {
           ...user,
@@ -374,6 +410,8 @@ export default function CarDetails() {
     backToSearch,
     ratings,
     subRatings,
+    promotion,
+    originalRates,
     user,
     vatRate,
     platformServiceFeeRate,
@@ -579,6 +617,8 @@ export default function CarDetails() {
             platformServiceFeeRate={platformServiceFeeRate}
             securityDetailRate={securityDetailRate}
             partnerSlug={partnerSlug}
+            promotion={promotion}
+            originalRates={originalRates}
           />
         </div>
       </div>

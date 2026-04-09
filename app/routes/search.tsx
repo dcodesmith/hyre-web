@@ -41,6 +41,11 @@ import { prisma } from "~/modules/db/db.server";
 import { availableCarsForSpecificRequest } from "~/services/availability-engine.server";
 import { validateFlight } from "~/services/flight-validation.server";
 import { getPublicPartnerBySlug } from "~/services/partners.server";
+import {
+  type ActivePromotion,
+  getActivePromotionsForCars,
+  getPromotionBadgeLabel,
+} from "~/services/promotions.server";
 import { getBatchCarRatings } from "~/services/reviews.server";
 import type { AggregatedRatings } from "~/services/reviews.server";
 import type { SerializedCar, ServiceTier, VehicleType } from "~/types";
@@ -745,15 +750,36 @@ export async function loader({ request, params: routeParams }: LoaderFunctionArg
 
     const carQueryTime = Date.now() - carQueryStartTime;
 
-    // Fetch ratings for all filtered cars in a single batch query
+    // Fetch ratings and promotions for all filtered cars in parallel
     let ratings: Record<string, AggregatedRatings> = {};
+    let promoMap = new Map<string, ActivePromotion>();
     try {
       const carIds = returnedCars.map((car) => car.id);
-      ratings = await getBatchCarRatings(carIds);
+      const carsForPromo = returnedCars.map((c) => ({ id: c.id, ownerId: c.ownerId }));
+
+      const [ratingsResult, promoResult] = await Promise.all([
+        getBatchCarRatings(carIds),
+        getActivePromotionsForCars(carsForPromo),
+      ]);
+      ratings = ratingsResult;
+      promoMap = promoResult;
     } catch (error) {
-      logger.error("[SEARCH] Error fetching ratings", { error });
-      // Continue without ratings if there's an error
+      logger.error("[SEARCH] Error fetching ratings/promotions", { error });
     }
+
+    // Enrich cars with promotion fields so they travel with the car through infinite scroll
+    const enrichedCars = returnedCars.map((car) => {
+      const promo = promoMap.get(car.id);
+      if (!promo) return { ...car, isOnPromotion: false as const };
+
+      return {
+        ...car,
+        isOnPromotion: true as const,
+        promotionLabel: getPromotionBadgeLabel(promo),
+        promotionDiscountType: promo.discountType,
+        promotionDiscountValue: Number(promo.discountValue),
+      };
+    });
 
     const totalTime = Date.now() - startTime;
     logger.info("[SEARCH] Query completed", { ms: carQueryTime, totalMs: totalTime });
@@ -769,7 +795,7 @@ export async function loader({ request, params: routeParams }: LoaderFunctionArg
 
     return data(
       {
-        cars: returnedCars,
+        cars: enrichedCars,
         ratings,
         filters: {
           serviceTier: params.serviceTier ?? null,
@@ -793,8 +819,13 @@ export async function loader({ request, params: routeParams }: LoaderFunctionArg
   }
 }
 
+type SearchCar = SerializedCar & (
+  | { isOnPromotion: false }
+  | { isOnPromotion: true; promotionLabel: string; promotionDiscountType: string; promotionDiscountValue: number }
+);
+
 type LoaderData = {
-  cars: SerializedCar[];
+  cars: SearchCar[];
   ratings: Record<string, AggregatedRatings>;
   filters: {
     serviceTier: ServiceTier | null;
@@ -944,20 +975,35 @@ export default function SearchPage() {
         {allCars.length > 0 ? (
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {allCars.map((car, index) => (
-                <CarCard
-                  key={car.id}
-                  car={car}
-                  detailsBasePath={carDetailsBasePath}
-                  searchParams={searchParams}
-                  priority={index < 6}
-                  price={getRateForBookingType(car)}
-                  showTotal={hasDateFilters}
-                  totalPrice={hasDateFilters ? getRateForBookingType(car) * totalUnits : undefined}
-                  variant="grid"
-                  ratings={allRatings[car.id]}
-                />
-              ))}
+              {allCars.map((car, index) => {
+                const originalRate = getRateForBookingType(car);
+                const displayRate = car.isOnPromotion
+                  ? Math.max(
+                      1,
+                      car.promotionDiscountType === "PERCENTAGE"
+                        ? originalRate * (1 - car.promotionDiscountValue / 100)
+                        : originalRate - car.promotionDiscountValue,
+                    )
+                  : originalRate;
+
+                return (
+                  <CarCard
+                    key={car.id}
+                    car={car}
+                    detailsBasePath={carDetailsBasePath}
+                    searchParams={searchParams}
+                    priority={index < 6}
+                    price={displayRate}
+                    originalPrice={car.isOnPromotion ? originalRate : undefined}
+                    isOnPromotion={car.isOnPromotion}
+                    promotionLabel={car.isOnPromotion ? car.promotionLabel : undefined}
+                    showTotal={hasDateFilters}
+                    totalPrice={hasDateFilters ? displayRate * totalUnits : undefined}
+                    variant="grid"
+                    ratings={allRatings[car.id]}
+                  />
+                );
+              })}
             </div>
             {hasMore && <div ref={sentinelRef} className="h-1" aria-hidden="true" />}
           </>

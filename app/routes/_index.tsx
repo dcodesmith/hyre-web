@@ -3,12 +3,7 @@ import { Suspense, lazy, useState } from "react";
 import { type MetaFunction, data, useLoaderData } from "react-router";
 import { BookingSearch } from "~/components/BookingSearch";
 import { FleetShowcaseSections } from "~/components/home/FleetShowcaseSections";
-import { PromotionSection } from "~/components/home/PromotionSection";
-import {
-  getHomePageFleetData,
-  getPromotedCars,
-  type PromotedCar,
-} from "~/features/home/homepage-data.server";
+import { getHomePageFleetData } from "~/features/home/homepage-data.server";
 import type { AggregatedRatings } from "~/services/reviews.server";
 import { env } from "~/utils/server/env.server";
 
@@ -89,17 +84,12 @@ export const links = () => [
 ];
 
 export async function loader() {
-  const [{ categories, ratings }, promotedData] = await Promise.all([
-    getHomePageFleetData({ logContext: "HOME" }),
-    getPromotedCars(),
-  ]);
+  const { categories, ratings } = await getHomePageFleetData({ logContext: "HOME" });
 
   return data(
     {
       categories,
       ratings,
-      promotedCars: promotedData.cars,
-      promotedRatings: promotedData.ratings,
       ENV: {
         DOMAIN: env.DOMAIN,
       },
@@ -116,16 +106,13 @@ export async function loader() {
 type LoaderData = {
   categories: CarCategories;
   ratings: Record<string, AggregatedRatings>;
-  promotedCars: PromotedCar[];
-  promotedRatings: Record<string, AggregatedRatings>;
   ENV: {
     DOMAIN: string;
   };
 };
 
 export default function IndexPage() {
-  const { categories, ratings, promotedCars, promotedRatings, ENV } =
-    useLoaderData<LoaderData>();
+  const { categories, ratings, ENV } = useLoaderData<LoaderData>();
 
   // Filter cars with 4.5+ rating for Top Bookings section
   // const topBookings = filterTopBookings(categories.allCars, ratings);
@@ -301,7 +288,6 @@ export default function IndexPage() {
 
       {/* Main Content Container - Scrolls underneath fixed hero */}
       <div className={`transition-transform duration-300 ${contentTransform}`}>
-        <PromotionSection cars={promotedCars} ratings={promotedRatings} />
         <FleetShowcaseSections categories={categories} ratings={ratings} />
       </div>
     </div>

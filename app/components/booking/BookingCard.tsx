@@ -74,6 +74,13 @@ type BookingCardProps = {
   readonly platformServiceFeeRate: number;
   readonly securityDetailRate: number;
   readonly partnerSlug?: string | null;
+  readonly promotion?: { label: string; endDate: string } | null;
+  readonly originalRates?: {
+    dayRate: number;
+    nightRate: number;
+    fullDayRate: number;
+    airportPickupRate: number;
+  } | null;
 };
 
 interface BookingCredits {
@@ -144,6 +151,8 @@ export default function BookingCard({
   vatRate,
   platformServiceFeeRate,
   partnerSlug = null,
+  promotion = null,
+  originalRates = null,
 }: BookingCardProps) {
   const navigate = useNavigate();
   const csrfToken = useAuthenticityToken();
@@ -681,12 +690,35 @@ export default function BookingCard({
         <CardHeader className="px-4 lg:px-6 py-4">
           <CardTitle>
             <span className="text-lg" aria-live="polite">
-              {formatCurrency(totalDays > 0 ? currentCarPrice * totalDays : currentCarPrice)}
+              {promotion && originalRates && (
+                <span className="text-sm text-gray-400 line-through mr-1.5">
+                  {formatCurrency(
+                    totalDays > 0
+                      ? (bookingType === NIGHT_BOOKING_TYPE
+                          ? originalRates.nightRate
+                          : bookingType === FULL_DAY_BOOKING_TYPE
+                            ? originalRates.fullDayRate
+                            : bookingType === AIRPORT_PICKUP_BOOKING_TYPE
+                              ? originalRates.airportPickupRate
+                              : originalRates.dayRate) * totalDays
+                      : originalRates.dayRate,
+                  )}
+                </span>
+              )}
+              <span className={promotion ? "text-red-600" : ""}>
+                {formatCurrency(totalDays > 0 ? currentCarPrice * totalDays : currentCarPrice)}
+              </span>
 
-              <span className=" text-sm text-gray-500 font-normal">
+              <span className="text-sm text-gray-500 font-normal">
                 {" "}
                 per {BOOKING_TYPE_LABELS[bookingType].perUnit}
               </span>
+
+              {promotion && (
+                <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-700">
+                  {promotion.label}
+                </span>
+              )}
             </span>
           </CardTitle>
         </CardHeader>
