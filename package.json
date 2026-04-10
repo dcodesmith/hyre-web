@@ -6,7 +6,7 @@
   "packageManager": "pnpm@10.20.0",
   "scripts": {
     "build": "npx prisma generate && react-router build",
-    "dev": "react-router dev",
+    "dev": "mailpit & react-router dev",
     "lint": "biome check .",
     "format": "biome format .",
     "start": "react-router-serve ./build/server/index.js",
