@@ -123,7 +123,6 @@ export function BookingFormFields({
   fallbackDate,
   fields,
   sameLocationChecked,
-  formId,
   errorRingClasses,
   nightBookingHelperText,
   onPickupTimeChange,

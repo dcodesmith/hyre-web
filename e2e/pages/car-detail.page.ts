@@ -1,4 +1,4 @@
-import { type Page, type Locator, expect } from "@playwright/test";
+import { type Locator, type Page, expect } from "@playwright/test";
 
 function parseCurrency(text: string): number {
   return Number(text.replaceAll(/[₦,\s]/g, ""));
@@ -94,10 +94,14 @@ export class CarDetailPage {
     await this.expectCostBreakdownVisible();
 
     // ---- Base price row (always visible) ----
-    const basePriceLabel = (await this.rowTerm("Base price").textContent()) ?? "";
-    const baseTotal = parseCurrency(
-      (await this.rowValue("Base price").textContent()) ?? "0",
-    );
+    const baseTerm = this.rowTerm("Base price");
+    const promoRateLabel = this.costBreakdown.getByLabel("Promotional rate");
+    const hasPromoRate = (await promoRateLabel.count()) > 0;
+    const basePriceLabel = hasPromoRate
+      ? ((await promoRateLabel.innerText()) ?? "")
+      : ((await baseTerm.textContent()) ?? "");
+    const payableBase = this.costBreakdown.getByLabel("Payable base total");
+    const baseTotal = parseCurrency((await payableBase.innerText()) ?? "0");
     const priceMatch = basePriceLabel.match(/₦([\d,]+)\s*×\s*(\d+)/);
     const pricePerUnit = priceMatch ? parseCurrency(priceMatch[1]) : 0;
     const units = priceMatch ? Number(priceMatch[2]) : 0;
@@ -110,15 +114,15 @@ export class CarDetailPage {
       : 0;
 
     // ---- Platform fee (conditional) ----
-    const platformFeeVisible = await this.row("Platform fee").isVisible().catch(() => false);
+    const platformFeeVisible = await this.row("Platform fee")
+      .isVisible()
+      .catch(() => false);
     let platformFeeRate = 0;
     let platformFee = 0;
     if (platformFeeVisible) {
       const pfLabel = (await this.rowTerm("Platform fee").textContent()) ?? "";
       platformFeeRate = extractRate(pfLabel) ?? 0;
-      platformFee = parseCurrency(
-        (await this.rowValue("Platform fee").textContent()) ?? "0",
-      );
+      platformFee = parseCurrency((await this.rowValue("Platform fee").textContent()) ?? "0");
     }
 
     // ---- Referral discount (conditional, displayed with leading minus) ----
@@ -132,7 +136,9 @@ export class CarDetailPage {
     }
 
     // ---- Booking credits (conditional, displayed with leading minus) ----
-    const creditsVisible = await this.row("Booking credits").isVisible().catch(() => false);
+    const creditsVisible = await this.row("Booking credits")
+      .isVisible()
+      .catch(() => false);
     let creditsAmount = 0;
     if (creditsVisible) {
       const cText = (await this.rowValue("Booking credits").textContent()) ?? "0";
@@ -145,9 +151,8 @@ export class CarDetailPage {
     const vat = parseCurrency((await this.rowValue("VAT").textContent()) ?? "0");
 
     // ---- Total (desktop, hidden on mobile) ----
-    const total = parseCurrency(
-      (await this.rowValue("Total cost").textContent()) ?? "0",
-    );
+    const payableTotal = this.costBreakdown.getByLabel("Payable booking total");
+    const total = parseCurrency((await payableTotal.innerText()) ?? "0");
 
     return {
       basePriceLabel,

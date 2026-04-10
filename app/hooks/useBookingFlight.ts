@@ -1,6 +1,6 @@
-import { useEffect, useState, useCallback, useRef } from "react";
-import type { ValidatedFlight } from "~/services/flight-validation.server";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AIRPORT_PICKUP_BOOKING_TYPE, type BookingType } from "~/components/bookingTypes";
+import type { ValidatedFlight } from "~/services/flight-validation.server";
 
 interface TripDuration {
   readonly durationInMinutes: number;
@@ -12,6 +12,8 @@ interface TripDuration {
 interface UseBookingFlightParams {
   readonly bookingType: BookingType;
   readonly searchParams: URLSearchParams;
+  /** Called whenever validated flight state is committed (including clears). */
+  readonly onValidatedFlightCommit?: () => void;
 }
 
 interface UseBookingFlightResult {
@@ -35,16 +37,26 @@ function normalizeFlightNumber(value: string | null | undefined): string {
 export function useBookingFlight({
   bookingType,
   searchParams,
+  onValidatedFlightCommit,
 }: UseBookingFlightParams): UseBookingFlightResult {
   const [validatedFlight, setValidatedFlight] = useState<ValidatedFlight | null>(null);
   const [tripDuration, setTripDuration] = useState<TripDuration | null>(null);
   const processedFlightRef = useRef<string | null>(null);
   const tripDurationRequestRef = useRef(0);
+
+  const commitValidatedFlight = useCallback(
+    (flight: ValidatedFlight | null) => {
+      setValidatedFlight(flight);
+      onValidatedFlightCommit?.();
+    },
+    [onValidatedFlightCommit],
+  );
+
   const clearFlightState = useCallback(() => {
-    setValidatedFlight(null);
+    commitValidatedFlight(null);
     setTripDuration(null);
     processedFlightRef.current = null;
-  }, []);
+  }, [commitValidatedFlight]);
 
   // Auto-validate flight from URL on component mount
   useEffect(() => {
@@ -87,7 +99,7 @@ export function useBookingFlight({
             if (response.ok) {
               const data = await response.json();
               if (data.success && data.flight && !controller.signal.aborted) {
-                setValidatedFlight(data.flight);
+                commitValidatedFlight(data.flight);
               }
             }
           } catch (error) {
@@ -103,7 +115,14 @@ export function useBookingFlight({
         return () => controller.abort();
       }
     }
-  }, [searchParams, bookingType, validatedFlight, tripDuration, clearFlightState]);
+  }, [
+    searchParams,
+    bookingType,
+    validatedFlight,
+    tripDuration,
+    clearFlightState,
+    commitValidatedFlight,
+  ]);
 
   // Calculate trip duration for AIRPORT_PICKUP bookings when drop-off address is selected
   const handleDropOffAddressSelected = useCallback(
@@ -165,7 +184,7 @@ export function useBookingFlight({
 
   return {
     validatedFlight,
-    setValidatedFlight,
+    setValidatedFlight: commitValidatedFlight,
     tripDuration,
     processedFlightRef,
     handleDropOffAddressSelected,

@@ -11,6 +11,7 @@ import {
   subDays,
 } from "date-fns";
 import { formatInTimeZone } from "date-fns-tz";
+import { Tag } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DateRange } from "react-day-picker";
 import { Link, useFetcher, useNavigate, useNavigation, useSearchParams } from "react-router";
@@ -19,6 +20,7 @@ import { Form } from "~/components/CSRFForm";
 import { useIsMobile } from "~/hooks/use-mobile";
 import { useBookingFlight } from "~/hooks/useBookingFlight";
 import { useBookingPricing, useFinalPricing } from "~/hooks/useBookingPricing";
+import { listRateForBookingType, useBookingPromoCompare } from "~/hooks/useBookingPromoCompare";
 import { useReferralCredits } from "~/hooks/useReferralCredits";
 import {
   calculateBookingUnits,
@@ -47,6 +49,7 @@ import { BookingAddons } from "./BookingAddons";
 import { BookingCostBreakdown } from "./BookingCostBreakdown";
 import { BookingFormFields } from "./BookingFormFields";
 import { GuestDetails } from "./GuestDetails";
+import { PromoBookingTotal } from "./PromoBookingTotal";
 import { SingleDatePicker } from "./SingleDatePicker";
 import { TripDetails } from "./TripDetails";
 import { getOrdinal } from "./helpers";
@@ -144,16 +147,7 @@ function BookingActionsPlacement({
   return <BookingActions user={user} isPending={isPending} onNavigateToAuth={onNavigateToAuth} />;
 }
 
-function getOriginalRate(
-  bookingType: string,
-  rates: { nightRate: number; fullDayRate: number; airportPickupRate: number; dayRate: number },
-): number {
-  if (bookingType === NIGHT_BOOKING_TYPE) return rates.nightRate;
-  if (bookingType === FULL_DAY_BOOKING_TYPE) return rates.fullDayRate;
-  if (bookingType === AIRPORT_PICKUP_BOOKING_TYPE) return rates.airportPickupRate;
-  return rates.dayRate;
-}
-
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Large booking form (dates, tabs, desktop/mobile, referrals, promos).
 export default function BookingCard({
   car,
   isAvailable = false,
@@ -187,6 +181,10 @@ export default function BookingCard({
   const fallbackDateRef = useRef<Date>(startOfDay(new Date()));
 
   // Flight validation hook for booking flow
+  const clearFetcherErrorOnFlightCommit = useCallback(() => {
+    setShowFetcherError(false);
+  }, []);
+
   const {
     validatedFlight,
     setValidatedFlight,
@@ -194,7 +192,11 @@ export default function BookingCard({
     processedFlightRef,
     handleDropOffAddressSelected,
     clearFlightState,
-  } = useBookingFlight({ bookingType, searchParams });
+  } = useBookingFlight({
+    bookingType,
+    searchParams,
+    onValidatedFlightCommit: clearFetcherErrorOnFlightCommit,
+  });
   const tripDetailsArrivalTime =
     validatedFlight?.estimatedArrival ??
     validatedFlight?.actualArrival ??
@@ -275,6 +277,21 @@ export default function BookingCard({
   const { vat, finalTotalCost } = useFinalPricing({
     subtotalBeforeDiscounts,
     referralDiscountAmount,
+    useCreditsAmount,
+    vatRate,
+  });
+
+  const promoCompare = useBookingPromoCompare({
+    promotion,
+    originalRates,
+    totalDays,
+    bookingType,
+    baseTotal,
+    finalTotalCost,
+    fuelUpgradeCost,
+    platformServiceFeeRate,
+    user,
+    referralDiscount,
     useCreditsAmount,
     vatRate,
   });
@@ -368,6 +385,7 @@ export default function BookingCard({
 
   const handleFromDateChange = useCallback(
     (date: Date | undefined) => {
+      setShowFetcherError(false);
       const normalizedFrom = date ? startOfDay(date) : undefined;
 
       // For airport pickup, automatically set "to" to same as "from"
@@ -421,6 +439,7 @@ export default function BookingCard({
 
   const handleToDateChange = useCallback(
     (date: Date | undefined) => {
+      setShowFetcherError(false);
       const normalizedTo = date ? startOfDay(date) : undefined;
 
       // Validate that "to" >= "from" (safety check, minDate should enforce this)
@@ -534,12 +553,6 @@ export default function BookingCard({
   const handleFullTankChange = useCallback((checked: boolean) => {
     setRequiresFullTank(!!checked);
   }, []);
-
-  // Clear booking errors when form values change
-  // biome-ignore lint/correctness/useExhaustiveDependencies: Intentionally trigger on form value changes
-  useEffect(() => {
-    setShowFetcherError(false);
-  }, [bookingType, dateRange.from, dateRange.to, validatedFlight]);
 
   // Show error when fetcher returns with new error data
   useEffect(() => {
@@ -702,15 +715,11 @@ export default function BookingCard({
             <span className="text-lg" aria-live="polite">
               {promotion && originalRates && (
                 <span className="text-gray-400 line-through mr-1.5">
-                  {formatCurrency(
-                    totalDays > 0
-                      ? getOriginalRate(bookingType, originalRates) * totalDays
-                      : originalRates.dayRate,
-                  )}
+                  {formatCurrency(listRateForBookingType(bookingType, originalRates))}
                 </span>
               )}
               <span className={promotion ? "text-red-600" : ""}>
-                {formatCurrency(totalDays > 0 ? currentCarPrice * totalDays : currentCarPrice)}
+                {formatCurrency(currentCarPrice)}
               </span>
 
               <span className="text-sm text-gray-500 font-normal">
@@ -719,8 +728,11 @@ export default function BookingCard({
               </span>
 
               {promotion && (
-                <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-700">
-                  {promotion.label}
+                <span className="ml-2 inline-flex align-middle items-center gap-1 px-2 py-1.5 bg-red-500/95 rounded-full shadow-md">
+                  <Tag className="h-3 w-3 text-white shrink-0" aria-hidden />
+                  <span className="text-xs font-semibold text-white leading-none">
+                    {promotion.label || "SALE"}
+                  </span>
                 </span>
               )}
             </span>
@@ -893,6 +905,7 @@ export default function BookingCard({
               vat={vat}
               finalTotalCost={finalTotalCost}
               pricingIncludesFuel={car.pricingIncludesFuel}
+              promoCompare={promoCompare}
             />
 
             {/* Display booking submission errors */}
@@ -956,6 +969,7 @@ export default function BookingCard({
               vat={vat}
               finalTotalCost={finalTotalCost}
               pricingIncludesFuel={car.pricingIncludesFuel}
+              promoCompare={promoCompare}
             />
 
             {/* Display booking submission errors */}
@@ -980,9 +994,15 @@ export default function BookingCard({
 
           <div className="p-4 space-y-3">
             {/* Total row */}
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-2">
               <span className="text-sm font-medium text-gray-600">Total</span>
-              <span className="text-base font-semibold">{formatCurrency(finalTotalCost)}</span>
+              <div className="text-right">
+                <PromoBookingTotal
+                  promoCompare={promoCompare}
+                  finalTotalCost={finalTotalCost}
+                  variant="mobile"
+                />
+              </div>
             </div>
 
             <BookingActionsPlacement
