@@ -1,46 +1,17 @@
-import { ScrollArea } from "@radix-ui/react-scroll-area";
+import { useCallback, useState } from "react";
 import {
   type LoaderFunctionArgs,
   type ShouldRevalidateFunctionArgs,
-  Link,
   Outlet,
   useLocation,
   useLoaderData,
   redirect,
 } from "react-router";
-import { ScrollBar } from "~/components/ui/scroll-area";
+import { Separator } from "~/components/ui/separator";
+import { SidebarInset, SidebarProvider, SidebarTrigger } from "~/components/ui/sidebar";
+import { FleetOwnerSidebar } from "~/components/fleet-owner-sidebar";
+import { ProfileFormSheet } from "~/components/forms/ProfileFormSheet";
 import { requireUserWithRole } from "~/utils/server/permissions.server";
-interface NavLinkProps {
-  readonly to: string;
-  readonly children: React.ReactNode;
-}
-
-function NavLink({ to, children }: NavLinkProps) {
-  const location = useLocation();
-  const isCurrentPath = location.pathname === to;
-
-  return (
-    <Link
-      to={to}
-      className={`flex h-7 items-center justify-center rounded px-4 text-center text-sm transition-colors hover:text-primary ${
-        isCurrentPath
-          ? "cursor-not-allowed pointer-events-none bg-muted text-primary font-semibold"
-          : "text-muted-foreground"
-      }`}
-    >
-      {children}
-    </Link>
-  );
-}
-
-const navLinks = [
-  { to: "/fleet-owner", label: "Dashboard" },
-  { to: "/fleet-owner/cars", label: "Cars" },
-  { to: "/fleet-owner/promotions", label: "Promotions" },
-  { to: "/fleet-owner/chauffeurs", label: "Chauffeurs" },
-  { to: "/fleet-owner/bookings", label: "Bookings" },
-  { to: "/fleet-owner/payout-transactions", label: "Payout Transactions" },
-] as const;
 
 export function shouldRevalidate({
   formAction,
@@ -54,60 +25,96 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const url = new URL(request.url);
   const pathname = url.pathname;
 
-  // Skip auth check for login/verify pages - they should be public
-  const isPublicPage = pathname.includes("/login") || pathname.includes("/verify");
+  const isPublicPage =
+    pathname.startsWith("/fleet-owner/login") ||
+    pathname.startsWith("/fleet-owner/verify");
   if (isPublicPage) {
-    return { isOwnerDriver: false, isPublicPage };
+    return {
+      isOwnerDriver: false,
+      isPublicPage,
+      userName: null,
+      userEmail: "",
+      user: null,
+    };
   }
 
   const user = await requireUserWithRole(request, "fleetOwner");
 
-  // Don't redirect if we're already on the onboarding page
   if (!user.hasOnboarded && !pathname.endsWith("/onboarding")) {
     return redirect("/fleet-owner/onboarding");
   }
 
-  return { isOwnerDriver: user.isOwnerDriver, isPublicPage: false };
+  return {
+    isOwnerDriver: user.isOwnerDriver,
+    isPublicPage: false,
+    userName: user.name ?? null,
+    userEmail: user.email,
+    user,
+  };
 }
 
-export default function Dashboard() {
-  const { isOwnerDriver, isPublicPage } = useLoaderData<typeof loader>();
+const pageTitles: Record<string, string> = {
+  "/fleet-owner": "Dashboard",
+  "/fleet-owner/cars": "Cars",
+  "/fleet-owner/promotions": "Promotions",
+  "/fleet-owner/chauffeurs": "Chauffeurs",
+  "/fleet-owner/bookings": "Bookings",
+  "/fleet-owner/payout-transactions": "Payout Transactions",
+  "/fleet-owner/onboarding": "Onboarding",
+};
+
+function getPageTitle(pathname: string): string {
+  if (pageTitles[pathname]) return pageTitles[pathname];
+  const sortedRoutes = Object.entries(pageTitles).sort(([a], [b]) => b.length - a.length);
+  for (const [route, title] of sortedRoutes) {
+    if (pathname.startsWith(route)) return title;
+  }
+  return "Fleet Manager";
+}
+
+export default function FleetOwnerLayout() {
+  const { isOwnerDriver, isPublicPage, userName, userEmail, user } = useLoaderData<typeof loader>();
   const location = useLocation();
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
 
-  // Don't show navigation on onboarding, login, or verify pages
+  const handleProfileOpen = useCallback(() => {
+    setIsProfileOpen(true);
+  }, []);
+
+  const handleProfileOpenChange = useCallback((open: boolean) => {
+    setIsProfileOpen(open);
+  }, []);
+
   const isOnboardingPage = location.pathname.endsWith("/onboarding");
-  const shouldShowNav = !isOnboardingPage && !isPublicPage;
+  const shouldShowSidebar = !isOnboardingPage && !isPublicPage;
 
-  // Filter out chauffeurs link for owner-drivers
-  const filteredNavLinks = navLinks.filter(
-    (link) => !(isOwnerDriver && link.to === "/fleet-owner/chauffeurs"),
-  );
-
-  // For public pages (login/verify), render without layout
-  if (isPublicPage) {
+  if (!shouldShowSidebar) {
     return <Outlet />;
   }
 
-  return (
-    <>
-      {shouldShowNav && (
-        <div className="relative hidden md:block">
-          <ScrollArea className="max-w-[600px] lg:max-w-none">
-            <nav className="mb-4 mt-4 flex items-center lg:mt-0">
-              {filteredNavLinks.map((link) => (
-                <NavLink key={link.to} to={link.to}>
-                  {link.label}
-                </NavLink>
-              ))}
-            </nav>
+  const pageTitle = getPageTitle(location.pathname);
 
-            <ScrollBar orientation="horizontal" className="invisible" />
-          </ScrollArea>
+  return (
+    <SidebarProvider>
+      <FleetOwnerSidebar
+        isOwnerDriver={isOwnerDriver}
+        userName={userName}
+        userEmail={userEmail}
+        onProfileOpen={handleProfileOpen}
+      />
+      <SidebarInset>
+        <header className="flex h-12 shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear">
+          <div className="flex w-full items-center gap-2 px-4 lg:px-6">
+            <SidebarTrigger className="-ml-1" />
+            <Separator orientation="vertical" className="mx-2 data-[orientation=vertical]:h-4" />
+            <h1 className="text-base font-medium">{pageTitle}</h1>
+          </div>
+        </header>
+        <div className="flex-1 p-4 lg:p-6">
+          <Outlet />
         </div>
-      )}
-      <div className="md:mt-0 mt-4">
-        <Outlet />
-      </div>
-    </>
+      </SidebarInset>
+      <ProfileFormSheet open={isProfileOpen} onOpenChange={handleProfileOpenChange} user={user} />
+    </SidebarProvider>
   );
 }

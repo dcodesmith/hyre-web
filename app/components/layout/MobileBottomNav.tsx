@@ -2,18 +2,14 @@ import type { Role, User } from "@prisma/client";
 import { Link, useLocation } from "react-router";
 import {
   Calendar,
-  Car,
   Gift,
   Home,
-  LayoutDashboard,
   LogIn,
   LogOut,
   User as UserIcon,
-  Users,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Form } from "~/components/CSRFForm";
-import { NairaIcon } from "~/components/icons/NairaIcon";
 import { SCROLL_COLLAPSE_THRESHOLD } from "~/constants/ui";
 import { userHasRole } from "~/utils/shared/roles";
 
@@ -150,6 +146,11 @@ export function MobileBottomNav({ user, appName, onProfileOpen }: MobileBottomNa
     return null;
   }
 
+  // Fleet-owner uses its own sidebar navigation
+  if (location.pathname.startsWith("/fleet-owner")) {
+    return null;
+  }
+
   // Don't show on auth page
   if (location.pathname.startsWith("/auth")) {
     return null;
@@ -173,98 +174,10 @@ export function MobileBottomNav({ user, appName, onProfileOpen }: MobileBottomNa
   const isHomeActive = isHomePage;
   const isBookingsActive = location.pathname.startsWith("/bookings");
   const isReferralsActive = location.pathname.startsWith("/referrals");
-  const isFleetOwnerActive = location.pathname.startsWith("/fleet-owner");
-  const isFleetOwnerOnboardingPage =
-    location.pathname === "/fleet-owner/onboarding" ||
-    location.pathname.startsWith("/fleet-owner/onboarding/");
 
   if (user) {
-    if (isFleetOwnerOnboardingPage) {
-      return (
-        <div className={containerClass}>
-          <div className="flex items-center justify-around max-w-full mx-auto px-4 py-2 min-h-[52px]">
-            <NavItem asChild>
-              <Form method="post" action="/logout" className="flex-1 min-w-0">
-                <button
-                  type="submit"
-                  className="w-full flex flex-col items-center justify-center py-2 px-1 text-muted-foreground hover:text-foreground transition-all duration-200"
-                >
-                  <div className="w-6 h-6 mb-1 flex items-center justify-center transition-all duration-200 scale-100 hover:scale-110">
-                    <LogOut size={16} />
-                  </div>
-                  <span className="text-xs font-medium truncate max-w-full">Logout</span>
-                </button>
-              </Form>
-            </NavItem>
-          </div>
-        </div>
-      );
-    }
-
-    // Authenticated user navigation
     const isFleetOwner = userHasRole(user, "fleetOwner");
-    const isOwnerDriver = user.isOwnerDriver;
 
-    // Fleet owner specific routes
-    const isDashboardActive = location.pathname === "/fleet-owner";
-    const isCarsActive = location.pathname.startsWith("/fleet-owner/cars");
-    const isChauffeursActive = location.pathname.startsWith("/fleet-owner/chauffeurs");
-    const isFleetBookingsActive = location.pathname.startsWith("/fleet-owner/bookings");
-    const isPayoutActive = location.pathname.startsWith("/fleet-owner/payout-transactions");
-
-    // If fleet owner is on fleet-owner routes, show fleet-specific navigation
-    if (isFleetOwner && isFleetOwnerActive) {
-      return (
-        <div className={containerClass}>
-          <div className="flex items-center justify-around max-w-full mx-auto px-4 py-2 min-h-[52px]">
-            <NavItem
-              to="/fleet-owner"
-              icon={<LayoutDashboard size={16} />}
-              label="Dashboard"
-              isActive={isDashboardActive}
-            />
-
-            <NavItem
-              to="/fleet-owner/cars"
-              icon={<Car size={16} />}
-              label="Cars"
-              isActive={isCarsActive}
-            />
-
-            {!isOwnerDriver && (
-              <NavItem
-                to="/fleet-owner/chauffeurs"
-                icon={<Users size={16} />}
-                label="Chauffeurs"
-                isActive={isChauffeursActive}
-              />
-            )}
-
-            <NavItem
-              to="/fleet-owner/bookings"
-              icon={<Calendar size={16} />}
-              label="Bookings"
-              isActive={isFleetBookingsActive}
-            />
-
-            <NavItem
-              to="/fleet-owner/payout-transactions"
-              icon={<NairaIcon size={16} />}
-              label="Payouts"
-              isActive={isPayoutActive}
-            />
-
-            <NavItem
-              icon={<UserIcon size={16} />}
-              label="Profile"
-              onClick={() => onProfileOpen?.()}
-            />
-          </div>
-        </div>
-      );
-    }
-
-    // Default navigation for all other users (including fleet owners on non-fleet routes)
     return (
       <div className={containerClass}>
         <div className="flex items-center justify-around max-w-full mx-auto px-4 py-2 min-h-[52px]">
@@ -274,7 +187,7 @@ export function MobileBottomNav({ user, appName, onProfileOpen }: MobileBottomNa
             to={isFleetOwner ? "/fleet-owner" : "/bookings"}
             icon={<Calendar size={16} />}
             label={isFleetOwner ? "Dashboard" : "Bookings"}
-            isActive={isFleetOwner ? isFleetOwnerActive : isBookingsActive}
+            isActive={isFleetOwner ? false : isBookingsActive}
           />
 
           {!isFleetOwner && (
