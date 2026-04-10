@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { normalizeEmail } from "~/utils/email-validation";
 
 // Comprehensive international phone number validation for specific countries
 const phoneNumberValidation = z
@@ -91,7 +92,7 @@ export const profileFormSchema = z.object({
       error: "Name is required",
     })
     .min(2, "Name must be at least 2 characters"),
-  email: z.email("Invalid email address"),
+  email: z.email("Invalid email address").transform(normalizeEmail),
   phoneNumber: phoneNumberValidation,
   city: z.string().optional(),
   address: z

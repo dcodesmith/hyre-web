@@ -1,10 +1,11 @@
 import { z } from "zod";
 import { FleetOwnerStatus, CarApprovalStatus, AddonType } from "@prisma/client";
+import { normalizeEmail } from "~/utils/email-validation";
 
 const PLATFORM_FEE_TYPES = ["PLATFORM_SERVICE_FEE", "FLEET_OWNER_COMMISSION"] as const;
 
 // Shared field definitions
-const emailField = z.email("Email address is not valid.");
+const emailField = z.email("Email address is not valid.").transform(normalizeEmail);
 
 const descriptionField = z
   .string({

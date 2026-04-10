@@ -2,6 +2,7 @@ import { data, redirect } from "react-router";
 import logger from "~/lib/logger.server";
 import { auth } from "~/modules/auth/auth.server";
 import { commitSession, getSession } from "~/modules/auth/session.server";
+import { normalizeEmail } from "~/utils/email-validation";
 import { prisma } from "~/modules/db/db.server";
 import { userHasRole, type RoleName } from "~/utils/shared/roles";
 
@@ -189,11 +190,15 @@ export function redirectToLoginForRole(role: RoleName | null, redirectTo?: strin
  * Sign in with OTP and extract session cookie
  */
 export async function signInWithOTP(email: string, otp: string, request: Request) {
+  // Callers typically pass a pre-normalized email from the session (set by
+  // sendOTPAndRedirect), but we normalize again as a safety net since this
+  // function is a public export and normalizeEmail is idempotent.
+  const normalizedEmail = normalizeEmail(email);
   let signInResponse: Response;
   try {
     signInResponse = await auth.api.signInEmailOTP({
       body: {
-        email,
+        email: normalizedEmail,
         otp,
       },
       headers: request.headers,
@@ -360,11 +365,12 @@ export async function sendOTPAndRedirect(
   referralCode?: string | null,
   acceptedTerms?: boolean,
 ) {
+  const normalizedEmail = normalizeEmail(email);
+
   try {
-    // Send OTP via better-auth
     await auth.api.sendVerificationOTP({
       body: {
-        email,
+        email: normalizedEmail,
         type: "sign-in",
       },
       headers: request.headers,
@@ -374,8 +380,7 @@ export async function sendOTPAndRedirect(
     throw new Error("Failed to send verification code. Please try again.");
   }
 
-  // Store context in session
-  const session = await storeAuthContext(request, email, role, referralCode, acceptedTerms);
+  const session = await storeAuthContext(request, normalizedEmail, role, referralCode, acceptedTerms);
 
   // Build verify URL
   const route = ROLE_ROUTES[role];

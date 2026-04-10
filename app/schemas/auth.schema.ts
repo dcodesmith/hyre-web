@@ -1,7 +1,8 @@
 import { z } from "zod";
+import { normalizeEmail } from "~/utils/email-validation";
 
 export const LoginSchema = z.object({
-  email: z.email("Email address is not valid."),
+  email: z.email("Email address is not valid.").transform(normalizeEmail),
   referralCode: z
     .string()
     .length(8, "Referral code must be exactly 8 characters")
@@ -17,5 +18,5 @@ export const LoginSchema = z.object({
 });
 
 export const AdminLoginSchema = z.object({
-  email: z.email("Email address is not valid."),
+  email: z.email("Email address is not valid.").transform(normalizeEmail),
 });
