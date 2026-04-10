@@ -105,9 +105,11 @@ const columns: ColumnDef<SerializedBooking>[] = [
     header: ({ column }) => <ColumnHeader column={column} title="Customer" />,
     cell: ({ row }) => {
       const { user, guestUser } = row.original;
+      const displayText = user?.name || user?.email || user?.username || guestUser?.email;
+
       return (
-        <div className="w-[150px]">
-          {user?.name || user?.email || user?.username || guestUser?.email}
+        <div className="w-[150px] truncate" title={displayText}>
+          {displayText}
         </div>
       );
     },

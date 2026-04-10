@@ -32,6 +32,7 @@ export type TableProps<T extends object> = {
   readonly data: T[];
   readonly initialSorting?: SortingState;
   readonly hideColumnViewOptions?: boolean;
+  readonly action?: React.ReactNode;
 };
 
 export function Table<T extends object>({
@@ -39,6 +40,7 @@ export function Table<T extends object>({
   data,
   initialSorting = [],
   hideColumnViewOptions = false,
+  action,
 }: TableProps<T>) {
   const [sorting, setSorting] = useState<SortingState>(initialSorting);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
@@ -77,7 +79,7 @@ export function Table<T extends object>({
 
   return (
     <div className="space-y-4">
-      {table.getFilteredRowModel().rows.length > 0 && (
+      {(table.getFilteredRowModel().rows.length > 0 || action) && (
         <div className="flex items-center flex-wrap gap-2 justify-between">
           <div className="flex flex-row sm:flex-row items-center sm:w-auto w-full gap-2">
             {filterableColumns.length > 0 && (
@@ -111,7 +113,10 @@ export function Table<T extends object>({
             )}
           </div>
 
-          {!hideColumnViewOptions && <ColumnViewOptions table={table} />}
+          <div className="ml-auto flex items-center gap-2">
+            {!hideColumnViewOptions && <ColumnViewOptions table={table} />}
+            {action}
+          </div>
         </div>
       )}
 
@@ -121,7 +126,7 @@ export function Table<T extends object>({
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (
-                  <TableHead key={header.id}>
+                  <TableHead key={header.id} className="px-0">
                     {header.isPlaceholder
                       ? null
                       : flexRender(header.column.columnDef.header, header.getContext())}

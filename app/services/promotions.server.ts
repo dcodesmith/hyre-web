@@ -196,7 +196,9 @@ export function getPromotionBadgeLabel(promotion: ActivePromotion): string {
 export async function getOwnerPromotions(ownerId: string) {
   return prisma.promotion.findMany({
     where: { ownerId },
-    include: { car: { select: { id: true, make: true, model: true, year: true } } },
+    include: {
+      car: { select: { id: true, make: true, model: true, year: true, registrationNumber: true } },
+    },
     orderBy: [{ isActive: "desc" }, { endDate: "desc" }],
   });
 }

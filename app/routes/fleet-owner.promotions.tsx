@@ -1,6 +1,7 @@
 import { getFormProps, useForm } from "@conform-to/react";
 import { parseWithZod } from "@conform-to/zod/v4";
-import { CalendarIcon, Percent, PlusCircle, Tag, Trash2 } from "lucide-react";
+import { format } from "date-fns";
+import { CalendarIcon, PlusCircle, Tag, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
   type ActionFunctionArgs,
@@ -47,7 +48,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     getOwnerPromotions(user.id),
     prisma.car.findMany({
       where: { ownerId: user.id },
-      select: { id: true, make: true, model: true, year: true },
+      select: { id: true, make: true, model: true, year: true, registrationNumber: true },
       orderBy: { make: "asc" },
     }),
   ]);
@@ -154,7 +155,7 @@ export default function PromotionsPage() {
 
   return (
     <div className="container mx-auto">
-      <div className="flex justify-between items-center mb-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
         <div>
           <h2 className="text-lg font-semibold">Promotions</h2>
           <p className="text-sm text-muted-foreground">
@@ -164,7 +165,7 @@ export default function PromotionsPage() {
 
         <Sheet open={isOpen} onOpenChange={setIsOpen}>
           <SheetTrigger asChild>
-            <Button className="sm:w-auto w-full">
+            <Button className="w-full sm:w-auto shrink-0">
               <PlusCircle className="mr-2 h-4 w-4" />
               New Promotion
             </Button>
@@ -194,62 +195,62 @@ export default function PromotionsPage() {
           <p className="text-sm mt-1">Create your first promotion to attract more bookings.</p>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
           {promotions.map((promo) => {
             const status = getPromotionStatus(promo);
             const config = statusConfig[status];
 
             return (
-              <div
-                key={promo.id}
-                className="border rounded-lg p-4 flex flex-col sm:flex-row sm:items-center gap-3"
-              >
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="font-medium truncate">
-                      {promo.name || "Unnamed Promotion"}
-                    </span>
-                    <Badge
-                      variant="outline"
-                      className={`${config.className} rounded border-none ring-1 ring-inset text-xs`}
-                    >
-                      {config.label}
-                    </Badge>
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
-                    <span className="flex items-center gap-1">
-                      <Percent className="h-3.5 w-3.5" />
-                      {promo.discountValue}% off
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <CalendarIcon className="h-3.5 w-3.5" />
-                      {new Date(promo.startDate).toLocaleDateString()} –{" "}
-                      {new Date(promo.endDate).toLocaleDateString()}
-                    </span>
-                    <span>
-                      {promo.car
-                        ? `${promo.car.make} ${promo.car.model} ${promo.car.year}`
-                        : "All cars"}
-                    </span>
-                  </div>
-                </div>
-
+              <div key={promo.id} className="relative border rounded-lg p-4">
                 {promo.isActive && (
-                  <fetcher.Form method="post">
+                  <fetcher.Form method="post" className="absolute right-3 top-3">
                     <input type="hidden" name="csrf" value={csrfToken} />
                     <input type="hidden" name="intent" value="deactivate" />
                     <input type="hidden" name="promotionId" value={promo.id} />
                     <Button
                       type="submit"
                       variant="ghost"
-                      size="sm"
-                      className="text-destructive hover:text-destructive"
+                      size="icon"
+                      className="h-8 w-8 text-destructive hover:text-destructive"
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </fetcher.Form>
                 )}
+
+                <div className="flex items-center gap-2 mb-2 pr-10">
+                  <span className="font-medium truncate">{promo.name || "Promotion"}</span>
+                  <span className="flex font-semibold items-center gap-1">
+                    {promo.discountValue}% off
+                  </span>
+
+                  <Badge
+                    variant="outline"
+                    className={`${config.className} shrink-0 rounded border-none ring-1 ring-inset text-xs`}
+                  >
+                    {config.label}
+                  </Badge>
+                </div>
+
+                <div className="flex justify-between flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+                  <span className="text-black">
+                    {promo.car
+                      ? `${promo.car.make} ${promo.car.model} (${promo.car.registrationNumber})`
+                      : "All cars"}
+                  </span>
+
+                  <span className="flex items-center gap-1">
+                    <CalendarIcon className="h-3.5 w-3.5 shrink-0" />
+                    <span className="sm:hidden">
+                      {format(new Date(promo.startDate), "do MMM yy")} –{" "}
+                      {format(new Date(promo.endDate), "do MMM yy")}
+                    </span>
+                    <span className="hidden sm:inline">
+                      {format(new Date(promo.startDate), "do MMM yyyy")} –{" "}
+                      {format(new Date(promo.endDate), "do MMM yyyy")}
+                    </span>
+                  </span>
+                </div>
               </div>
             );
           })}

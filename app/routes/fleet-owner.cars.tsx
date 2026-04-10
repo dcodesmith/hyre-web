@@ -327,41 +327,33 @@ export default function CarsPage() {
     }
   }, [fetcher.state, fetcher.data, toast]);
 
+  const addCarAction = canAddCar ? (
+    <Sheet open={isOpen} onOpenChange={setIsOpen}>
+      <SheetTrigger asChild>
+        <Button>
+          <PlusCircle className="mr-2 h-4 w-4" />
+          Add Car
+        </Button>
+      </SheetTrigger>
+      <SheetContent className="sm:max-w-[400px] w-full px-8 overflow-y-auto">
+        <SheetHeader>
+          <SheetTitle>Add New Car</SheetTitle>
+          <SheetDescription>Fill in the details to add a new car to your fleet.</SheetDescription>
+        </SheetHeader>
+        <div className="mt-4">
+          <NewCarForm />
+        </div>
+      </SheetContent>
+    </Sheet>
+  ) : isOwnerDriver && cars.length > 0 ? (
+    <p className="text-sm text-muted-foreground">
+      Owner-drivers can only have 1 car. Delete your existing car to add a different one.
+    </p>
+  ) : null;
+
   return (
     <div className="container mx-auto">
-      <div className="flex justify-between items-center mb-2">
-        {canAddCar ? (
-          <Sheet open={isOpen} onOpenChange={setIsOpen}>
-            <SheetTrigger asChild>
-              <Button className="sm:w-auto w-full ml-auto">
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Add Car
-              </Button>
-            </SheetTrigger>
-            <SheetContent className="sm:max-w-[400px] w-full px-8 overflow-y-auto">
-              <SheetHeader>
-                <SheetTitle>Add New Car</SheetTitle>
-                <SheetDescription>
-                  Fill in the details to add a new car to your fleet.
-                </SheetDescription>
-              </SheetHeader>
-              <div className="mt-4">
-                <NewCarForm />
-              </div>
-            </SheetContent>
-          </Sheet>
-        ) : (
-          <div className="ml-auto text-sm text-muted-foreground">
-            {isOwnerDriver && cars.length > 0 && (
-              <p>
-                Owner-drivers can only have 1 car. Delete your existing car to add a different one.
-              </p>
-            )}
-          </div>
-        )}
-      </div>
-
-      <LazyTable data={cars} columns={columns} />
+      <LazyTable data={cars} columns={columns} action={addCarAction} />
     </div>
   );
 }

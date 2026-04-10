@@ -184,6 +184,7 @@ export function FleetOwnerSidebar({
           </SidebarMenuItem>
           <SidebarMenuItem>
             <Form method="post" action="/logout">
+              <input type="hidden" name="redirectTo" value="/fleet-owner/login" />
               <SidebarMenuButton
                 asChild
                 tooltip="Log out"

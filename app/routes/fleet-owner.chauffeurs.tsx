@@ -154,11 +154,7 @@ export async function action({ request }: ActionFunctionArgs) {
 
   let formData: FormData;
   try {
-    formData = await parseFormData(
-      request,
-      { maxFiles: 2 },
-      (file) => file,
-    );
+    formData = await parseFormData(request, { maxFiles: 2 }, (file) => file);
   } catch (error) {
     logger.error({ error }, "Failed to parse chauffeur multipart form data");
     const message = "Unable to process uploaded documents. Please try again.";
@@ -319,7 +315,7 @@ function ChauffeurForm() {
 
       <input type="hidden" name="intent" value="create" />
 
-      <Button type="submit" className="w-full" disabled={isPending}>
+      <Button type="submit" variant="default" className="w-full" disabled={isPending}>
         {isPending ? <CogIcon className="h-5 w-5 animate-spin" /> : "Add Chauffeur"}
       </Button>
     </Form>
@@ -432,33 +428,34 @@ export default function ChauffeursPage() {
     }
   }, [navigation.state, lastResult, toast]);
 
+  const addChauffeurAction = (
+    <Sheet open={isOpen} onOpenChange={setIsOpen}>
+      <SheetTrigger asChild>
+        <Button type="button">
+          <PlusCircle className="mr-2 h-4 w-4" />
+          Add Chauffeur
+        </Button>
+      </SheetTrigger>
+      <SheetContent
+        className="sm:max-w-[400px] w-full px-8 overflow-y-auto"
+        onInteractOutside={(e) => e.preventDefault()}
+      >
+        <SheetHeader>
+          <SheetTitle>Add New Chauffeur</SheetTitle>
+          <SheetDescription>
+            Fill in the details to add a new chauffeur to your fleet.
+          </SheetDescription>
+        </SheetHeader>
+        <div className="mt-4">
+          <ChauffeurForm />
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+
   return (
     <div className="container mx-auto">
-      <div className="flex justify-between items-center mb-2">
-        <Sheet open={isOpen} onOpenChange={setIsOpen}>
-          <SheetTrigger asChild>
-            <Button type="button" className="sm:w-auto w-full ml-auto">
-              <PlusCircle className="mr-2 h-4 w-4" />
-              Add Chauffeur
-            </Button>
-          </SheetTrigger>
-          <SheetContent
-            className="sm:max-w-[400px] w-full px-8 overflow-y-auto"
-            onInteractOutside={(e) => e.preventDefault()}
-          >
-            <SheetHeader>
-              <SheetTitle>Add New Chauffeur</SheetTitle>
-              <SheetDescription>
-                Fill in the details to add a new chauffeur to your fleet.
-              </SheetDescription>
-            </SheetHeader>
-            <div className="mt-4">
-              <ChauffeurForm />
-            </div>
-          </SheetContent>
-        </Sheet>
-      </div>
-      <LazyTable data={chauffeurs} columns={columns} />
+      <LazyTable data={chauffeurs} columns={columns} action={addChauffeurAction} />
     </div>
   );
 }

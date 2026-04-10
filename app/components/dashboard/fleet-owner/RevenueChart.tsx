@@ -75,12 +75,12 @@ export function RevenueChart({ data }: RevenueChartProps) {
   return (
     <Card className="@container/card bg-gradient-to-t from-primary/5 to-card shadow-md dark:bg-card">
       <CardHeader className="relative">
-        <CardTitle>
+        <CardTitle className="md:text-lg">
           {timeRange === "7d" && "Last 7 days revenue"}
           {timeRange === "30d" && "Last 30 days revenue"}
           {timeRange === "90d" && "Last 3 months revenue"}
         </CardTitle>
-        <CardDescription>
+        <CardDescription className="mt-0">
           <span className="@[540px]/card:block hidden">
             Total {formatCurrency(totalRevenue)} • Avg {formatCurrency(avgRevenue)}
             /day
