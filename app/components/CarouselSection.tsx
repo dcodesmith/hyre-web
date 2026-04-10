@@ -5,7 +5,7 @@ import { CarouselNavigation } from "./ui/carousel-navigation";
 import { useCarouselScroll } from "~/hooks/useCarouselScroll";
 
 interface CarouselSectionProps {
-  readonly title: string;
+  readonly title: ReactNode;
   readonly href?: string;
   readonly id?: string;
   readonly children: ReactNode;

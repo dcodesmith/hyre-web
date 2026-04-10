@@ -316,7 +316,7 @@ export function AISearchModal() {
   }, [isOpen]);
 
   // Determine validation status icon
-  let validationIcon: React.ReactNode;
+  let validationIcon: ReactNode;
   if (flightDetails) {
     validationIcon = <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />;
   } else if (isLoading) {

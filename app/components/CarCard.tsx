@@ -86,22 +86,23 @@ export function CarCard({
             priority={priority}
             carName={carName}
           />
-          {/* Promotion Badge - takes priority over New badge */}
-          {isOnPromotion ? (
-            <div className="absolute top-3 left-3 px-2 py-1.5 bg-red-500 rounded-full shadow-md flex items-center gap-1">
-              <Tag className="h-3 w-3 text-white" />
-              <span className="text-xs font-semibold text-white leading-none">
-                {promotionLabel || "SALE"}
-              </span>
-            </div>
-          ) : (
-            isNewListing(car.createdAt) && (
-              <div className="absolute top-3 left-3 px-2 py-1.5 bg-white/90 rounded-full shadow-md flex items-center gap-1">
+          <div className="absolute top-3 left-3 flex items-center gap-1.5">
+            {isNewListing(car.createdAt) && (
+              <div className="px-2 py-1.5 bg-white/90 rounded-full shadow-md flex items-center gap-1">
                 <Sparkles className="h-3 w-3 text-amber-500" />
                 <span className="text-xs font-medium text-gray-800 leading-none">New</span>
               </div>
-            )
-          )}
+            )}
+
+            {isOnPromotion && (
+              <div className="px-2 py-1.5 bg-red-500/95 rounded-full shadow-md flex items-center gap-1">
+                <Tag className="h-3 w-3 text-white" />
+                <span className="text-xs font-semibold text-white leading-none">
+                  {promotionLabel || "SALE"}
+                </span>
+              </div>
+            )}
+          </div>
           {/* Ratings display in top right corner */}
           {ratings && ratings.totalReviews > 0 && (
             <div className="absolute top-3 right-3 px-2 py-1.5 bg-white/90 hover:bg-white rounded-full shadow-md flex items-center gap-1.5 transition-all">
@@ -133,23 +134,23 @@ export function CarCard({
             )}
           </div>
 
-          <div className="flex items-baseline gap-1 flex-wrap">
+          <div className="flex items-baseline gap-1 flex-wrap text-sm">
             {showTotal && totalPrice ? (
               <>
                 <span className="font-semibold text-sm">{formatCurrency(totalPrice)}</span>
-                <span className="text-sm text-gray-600">total</span>
+                <span className="text-gray-600">total</span>
               </>
             ) : (
               <>
                 {isOnPromotion && originalPrice != null && originalPrice !== price && (
-                  <span className="text-sm text-gray-400 line-through">
+                  <span className="text-gray-400 line-through">
                     {formatCurrency(originalPrice)}
                   </span>
                 )}
-                <span className={`font-semibold text-sm ${isOnPromotion ? "text-red-600" : ""}`}>
+                <span className={`font-semibold ${isOnPromotion ? "text-red-600/95" : ""}`}>
                   {formatCurrency(price)}
                 </span>
-                <span className="text-sm text-gray-600">{priceLabel}</span>
+                <span className="text-gray-600">{priceLabel}</span>
               </>
             )}
           </div>

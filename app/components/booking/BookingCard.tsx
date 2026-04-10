@@ -144,6 +144,16 @@ function BookingActionsPlacement({
   return <BookingActions user={user} isPending={isPending} onNavigateToAuth={onNavigateToAuth} />;
 }
 
+function getOriginalRate(
+  bookingType: string,
+  rates: { nightRate: number; fullDayRate: number; airportPickupRate: number; dayRate: number },
+): number {
+  if (bookingType === NIGHT_BOOKING_TYPE) return rates.nightRate;
+  if (bookingType === FULL_DAY_BOOKING_TYPE) return rates.fullDayRate;
+  if (bookingType === AIRPORT_PICKUP_BOOKING_TYPE) return rates.airportPickupRate;
+  return rates.dayRate;
+}
+
 export default function BookingCard({
   car,
   isAvailable = false,
@@ -691,16 +701,10 @@ export default function BookingCard({
           <CardTitle>
             <span className="text-lg" aria-live="polite">
               {promotion && originalRates && (
-                <span className="text-sm text-gray-400 line-through mr-1.5">
+                <span className="text-gray-400 line-through mr-1.5">
                   {formatCurrency(
                     totalDays > 0
-                      ? (bookingType === NIGHT_BOOKING_TYPE
-                          ? originalRates.nightRate
-                          : bookingType === FULL_DAY_BOOKING_TYPE
-                            ? originalRates.fullDayRate
-                            : bookingType === AIRPORT_PICKUP_BOOKING_TYPE
-                              ? originalRates.airportPickupRate
-                              : originalRates.dayRate) * totalDays
+                      ? getOriginalRate(bookingType, originalRates) * totalDays
                       : originalRates.dayRate,
                   )}
                 </span>
