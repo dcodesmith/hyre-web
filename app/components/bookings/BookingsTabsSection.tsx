@@ -27,7 +27,6 @@ const STATUSES = ["ACTIVE", "CONFIRMED", "COMPLETED", "CANCELLED"] as const;
 
 type BookingsTabsSectionProps = {
   readonly bookings: Partial<Record<(typeof STATUSES)[number], BookingsListBooking[]>> | null;
-  readonly guestEmail: string | null;
   readonly currentStatus: string;
   readonly searchParams: URLSearchParams;
   readonly fetcher: FetcherWithComponents<unknown>;
@@ -41,7 +40,6 @@ type BookingsTabsSectionProps = {
 
 export function BookingsTabsSection({
   bookings,
-  guestEmail,
   currentStatus,
   searchParams,
   fetcher,
@@ -88,20 +86,13 @@ export function BookingsTabsSection({
                 showDropoffByBookingId[booking.id] ??
                 booking.pickupLocation !== booking.returnLocation;
 
-              const emailQueryParam = guestEmail
-                ? `?${new URLSearchParams({ email: guestEmail }).toString()}`
-                : "";
-
               const linkClassName = isThisBookingBeingCancelled
                 ? "flex items-center gap-4 w-full pointer-events-none"
                 : "flex items-center gap-4 w-full";
               return (
                 <Fragment key={booking.id}>
                   <div className="sm:flex-row flex-col flex justify-between px-2 py-4 border-b last:border-0">
-                    <Link
-                      to={`/bookings/${booking.id}${emailQueryParam}`}
-                      className={linkClassName}
-                    >
+                    <Link to={`/bookings/${booking.id}`} className={linkClassName}>
                       <img
                         src={booking.car.images[0].url}
                         alt={`${booking.car.make} ${booking.car.model}`}
@@ -151,7 +142,7 @@ export function BookingsTabsSection({
                         booking as unknown as Parameters<typeof getLegExtendableDuration>[0],
                       ) > 0 && (
                         <Link
-                          to={`/bookings/${booking.id}/extend${emailQueryParam}`}
+                          to={`/bookings/${booking.id}/extend`}
                           className="bg-green-700 hover:bg-green-800 p-2 border text-white rounded text-center sm:w-auto w-full transition duration-300 ease-in-out"
                         >
                           Extend

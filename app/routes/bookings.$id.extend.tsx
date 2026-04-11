@@ -1,15 +1,5 @@
+import crypto from "node:crypto";
 import type { Prisma, User } from "@prisma/client";
-import {
-  type ActionFunctionArgs,
-  type LoaderFunctionArgs,
-  data,
-  redirect,
-  Form,
-  useActionData,
-  useLoaderData,
-  useSubmit,
-} from "react-router";
-import { useAuthenticityToken } from "remix-utils/csrf/react";
 import {
   addDays,
   addHours,
@@ -21,8 +11,18 @@ import {
 } from "date-fns";
 import Decimal from "decimal.js";
 import { Calendar, Car, Clock, CreditCard } from "lucide-react";
-import crypto from "node:crypto";
 import { useMemo, useState } from "react";
+import {
+  type ActionFunctionArgs,
+  Form,
+  type LoaderFunctionArgs,
+  data,
+  redirect,
+  useActionData,
+  useLoaderData,
+  useSubmit,
+} from "react-router";
+import { useAuthenticityToken } from "remix-utils/csrf/react";
 import invariant from "tiny-invariant";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
@@ -37,26 +37,31 @@ import {
 import { Separator } from "~/components/ui/separator";
 import logger from "~/lib/logger.server";
 import { formatCurrency, getCustomerDetails } from "~/lib/utils";
+import { getSessionUser } from "~/modules/auth/auth.server";
 import { prisma } from "~/modules/db/db.server";
 import { calculateExtensionFinancials, getRates } from "~/services/extensions.server";
+import {
+  getGuestBookingLookup,
+  guestBookingLookupMatches,
+} from "~/services/guest-booking-lookup-session.server";
 import { createPaymentIntent } from "~/services/payment.server";
 import { validateCSRF } from "~/utils/csrf-action.server";
 import { env } from "~/utils/server/env.server";
-import { requireUserWithRole } from "~/utils/server/permissions.server";
 
 export async function loader({ params, request }: LoaderFunctionArgs) {
   invariant(params.id, "Booking ID route parameter is required");
   logger.info(`Starting loader for booking ID: ${params.id}`);
 
-  const url = new URL(request.url);
-  const guestEmail = url.searchParams.get("email");
   const now = new Date();
   const today = startOfDay(now); // Midnight today
 
-  const bookingData = await prisma.booking.findUnique({
-    where: { id: params.id, status: "ACTIVE" },
-    include: { car: true, user: true, legs: { include: { extensions: true } } },
-  });
+  const [bookingData, rates] = await Promise.all([
+    prisma.booking.findUnique({
+      where: { id: params.id, status: "ACTIVE" },
+      include: { car: true, user: true, legs: { include: { extensions: true } } },
+    }),
+    getRates(),
+  ]);
 
   if (!bookingData) {
     throw new Response("Booking not found", { status: 404 });
@@ -90,7 +95,6 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
     },
   };
 
-  const rates = await getRates();
   const vatRatePercent = Number(rates.vatRatePercent);
 
   const overallBookingStartDate = booking.startDate;
@@ -98,22 +102,38 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
 
   // --- User Authentication & Authorization ---
   let user: { email: string; name?: string; phoneNumber?: string } | null | User = null;
+  const [sessionUser, guestLookupMaybe] = await Promise.all([
+    getSessionUser(request),
+    getGuestBookingLookup(request),
+  ]);
+  const guestLookup = sessionUser ? null : guestLookupMaybe;
 
   try {
-    if (guestEmail) {
-      if (!booking.guestUser || (booking.guestUser as { email: string }).email !== guestEmail) {
-        const maskedEmail = `${guestEmail[0]}***${guestEmail.substring(guestEmail.indexOf("@"))}`;
+    if (sessionUser) {
+      if (sessionUser.id !== booking.userId) {
+        throw new Response("Booking does not belong to this user", { status: 403 });
+      }
+      user = sessionUser;
+      logger.info(`Logged-in user authorized: ${sessionUser.id}`);
+    } else if (guestLookup) {
+      const isGuestMatch = guestBookingLookupMatches(guestLookup, {
+        id: booking.id,
+        bookingReference: booking.bookingReference,
+        guestUser: booking.guestUser,
+      });
+
+      if (!isGuestMatch) {
+        const maskedEmail = `${guestLookup.email[0]}***${guestLookup.email.substring(guestLookup.email.indexOf("@"))}`;
         logger.error(`Unauthorized guest access: ${maskedEmail}`);
         throw new Response("Unauthorized guest access", { status: 403 });
       }
+
       user = booking.guestUser as { email: string; name?: string; phoneNumber?: string };
-      logger.info(`Guest user authorized: ${guestEmail}`);
+      logger.info(
+        `Guest user authorized by lookup session for booking ${booking.bookingReference}`,
+      );
     } else {
-      const loggedInUser = await requireUserWithRole(request, "user");
-      if (loggedInUser.id !== booking.userId)
-        throw new Response("Booking does not belong to this user", { status: 403 });
-      user = loggedInUser;
-      logger.info(`Logged-in user authorized: ${loggedInUser.id}`);
+      throw new Response("Authentication required or invalid permissions", { status: 401 });
     }
   } catch (authError: unknown) {
     logger.error(`Auth error: ${authError}`);
@@ -291,18 +311,28 @@ export async function action({ request, params }: ActionFunctionArgs) {
     }
 
     // Authorization: mirror loader behavior
-    const url = new URL(request.url);
-    const guestEmail = url.searchParams.get("email");
+    const [sessionUser, guestLookupMaybe] = await Promise.all([
+      getSessionUser(request),
+      getGuestBookingLookup(request),
+    ]);
+    const guestLookup = sessionUser ? null : guestLookupMaybe;
 
-    if (guestEmail) {
-      if (!booking.guestUser || (booking.guestUser as { email: string }).email !== guestEmail) {
+    if (sessionUser) {
+      if (sessionUser.id !== booking.userId) {
+        return data({ error: "Booking does not belong to this user" }, { status: 403 });
+      }
+    } else if (guestLookup) {
+      const isGuestMatch = guestBookingLookupMatches(guestLookup, {
+        id: booking.id,
+        bookingReference: booking.bookingReference,
+        guestUser: booking.guestUser,
+      });
+
+      if (!isGuestMatch) {
         return data({ error: "Unauthorized guest access" }, { status: 403 });
       }
     } else {
-      const loggedInUser = await requireUserWithRole(request, "user");
-      if (loggedInUser.id !== booking.userId) {
-        return data({ error: "Booking does not belong to this user" }, { status: 403 });
-      }
+      return data({ error: "Authentication required or invalid permissions" }, { status: 401 });
     }
 
     // Check if this is a FULL_DAY booking - they cannot be extended

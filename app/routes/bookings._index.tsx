@@ -31,6 +31,10 @@ import {
 } from "~/services/bookings.server";
 import { validateFlight } from "~/services/flight-validation.server";
 import { calculateAirportTripDuration } from "~/services/google-maps.server";
+import {
+  clearGuestBookingLookup,
+  getGuestBookingLookup,
+} from "~/services/guest-booking-lookup-session.server";
 import { getPublicPartnerBySlug } from "~/services/partners.server";
 import { createPaymentIntent } from "~/services/payment.server";
 import { validateCSRF } from "~/utils/csrf-action.server";
@@ -625,27 +629,35 @@ export async function action({ request }: ActionFunctionArgs) {
 }
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  const url = new URL(request.url);
-  const guestEmail = url.searchParams.get("email");
+  const [user, guestLookup] = await Promise.all([
+    getSessionUser(request),
+    getGuestBookingLookup(request),
+  ]);
 
-  let user: User | null | { email: string; name?: string; phoneNumber?: string } = null;
-
-  if (guestEmail) {
-    user = { email: guestEmail };
-  } else {
-    user = await getSessionUser(request);
+  if (user?.email) {
+    const bookings = await getBookingsByStatus(user.email);
+    return { bookings, user };
   }
 
-  const email = guestEmail || user?.email;
-
-  if (!email) {
-    logger.info("No email found");
-    return { bookings: null, user };
+  if (!guestLookup) {
+    logger.info("No session user or guest lookup session found");
+    return { bookings: null, user: null };
   }
 
-  const bookings = await getBookingsByStatus(email, Boolean(guestEmail));
+  const bookings = await getBookingsByStatus(guestLookup.email, true, guestLookup.bookingReference);
 
-  return { bookings, user };
+  if (!bookings) {
+    return data(
+      { bookings: null, user: null },
+      {
+        headers: {
+          "Set-Cookie": await clearGuestBookingLookup(request),
+        },
+      },
+    );
+  }
+
+  return { bookings, user: { email: guestLookup.email } };
 }
 
 export default function BookingsPage() {
@@ -675,9 +687,7 @@ export default function BookingsPage() {
     setShowDropoffByBookingId((previous) => ({ ...previous, [bookingId]: show }));
   };
 
-  const guestEmail = searchParams.get("email");
-
-  if (!Object.keys(bookings ?? {}).length && !guestEmail && !user) {
+  if (!Object.keys(bookings ?? {}).length && !user) {
     return <BookingsGuestEmailForm />;
   }
 
@@ -688,7 +698,6 @@ export default function BookingsPage() {
 
         <BookingsTabsSection
           bookings={bookings}
-          guestEmail={guestEmail}
           currentStatus={status}
           searchParams={searchParams}
           fetcher={fetcher}

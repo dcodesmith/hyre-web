@@ -1,12 +1,13 @@
-import type { Booking, Prisma } from "@prisma/client";
-import { type LoaderFunctionArgs, data, Link, useFetcher, useLoaderData } from "react-router";
-import { useEffect, useState } from "react";
 import { ArrowPathIcon } from "@heroicons/react/24/outline";
+import type { Booking, Prisma } from "@prisma/client";
+import { useEffect, useState } from "react";
+import { Link, type LoaderFunctionArgs, data, useFetcher, useLoaderData } from "react-router";
 import { Button } from "~/components/ui/button";
 import logger from "~/lib/logger.server";
 import { formatCurrency } from "~/lib/utils";
 import { findBookingByPaymentIntent } from "~/services/bookings.server";
 import { findExtensionByPaymentIntent } from "~/services/extensions.server";
+import { setGuestBookingLookup } from "~/services/guest-booking-lookup-session.server";
 
 interface LoaderBookingData extends Omit<Booking, "totalAmount"> {
   totalAmount: number | null;
@@ -107,16 +108,43 @@ export async function loader({ request }: LoaderFunctionArgs) {
     logger.warn("[PaymentStatus Loader] Invalid transactionType", { transactionType });
   }
 
-  return {
-    txRef,
-    fwStatus,
-    flutterwaveTransactionId,
-    transactionType,
-    bookingData,
-    extensionData,
-    initialError,
-    bookingNotFoundInDb: bookingData === null && extensionData === null && !initialError,
-  };
+  const guestLookupSourceBooking =
+    bookingData ??
+    (extensionData?.bookingLeg.booking.guestUser ? extensionData.bookingLeg.booking : null);
+
+  const guestEmail = extractEmailFromJson(guestLookupSourceBooking?.guestUser);
+
+  const setCookieHeader =
+    guestLookupSourceBooking?.id &&
+    guestLookupSourceBooking.bookingReference &&
+    guestEmail &&
+    typeof guestEmail === "string"
+      ? await setGuestBookingLookup(request, {
+          bookingId: guestLookupSourceBooking.id,
+          bookingReference: guestLookupSourceBooking.bookingReference,
+          email: guestEmail,
+        })
+      : null;
+
+  return data(
+    {
+      txRef,
+      fwStatus,
+      flutterwaveTransactionId,
+      transactionType,
+      bookingData,
+      extensionData,
+      initialError,
+      bookingNotFoundInDb: bookingData === null && extensionData === null && !initialError,
+    },
+    setCookieHeader
+      ? {
+          headers: {
+            "Set-Cookie": setCookieHeader,
+          },
+        }
+      : undefined,
+  );
 }
 
 const POLLING_INTERVAL = 3000; // 3 seconds
@@ -219,10 +247,6 @@ export default function BookingPaymentStatusPage() {
     const amount = successfulData?.totalAmount;
     const paymentIdToDisplay = successfulData?.paymentId || flutterwaveTransactionId;
 
-    const guestEmail =
-      extractEmailFromJson(currentBookingData?.guestUser) ||
-      extractEmailFromJson(currentExtensionData?.bookingLeg.booking.guestUser);
-
     return (
       <div className="max-w-lg mx-auto mt-8 p-6 bg-green-50 border border-green-200 rounded-lg text-center">
         <h1 className="text-2xl font-bold text-green-700 mb-4">Payment Successful!</h1>
@@ -247,9 +271,7 @@ export default function BookingPaymentStatusPage() {
           )}
         </div>
         {bookingIdForLink && (
-          <Link
-            to={`/bookings/${bookingIdForLink}${guestEmail ? `?email=${encodeURIComponent(guestEmail)}` : ""}`}
-          >
+          <Link to={`/bookings/${bookingIdForLink}`}>
             <Button variant="default" className="bg-green-600 hover:bg-green-700">
               View {isBooking ? "Booking" : "Updated Booking"}
             </Button>

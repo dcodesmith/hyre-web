@@ -1,33 +1,32 @@
 import { ArrowLeftIcon } from "@heroicons/react/24/outline";
 import type { Prisma, User as PrismaUser } from "@prisma/client";
+import { subDays } from "date-fns";
+import { Calendar, CheckCircle, CreditCard, Loader2, MapPin, Plane, User } from "lucide-react";
+import { useEffect, useState } from "react";
 import {
   type ActionFunctionArgs,
+  Link,
   type LoaderFunctionArgs,
   type MetaFunction,
   data,
-  Link,
   useActionData,
   useLoaderData,
   useNavigation,
   useRevalidator,
-  useSearchParams,
 } from "react-router";
-import { Calendar, CheckCircle, CreditCard, Loader2, MapPin, Plane, User } from "lucide-react";
-import { subDays } from "date-fns";
-import { useEffect, useState } from "react";
 import invariant from "tiny-invariant";
 import { AutocompleteAddress } from "~/components/AutocompleteAddress";
 import { Form } from "~/components/CSRFForm";
 import { BookingLegTimeline } from "~/components/booking/BookingLegTimeline";
 import { BookingTimeSelect } from "~/components/booking/BookingTimeSelect";
-import { ReviewCard } from "~/components/reviews/ReviewCard";
-import { ReviewForm } from "~/components/reviews/ReviewForm";
-import { ReviewPrompt } from "~/components/reviews/ReviewPrompt";
 import {
   AIRPORT_PICKUP_BOOKING_TYPE,
   DAY_BOOKING_TYPE,
   NIGHT_BOOKING_TYPE,
 } from "~/components/bookingTypes";
+import { ReviewCard } from "~/components/reviews/ReviewCard";
+import { ReviewForm } from "~/components/reviews/ReviewForm";
+import { ReviewPrompt } from "~/components/reviews/ReviewPrompt";
 import { Alert, AlertDescription } from "~/components/ui/alert";
 import { Avatar, AvatarFallback, AvatarImage } from "~/components/ui/avatar";
 import { Badge } from "~/components/ui/badge";
@@ -53,7 +52,7 @@ import {
   isBookingEditable,
   normaliseBookingDetails,
 } from "~/lib/utils";
-import { getSessionUser, requireUser } from "~/modules/auth/auth.server";
+import { getSessionUser } from "~/modules/auth/auth.server";
 import { prisma } from "~/modules/db/db.server";
 import { sendEmail } from "~/modules/email/email.server";
 import {
@@ -63,6 +62,10 @@ import {
 import { Template, sendMessage } from "~/modules/messaging/messaging.server";
 import { emailQueue } from "~/queues/email-throttle.server";
 import { cancelBooking, getBooking } from "~/services/bookings.server";
+import {
+  getGuestBookingLookup,
+  guestBookingLookupMatches,
+} from "~/services/guest-booking-lookup-session.server";
 import { refundPayment } from "~/services/payment.server";
 import { BookingLegWithRelations, BookingWithRelations } from "~/types";
 import { validateCSRF } from "~/utils/csrf-action.server";
@@ -73,46 +76,57 @@ type Booking = ReturnType<typeof useLoaderData<typeof loader>>["booking"];
 async function authorizeBookingAccess(
   request: Request,
   currentBooking: BookingWithRelations,
-  bookingId: string,
 ): Promise<{
   isAuthorized: boolean;
   sessionUser: PrismaUser | null;
   errorResponse?: Response;
 }> {
-  const url = new URL(request.url);
-  const guestEmail = url.searchParams.get("email");
+  const [sessionUser, guestLookupMaybe] = await Promise.all([
+    getSessionUser(request),
+    getGuestBookingLookup(request),
+  ]);
 
-  if (guestEmail) {
-    const bookingGuestDetails = currentBooking.guestUser as Prisma.JsonObject | null;
-    const bookingGuestEmail = bookingGuestDetails?.email as string | undefined;
+  if (sessionUser) {
+    return {
+      isAuthorized: currentBooking.userId === sessionUser.id,
+      sessionUser,
+    };
+  }
 
-    if (bookingGuestEmail && bookingGuestEmail === guestEmail) {
+  const guestLookup = guestLookupMaybe;
+  if (guestLookup) {
+    const isGuestMatch = guestBookingLookupMatches(guestLookup, {
+      id: currentBooking.id,
+      bookingReference: currentBooking.bookingReference,
+      guestUser: currentBooking.guestUser,
+    });
+
+    if (isGuestMatch) {
       return { isAuthorized: true, sessionUser: null };
     }
 
     logger.error("Unauthorized guest access", {
       bookingId: currentBooking.id,
       bookingReference: currentBooking.bookingReference,
-      guestEmailAttempt: `${guestEmail[0]}***${guestEmail.substring(guestEmail.indexOf("@"))}`,
+      guestEmailAttempt: `${guestLookup.email[0]}***${guestLookup.email.substring(guestLookup.email.indexOf("@"))}`,
+      lookedUpBookingReference: guestLookup.bookingReference,
+      lookedUpBookingId: guestLookup.bookingId,
     });
 
     return {
       isAuthorized: false,
       sessionUser: null,
       errorResponse: data(
-        { error: "Unauthorized: Invalid guest email for this booking action." },
+        { error: "Unauthorized: Invalid guest lookup session for this booking action." },
         { status: 403 },
       ),
     };
   }
 
-  const sessionUser = await requireUser(request, {
-    redirectTo: `/auth?redirectTo=/bookings/${bookingId}`,
-  });
-
   return {
-    isAuthorized: currentBooking.userId === sessionUser.id,
-    sessionUser,
+    isAuthorized: false,
+    sessionUser: null,
+    errorResponse: data({ error: "Unauthorized: Access denied." }, { status: 401 }),
   };
 }
 
@@ -296,61 +310,74 @@ async function handleBookingCancellation(bookingId: string, sessionUser: PrismaU
     const bookingDetails = normaliseBookingDetails(booking);
     const { email } = getCustomerDetails(booking);
 
-    // Send notifications
+    // Send notifications (single queue job: SMS in parallel, then emails in parallel)
     await emailQueue.add(async () => {
-      if (bookingDetails.customerPhoneNumber) {
-        const result = await sendMessage({
-          variables: {
-            "1": bookingDetails.customerName,
-            "2": bookingDetails.carName,
-            "3": bookingDetails.totalAmount,
-            "4": bookingDetails.cancellationReason,
-            "5": bookingDetails.startDate,
-            "6": bookingDetails.endDate,
-            "7": bookingDetails.pickupLocation,
-            "8": bookingDetails.returnLocation,
-          },
-          to: bookingDetails.customerPhoneNumber,
-          templateKey: Template.BookingCancellationClient,
-        });
+      const smsTasks: Promise<boolean>[] = [];
 
-        if (result) {
-          logger.info(`Message sent successfully to ${bookingDetails.customerPhoneNumber}`);
-        } else {
-          logger.error(`Failed to send message to ${bookingDetails.customerPhoneNumber}`);
-        }
+      if (bookingDetails.customerPhoneNumber) {
+        smsTasks.push(
+          sendMessage({
+            variables: {
+              "1": bookingDetails.customerName,
+              "2": bookingDetails.carName,
+              "3": bookingDetails.totalAmount,
+              "4": bookingDetails.cancellationReason,
+              "5": bookingDetails.startDate,
+              "6": bookingDetails.endDate,
+              "7": bookingDetails.pickupLocation,
+              "8": bookingDetails.returnLocation,
+            },
+            to: bookingDetails.customerPhoneNumber,
+            templateKey: Template.BookingCancellationClient,
+          }).then((result) => {
+            if (result) {
+              logger.info(`Message sent successfully to ${bookingDetails.customerPhoneNumber}`);
+            } else {
+              logger.error(`Failed to send message to ${bookingDetails.customerPhoneNumber}`);
+            }
+            return result;
+          }),
+        );
       }
 
       if (booking.car.owner.phoneNumber) {
-        await sendMessage({
-          variables: {
-            "1": bookingDetails.ownerName,
-            "2": bookingDetails.carName,
-            "3": bookingDetails.cancellationReason,
-            "4": bookingDetails.customerName,
-            "5": bookingDetails.startDate,
-            "6": bookingDetails.endDate,
-            "7": bookingDetails.pickupLocation,
-            "8": bookingDetails.returnLocation,
-            "9": bookingDetails.totalAmount,
-          },
-          to: booking.car.owner.phoneNumber,
-          templateKey: Template.BookingCancellationFleetOwner,
-        });
+        smsTasks.push(
+          sendMessage({
+            variables: {
+              "1": bookingDetails.ownerName,
+              "2": bookingDetails.carName,
+              "3": bookingDetails.cancellationReason,
+              "4": bookingDetails.customerName,
+              "5": bookingDetails.startDate,
+              "6": bookingDetails.endDate,
+              "7": bookingDetails.pickupLocation,
+              "8": bookingDetails.returnLocation,
+              "9": bookingDetails.totalAmount,
+            },
+            to: booking.car.owner.phoneNumber,
+            templateKey: Template.BookingCancellationFleetOwner,
+          }),
+        );
       }
-    });
 
-    await emailQueue.add(async () => {
+      const [, [customerEmailHtml, fleetOwnerEmailHtml]] = await Promise.all([
+        Promise.allSettled(smsTasks),
+        Promise.all([
+          renderUserBookingCancellationEmail(bookingDetails),
+          renderFleetOwnerBookingCancellationEmail(bookingDetails),
+        ]),
+      ]);
+
       const results = await Promise.allSettled([
         sendEmail({
           to: email,
           subject: "Booking Cancelled",
-          html: await renderUserBookingCancellationEmail(bookingDetails),
+          html: customerEmailHtml,
         }),
         sendEmail({
           to: booking.car.owner.email,
           subject: "Booking Cancelled by User",
-          html: await renderFleetOwnerBookingCancellationEmail(bookingDetails),
+          html: fleetOwnerEmailHtml,
         }),
       ]);
 
@@ -383,7 +410,6 @@ export async function action({ request, params }: ActionFunctionArgs) {
   const { isAuthorized, sessionUser, errorResponse } = await authorizeBookingAccess(
     request,
     currentBooking,
-    params.id,
   );
   if (!isAuthorized) {
     return errorResponse || data({ error: "Unauthorized" }, { status: 403 });
@@ -401,61 +427,63 @@ export async function action({ request, params }: ActionFunctionArgs) {
 }
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
-  const url = new URL(request.url);
-  const guestEmail = url.searchParams.get("email");
-
   invariant(params.id, "Booking ID is required");
   const bookingId = params.id;
 
-  let sessionUserFromLoader: PrismaUser | null = null;
-
-  if (!guestEmail) {
-    sessionUserFromLoader = await getSessionUser(request);
-  }
-
-  const booking = await prisma.booking.findUnique({
-    where: { id: bookingId },
-    include: {
-      car: { include: { owner: true } },
-      user: true,
-      chauffeur: true,
-      flight: true, // Include flight data for AIRPORT_PICKUP bookings
-      review: {
-        include: {
-          user: {
-            select: {
-              id: true,
-              name: true,
-              image: true,
+  const [sessionUserFromLoader, guestLookupMaybe, booking] = await Promise.all([
+    getSessionUser(request),
+    getGuestBookingLookup(request),
+    prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: {
+        car: { include: { owner: true } },
+        user: true,
+        chauffeur: true,
+        flight: true, // Include flight data for AIRPORT_PICKUP bookings
+        review: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                image: true,
+              },
+            },
+          },
+        },
+        legs: {
+          orderBy: { legDate: "asc" },
+          include: {
+            extensions: {
+              where: { status: "ACTIVE", paymentStatus: "PAID" },
             },
           },
         },
       },
-      legs: {
-        orderBy: { legDate: "asc" },
-        include: {
-          extensions: {
-            where: { status: "ACTIVE", paymentStatus: "PAID" },
-          },
-        },
-      },
-    },
-  });
+    }),
+  ]);
+
+  const guestLookup = sessionUserFromLoader ? null : guestLookupMaybe;
 
   if (!booking) {
     throw new Response("Booking not found", { status: 404 });
   }
 
-  if (guestEmail) {
-    const bookingGuestEmail = (booking.guestUser as Prisma.JsonObject | null)?.email as
-      | string
-      | undefined;
-    if (!bookingGuestEmail || bookingGuestEmail !== guestEmail) {
-      throw new Response("Unauthorized: Guest email does not match or not found.", { status: 403 });
-    }
-  } else if (sessionUserFromLoader) {
+  if (sessionUserFromLoader) {
     if (booking.userId !== sessionUserFromLoader.id) {
       throw new Response("Unauthorized: Booking does not belong to this user.", { status: 403 });
+    }
+  } else if (guestLookup) {
+    const isGuestMatch = guestBookingLookupMatches(guestLookup, {
+      id: booking.id,
+      bookingReference: booking.bookingReference,
+      guestUser: booking.guestUser,
+    });
+
+    if (!isGuestMatch) {
+      throw new Response("Unauthorized: Guest lookup does not match this booking.", {
+        status: 403,
+      });
     }
   } else {
     logger.error("Unauthorized: Access denied. No session user found.");
@@ -483,9 +511,10 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   };
 
   const domain = env.DOMAIN || "https://tripdly.com";
+  const isGuestView = Boolean(guestLookup);
 
   return data(
-    { booking: serializedBooking, paymentSummary, extendableDuration, domain },
+    { booking: serializedBooking, paymentSummary, extendableDuration, domain, isGuestView },
     { status: 200 },
   );
 }
@@ -821,11 +850,10 @@ function FlightInfoCard({ booking }: { booking: Booking }) {
   );
 }
 
-function ReviewSection({ booking }: { booking: Booking }) {
+function ReviewSection({ booking, isGuestView }: { booking: Booking; isGuestView: boolean }) {
   const [isEditing, setIsEditing] = useState(false);
   const navigation = useNavigation();
   const revalidator = useRevalidator();
-  const [searchParams] = useSearchParams();
   const isSubmitting = navigation.state === "submitting";
 
   const review = booking.review;
@@ -841,8 +869,7 @@ function ReviewSection({ booking }: { booking: Booking }) {
   };
 
   // Don't show review section for guest users (they can't create reviews)
-  const guestEmail = searchParams.get("email");
-  if (guestEmail) {
+  if (isGuestView) {
     return null;
   }
 
@@ -913,7 +940,8 @@ function ReviewSection({ booking }: { booking: Booking }) {
 }
 
 export default function BookingDetails() {
-  const { booking, paymentSummary, extendableDuration } = useLoaderData<typeof loader>();
+  const { booking, paymentSummary, extendableDuration, isGuestView } =
+    useLoaderData<typeof loader>();
   const [showDropoffFields, setShowDropoffFields] = useState(
     booking.pickupLocation !== booking.returnLocation,
   );
@@ -922,8 +950,6 @@ export default function BookingDetails() {
   const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
-  const [searchParams] = useSearchParams();
-  const guestEmail = searchParams.get("email");
 
   const isCancelling = navigation.state === "submitting" && navigation.formMethod === "DELETE";
 
@@ -1004,7 +1030,7 @@ export default function BookingDetails() {
           <div className="lg:col-span-2 space-y-6">
             <BookingTimeline booking={booking} />
             <LocationCard booking={booking} />
-            {isCompleted && <ReviewSection booking={booking} />}
+            {isCompleted && <ReviewSection booking={booking} isGuestView={isGuestView} />}
           </div>
 
           <div className="space-y-6">
@@ -1117,7 +1143,7 @@ export default function BookingDetails() {
                   <div className="space-y-2">
                     {canBeExtended && (
                       <Link
-                        to={`/bookings/${booking.id}/extend${guestEmail ? `?email=${guestEmail}` : ""}`}
+                        to={`/bookings/${booking.id}/extend`}
                         className="p-2 border rounded text-center flex items-center justify-center w-full"
                       >
                         Extend Booking for up to {extendableDuration}{" "}

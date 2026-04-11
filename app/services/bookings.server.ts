@@ -1601,11 +1601,12 @@ export async function getMonthToDateBookingsValue(fleetOwnerId: string) {
   return bookings.reduce((sum, booking) => sum + booking.totalAmount.toNumber(), 0);
 }
 
-export async function getUserBookings(email: string, isGuest = false) {
+export async function getUserBookings(email: string, isGuest = false, bookingReference?: string) {
   const where: Prisma.BookingWhereInput = {
     paymentStatus: {
       in: [PaymentStatus.PAID, PaymentStatus.PARTIALLY_REFUNDED, PaymentStatus.REFUNDED],
     },
+    ...(bookingReference ? { bookingReference } : {}),
     ...(isGuest
       ? {
           guestUser: { path: ["email"], equals: email },
@@ -1664,8 +1665,12 @@ export async function getBooking(bookingId: string) {
   }
 }
 
-export async function getBookingsByStatus(userId: string, isGuest = false) {
-  const bookings = await getUserBookings(userId, isGuest);
+export async function getBookingsByStatus(
+  userId: string,
+  isGuest = false,
+  bookingReference?: string,
+) {
+  const bookings = await getUserBookings(userId, isGuest, bookingReference);
 
   if (bookings.length === 0) {
     return null;
