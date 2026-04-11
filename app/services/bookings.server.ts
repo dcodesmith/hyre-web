@@ -617,6 +617,136 @@ export async function calculateBookingCost({
   };
 }
 
+const LEG_MONEY_ROUNDING_MODE = Decimal.ROUND_HALF_UP;
+
+/**
+ * Split `total` across one entry per weight, proportional to each weight.
+ * Each part is rounded to 2 dp; any remainder from rounding is absorbed by the last index
+ * so the parts sum exactly to `total` rounded to 2 decimal places.
+ */
+function distributeMoneyTotalByWeights(total: Decimal, weights: Decimal[]): Decimal[] {
+  const n = weights.length;
+  if (n === 0) return [];
+
+  const sumWeights = weights.reduce((acc, w) => acc.plus(w), new Decimal(0));
+  const targetTotal = total.toDecimalPlaces(2, LEG_MONEY_ROUNDING_MODE);
+
+  if (sumWeights.isZero()) {
+    const base =
+      n > 0
+        ? targetTotal.div(n).toDecimalPlaces(2, LEG_MONEY_ROUNDING_MODE)
+        : new Decimal(0);
+    return weights.map((_, index) =>
+      index === n - 1
+        ? Decimal.max(targetTotal.minus(base.mul(n - 1)), new Decimal(0))
+        : base,
+    );
+  }
+
+  const parts: Decimal[] = [];
+  let allocated = new Decimal(0);
+
+  for (let index = 0; index < n; index++) {
+    if (index === n - 1) {
+      parts.push(Decimal.max(targetTotal.minus(allocated), new Decimal(0)));
+    } else {
+      const rounded = targetTotal
+        .mul(weights[index])
+        .div(sumWeights)
+        .toDecimalPlaces(2, LEG_MONEY_ROUNDING_MODE);
+      const remaining = targetTotal.minus(allocated);
+      const share = Decimal.max(new Decimal(0), Decimal.min(rounded, remaining));
+      parts.push(share);
+      allocated = allocated.plus(share);
+    }
+  }
+
+  return parts;
+}
+
+/** Per-leg weights matching `bookingRevenue` in `calculateBookingCost` (net legs + fuel). */
+function bookingRevenueWeightsForLegs(
+  legPrices: number[],
+  netTotal: Decimal,
+  fuelUpgradeCost: Decimal,
+): Decimal[] {
+  const legCount = legPrices.length;
+  return legPrices.map((price) => {
+    const legNet = new Decimal(price);
+    if (netTotal.gt(0)) {
+      return legNet.plus(fuelUpgradeCost.mul(legNet).div(netTotal));
+    }
+    return legNet.plus(legCount > 0 ? fuelUpgradeCost.div(legCount) : new Decimal(0));
+  });
+}
+
+function buildBookingLegCreatesForPendingBooking({
+  bookingDates,
+  legPrices,
+  netTotal,
+  fuelUpgradeCost,
+  fleetOwnerPayoutAmountNet,
+  type,
+  startDate,
+  endDate,
+  startHours,
+  endHours,
+}: {
+  bookingDates: Date[];
+  legPrices: number[];
+  netTotal: Decimal;
+  fuelUpgradeCost: Decimal;
+  fleetOwnerPayoutAmountNet: Decimal;
+  type: BookingType;
+  startDate: Date;
+  endDate: Date;
+  startHours: number;
+  endHours: number;
+}) {
+  const legNetWeights = legPrices.map((price) => new Decimal(price));
+  const revenueWeightsForPayout = bookingRevenueWeightsForLegs(
+    legPrices,
+    netTotal,
+    fuelUpgradeCost,
+  );
+  const itemsNetValueByLeg = distributeMoneyTotalByWeights(netTotal, legNetWeights);
+  const fleetOwnerEarningByLeg = distributeMoneyTotalByWeights(
+    fleetOwnerPayoutAmountNet,
+    revenueWeightsForPayout,
+  );
+
+  return bookingDates.map((legDate, index) => {
+    let legStartTime: Date;
+    let legEndTime: Date;
+
+    if (type === BookingType.FULL_DAY) {
+      legStartTime = legDate;
+      const rawLegEnd = addHours(legDate, 24);
+      legEndTime = new Date(Math.min(rawLegEnd.getTime(), endDate.getTime()));
+    } else if (type === BookingType.AIRPORT_PICKUP) {
+      legStartTime = startDate;
+      legEndTime = endDate;
+    } else {
+      legStartTime = setHours(legDate, startHours);
+      legEndTime =
+        endHours < startHours
+          ? setHours(addDays(legDate, 1), endHours)
+          : setHours(legDate, endHours);
+    }
+
+    return {
+      legDate: type === BookingType.FULL_DAY ? legDate : setHours(legDate, 1),
+      legStartTime,
+      legEndTime,
+      totalDailyPrice: legPrices[index],
+      itemsNetValueForLeg: itemsNetValueByLeg[index],
+      // platformCommissionRateOnLeg: platformFleetOwnerCommissionRatePercent, // ?
+      // platformCommissionAmountOnLeg, // ?
+      fleetOwnerEarningForLeg: fleetOwnerEarningByLeg[index],
+    };
+  });
+}
+
 // Create a pending booking with payment intent
 export async function createPendingBooking({
   startDate,
@@ -825,48 +955,17 @@ export async function createPendingBooking({
         referralCreditsUsed: 0,
         referralCreditsReserved: bookingCreditsUsed,
         legs: {
-          create: bookingDates.map((legDate, index) => {
-            // Calculate the net value for this leg (base price before fees)
-            const itemsNetValueForLeg = fleetOwnerPayoutAmountNet
-              .div(bookingDates.length)
-              .toDecimalPlaces(2);
-
-            // Calculate fleet owner earning for this leg
-            const fleetOwnerEarningForLeg = fleetOwnerPayoutAmountNet
-              .div(bookingDates.length)
-              .toDecimalPlaces(2);
-
-            // Calculate leg start and end times based on booking type
-            let legStartTime: Date;
-            let legEndTime: Date;
-
-            if (type === BookingType.FULL_DAY) {
-              // For FULL_DAY: each leg represents exactly 24 hours
-              legStartTime = legDate; // legDate is already the start of this 24-hour period
-              legEndTime = addHours(legDate, 24);
-            } else if (type === BookingType.AIRPORT_PICKUP) {
-              // For AIRPORT_PICKUP: use exact start and end times (preserve minutes)
-              legStartTime = startDate;
-              legEndTime = endDate;
-            } else {
-              // For DAY and NIGHT: existing logic
-              legStartTime = setHours(legDate, startHours);
-              legEndTime =
-                endHours < startHours
-                  ? setHours(addDays(legDate, 1), endHours)
-                  : setHours(legDate, endHours);
-            }
-
-            return {
-              legDate: type === BookingType.FULL_DAY ? legDate : setHours(legDate, 1),
-              legStartTime,
-              legEndTime,
-              totalDailyPrice: legPrices[index],
-              itemsNetValueForLeg,
-              // platformCommissionRateOnLeg: platformFleetOwnerCommissionRatePercent, // ?
-              // platformCommissionAmountOnLeg, // ?
-              fleetOwnerEarningForLeg,
-            };
+          create: buildBookingLegCreatesForPendingBooking({
+            bookingDates,
+            legPrices,
+            netTotal,
+            fuelUpgradeCost,
+            fleetOwnerPayoutAmountNet,
+            type,
+            startDate,
+            endDate,
+            startHours,
+            endHours,
           }),
         },
       },
