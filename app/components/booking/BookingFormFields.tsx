@@ -1,6 +1,8 @@
 import { type FieldMetadata, getInputProps } from "@conform-to/react";
+import { formatInTimeZone } from "date-fns-tz";
 import { type DateRange } from "react-day-picker";
 import type { ValidatedFlight } from "~/services/flight-validation.server";
+import { LAGOS_TIMEZONE } from "~/utils/timezone";
 import { AutocompleteAddress } from "../AutocompleteAddress";
 import { AutocompleteFlight } from "../AutocompleteFlight";
 import { AIRPORT_PICKUP_BOOKING_TYPE, BookingType, NIGHT_BOOKING_TYPE } from "../bookingTypes";
@@ -82,7 +84,11 @@ function TimeOrFlightField({
           initialValue={fields.flightNumber.value}
           className={fields.flightNumber.errors ? errorRingClasses : ""}
           nigeriaOnly={true}
-          pickupDate={(dateRange.from || fallbackDate).toISOString().split("T")[0]}
+          pickupDate={formatInTimeZone(
+            dateRange.from || fallbackDate,
+            LAGOS_TIMEZONE,
+            "yyyy-MM-dd",
+          )}
           onFlightValidated={(flight) => {
             if (onFlightValidated) {
               onFlightValidated(flight);

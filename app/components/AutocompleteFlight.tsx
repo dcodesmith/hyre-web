@@ -1,4 +1,4 @@
-import { CheckCircle, Plane, XCircle } from "lucide-react";
+import { Plane, XCircle } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { type Airline, useAirlineData } from "~/hooks/useAirlineData";
 import { useFlightValidation } from "~/hooks/useFlightValidation";
@@ -6,6 +6,8 @@ import { cn } from "~/lib/utils";
 import type { ValidatedFlight } from "~/services/flight-validation.server";
 import { Input } from "./ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
+import { LAGOS_TIMEZONE } from "~/utils/timezone";
+import { formatInTimeZone } from "date-fns-tz";
 
 interface AutocompleteFlightProps {
   readonly id: string;
@@ -351,49 +353,28 @@ export function AutocompleteFlight({
 
       {/* Flight validation results */}
       {showValidation && pickupDate && validatedFlight && !isValidating && (
-        <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded-md">
-          <div className="flex items-start gap-2">
-            <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
-            <div className="flex-1">
-              <div className="flex items-center gap-2">
-                <p className="text-sm font-semibold text-green-900">
-                  {validatedFlight.flightNumber}
-                </p>
-                {validatedFlight.isLive !== undefined && (
-                  <span
-                    className={`text-xs px-2 py-0.5 rounded ${
-                      validatedFlight.isLive
-                        ? "bg-blue-100 text-blue-700"
-                        : "bg-gray-100 text-gray-700"
-                    }`}
-                  >
-                    {validatedFlight.isLive ? "Live" : "Scheduled"}
-                  </span>
-                )}
-              </div>
-              <p className="text-xs text-green-700 mt-1">
-                {validatedFlight.originIATA || validatedFlight.origin} →{" "}
-                {validatedFlight.destinationIATA || validatedFlight.destination}
-              </p>
-              <p className="text-xs text-green-700">
-                Arrives:{" "}
-                {new Date(
-                  validatedFlight.actualArrival ||
-                    validatedFlight.estimatedArrival ||
+        <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded-sm">
+          <div className="flex items-start gap-2 text-xs text-green-700">
+            <span>
+              {validatedFlight.originIATA || validatedFlight.origin} →{" "}
+              {validatedFlight.destinationIATA || validatedFlight.destination}
+            </span>
+            <span>
+              {formatInTimeZone(
+                new Date(
+                  validatedFlight.actualArrival ??
+                    validatedFlight.estimatedArrival ??
                     validatedFlight.scheduledArrival,
-                ).toLocaleTimeString("en-US", {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                  timeZoneName: "short",
-                  timeZone: "Africa/Lagos",
-                })}
-              </p>
-              {validatedFlight.delay && validatedFlight.delay > 0 && (
-                <p className="text-xs text-orange-600 mt-1">
-                  Delayed by {validatedFlight.delay} minutes
-                </p>
+                ),
+                LAGOS_TIMEZONE,
+                "h:mm a",
               )}
-            </div>
+            </span>
+            {validatedFlight.delay && validatedFlight.delay > 0 && (
+              <p className="text-xs text-orange-600 mt-1">
+                Delayed by {validatedFlight.delay} minutes
+              </p>
+            )}
           </div>
         </div>
       )}

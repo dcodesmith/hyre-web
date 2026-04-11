@@ -81,7 +81,7 @@ async function authorizeBookingAccess(
   sessionUser: PrismaUser | null;
   errorResponse?: Response;
 }> {
-  const [sessionUser, guestLookupMaybe] = await Promise.all([
+  const [sessionUser, guestLookup] = await Promise.all([
     getSessionUser(request),
     getGuestBookingLookup(request),
   ]);
@@ -93,7 +93,6 @@ async function authorizeBookingAccess(
     };
   }
 
-  const guestLookup = guestLookupMaybe;
   if (guestLookup) {
     const isGuestMatch = guestBookingLookupMatches(guestLookup, {
       id: currentBooking.id,

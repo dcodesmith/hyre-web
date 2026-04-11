@@ -1,4 +1,3 @@
-import { format } from "date-fns";
 import { Loader2, Search } from "lucide-react";
 import {
   type ReactNode,
@@ -13,7 +12,7 @@ import { DateRange } from "react-day-picker";
 import { useNavigate, useNavigation, useSearchParams } from "react-router";
 import { SingleDatePicker } from "./booking/SingleDatePicker";
 
-import { formatInTimeZone } from "date-fns-tz";
+import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
 import { getToDateMinDate, isValidToDateSelection } from "~/lib/booking-utils";
 import { cn } from "~/lib/utils";
 import type { ValidatedFlight } from "~/services/flight-validation.server";
@@ -164,7 +163,6 @@ function BookingTypeInput({
             {validatedFlight.destinationIATA || validatedFlight.destination} • {arrivalTime}
           </span>
           <span className="hidden sm:inline-flex items-center gap-1">
-            {/* <span>✓</span> */}
             <span>
               <span className="block">
                 {validatedFlight.originIATA || validatedFlight.origin} →{" "}
@@ -352,9 +350,9 @@ export function BookingSearch({
     setBookingType(nextBookingType);
 
     setDateRange({
-      // Parse without Z suffix to treat as local midnight, preserving the calendar date
-      from: urlFrom ? new Date(`${urlFrom}T00:00:00`) : undefined,
-      to: urlTo ? new Date(`${urlTo}T00:00:00`) : undefined,
+      // URL dates are Lagos calendar days (same as /search + booking card)
+      from: urlFrom ? fromZonedTime(`${urlFrom}T00:00:00`, LAGOS_TIMEZONE) : undefined,
+      to: urlTo ? fromZonedTime(`${urlTo}T00:00:00`, LAGOS_TIMEZONE) : undefined,
     });
 
     setPickupTime(urlPickupTime || undefined);
@@ -562,10 +560,10 @@ export function BookingSearch({
     newSearchParams.set("bookingType", bookingType);
 
     if (dateRange.from) {
-      newSearchParams.set("from", format(dateRange.from, "yyyy-MM-dd"));
+      newSearchParams.set("from", formatInTimeZone(dateRange.from, LAGOS_TIMEZONE, "yyyy-MM-dd"));
     }
     if (dateRange.to) {
-      newSearchParams.set("to", format(dateRange.to, "yyyy-MM-dd"));
+      newSearchParams.set("to", formatInTimeZone(dateRange.to, LAGOS_TIMEZONE, "yyyy-MM-dd"));
     }
     // Always send pickupTime - use "11 PM" for NIGHT bookings (fixed start time)
     // Send flightNumber for airport pickup instead of pickupTime

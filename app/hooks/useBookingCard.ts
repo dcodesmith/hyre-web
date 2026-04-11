@@ -5,11 +5,10 @@ import {
   eachDayOfInterval,
   format,
   isAfter,
-  parseISO,
   startOfDay,
   subDays,
 } from "date-fns";
-import { formatInTimeZone } from "date-fns-tz";
+import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DateRange } from "react-day-picker";
 import { useFetcher, useNavigate, useNavigation, useSearchParams } from "react-router";
@@ -36,6 +35,11 @@ import {
 } from "~/lib/booking-utils";
 import { getBookingSchema } from "~/schemas/booking.schema";
 import { LAGOS_TIMEZONE } from "~/utils/timezone";
+
+/** Lagos calendar day for URL `from` / `to` (matches hero search + flight API). */
+function lagosDateParam(date: Date): string {
+  return formatInTimeZone(date, LAGOS_TIMEZONE, "yyyy-MM-dd");
+}
 
 const ERROR_RING_CLASSES = "border-red-500 focus-visible:ring-red-500 focus-visible:ring-2";
 
@@ -108,9 +112,9 @@ export function useBookingCard({
   // Date range parsing
   const initialDateRange = useMemo(() => {
     const parseDateParam = (param: string | null) => {
-      if (!param) return undefined;
+      if (!param || !/^\d{4}-\d{2}-\d{2}$/.test(param)) return undefined;
       try {
-        const date = parseISO(param);
+        const date = fromZonedTime(`${param}T00:00:00`, LAGOS_TIMEZONE);
         if (Number.isNaN(date.getTime())) {
           console.warn("Invalid date parameter:", param);
           return undefined;
@@ -274,13 +278,13 @@ export function useBookingCard({
         });
 
         if (dateRange.from) {
-          currentParams.set("from", format(dateRange.from, "yyyy-MM-dd"));
+          currentParams.set("from", lagosDateParam(dateRange.from));
         } else {
           currentParams.delete("from");
         }
 
         if (dateRange.to) {
-          currentParams.set("to", format(dateRange.to, "yyyy-MM-dd"));
+          currentParams.set("to", lagosDateParam(dateRange.to));
         } else {
           currentParams.delete("to");
         }
@@ -315,9 +319,9 @@ export function useBookingCard({
         const newSearchParams = new URLSearchParams(searchParams);
 
         if (normalizedFrom) {
-          newSearchParams.set("from", format(normalizedFrom, "yyyy-MM-dd"));
+          newSearchParams.set("from", lagosDateParam(normalizedFrom));
           // Set to same as from for airport pickup (required for calculateBookingUnits)
-          newSearchParams.set("to", format(normalizedFrom, "yyyy-MM-dd"));
+          newSearchParams.set("to", lagosDateParam(normalizedFrom));
         } else {
           newSearchParams.delete("from");
           newSearchParams.delete("to");
@@ -335,13 +339,13 @@ export function useBookingCard({
       const newSearchParams = new URLSearchParams(searchParams);
 
       if (normalizedFrom) {
-        newSearchParams.set("from", format(normalizedFrom, "yyyy-MM-dd"));
+        newSearchParams.set("from", lagosDateParam(normalizedFrom));
       } else {
         newSearchParams.delete("from");
       }
 
       if (newTo) {
-        newSearchParams.set("to", format(newTo, "yyyy-MM-dd"));
+        newSearchParams.set("to", lagosDateParam(newTo));
       } else {
         newSearchParams.delete("to");
       }
@@ -379,13 +383,13 @@ export function useBookingCard({
       const newSearchParams = new URLSearchParams(searchParams);
 
       if (dateRange.from) {
-        newSearchParams.set("from", format(dateRange.from, "yyyy-MM-dd"));
+        newSearchParams.set("from", lagosDateParam(dateRange.from));
       } else {
         newSearchParams.delete("from");
       }
 
       if (normalizedTo) {
-        newSearchParams.set("to", format(normalizedTo, "yyyy-MM-dd"));
+        newSearchParams.set("to", lagosDateParam(normalizedTo));
       } else {
         newSearchParams.delete("to");
       }
@@ -531,8 +535,8 @@ export function useBookingCard({
       const pickupDateOnly = formatInTimeZone(pickupDateTime, LAGOS_TIMEZONE, "yyyy-MM-dd");
       const dropOffDateOnly = formatInTimeZone(dropOffDateTime, LAGOS_TIMEZONE, "yyyy-MM-dd");
       const nextDateRange = {
-        from: parseISO(pickupDateOnly),
-        to: parseISO(dropOffDateOnly),
+        from: fromZonedTime(`${pickupDateOnly}T00:00:00`, LAGOS_TIMEZONE),
+        to: fromZonedTime(`${dropOffDateOnly}T00:00:00`, LAGOS_TIMEZONE),
       };
 
       // Format time as "H:MM AM/PM" in Lagos timezone (like DAY/NIGHT/FULL_DAY bookings)
@@ -596,11 +600,11 @@ export function useBookingCard({
     const currentParams = new URLSearchParams(searchParams);
 
     if (dateRange.from) {
-      currentParams.set("from", format(dateRange.from, "yyyy-MM-dd"));
+      currentParams.set("from", lagosDateParam(dateRange.from));
     }
 
     if (dateRange.to) {
-      currentParams.set("to", format(dateRange.to, "yyyy-MM-dd"));
+      currentParams.set("to", lagosDateParam(dateRange.to));
     }
 
     if (fields.pickupAddress.value) {
