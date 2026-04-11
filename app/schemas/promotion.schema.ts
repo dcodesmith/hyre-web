@@ -13,7 +13,7 @@ export const promotionSchema = z
     startDate: z.iso.date({ error: "Start date is required" }),
     endDate: z.iso.date({ error: "End date is required" }),
   })
-  .refine((data) => new Date(data.endDate) > new Date(data.startDate), {
-    message: "End date must be after start date",
+  .refine((data) => new Date(data.endDate) >= new Date(data.startDate), {
+    message: "End date must be on or after start date",
     path: ["endDate"],
   });

@@ -1,9 +1,3 @@
-import {
-  ArrowLeftIcon,
-  SparklesIcon,
-  UserIcon,
-  WrenchScrewdriverIcon,
-} from "@heroicons/react/24/outline";
 import { Booking, BookingStatus, BookingType, Car } from "@prisma/client";
 import { fromZonedTime } from "date-fns-tz";
 import { useState } from "react";
@@ -16,30 +10,30 @@ import {
   useLoaderData,
 } from "react-router";
 import invariant from "tiny-invariant";
-import CarCarousel from "~/components/Carousel";
 import BookingCard from "~/components/booking/BookingCard";
-import { ReviewList } from "~/components/reviews/ReviewList";
-import { StarRating } from "~/components/reviews/StarRating";
+import { CarDetailsMobileHero } from "~/components/car/CarDetailsMobileHero";
+import { CarInformationFeatures } from "~/components/car/CarInformationFeatures";
+import { CarReviewsSheet } from "~/components/car/CarReviewsSheet";
 import { BreadcrumbSchema, VehicleSchema } from "~/components/seo/StructuredData";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "~/components/ui/accordion";
-import { Sheet, SheetContent } from "~/components/ui/sheet";
+import CarCarousel from "~/components/Carousel";
 import logger from "~/lib/logger.server";
+import { summarizePromotionPricingLegs } from "~/lib/promotion-pricing-preview";
 import { getSessionUser, requireUser } from "~/modules/auth/auth.server";
 import { prisma } from "~/modules/db/db.server";
 import { availableCarsForSpecificRequest } from "~/services/availability-engine.server";
+import {
+  calculateRegularBookingTimes,
+  resolvePromotionReferenceDate,
+} from "~/services/booking-start-datetime.server";
+import { calculatePromotionalLegPricing } from "~/services/bookings.server";
 import { getRates } from "~/services/extensions.server";
 import {
   getActivePromotionForCar,
   getDiscountedCarRates,
   getPromotionBadgeLabel,
-  type ActivePromotion,
 } from "~/services/promotions.server";
 import type { AggregatedRatings } from "~/services/reviews.server";
+import type { PromotionPricingPreview } from "~/types/promotion-pricing";
 import { validateCSRF } from "~/utils/csrf-action.server";
 import { formatRating } from "~/utils/review-formatting";
 import {
@@ -103,6 +97,40 @@ function parsePickupTimeHours(pickupTime: string): number | null {
 function getEffectivePickupTime(bookingType: string, pickupTime: string | null): string | null {
   if (bookingType === BookingType.NIGHT && !pickupTime) return "11 PM";
   return pickupTime;
+}
+
+function parseBookingType(value: string | null): BookingType | null {
+  if (!value) return null;
+  return Object.values(BookingType).includes(value as BookingType) ? (value as BookingType) : null;
+}
+
+function resolvePricingPreviewWindow(params: {
+  fromDate: string | null;
+  toDate: string | null;
+  bookingType: BookingType | null;
+  pickupTime: string | null;
+}): { startDate: Date; endDate: Date } | null {
+  const { fromDate, toDate, bookingType, pickupTime } = params;
+  if (!fromDate || !toDate || !bookingType) return null;
+  if (bookingType === BookingType.AIRPORT_PICKUP) return null;
+
+  const effectivePickupTime =
+    getEffectivePickupTime(bookingType, pickupTime) ??
+    (bookingType === BookingType.DAY || bookingType === BookingType.FULL_DAY ? "8 AM" : null);
+  if (!effectivePickupTime) return null;
+
+  const regularTimeResult = calculateRegularBookingTimes(
+    effectivePickupTime,
+    bookingType,
+    fromDate,
+    toDate,
+  );
+  if ("error" in regularTimeResult) return null;
+
+  return {
+    startDate: regularTimeResult.startDateTime,
+    endDate: regularTimeResult.endDateTime,
+  };
 }
 
 function buildSearchBackLink(url: URL, partnerSlug?: string): string {
@@ -317,24 +345,112 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
 
   // Fetch active promotion and apply discounted rates
   let promotion: { label: string; endDate: string } | null = null;
-  let originalRates: { dayRate: number; nightRate: number; fullDayRate: number; airportPickupRate: number } | null = null;
+  let originalRates: {
+    dayRate: number;
+    nightRate: number;
+    fullDayRate: number;
+    airportPickupRate: number;
+  } | null = null;
+  let promotionPricingPreview: PromotionPricingPreview | null = null;
   let effectiveCar = car;
+  const selectedBookingType = parseBookingType(bookingType);
 
   try {
-    const activePromo = await getActivePromotionForCar(car.id, car.ownerId);
-    if (activePromo) {
-      const discounted = getDiscountedCarRates(car, activePromo);
-      originalRates = {
-        dayRate: car.dayRate,
-        nightRate: car.nightRate,
-        fullDayRate: car.fullDayRate,
-        airportPickupRate: car.airportPickupRate,
-      };
-      effectiveCar = { ...car, ...discounted };
-      promotion = {
-        label: getPromotionBadgeLabel(activePromo),
-        endDate: activePromo.endDate.toISOString(),
-      };
+    const previewWindow = resolvePricingPreviewWindow({
+      fromDate,
+      toDate,
+      bookingType: selectedBookingType,
+      pickupTime,
+    });
+
+    if (previewWindow && selectedBookingType) {
+      const pricingForSelection = await calculatePromotionalLegPricing({
+        car: {
+          dayRate: car.dayRate,
+          nightRate: car.nightRate,
+          hourlyRate: car.hourlyRate,
+          fullDayRate: car.fullDayRate,
+          airportPickupRate: car.airportPickupRate,
+          id: car.id,
+          ownerId: car.ownerId,
+        },
+        startDate: previewWindow.startDate,
+        endDate: previewWindow.endDate,
+        type: selectedBookingType,
+      });
+
+      promotionPricingPreview = summarizePromotionPricingLegs(
+        pricingForSelection.legBreakdown.map((leg) => ({
+          basePrice: leg.basePrice,
+          finalPrice: leg.finalPrice,
+          promotion: leg.promotion
+            ? {
+                id: leg.promotion.id,
+                discountValue: leg.promotion.discountValue.toString(),
+                name: leg.promotion.name,
+              }
+            : null,
+        })),
+      );
+
+      if (
+        promotionPricingPreview.discountCoverage !== "NONE" &&
+        pricingForSelection.activePromotion
+      ) {
+        const activePromo = pricingForSelection.activePromotion;
+        originalRates = {
+          dayRate: car.dayRate,
+          nightRate: car.nightRate,
+          fullDayRate: car.fullDayRate,
+          airportPickupRate: car.airportPickupRate,
+        };
+        promotion = {
+          label: getPromotionBadgeLabel(activePromo),
+          endDate: activePromo.endDate.toISOString(),
+        };
+
+        if (promotionPricingPreview.discountCoverage === "FULL") {
+          const discounted = getDiscountedCarRates(car, activePromo);
+          effectiveCar = { ...car, ...discounted };
+        }
+      }
+    } else {
+      const promotionReferenceDate =
+        resolvePromotionReferenceDate({
+          from: fromDate,
+          to: toDate,
+          bookingType,
+          pickupTime,
+          flightNumber,
+        }) ?? new Date();
+
+      let baseRateForSelection = car.dayRate;
+      if (selectedBookingType === BookingType.NIGHT) baseRateForSelection = car.nightRate;
+      else if (selectedBookingType === BookingType.FULL_DAY) baseRateForSelection = car.fullDayRate;
+      else if (selectedBookingType === BookingType.AIRPORT_PICKUP) {
+        baseRateForSelection = car.airportPickupRate;
+      }
+
+      const activePromo = await getActivePromotionForCar(
+        car.id,
+        car.ownerId,
+        promotionReferenceDate,
+        baseRateForSelection,
+      );
+      if (activePromo) {
+        const discounted = getDiscountedCarRates(car, activePromo);
+        originalRates = {
+          dayRate: car.dayRate,
+          nightRate: car.nightRate,
+          fullDayRate: car.fullDayRate,
+          airportPickupRate: car.airportPickupRate,
+        };
+        effectiveCar = { ...car, ...discounted };
+        promotion = {
+          label: getPromotionBadgeLabel(activePromo),
+          endDate: activePromo.endDate.toISOString(),
+        };
+      }
     }
   } catch (error) {
     logger.error("[CAR_DETAILS] Error fetching promotion", {
@@ -352,6 +468,7 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
     subRatings,
     promotion,
     originalRates,
+    promotionPricingPreview,
     user: user
       ? {
           ...user,
@@ -412,6 +529,7 @@ export default function CarDetails() {
     subRatings,
     promotion,
     originalRates,
+    promotionPricingPreview,
     user,
     vatRate,
     platformServiceFeeRate,
@@ -427,11 +545,6 @@ export default function CarDetails() {
 
   const carImages = car.images.length > 0 ? car.images.map(({ url }) => url) : undefined;
   const roundedRating = formatRating(ratings.averageRating);
-  const ratingBreakdown = [5, 4, 3, 2, 1].map((stars) => {
-    const count = ratings.ratingDistribution[stars as keyof typeof ratings.ratingDistribution] ?? 0;
-    const percentage = ratings.totalReviews > 0 ? (count / ratings.totalReviews) * 100 : 0;
-    return { stars, count, percentage };
-  });
 
   // SEO structured data
   const baseUrl = "https://tripdly.com";
@@ -470,37 +583,14 @@ export default function CarDetails() {
           ],
         }}
       />
-      <div className="lg:hidden bg-white">
-        <div className="relative">
-          <CarCarousel variant="booking" images={carImages} priority carName={carName} />
-          <Link
-            to={backToSearch}
-            className="absolute top-4 left-4 z-10 bg-black/50 text-white p-2 rounded-full hover:bg-black/70 transition-colors"
-            aria-label="Back to search results"
-          >
-            <ArrowLeftIcon className="w-4 h-4" />
-          </Link>
-        </div>
-        {ratings.totalReviews > 0 && (
-          <button
-            type="button"
-            className="w-full pt-4 pb-2 px-4 flex items-center justify-center gap-6"
-            onClick={() => setIsReviewsOpen(true)}
-          >
-            <div className="flex flex-col items-center">
-              <span className="text-sm text-gray-900 leading-none">{roundedRating}</span>
-              <StarRating rating={ratings.averageRating} size="sm" />
-            </div>
-            <div className="w-px h-8 bg-gray-300" />
-            <div className="flex flex-col items-center">
-              <span className="text-sm text-gray-900 leading-none">{ratings.totalReviews}</span>
-              <span className="text-sm text-gray-800 leading-none">
-                {ratings.totalReviews === 1 ? "Review" : "Reviews"}
-              </span>
-            </div>
-          </button>
-        )}
-      </div>
+      <CarDetailsMobileHero
+        carImages={carImages}
+        carName={carName}
+        backToSearch={backToSearch}
+        ratings={ratings}
+        roundedRating={roundedRating}
+        onOpenReviews={() => setIsReviewsOpen(true)}
+      />
 
       {/* Desktop: Back link and title */}
       <div className="hidden lg:block">
@@ -535,76 +625,7 @@ export default function CarDetails() {
             )}
           </div>
 
-          {/* Car details - accordion on mobile, regular on desktop */}
-          <div className="px-4 lg:px-0">
-            <Accordion type="single" collapsible className="w-full lg:hidden">
-              <AccordionItem value="car-details" className="border-none">
-                <AccordionTrigger className="text-sm font-semibold leading-7 text-gray-900 border-none py-2">
-                  Car information and features
-                </AccordionTrigger>
-                <AccordionContent className="border-none px-4">
-                  <dl className="mt-1 text-sm">
-                    <div className="py-2">
-                      <dt className="font-medium text-gray-900">Make & Model</dt>
-                      <dd className="mt-0.5 text-gray-700">
-                        {car.make} {car.model} {car.year}
-                      </dd>
-                    </div>
-                    <div className="py-2">
-                      <dt className="font-medium text-gray-900">Features</dt>
-                      <dd className="mt-0.5 text-gray-700">
-                        Air conditioning, GPS, Bluetooth, Cruise control, Rear-view camera, USB
-                      </dd>
-                    </div>
-                    <div className="py-2">
-                      <dt className="font-medium text-gray-900">Transmission</dt>
-                      <dd className="mt-0.5 text-gray-700">Automatic</dd>
-                    </div>
-                    <div className="py-2">
-                      <dt className="font-medium text-gray-900">Seating</dt>
-                      <dd className="mt-0.5 text-gray-700">7-seater</dd>
-                    </div>
-                  </dl>
-                </AccordionContent>
-              </AccordionItem>
-            </Accordion>
-
-            {/* Desktop car details */}
-            <div className="hidden lg:block">
-              <h3 className="text-base font-semibold leading-7 text-gray-900">
-                Car information and features
-              </h3>
-              <div className="mt-4 border-t border-gray-100">
-                <dl>
-                  <div className="py-2 grid grid-cols-3 gap-4 px-0">
-                    <dt className="text-sm font-medium leading-6 text-gray-900">Make & Model</dt>
-                    <dd className="text-sm leading-6 text-gray-700 col-span-2">
-                      {car.make} {car.model} {car.year}
-                    </dd>
-                  </div>
-                  <div className="py-2 grid grid-cols-3 gap-4 px-0">
-                    <dt className="text-sm font-medium leading-6 text-gray-900">Features</dt>
-                    <dd className="text-sm leading-6 text-gray-700 col-span-2">
-                      Air conditioning, GPS navigation system, Bluetooth connectivity, Cruise
-                      control, Rear-view camera, USB ports
-                    </dd>
-                  </div>
-                  <div className="py-2 grid grid-cols-3 gap-4">
-                    <dt className="text-sm font-medium leading-6 text-gray-900">
-                      Transmission Type
-                    </dt>
-                    <dd className="text-sm leading-6 text-gray-700 col-span-2">Automatic</dd>
-                  </div>
-                  <div className="py-2 grid grid-cols-3 gap-4">
-                    <dt className="text-sm font-medium leading-6 text-gray-900">
-                      Seating Capacity
-                    </dt>
-                    <dd className="text-sm leading-6 text-gray-700 col-span-2">7-seater</dd>
-                  </div>
-                </dl>
-              </div>
-            </div>
-          </div>
+          <CarInformationFeatures car={car} />
         </div>
 
         {/* Right column: Booking form - single instance */}
@@ -619,136 +640,19 @@ export default function CarDetails() {
             partnerSlug={partnerSlug}
             promotion={promotion}
             originalRates={originalRates}
+            promotionPricingPreview={promotionPricingPreview}
           />
         </div>
       </div>
 
       {ratings.totalReviews > 0 && (
-        <Sheet open={isReviewsOpen} onOpenChange={setIsReviewsOpen}>
-          <SheetContent
-            side="bottom"
-            className="h-[92vh] max-h-[92vh] w-full overflow-y-auto rounded-t-3xl px-4 sm:px-6 lg:px-8"
-          >
-            <div className="mx-auto w-full max-w-5xl py-4 sm:py-6">
-              {/* Mobile: stacked header then reviews. Desktop: two-column */}
-              <div className="lg:grid lg:grid-cols-[280px,1fr] lg:gap-12">
-                {/* Left panel (desktop) / Top section (mobile) */}
-                <div className="mb-2 lg:mb-0">
-                  {(() => {
-                    const categoryRatings = [
-                      {
-                        label: "Vehicle quality",
-                        value: subRatings.car,
-                        Icon: WrenchScrewdriverIcon,
-                      },
-                      { label: "Driver quality", value: subRatings.chauffeur, Icon: UserIcon },
-                      { label: "Service quality", value: subRatings.service, Icon: SparklesIcon },
-                    ];
-                    return (
-                      <>
-                        {/* Star + rating */}
-                        <div className="flex items-center gap-3 mb-2">
-                          <span className="text-xl">&#9733;</span>
-                          <span className="text-xl font-medium">{roundedRating}</span>
-                        </div>
-
-                        {/* Mobile: one horizontal strip (overall + categories) */}
-                        <div className="-mx-4 mb-2 px-4 overflow-x-auto lg:hidden bg-gray-50 border-b scrollbar-hide [scrollbar-width:none] [-ms-overflow-style:none]">
-                          <div className="inline-flex w-max items-stretch">
-                            <div className="shrink-0 py-4 pr-4 border-r border-gray-200">
-                              <p className="text-xs font-semibold text-gray-900 mb-3">
-                                Overall rating
-                              </p>
-                              <div className="flex flex-col gap-1">
-                                {ratingBreakdown.map(({ stars, percentage }) => (
-                                  <div key={stars} className="flex items-center gap-2">
-                                    <span className="w-3 text-xs leading-none text-gray-700">
-                                      {stars}
-                                    </span>
-                                    <div className="h-1 w-40 rounded-full bg-gray-200 overflow-hidden">
-                                      <div
-                                        className="h-full bg-gray-900 transition-all duration-300"
-                                        style={{ width: `${percentage}%` }}
-                                      />
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                            {categoryRatings.map(({ label, value, Icon }) => (
-                              <div
-                                key={label}
-                                className="shrink-0 px-4 py-4 border-r border-gray-200 last:border-r-0 flex flex-col justify-between"
-                              >
-                                <div className="flex flex-col">
-                                  <p className="text-xs font-semibold text-gray-900 mb-2">
-                                    {label}
-                                  </p>
-                                  <p className="text-xs leading-none font-semibold text-gray-900 mb-3">
-                                    {value != null && value > 0 ? formatRating(value) : "—"}
-                                  </p>
-                                </div>
-
-                                <Icon className="h-8 w-8 text-gray-700" />
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-
-                        {/* Desktop overall rating bars */}
-                        <p className="hidden lg:block text-base font-semibold text-gray-900 mb-3">
-                          Overall rating
-                        </p>
-                        <div className="hidden lg:flex lg:flex-col lg:gap-2 lg:mb-6">
-                          {ratingBreakdown.map(({ stars, count, percentage }) => (
-                            <div key={stars} className="flex items-center gap-3">
-                              <span className="w-3 text-sm text-gray-700">{stars}</span>
-                              <div className="h-1.5 flex-1 rounded-full bg-gray-200 overflow-hidden">
-                                <div
-                                  className="h-full bg-gray-900 transition-all duration-300"
-                                  style={{ width: `${percentage}%` }}
-                                />
-                              </div>
-                              <span className="w-6 text-right text-sm text-gray-600">{count}</span>
-                            </div>
-                          ))}
-                        </div>
-
-                        {/* Desktop: stacked category rows on the left */}
-                        <div className="hidden lg:block border-t border-gray-200">
-                          {categoryRatings.map(({ label, value, Icon }) => (
-                            <div
-                              key={label}
-                              className="flex items-center justify-between border-b border-gray-200 py-4"
-                            >
-                              <div className="flex items-center gap-3">
-                                <Icon className="h-5 w-5 text-gray-700" />
-                                <span className="text-[15px] font-medium text-gray-900">
-                                  {label}
-                                </span>
-                              </div>
-                              <span className="text-[15px] font-semibold text-gray-900">
-                                {value != null && value > 0 ? formatRating(value) : "—"}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      </>
-                    );
-                  })()}
-                </div>
-
-                {/* Right: reviews list */}
-                <div className="space-y-2">
-                  <h3 className="text-xl font-medium">
-                    {ratings.totalReviews} {ratings.totalReviews === 1 ? "review" : "reviews"}
-                  </h3>
-                  <ReviewList endpoint={`/api/reviews/car/${car.id}`} />
-                </div>
-              </div>
-            </div>
-          </SheetContent>
-        </Sheet>
+        <CarReviewsSheet
+          open={isReviewsOpen}
+          onOpenChange={setIsReviewsOpen}
+          carId={car.id}
+          ratings={ratings}
+          subRatings={subRatings}
+        />
       )}
     </div>
   );

@@ -1,6 +1,7 @@
 import { getFormProps, useForm } from "@conform-to/react";
 import { parseWithZod } from "@conform-to/zod/v4";
-import { format } from "date-fns";
+import { format, subDays } from "date-fns";
+import { toZonedTime } from "date-fns-tz";
 import { CalendarIcon, PlusCircle, Tag, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
@@ -10,6 +11,7 @@ import {
   useFetcher,
   useLoaderData,
 } from "react-router";
+import { useAuthenticityToken } from "remix-utils/csrf/react";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
@@ -30,16 +32,17 @@ import {
   SheetTrigger,
 } from "~/components/ui/sheet";
 import { useToast } from "~/hooks/use-toast";
-import { useAuthenticityToken } from "remix-utils/csrf/react";
-import { MAX_PROMOTION_PERCENTAGE, promotionSchema } from "~/schemas/promotion.schema";
 import { prisma } from "~/modules/db/db.server";
+import { MAX_PROMOTION_PERCENTAGE, promotionSchema } from "~/schemas/promotion.schema";
 import {
   createPromotion,
   deactivatePromotion,
   getOwnerPromotions,
+  toPromotionWindowExclusive,
 } from "~/services/promotions.server";
 import { validateCSRF } from "~/utils/csrf-action.server";
 import { requireUserWithRole } from "~/utils/server/permissions.server";
+import { LAGOS_TIMEZONE } from "~/utils/timezone";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const user = await requireUserWithRole(request, "fleetOwner");
@@ -79,6 +82,11 @@ export async function action({ request }: ActionFunctionArgs) {
     }
 
     const { name, carId, discountValue, startDate, endDate } = submission.value;
+    const promoWindow = toPromotionWindowExclusive({
+      startDate,
+      endDateInclusive: endDate,
+      timeZone: LAGOS_TIMEZONE,
+    });
 
     try {
       await createPromotion({
@@ -86,8 +94,8 @@ export async function action({ request }: ActionFunctionArgs) {
         carId: carId === "all" ? null : carId,
         name: name || undefined,
         discountValue,
-        startDate: new Date(startDate),
-        endDate: new Date(endDate),
+        startDate: promoWindow.startDate,
+        endDate: promoWindow.endDate,
       });
 
       return data({ success: true, submission: submission.reply() });
@@ -120,8 +128,14 @@ function getPromotionStatus(promo: { isActive: boolean; startDate: string; endDa
   const start = new Date(promo.startDate);
   const end = new Date(promo.endDate);
   if (now < start) return "upcoming" as const;
-  if (now > end) return "expired" as const;
+  if (now >= end) return "expired" as const;
   return "active" as const;
+}
+
+function getPromotionDisplayRange(promo: { startDate: string; endDate: string }) {
+  const start = toZonedTime(new Date(promo.startDate), LAGOS_TIMEZONE);
+  const endExclusive = toZonedTime(new Date(promo.endDate), LAGOS_TIMEZONE);
+  return { start, endInclusive: subDays(endExclusive, 1) };
 }
 
 const statusConfig = {
@@ -199,6 +213,7 @@ export default function PromotionsPage() {
           {promotions.map((promo) => {
             const status = getPromotionStatus(promo);
             const config = statusConfig[status];
+            const displayRange = getPromotionDisplayRange(promo);
 
             return (
               <div key={promo.id} className="relative border rounded-lg p-4">
@@ -242,12 +257,12 @@ export default function PromotionsPage() {
                   <span className="flex items-center gap-1">
                     <CalendarIcon className="h-3.5 w-3.5 shrink-0" />
                     <span className="sm:hidden">
-                      {format(new Date(promo.startDate), "do MMM yy")} –{" "}
-                      {format(new Date(promo.endDate), "do MMM yy")}
+                      {format(displayRange.start, "do MMM yy")} –{" "}
+                      {format(displayRange.endInclusive, "do MMM yy")}
                     </span>
                     <span className="hidden sm:inline">
-                      {format(new Date(promo.startDate), "do MMM yyyy")} –{" "}
-                      {format(new Date(promo.endDate), "do MMM yyyy")}
+                      {format(displayRange.start, "do MMM yyyy")} –{" "}
+                      {format(displayRange.endInclusive, "do MMM yyyy")}
                     </span>
                   </span>
                 </div>
@@ -352,7 +367,7 @@ function CreatePromotionForm({
           )}
         </div>
         <div className="space-y-2">
-          <Label htmlFor={endDate.id}>End Date</Label>
+          <Label htmlFor={endDate.id}>End Date (inclusive)</Label>
           <Input
             id={endDate.id}
             name={endDate.name}

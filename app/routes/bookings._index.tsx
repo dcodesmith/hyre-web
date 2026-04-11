@@ -1,49 +1,25 @@
 import crypto from "node:crypto";
-import {
-  Booking,
-  BookingAcquisitionChannel,
-  BookingType,
-  Car,
-  User,
-  VehicleImage,
-} from "@prisma/client";
+import { BookingAcquisitionChannel, BookingType, Car, User } from "@prisma/client";
 import { addHours, differenceInCalendarDays } from "date-fns";
-import { format, toZonedTime } from "date-fns-tz";
-import { ChevronRight } from "lucide-react";
-import { Fragment, useEffect, useState } from "react";
+import { format, fromZonedTime, toZonedTime } from "date-fns-tz";
+import { useEffect, useState } from "react";
 import {
   ActionFunctionArgs,
-  Link,
   type LoaderFunctionArgs,
   data,
   redirect,
   useFetcher,
   useLoaderData,
-  useNavigate,
   useSearchParams,
 } from "react-router";
 import { useAuthenticityToken } from "remix-utils/csrf/react";
 import invariant from "tiny-invariant";
-import { AutocompleteAddress } from "~/components/AutocompleteAddress";
-import { BookingTimeSelect } from "~/components/booking/BookingTimeSelect";
 import { AIRPORT_PICKUP_BOOKING_TYPE } from "~/components/bookingTypes";
-import { Badge } from "~/components/ui/badge";
-import { Button } from "~/components/ui/button";
-import { Checkbox } from "~/components/ui/checkbox";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "~/components/ui/dialog";
-import { Input } from "~/components/ui/input";
-import { Label } from "~/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
+import { BookingsCancelConfirmation } from "~/components/bookings/BookingsCancelConfirmation";
+import { BookingsGuestEmailForm } from "~/components/bookings/BookingsGuestEmailForm";
+import { BookingsTabsSection } from "~/components/bookings/BookingsTabsSection";
+import type { BookingsListBooking } from "~/components/bookings/bookings-index.types";
 import logger from "~/lib/logger.server";
-import { formatCurrency, getLegExtendableDuration, isBookingEditable } from "~/lib/utils";
 import { getSessionUser } from "~/modules/auth/auth.server";
 import { prisma } from "~/modules/db/db.server";
 import { availableCarsForSpecificRequest } from "~/services/availability-engine.server";
@@ -60,11 +36,6 @@ import { createPaymentIntent } from "~/services/payment.server";
 import { validateCSRF } from "~/utils/csrf-action.server";
 import { env } from "~/utils/server/env.server";
 import { LAGOS_TIMEZONE, getLagosTime } from "~/utils/timezone";
-
-type BookingWithRelations = Booking & {
-  car: Car & { owner: User; images: VehicleImage[] };
-  chauffeur?: User | null;
-};
 
 type BookingUser = User | { email: string; name: string; phoneNumber: string };
 
@@ -164,9 +135,6 @@ function calculateRegularBookingTimes(
     return { error: "Invalid pickup time format" };
   }
 
-  const startDateTime = toZonedTime(new Date(startDate), LAGOS_TIMEZONE);
-  const endDateTime = toZonedTime(new Date(endDate), LAGOS_TIMEZONE);
-
   const [timePart, period] = pickupTime.toUpperCase().split(" ");
   const [hourStr] = timePart.split(":");
 
@@ -180,23 +148,25 @@ function calculateRegularBookingTimes(
     hour = 0;
   }
 
-  startDateTime.setHours(bookingType === "NIGHT" ? 23 : hour);
-  startDateTime.setMinutes(0);
-  startDateTime.setSeconds(0);
-  startDateTime.setMilliseconds(0);
+  const startHour = bookingType === "NIGHT" ? 23 : hour;
+  const startDateTime = fromZonedTime(
+    `${startDate}T${String(startHour).padStart(2, "0")}:00:00`,
+    LAGOS_TIMEZONE,
+  );
 
+  let endDateTime: Date;
   if (bookingType === "NIGHT") {
-    endDateTime.setHours(5);
+    endDateTime = fromZonedTime(`${endDate}T05:00:00`, LAGOS_TIMEZONE);
   } else if (bookingType === "FULL_DAY") {
     const daySpan = Math.max(1, differenceInCalendarDays(new Date(endDate), new Date(startDate)));
-    const adjusted = addHours(startDateTime, 24 * daySpan);
-    endDateTime.setTime(adjusted.getTime());
+    endDateTime = addHours(startDateTime, 24 * daySpan);
   } else {
-    endDateTime.setHours(startDateTime.getHours() + 12);
-    endDateTime.setMinutes(startDateTime.getMinutes());
+    const dayBookingEndAnchor = fromZonedTime(
+      `${endDate}T${String(startHour).padStart(2, "0")}:00:00`,
+      LAGOS_TIMEZONE,
+    );
+    endDateTime = addHours(dayBookingEndAnchor, 12);
   }
-  endDateTime.setSeconds(0);
-  endDateTime.setMilliseconds(0);
 
   return { startDateTime, endDateTime };
 }
@@ -559,9 +529,9 @@ async function handleCreateBooking(request: Request, formData: FormData, user: B
 
   if (clientTotalAmount && Number(clientTotalAmount) !== totalCost.toNumber()) {
     logger.error(
-      `Client total amount ${clientTotalAmount} does not match server-calculated amount ${totalCost}. Trusting server amount. useCredits=${useCreditsValue}`,
+      `Client total amount ${clientTotalAmount} does not match server-calculated amount ${totalCost}. Blocking checkout. useCredits=${useCreditsValue}`,
     );
-    return data({ error: "Price mismatch. Please try again." }, { status: 400 });
+    return data({ error: "Price mismatch. Please refresh and try again." }, { status: 400 });
   }
 
   try {
@@ -683,18 +653,15 @@ export default function BookingsPage() {
   const fetcher = useFetcher();
   const [searchParams] = useSearchParams();
   const status = searchParams.get("status")?.toUpperCase() ?? "ACTIVE";
-  const navigate = useNavigate();
-  const statuses = ["ACTIVE", "CONFIRMED", "COMPLETED", "CANCELLED"] as const;
-  const [showDropoffFields, setShowDropoffFields] = useState(false);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [bookingToCancel, setBookingToCancel] = useState<BookingWithRelations | null>(null);
+  const [showDropoffByBookingId, setShowDropoffByBookingId] = useState<Record<string, boolean>>({});
+  const [activeEditBookingId, setActiveEditBookingId] = useState<string | null>(null);
+  const [bookingToCancel, setBookingToCancel] = useState<BookingsListBooking | null>(null);
   const editFetcher = useFetcher<{ success: boolean }>();
   const csrfToken = useAuthenticityToken();
-  const LAGOS_TZ = "Africa/Lagos";
 
   useEffect(() => {
     if (editFetcher.data?.success) {
-      setIsDialogOpen(false);
+      setActiveEditBookingId(null);
     }
   }, [editFetcher.data]);
 
@@ -704,23 +671,14 @@ export default function BookingsPage() {
     }
   }, [fetcher.state, fetcher.data]);
 
+  const setShowDropoffForBooking = (bookingId: string, show: boolean) => {
+    setShowDropoffByBookingId((previous) => ({ ...previous, [bookingId]: show }));
+  };
+
   const guestEmail = searchParams.get("email");
 
   if (!Object.keys(bookings ?? {}).length && !guestEmail && !user) {
-    return (
-      <div className="max-w-md mx-auto mt-8">
-        <h2 className="text-2xl font-bold mb-4">Find Your Bookings</h2>
-        <form method="get" action="/bookings?status=confirmed" className="space-y-4">
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="guestEmail">Enter your email address</Label>
-            <Input id="email" name="email" type="email" placeholder="your@email.com" required />
-          </div>
-          <Button type="submit" className="w-full">
-            Find Bookings
-          </Button>
-        </form>
-      </div>
-    );
+    return <BookingsGuestEmailForm />;
   }
 
   return (
@@ -728,300 +686,30 @@ export default function BookingsPage() {
       <div className="w-full max-w-4xl mx-auto">
         <h2 className="text-2xl font-bold mb-4">Your Bookings</h2>
 
-        <Tabs defaultValue={status} className="w-full">
-          <TabsList className="flex overflow-x-auto bg-white justify-start space-x-4 p-0">
-            {statuses.map((status) => (
-              <TabsTrigger
-                className="whitespace-nowrap gap-1 antialiased rounded border data-[state=active]:border-primary data-[state=active]:border-1"
-                key={status}
-                value={status}
-                onClick={() => {
-                  const newSearchParams = new URLSearchParams(searchParams);
-                  newSearchParams.set("status", status.toLowerCase());
-                  navigate(`/bookings?${newSearchParams.toString()}`);
-                }}
-              >
-                {status.charAt(0) + status.slice(1).toLowerCase()}
-                <span>({bookings?.[status]?.length || 0})</span>
-              </TabsTrigger>
-            ))}
-          </TabsList>
-
-          {statuses.map((status) => (
-            <TabsContent
-              className="shadow-md border border-gray-200 transition-shadow rounded"
-              key={status}
-              value={status}
-            >
-              <div className="flex flex-col">
-                {bookings?.[status]?.map((booking) => {
-                  const isThisBookingBeingCancelled =
-                    fetcher.state !== "idle" && fetcher.formData?.get("bookingId") === booking.id;
-                  const emailQueryParam = guestEmail ? `?email=${guestEmail}` : "";
-                  const linkClassName = isThisBookingBeingCancelled
-                    ? "flex items-center gap-4 w-full pointer-events-none"
-                    : "flex items-center gap-4 w-full";
-                  return (
-                    <Fragment key={booking.id}>
-                      <div
-                        key={booking.id}
-                        className="sm:flex-row flex-col flex justify-between px-2 py-4 border-b last:border-0"
-                      >
-                        <Link
-                          to={`/bookings/${booking.id}${emailQueryParam}`}
-                          className={linkClassName}
-                        >
-                          <img
-                            src={booking.car.images[0].url}
-                            alt={`${booking.car.make} ${booking.car.model}`}
-                            className="w-10 h-10 rounded-full object-cover"
-                          />
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <h3 className="text-pretty text-sm font-semibold">
-                                {booking.car.make} {booking.car.model} ({booking.car.year}) -{" "}
-                                <span className="text-gray-500 italic">
-                                  {booking.bookingReference}
-                                </span>
-                              </h3>
-                              {booking.status === "COMPLETED" && (
-                                <Badge
-                                  variant="outline"
-                                  className={`text-xs rounded-sm ${
-                                    booking.review
-                                      ? "bg-green-50 text-green-700 border-green-200"
-                                      : "bg-amber-50 text-amber-700 border-amber-200"
-                                  }`}
-                                >
-                                  {booking.review ? "Reviewed" : "Review Pending"}
-                                </Badge>
-                              )}
-                            </div>
-                            <div className="text-sm text-pretty text-gray-600 space-y-1">
-                              <p className="sm:block hidden">
-                                {format(toZonedTime(new Date(booking.startDate), LAGOS_TZ), "PPPp")}{" "}
-                                to{" "}
-                                {format(toZonedTime(new Date(booking.endDate), LAGOS_TZ), "PPPp")}
-                              </p>
-
-                              <p className="sm:hidden block">
-                                {format(toZonedTime(new Date(booking.startDate), LAGOS_TZ), "PPPp")}
-                              </p>
-                              <p className="sm:hidden block">
-                                {format(toZonedTime(new Date(booking.endDate), LAGOS_TZ), "PPPp")}
-                              </p>
-
-                              <p className="text-pretty text-sm font-semibold">
-                                {formatCurrency(Number(booking.totalAmount))}
-                                {/* <span className="inline-flex items-center px-1">.</span>
-                              <span className=" text-gray-500">{formatDate(booking.createdAt)}</span> */}
-                              </p>
-                            </div>
-                          </div>
-                        </Link>
-
-                        <div className="flex sm:flex-row flex-col gap-2 sm:mt-0 mt-2 items-center justify-center">
-                          {getLegExtendableDuration(booking) > 0 && (
-                            <Link
-                              to={`/bookings/${booking.id}/extend${emailQueryParam}`}
-                              className="bg-green-700 hover:bg-green-800 p-2 border text-white rounded text-center sm:w-auto w-full transition duration-300 ease-in-out"
-                            >
-                              Extend
-                            </Link>
-                          )}
-
-                          {booking.status === "CONFIRMED" &&
-                            isBookingEditable(new Date(booking.startDate)) && (
-                              <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                                <DialogTrigger asChild>
-                                  <Button
-                                    variant="outline"
-                                    className="sm:w-auto w-full bg-gray-100"
-                                    disabled={isThisBookingBeingCancelled}
-                                  >
-                                    Modify Booking
-                                  </Button>
-                                </DialogTrigger>
-                                <DialogContent className="sm:max-w-[425px]">
-                                  <DialogHeader>
-                                    <DialogTitle>
-                                      {booking.car.make} {booking.car.model} {booking.car.year}
-                                    </DialogTitle>
-                                    <DialogDescription>
-                                      {booking.type === "DAY"
-                                        ? "Edit the pickup time, pickup address, and drop-off address"
-                                        : "Edit the pickup time and pickup address"}
-                                    </DialogDescription>
-                                  </DialogHeader>
-                                  <editFetcher.Form
-                                    method="PATCH"
-                                    action={`/bookings/${booking.id}`}
-                                    className="space-y-4"
-                                    key={booking.id}
-                                  >
-                                    <input type="hidden" name="bookingId" value={booking.id} />
-                                    <div className="grid gap-4 py-4">
-                                      {booking.type === "DAY" && (
-                                        <div className="space-y-2">
-                                          <label
-                                            htmlFor="pickupTime"
-                                            className="text-sm font-medium"
-                                          >
-                                            Pickup Time
-                                          </label>
-                                          <BookingTimeSelect
-                                            date={new Date(booking.startDate)}
-                                            defaultValue={new Date(
-                                              booking.startDate,
-                                            ).toLocaleTimeString("en-US", {
-                                              hour: "numeric",
-                                              minute: "numeric",
-                                              hour12: true,
-                                            })}
-                                          />
-                                        </div>
-                                      )}
-
-                                      <div className="space-y-2">
-                                        <label className="text-sm font-medium">
-                                          Pickup Address
-                                        </label>
-                                        <AutocompleteAddress
-                                          id="pickupAddress"
-                                          inputProps={{
-                                            name: "pickupAddress",
-                                            placeholder: "Enter pickup address",
-                                          }}
-                                          onSelect={() => {}}
-                                        />
-                                      </div>
-
-                                      <div className="space-y-1">
-                                        <div className="flex items-center space-x-2">
-                                          <Checkbox
-                                            id="sameLocation"
-                                            name="sameLocation"
-                                            defaultChecked={
-                                              booking.pickupLocation === booking.returnLocation
-                                            }
-                                            onCheckedChange={(checked) =>
-                                              setShowDropoffFields(!checked)
-                                            }
-                                          />
-                                          <Label htmlFor="sameLocation">
-                                            Drop-off location same as pickup
-                                          </Label>
-                                        </div>
-                                      </div>
-
-                                      {showDropoffFields && (
-                                        <div className="space-y-2">
-                                          <label className="text-sm font-medium">
-                                            Drop-off Address
-                                          </label>
-                                          <AutocompleteAddress
-                                            id="dropOffAddress"
-                                            inputProps={{
-                                              name: "dropOffAddress",
-                                              placeholder: "Enter drop-off address",
-                                            }}
-                                            onSelect={() => {}}
-                                          />
-                                        </div>
-                                      )}
-                                    </div>
-
-                                    <div className="flex justify-end gap-3">
-                                      <Button
-                                        variant="outline"
-                                        type="button"
-                                        onClick={() => setIsDialogOpen(false)}
-                                      >
-                                        Cancel
-                                      </Button>
-                                      <Button type="submit">Save Changes</Button>
-                                    </div>
-                                  </editFetcher.Form>
-                                </DialogContent>
-                              </Dialog>
-                            )}
-
-                          {["PENDING", "CONFIRMED"].includes(booking.status) &&
-                            isBookingEditable(new Date(booking.startDate)) && (
-                              <Button
-                                variant="destructive"
-                                className="sm:w-auto w-full"
-                                onClick={() => setBookingToCancel(booking)}
-                                disabled={isThisBookingBeingCancelled}
-                              >
-                                {isThisBookingBeingCancelled ? "Cancelling..." : "Cancel Booking"}
-                              </Button>
-                            )}
-
-                          <ChevronRight className="w-4 h-4 text-gray-500 sm:block hidden" />
-                        </div>
-                      </div>
-                    </Fragment>
-                  );
-                })}
-                {(!bookings?.[status] || bookings?.[status]?.length === 0) && (
-                  <div className="text-center py-8 text-gray-500">
-                    No {status.toLowerCase()} bookings
-                  </div>
-                )}
-              </div>
-            </TabsContent>
-          ))}
-        </Tabs>
+        <BookingsTabsSection
+          bookings={bookings}
+          guestEmail={guestEmail}
+          currentStatus={status}
+          searchParams={searchParams}
+          fetcher={fetcher}
+          editFetcher={editFetcher}
+          activeEditBookingId={activeEditBookingId}
+          setActiveEditBookingId={setActiveEditBookingId}
+          showDropoffByBookingId={showDropoffByBookingId}
+          setShowDropoffForBooking={setShowDropoffForBooking}
+          onRequestCancel={(booking) => setBookingToCancel(booking)}
+        />
 
         {bookingToCancel && (
-          <Dialog
-            open={!!bookingToCancel}
-            onOpenChange={(isOpen) => {
-              if (!isOpen) {
-                setBookingToCancel(null);
-              }
+          <BookingsCancelConfirmation
+            booking={bookingToCancel}
+            open
+            onOpenChange={(open) => {
+              if (!open) setBookingToCancel(null);
             }}
-          >
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle className="text-center font-semibold">
-                  Are you sure you want to cancel?
-                </DialogTitle>
-                <DialogDescription className="text-center pt-2 text-sm">
-                  This action cannot be undone. This will permanently cancel your booking for the{" "}
-                  <span className="font-medium">
-                    {bookingToCancel.car.make} {bookingToCancel.car.model}
-                  </span>
-                </DialogDescription>
-              </DialogHeader>
-              <DialogFooter className="flex flex-row justify-end gap-2 sm:justify-end">
-                <Button variant="outline" type="button" onClick={() => setBookingToCancel(null)}>
-                  No
-                </Button>
-                <Button
-                  variant="destructive"
-                  onClick={() => {
-                    if (!bookingToCancel) return;
-                    fetcher.submit(
-                      {
-                        bookingId: bookingToCancel.id,
-                        reason: "User requested cancellation",
-                        csrf: csrfToken,
-                      },
-                      {
-                        method: "DELETE",
-                        action: `/bookings/${bookingToCancel.id}`,
-                      },
-                    );
-                    setBookingToCancel(null);
-                  }}
-                >
-                  Yes, Cancel Booking
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+            csrfToken={csrfToken}
+            fetcher={fetcher}
+          />
         )}
       </div>
     </div>

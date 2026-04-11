@@ -35,8 +35,10 @@ import { validateFlight } from "~/services/flight-validation.server";
 import { disableFlightAlertTracking, findOrCreateFlight } from "~/services/flight.server";
 import {
   type ActivePromotion,
+  applyPromotionDiscount,
   getActivePromotionForCar,
-  getDiscountedCarRates,
+  getOverlappingPromotionsForCar,
+  resolveBestPromotionForInterval,
 } from "~/services/promotions.server";
 import {
   sendReferralDiscountAppliedNotification,
@@ -71,6 +73,16 @@ export type CreateBookingParams = {
 // Define your alphabet (e.g., uppercase letters and numbers, avoiding ambiguous chars like 0/O, 1/I)
 const alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 const nanoid = customAlphabet(alphabet, 8); // Generate an 8-character ID
+
+type PromotionApplicationMode = "BOOKING_START_ONLY" | "OVERLAP_ALLOWED";
+const PROMOTION_APPLICATION_MODE: PromotionApplicationMode = "OVERLAP_ALLOWED";
+
+export type PromotionalLegPricingBreakdown = {
+  legDate: Date;
+  basePrice: number;
+  finalPrice: number;
+  promotion: ActivePromotion | null;
+};
 
 export async function generateUniqueBookingReference(): Promise<string> {
   while (true) {
@@ -147,6 +159,206 @@ function generateBookingDates(
   });
 }
 
+function getLegIntervalForPricing(
+  type: BookingType,
+  legDate: Date,
+  bookingStartDate: Date,
+  bookingEndDate: Date,
+  startHours: number,
+  endHours: number,
+): { start: Date; end: Date } {
+  if (type === BookingType.FULL_DAY) {
+    const rawEnd = addHours(legDate, 24);
+    return {
+      start: legDate,
+      end: rawEnd > bookingEndDate ? bookingEndDate : rawEnd,
+    };
+  }
+
+  if (type === BookingType.AIRPORT_PICKUP) {
+    return {
+      start: bookingStartDate,
+      end: bookingEndDate,
+    };
+  }
+
+  const start = setHours(legDate, startHours);
+  const end =
+    endHours < startHours ? setHours(addDays(legDate, 1), endHours) : setHours(legDate, endHours);
+
+  return { start, end };
+}
+
+export async function calculatePromotionalLegPricing(input: {
+  car: {
+    dayRate: number;
+    nightRate: number;
+    hourlyRate: number;
+    fullDayRate: number;
+    airportPickupRate: number;
+    id: string;
+    ownerId: string;
+  };
+  startDate: Date;
+  endDate: Date;
+  type: BookingType;
+}): Promise<{
+  bookingDates: Date[];
+  legPrices: number[];
+  legBreakdown: PromotionalLegPricingBreakdown[];
+  startHours: number;
+  endHours: number;
+  activePromotion: ActivePromotion | null;
+}> {
+  const { car, startDate, endDate, type } = input;
+  let effectiveEndDateForLegGeneration = endDate;
+
+  // If the endDate is exactly at midnight (00:00:00.000),
+  // subtract a tiny amount to ensure it falls on the previous calendar day
+  // for the purpose of leg generation.
+  if (
+    endDate.getHours() === 0 &&
+    endDate.getMinutes() === 0 &&
+    endDate.getSeconds() === 0 &&
+    endDate.getMilliseconds() === 0
+  ) {
+    effectiveEndDateForLegGeneration = subMilliseconds(endDate, 1);
+  }
+
+  logger.debug(
+    `From calculateBookingCost: startDate: ${startDate.toISOString()}, endDate: ${endDate.toISOString()}`,
+  );
+  logger.debug(
+    `From calculateBookingCost: effectiveEndDateForLegGeneration: ${effectiveEndDateForLegGeneration.toISOString()}`,
+  );
+
+  const bookingDates = generateBookingDates(
+    type,
+    startDate,
+    endDate,
+    effectiveEndDateForLegGeneration,
+  );
+
+  const legPrices: number[] = [];
+  const legBreakdown: PromotionalLegPricingBreakdown[] = [];
+  const startHours = startDate.getHours();
+  const endHours = endDate.getHours();
+
+  logger.debug(`From calculateBookingCost: startHours: ${startHours}, endHours: ${endHours}`);
+  logger.debug(`From calculateBookingCost: bookingDates: ${bookingDates.length}`);
+
+  // Temporary booking object shape for price calculation
+  const tempBookingDataForPricing = { startDate, endDate, type };
+
+  const baseRateForPromotionSelection =
+    type === BookingType.NIGHT
+      ? car.nightRate
+      : type === BookingType.FULL_DAY
+        ? car.fullDayRate
+        : type === BookingType.AIRPORT_PICKUP
+          ? car.airportPickupRate
+          : car.dayRate;
+
+  let activePromotion: ActivePromotion | null = null;
+  let bookingWidePromotion: ActivePromotion | null = null;
+  let overlappingPromotions: ActivePromotion[] = [];
+  const appliedPromotionIds = new Set<string>();
+
+  try {
+    if (PROMOTION_APPLICATION_MODE === "OVERLAP_ALLOWED") {
+      overlappingPromotions = await getOverlappingPromotionsForCar(
+        car.id,
+        car.ownerId,
+        startDate,
+        endDate,
+      );
+    } else {
+      bookingWidePromotion = await getActivePromotionForCar(
+        car.id,
+        car.ownerId,
+        startDate,
+        baseRateForPromotionSelection,
+      );
+    }
+  } catch (error) {
+    logger.error("Failed to fetch promotion for car, proceeding without discount", {
+      carId: car.id,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+
+  for (const legDate of bookingDates) {
+    const baseLegPrice = calculateBookingLegPrice(car, tempBookingDataForPricing, legDate);
+    let promotionForLeg: ActivePromotion | null = null;
+
+    if (PROMOTION_APPLICATION_MODE === "OVERLAP_ALLOWED" && overlappingPromotions.length > 0) {
+      const legInterval = getLegIntervalForPricing(
+        type,
+        legDate,
+        startDate,
+        endDate,
+        startHours,
+        endHours,
+      );
+      promotionForLeg = resolveBestPromotionForInterval({
+        promotions: overlappingPromotions,
+        carId: car.id,
+        intervalStart: legInterval.start,
+        intervalEndExclusive: legInterval.end,
+        baseAmount: baseLegPrice,
+      });
+    } else if (bookingWidePromotion) {
+      promotionForLeg = bookingWidePromotion;
+    }
+
+    if (promotionForLeg) {
+      if (!activePromotion) {
+        activePromotion = promotionForLeg;
+      }
+      appliedPromotionIds.add(promotionForLeg.id);
+      const discountedLegPrice = applyPromotionDiscount(baseLegPrice, promotionForLeg);
+      legPrices.push(discountedLegPrice);
+      legBreakdown.push({
+        legDate,
+        basePrice: baseLegPrice,
+        finalPrice: discountedLegPrice,
+        promotion: promotionForLeg,
+      });
+      continue;
+    }
+
+    legPrices.push(baseLegPrice);
+    legBreakdown.push({
+      legDate,
+      basePrice: baseLegPrice,
+      finalPrice: baseLegPrice,
+      promotion: null,
+    });
+  }
+
+  if (PROMOTION_APPLICATION_MODE === "BOOKING_START_ONLY" && bookingWidePromotion) {
+    activePromotion = bookingWidePromotion;
+  }
+
+  if (appliedPromotionIds.size > 1) {
+    logger.debug("Multiple promotions applied across booking legs", {
+      carId: car.id,
+      promotionIds: [...appliedPromotionIds],
+      bookingReferenceStart: startDate.toISOString(),
+      bookingReferenceEnd: endDate.toISOString(),
+    });
+  }
+
+  return {
+    bookingDates,
+    legPrices,
+    legBreakdown,
+    startHours,
+    endHours,
+    activePromotion,
+  };
+}
+
 export async function calculateBookingCost({
   car,
   startDate,
@@ -178,81 +390,13 @@ export async function calculateBookingCost({
   prismaInstance?: Prisma.TransactionClient | typeof prisma;
   user?: { id: string; email: string; name?: string | null; phoneNumber?: string | null } | null;
 }) {
-  let effectiveEndDateForLegGeneration = endDate;
-
-  // If the endDate is exactly at midnight (00:00:00.000),
-  // subtract a tiny amount to ensure it falls on the previous calendar day
-  // for the purpose of leg generation.
-  if (
-    endDate.getHours() === 0 &&
-    endDate.getMinutes() === 0 &&
-    endDate.getSeconds() === 0 &&
-    endDate.getMilliseconds() === 0
-  ) {
-    effectiveEndDateForLegGeneration = subMilliseconds(endDate, 1);
-  }
-
-  logger.debug(
-    `From calculateBookingCost: startDate: ${startDate.toISOString()}, endDate: ${endDate.toISOString()}`,
-  );
-  logger.debug(
-    `From calculateBookingCost: effectiveEndDateForLegGeneration: ${effectiveEndDateForLegGeneration.toISOString()}`,
-  );
-
-  // Resolve active promotion for this car
-  let activePromotion: ActivePromotion | null = null;
-  try {
-    const baseRateForSelection =
-      type === BookingType.NIGHT
-        ? car.nightRate
-        : type === BookingType.FULL_DAY
-          ? car.fullDayRate
-          : type === BookingType.AIRPORT_PICKUP
-            ? car.airportPickupRate
-            : car.dayRate;
-
-    activePromotion = await getActivePromotionForCar(
-      car.id,
-      car.ownerId,
+  const { bookingDates, legPrices, startHours, endHours, activePromotion } =
+    await calculatePromotionalLegPricing({
+      car,
       startDate,
-      baseRateForSelection,
-    );
-    if (activePromotion) {
-      logger.debug(
-        `Active promotion found for car ${car.id}: ${activePromotion.id} (${activePromotion.discountValue}% off)`,
-      );
-    }
-  } catch (error) {
-    logger.error("Failed to fetch promotion for car, proceeding without discount", {
-      carId: car.id,
-      error: error instanceof Error ? error.message : String(error),
+      endDate,
+      type,
     });
-  }
-
-  // Apply promotion discount to car rates if an active promotion exists
-  const effectiveRates = activePromotion ? getDiscountedCarRates(car, activePromotion) : car;
-
-  const bookingDates = generateBookingDates(
-    type,
-    startDate,
-    endDate,
-    effectiveEndDateForLegGeneration,
-  );
-
-  const legPrices: number[] = [];
-  const startHours = startDate.getHours();
-  const endHours = endDate.getHours();
-
-  logger.debug(`From calculateBookingCost: startHours: ${startHours}, endHours: ${endHours}`);
-  logger.debug(`From calculateBookingCost: bookingDates: ${bookingDates.length}`);
-
-  // Temporary booking object shape for price calculation
-  const tempBookingDataForPricing = { startDate, endDate, type };
-
-  for (const legDate of bookingDates) {
-    const dailyPrice = calculateBookingLegPrice(effectiveRates, tempBookingDataForPricing, legDate);
-    legPrices.push(dailyPrice);
-  }
 
   // Calculate the net total (sum of all leg prices)
   const netTotal = legPrices
@@ -858,88 +1002,90 @@ export async function activateBooking(
   paymentId: string,
 ): Promise<BookingWithRelations> {
   logger.info(`Activating booking ${bookingId} with payment ID ${paymentId}`);
-  const { booking, shouldReleaseReferralReward } = await prisma.$transaction(async (transaction) => {
-    let shouldReleaseReferralReward = false;
+  const { booking, shouldReleaseReferralReward } = await prisma.$transaction(
+    async (transaction) => {
+      let shouldReleaseReferralReward = false;
 
-    // First, get the current booking to retrieve reserved credits
-    const currentBooking = await transaction.booking.findUnique({
-      where: { id: bookingId },
-      select: {
-        referralCreditsReserved: true,
-      },
-    });
-
-    // Move reserved credits to used credits on payment success
-    const reservedAmount = currentBooking?.referralCreditsReserved || 0;
-
-    // Update the booking
-    const booking = await transaction.booking.update({
-      where: { id: bookingId },
-      data: {
-        status: BookingStatus.CONFIRMED,
-        paymentStatus: PaymentStatus.PAID,
-        paymentId,
-        // Move reserved credits to used
-        referralCreditsUsed: reservedAmount,
-        // Clear reserved credits
-        referralCreditsReserved: 0,
-      },
-      include: {
-        car: { include: { owner: true } },
-        user: true,
-        chauffeur: true,
-        legs: { include: { extensions: true } },
-      },
-    });
-
-    logger.info(`Moved ${reservedAmount} credits from reserved to used for booking ${bookingId}`);
-
-    // Update car status to BOOKED
-    await transaction.car.update({
-      where: { id: booking.carId },
-      data: { status: Status.BOOKED },
-    });
-
-    // Release referral reward if payment is the release condition
-    try {
-      const releaseConditionConfig = await transaction.referralProgramConfig.findUnique({
-        where: { key: "REFERRAL_RELEASE_CONDITION" },
-        select: { value: true },
+      // First, get the current booking to retrieve reserved credits
+      const currentBooking = await transaction.booking.findUnique({
+        where: { id: bookingId },
+        select: {
+          referralCreditsReserved: true,
+        },
       });
-      const releaseCondition = releaseConditionConfig?.value ?? "PAID";
 
-      if (
-        releaseCondition === "PAID" &&
-        booking.referralStatus === BookingReferralStatus.APPLIED
-      ) {
-        // For "PAID" release condition: mark discount as used immediately after payment
-        if (booking.userId) {
-          await transaction.user.update({
-            where: { id: booking.userId },
-            data: { referralDiscountUsed: true },
-          });
-          logger.info("Referral discount marked as used after payment", {
-            bookingId: booking.id,
-            userId: booking.userId,
-          });
+      // Move reserved credits to used credits on payment success
+      const reservedAmount = currentBooking?.referralCreditsReserved || 0;
+
+      // Update the booking
+      const booking = await transaction.booking.update({
+        where: { id: bookingId },
+        data: {
+          status: BookingStatus.CONFIRMED,
+          paymentStatus: PaymentStatus.PAID,
+          paymentId,
+          // Move reserved credits to used
+          referralCreditsUsed: reservedAmount,
+          // Clear reserved credits
+          referralCreditsReserved: 0,
+        },
+        include: {
+          car: { include: { owner: true } },
+          user: true,
+          chauffeur: true,
+          legs: { include: { extensions: true } },
+        },
+      });
+
+      logger.info(`Moved ${reservedAmount} credits from reserved to used for booking ${bookingId}`);
+
+      // Update car status to BOOKED
+      await transaction.car.update({
+        where: { id: booking.carId },
+        data: { status: Status.BOOKED },
+      });
+
+      // Release referral reward if payment is the release condition
+      try {
+        const releaseConditionConfig = await transaction.referralProgramConfig.findUnique({
+          where: { key: "REFERRAL_RELEASE_CONDITION" },
+          select: { value: true },
+        });
+        const releaseCondition = releaseConditionConfig?.value ?? "PAID";
+
+        if (
+          releaseCondition === "PAID" &&
+          booking.referralStatus === BookingReferralStatus.APPLIED
+        ) {
+          // For "PAID" release condition: mark discount as used immediately after payment
+          if (booking.userId) {
+            await transaction.user.update({
+              where: { id: booking.userId },
+              data: { referralDiscountUsed: true },
+            });
+            logger.info("Referral discount marked as used after payment", {
+              bookingId: booking.id,
+              userId: booking.userId,
+            });
+          }
+
+          // Release reward after commit to avoid nested transaction work.
+          shouldReleaseReferralReward = true;
         }
 
-        // Release reward after commit to avoid nested transaction work.
-        shouldReleaseReferralReward = true;
+        // Note: For "COMPLETED" release condition, discount should be marked as used in completeBooking()
+        // However, completeBooking() is currently never called, so "COMPLETED" mode doesn't work
+      } catch (error) {
+        logger.error("Failed to release referral reward on payment", {
+          bookingId: booking.id,
+          error: error instanceof Error ? error.message : "Unknown error",
+        });
+        // Don't fail the booking activation if referral processing fails
       }
 
-      // Note: For "COMPLETED" release condition, discount should be marked as used in completeBooking()
-      // However, completeBooking() is currently never called, so "COMPLETED" mode doesn't work
-    } catch (error) {
-      logger.error("Failed to release referral reward on payment", {
-        bookingId: booking.id,
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-      // Don't fail the booking activation if referral processing fails
-    }
-
-    return { booking, shouldReleaseReferralReward };
-  });
+      return { booking, shouldReleaseReferralReward };
+    },
+  );
 
   if (shouldReleaseReferralReward) {
     try {

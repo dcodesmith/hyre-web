@@ -14,6 +14,7 @@ interface UseBookingPricingParams {
   readonly totalDays: number;
   readonly requiresFullTank: boolean;
   readonly platformServiceFeeRate: number;
+  readonly baseTotalOverride?: number;
 }
 
 interface BasePricing {
@@ -36,6 +37,7 @@ export function useBookingPricing({
   totalDays,
   requiresFullTank,
   platformServiceFeeRate,
+  baseTotalOverride,
 }: UseBookingPricingParams): BasePricing {
   const currentCarPrice = useMemo(() => {
     if (bookingType === NIGHT_BOOKING_TYPE) {
@@ -50,7 +52,10 @@ export function useBookingPricing({
     return car.dayRate;
   }, [bookingType, car.nightRate, car.fullDayRate, car.dayRate, car.airportPickupRate]);
 
-  const baseTotal = useMemo(() => currentCarPrice * totalDays, [currentCarPrice, totalDays]);
+  const baseTotal = useMemo(
+    () => baseTotalOverride ?? currentCarPrice * totalDays,
+    [baseTotalOverride, currentCarPrice, totalDays],
+  );
 
   const fuelUpgradeCost = useMemo(() => {
     if (car.pricingIncludesFuel) {

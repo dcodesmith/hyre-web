@@ -1,13 +1,116 @@
 import type { Promotion } from "@prisma/client";
+import { fromZonedTime } from "date-fns-tz";
 import { Decimal } from "decimal.js";
 import logger from "~/lib/logger.server";
 import { prisma } from "~/modules/db/db.server";
 import { MAX_PROMOTION_PERCENTAGE } from "~/schemas/promotion.schema";
+import { LAGOS_TIMEZONE } from "~/utils/timezone";
 
 export type ActivePromotion = Pick<
   Promotion,
   "id" | "name" | "discountValue" | "startDate" | "endDate" | "carId" | "createdAt"
 >;
+
+const CALENDAR_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+function validateCalendarDateInput(dateValue: string, label: string): string {
+  if (!CALENDAR_DATE_PATTERN.test(dateValue)) {
+    throw new Error(`${label} must be in YYYY-MM-DD format`);
+  }
+  return dateValue;
+}
+
+function addOneDayToCalendarDate(dateValue: string): string {
+  const [year, month, day] = dateValue.split("-").map(Number);
+  const utcDate = new Date(Date.UTC(year ?? 0, (month ?? 1) - 1, day ?? 1));
+  utcDate.setUTCDate(utcDate.getUTCDate() + 1);
+
+  const y = utcDate.getUTCFullYear();
+  const m = String(utcDate.getUTCMonth() + 1).padStart(2, "0");
+  const d = String(utcDate.getUTCDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function getPromotionSelectionCandidates(
+  promotions: ActivePromotion[],
+  carId: string,
+): ActivePromotion[] {
+  const carSpecificPromotions = promotions.filter((promotion) => promotion.carId === carId);
+  if (carSpecificPromotions.length > 0) {
+    return carSpecificPromotions;
+  }
+  return promotions.filter((promotion) => promotion.carId === null);
+}
+
+function chooseBestPromotionByDiscount(
+  candidates: ActivePromotion[],
+  baseAmount?: number,
+): ActivePromotion | null {
+  if (candidates.length === 0) return null;
+  if (candidates.length === 1) return candidates[0];
+
+  if (typeof baseAmount !== "number") {
+    return candidates[0];
+  }
+
+  return candidates.reduce((best, current) => {
+    const bestDiscount = getPromotionDiscountAmount(best, baseAmount);
+    const currentDiscount = getPromotionDiscountAmount(current, baseAmount);
+
+    if (currentDiscount.gt(bestDiscount)) return current;
+    if (currentDiscount.eq(bestDiscount) && current.createdAt > best.createdAt) return current;
+    return best;
+  });
+}
+
+function intervalOverlaps(
+  startA: Date,
+  endAExclusive: Date,
+  startB: Date,
+  endBExclusive: Date,
+): boolean {
+  return startA < endBExclusive && endAExclusive > startB;
+}
+
+/**
+ * Converts user-facing inclusive date inputs into persisted promotion bounds.
+ * Storage is always [start, endExclusive) in the business timezone.
+ */
+export function toPromotionWindowExclusive(input: {
+  startDate: string;
+  endDateInclusive: string;
+  timeZone?: string;
+}): { startDate: Date; endDate: Date } {
+  const timeZone = input.timeZone ?? LAGOS_TIMEZONE;
+  const startDate = validateCalendarDateInput(input.startDate, "Start date");
+  const endDateInclusive = validateCalendarDateInput(input.endDateInclusive, "End date");
+  const endExclusiveDate = addOneDayToCalendarDate(endDateInclusive);
+
+  return {
+    startDate: fromZonedTime(`${startDate}T00:00:00`, timeZone),
+    endDate: fromZonedTime(`${endExclusiveDate}T00:00:00`, timeZone),
+  };
+}
+
+export function resolveBestPromotionForInterval(input: {
+  promotions: ActivePromotion[];
+  carId: string;
+  intervalStart: Date;
+  intervalEndExclusive: Date;
+  baseAmount?: number;
+}): ActivePromotion | null {
+  const eligiblePromotions = input.promotions.filter((promotion) =>
+    intervalOverlaps(
+      promotion.startDate,
+      promotion.endDate,
+      input.intervalStart,
+      input.intervalEndExclusive,
+    ),
+  );
+
+  const candidates = getPromotionSelectionCandidates(eligiblePromotions, input.carId);
+  return chooseBestPromotionByDiscount(candidates, input.baseAmount);
+}
 
 function getPromotionDiscountAmount(promotion: ActivePromotion, baseAmount: number): Decimal {
   const value = new Decimal(promotion.discountValue.toString());
@@ -31,7 +134,7 @@ export async function getActivePromotionForCar(
       ownerId,
       isActive: true,
       startDate: { lte: referenceDate },
-      endDate: { gte: referenceDate },
+      endDate: { gt: referenceDate },
       OR: [{ carId }, { carId: null }],
     },
     select: {
@@ -48,32 +151,17 @@ export async function getActivePromotionForCar(
 
   if (promotions.length === 0) return null;
 
-  const sameScopePromotions = promotions.filter((p) => p.carId === carId);
-  const candidatePromotions =
-    sameScopePromotions.length > 0
-      ? sameScopePromotions
-      : promotions.filter((p) => p.carId === null);
+  const candidatePromotions = getPromotionSelectionCandidates(promotions, carId);
+  const best = chooseBestPromotionByDiscount(candidatePromotions, baseAmount);
 
-  if (candidatePromotions.length === 0) return null;
-  if (candidatePromotions.length === 1) return candidatePromotions[0];
-
-  if (typeof baseAmount !== "number") {
+  if (candidatePromotions.length > 1 && typeof baseAmount !== "number") {
     logger.warn("Multiple active promotions in same scope without baseAmount; using newest", {
       ownerId,
       carId,
       promotionIds: candidatePromotions.map((p) => p.id),
     });
-    return candidatePromotions[0];
   }
-
-  return candidatePromotions.reduce((best, current) => {
-    const bestDiscount = getPromotionDiscountAmount(best, baseAmount);
-    const currentDiscount = getPromotionDiscountAmount(current, baseAmount);
-
-    if (currentDiscount.gt(bestDiscount)) return current;
-    if (currentDiscount.eq(bestDiscount) && current.createdAt > best.createdAt) return current;
-    return best;
-  });
+  return best;
 }
 
 /**
@@ -129,7 +217,7 @@ export async function getActivePromotionsForCars(
       ownerId: { in: ownerIds },
       isActive: true,
       startDate: { lte: referenceDate },
-      endDate: { gte: referenceDate },
+      endDate: { gt: referenceDate },
       OR: [{ carId: { in: carIds } }, { carId: null }],
     },
     select: {
@@ -179,6 +267,40 @@ export async function getActivePromotionsForCars(
   }
 
   return result;
+}
+
+/**
+ * Fetch promotions that overlap a booking interval [start, endExclusive).
+ */
+export async function getOverlappingPromotionsForCar(
+  carId: string,
+  ownerId: string,
+  intervalStart: Date,
+  intervalEndExclusive: Date,
+): Promise<ActivePromotion[]> {
+  if (intervalEndExclusive <= intervalStart) {
+    return [];
+  }
+
+  return prisma.promotion.findMany({
+    where: {
+      ownerId,
+      isActive: true,
+      startDate: { lt: intervalEndExclusive },
+      endDate: { gt: intervalStart },
+      OR: [{ carId }, { carId: null }],
+    },
+    select: {
+      id: true,
+      name: true,
+      discountValue: true,
+      startDate: true,
+      endDate: true,
+      carId: true,
+      createdAt: true,
+    },
+    orderBy: { createdAt: "desc" },
+  });
 }
 
 /**
@@ -240,8 +362,8 @@ export async function createPromotion(data: {
     where: {
       ownerId: data.ownerId,
       isActive: true,
-      startDate: { lte: data.endDate },
-      endDate: { gte: data.startDate },
+      startDate: { lt: data.endDate },
+      endDate: { gt: data.startDate },
       carId: data.carId ?? null,
     },
     select: { id: true, carId: true, startDate: true, endDate: true },
