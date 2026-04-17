@@ -43,6 +43,7 @@ import {
   getVehicleKeywords,
 } from "~/utils/seo";
 import { env } from "~/utils/server/env.server";
+import { normalizePickupTimeParam } from "~/utils/pickup-time";
 import { LAGOS_TIMEZONE } from "~/utils/timezone";
 
 /** Find a car by slug or full ID */
@@ -82,7 +83,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
 /** Parse pickup time string (e.g., "7 AM", "11:30 PM") and return hours in 24h format */
 function parsePickupTimeHours(pickupTime: string): number | null {
-  const normalized = pickupTime.trim().toUpperCase();
+  const normalized = normalizePickupTimeParam(pickupTime);
   const match = normalized.match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)$/i);
   if (!match) return null;
 

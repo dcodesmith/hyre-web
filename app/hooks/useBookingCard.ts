@@ -34,6 +34,7 @@ import {
   isValidToDateSelection,
 } from "~/lib/booking-utils";
 import { getBookingSchema } from "~/schemas/booking.schema";
+import { normalizePickupTimeParam } from "~/utils/pickup-time";
 import { LAGOS_TIMEZONE } from "~/utils/timezone";
 
 /** Lagos calendar day for URL `from` / `to` (matches hero search + flight API). */
@@ -521,65 +522,78 @@ export function useBookingCard({
     }
   }, [validatedFlight, bookingType, form, searchParams, setSearchParams]);
 
-  // Update URL params with calculated pickup date and time for AIRPORT_PICKUP bookings
+  // Airport pickup: sync URL from arrival + drive time once trip duration is known.
+  const searchParamsSnapshot = searchParams.toString();
+  const tripDurationMinutes = tripDuration?.durationInMinutes ?? null;
+  const dateRangeFromMs = dateRange.from?.getTime() ?? null;
+  const dateRangeToMs = dateRange.to?.getTime() ?? null;
+
   useEffect(() => {
-    if (bookingType === AIRPORT_PICKUP_BOOKING_TYPE && tripDetailsArrivalTime && tripDuration) {
-      const arrivalDate = new Date(tripDetailsArrivalTime);
-      const pickupDateTime = new Date(arrivalDate.getTime() + 40 * 60 * 1000); // 40 min after arrival
-
-      // Add 20% buffer to drive time
-      const bufferedDriveMinutes = Math.ceil(tripDuration.durationInMinutes * 1.2);
-      const dropOffDateTime = new Date(pickupDateTime.getTime() + bufferedDriveMinutes * 60 * 1000);
-
-      // Format date as YYYY-MM-DD (like DAY/NIGHT/FULL_DAY bookings) using Lagos timezone
-      const pickupDateOnly = formatInTimeZone(pickupDateTime, LAGOS_TIMEZONE, "yyyy-MM-dd");
-      const dropOffDateOnly = formatInTimeZone(dropOffDateTime, LAGOS_TIMEZONE, "yyyy-MM-dd");
-      const nextDateRange = {
-        from: fromZonedTime(`${pickupDateOnly}T00:00:00`, LAGOS_TIMEZONE),
-        to: fromZonedTime(`${dropOffDateOnly}T00:00:00`, LAGOS_TIMEZONE),
-      };
-
-      // Format time as "H:MM AM/PM" in Lagos timezone (like DAY/NIGHT/FULL_DAY bookings)
-      const pickupTimeFormatted = formatInTimeZone(
-        pickupDateTime,
-        LAGOS_TIMEZONE,
-        "h:mm a",
-      ).toUpperCase();
-
-      // Update URL search params
-      const newParams = new URLSearchParams(searchParams);
-      newParams.set("from", pickupDateOnly);
-      newParams.set("to", dropOffDateOnly);
-      newParams.set("pickupTime", pickupTimeFormatted);
-
-      // Only update if params have changed to avoid infinite loop
-      if (
-        newParams.get("from") !== searchParams.get("from") ||
-        newParams.get("to") !== searchParams.get("to") ||
-        newParams.get("pickupTime") !== searchParams.get("pickupTime")
-      ) {
-        setDateRange(nextDateRange);
-        setSearchParams(newParams, { replace: true });
-        return;
-      }
-
-      if (
-        !dateRange.from ||
-        !dateRange.to ||
-        dateRange.from.getTime() !== nextDateRange.from.getTime() ||
-        dateRange.to.getTime() !== nextDateRange.to.getTime()
-      ) {
-        setDateRange(nextDateRange);
-      }
+    if (
+      bookingType !== AIRPORT_PICKUP_BOOKING_TYPE ||
+      !tripDetailsArrivalTime ||
+      tripDurationMinutes == null
+    ) {
+      return;
     }
+
+    const sp = new URLSearchParams(searchParamsSnapshot);
+    const arrivalDate = new Date(tripDetailsArrivalTime);
+    const pickupDateTime = new Date(arrivalDate.getTime() + 40 * 60 * 1000); // 40 min after arrival
+
+    const bufferedDriveMinutes = Math.ceil(tripDurationMinutes * 1.2);
+    const dropOffDateTime = new Date(pickupDateTime.getTime() + bufferedDriveMinutes * 60 * 1000);
+
+    const pickupDateOnly = formatInTimeZone(pickupDateTime, LAGOS_TIMEZONE, "yyyy-MM-dd");
+    const dropOffDateOnly = formatInTimeZone(dropOffDateTime, LAGOS_TIMEZONE, "yyyy-MM-dd");
+    const nextDateRange = {
+      from: fromZonedTime(`${pickupDateOnly}T00:00:00`, LAGOS_TIMEZONE),
+      to: fromZonedTime(`${dropOffDateOnly}T00:00:00`, LAGOS_TIMEZONE),
+    };
+
+    const pickupTimeFormatted = normalizePickupTimeParam(
+      formatInTimeZone(pickupDateTime, LAGOS_TIMEZONE, "h:mm a"),
+    );
+
+    const newParams = new URLSearchParams(sp);
+    newParams.set("from", pickupDateOnly);
+    newParams.set("to", dropOffDateOnly);
+    newParams.set("pickupTime", pickupTimeFormatted);
+
+    const needsDateRangeSync =
+      dateRangeFromMs !== nextDateRange.from.getTime() ||
+      dateRangeToMs !== nextDateRange.to.getTime();
+
+    if (newParams.toString() === sp.toString()) {
+      if (needsDateRangeSync) {
+        setDateRange(nextDateRange);
+      }
+      return;
+    }
+
+    const urlPickupNorm = normalizePickupTimeParam(sp.get("pickupTime"));
+    const logicallyMatchesUrl =
+      sp.get("from") === pickupDateOnly &&
+      sp.get("to") === dropOffDateOnly &&
+      urlPickupNorm === pickupTimeFormatted;
+
+    if (logicallyMatchesUrl) {
+      if (needsDateRangeSync) {
+        setDateRange(nextDateRange);
+      }
+      return;
+    }
+
+    setDateRange(nextDateRange);
+    setSearchParams(newParams, { replace: true, preventScrollReset: true });
   }, [
     bookingType,
     tripDetailsArrivalTime,
-    tripDuration,
-    searchParams,
+    tripDurationMinutes,
+    searchParamsSnapshot,
     setSearchParams,
-    dateRange.from,
-    dateRange.to,
+    dateRangeFromMs,
+    dateRangeToMs,
   ]);
 
   // Get guest fields when user is not logged in

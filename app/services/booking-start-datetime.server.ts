@@ -2,6 +2,7 @@ import { BookingType } from "@prisma/client";
 import { addHours, differenceInCalendarDays } from "date-fns";
 import { fromZonedTime } from "date-fns-tz";
 import { AIRPORT_PICKUP_BOOKING_TYPE } from "~/components/bookingTypes";
+import { normalizePickupTimeParam } from "~/utils/pickup-time";
 import { LAGOS_TIMEZONE } from "~/utils/timezone";
 
 export interface RegularBookingTimeResult {
@@ -31,11 +32,12 @@ export function calculateRegularBookingTimes(
   startDate: string,
   endDate: string,
 ): { error: string } | RegularBookingTimeResult {
-  if (!pickupTime || !/^(1[0-2]|[1-9])(:00)?\s?(AM|PM)$/i.test(pickupTime)) {
+  const canonicalPickup = normalizePickupTimeParam(pickupTime);
+  if (!canonicalPickup || !/^(1[0-2]|[1-9])(:00)?\s?(AM|PM)$/i.test(canonicalPickup)) {
     return { error: "Invalid pickup time format" };
   }
 
-  const [timePart, period] = pickupTime.toUpperCase().split(" ");
+  const [timePart, period] = canonicalPickup.split(" ");
   const [hourStr] = timePart.split(":");
 
   let hour = Number.parseInt(hourStr, 10);

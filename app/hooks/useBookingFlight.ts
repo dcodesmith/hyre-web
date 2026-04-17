@@ -26,7 +26,7 @@ interface UseBookingFlightResult {
 }
 
 function normalizeFlightNumber(value: string | null | undefined): string {
-  return (value ?? "").trim().toUpperCase();
+  return (value ?? "").trim().toUpperCase().replaceAll(/\s+/g, "");
 }
 
 /**
@@ -60,7 +60,8 @@ export function useBookingFlight({
 
   // Auto-validate flight from URL on component mount
   useEffect(() => {
-    const flightNumber = searchParams.get("flightNumber");
+    const flightNumberRaw = searchParams.get("flightNumber");
+    const normalizedUrlFlight = normalizeFlightNumber(flightNumberRaw);
 
     // Clear validatedFlight when bookingType changes away from airport pickup
     if (bookingType !== AIRPORT_PICKUP_BOOKING_TYPE) {
@@ -71,7 +72,6 @@ export function useBookingFlight({
     }
 
     // Clear validated flight only when URL explicitly carries a different flight number.
-    const normalizedUrlFlight = normalizeFlightNumber(flightNumber);
     const normalizedValidatedFlight = normalizeFlightNumber(validatedFlight?.flightNumber);
     if (
       validatedFlight !== null &&
@@ -86,13 +86,13 @@ export function useBookingFlight({
     if (bookingType === AIRPORT_PICKUP_BOOKING_TYPE && validatedFlight === null) {
       const from = searchParams.get("from");
 
-      if (flightNumber && from) {
+      if (normalizedUrlFlight && from) {
         const controller = new AbortController();
 
         const validateFlightFromUrl = async () => {
           try {
             const response = await fetch(
-              `/api/search-flight?flightNumber=${encodeURIComponent(flightNumber)}&date=${from}`,
+              `/api/search-flight?flightNumber=${encodeURIComponent(normalizedUrlFlight)}&date=${from}`,
               { signal: controller.signal },
             );
 
