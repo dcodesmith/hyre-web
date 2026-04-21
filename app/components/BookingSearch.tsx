@@ -195,7 +195,7 @@ function BookingTypeInput({
                 placeholder: "e.g. BA123",
               }}
               initialValue={flightNumber}
-              className="w-full h-5 placeholder-gray-400 border-0 px-0 py-0 focus:ring-0 shadow-none bg-transparent hover:bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 text-sm leading-tight"
+              className="w-full h-5 placeholder-gray-400 border-0 px-0 py-0 focus:ring-0 shadow-none bg-transparent hover:bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 text-base leading-tight"
               nigeriaOnly={true}
               pickupDate={
                 dateRange.from
@@ -336,13 +336,34 @@ export function BookingSearch({
   } = sharedDraft;
   const [isFlightUnbookable, setIsFlightUnbookable] = useState(false);
 
-  // Sync state when URL changes (e.g., navigating back from car details page)
+  // Sync state when URL changes (e.g., navigating back from car details page).
+  // When navigateToSearch is true, the URL stays empty until "Search" — do not treat a
+  // missing bookingType as Same Day on every effect run (that wiped in-progress drafts on iOS).
   useEffect(() => {
     const urlBookingType = searchParams.get("bookingType");
     const urlFrom = searchParams.get("from");
     const urlTo = searchParams.get("to");
     const urlPickupTime = searchParams.get("pickupTime");
     const urlFlightNumber = searchParams.get("flightNumber");
+
+    if (navigateToSearch) {
+      if (isValidBookingType(urlBookingType)) {
+        setBookingType(urlBookingType);
+      }
+      if (urlFrom) {
+        setDateRange({
+          from: fromZonedTime(`${urlFrom}T00:00:00`, LAGOS_TIMEZONE),
+          to: urlTo ? fromZonedTime(`${urlTo}T00:00:00`, LAGOS_TIMEZONE) : undefined,
+        });
+      }
+      if (searchParams.has("pickupTime")) {
+        setPickupTime(urlPickupTime || undefined);
+      }
+      if (searchParams.has("flightNumber")) {
+        setFlightNumber(urlFlightNumber || undefined);
+      }
+      return;
+    }
 
     const nextBookingType: BookingType = isValidBookingType(urlBookingType)
       ? urlBookingType
@@ -358,6 +379,7 @@ export function BookingSearch({
     setPickupTime(urlPickupTime || undefined);
     setFlightNumber(urlFlightNumber || undefined);
   }, [
+    navigateToSearch,
     searchParams,
     isValidBookingType,
     setBookingType,
