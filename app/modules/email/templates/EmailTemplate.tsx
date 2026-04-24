@@ -1,25 +1,20 @@
+import type * as React from "react";
 import {
   Body,
   Container,
   Font,
   Head,
-  Hr,
   Html,
   Link,
   Preview,
   Section,
-  Text,
   Tailwind,
-} from "@react-email/components";
-import * as React from "react";
-import tailwindConfig from "tailwind.config";
-import { env } from "~/utils/server/env.server";
+  Text,
+  pixelBasedPreset,
+} from "react-email";
+import { getEmailPublicEnv } from "../email-public-env";
 
-// Sourcing company details from environment variables for a Remix app (server-side)
-const COMPANY_NAME = env.APP_NAME || "Tripdly";
 const COMPANY_ADDRESS = "Lagos, Nigeria";
-const WEBSITE_URL = env.DOMAIN || "https://tripdly.com";
-const SUPPORT_EMAIL = env.SUPPORT_EMAIL || "support@tripdly.com";
 const CURRENT_YEAR = new Date().getFullYear();
 
 interface EmailTemplateProps {
@@ -30,15 +25,16 @@ interface EmailTemplateProps {
 
 export function EmailTemplate({ children, previewText, pageTitle }: EmailTemplateProps) {
   const effectivePageTitle = pageTitle || previewText;
+  const { appName: companyName, domain: websiteUrl, supportEmail } = getEmailPublicEnv();
 
   return (
-    <Tailwind config={tailwindConfig}>
+    <Tailwind config={{ presets: [pixelBasedPreset] }}>
       <Html lang="en">
         <Head>
-          <title className="capitalize">{effectivePageTitle.toLowerCase()}</title>
+          <title>{effectivePageTitle}</title>
           <Font
             fontFamily="Nunito Sans"
-            fallbackFontFamily="sans-serif"
+            fallbackFontFamily={["Arial", "sans-serif"]}
             webFont={{
               url: "https://fonts.googleapis.com/css2?family=Nunito+Sans:ital,wght@0,200..900;1,200..900&display=swap",
               format: "woff2",
@@ -52,39 +48,39 @@ export function EmailTemplate({ children, previewText, pageTitle }: EmailTemplat
           <Preview>{previewText}</Preview>
         </Head>
         <Body
-          className="bg-gray-100 text-gray-800 font-sans text-base leading-relaxed"
+          className="bg-[#F4F4F5] m-0 py-8"
           style={{ fontFamily: '"Nunito Sans", Arial, sans-serif' }}
         >
-          <Container className="bg-white border border-gray-200 rounded-md shadow-sm mx-auto my-8 p-6 sm:p-8 max-w-xl">
-            <Section className="mb-6 text-center">
-              <Text
-                style={{ fontFamily: '"Dancing Script", cursive' }}
-                className="mx-auto mb-4 text-4xl leading-tight text-gray-900"
-              >
-                {COMPANY_NAME}
-              </Text>
+          <Container className="max-w-[560px] mx-auto">
+            <Section className="bg-white rounded-[16px] overflow-hidden">
+              <Section className="px-8 pt-8 pb-2">
+                <Text
+                  className="text-[28px] leading-[32px] text-[#0B0B0F] m-0"
+                  style={{ fontFamily: '"Dancing Script", cursive', fontWeight: 700 }}
+                >
+                  {companyName}
+                </Text>
+              </Section>
+              <Section className="px-8 pb-8 pt-4">{children}</Section>
             </Section>
 
-            <Section>{children}</Section>
-
-            <Hr className="my-6 border-gray-300" />
-            <Section className="text-center text-xs text-gray-500">
-              <Text className="mb-1">
-                &copy; {CURRENT_YEAR} {COMPANY_NAME}. All rights reserved.
+            <Section className="px-8 pt-6">
+              <Text className="text-[12px] text-[#6A6A71] m-0 leading-5">
+                Need a hand?{" "}
+                <Link
+                  href={`mailto:${supportEmail}`}
+                  className="text-[#0B0B0F] font-medium underline"
+                >
+                  {supportEmail}
+                </Link>
               </Text>
-              {COMPANY_ADDRESS && <Text className="mb-1">{COMPANY_ADDRESS}</Text>}
-              {WEBSITE_URL && WEBSITE_URL !== "#" && (
-                <Text className="mb-1">
-                  <Link href={WEBSITE_URL} className="text-blue-600 hover:underline">
-                    Visit our website
-                  </Link>
-                </Text>
-              )}
-              {SUPPORT_EMAIL && (
-                <Text>
-                  Need help? Contact{" "}
-                  <Link href={`mailto:${SUPPORT_EMAIL}`} className="text-blue-600 hover:underline">
-                    {SUPPORT_EMAIL}
+              <Text className="text-[12px] text-[#9A9A9F] mt-4 m-0 leading-5">
+                &copy; {CURRENT_YEAR} {companyName} &middot; {COMPANY_ADDRESS}
+              </Text>
+              {websiteUrl && websiteUrl !== "#" && (
+                <Text className="text-[12px] text-[#9A9A9F] mt-1 m-0 leading-5">
+                  <Link href={websiteUrl} className="text-[#9A9A9F] underline">
+                    {websiteUrl.replace(/^https?:\/\//, "")}
                   </Link>
                 </Text>
               )}

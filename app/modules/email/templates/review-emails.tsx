@@ -1,9 +1,8 @@
-import { Heading, Hr, Section, Text } from "@react-email/components";
-import { render } from "@react-email/render";
-import { EmailTemplate } from "./EmailTemplate";
+import { Heading, Hr, Section, Text, render } from "react-email";
 import { formatRating } from "~/utils/review-formatting";
+import { EmailTemplate } from "./EmailTemplate";
 
-type ReviewData = {
+export type ReviewData = {
   readonly customerName: string;
   readonly bookingReference: string;
   readonly carName: string;
@@ -80,13 +79,16 @@ function BookingDetailsSection({ reviewData }: { readonly reviewData: ReviewData
   );
 }
 
-/**
- * Render review received email for car owners
- */
-export async function renderReviewReceivedEmailForOwner(ownerName: string, reviewData: ReviewData) {
+export function ReviewReceivedEmailForOwner({
+  ownerName,
+  reviewData,
+}: {
+  readonly ownerName: string;
+  readonly reviewData: ReviewData;
+}) {
   const previewText = `You received a ${formatRating(reviewData.overallRating)}-star review from ${reviewData.customerName}`;
 
-  return render(
+  return (
     <EmailTemplate previewText={previewText} pageTitle="New Review Received">
       <Heading as="h2" className="text-xl font-semibold mb-4">
         New Review Received ⭐
@@ -105,20 +107,27 @@ export async function renderReviewReceivedEmailForOwner(ownerName: string, revie
         Thank you for providing excellent service! Your reviews help build trust and attract more
         customers.
       </Text>
-    </EmailTemplate>,
+    </EmailTemplate>
   );
 }
 
 /**
- * Render review received email for chauffeurs
+ * Render review received email for car owners
  */
-export async function renderReviewReceivedEmailForChauffeur(
-  chauffeurName: string,
-  reviewData: ReviewData,
-) {
+export async function renderReviewReceivedEmailForOwner(ownerName: string, reviewData: ReviewData) {
+  return render(<ReviewReceivedEmailForOwner ownerName={ownerName} reviewData={reviewData} />);
+}
+
+export function ReviewReceivedEmailForChauffeur({
+  chauffeurName,
+  reviewData,
+}: {
+  readonly chauffeurName: string;
+  readonly reviewData: ReviewData;
+}) {
   const previewText = `You received a ${formatRating(reviewData.chauffeurRating)}-star chauffeur review from ${reviewData.customerName}`;
 
-  return render(
+  return (
     <EmailTemplate previewText={previewText} pageTitle="New Review Received">
       <Heading as="h2" className="text-xl font-semibold mb-4">
         New Review Received ⭐
@@ -140,6 +149,18 @@ export async function renderReviewReceivedEmailForChauffeur(
         Thank you for providing excellent service! Your reviews help build trust and showcase your
         professionalism.
       </Text>
-    </EmailTemplate>,
+    </EmailTemplate>
+  );
+}
+
+/**
+ * Render review received email for chauffeurs
+ */
+export async function renderReviewReceivedEmailForChauffeur(
+  chauffeurName: string,
+  reviewData: ReviewData,
+) {
+  return render(
+    <ReviewReceivedEmailForChauffeur chauffeurName={chauffeurName} reviewData={reviewData} />,
   );
 }

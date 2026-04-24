@@ -1,14 +1,13 @@
-import { Heading, Section, Text } from "@react-email/components";
-import { render } from "@react-email/render";
+import { Heading, Section, Text, render } from "react-email";
 import { EmailTemplate } from "./EmailTemplate";
 
-interface PayoutNotificationProps {
+export interface PayoutNotificationProps {
   readonly name: string;
   readonly amount: string;
   readonly bookingReference: string;
 }
 
-function PayoutNotification({ name, amount, bookingReference }: PayoutNotificationProps) {
+export function PayoutNotification({ name, amount, bookingReference }: PayoutNotificationProps) {
   return (
     <EmailTemplate previewText="You have received a new payout">
       <Heading className="text-2xl font-semibold text-gray-800">Payout Notification</Heading>

@@ -1,24 +1,28 @@
-import { Heading, Text } from "@react-email/components";
-import { render } from "@react-email/render";
-import { env } from "~/utils/server/env.server";
+import { Heading, Text, render } from "react-email";
+import { getEmailPublicEnv } from "../email-public-env";
 import { EmailTemplate } from "./EmailTemplate";
 
-type AuthEmailOptions = {
-  code: string;
-  intent: "registration" | "login";
+export type AuthEmailOptions = {
+  readonly code: string;
+  readonly intent: "registration" | "login";
 };
 
-export function renderAuthEmail({ code, intent }: AuthEmailOptions) {
-  return render(
-    <EmailTemplate previewText={`Your ${env.APP_NAME} ${intent} code`}>
+export function AuthEmail({ code, intent }: AuthEmailOptions) {
+  const { appName } = getEmailPublicEnv();
+  return (
+    <EmailTemplate previewText={`Your ${appName} ${intent} code`}>
       <Heading className="text-xl font-medium text-gray-800">
-        Your {intent === "registration" ? "registration" : "login"} code for {env.APP_NAME}
+        Your {intent} code for {appName}
       </Heading>
 
       <Text className="text-sm text-gray-800">
         Use the {intent} verification code below. It is only valid for 10 minutes.
       </Text>
       <code className="text-xl font-semibold">{code}</code>
-    </EmailTemplate>,
+    </EmailTemplate>
   );
+}
+
+export function renderAuthEmail({ code, intent }: AuthEmailOptions) {
+  return render(<AuthEmail code={code} intent={intent} />);
 }

@@ -1,8 +1,7 @@
-import { Heading, Hr, Section, Text } from "@react-email/components";
-import { render } from "@react-email/render";
-import { env } from "~/utils/server/env.server";
-import { EmailTemplate } from "./EmailTemplate";
+import { Heading, Hr, Section, Text, render } from "react-email";
 import { formatCurrency } from "~/lib/utils";
+import { getEmailPublicEnv } from "../email-public-env";
+import { EmailTemplate } from "./EmailTemplate";
 
 function DetailListItem({
   label,
@@ -30,24 +29,29 @@ function DetailListItem({
   );
 }
 
-// --- Referral Attribution Success Email ---
-export function renderReferralAttributionEmail(userData: {
+export type ReferralAttributionUserData = {
   readonly name: string;
   readonly referralCode: string;
   readonly referrerName: string;
   readonly discountAmount: number;
   readonly phoneNumber?: string;
-}) {
+};
+
+// --- Referral Attribution Success Email ---
+export function ReferralAttributionEmail({
+  userData,
+}: { readonly userData: ReferralAttributionUserData }) {
+  const { appName } = getEmailPublicEnv();
   const previewText = `Welcome! Your referral code from ${userData.referrerName} has been applied`;
 
-  return render(
+  return (
     <EmailTemplate previewText={previewText} pageTitle="Welcome - Referral Applied">
       <Heading as="h2" className="text-xl font-semibold mb-4">
-        Welcome to {env.APP_NAME}! 🎉
+        Welcome to {appName}! 🎉
       </Heading>
       <Text className="mb-3">Hello {userData.name},</Text>
       <Text className="mb-3">
-        Welcome to {env.APP_NAME}! Your account has been successfully created using{" "}
+        Welcome to {appName}! Your account has been successfully created using{" "}
         <span className="font-semibold">{userData.referrerName}</span>'s referral code.
       </Text>
 
@@ -82,12 +86,15 @@ export function renderReferralAttributionEmail(userData: {
           </Text>
         </Section>
       )}
-    </EmailTemplate>,
+    </EmailTemplate>
   );
 }
 
-// --- Referral Discount Applied Email ---
-export function renderReferralDiscountAppliedEmail(bookingData: {
+export function renderReferralAttributionEmail(userData: ReferralAttributionUserData) {
+  return render(<ReferralAttributionEmail userData={userData} />);
+}
+
+export type ReferralDiscountBookingData = {
   customerName: string;
   bookingReference: string;
   carName: string;
@@ -96,10 +103,15 @@ export function renderReferralDiscountAppliedEmail(bookingData: {
   finalAmount: number;
   referrerName: string;
   phoneNumber?: string;
-}) {
+};
+
+// --- Referral Discount Applied Email ---
+export function ReferralDiscountAppliedEmail({
+  bookingData,
+}: { readonly bookingData: ReferralDiscountBookingData }) {
   const previewText = "Referral discount applied to your booking";
 
-  return render(
+  return (
     <EmailTemplate previewText={previewText} pageTitle="Referral Discount Applied">
       <Heading as="h2" className="text-xl font-semibold mb-4">
         Referral Discount Applied! 💰
@@ -142,12 +154,15 @@ export function renderReferralDiscountAppliedEmail(bookingData: {
           </Text>
         </Section>
       )}
-    </EmailTemplate>,
+    </EmailTemplate>
   );
 }
 
-// --- Referral Reward Earned Email ---
-export function renderReferralRewardEarnedEmail(rewardData: {
+export function renderReferralDiscountAppliedEmail(bookingData: ReferralDiscountBookingData) {
+  return render(<ReferralDiscountAppliedEmail bookingData={bookingData} />);
+}
+
+export type ReferralRewardEarnedData = {
   referrerName: string;
   referredUserName: string;
   rewardAmount: number;
@@ -155,10 +170,16 @@ export function renderReferralRewardEarnedEmail(rewardData: {
   totalReferrals: number;
   totalRewardsEarned: number;
   phoneNumber?: string;
-}) {
+};
+
+// --- Referral Reward Earned Email ---
+export function ReferralRewardEarnedEmail({
+  rewardData,
+}: { readonly rewardData: ReferralRewardEarnedData }) {
+  const { appName } = getEmailPublicEnv();
   const previewText = `You've earned a referral reward of ${formatCurrency(rewardData.rewardAmount)}!`;
 
-  return render(
+  return (
     <EmailTemplate previewText={previewText} pageTitle="Referral Reward Earned">
       <Heading as="h2" className="text-xl font-semibold mb-4">
         You've Earned a Referral Reward! 🎉
@@ -193,7 +214,7 @@ export function renderReferralRewardEarnedEmail(rewardData: {
 
       <Text className="mt-4">
         Keep sharing your referral code to earn more rewards! Thank you for helping us grow the{" "}
-        {env.APP_NAME} community.
+        {appName} community.
       </Text>
 
       {rewardData.phoneNumber && (
@@ -203,6 +224,10 @@ export function renderReferralRewardEarnedEmail(rewardData: {
           </Text>
         </Section>
       )}
-    </EmailTemplate>,
+    </EmailTemplate>
   );
+}
+
+export function renderReferralRewardEarnedEmail(rewardData: ReferralRewardEarnedData) {
+  return render(<ReferralRewardEarnedEmail rewardData={rewardData} />);
 }
