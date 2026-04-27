@@ -158,7 +158,10 @@ export function StarRating({
         className={cn("inline-flex items-center", className)}
         aria-label={ariaLabel ?? `${formattedRating} out of 5 stars`}
       >
-        <span className={cn("relative inline-block leading-none align-middle", starSize)}>
+        <span
+          aria-hidden
+          className={cn("relative inline-block leading-none align-middle", starSize)}
+        >
           <span className={cn("select-none", emptyStarClass)}>&#9733;</span>
           {fillPercent > 0 && (
             <span
@@ -215,12 +218,14 @@ export function StarRating({
             onFocus={() => isInteractive && setIsKeyboardFocused(true)}
             onBlur={() => setIsKeyboardFocused(false)}
             onKeyDown={(e) => handleKeyDown(e, position)}
-            aria-label={`${position} star${position === 1 ? "" : "s"}`}
+            aria-label={`${position} out of 5 stars`}
             aria-pressed={position <= Math.round(clampedRating)}
             tabIndex={getTabIndex()}
             disabled={!isInteractive}
           >
-            <PartialStar fillPercentage={fillPercentage} size={size} isHovered={isHovered} />
+            <span aria-hidden="true">
+              <PartialStar fillPercentage={fillPercentage} size={size} isHovered={isHovered} />
+            </span>
           </button>
         );
       })}

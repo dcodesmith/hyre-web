@@ -1,12 +1,18 @@
 interface InstagramIconProps {
   readonly size?: number;
   readonly className?: string;
+  /** When true (default), the SVG is decorative; the parent link should set the accessible name. */
+  readonly decorative?: boolean;
 }
 
-export function InstagramIcon({ size = 20, className = "" }: InstagramIconProps) {
+export function InstagramIcon({
+  size = 20,
+  className = "",
+  decorative = true,
+}: InstagramIconProps) {
   return (
     <svg
-      aria-label="Instagram Icon"
+      aria-hidden={decorative ? true : undefined}
       width={size}
       height={size}
       viewBox="0 0 24 24"
@@ -17,7 +23,7 @@ export function InstagramIcon({ size = 20, className = "" }: InstagramIconProps)
       strokeLinejoin="round"
       className={className}
     >
-      <title>Instagram Icon</title>
+      <title>Instagram</title>
       <rect width="20" height="20" x="2" y="2" rx="5" ry="5" />
       <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
       <line x1="17.5" x2="17.51" y1="6.5" y2="6.5" />

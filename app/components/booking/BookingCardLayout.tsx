@@ -22,7 +22,7 @@ import { PromoBookingTotal } from "./PromoBookingTotal";
 import { SingleDatePicker } from "./SingleDatePicker";
 import { TripDetails } from "./TripDetails";
 
-export function BookingCardLayout(vm: BookingCardViewModel) {
+export function BookingCardLayout(vm: Readonly<BookingCardViewModel>) {
   const {
     ERROR_RING_CLASSES,
     baseTotal,

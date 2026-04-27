@@ -1,4 +1,4 @@
-import { type MetaFunction, Link } from "react-router";
+import { Link, type MetaFunction } from "react-router";
 import { Button } from "~/components/ui/button";
 import { LEGAL_CONSTANTS } from "~/constants/legal";
 import { useCookieConsent } from "~/hooks/useCookieConsent";
@@ -101,6 +101,9 @@ export default function CookiePolicy() {
 
             <div className="overflow-x-auto mb-4">
               <table className="min-w-full border border-gray-200 rounded-lg">
+                <caption className="sr-only">
+                  Essential cookies used by Tripdly regardless of consent
+                </caption>
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 border-b">
@@ -160,6 +163,9 @@ export default function CookiePolicy() {
 
             <div className="overflow-x-auto mb-4">
               <table className="min-w-full border border-gray-200 rounded-lg">
+                <caption className="sr-only">
+                  Optional analytics cookies set only if you accept analytics
+                </caption>
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 border-b">

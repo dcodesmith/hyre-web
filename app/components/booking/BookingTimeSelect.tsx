@@ -1,6 +1,7 @@
+import { useId, useState } from "react";
+import { cn } from "~/lib/utils";
 import { getLagosTime } from "~/utils/timezone";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
-import { cn } from "~/lib/utils";
 
 const hasTimePassed = (selectedDate: Date, hour: number) => {
   // Use Lagos-local clock consistently
@@ -85,6 +86,16 @@ interface BookingTimeSelectProps {
   readonly className?: string;
   readonly bookingType?: string;
   readonly onValueChange?: (value: string) => void;
+  /** Merges with internal trigger id for label association (e.g. Conform field id). */
+  readonly id?: string;
+  /**
+   * When set, renders a hidden input for form submission instead of Radix `name`
+   * (avoids an extra native select that is `aria-hidden` while focusable controls remain).
+   */
+  readonly name?: string;
+  readonly "aria-invalid"?: boolean;
+  readonly "aria-describedby"?: string;
+  readonly required?: boolean;
   /** Container class for inline-style usage (e.g., Airbnb-style search bar) */
   readonly containerClassName?: string;
   /** Label class for inline-style usage */
@@ -102,63 +113,98 @@ export function BookingTimeSelect({
   className,
   bookingType = "DAY",
   onValueChange,
+  id,
+  name,
+  "aria-invalid": ariaInvalid,
+  "aria-describedby": ariaDescribedBy,
+  required,
   containerClassName,
   labelClassName = "text-xs font-semibold text-gray-700 leading-tight",
   showLabel = false,
   placeholder = "Select pickup time",
 }: BookingTimeSelectProps) {
+  const autoTriggerId = useId();
+  const triggerId = id ?? autoTriggerId;
+
   // Normalize the value to match the select's format
   const normalizedValue = value ? normalizeTimeFormat(value) : undefined;
   const normalizedDefaultValue = defaultValue ? normalizeTimeFormat(defaultValue) : undefined;
 
-  // Determine if we're in controlled or uncontrolled mode
   // Controlled: value prop is provided
   // Uncontrolled: value prop is not provided, use defaultValue
   const selectValueProp = normalizedValue;
   const selectDefaultValue = normalizedValue === undefined ? normalizedDefaultValue : undefined;
+  const isControlled = normalizedValue !== undefined;
 
-  const selectElement = (
-    <Select
-      name="pickupTime"
-      value={selectValueProp}
-      defaultValue={selectDefaultValue}
-      onValueChange={onValueChange}
-    >
-      <SelectTrigger
-        aria-label="Select pickup time"
-        className={cn(
-          containerClassName
-            ? "w-full justify-start text-left font-normal p-0 h-auto min-h-0 hover:bg-transparent focus:ring-0 shadow-none bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 border-0 [&>svg]:hidden text-sm leading-tight"
-            : "w-full rounded",
-          className,
-        )}
+  const [uncontrolledHiddenValue, setUncontrolledHiddenValue] = useState(
+    normalizedDefaultValue ?? "",
+  );
+
+  const handleValueChange = (next: string) => {
+    if (!isControlled) {
+      setUncontrolledHiddenValue(next);
+    }
+    onValueChange?.(next);
+  };
+
+  const hiddenInputValue = normalizedValue ?? uncontrolledHiddenValue;
+
+  const selectTree = (
+    <>
+      {name ? <input type="hidden" name={name} value={hiddenInputValue} /> : null}
+      <Select
+        value={selectValueProp}
+        defaultValue={selectDefaultValue}
+        onValueChange={handleValueChange}
       >
-        <SelectValue
-          placeholder={
-            containerClassName ? <span className="text-gray-500">{placeholder}</span> : placeholder
-          }
-        />
-      </SelectTrigger>
-      <SelectContent>
-        {getPickupTimes(date, bookingType).map(({ label, value }) => (
-          <SelectItem key={value} value={value}>
-            {label}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+        <SelectTrigger
+          id={triggerId}
+          aria-label={showLabel ? undefined : "Select pickup time"}
+          aria-invalid={ariaInvalid}
+          aria-describedby={ariaDescribedBy}
+          aria-required={required === true ? true : undefined}
+          className={cn(
+            containerClassName
+              ? "w-full justify-start text-left font-normal p-0 h-auto min-h-0 hover:bg-transparent focus:ring-0 shadow-none bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 border-0 [&>svg]:hidden text-sm leading-tight"
+              : "w-full rounded",
+            className,
+          )}
+        >
+          <SelectValue
+            placeholder={
+              containerClassName ? (
+                <span className="text-gray-500">{placeholder}</span>
+              ) : (
+                placeholder
+              )
+            }
+          />
+        </SelectTrigger>
+        <SelectContent>
+          {getPickupTimes(date, bookingType).map(({ label, value: itemValue }) => (
+            <SelectItem key={itemValue} value={itemValue}>
+              {label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </>
   );
 
   // If no container class provided, render plain select (backward compatible)
   if (!containerClassName) {
-    return selectElement;
+    return selectTree;
   }
 
   // Inline-style with optional label (for Airbnb-style search)
   return (
     <div className={containerClassName}>
-      {showLabel && <span className={labelClassName}>Pickup Time</span>}
-      {selectElement}
+      {showLabel && (
+        <label htmlFor={triggerId} className={labelClassName}>
+          Pickup Time
+        </label>
+      )}
+      {selectTree}
     </div>
   );
 }

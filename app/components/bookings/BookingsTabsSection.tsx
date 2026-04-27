@@ -191,6 +191,8 @@ export function BookingsTabsSection({
                                         Pickup Time
                                       </label>
                                       <BookingTimeSelect
+                                        id="pickupTime"
+                                        name="pickupTime"
                                         date={new Date(booking.startDate)}
                                         defaultValue={new Date(
                                           booking.startDate,

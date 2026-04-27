@@ -1,17 +1,18 @@
 import { getFormProps, getInputProps, useForm, useInputControl } from "@conform-to/react";
 import { getZodConstraint, parseWithZod } from "@conform-to/zod/v4";
 import { CogIcon } from "@heroicons/react/24/outline";
+import { ArrowRight } from "lucide-react";
 import {
   ActionFunctionArgs,
+  Link,
   LoaderFunctionArgs,
   data,
   redirect,
-  Link,
   useActionData,
   useLoaderData,
 } from "react-router";
 import { Form } from "~/components/CSRFForm";
-import { LoginSchema } from "~/schemas/auth.schema";
+import { AuthSplitLayout } from "~/components/layout/AuthSplitLayout";
 import { Button } from "~/components/ui/button";
 import { Checkbox } from "~/components/ui/checkbox";
 import { Input } from "~/components/ui/input";
@@ -20,12 +21,11 @@ import { useIsPending } from "~/lib/utils";
 import { getSessionUser } from "~/modules/auth/auth.server";
 import { commitSession, getSession } from "~/modules/auth/session.server";
 import { prisma } from "~/modules/db/db.server";
-import { AuthSplitLayout } from "~/components/layout/AuthSplitLayout";
-import { userHasRole } from "~/utils/shared/roles";
+import { LoginSchema } from "~/schemas/auth.schema";
 import { validateCSRF } from "~/utils/csrf-action.server";
 import { safeRedirect } from "~/utils/safe-redirect";
 import { sendOTPAndRedirect } from "~/utils/server/auth-helpers.server";
-import { ArrowRight } from "lucide-react";
+import { userHasRole } from "~/utils/shared/roles";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const user = await getSessionUser(request);
@@ -177,6 +177,7 @@ export default function FleetOwnerLogin() {
                   id={acceptTerms.id}
                   name={acceptTerms.name}
                   className="shrink-0"
+                  aria-label="I agree to Tripdly's Terms of Service and Privacy Policy"
                   checked={acceptTermsControl.value === "on"}
                   onCheckedChange={(checked) => {
                     acceptTermsControl.change(checked ? "on" : "");
@@ -217,11 +218,15 @@ export default function FleetOwnerLogin() {
 
             <Button
               type="submit"
+              aria-label={isPending ? "Sending verification code" : "Continue with email"}
               className="h-12 w-full rounded-lg bg-[#1A1814] px-6 py-3.5 text-xs font-medium uppercase tracking-[0.08em] text-white hover:bg-neutral-800"
               disabled={isPending}
             >
               {isPending ? (
-                <CogIcon className="h-5 w-5 animate-spin" />
+                <span className="flex items-center gap-2">
+                  <CogIcon className="h-5 w-5 animate-spin" />
+                  Sending verification code
+                </span>
               ) : (
                 <span className="flex gap-2">
                   Continue with Email <ArrowRight />

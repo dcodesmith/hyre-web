@@ -1,7 +1,7 @@
-import { useSearchParams } from "react-router";
 import { format } from "date-fns";
 import { Search } from "lucide-react";
-import { BOOKING_TYPE_OPTIONS_MAP, DAY_BOOKING_TYPE, type BookingType } from "./bookingTypes";
+import { useSearchParams } from "react-router";
+import { BOOKING_TYPE_OPTIONS_MAP, type BookingType, DAY_BOOKING_TYPE } from "./bookingTypes";
 
 interface CompactSearchBarProps {
   readonly onClick: () => void;
@@ -66,9 +66,8 @@ export function CompactSearchBar({ onClick }: CompactSearchBarProps) {
       onClick={onClick}
       className="w-full bg-white border border-gray-200 rounded-full shadow-lg hover:shadow-xl transition-shadow px-4 py-3 flex items-center justify-center gap-3"
       type="button"
-      aria-label="Edit search parameters"
     >
-      <Search className="h-5 w-5 text-gray-500" />
+      <Search className="h-5 w-5 text-gray-500 shrink-0" aria-hidden />
 
       {hasSelections ? (
         <div className="flex items-center gap-2 text-sm font-medium text-gray-900">

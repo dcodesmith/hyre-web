@@ -1,5 +1,5 @@
+import { Mail, MapPin, Phone } from "lucide-react";
 import { Link } from "react-router";
-import { Mail, Phone, MapPin } from "lucide-react";
 import { FacebookIcon } from "~/components/icons/FacebookIcon";
 import { InstagramIcon } from "~/components/icons/InstagramIcon";
 import { XIcon } from "~/components/icons/XIcon";
@@ -36,7 +36,7 @@ export function Footer({ appName, isCarDetailPage }: FooterProps) {
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-gray-400 hover:text-gray-600 transition-colors"
-                aria-label="Facebook"
+                aria-label="Tripdly on Facebook"
               >
                 <FacebookIcon size={20} className="h-5 w-5" />
               </a>
@@ -45,7 +45,7 @@ export function Footer({ appName, isCarDetailPage }: FooterProps) {
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-gray-400 hover:text-gray-600 transition-colors"
-                aria-label="Instagram"
+                aria-label="Tripdly on Instagram"
               >
                 <InstagramIcon size={20} className="h-5 w-5" />
               </a>
@@ -54,7 +54,7 @@ export function Footer({ appName, isCarDetailPage }: FooterProps) {
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-gray-400 hover:text-gray-600 transition-colors"
-                aria-label="X (formerly Twitter)"
+                aria-label="Tripdly on X"
               >
                 <XIcon size={20} className="h-5 w-5" />
               </a>

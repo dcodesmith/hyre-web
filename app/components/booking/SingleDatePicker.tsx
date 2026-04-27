@@ -1,6 +1,6 @@
 import { addDays, format, startOfDay, startOfToday } from "date-fns";
 import { ChevronsDownUp, ChevronsUpDown } from "lucide-react";
-import { useState } from "react";
+import { type ComponentPropsWithoutRef, type ElementRef, forwardRef, useId, useState } from "react";
 import { Button } from "~/components/ui/button";
 import { Calendar } from "~/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "~/components/ui/popover";
@@ -41,6 +41,133 @@ interface SingleDatePickerProps {
   readonly disableDate?: Date;
 }
 
+function buildDisabledDayMatchers(
+  minDisabledDateNormalized: Date,
+  maxDate: Date | undefined,
+  disableDate: Date | undefined,
+): Array<
+  { before: Date; after?: Date } | { after: Date; before?: Date } | { before: Date } | Date
+> {
+  const disabledMatchers: Array<
+    { before: Date; after?: Date } | { after: Date; before?: Date } | { before: Date } | Date
+  > = [];
+
+  if (maxDate) {
+    disabledMatchers.push({ before: minDisabledDateNormalized, after: maxDate });
+  } else {
+    disabledMatchers.push({ before: minDisabledDateNormalized });
+  }
+
+  if (disableDate) {
+    disabledMatchers.push(startOfDay(disableDate));
+  }
+
+  return disabledMatchers;
+}
+
+interface LabeledDateTriggerProps {
+  readonly triggerId: string;
+  readonly labelTextId: string;
+  readonly valueTextId: string;
+  readonly isCompact: boolean;
+  readonly hasDate: boolean;
+  readonly label: string;
+  readonly formattedDate: string | null;
+  readonly placeholder: string;
+}
+
+const LabeledDateTrigger = forwardRef<
+  ElementRef<typeof Button>,
+  LabeledDateTriggerProps & ComponentPropsWithoutRef<typeof Button>
+>(
+  (
+    {
+      triggerId,
+      labelTextId,
+      valueTextId,
+      isCompact,
+      hasDate,
+      label,
+      formattedDate,
+      placeholder,
+      className,
+      ...buttonProps
+    },
+    ref,
+  ) => {
+    const isDisabled = buttonProps.disabled === true;
+
+    return (
+      <Button
+        ref={ref}
+        {...buttonProps}
+        id={triggerId}
+        type="button"
+        variant="ghost"
+        className={cn(
+          "w-full text-left font-normal hover:bg-transparent flex flex-col items-start justify-center",
+          isCompact ? "h-auto gap-0.5 px-0" : "h-10 px-0",
+          !hasDate && "text-muted-foreground",
+          isDisabled && "opacity-50 cursor-not-allowed",
+          className,
+        )}
+        aria-labelledby={`${labelTextId} ${valueTextId}`}
+      >
+        <span id={labelTextId} className="text-xs font-semibold text-gray-700 leading-tight">
+          {label}
+        </span>
+        <div
+          id={valueTextId}
+          className={cn("text-sm leading-tight", hasDate ? "text-gray-900" : "text-gray-500")}
+        >
+          {formattedDate ?? placeholder}
+        </div>
+      </Button>
+    );
+  },
+);
+LabeledDateTrigger.displayName = "LabeledDateTrigger";
+
+interface OutlineDateTriggerProps {
+  readonly triggerId: string;
+  readonly hasDate: boolean;
+  readonly formattedDate: string | null;
+  readonly placeholder: string;
+  readonly isOpen: boolean;
+}
+
+const OutlineDateTrigger = forwardRef<
+  ElementRef<typeof Button>,
+  OutlineDateTriggerProps & ComponentPropsWithoutRef<typeof Button>
+>(({ triggerId, hasDate, formattedDate, placeholder, isOpen, className, ...buttonProps }, ref) => {
+  const isDisabled = buttonProps.disabled === true;
+
+  return (
+    <Button
+      ref={ref}
+      {...buttonProps}
+      id={triggerId}
+      type="button"
+      variant="outline"
+      className={cn(
+        "w-full justify-start text-left font-normal px-3",
+        !hasDate && "text-muted-foreground",
+        isDisabled && "opacity-50 cursor-not-allowed",
+        className,
+      )}
+      aria-label={hasDate ? `Selected date: ${formattedDate}` : placeholder}
+    >
+      {formattedDate ?? <span>{placeholder}</span>}
+      {isOpen ? (
+        <ChevronsDownUp className="h-4 w-4 ml-auto" />
+      ) : (
+        <ChevronsUpDown className="h-4 w-4 ml-auto" />
+      )}
+    </Button>
+  );
+});
+OutlineDateTrigger.displayName = "OutlineDateTrigger";
+
 export function SingleDatePicker({
   date,
   onDateChange,
@@ -59,6 +186,10 @@ export function SingleDatePicker({
   disableDate,
 }: SingleDatePickerProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const rootId = useId();
+  const triggerId = `${rootId}-trigger`;
+  const labelTextId = `${rootId}-label-text`;
+  const valueTextId = `${rootId}-value-text`;
 
   // Ensure we're working with Date object
   const normalizedDate = date ? new Date(date) : undefined;
@@ -87,26 +218,11 @@ export function SingleDatePicker({
   // Normalize to start of day to ensure proper date comparison (avoid time component issues)
   const minDisabledDateNormalized = startOfDay(minDisabledDate);
 
-  // Build array of disabled matchers
-  const disabledMatchers: Array<
-    { before: Date; after?: Date } | { after: Date; before?: Date } | { before: Date } | Date
-  > = [];
-
-  // Disable dates outside the allowed range [minDisabledDate, maxDate]
-  // react-day-picker: { before: X, after: Y } keeps only dates between X and Y enabled
-  if (maxDate) {
-    disabledMatchers.push({ before: minDisabledDateNormalized, after: maxDate });
-  } else {
-    // Disable dates before the minimum disabled date
-    disabledMatchers.push({ before: minDisabledDateNormalized });
-  }
-
-  // Explicitly disable the specified date (e.g., "from" date in "to" picker)
-  if (disableDate) {
-    disabledMatchers.push(startOfDay(disableDate));
-  }
-
-  // Simplify to single matcher if only one (react-day-picker accepts both forms)
+  const disabledMatchers = buildDisabledDayMatchers(
+    minDisabledDateNormalized,
+    maxDate,
+    disableDate,
+  );
   const disabledDays = disabledMatchers.length === 1 ? disabledMatchers[0] : disabledMatchers;
 
   const handleDateChange = (selectedDate: Date | undefined) => {
@@ -129,44 +245,26 @@ export function SingleDatePicker({
       <Popover open={isOpen && !disabled} onOpenChange={setIsOpen}>
         <PopoverTrigger asChild>
           {showLabel ? (
-            <Button
-              id="date"
-              variant="ghost"
+            <LabeledDateTrigger
+              triggerId={triggerId}
+              labelTextId={labelTextId}
+              valueTextId={valueTextId}
+              isCompact={isCompact}
               disabled={disabled}
-              className={cn(
-                "w-full text-left font-normal hover:bg-transparent flex flex-col items-start justify-center",
-                isCompact ? "h-auto gap-0.5 px-0" : "h-10 px-0",
-                !hasDate && "text-muted-foreground",
-                disabled && "opacity-50 cursor-not-allowed",
-              )}
-              aria-label={hasDate ? `${label}: ${formattedDate}` : `${label}: ${placeholder}`}
-            >
-              <span className="text-xs font-semibold text-gray-700 leading-tight">{label}</span>
-              <div
-                className={cn("text-sm leading-tight", hasDate ? "text-gray-900" : "text-gray-500")}
-              >
-                {formattedDate ?? placeholder}
-              </div>
-            </Button>
+              hasDate={hasDate}
+              label={label}
+              formattedDate={formattedDate}
+              placeholder={placeholder}
+            />
           ) : (
-            <Button
-              id="date"
-              variant="outline"
+            <OutlineDateTrigger
+              triggerId={triggerId}
               disabled={disabled}
-              className={cn(
-                "w-full justify-start text-left font-normal px-3",
-                !hasDate && "text-muted-foreground",
-                disabled && "opacity-50 cursor-not-allowed",
-              )}
-              aria-label={hasDate ? `Select date: ${formattedDate}` : `Select date: ${placeholder}`}
-            >
-              {formattedDate ?? <span>{placeholder}</span>}
-              {isOpen ? (
-                <ChevronsDownUp className="h-4 w-4 ml-auto" />
-              ) : (
-                <ChevronsUpDown className="h-4 w-4 ml-auto" />
-              )}
-            </Button>
+              hasDate={hasDate}
+              formattedDate={formattedDate}
+              placeholder={placeholder}
+              isOpen={isOpen}
+            />
           )}
         </PopoverTrigger>
         <PopoverContent className="w-auto p-0" align="start">
@@ -187,6 +285,7 @@ export function SingleDatePicker({
 
               <div className="flex gap-2 sm:w-auto w-full">
                 <Button
+                  type="button"
                   variant="ghost"
                   className="text-muted-foreground flex-1 bg-muted"
                   onClick={() => {

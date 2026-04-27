@@ -185,7 +185,9 @@ function BookingTypeInput({
         <div className="flex items-start gap-2">
           {/* Left column: Label + Input - takes full width when no message */}
           <div className={cn("flex flex-col min-w-0", validationContent ? "w-[45%]" : "flex-1")}>
-            <span className={labelClass}>Flight Number</span>
+            <label htmlFor="flightNumber" className={labelClass}>
+              Flight Number
+            </label>
             <AutocompleteFlight
               id="flightNumber"
               onSelect={onFlightNumberSelect}
@@ -251,6 +253,8 @@ function SearchButton({ isCompact, isSearching, disabled = false, onClick }: Sea
       )}
     >
       <Button
+        type="button"
+        aria-label={isSearching ? "Searching" : "Search for vehicles"}
         className={cn(
           "rounded-full font-semibold bg-primary hover:bg-primary/90 transition-all duration-300",
           isCompact
@@ -267,7 +271,7 @@ function SearchButton({ isCompact, isSearching, disabled = false, onClick }: Sea
           </>
         ) : (
           <>
-            <Search className={cn(isCompact ? "h-4 w-4" : "h-5 w-5 mr-2")} aria-label="Search" />
+            <Search className={cn(isCompact ? "h-4 w-4" : "h-5 w-5 mr-2")} aria-hidden />
             {!isCompact && <span className="ml-2 md:hidden">Search</span>}
           </>
         )}
@@ -760,12 +764,10 @@ export function BookingSearch({
                     </div>
                   </>
                 ) : (
-                  <>
-                    {/* Mobile: Dates section with From/To side by side, Desktop: separate sections */}
-                    {/* Dates Section - Mobile layout */}
-                    <div className="flex-1 flex items-center px-4 sm:px-6 py-3 min-h-[60px] gap-2 md:hidden">
+                  <div className="grid flex-1 w-full min-h-[60px] grid-cols-2 md:grid-cols-3">
+                    <div className="flex items-center px-4 sm:px-6 py-3 min-w-0 border-r border-gray-200">
                       <SingleDatePicker
-                        className="flex-1"
+                        className="w-full"
                         date={dateRange.from}
                         onDateChange={handleFromDateChange}
                         isNightBooking={bookingType === NIGHT_BOOKING_TYPE}
@@ -773,8 +775,10 @@ export function BookingSearch({
                         isCompact={isCompact}
                         label="From"
                       />
+                    </div>
+                    <div className="flex items-center px-4 sm:px-6 py-3 min-w-0">
                       <SingleDatePicker
-                        className="flex-1"
+                        className="w-full"
                         date={dateRange.to}
                         onDateChange={handleToDateChange}
                         isNightBooking={bookingType === NIGHT_BOOKING_TYPE}
@@ -785,44 +789,10 @@ export function BookingSearch({
                         disabled={!dateRange.from}
                       />
                     </div>
-                    {/* Desktop: All three sections side by side with equal widths */}
-                    <div className="hidden md:flex flex-1 items-stretch divide-x divide-gray-200">
-                      {/* From Date Section */}
-                      <div className="flex-1 flex items-center pl-6 pr-4 sm:pr-6 py-3 min-h-[60px] border-l-0">
-                        <SingleDatePicker
-                          className="w-full"
-                          date={dateRange.from}
-                          onDateChange={handleFromDateChange}
-                          isNightBooking={bookingType === NIGHT_BOOKING_TYPE}
-                          isFullDayBooking={bookingType === FULL_DAY_BOOKING_TYPE}
-                          isCompact={isCompact}
-                          label="From"
-                        />
-                      </div>
-                      {/* To Date Section */}
-                      <div className="flex-1 flex items-center px-4 sm:px-6 py-3 min-h-[60px]">
-                        <SingleDatePicker
-                          className="w-full"
-                          date={dateRange.to}
-                          onDateChange={handleToDateChange}
-                          isNightBooking={bookingType === NIGHT_BOOKING_TYPE}
-                          isFullDayBooking={bookingType === FULL_DAY_BOOKING_TYPE}
-                          isCompact={isCompact}
-                          label="To"
-                          minDate={toDateMinDate}
-                          disabled={!dateRange.from}
-                        />
-                      </div>
-                      {/* Pickup Time / Flight Number Section */}
-                      <div className="flex-1 flex items-center px-4 sm:px-6 py-3 min-h-[60px]">
-                        <BookingTypeInput {...bookingTypeInputProps} />
-                      </div>
-                    </div>
-                    {/* Pickup Time / Flight Number Section - Mobile only */}
-                    <div className="flex-1 flex items-center px-4 sm:px-6 py-3 border-t md:hidden min-h-[60px]">
+                    <div className="col-span-2 md:col-span-1 flex items-center px-4 sm:px-6 py-3 min-h-[60px] min-w-0 border-t border-gray-200 md:border-t-0 md:border-l">
                       <BookingTypeInput {...bookingTypeInputProps} />
                     </div>
-                  </>
+                  </div>
                 )}
               </>
             )}

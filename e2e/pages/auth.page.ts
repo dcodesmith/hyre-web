@@ -15,10 +15,7 @@ export class AuthPage {
     this.termsCheckbox = page.getByRole("checkbox", {
       name: /i agree to tripdly's/i,
     });
-    this.submitButton = page.getByRole("button", {
-      name: "Continue with Email",
-      exact: true,
-    });
+    this.submitButton = page.getByRole("button", { name: /continue with email/i });
     this.referralBanner = page.getByText("signing up with referral code", { exact: false });
   }
 

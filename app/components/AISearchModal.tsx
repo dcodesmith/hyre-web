@@ -1,6 +1,6 @@
-import { useLocation, useNavigate } from "react-router";
 import { AlertCircle, CheckCircle, Loader2, Plane, Search, Sparkles, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useId, useRef, useState } from "react";
+import { useLocation, useNavigate } from "react-router";
 import { toast } from "sonner";
 import { Button } from "~/components/ui/button";
 import {
@@ -10,6 +10,7 @@ import {
   DialogHeader,
   DialogTrigger,
 } from "~/components/ui/dialog";
+import { Label } from "~/components/ui/label";
 import { Textarea } from "~/components/ui/textarea";
 import { cn } from "~/lib/utils";
 
@@ -17,6 +18,42 @@ interface AISearchResponse {
   readonly params: Record<string, string>;
   readonly interpretation?: string;
   readonly error?: string;
+}
+
+async function getAiSearchErrorMessage(response: Response): Promise<string> {
+  const fallbackError = "Failed to process search";
+  const errorText = await response.text();
+
+  if (!errorText.trim()) {
+    return fallbackError;
+  }
+
+  try {
+    const errorData: AISearchResponse = JSON.parse(errorText);
+    return errorData.error || errorText || fallbackError;
+  } catch {
+    return errorText || fallbackError;
+  }
+}
+
+async function requestAiSearch(query: string, signal: AbortSignal): Promise<AISearchResponse> {
+  const response = await fetch("/api/ai-search", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ query }),
+    signal,
+  });
+
+  if (!response.ok) {
+    throw new Error(await getAiSearchErrorMessage(response));
+  }
+
+  const data: AISearchResponse = await response.json();
+  if (data.error) {
+    throw new Error(data.error);
+  }
+
+  return data;
 }
 
 const dialogContentClasses = cn(
@@ -32,6 +69,7 @@ const dialogContentClasses = cn(
 );
 
 export function AISearchModal() {
+  const queryFieldId = useId();
   const location = useLocation();
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
@@ -43,6 +81,14 @@ export function AISearchModal() {
   const flightValidationAbortControllerRef = useRef<AbortController | null>(null);
 
   const onClose = () => setIsOpen(false);
+
+  const navigateToSearchResults = (searchUrl: string) => {
+    if (location.pathname === "/search") {
+      globalThis.location.href = searchUrl;
+      return;
+    }
+    navigate(searchUrl);
+  };
 
   /**
    * Validates flight with timeout. Returns null if timeout/error (graceful degradation).
@@ -178,6 +224,21 @@ export function AISearchModal() {
     }
   };
 
+  const maybeValidateAirportPickup = async (data: AISearchResponse): Promise<boolean> => {
+    const isAirportPickup =
+      data.params.bookingType === "AIRPORT_PICKUP" && data.params.flightNumber && data.params.from;
+
+    if (isAirportPickup) {
+      return handleAirportPickupValidation(data.params.flightNumber, data.params.from);
+    }
+
+    if (data.interpretation) {
+      toast.success(data.interpretation);
+    }
+
+    return true;
+  };
+
   const handleSearch = async () => {
     if (isLoading) {
       return;
@@ -202,75 +263,21 @@ export function AISearchModal() {
 
     try {
       // Step 1: Extract parameters with AI
-      const response = await fetch("/api/ai-search", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query }),
-        signal: aiSearchAbortControllerRef.current.signal,
-      });
-
-      if (!response.ok) {
-        let errorMessage = "Failed to process search";
-        try {
-          const errorData: AISearchResponse = await response.json();
-          errorMessage = errorData.error || errorMessage;
-        } catch {
-          // If JSON parse fails, try to read as text
-          try {
-            const errorText = await response.text();
-            errorMessage = errorText || errorMessage;
-          } catch {
-            // Use default error message
-          }
-        }
-        toast.error(errorMessage);
-        setValidationStatus("");
-        setIsLoading(false);
-        aiSearchAbortControllerRef.current = null;
-        return;
-      }
-
-      const data: AISearchResponse = await response.json();
-
-      if (data.error) {
-        toast.error(data.error);
-        setValidationStatus("");
-        setIsLoading(false);
-        aiSearchAbortControllerRef.current = null;
-        return;
-      }
+      const data = await requestAiSearch(query, aiSearchAbortControllerRef.current.signal);
 
       // Build search URL with extracted parameters
       const searchParams = new URLSearchParams(data.params);
       const searchUrl = `/search?${searchParams.toString()}`;
 
       // Step 2: If airport pickup, validate flight (Option C: Hybrid)
-      const isAirportPickup =
-        data.params.bookingType === "AIRPORT_PICKUP" &&
-        data.params.flightNumber &&
-        data.params.from;
-
-      if (isAirportPickup) {
-        const shouldContinue = await handleAirportPickupValidation(
-          data.params.flightNumber,
-          data.params.from,
-        );
-
-        if (!shouldContinue) {
-          aiSearchAbortControllerRef.current = null;
-          return; // Validation failed, stay in modal
-        }
-      } else if (data.interpretation) {
-        // Not airport pickup - show interpretation
-        toast.success(data.interpretation);
+      const shouldContinue = await maybeValidateAirportPickup(data);
+      if (!shouldContinue) {
+        aiSearchAbortControllerRef.current = null;
+        return; // Validation failed, stay in modal
       }
 
       // Navigate to search results
-      if (location.pathname === "/search") {
-        globalThis.location.href = searchUrl;
-      } else {
-        navigate(searchUrl);
-      }
+      navigateToSearchResults(searchUrl);
     } catch (error) {
       // Handle abort gracefully
       if (error instanceof Error && error.name === "AbortError") {
@@ -278,7 +285,9 @@ export function AISearchModal() {
         return;
       }
       console.error("AI Search error:", error);
-      toast.error("Something went wrong. Please try again.");
+      toast.error(
+        error instanceof Error ? error.message : "Something went wrong. Please try again.",
+      );
       setValidationStatus("");
     } finally {
       setIsLoading(false);
@@ -350,15 +359,18 @@ export function AISearchModal() {
 
         <div className="space-y-4 px-6 py-5">
           {/* Chat-like input */}
-          <div className="relative">
+          <div className="relative space-y-2">
+            <Label htmlFor={queryFieldId} className="text-sm font-medium text-gray-900">
+              Describe your search
+            </Label>
             <Textarea
+              id={queryFieldId}
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="E.g., I need a luxury sedan for tomorrow night, or a white SUV for airport pickup..."
               className="min-h-[100px] resize-none text-sm placeholder:text-sm placeholder:text-gray-400"
               disabled={isLoading}
-              autoFocus
             />
             {query && !isLoading && (
               <button
@@ -418,6 +430,7 @@ export function AISearchModal() {
           {/* Search button */}
           <div className="flex justify-center gap-3 pt-2">
             <Button
+              type="button"
               onClick={() => {
                 // Abort any in-flight requests
                 if (aiSearchAbortControllerRef.current) {
@@ -436,9 +449,11 @@ export function AISearchModal() {
               Cancel
             </Button>
             <Button
+              type="button"
               onClick={handleSearch}
               disabled={!query.trim() || isLoading}
               className="rounded-full min-w-[120px]"
+              aria-label={isLoading ? "Searching with AI" : "Search with AI"}
             >
               {isLoading ? (
                 <>

@@ -106,6 +106,7 @@ function TimeOrFlightField({
   }
 
   // Other booking types: show pickup time selector
+  const pickupTimeInput = getInputProps(fields.pickupTime, { type: "text", ariaAttributes: true });
   return (
     <div className="space-y-1">
       <Label htmlFor={fields.pickupTime.id} className="font-semibold">
@@ -114,7 +115,13 @@ function TimeOrFlightField({
       <BookingTimeSelect
         date={dateRange.from ?? fallbackDate}
         bookingType={bookingType}
-        {...getInputProps(fields.pickupTime, { type: "text", ariaAttributes: true })}
+        id={pickupTimeInput.id}
+        name={pickupTimeInput.name}
+        defaultValue={pickupTimeInput.defaultValue}
+        value={fields.pickupTime.value}
+        aria-invalid={pickupTimeInput["aria-invalid"]}
+        aria-describedby={pickupTimeInput["aria-describedby"]}
+        required={pickupTimeInput.required}
         className={fields.pickupTime.errors ? errorRingClasses : ""}
         onValueChange={onPickupTimeChange}
       />

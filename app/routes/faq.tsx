@@ -1,18 +1,18 @@
-import { type MetaFunction, data, useLoaderData } from "react-router";
-import { Search, Phone, Mail } from "lucide-react";
+import { Mail, Phone, Search } from "lucide-react";
 import { useState } from "react";
-import { FAQSchema, BreadcrumbSchema } from "~/components/seo/StructuredData";
-import { Button } from "~/components/ui/button";
+import { type MetaFunction, data, useLoaderData } from "react-router";
+import { BreadcrumbSchema, FAQSchema } from "~/components/seo/StructuredData";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from "~/components/ui/accordion";
+import { Button } from "~/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import { cn } from "~/lib/utils";
-import { env } from "~/utils/server/env.server";
 import { generateMetaTags } from "~/utils/seo";
+import { env } from "~/utils/server/env.server";
 
 // Comprehensive FAQ data organized by category
 const faqCategories = [
@@ -268,7 +268,7 @@ export default function FAQPage() {
               placeholder="Search questions..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-900 focus-visible:border-transparent"
             />
           </div>
         </div>

@@ -1174,6 +1174,8 @@ export default function BookingDetails() {
                                 <div className="space-y-2">
                                   <Label htmlFor="pickupTime">Pickup Time</Label>
                                   <BookingTimeSelect
+                                    id="pickupTime"
+                                    name="pickupTime"
                                     date={new Date(booking.startDate)}
                                     defaultValue={new Date(booking.startDate).toLocaleTimeString(
                                       "en-US",

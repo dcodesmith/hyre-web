@@ -13,7 +13,8 @@ export class HomePage {
   constructor(page: Page) {
     this.page = page;
     this.bookingTypeGroup = page.getByRole("group", { name: "Booking type" });
-    this.searchButton = page.getByRole("button", { name: "Search" });
+    // Hero search uses an explicit aria-label ("Search for vehicles") on viewports where only the icon shows
+    this.searchButton = page.getByRole("button", { name: /search for vehicles|searching/i });
     this.carTitles = page.getByRole("heading", { level: 3 }).filter({ hasText: /\(\d{4}\)/ });
     this.registerOrLoginButton = page.getByRole("button", {
       name: /register or log in/i,

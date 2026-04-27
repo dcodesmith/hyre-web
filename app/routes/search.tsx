@@ -818,10 +818,11 @@ export async function loader({ request, params: routeParams }: LoaderFunctionArg
   }
 }
 
-type SearchCar = SerializedCar & (
-  | { isOnPromotion: false }
-  | { isOnPromotion: true; promotionLabel: string; promotionDiscountPercent: number }
-);
+type SearchCar = SerializedCar &
+  (
+    | { isOnPromotion: false }
+    | { isOnPromotion: true; promotionLabel: string; promotionDiscountPercent: number }
+  );
 
 type LoaderData = {
   cars: SearchCar[];
@@ -942,12 +943,14 @@ export default function SearchPage() {
         </div>
       </div>
 
-      {/* Mobile Search Modal */}
-      <SearchModal
-        isOpen={isSearchModalOpen}
-        onClose={() => setIsSearchModalOpen(false)}
-        searchBasePath={searchBasePath}
-      />
+      {/* Mobile Search Modal — mount only when open so controls are not left in an aria-hidden subtree */}
+      {isSearchModalOpen && (
+        <SearchModal
+          isOpen
+          onClose={() => setIsSearchModalOpen(false)}
+          searchBasePath={searchBasePath}
+        />
+      )}
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto my-24">
