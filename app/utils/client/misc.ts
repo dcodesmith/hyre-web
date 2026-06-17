@@ -10,6 +10,7 @@ export type RootLoaderData = {
     APP_NAME: string;
     GOOGLE_MAPS_API_KEY: string;
     CLOUDFRONT_DOMAIN: string;
+    isProduction: boolean;
   };
   csrfToken: string;
 };
@@ -36,6 +37,15 @@ export function useUser() {
   }
 
   return optionalUser;
+}
+
+/**
+ * Whether the app is running in a production deployment (NODE_ENV=production).
+ * Sourced from the root loader's shared ENV.
+ */
+export function useIsProduction(): boolean {
+  const data = useRouteLoaderData<RootLoaderData>("root");
+  return Boolean(data?.ENV?.isProduction);
 }
 
 // Re-export role utilities from shared module for backward compatibility

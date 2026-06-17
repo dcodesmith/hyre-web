@@ -443,6 +443,13 @@ async function resolveBookingAcquisitionForRequest(
 }
 
 async function handleCreateBooking(request: Request, formData: FormData, user: BookingUser) {
+  if (env.NODE_ENV === "production") {
+    return data(
+      { error: "Online booking is not available yet. Please check back soon." },
+      { status: 403 },
+    );
+  }
+
   const url = new URL(request.url);
   const startDate = url.searchParams.get("from");
   const endDate = url.searchParams.get("to");

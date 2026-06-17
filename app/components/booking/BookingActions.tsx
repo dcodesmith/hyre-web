@@ -1,6 +1,7 @@
 import { Loader2 } from "lucide-react";
 import { Button } from "../ui/button";
 import { User } from "@prisma/client";
+import { useIsProduction } from "~/utils/client/misc";
 
 interface BookingActionsProps {
   readonly user: User | null;
@@ -9,6 +10,10 @@ interface BookingActionsProps {
 }
 
 export function BookingActions({ user, isPending, onNavigateToAuth }: BookingActionsProps) {
+  const isProduction = useIsProduction();
+
+  if (isProduction) return null;
+
   return (
     <div className="flex flex-col space-y-2">
       {user ? (

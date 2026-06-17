@@ -313,6 +313,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
         GOOGLE_MAPS_API_KEY: "",
         DOMAIN: env.DOMAIN,
         CLOUDFRONT_DOMAIN: "",
+        isProduction: env.NODE_ENV === "production",
       },
       csrfToken: "",
       referralConfigPromise: Promise.resolve({
@@ -341,6 +342,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     GOOGLE_MAPS_API_KEY: env.GOOGLE_MAPS_API_KEY,
     DOMAIN: env.DOMAIN,
     CLOUDFRONT_DOMAIN: env.CLOUDFRONT_DOMAIN,
+    isProduction: env.NODE_ENV === "production",
   } as const;
 
   // Properly handle multiple Set-Cookie headers
