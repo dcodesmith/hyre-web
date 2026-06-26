@@ -218,6 +218,7 @@ export const meta: MetaFunction<typeof loader> = ({ data }) => {
     description,
     url: `${baseUrl}/faq`,
     canonical: `${baseUrl}/faq`,
+    image: `${baseUrl}/og-image.jpg`,
   });
 };
 

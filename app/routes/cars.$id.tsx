@@ -505,8 +505,8 @@ export const meta: MetaFunction<typeof loader> = ({ data }) => {
   const carUrl = `${baseUrl}${partnerPrefix}/cars/${slug}`;
   const imageUrl = car.images?.[0]?.url || `${baseUrl}/og-image.jpg`;
 
-  const title = `${carName} in Lagos, Nigeria - Book Now | Tripdly`;
-  const description = `Book ${carName} with professional chauffeur service in Lagos, Nigeria. ${car.color} ${car.vehicleType} available for day trips, airport pickups, and special events. Starting from ${price} per day. Safe, reliable, and exceptional service. Instant booking & secure payment.`;
+  const title = `${carName} in Lagos | Tripdly`;
+  const description = `Book a ${car.color} ${carName} with professional chauffeur service in Lagos, Nigeria. ${car.vehicleType} from ${price}/day for trips, airport pickups and events.`;
   const keywords = getVehicleKeywords(car.make, car.model, car.vehicleType);
 
   return generateMetaTags({
@@ -593,15 +593,15 @@ export default function CarDetails() {
         onOpenReviews={() => setIsReviewsOpen(true)}
       />
 
-      {/* Desktop: Back link and title */}
+      {/* Back link - desktop only (mobile uses the hero back arrow) */}
       <div className="hidden lg:block">
         <Link to={backToSearch} className="hover:underline mb-1 block">
           &larr; Back to search results
         </Link>
-        <h2 className="text-2xl sm:text-3xl font-bold mb-4">
-          {car.make} {car.model} - {car.year}
-        </h2>
       </div>
+      <h1 className="px-4 lg:px-0 mt-3 lg:mt-0 text-xl sm:text-2xl lg:text-3xl font-bold mb-2 lg:mb-4">
+        {car.make} {car.model} - {car.year}
+      </h1>
 
       {/* Main content grid */}
       <div className="lg:grid lg:grid-cols-[60%,40%] lg:gap-4">

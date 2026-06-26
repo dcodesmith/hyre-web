@@ -51,9 +51,7 @@ import type { AggregatedRatings } from "~/services/reviews.server";
 import type { SerializedCar, ServiceTier, VehicleType } from "~/types";
 import {
   SERVICE_TIERS,
-  ServiceTiers,
   VEHICLE_TYPES,
-  VehicleTypes,
   serviceTierLabels,
   vehicleTypeLabels,
 } from "~/types";
@@ -955,12 +953,12 @@ export default function SearchPage() {
       {/* Main Content */}
       <div className="max-w-7xl mx-auto my-24">
         {/* Results Header */}
-        <h4 className="py-4 font-semibold">
+        <h1 className="py-4 font-semibold">
           {pagination?.total ?? allCars.length}{" "}
-          {serviceTierLabels[filters.serviceTier ?? ServiceTiers.STANDARD]}{" "}
-          {vehicleTypeLabels[filters.vehicleType ?? VehicleTypes.SEDAN]}{" "}
+          {filters.serviceTier ? `${serviceTierLabels[filters.serviceTier]} ` : ""}
+          {filters.vehicleType ? `${vehicleTypeLabels[filters.vehicleType]} ` : ""}
           {(pagination?.total ?? allCars.length) === 1 ? "vehicle" : "vehicles"} found
-        </h4>
+        </h1>
 
         {/* Hidden pagination links for SEO */}
         {pagination && (

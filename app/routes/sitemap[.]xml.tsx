@@ -36,7 +36,13 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const staticPages = [
     { url: "", priority: "1.0", changefreq: "daily" },
     { url: "/search", priority: "0.9", changefreq: "hourly" },
+    { url: "/chauffeur-service-lagos", priority: "0.9", changefreq: "weekly" },
+    { url: "/about", priority: "0.6", changefreq: "monthly" },
+    { url: "/faq", priority: "0.6", changefreq: "monthly" },
     { url: "/referrals", priority: "0.7", changefreq: "weekly" },
+    { url: "/terms", priority: "0.3", changefreq: "yearly" },
+    { url: "/privacy", priority: "0.3", changefreq: "yearly" },
+    { url: "/cookies", priority: "0.3", changefreq: "yearly" },
   ];
 
   const currentDate = new Date().toISOString();

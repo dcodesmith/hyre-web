@@ -1,6 +1,17 @@
 import { z } from "zod";
 import { resolveEmailProvider } from "~/modules/email/email-provider";
 
+/**
+ * Reduces DOMAIN to a bare protocol+host origin (no path, no trailing slash).
+ * Garbage (whitespace-only, no host) falls through unchanged so the schema's
+ * `.pipe(z.url())` rejects it with a clean error instead of throwing.
+ */
+export function normalizeSiteOrigin(value: string): string {
+  const trimmed = value.trim().replace(/\/+$/, "");
+  const withProtocol = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+  return URL.canParse(withProtocol) ? new URL(withProtocol).origin : withProtocol;
+}
+
 export const envSchema = z
   .object({
     NODE_ENV: z
@@ -55,7 +66,7 @@ export const envSchema = z
 
     SUPPORT_EMAIL: z.string().optional(),
     WEBSITE_URL: z.url().optional(),
-    DOMAIN: z.string(),
+    DOMAIN: z.string().min(1).transform(normalizeSiteOrigin).pipe(z.url()),
 
     MAINTENANCE_MODE: z.enum(["true", "false"]).optional().default("false"),
     RATE_LIMIT_FAIL_OPEN: z.enum(["true", "false"]).optional(),

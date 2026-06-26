@@ -2,15 +2,24 @@ import { Link, type MetaFunction } from "react-router";
 import { Button } from "~/components/ui/button";
 import { LEGAL_CONSTANTS } from "~/constants/legal";
 import { useCookieConsent } from "~/hooks/useCookieConsent";
+import { generateMetaTags } from "~/utils/seo";
+import { env } from "~/utils/server/env.server";
 
-export const meta: MetaFunction = () => {
-  return [
-    { title: "Cookie Policy | Tripdly" },
-    {
-      name: "description",
-      content: "Learn about the cookies used by Tripdly and how they help us provide our services.",
-    },
-  ];
+export async function loader() {
+  return { ENV: { DOMAIN: env.DOMAIN } };
+}
+
+export const meta: MetaFunction<typeof loader> = ({ loaderData }) => {
+  const baseUrl = loaderData?.ENV?.DOMAIN ?? "http://localhost:5173";
+
+  return generateMetaTags({
+    title: "Cookie Policy | Tripdly",
+    description:
+      "Learn about the cookies used by Tripdly and how they help us provide our services.",
+    url: `${baseUrl}/cookies`,
+    canonical: `${baseUrl}/cookies`,
+    image: `${baseUrl}/og-image.jpg`,
+  });
 };
 
 function CookiePreferencesManager() {

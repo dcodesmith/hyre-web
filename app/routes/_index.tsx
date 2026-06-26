@@ -41,7 +41,7 @@ export const meta: MetaFunction<typeof loader> = ({ loaderData }) => {
   const title = "Car Rental in Lagos with Driver | Chauffeur Service | Tripdly";
 
   const description =
-    "Book chauffeur-driven cars in Lagos, Nigeria through our platform. Browse vehicles from verified fleet owners—from standard to premium and luxury options. Day trips, airport pickups, and special events. Choose from SUVs, sedans, and executive cars. Safe, reliable, and professional service.";
+    "Book chauffeur-driven cars in Lagos, Nigeria from verified fleet owners. SUVs, sedans and luxury vehicles for day trips, airport pickups and special events.";
 
   return generateMetaTags({
     title,

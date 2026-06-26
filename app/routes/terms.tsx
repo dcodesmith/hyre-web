@@ -1,14 +1,22 @@
 import { type MetaFunction, Link } from "react-router";
 import { LEGAL_CONSTANTS } from "~/constants/legal";
+import { generateMetaTags } from "~/utils/seo";
+import { env } from "~/utils/server/env.server";
 
-export const meta: MetaFunction = () => {
-  return [
-    { title: "Terms of Service | Tripdly" },
-    {
-      name: "description",
-      content: "Terms and conditions for using Tripdly chauffeur booking services.",
-    },
-  ];
+export async function loader() {
+  return { ENV: { DOMAIN: env.DOMAIN } };
+}
+
+export const meta: MetaFunction<typeof loader> = ({ loaderData }) => {
+  const baseUrl = loaderData?.ENV?.DOMAIN ?? "http://localhost:5173";
+
+  return generateMetaTags({
+    title: "Terms of Service | Tripdly",
+    description: "Terms and conditions for using Tripdly chauffeur booking services.",
+    url: `${baseUrl}/terms`,
+    canonical: `${baseUrl}/terms`,
+    image: `${baseUrl}/og-image.jpg`,
+  });
 };
 
 export default function TermsOfService() {

@@ -1,15 +1,23 @@
 import { type MetaFunction, Link } from "react-router";
 import { LEGAL_CONSTANTS } from "~/constants/legal";
+import { generateMetaTags } from "~/utils/seo";
+import { env } from "~/utils/server/env.server";
 
-export const meta: MetaFunction = () => {
-  return [
-    { title: "Privacy Policy | Tripdly" },
-    {
-      name: "description",
-      content:
-        "Learn how Tripdly collects, uses, and protects your personal data in compliance with NDPC regulations.",
-    },
-  ];
+export async function loader() {
+  return { ENV: { DOMAIN: env.DOMAIN } };
+}
+
+export const meta: MetaFunction<typeof loader> = ({ loaderData }) => {
+  const baseUrl = loaderData?.ENV?.DOMAIN ?? "http://localhost:5173";
+
+  return generateMetaTags({
+    title: "Privacy Policy | Tripdly",
+    description:
+      "Learn how Tripdly collects, uses, and protects your personal data in compliance with NDPC regulations.",
+    url: `${baseUrl}/privacy`,
+    canonical: `${baseUrl}/privacy`,
+    image: `${baseUrl}/og-image.jpg`,
+  });
 };
 
 export default function PrivacyPolicy() {

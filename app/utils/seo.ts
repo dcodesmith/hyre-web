@@ -44,13 +44,16 @@ export function generateMetaTags(options: MetaTagsOptions): MetaDescriptor[] {
     author,
   } = options;
 
+  // Cap descriptions at ~155 chars so search snippets are never truncated by Google.
+  const safeDescription = truncateDescription(description);
+
   const tags: MetaDescriptor[] = [
     { title },
-    { name: "description", content: description },
+    { name: "description", content: safeDescription },
 
     // Open Graph
     { property: "og:title", content: title },
-    { property: "og:description", content: description },
+    { property: "og:description", content: safeDescription },
     { property: "og:url", content: url },
     { property: "og:type", content: type },
     { property: "og:site_name", content: "Tripdly" },
@@ -59,7 +62,7 @@ export function generateMetaTags(options: MetaTagsOptions): MetaDescriptor[] {
     // Twitter Card
     { name: "twitter:card", content: "summary_large_image" },
     { name: "twitter:title", content: title },
-    { name: "twitter:description", content: description },
+    { name: "twitter:description", content: safeDescription },
   ];
 
   // Add image tags if provided
