@@ -4,6 +4,7 @@
  */
 
 import type { MetaDescriptor } from "react-router";
+import { LEGAL_CONSTANTS } from "~/constants/legal";
 
 interface MetaTagsOptions {
   title: string;
@@ -317,7 +318,7 @@ export const companyInfo = {
   description:
     "Premium chauffeur and luxury car hire service in Nigeria. Professional drivers, executive vehicles, and seamless booking for corporate travel, airport transfers, and special occasions.",
   email: "hello@tripdly.com",
-  phone: "+234 800 000 0000", // Update with actual phone
+  phone: LEGAL_CONSTANTS.supportPhoneDisplay,
   address: {
     streetAddress: "Victoria Island", // Update with actual address
     city: "Lagos",

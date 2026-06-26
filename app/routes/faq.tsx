@@ -11,6 +11,7 @@ import {
 import { Button } from "~/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import { cn } from "~/lib/utils";
+import { LEGAL_CONSTANTS } from "~/constants/legal";
 import { generateMetaTags } from "~/utils/seo";
 import { env } from "~/utils/server/env.server";
 
@@ -374,7 +375,7 @@ export default function FAQPage() {
               </a>
             </Button>
             <Button asChild size="lg">
-              <a href="tel:+2348000000000">
+              <a href={`tel:${LEGAL_CONSTANTS.supportPhone}`}>
                 <Phone className="mr-2 h-4 w-4" />
                 Call Support
               </a>

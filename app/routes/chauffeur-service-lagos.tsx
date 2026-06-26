@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 
 import { prisma } from "~/modules/db/db.server";
+import { LEGAL_CONSTANTS } from "~/constants/legal";
 import { env } from "~/utils/server/env.server";
 import { CarCard } from "~/components/CarCard";
 import { CarouselSection } from "~/components/CarouselSection";
@@ -212,7 +213,7 @@ export default function ChauffeurServiceLagos() {
           description:
             "Premium chauffeur service in Lagos, Nigeria. Airport transfers, corporate travel, and luxury car hire with professional drivers.",
           email: "lagos@tripdly.com",
-          phone: "+234 800 000 0000",
+          phone: LEGAL_CONSTANTS.supportPhoneDisplay,
           priceRange: "₦₦₦",
           address: {
             streetAddress: "Victoria Island",
@@ -459,7 +460,7 @@ export default function ChauffeurServiceLagos() {
               variant="outline"
               className="border-white text-white hover:bg-white/10"
             >
-              <a href="tel:+2348000000000">
+              <a href={`tel:${LEGAL_CONSTANTS.supportPhone}`}>
                 <Phone className="mr-2 h-4 w-4" />
                 Call Us
               </a>

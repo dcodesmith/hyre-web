@@ -3,6 +3,7 @@ import { Link } from "react-router";
 import { FacebookIcon } from "~/components/icons/FacebookIcon";
 import { InstagramIcon } from "~/components/icons/InstagramIcon";
 import { XIcon } from "~/components/icons/XIcon";
+import { LEGAL_CONSTANTS } from "~/constants/legal";
 import { cn } from "~/lib/utils";
 
 interface FooterProps {
@@ -258,10 +259,10 @@ export function Footer({ appName, isCarDetailPage }: FooterProps) {
               <div>
                 <p className="text-sm font-medium text-gray-900">Call Us</p>
                 <a
-                  href="tel:+2340123456789"
+                  href={`tel:${LEGAL_CONSTANTS.supportPhone}`}
                   className="text-sm text-gray-600 hover:text-gray-900 mt-1 block"
                 >
-                  +234 (0) 123 4567 89
+                  {LEGAL_CONSTANTS.supportPhoneDisplay}
                 </a>
               </div>
             </div>
@@ -270,10 +271,10 @@ export function Footer({ appName, isCarDetailPage }: FooterProps) {
               <div>
                 <p className="text-sm font-medium text-gray-900">Email Us</p>
                 <a
-                  href="mailto:support@example.com"
+                  href={`mailto:${LEGAL_CONSTANTS.supportEmail}`}
                   className="text-sm text-gray-600 hover:text-gray-900 mt-1 block"
                 >
-                  support@tripdly.com
+                  {LEGAL_CONSTANTS.supportEmail}
                 </a>
               </div>
             </div>
