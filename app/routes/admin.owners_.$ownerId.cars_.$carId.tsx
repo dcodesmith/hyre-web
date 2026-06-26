@@ -47,7 +47,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
         },
       },
       documents: true,
-      images: true,
+      images: { orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }] },
     },
   });
 
@@ -71,6 +71,29 @@ export async function action({ request, params }: ActionFunctionArgs) {
       data: {
         approvalStatus: "APPROVED",
       },
+    });
+    return { success: true };
+  }
+
+  if (action === "setCover") {
+    const imageId = formData.get("imageId");
+    invariant(typeof imageId === "string" && imageId, "Image ID is required");
+
+    await prisma.$transaction(async (tx) => {
+      const target = await tx.vehicleImage.findFirst({
+        where: { id: imageId, carId: params.carId },
+        select: { id: true },
+      });
+      invariant(target, "Image not found for this car");
+
+      await tx.vehicleImage.updateMany({
+        where: { carId: params.carId, isPrimary: true, NOT: { id: imageId } },
+        data: { isPrimary: false },
+      });
+      await tx.vehicleImage.update({
+        where: { id: imageId },
+        data: { isPrimary: true },
+      });
     });
     return { success: true };
   }
@@ -103,6 +126,14 @@ export default function CarDetails() {
       formData.append("csrf", csrfToken);
       submit(formData, { method: "POST" });
     }
+  };
+
+  const handleSetCover = (imageId: string) => {
+    const formData = new FormData();
+    formData.append("action", "setCover");
+    formData.append("imageId", imageId);
+    formData.append("csrf", csrfToken);
+    submit(formData, { method: "POST" });
   };
 
   const approvalStatusColorMap: Record<CarApprovalStatus, string> = {
@@ -152,29 +183,40 @@ export default function CarDetails() {
       <div className="w-full">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {car.images.map((image, index) => (
-            <button
-              type="button"
-              key={image.id}
-              className="relative aspect-square cursor-pointer hover:opacity-90 transition-opacity"
-              onClick={() => setSelectedImage({ url: image.url, id: image.id })}
-              aria-label={`View ${car.make} ${car.model} image ${index + 1}`}
-            >
-              <img
-                src={getOptimizedImageUrl(image.url, { width: 320 })}
-                srcSet={getImageSrcSet(image.url, 320)}
-                sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 320px"
-                alt={`${car.make} ${car.model} - ${index + 1}`}
-                className="object-cover w-full h-full"
-                width="320"
-                height="320"
-                loading="lazy"
-              />
-              <div
-                className={`absolute top-2 right-2 px-2 py-1 rounded-full text-xs font-medium ${getStatusBadgeClass(image.status)}`}
+            <div key={image.id} className="relative aspect-square">
+              <button
+                type="button"
+                className="block w-full h-full cursor-pointer hover:opacity-90 transition-opacity"
+                onClick={() => setSelectedImage({ url: image.url, id: image.id })}
+                aria-label={`View ${car.make} ${car.model} image ${index + 1}`}
               >
-                {image.status}
-              </div>
-            </button>
+                <img
+                  src={getOptimizedImageUrl(image.url, { width: 320 })}
+                  srcSet={getImageSrcSet(image.url, 320)}
+                  sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 320px"
+                  alt={`${car.make} ${car.model} - ${index + 1}`}
+                  className="object-cover w-full h-full"
+                  width="320"
+                  height="320"
+                  loading="lazy"
+                />
+                <div
+                  className={`absolute top-2 right-2 px-2 py-1 rounded-full text-xs font-medium ${getStatusBadgeClass(image.status)}`}
+                >
+                  {image.status}
+                </div>
+              </button>
+              <label className="absolute bottom-2 left-2 flex items-center gap-1.5 px-2 py-1 rounded-full bg-white/90 text-xs font-medium cursor-pointer shadow">
+                <input
+                  type="radio"
+                  name="coverImage"
+                  checked={image.isPrimary}
+                  onChange={() => handleSetCover(image.id)}
+                  className="accent-green-600"
+                />
+                {image.isPrimary ? "Cover" : "Set as cover"}
+              </label>
+            </div>
           ))}
         </div>
 

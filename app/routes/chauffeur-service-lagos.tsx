@@ -178,7 +178,11 @@ export async function loader() {
     },
     include: {
       owner: { select: { username: true, name: true } },
-      images: { select: { url: true }, orderBy: { createdAt: "asc" }, take: 4 },
+      images: {
+        select: { url: true },
+        orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }],
+        take: 4,
+      },
     },
     orderBy: [{ updatedAt: "desc" }],
     take: 12, // Show top 12 cars

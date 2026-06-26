@@ -971,7 +971,12 @@ export async function createPendingBooking({
       },
       include: {
         legs: true,
-        car: { include: { owner: true, images: true } },
+        car: {
+          include: {
+            owner: true,
+            images: { orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }] as const },
+          },
+        },
         user: true,
       },
     };
@@ -1718,7 +1723,9 @@ export async function getUserBookings(email: string, isGuest = false, bookingRef
   return prisma.booking.findMany({
     where,
     include: {
-      car: { include: { images: true } },
+      car: {
+        include: { images: { orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }] as const } },
+      },
       chauffeur: true,
       review: true, // Include review for status display
       legs: { include: { extensions: true } },

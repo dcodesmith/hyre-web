@@ -52,7 +52,9 @@ async function findCarBySlugOrId(slugOrId: string) {
   if (/^c[a-z0-9]{24}$/i.test(slugOrId)) {
     return prisma.car.findUnique({
       where: { id: slugOrId },
-      include: { images: { select: { url: true } } },
+      include: {
+        images: { select: { url: true }, orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }] },
+      },
     });
   }
 
@@ -65,7 +67,9 @@ async function findCarBySlugOrId(slugOrId: string) {
   // Find car where ID starts with the short ID
   const car = await prisma.car.findFirst({
     where: { id: { startsWith: shortId } },
-    include: { images: { select: { url: true } } },
+    include: {
+      images: { select: { url: true }, orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }] },
+    },
   });
 
   return car;

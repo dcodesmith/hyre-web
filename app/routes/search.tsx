@@ -708,7 +708,11 @@ export async function loader({ request, params: routeParams }: LoaderFunctionArg
       where: whereClause,
       include: {
         owner: { select: { username: true, name: true } },
-        images: { select: { url: true }, orderBy: { createdAt: "asc" }, take: 4 },
+        images: {
+          select: { url: true },
+          orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }],
+          take: 4,
+        },
         documents: {
           select: {
             id: true,

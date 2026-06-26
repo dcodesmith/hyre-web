@@ -12,7 +12,7 @@ export const loader = async ({ params }: LoaderFunctionArgs) => {
   const car = await prisma.car.findUnique({
     where: { id: params.id },
     include: {
-      images: true,
+      images: { orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }] },
     },
   });
 

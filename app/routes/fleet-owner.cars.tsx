@@ -171,6 +171,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
       },
       images: {
         select: { url: true },
+        orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }],
       },
       documents: true,
     },
