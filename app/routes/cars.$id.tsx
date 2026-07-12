@@ -18,6 +18,7 @@ import { BreadcrumbSchema, VehicleSchema } from "~/components/seo/StructuredData
 import CarCarousel from "~/components/Carousel";
 import logger from "~/lib/logger.server";
 import { summarizePromotionPricingLegs } from "~/lib/promotion-pricing-preview";
+import { SEARCH_FILTER_PARAM_KEYS } from "~/lib/search-filters";
 import { getSessionUser, requireUser } from "~/modules/auth/auth.server";
 import { prisma } from "~/modules/db/db.server";
 import { availableCarsForSpecificRequest } from "~/services/availability-engine.server";
@@ -141,10 +142,9 @@ function resolvePricingPreviewWindow(params: {
 function buildSearchBackLink(url: URL, partnerSlug?: string): string {
   const allowedParams = [
     "q",
-    "serviceTier",
-    "vehicleType",
+    // All filter-panel params (vehicleType, serviceTier, make, price, capacity, etc.)
+    ...SEARCH_FILTER_PARAM_KEYS,
     "color",
-    "make",
     "model",
     "from",
     "to",

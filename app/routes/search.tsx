@@ -25,6 +25,7 @@ import { CarCard } from "~/components/CarCard";
 import { CarSkeleton } from "~/components/CarSkeleton";
 import { CompactSearchBar } from "~/components/CompactSearchBar";
 import { PaginationControl } from "~/components/PaginationControl";
+import { SearchFilters } from "~/components/SearchFilters";
 import { SearchModal } from "~/components/SearchModal";
 import {
   AIRPORT_PICKUP_BOOKING_TYPE,
@@ -37,6 +38,15 @@ import { Button } from "~/components/ui/button";
 import { useInfiniteScroll } from "~/hooks/useInfiniteScroll";
 import { calculateBookingUnits } from "~/lib/booking-utils";
 import logger from "~/lib/logger.server";
+import {
+  type RateField,
+  SEARCH_FILTER_PARAM_KEYS,
+  type SearchFacets,
+  type SearchFilterValues,
+  countActiveSearchFilters,
+  getRateFieldForBookingType,
+  parseSearchFilters,
+} from "~/lib/search-filters";
 import { prisma } from "~/modules/db/db.server";
 import { availableCarsForSpecificRequest } from "~/services/availability-engine.server";
 import { validateFlight } from "~/services/flight-validation.server";
@@ -49,12 +59,7 @@ import {
 import { getBatchCarRatings } from "~/services/reviews.server";
 import type { AggregatedRatings } from "~/services/reviews.server";
 import type { SerializedCar, ServiceTier, VehicleType } from "~/types";
-import {
-  SERVICE_TIERS,
-  VEHICLE_TYPES,
-  serviceTierLabels,
-  vehicleTypeLabels,
-} from "~/types";
+import { serviceTierLabels, vehicleTypeLabels } from "~/types";
 import { generateMetaTags } from "~/utils/seo";
 import { LAGOS_TIMEZONE } from "~/utils/timezone";
 
@@ -210,32 +215,6 @@ async function getFleetOwnersWithNoChauffeursOrAllChauffeursBusy(
   return fleetOwnersWithNoChauffeursOrAllChauffeursBusy.map((owner) => owner.id);
 }
 
-/**
- * Type guards for enum validation
- */
-function isServiceTier(value: string): value is ServiceTier {
-  return (SERVICE_TIERS as readonly string[]).includes(value);
-}
-
-function isVehicleType(value: string): value is VehicleType {
-  return (VEHICLE_TYPES as readonly string[]).includes(value);
-}
-
-/**
- * Validates and parses enum params from URL
- */
-function parseServiceTier(value: string | null): ServiceTier | undefined {
-  if (!value) return undefined;
-  const upperValue = value.toUpperCase();
-  return isServiceTier(upperValue) ? upperValue : undefined;
-}
-
-function parseVehicleType(value: string | null): VehicleType | undefined {
-  if (!value) return undefined;
-  const upperValue = value.toUpperCase();
-  return isVehicleType(upperValue) ? upperValue : undefined;
-}
-
 function isBookingType(value: string): value is BookingType {
   return (BOOKING_TYPE_OPTIONS as readonly string[]).includes(value);
 }
@@ -313,33 +292,30 @@ async function filterCarsByAvailability<T extends { id: string }>(
 }
 
 /**
- * Generate dynamic meta tags based on search filters
+ * Builds SEO title parts and description context from active filters.
+ * Filters only contribute to SEO copy when a single value is selected.
  */
-export const meta: MetaFunction<typeof loader> = ({ data, matches, location }) => {
-  // Access root loader data
-  const rootData = matches.find((match) => match.id === "root")?.data as
-    | { ENV?: { DOMAIN?: string } }
-    | undefined;
-
-  const filters = data?.filters;
-  const pagination = data?.pagination;
-  const baseUrl = rootData?.ENV?.DOMAIN ?? "http://localhost:5173";
-  const partnerSlugFromPath = /^\/partners\/([^/]+)\/search/.exec(location.pathname)?.[1] ?? null;
-  const effectivePartnerSlug = partnerSlugFromPath ?? null;
-  const searchPath = effectivePartnerSlug ? `/partners/${effectivePartnerSlug}/search` : "/search";
-
-  // Build dynamic title parts
+function buildSeoContext(filters?: {
+  vehicleTypes?: VehicleType[];
+  serviceTiers?: ServiceTier[];
+  bookingType?: string | null;
+}): { titleParts: string[]; descriptionContext: string } {
   const titleParts: string[] = [];
   let descriptionContext = "";
 
-  if (filters?.vehicleType) {
-    const vehicleLabel = vehicleTypeLabels[filters.vehicleType] || filters.vehicleType;
+  const selectedVehicleType =
+    filters?.vehicleTypes?.length === 1 ? filters.vehicleTypes[0] : undefined;
+  const selectedServiceTier =
+    filters?.serviceTiers?.length === 1 ? filters.serviceTiers[0] : undefined;
+
+  if (selectedVehicleType) {
+    const vehicleLabel = vehicleTypeLabels[selectedVehicleType] || selectedVehicleType;
     titleParts.push(vehicleLabel);
     descriptionContext += `${vehicleLabel} vehicles`;
   }
 
-  if (filters?.serviceTier) {
-    const tierLabel = serviceTierLabels[filters.serviceTier] || filters.serviceTier;
+  if (selectedServiceTier) {
+    const tierLabel = serviceTierLabels[selectedServiceTier] || selectedServiceTier;
     titleParts.push(tierLabel);
     descriptionContext += descriptionContext
       ? ` with ${tierLabel} service`
@@ -356,6 +332,26 @@ export const meta: MetaFunction<typeof loader> = ({ data, matches, location }) =
       titleParts.push(`${bookingLabel} Service`);
     }
   }
+
+  return { titleParts, descriptionContext };
+}
+
+/**
+ * Generate dynamic meta tags based on search filters
+ */
+export const meta: MetaFunction<typeof loader> = ({ data, matches, location }) => {
+  // Access root loader data
+  const rootData = matches.find((match) => match.id === "root")?.data as
+    | { ENV?: { DOMAIN?: string } }
+    | undefined;
+
+  const pagination = data?.pagination;
+  const baseUrl = rootData?.ENV?.DOMAIN ?? "http://localhost:5173";
+  const partnerSlugFromPath = /^\/partners\/([^/]+)\/search/.exec(location.pathname)?.[1] ?? null;
+  const effectivePartnerSlug = partnerSlugFromPath ?? null;
+  const searchPath = effectivePartnerSlug ? `/partners/${effectivePartnerSlug}/search` : "/search";
+
+  const { titleParts, descriptionContext } = buildSeoContext(data?.filters);
 
   // Generate dynamic title
   const dynamicTitle =
@@ -491,36 +487,30 @@ function mapQueryToFilters(query: string): {
  */
 function parseSearchParams(url: URL) {
   const q = url.searchParams.get("q");
-  let serviceTierParam = url.searchParams.get("serviceTier");
-  let vehicleTypeParam = url.searchParams.get("vehicleType");
+  const filters = parseSearchFilters(url.searchParams);
   const colorParam = url.searchParams.get("color");
-  const makeParam = url.searchParams.get("make");
   const modelParam = url.searchParams.get("model");
 
-  let extractedMakeModelQuery: string | undefined;
+  const mappedFilters = q ? mapQueryToFilters(q) : undefined;
 
-  if (q && !serviceTierParam && !vehicleTypeParam) {
-    const mappedFilters = mapQueryToFilters(q);
+  // Add filters inferred from the free-text query only when the user hasn't
+  // set them explicitly, but always keep the make/model portion of the query
+  // (e.g. ?q=Toyota&vehicleType=SUV should still search for Toyota)
+  if (mappedFilters && filters.vehicleTypes.length === 0 && filters.serviceTiers.length === 0) {
     if (mappedFilters.vehicleType) {
-      vehicleTypeParam = mappedFilters.vehicleType;
+      filters.vehicleTypes.push(mappedFilters.vehicleType);
     }
     if (mappedFilters.serviceTier) {
-      serviceTierParam = mappedFilters.serviceTier;
+      filters.serviceTiers.push(mappedFilters.serviceTier);
     }
-    extractedMakeModelQuery = mappedFilters.remainingQuery;
   }
 
-  const serviceTier = parseServiceTier(serviceTierParam);
-  const vehicleType = parseVehicleType(vehicleTypeParam);
-  const makeModelQuery =
-    extractedMakeModelQuery?.trim() || (q && !serviceTier && !vehicleType ? q.trim() : null);
+  const makeModelQuery = mappedFilters?.remainingQuery?.trim() || null;
 
   return {
     partnerSlug: url.searchParams.get("partner"),
-    serviceTier,
-    vehicleType,
+    filters,
     colorParam,
-    makeParam,
     modelParam,
     makeModelQuery,
     from: url.searchParams.get("from"),
@@ -532,19 +522,15 @@ function parseSearchParams(url: URL) {
 }
 
 /**
- * Builds Prisma where clause for car search
+ * Base visibility conditions: cars that are publicly listable at all.
+ * Used both for the search where clause and for facet aggregations
+ * (facets intentionally ignore the user's own filter selections).
  */
-function buildCarWhereClause(params: {
+function buildBaseVisibilityClauses(params: {
   partnerOwnerId?: string;
   fleetOwnersToExclude: string[];
-  serviceTier: ServiceTier | undefined;
-  vehicleType: VehicleType | undefined;
-  colorParam: string | null;
-  makeParam: string | null;
-  modelParam: string | null;
-  makeModelQuery: string | null;
-}): Prisma.CarWhereInput {
-  const andClauses: Prisma.CarWhereInput[] = [
+}): Prisma.CarWhereInput[] {
+  return [
     ...(params.partnerOwnerId ? [{ ownerId: params.partnerOwnerId }] : []),
     ...(params.fleetOwnersToExclude.length > 0
       ? [{ ownerId: { notIn: params.fleetOwnersToExclude } }]
@@ -552,14 +538,52 @@ function buildCarWhereClause(params: {
     {
       status: { in: [Status.AVAILABLE, Status.BOOKED] },
       approvalStatus: { in: [CarApprovalStatus.APPROVED] },
-      owner: { fleetOwnerStatus: "APPROVED", hasOnboarded: true },
-      ...(params.serviceTier && { serviceTier: params.serviceTier }),
-      ...(params.vehicleType && { vehicleType: params.vehicleType }),
+      owner: { fleetOwnerStatus: "APPROVED" as const, hasOnboarded: true },
+    },
+  ];
+}
+
+/** Conditions matching a promotion that is currently running. */
+function activePromotionWhere(referenceDate: Date) {
+  return {
+    isActive: true,
+    startDate: { lte: referenceDate },
+    endDate: { gt: referenceDate },
+  };
+}
+
+/**
+ * Builds Prisma where clause for car search
+ */
+function buildCarWhereClause(params: {
+  partnerOwnerId?: string;
+  fleetOwnersToExclude: string[];
+  filters: SearchFilterValues;
+  rateField: RateField;
+  colorParam: string | null;
+  modelParam: string | null;
+  makeModelQuery: string | null;
+}): Prisma.CarWhereInput {
+  const { filters, rateField } = params;
+  const now = new Date();
+
+  const hasPriceFilter = filters.minPrice !== null || filters.maxPrice !== null;
+
+  const andClauses: Prisma.CarWhereInput[] = [
+    ...buildBaseVisibilityClauses(params),
+    {
+      ...(filters.serviceTiers.length > 0 && { serviceTier: { in: filters.serviceTiers } }),
+      ...(filters.vehicleTypes.length > 0 && { vehicleType: { in: filters.vehicleTypes } }),
+      ...(filters.minCapacity !== null && { passengerCapacity: { gte: filters.minCapacity } }),
+      ...(filters.fuelIncluded && { pricingIncludesFuel: true }),
+      ...(hasPriceFilter && {
+        [rateField]: {
+          ...(filters.minPrice !== null && { gte: filters.minPrice }),
+          ...(filters.maxPrice !== null && { lte: filters.maxPrice }),
+        },
+      }),
       ...(params.colorParam && {
         color: { contains: params.colorParam, mode: Prisma.QueryMode.insensitive },
-      }),
-      ...(params.makeParam && {
-        make: { contains: params.makeParam, mode: Prisma.QueryMode.insensitive },
       }),
       ...(params.modelParam && {
         model: { contains: params.modelParam, mode: Prisma.QueryMode.insensitive },
@@ -571,10 +595,80 @@ function buildCarWhereClause(params: {
         ],
       }),
     },
+    // `contains` (not `equals`) tolerates dirty data like "Toyota " with trailing whitespace
+    ...(filters.makes.length > 0
+      ? [
+          {
+            OR: filters.makes.map((make) => ({
+              make: { contains: make, mode: Prisma.QueryMode.insensitive },
+            })),
+          },
+        ]
+      : []),
+    // A car is on promotion if it has a car-specific promo or its owner runs a fleet-wide one
+    ...(filters.dealsOnly
+      ? [
+          {
+            OR: [
+              { promotions: { some: activePromotionWhere(now) } },
+              { owner: { promotions: { some: { ...activePromotionWhere(now), carId: null } } } },
+            ],
+          },
+        ]
+      : []),
   ];
 
   return {
     AND: andClauses,
+  };
+}
+
+/**
+ * Aggregates facet data (make counts, price bounds) for the filter panel.
+ * Facets are computed over base visibility only, so all options stay visible
+ * regardless of the user's current selections.
+ */
+async function getSearchFacets(
+  baseWhere: Prisma.CarWhereInput,
+  rateField: RateField,
+): Promise<SearchFacets> {
+  const [makeGroups, priceAggregate] = await Promise.all([
+    prisma.car.groupBy({
+      by: ["make"],
+      where: baseWhere,
+      _count: { _all: true },
+    }),
+    prisma.car.aggregate({
+      where: baseWhere,
+      _min: { dayRate: true, nightRate: true, fullDayRate: true, airportPickupRate: true },
+      _max: { dayRate: true, nightRate: true, fullDayRate: true, airportPickupRate: true },
+    }),
+  ]);
+
+  // Merge dirty values like "Toyota " and "Toyota" into one facet entry
+  const makeMap = new Map<string, { name: string; count: number }>();
+  for (const group of makeGroups) {
+    const name = group.make.trim();
+    if (!name) continue;
+    const key = name.toLowerCase();
+    const existing = makeMap.get(key);
+    if (existing) {
+      existing.count += group._count._all;
+    } else {
+      makeMap.set(key, { name, count: group._count._all });
+    }
+  }
+
+  const makes = [...makeMap.values()].sort(
+    (a, b) => b.count - a.count || a.name.localeCompare(b.name),
+  );
+
+  return {
+    makes,
+    price: {
+      min: priceAggregate._min[rateField] ?? 0,
+      max: priceAggregate._max[rateField] ?? 0,
+    },
   };
 }
 
@@ -586,7 +680,13 @@ function createErrorResponse(status: number) {
     {
       cars: [],
       ratings: {},
-      filters: { serviceTier: null, vehicleType: null, bookingType: null, partnerSlug: null },
+      filters: {
+        serviceTiers: [] as ServiceTier[],
+        vehicleTypes: [] as VehicleType[],
+        bookingType: null,
+        partnerSlug: null,
+      },
+      facets: null,
       pagination: {
         page: 1,
         limit: 12,
@@ -656,10 +756,8 @@ export async function loader({ request, params: routeParams }: LoaderFunctionArg
 
     logger.info("[SEARCH] Query params", {
       q: url.searchParams.get("q"),
-      serviceTier: params.serviceTier,
-      vehicleType: params.vehicleType,
+      filters: params.filters,
       color: params.colorParam,
-      make: params.makeParam,
       model: params.modelParam,
       from: params.from,
       to: params.to,
@@ -688,20 +786,59 @@ export async function loader({ request, params: routeParams }: LoaderFunctionArg
 
     const carQueryStartTime = Date.now();
 
+    const rateField = getRateFieldForBookingType(params.bookingType);
+
     // Build where clause for count and findMany (same conditions)
     const whereClause = buildCarWhereClause({
       fleetOwnersToExclude,
       partnerOwnerId: partner?.id,
-      serviceTier: params.serviceTier,
-      vehicleType: params.vehicleType,
+      filters: params.filters,
+      rateField,
       colorParam: params.colorParam,
-      makeParam: params.makeParam,
       modelParam: params.modelParam,
       makeModelQuery: params.makeModelQuery,
     });
 
-    // Get total count BEFORE availability filtering (for consistent pagination)
-    const totalCount = await prisma.car.count({ where: whereClause });
+    // Lightweight count-only mode used by the filter panel for live result counts
+    if (url.searchParams.get("countOnly") === "1") {
+      const total = await prisma.car.count({ where: whereClause });
+      return data(
+        {
+          cars: [],
+          ratings: {},
+          filters: {
+            serviceTiers: params.filters.serviceTiers,
+            vehicleTypes: params.filters.vehicleTypes,
+            bookingType: params.bookingType ?? null,
+            partnerSlug: partner?.publicSlug ?? null,
+          },
+          facets: null,
+          pagination: {
+            page: 1,
+            limit,
+            total,
+            totalPages: Math.ceil(total / limit),
+            hasNextPage: false,
+            hasPreviousPage: false,
+          },
+        },
+        { headers: { "Cache-Control": "no-store" } },
+      );
+    }
+
+    const baseVisibilityWhere: Prisma.CarWhereInput = {
+      AND: buildBaseVisibilityClauses({
+        fleetOwnersToExclude,
+        partnerOwnerId: partner?.id,
+      }),
+    };
+
+    // Get total count BEFORE availability filtering (for consistent pagination),
+    // plus facet data for the filter panel
+    const [totalCount, facets] = await Promise.all([
+      prisma.car.count({ where: whereClause }),
+      getSearchFacets(baseVisibilityWhere, rateField),
+    ]);
 
     // Build where clause with category filters and optional make/model search
     const cars = await prisma.car.findMany({
@@ -799,11 +936,12 @@ export async function loader({ request, params: routeParams }: LoaderFunctionArg
         cars: enrichedCars,
         ratings,
         filters: {
-          serviceTier: params.serviceTier ?? null,
-          vehicleType: params.vehicleType ?? null,
+          serviceTiers: params.filters.serviceTiers,
+          vehicleTypes: params.filters.vehicleTypes,
           bookingType: params.bookingType ?? null,
           partnerSlug: partner?.publicSlug ?? null,
         },
+        facets,
         pagination,
       },
       {
@@ -820,6 +958,32 @@ export async function loader({ request, params: routeParams }: LoaderFunctionArg
   }
 }
 
+/** Result-heading nouns per vehicle type, e.g. "6 sedans" / "1 sedan" */
+const vehicleTypeNouns: Record<VehicleType, { singular: string; plural: string }> = {
+  SEDAN: { singular: "sedan", plural: "sedans" },
+  SUV: { singular: "SUV", plural: "SUVs" },
+  VAN: { singular: "van / minibus", plural: "vans / minibuses" },
+  CROSSOVER: { singular: "crossover", plural: "crossovers" },
+};
+
+function buildResultsHeading(total: number, vehicleTypes: VehicleType[]): string {
+  const form = total === 1 ? "singular" : "plural";
+
+  if (vehicleTypes.length === 0) {
+    return `${total} ${total === 1 ? "vehicle" : "vehicles"}`;
+  }
+
+  // Join all selected types: "23 SUVs and sedans", "1 SUV or sedan"
+  const nouns = vehicleTypes.map((type) => vehicleTypeNouns[type][form]);
+  const conjunction = total === 1 ? " or " : " and ";
+  const joined =
+    nouns.length > 1
+      ? `${nouns.slice(0, -1).join(", ")}${conjunction}${nouns.at(-1)}`
+      : nouns[0];
+
+  return `${total} ${joined}`;
+}
+
 type SearchCar = SerializedCar &
   (
     | { isOnPromotion: false }
@@ -830,11 +994,12 @@ type LoaderData = {
   cars: SearchCar[];
   ratings: Record<string, AggregatedRatings>;
   filters: {
-    serviceTier: ServiceTier | null;
-    vehicleType: VehicleType | null;
+    serviceTiers: ServiceTier[];
+    vehicleTypes: VehicleType[];
     bookingType: string | null;
     partnerSlug: string | null;
   };
+  facets: SearchFacets | null;
   pagination: {
     page: number;
     limit: number;
@@ -846,7 +1011,7 @@ type LoaderData = {
 };
 
 export default function SearchPage() {
-  const { cars, ratings, filters, pagination } = useLoaderData<LoaderData>();
+  const { cars, ratings, filters, facets, pagination } = useLoaderData<LoaderData>();
   const [searchParams] = useSearchParams();
   const { slug: routePartnerSlug } = useParams();
   const matches = useMatches();
@@ -915,13 +1080,22 @@ export default function SearchPage() {
 
   const totalUnits = calculateBookingUnits(from, to, bookingType);
   const hasDateFilters = !!(from && to);
-  const hasActiveFilters = !!(filters.serviceTier || filters.vehicleType);
+  const activeFilterCount = useMemo(
+    () => countActiveSearchFilters(parseSearchFilters(searchParams)),
+    [searchParams],
+  );
+  const hasActiveFilters = activeFilterCount > 0;
+  const resultsHeading = buildResultsHeading(
+    pagination?.total ?? allCars.length,
+    filters.vehicleTypes,
+  );
 
   // Clear all category filters
   const clearAllFiltersPath = useMemo(() => {
     const params = new URLSearchParams(searchParams);
-    params.delete("serviceTier");
-    params.delete("vehicleType");
+    for (const key of SEARCH_FILTER_PARAM_KEYS) {
+      params.delete(key);
+    }
     const query = params.toString();
     return query ? `${searchBasePath}?${query}` : searchBasePath;
   }, [searchParams, searchBasePath]);
@@ -957,12 +1131,24 @@ export default function SearchPage() {
       {/* Main Content */}
       <div className="max-w-7xl mx-auto my-24">
         {/* Results Header */}
-        <h1 className="py-4 font-semibold">
-          {pagination?.total ?? allCars.length}{" "}
-          {filters.serviceTier ? `${serviceTierLabels[filters.serviceTier]} ` : ""}
-          {filters.vehicleType ? `${vehicleTypeLabels[filters.vehicleType]} ` : ""}
-          {(pagination?.total ?? allCars.length) === 1 ? "vehicle" : "vehicles"} found
-        </h1>
+        <div className="flex items-center justify-between gap-4 py-4">
+          <h1 className="font-semibold">{resultsHeading}</h1>
+          <div className="flex items-center gap-2">
+            {hasActiveFilters && (
+              <Button variant="link" size="sm" asChild>
+                <Link to={clearAllFiltersPath} preventScrollReset>
+                  Clear filters
+                </Link>
+              </Button>
+            )}
+            <SearchFilters
+              facets={facets}
+              searchBasePath={searchBasePath}
+              bookingType={bookingType}
+              activeFilterCount={activeFilterCount}
+            />
+          </div>
+        </div>
 
         {/* Hidden pagination links for SEO */}
         {pagination && (
