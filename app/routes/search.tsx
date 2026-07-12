@@ -16,6 +16,7 @@ import {
   data,
   useLoaderData,
   useMatches,
+  useNavigation,
   useParams,
   useSearchParams,
 } from "react-router";
@@ -35,6 +36,7 @@ import {
   NIGHT_BOOKING_TYPE,
 } from "~/components/bookingTypes";
 import { Button } from "~/components/ui/button";
+import { Skeleton } from "~/components/ui/skeleton";
 import { useInfiniteScroll } from "~/hooks/useInfiniteScroll";
 import { calculateBookingUnits } from "~/lib/booking-utils";
 import logger from "~/lib/logger.server";
@@ -977,9 +979,7 @@ function buildResultsHeading(total: number, vehicleTypes: VehicleType[]): string
   const nouns = vehicleTypes.map((type) => vehicleTypeNouns[type][form]);
   const conjunction = total === 1 ? " or " : " and ";
   const joined =
-    nouns.length > 1
-      ? `${nouns.slice(0, -1).join(", ")}${conjunction}${nouns.at(-1)}`
-      : nouns[0];
+    nouns.length > 1 ? `${nouns.slice(0, -1).join(", ")}${conjunction}${nouns.at(-1)}` : nouns[0];
 
   return `${total} ${joined}`;
 }
@@ -1031,6 +1031,13 @@ export default function SearchPage() {
 
   // Mobile search modal state
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
+
+  // A pending navigation to this same search page means new results are on
+  // their way (filters applied/cleared, search changed) — show skeletons.
+  // Navigations elsewhere (e.g. into a car's details) keep the results visible.
+  const navigation = useNavigation();
+  const isUpdatingResults =
+    navigation.state === "loading" && navigation.location.pathname === searchBasePath;
 
   // Infinite scroll hook
   const {
@@ -1132,22 +1139,15 @@ export default function SearchPage() {
       <div className="max-w-7xl mx-auto my-24">
         {/* Results Header */}
         <div className="flex items-center justify-between gap-4 py-4">
-          <h1 className="font-semibold">{resultsHeading}</h1>
-          <div className="flex items-center gap-2">
-            {hasActiveFilters && (
-              <Button variant="link" size="sm" asChild>
-                <Link to={clearAllFiltersPath} preventScrollReset>
-                  Clear filters
-                </Link>
-              </Button>
-            )}
-            <SearchFilters
-              facets={facets}
-              searchBasePath={searchBasePath}
-              bookingType={bookingType}
-              activeFilterCount={activeFilterCount}
-            />
-          </div>
+          <h1 className="font-semibold">
+            {isUpdatingResults ? <Skeleton className="h-5 w-32" /> : resultsHeading}
+          </h1>
+          <SearchFilters
+            facets={facets}
+            searchBasePath={searchBasePath}
+            bookingType={bookingType}
+            activeFilterCount={activeFilterCount}
+          />
         </div>
 
         {/* Hidden pagination links for SEO */}
@@ -1162,7 +1162,9 @@ export default function SearchPage() {
           />
         )}
 
-        {allCars.length > 0 ? (
+        {isUpdatingResults && <CarSkeleton count={6} grid={true} />}
+
+        {!isUpdatingResults && allCars.length > 0 && (
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {allCars.map((car, index) => {
@@ -1192,7 +1194,9 @@ export default function SearchPage() {
             </div>
             {hasMore && <div ref={sentinelRef} className="h-1" aria-hidden="true" />}
           </>
-        ) : (
+        )}
+
+        {!isUpdatingResults && allCars.length === 0 && (
           <div className="text-center py-16 bg-white rounded-xl border border-gray-200">
             <div className="max-w-md mx-auto">
               <h3 className="text-lg font-semibold text-gray-900 mb-2">No vehicles found</h3>
@@ -1216,7 +1220,7 @@ export default function SearchPage() {
         )}
 
         {/* Loading state during fetch */}
-        {hasMore && isLoading && (
+        {!isUpdatingResults && hasMore && isLoading && (
           <div className="mt-6">
             <CarSkeleton count={3} grid={true} />
           </div>
@@ -1233,7 +1237,7 @@ export default function SearchPage() {
         )}
 
         {/* No more results message */}
-        {!hasMore && allCars.length > initialItemsCount && (
+        {!isUpdatingResults && !hasMore && allCars.length > initialItemsCount && (
           <div className="text-center py-8 text-sm text-gray-500 mt-6">
             You&apos;ve reached the end of available vehicles
           </div>

@@ -13,7 +13,8 @@ export function CarSkeleton({ count = 6, grid = false }: CarSkeletonProps) {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {skeletons.map((i) => (
           <div key={i} className="overflow-hidden space-y-3">
-            <Skeleton className="w-full h-72 md:h-80 rounded-xl" />
+            {/* Match the real card image: w-full at a 4:3 aspect ratio */}
+            <Skeleton className="w-full aspect-[4/3] rounded-xl" />
             <div className="space-y-1">
               <div className="flex justify-between items-start">
                 <div className="flex-1">
@@ -36,9 +37,9 @@ export function CarSkeleton({ count = 6, grid = false }: CarSkeletonProps) {
   return (
     <div className="flex gap-4 overflow-x-auto scrollbar-hide pb-4">
       {skeletons.map((i) => (
-        <div key={i} className="flex-shrink-0 w-[280px] md:w-[320px] space-y-3">
-          {/* Image skeleton */}
-          <Skeleton className="w-full h-72 md:h-80 rounded-xl" />
+        <div key={i} className="flex-shrink-0 w-[220px] md:w-[250px] space-y-3">
+          {/* Match the real card image: w-full at a 4:3 aspect ratio */}
+          <Skeleton className="w-full aspect-[4/3] rounded-xl" />
           {/* Content skeleton */}
           <div className="space-y-2">
             <Skeleton className="h-5 w-3/4" />

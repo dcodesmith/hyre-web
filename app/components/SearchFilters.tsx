@@ -16,6 +16,7 @@ import {
 } from "~/components/ui/dialog";
 import { Label } from "~/components/ui/label";
 import { Separator } from "~/components/ui/separator";
+import { Skeleton } from "~/components/ui/skeleton";
 import { Slider } from "~/components/ui/slider";
 import { Switch } from "~/components/ui/switch";
 import { ToggleGroup, ToggleGroupItem } from "~/components/ui/toggle-group";
@@ -159,10 +160,19 @@ export function SearchFilters({
   const draftFilterCount = countActiveSearchFilters(draft);
   const priceUnitLabel = PRICE_UNIT_LABELS[bookingType] ?? "per day";
 
-  let applyLabel = "Show results";
-  if (resultCount !== undefined) {
-    const noun = resultCount === 1 ? "vehicle" : "vehicles";
-    applyLabel = `Show ${resultCount} ${noun}`;
+  let applyLabel: React.ReactNode;
+  if (!countIsCurrent) {
+    // Count for the current draft is still on its way
+    applyLabel = (
+      <>
+        Show <Skeleton className="h-4 w-6 bg-primary-foreground/30" /> vehicles
+      </>
+    );
+  } else if (resultCount === undefined) {
+    // Request settled without a usable count (e.g. it failed)
+    applyLabel = "Show results";
+  } else {
+    applyLabel = `Show ${resultCount} ${resultCount === 1 ? "vehicle" : "vehicles"}`;
   }
 
   return (
