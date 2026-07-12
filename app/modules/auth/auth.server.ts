@@ -194,29 +194,35 @@ const config = {
 export const auth = betterAuth(config);
 
 async function getSession(request: Request): Promise<BetterAuthSession | null> {
-  const maxAttempts = env.NODE_ENV === "development" ? 2 : 1;
+  const maxAttempts = 2;
   const retryDelayMs = 100;
-  const timeoutMs = 1500;
+  // A warm pooled DB answers in <100ms, so this only trips on a genuinely
+  // hung/unreachable DB. Dev gets extra headroom for slow cold queries; prod
+  // stays tighter to bound latency during a real outage.
+  const timeoutMs = env.NODE_ENV === "development" ? 5000 : 2500;
+  let lastError: unknown;
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     try {
-      const session = (await Promise.race([
+      return (await Promise.race([
         auth.api.getSession({ headers: request.headers }),
         new Promise<never>((_, reject) =>
           setTimeout(() => reject(new Error("Session fetch timed out")), timeoutMs),
         ),
       ])) as BetterAuthSession | null;
-      return session;
     } catch (error) {
+      lastError = error;
       if (attempt < maxAttempts - 1) {
-        logger.warn("Session fetch failed, retrying once", { error });
+        logger.warn("Session fetch failed, retrying", { error });
         await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
-        continue;
       }
-      logger.error("Session fetch failed after retry", { error });
-      return null;
     }
   }
-  return null;
+  // An infra failure (DB down/hung) is NOT the same as "logged out". Returning
+  // null here would make requireUser redirect to /auth — a phantom logout.
+  // Throw instead: requireUser surfaces it via the error boundary (session cookie
+  // stays intact, so a retry works), and getSessionUser catches it back to null.
+  logger.error("Session fetch failed after retries", { error: lastError });
+  throw lastError instanceof Error ? lastError : new Error("Session fetch failed");
 }
 
 export async function getSessionUserId(request: Request): Promise<string | null> {

@@ -200,12 +200,12 @@ const getMainClassName = (
   isAuthPage: boolean,
   isHomePage: boolean,
   isCarDetailPage: boolean,
-  isFleetOwnerRoute: boolean,
+  isInternalDashboardRoute: boolean,
 ): string => {
   if (isAuthPage || isHomePage) {
     return "";
   }
-  if (isFleetOwnerRoute) {
+  if (isInternalDashboardRoute) {
     return "";
   }
   // md:pt-[69px] compensates for the fixed-position desktop header
@@ -395,9 +395,15 @@ function AppContent() {
   // Computed values
   const dashboardLink = getDashboardLinkFromUser(user);
 
-  const mainClassName = getMainClassName(isAuthPage, isHeroPage, isCarDetailPage, isFleetOwnerRoute);
+  const mainClassName = getMainClassName(
+    isAuthPage,
+    isHeroPage,
+    isCarDetailPage,
+    isInternalDashboardRoute,
+  );
   const showsFooter = !isAuthPage && !isInternalDashboardRoute;
-  const mainPaddingClass = isCarDetailPage || showsFooter || isFleetOwnerRoute ? "pb-0" : "pb-20";
+  const mainPaddingClass =
+    isCarDetailPage || showsFooter || isInternalDashboardRoute ? "pb-0" : "pb-20";
   const headerSearchBasePath = useMemo(() => {
     if (!partnerSlug) return "/search";
     try {
@@ -468,9 +474,9 @@ function AppContent() {
 
         <BookingSearchDraftProvider>
           <div className="flex flex-col min-h-screen">
-            {/* Desktop header - hidden on mobile, auth pages, and fleet-owner (has its own sidebar header) */}
+            {/* Desktop header - hidden on mobile, auth pages, and internal dashboards (admin/fleet-owner have their own sidebar header) */}
             {/* On homepage: transparent overlay on hero, becomes solid on scroll */}
-            {!isAuthPage && !isFleetOwnerRoute && (
+            {!isAuthPage && !isInternalDashboardRoute && (
               <header
                 className={cn(
                   "hidden md:flex p-4 justify-between z-50 fixed top-0 left-0 right-0 transition-all duration-300",

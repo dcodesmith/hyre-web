@@ -198,7 +198,7 @@ export async function action({ request }: ActionFunctionArgs) {
     return createAuthErrorResponse(error, session, "Invalid verification code");
   }
 
-  const { userId, cookie } = signInResult;
+  const { userId, cookies } = signInResult;
   try {
     await clearOtpFailures({
       accountKey: otpGuard.accountKey,
@@ -215,7 +215,7 @@ export async function action({ request }: ActionFunctionArgs) {
     // Redirect to admin dashboard
     const finalRedirect = redirectTo || getDashboardUrlForRole(authRole);
 
-    return createAuthRedirectResponse(finalRedirect, session, cookie);
+    return createAuthRedirectResponse(finalRedirect, session, cookies);
   } catch (error) {
     const redactedAccountId = hashIdentifierForLogs(otpGuard.accountKey);
     const redactedSubjectId = hashIdentifierForLogs(otpGuard.subjectKey);

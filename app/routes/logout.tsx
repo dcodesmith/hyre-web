@@ -13,12 +13,12 @@ export async function loader({ request }: LoaderFunctionArgs) {
       asResponse: true,
     });
 
-    const betterAuthCookie = signOutResponse.headers.get("Set-Cookie");
-
     const headers = new Headers();
     headers.set("Cache-Control", "no-store");
-    if (betterAuthCookie) {
-      headers.set("Set-Cookie", betterAuthCookie);
+    // getSetCookie keeps each clearing cookie as its own header; a joined
+    // string would only clear the session token, leaving the cache cookie alive
+    for (const cookie of signOutResponse.headers.getSetCookie()) {
+      headers.append("Set-Cookie", cookie);
     }
 
     return redirect("/", { headers });
@@ -45,12 +45,10 @@ export async function action({ request }: ActionFunctionArgs) {
       asResponse: true,
     });
 
-    const betterAuthCookie = signOutResponse.headers.get("Set-Cookie");
-
     const headers = new Headers();
     headers.set("Cache-Control", "no-store");
-    if (betterAuthCookie) {
-      headers.set("Set-Cookie", betterAuthCookie);
+    for (const cookie of signOutResponse.headers.getSetCookie()) {
+      headers.append("Set-Cookie", cookie);
     }
 
     return redirect(redirectTo, { headers });

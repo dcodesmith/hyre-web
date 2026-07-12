@@ -1,86 +1,71 @@
-import { Link, LoaderFunctionArgs, Outlet, useLoaderData, useLocation } from "react-router";
-import { ScrollArea } from "~/components/ui/scroll-area";
+import { type LoaderFunctionArgs, Outlet, useLoaderData, useLocation } from "react-router";
+import { Separator } from "~/components/ui/separator";
+import { SidebarInset, SidebarProvider, SidebarTrigger } from "~/components/ui/sidebar";
+import { AdminSidebar } from "~/components/admin-sidebar";
 import { requireAdminOrStaffWithRedirect } from "~/modules/auth/auth.server";
-
-interface NavLinkProps {
-  readonly to: string;
-  readonly children: React.ReactNode;
-}
-
-function NavLink({ to, children }: NavLinkProps) {
-  const location = useLocation();
-  const isCurrentPath = location.pathname === to;
-
-  return (
-    <Link
-      to={to}
-      className={`flex h-7 items-center justify-center rounded px-4 text-center text-sm transition-colors hover:text-primary ${
-        isCurrentPath ? "bg-muted text-primary font-semibold" : "text-muted-foreground"
-      }`}
-    >
-      {children}
-    </Link>
-  );
-}
-
-const adminNavLinks = [
-  { to: "/admin", label: "Dashboard" },
-  { to: "/admin/reports", label: "Reports" },
-  { to: "/admin/owners", label: "Fleet Owners" },
-  { to: "/admin/documents", label: "Documents" },
-  { to: "/admin/referrals", label: "Referrals" },
-  { to: "/admin/reviews", label: "Reviews" },
-  { to: "/admin/staff", label: "Staff" },
-  { to: "/admin/fees", label: "Fees" },
-  { to: "/admin/addon-rates", label: "Addon Rates" },
-] as const;
-
-const staffNavLinks = [
-  { to: "/admin", label: "Dashboard" },
-  { to: "/admin/reports", label: "Reports" },
-  { to: "/admin/owners", label: "Fleet Owners" },
-  { to: "/admin/documents", label: "Documents" },
-  { to: "/admin/referrals", label: "Referrals" },
-] as const;
 
 export async function loader({ request }: LoaderFunctionArgs) {
   // Skip authentication for login route
   const url = new URL(request.url);
   if (url.pathname === "/admin/login" || url.pathname === "/admin/verify") {
-    return { isStaff: false, isAdmin: false };
+    return { isStaff: false, isAdmin: false, userName: null, userEmail: "" };
   }
 
-  const { isStaff, isAdmin } = await requireAdminOrStaffWithRedirect(request);
+  const { user, isStaff, isAdmin } = await requireAdminOrStaffWithRedirect(request);
 
-  return { isStaff, isAdmin };
+  return { isStaff, isAdmin, userName: user.name ?? null, userEmail: user.email };
+}
+
+const pageTitles: Record<string, string> = {
+  "/admin": "Dashboard",
+  "/admin/reports": "Reports",
+  "/admin/owners": "Fleet Owners",
+  "/admin/documents": "Documents",
+  "/admin/referrals": "Referrals",
+  "/admin/reviews": "Reviews",
+  "/admin/staff": "Staff",
+  "/admin/fees": "Fees",
+  "/admin/addon-rates": "Addon Rates",
+};
+
+function getPageTitle(pathname: string): string {
+  if (pageTitles[pathname]) return pageTitles[pathname];
+  const sortedRoutes = Object.entries(pageTitles).sort(([a], [b]) => b.length - a.length);
+  for (const [route, title] of sortedRoutes) {
+    // "/admin" only matches exactly (handled above); as a prefix it would
+    // swallow every unmapped sub-route and make the fallback unreachable
+    if (route !== "/admin" && pathname.startsWith(`${route}/`)) return title;
+  }
+  return "Admin Console";
 }
 
 export default function AdminLayout() {
-  const { isStaff, isAdmin } = useLoaderData<typeof loader>();
+  const { isAdmin, userName, userEmail } = useLoaderData<typeof loader>();
   const location = useLocation();
   const isLoginPage = location.pathname === "/admin/login" || location.pathname === "/admin/verify";
 
-  // Don't show nav on login/verify pages
+  // Don't show sidebar on login/verify pages
   if (isLoginPage) {
     return <Outlet />;
   }
 
-  const navLinks = isStaff && !isAdmin ? staffNavLinks : adminNavLinks;
+  const pageTitle = getPageTitle(location.pathname);
 
   return (
-    <>
-      <div className="relative">
-        <ScrollArea className="max-w-[600px] lg:max-w-none">
-          <nav className="mb-4 flex items-center">
-            {navLinks.map((link) => (
-              <NavLink key={link.to} to={link.to}>
-                {link.label}
-              </NavLink>
-            ))}
-          </nav>
-        </ScrollArea>
-      </div>
-      <Outlet />
-    </>
+    <SidebarProvider>
+      <AdminSidebar isAdmin={isAdmin} userName={userName} userEmail={userEmail} />
+      <SidebarInset>
+        <header className="flex h-12 shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear">
+          <div className="flex w-full items-center gap-2 px-4 lg:px-6">
+            <SidebarTrigger className="-ml-1" />
+            <Separator orientation="vertical" className="mx-2 data-[orientation=vertical]:h-4" />
+            <h1 className="text-base font-medium">{pageTitle}</h1>
+          </div>
+        </header>
+        <div className="flex-1 overflow-auto p-4 lg:p-6">
+          <Outlet />
+        </div>
+      </SidebarInset>
+    </SidebarProvider>
   );
 }

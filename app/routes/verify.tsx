@@ -324,7 +324,7 @@ export async function action({ request }: ActionFunctionArgs) {
     return createAuthErrorResponse(error, session, "Invalid verification code");
   }
 
-  const { userId, cookie } = signInResult;
+  const { userId, cookies } = signInResult;
   try {
     await runBestEffortOtpStateWrite({
       operation: "clear",
@@ -349,7 +349,7 @@ export async function action({ request }: ActionFunctionArgs) {
     // Redirect to home (customer route)
     const finalRedirect = redirectTo || "/";
 
-    return createAuthRedirectResponse(finalRedirect, session, cookie);
+    return createAuthRedirectResponse(finalRedirect, session, cookies);
   } catch (error) {
     logger.error("Post-OTP verification steps failed", {
       error,

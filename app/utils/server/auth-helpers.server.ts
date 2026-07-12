@@ -244,11 +244,15 @@ export async function signInWithOTP(email: string, otp: string, request: Request
     });
   }
 
-  const cookie = signInResponse.headers.get("Set-Cookie");
+  // headers.get("Set-Cookie") would comma-join the session_token and
+  // session_data cookies into one invalid header; browsers then parse it as a
+  // single cookie whose last Max-Age (the 5-minute cache) wins — silently
+  // expiring the session token. getSetCookie() preserves them as separate headers.
+  const cookies = signInResponse.headers.getSetCookie();
 
   return {
     userId: signInData.user.id,
-    cookie,
+    cookies,
   };
 }
 
@@ -258,13 +262,13 @@ export async function signInWithOTP(email: string, otp: string, request: Request
 export async function createAuthRedirectResponse(
   redirectTo: string,
   session: Awaited<ReturnType<typeof getSession>>,
-  cookie?: string | null,
+  cookies?: string[] | null,
 ) {
   const headers = new Headers();
   headers.set("Set-Cookie", await commitSession(session));
   headers.set("Cache-Control", "no-store");
 
-  if (cookie) {
+  for (const cookie of cookies ?? []) {
     headers.append("Set-Cookie", cookie);
   }
 

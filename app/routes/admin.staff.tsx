@@ -155,7 +155,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const activeStaff: StaffMember[] = [];
   const revokedStaff: StaffMember[] = [];
 
-  for (const [user] of allPotentialStaff) {
+  for (const user of allPotentialStaff.values()) {
     const hasStaffRole = user.roles.some((role: any) => role.name === "staff");
     const isAdmin = user.roles.some((role: any) => role.name === "admin");
 

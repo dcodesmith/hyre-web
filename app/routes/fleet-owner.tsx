@@ -67,7 +67,9 @@ function getPageTitle(pathname: string): string {
   if (pageTitles[pathname]) return pageTitles[pathname];
   const sortedRoutes = Object.entries(pageTitles).sort(([a], [b]) => b.length - a.length);
   for (const [route, title] of sortedRoutes) {
-    if (pathname.startsWith(route)) return title;
+    // "/fleet-owner" only matches exactly (handled above); as a prefix it would
+    // swallow every unmapped sub-route and make the fallback unreachable
+    if (route !== "/fleet-owner" && pathname.startsWith(`${route}/`)) return title;
   }
   return "Fleet Manager";
 }
