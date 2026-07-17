@@ -2,6 +2,7 @@ import { type ActionFunctionArgs } from "react-router";
 import { prisma } from "~/modules/db/db.server";
 import { requireAdminOrStaffWithRedirect } from "~/modules/auth/auth.server";
 import { DocumentStatus } from "@prisma/client";
+import { approveCarIfFullyReviewed } from "~/services/cars.server";
 
 export async function action({ request, params }: ActionFunctionArgs) {
   const { user } = await requireAdminOrStaffWithRedirect(request);
@@ -24,32 +25,10 @@ export async function action({ request, params }: ActionFunctionArgs) {
     },
   });
 
-  // If this is a car document, check if all documents and images are approved
+  // If this is a car document, promote the car only when every image and
+  // document is approved.
   if (document.car) {
-    const [pendingDocuments, pendingImages] = await Promise.all([
-      prisma.documentApproval.findMany({
-        where: {
-          carId: document.car.id,
-          status: DocumentStatus.PENDING,
-        },
-      }),
-      prisma.vehicleImage.findMany({
-        where: {
-          carId: document.car.id,
-          status: DocumentStatus.PENDING,
-        },
-      }),
-    ]);
-
-    // Only approve the car if all documents and images are approved
-    if (pendingDocuments.length === 0 && pendingImages.length === 0) {
-      await prisma.car.update({
-        where: { id: document.car.id },
-        data: {
-          approvalStatus: "APPROVED",
-        },
-      });
-    }
+    await approveCarIfFullyReviewed(document.car.id);
   }
 
   // If this is a chauffeur document, update the chauffeur's approval status if all required documents are approved

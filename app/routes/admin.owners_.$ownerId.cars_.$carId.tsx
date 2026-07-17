@@ -2,7 +2,9 @@ import {
   type LoaderFunctionArgs,
   type ActionFunctionArgs,
   data,
+  useActionData,
   useLoaderData,
+  useNavigation,
   useSubmit,
   useNavigate,
 } from "react-router";
@@ -12,7 +14,9 @@ import { Button } from "~/components/ui/button";
 import { CarApprovalStatus } from "@prisma/client";
 import { requireAdminWithRedirect } from "~/modules/auth/auth.server";
 import { validateCSRF } from "~/utils/csrf-action.server";
-import { useState } from "react";
+import { approveCarIfFullyReviewed } from "~/services/cars.server";
+import { useToast } from "~/hooks/use-toast";
+import { useEffect, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -66,12 +70,18 @@ export async function action({ request, params }: ActionFunctionArgs) {
   const action = formData.get("action");
 
   if (action === "approve") {
-    await prisma.car.update({
-      where: { id: params.carId, ownerId: params.ownerId },
-      data: {
-        approvalStatus: "APPROVED",
-      },
-    });
+    invariant(params.carId, "Car ID is required");
+    // A car can only be approved once every image and document is approved.
+    const approved = await approveCarIfFullyReviewed(params.carId);
+    if (!approved) {
+      return data(
+        {
+          success: false,
+          error: "All images and documents must be approved before the car can be approved.",
+        },
+        { status: 400 },
+      );
+    }
     return { success: true };
   }
 
@@ -104,7 +114,22 @@ export async function action({ request, params }: ActionFunctionArgs) {
 export default function CarDetails() {
   const { car } = useLoaderData<typeof loader>();
   const submit = useSubmit();
+  const actionData = useActionData<typeof action>();
+  const navigation = useNavigation();
+  const { toast } = useToast();
   const csrfToken = useAuthenticityToken();
+
+  // The approve action can now be rejected (e.g. docs not all approved); surface
+  // that 400 so the admin isn't left with a silent no-op.
+  useEffect(() => {
+    if (navigation.state === "idle" && actionData && "error" in actionData && actionData.error) {
+      toast({
+        title: "Approval blocked",
+        description: actionData.error,
+        variant: "destructive",
+      });
+    }
+  }, [navigation.state, actionData, toast]);
   const [selectedImage, setSelectedImage] = useState<{ url: string; id: string } | null>(null);
   const [selectedPdf, setSelectedPdf] = useState<{ url: string; title: string; id: string } | null>(
     null,

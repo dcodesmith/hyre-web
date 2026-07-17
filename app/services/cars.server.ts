@@ -91,10 +91,16 @@ export async function createCar({
         where: { id: car.id },
         data: {
           status: Status.AVAILABLE,
-          approvalStatus: autoApprove ? CarApprovalStatus.APPROVED : CarApprovalStatus.PENDING,
+          approvalStatus: CarApprovalStatus.PENDING,
         },
       });
     });
+
+    // autoApprove must still clear the approval gate (>=1 approved image + all
+    // required approved docs) so it can never publish an asset-less car.
+    if (autoApprove) {
+      await approveCarIfFullyReviewed(car.id);
+    }
 
     return await prisma.car.findUnique({ where: { id: car.id } });
   } catch (error) {
@@ -114,4 +120,88 @@ export async function createCar({
     }
     throw new Error("Failed to create car and related assets", { cause: error as Error });
   }
+}
+
+/**
+ * Car documents that must exist and be APPROVED before a car can be listed.
+ * Owner-level docs (NIN, licence) live on the user, not the car. Mirrors what
+ * createCar always uploads.
+ */
+export const REQUIRED_CAR_DOCUMENT_TYPES: DocumentType[] = [
+  DocumentType.MOT_CERTIFICATE,
+  DocumentType.INSURANCE_CERTIFICATE,
+];
+
+/**
+ * Take a row-level lock on a car within a transaction (`SELECT ... FOR UPDATE`)
+ * so concurrent approval-status transitions (approve / reject / re-upload)
+ * serialize per car and cannot interleave a stale read with a write. Returns
+ * whether the car exists.
+ */
+export async function lockCarRow(
+  tx: Prisma.TransactionClient,
+  carId: string,
+): Promise<boolean> {
+  const rows = await tx.$queryRaw<Array<{ id: string }>>(
+    Prisma.sql`SELECT id FROM "Car" WHERE id = ${carId} FOR UPDATE`,
+  );
+  return rows.length > 0;
+}
+
+/**
+ * Promote a car to APPROVED only when it actually has the required assets AND
+ * every image and document is APPROVED. A car with no approved images, a missing
+ * required document, or any PENDING/REJECTED item is not promotable. Returns
+ * whether the car ended up approved. Single source of truth for the approval
+ * gate — mirrors the API's CarApprovalService.approveCarIfFullyReviewed.
+ *
+ * The eligibility read and the promotion write run in one transaction behind a
+ * row lock, so a concurrent document/image change cannot leave an ineligible
+ * car approved.
+ */
+export async function approveCarIfFullyReviewed(carId: string): Promise<boolean> {
+  return prisma.$transaction(async (tx) => {
+    // Serialize this car's approval read+write against reject/re-upload.
+    await lockCarRow(tx, carId);
+
+    const unresolvedFilter = {
+      carId,
+      status: { in: [DocumentStatus.PENDING, DocumentStatus.REJECTED] },
+    };
+
+    const [unresolvedDocuments, unresolvedImages, approvedImageCount, approvedRequiredDocs] =
+      await Promise.all([
+        tx.documentApproval.count({ where: unresolvedFilter }),
+        tx.vehicleImage.count({ where: unresolvedFilter }),
+        tx.vehicleImage.count({ where: { carId, status: DocumentStatus.APPROVED } }),
+        tx.documentApproval.findMany({
+          where: {
+            carId,
+            status: DocumentStatus.APPROVED,
+            documentType: { in: REQUIRED_CAR_DOCUMENT_TYPES },
+          },
+          select: { documentType: true },
+          distinct: ["documentType"],
+        }),
+      ]);
+
+    const hasAllRequiredDocuments = REQUIRED_CAR_DOCUMENT_TYPES.every((type) =>
+      approvedRequiredDocs.some((doc) => doc.documentType === type),
+    );
+
+    const fullyReviewed =
+      unresolvedDocuments === 0 &&
+      unresolvedImages === 0 &&
+      approvedImageCount > 0 &&
+      hasAllRequiredDocuments;
+
+    if (fullyReviewed) {
+      await tx.car.update({
+        where: { id: carId },
+        data: { approvalStatus: CarApprovalStatus.APPROVED, approvalNotes: null },
+      });
+    }
+
+    return fullyReviewed;
+  });
 }

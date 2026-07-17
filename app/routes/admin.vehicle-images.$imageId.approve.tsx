@@ -1,8 +1,9 @@
 import { type ActionFunctionArgs, data } from "react-router";
 import { prisma } from "~/modules/db/db.server";
 import { requireAdminOrStaffWithRedirect } from "~/modules/auth/auth.server";
-import { CarApprovalStatus, DocumentStatus } from "@prisma/client";
+import { DocumentStatus } from "@prisma/client";
 import { validateCSRF } from "~/utils/csrf-action.server";
+import { approveCarIfFullyReviewed } from "~/services/cars.server";
 
 export async function action({ request, params }: ActionFunctionArgs) {
   await validateCSRF(request);
@@ -22,32 +23,8 @@ export async function action({ request, params }: ActionFunctionArgs) {
     },
   });
 
-  // Check if all documents and images for this car are approved
-  const [pendingDocumentCount, pendingImageCount] = await Promise.all([
-    prisma.documentApproval.count({
-      where: {
-        carId: image.carId,
-        status: DocumentStatus.PENDING,
-      },
-    }),
-    prisma.vehicleImage.count({
-      where: {
-        carId: image.carId,
-        status: DocumentStatus.PENDING,
-      },
-    }),
-  ]);
-
-  // Only approve the car if all documents and images are approved
-  if (pendingDocumentCount === 0 && pendingImageCount === 0) {
-    await prisma.car.update({
-      where: { id: image.carId },
-      data: {
-        approvalStatus: CarApprovalStatus.APPROVED,
-        approvalNotes: null,
-      },
-    });
-  }
+  // Promote the car only when every image and document is approved.
+  await approveCarIfFullyReviewed(image.carId);
 
   return { success: true, image };
 }
