@@ -82,7 +82,7 @@ export function CompactSearchBar({ onClick }: CompactSearchBarProps) {
           )}
         </div>
       ) : (
-        <span className="text-sm text-slate-900 font-semibold">Search for your ride</span>
+        <span className="text-sm text-slate-900 font-semibold">When do you need a ride?</span>
       )}
     </button>
   );
