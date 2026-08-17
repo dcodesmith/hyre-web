@@ -1,25 +1,11 @@
 import type { z } from "zod";
-
-import {
-  normalizeProblemDetails,
-  type ProblemDetails,
-} from "./problem-details";
 import { HTTP_STATUS } from "./http-status";
+import { normalizeProblemDetails, type ProblemDetails } from "./problem-details";
 
 const DEFAULT_TIMEOUT_MS = 10_000;
-const TRACE_HEADERS = [
-  "x-request-id",
-  "traceparent",
-  "tracestate",
-  "baggage",
-] as const;
+const TRACE_HEADERS = ["x-request-id", "traceparent", "tracestate", "baggage"] as const;
 
-export type ApiRequestErrorKind =
-  | "aborted"
-  | "contract"
-  | "http"
-  | "network"
-  | "timeout";
+export type ApiRequestErrorKind = "aborted" | "contract" | "http" | "network" | "timeout";
 
 export class ApiRequestError extends Error {
   readonly name = "ApiRequestError";
@@ -29,8 +15,9 @@ export class ApiRequestError extends Error {
     readonly status: number,
     readonly problem: ProblemDetails,
     readonly headers = new Headers(),
+    cause?: unknown,
   ) {
-    super(problem.detail);
+    super(problem.detail, { cause });
   }
 }
 
@@ -78,30 +65,32 @@ export function createApiClient({
       }
 
       const timeoutMs = options.timeoutMs ?? defaultTimeoutMs;
-      const abort = createAbortContext(options.request?.signal, timeoutMs);
       const headers = buildHeaders(options, hasJsonBody);
+      const requestBody = hasJsonBody ? JSON.stringify(options.json) : undefined;
+      const abort = createAbortContext(options.request?.signal, timeoutMs);
 
       let response: Response;
+      let responseBody: unknown;
 
       try {
         response = await fetchImpl(url, {
           method,
           headers,
-          body: hasJsonBody ? JSON.stringify(options.json) : undefined,
+          body: requestBody,
           signal: abort.signal,
           redirect: "manual",
         });
-      } catch {
-        abort.cleanup();
-
+        responseBody = await readResponseBody(response);
+      } catch (cause) {
         if (abort.didTimeout()) {
           throw localApiError(
             "timeout",
             HTTP_STATUS.GATEWAY_TIMEOUT,
             "UPSTREAM_TIMEOUT",
             "Upstream API timeout",
-            "The upstream API did not respond before the request timed out.",
+            "The upstream API response did not complete before the request timed out.",
             options.path,
+            cause,
           );
         }
 
@@ -113,6 +102,7 @@ export function createApiClient({
             "Request aborted",
             "The request was cancelled before the upstream API responded.",
             options.path,
+            cause,
           );
         }
 
@@ -121,34 +111,29 @@ export function createApiClient({
           HTTP_STATUS.SERVICE_UNAVAILABLE,
           "UPSTREAM_UNAVAILABLE",
           "Upstream API unavailable",
-          "The upstream API could not be reached.",
+          "The upstream API response could not be completed.",
           options.path,
+          cause,
         );
+      } finally {
+        abort.cleanup();
       }
 
-      abort.cleanup();
-
-      const body = await readResponseBody(response);
       const responseHeaders = new Headers(response.headers);
 
       if (!response.ok) {
         const title = response.statusText || "Upstream request failed";
-        const problem = normalizeProblemDetails(body, {
+        const problem = normalizeProblemDetails(responseBody, {
           status: response.status,
           title,
           detail: title,
           instance: options.path,
         });
 
-        throw new ApiRequestError(
-          "http",
-          response.status,
-          problem,
-          responseHeaders,
-        );
+        throw new ApiRequestError("http", response.status, problem, responseHeaders);
       }
 
-      const parsed = await options.schema.safeParseAsync(body);
+      const parsed = await options.schema.safeParseAsync(responseBody);
 
       if (!parsed.success) {
         throw new ApiRequestError(
@@ -163,7 +148,7 @@ export function createApiClient({
             details: {
               issues: parsed.error.issues.map((issue) => ({
                 code: issue.code,
-                path: issue.path.join("."),
+                path: issue.path.map(String).join("."),
                 message: issue.message,
               })),
             },
@@ -188,16 +173,8 @@ function normalizeApiOrigin(value: string) {
     throw new TypeError("API_ORIGIN must use http or https");
   }
 
-  if (
-    url.username ||
-    url.password ||
-    url.pathname !== "/" ||
-    url.search ||
-    url.hash
-  ) {
-    throw new TypeError(
-      "API_ORIGIN must not include credentials, path, query, or hash",
-    );
+  if (url.username || url.password || url.pathname !== "/" || url.search || url.hash) {
+    throw new TypeError("API_ORIGIN must not include credentials, path, query, or hash");
   }
 
   return url.origin;
@@ -320,12 +297,19 @@ function localApiError(
   title: string,
   detail: string,
   instance: string,
+  cause: unknown,
 ) {
-  return new ApiRequestError(kind, status, {
-    type,
-    title,
+  return new ApiRequestError(
+    kind,
     status,
-    detail,
-    instance,
-  });
+    {
+      type,
+      title,
+      status,
+      detail,
+      instance,
+    },
+    undefined,
+    cause,
+  );
 }

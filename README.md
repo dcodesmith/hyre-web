@@ -15,22 +15,28 @@ The migration architecture and delivery plan are documented under
 
 ```sh
 pnpm install
+cp .dev.vars.example .dev.vars
 pnpm dev
 ```
 
 Your application will be available at `http://localhost:5173`.
-The local Worker expects the Nest API at `http://127.0.0.1:3000`. Override
-`API_ORIGIN` with an uncommitted `.dev.vars` file when using a different local
-API origin.
+The example local binding points to the Nest API at `http://127.0.0.1:3000`.
+Override `API_ORIGIN` in the uncommitted `.dev.vars` file when using a different
+local API origin.
 
 ## Verification
 
 ```sh
+pnpm lint
 pnpm typecheck
 pnpm test
 pnpm build
 pnpm preview
 ```
+
+Husky runs Biome on staged TypeScript and JSON files before each commit. CI also
+runs `pnpm lint`, a dedicated typecheck workflow, tests, and Snyk (high
+severity and above). Dependabot updates npm weekly and GitHub Actions monthly.
 
 ## Deployment
 

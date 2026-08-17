@@ -1,9 +1,11 @@
-import { z } from "zod";
 import { describe, expect, it } from "vitest";
+import { z } from "zod";
 
 import { ApiRequestError, createApiClient } from "./api.server";
 import { carCategoriesResponseSchema } from "./contracts/car-categories";
 import { HTTP_STATUS, type HttpStatus } from "./http-status";
+import { toPublicProblemDetails } from "./problem-details";
+
 const okSchema = z.object({ ok: z.boolean() });
 
 describe("createApiClient", () => {
@@ -21,7 +23,7 @@ describe("createApiClient", () => {
       headers: {
         cookie: "session=secret",
         origin: "https://hyre.example",
-        "traceparent": "00-trace-parent",
+        traceparent: "00-trace-parent",
         "x-request-id": "request-123",
       },
     });
@@ -85,6 +87,29 @@ describe("createApiClient", () => {
     expect(capturedInit?.body).toBe('{"value":1}');
   });
 
+  it("does not classify JSON serialization errors as network failures", async () => {
+    let fetchCalled = false;
+    const circular: Record<string, unknown> = {};
+    circular.self = circular;
+    const client = createApiClient({
+      apiOrigin: "https://api.example",
+      fetchImpl: async () => {
+        fetchCalled = true;
+        return jsonResponse({ ok: true });
+      },
+    });
+
+    await expect(
+      client.request({
+        path: "/api/example",
+        method: "POST",
+        schema: okSchema,
+        json: circular,
+      }),
+    ).rejects.toThrow(TypeError);
+    expect(fetchCalled).toBe(false);
+  });
+
   it("rejects absolute and protocol-relative caller paths", async () => {
     const client = createApiClient({
       apiOrigin: "https://api.example",
@@ -104,15 +129,22 @@ describe("createApiClient", () => {
         schema: okSchema,
       }),
     ).rejects.toThrow("root-relative");
+
+    await expect(
+      client.request({
+        path: "/\\attacker.example/api",
+        schema: okSchema,
+      }),
+    ).rejects.toThrow("must stay within API_ORIGIN");
   });
 
   it("rejects API origins that include paths or credentials", () => {
-    expect(() =>
-      createApiClient({ apiOrigin: "https://api.example/base" }),
-    ).toThrow("must not include");
-    expect(() =>
-      createApiClient({ apiOrigin: "https://user:secret@api.example" }),
-    ).toThrow("must not include");
+    expect(() => createApiClient({ apiOrigin: "https://api.example/base" })).toThrow(
+      "must not include",
+    );
+    expect(() => createApiClient({ apiOrigin: "https://user:secret@api.example" })).toThrow(
+      "must not include",
+    );
   });
 
   it("preserves upstream Problem Details and status", async () => {
@@ -151,9 +183,7 @@ describe("createApiClient", () => {
         instance: "/api/cars/categories",
       },
     });
-    expect((error as ApiRequestError).headers.get("x-request-id")).toBe(
-      "upstream-request",
-    );
+    expect((error as ApiRequestError).headers.get("x-request-id")).toBe("upstream-request");
   });
 
   it("normalizes non-JSON upstream failures", async () => {
@@ -185,6 +215,49 @@ describe("createApiClient", () => {
     });
   });
 
+  it("does not expose upstream diagnostics from server errors", async () => {
+    const client = createApiClient({
+      apiOrigin: "https://api.example",
+      fetchImpl: async () =>
+        jsonResponse(
+          {
+            type: "DATABASE_ERROR",
+            title: "Query failed",
+            status: HTTP_STATUS.SERVICE_UNAVAILABLE,
+            detail: "select * from private_users",
+            instance: "/internal/database",
+            errorCode: "DB_CONNECTION_FAILED",
+            errors: [{ userId: "private-user-id" }],
+            details: { query: "select * from private_users" },
+          },
+          HTTP_STATUS.SERVICE_UNAVAILABLE,
+          { "x-request-id": "upstream-request" },
+        ),
+    });
+
+    const error = await client
+      .request({
+        path: "/api/cars/categories",
+        schema: okSchema,
+      })
+      .catch((caught: unknown) => caught);
+
+    expect(error).toMatchObject({
+      kind: "http",
+      status: HTTP_STATUS.SERVICE_UNAVAILABLE,
+      problem: {
+        type: "UPSTREAM_HTTP_ERROR",
+        title: "Upstream request failed",
+        status: HTTP_STATUS.SERVICE_UNAVAILABLE,
+        detail: "Upstream request failed",
+        instance: "/api/cars/categories",
+      },
+    });
+    expect((error as ApiRequestError).problem).not.toHaveProperty("errors");
+    expect((error as ApiRequestError).problem).not.toHaveProperty("details");
+    expect((error as ApiRequestError).problem).not.toHaveProperty("errorCode");
+  });
+
   it("reports invalid successful responses as contract failures", async () => {
     const client = createApiClient({
       apiOrigin: "https://api.example",
@@ -206,9 +279,12 @@ describe("createApiClient", () => {
         status: HTTP_STATUS.BAD_GATEWAY,
       },
     });
+    expect(toPublicProblemDetails((error as ApiRequestError).problem)).not.toHaveProperty(
+      "details",
+    );
   });
 
-  it("distinguishes upstream timeouts from network failures", async () => {
+  it("classifies an upstream timeout", async () => {
     const fetchImpl: typeof fetch = async (_input, init) =>
       new Promise<Response>((_resolve, reject) => {
         const signal = init?.signal;
@@ -238,6 +314,96 @@ describe("createApiClient", () => {
       status: HTTP_STATUS.GATEWAY_TIMEOUT,
       problem: { type: "UPSTREAM_TIMEOUT" },
     });
+    expect((error as ApiRequestError).cause).toBeInstanceOf(DOMException);
+  });
+
+  it("keeps the timeout active while reading the response body", async () => {
+    const client = createApiClient({
+      apiOrigin: "https://api.example",
+      fetchImpl: async (_input, init) => {
+        const signal = init?.signal;
+        const stream = new ReadableStream<Uint8Array>({
+          start(controller) {
+            const failOnAbort = () => controller.error(signal?.reason);
+
+            if (signal?.aborted) {
+              failOnAbort();
+            } else {
+              signal?.addEventListener("abort", failOnAbort, { once: true });
+            }
+          },
+        });
+
+        return new Response(stream, {
+          headers: { "content-type": "application/json" },
+        });
+      },
+    });
+
+    const error = await client
+      .request({
+        path: "/api/cars/categories",
+        schema: okSchema,
+        timeoutMs: 5,
+      })
+      .catch((caught: unknown) => caught);
+
+    expect(error).toMatchObject({
+      kind: "timeout",
+      status: HTTP_STATUS.GATEWAY_TIMEOUT,
+    });
+  });
+
+  it("classifies caller cancellation as aborted", async () => {
+    const controller = new AbortController();
+    const abortReason = new DOMException("Caller cancelled", "AbortError");
+    const client = createApiClient({
+      apiOrigin: "https://api.example",
+      fetchImpl: async (_input, init) => {
+        init?.signal?.throwIfAborted();
+        return jsonResponse({ ok: true });
+      },
+    });
+    controller.abort(abortReason);
+
+    const error = await client
+      .request({
+        path: "/api/cars/categories",
+        schema: okSchema,
+        request: new Request("https://hyre.example/", {
+          signal: controller.signal,
+        }),
+      })
+      .catch((caught: unknown) => caught);
+
+    expect(error).toMatchObject({
+      kind: "aborted",
+      status: HTTP_STATUS.CLIENT_CLOSED_REQUEST,
+    });
+    expect((error as ApiRequestError).cause).toBe(abortReason);
+  });
+
+  it("classifies transport failures as network errors", async () => {
+    const failure = new TypeError("fetch failed");
+    const client = createApiClient({
+      apiOrigin: "https://api.example",
+      fetchImpl: async () => {
+        throw failure;
+      },
+    });
+
+    const error = await client
+      .request({
+        path: "/api/cars/categories",
+        schema: okSchema,
+      })
+      .catch((caught: unknown) => caught);
+
+    expect(error).toMatchObject({
+      kind: "network",
+      status: HTTP_STATUS.SERVICE_UNAVAILABLE,
+    });
+    expect((error as ApiRequestError).cause).toBe(failure);
   });
 });
 

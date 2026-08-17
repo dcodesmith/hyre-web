@@ -6,12 +6,16 @@
   "scripts": {
     "build": "react-router build",
     "dev": "react-router dev",
-    "deploy": "pnpm run build && wrangler deploy",
+    "deploy": "CLOUDFLARE_ENV=production pnpm run build && wrangler deploy --env production",
     "preview": "pnpm run build && vite preview",
-    "cf-typegen": "wrangler types",
-    "typecheck": "wrangler types && react-router typegen && tsc -b",
+    "cf-typegen": "wrangler types --env production",
+    "typecheck": "wrangler types --env production && react-router typegen && tsc -b",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "format": "biome format --write .",
     "test": "vitest run --config vitest.config.ts",
-    "postinstall": "wrangler types"
+    "prepare": "husky",
+    "postinstall": "wrangler types --env production"
   },
   "dependencies": {
     "isbot": "^5.1.36",
@@ -21,12 +25,14 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.1.2",
     "@cloudflare/vite-plugin": "^1.52.1",
     "@react-router/dev": "^8",
     "@tailwindcss/vite": "^4.2.2",
     "@types/node": "^22",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
+    "husky": "^9.1.7",
     "tailwindcss": "^4.2.2",
     "typescript": "^5.9.3",
     "vite": "^8.0.3",

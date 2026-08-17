@@ -1,16 +1,23 @@
 import { env } from "cloudflare:workers";
+import { z } from "zod";
 
 import { createApiClient } from "./api.server";
 import { carCategoriesResponseSchema } from "./contracts/car-categories";
 
-const apiClient = createApiClient({ apiOrigin: env.API_ORIGIN });
+const carCategoriesLimitSchema = z.number().int().min(1).max(100).default(50);
+let apiClient: ReturnType<typeof createApiClient> | undefined;
 
-export function getCarCategories(
-  options: { request?: Request; limit?: number } = {},
-) {
-  const search = new URLSearchParams({ limit: String(options.limit ?? 50) });
+function getApiClient() {
+  apiClient ??= createApiClient({ apiOrigin: env.API_ORIGIN });
 
-  return apiClient.request({
+  return apiClient;
+}
+
+export function getCarCategories(options: { request?: Request; limit?: number } = {}) {
+  const limit = carCategoriesLimitSchema.parse(options.limit);
+  const search = new URLSearchParams({ limit: String(limit) });
+
+  return getApiClient().request({
     path: `/api/cars/categories?${search}`,
     request: options.request,
     schema: carCategoriesResponseSchema,
