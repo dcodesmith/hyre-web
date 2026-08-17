@@ -115,6 +115,7 @@ When implementations disagree:
 - [Migration plan](./02-MIGRATION-PLAN.md)
 - [Route and API readiness](./03-ROUTE-API-READINESS.md)
 - [Cloudflare runbook](./04-CLOUDFLARE-RUNBOOK.md)
+- [Implementation skills and React effect policy](./05-IMPLEMENTATION-SKILLS.md)
 
 ## Definition of done
 
@@ -127,6 +128,7 @@ The rebuild is complete when:
 - webhooks and scheduled work terminate at the Nest service, not Cloudflare;
 - public routes retain metadata, canonical URLs, sitemap, robots rules, and structured data;
 - accessibility and critical Playwright journeys pass;
+- direct `useEffect` usage is mechanically restricted to reviewed external-integration hooks;
 - preview and production Workers use separate API origins/configuration;
 - rollback has been tested against the post-migration database;
 - Better Auth 1.4/1.6 session compatibility has been proven, or rollback explicitly forces a new login;

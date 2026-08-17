@@ -277,6 +277,45 @@ Successful route actions automatically revalidate active React Router loaders. T
 
 Experimental React Server Components are outside the initial architecture. Reassess after the selected framework's RSC support is stable and there is a measured product benefit.
 
+## React effect policy
+
+Treat direct `useEffect` calls as an external-system synchronization escape
+hatch, not a default state-management or data-loading tool. The target is zero
+direct effects in route modules and presentation components unless a reviewed
+external integration requires one.
+
+Prefer, in order:
+
+1. derive values during render;
+2. load server data in a React Router `loader`;
+3. perform user-caused work in an event handler, `action`, or `useFetcher`;
+4. represent filter and navigation state in the URL;
+5. reset identity-sensitive state with a keyed component boundary;
+6. subscribe to external stores with `useSyncExternalStore`;
+7. isolate a genuine browser or third-party synchronization lifecycle in a
+   narrowly named integration hook.
+
+Do not use effects to:
+
+- fetch route or server data;
+- copy props or loader data into state;
+- calculate values that can be derived during render;
+- relay a click, submit, or other user event;
+- reset state merely because an identifier changed;
+- synchronize two pieces of React state;
+- implement pending UI already exposed by navigation or fetcher state.
+
+Legitimate effects are limited to external systems such as map widgets,
+payment-provider SDKs, DOM observers, media/browser subscriptions, timers,
+WebSockets, and third-party imperative APIs. They must have explicit setup and
+cleanup, complete reactive inputs, and live inside a reviewed
+integration-specific hook rather than a general component.
+
+Add a mechanical lint restriction before feature migration accelerates:
+presentation and route files should not import `useEffect` directly. Allow it
+only in an explicitly reviewed integration-hook location. React Doctor and code
+review supplement this gate; they do not replace it.
+
 ## Caching
 
 Suggested initial policy:
