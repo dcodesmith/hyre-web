@@ -64,7 +64,10 @@ Exit criteria:
 
 ## Phase 1: establish a greenfield RR v8 Cloudflare foundation
 
-The current repository is React Router 7/React 18/Vite 5 and includes the Vercel preset. Treat it as a parity fixture and source of approved presentation code, not as the new dependency foundation.
+The current repository is React Router 7/React 18/Vite 5 and includes the Vercel
+preset. It does not serve production. After active patches are isolated, replace
+the tracked root with the clean foundation; use `hireApp` as the immutable,
+deployable parity fixture and source of approved presentation code.
 
 Required RR v8 minimums:
 
@@ -87,7 +90,10 @@ Foundation tasks:
 - set up test, typecheck, lint, preview, and deploy scripts;
 - configure preview and production Workers separately.
 
-Generate the current official RR v8 Cloudflare scaffold and port only approved routes, UI, styles, assets, and browser-safe utilities. Do not perform an in-place upgrade of the copied v7 dependency tree.
+Generate the current official RR v8 Cloudflare scaffold and port only approved
+routes, UI, styles, assets, and browser-safe utilities. Do not perform an
+in-place upgrade of the copied v7 dependency tree or maintain a temporary
+second application under `apps/web`.
 
 Do not add Prisma or `DATABASE_URL` to the Worker.
 

@@ -1,41 +1,39 @@
-# Welcome to Remix!
+# Hyre Web
 
-- 📖 [Remix docs](https://remix.run/docs)
+React Router v8 framework-mode application running with SSR in the Cloudflare
+Workers runtime.
+
+The migration architecture and delivery plan are documented under
+[`docs/handover`](./docs/handover/README.md).
+
+## Requirements
+
+- Node.js 22.22 or newer in the Node 22 release line
+- pnpm 10.20
 
 ## Development
 
-Run the dev server:
+```sh
+pnpm install
+pnpm dev
+```
 
-```shellscript
-npm run dev
+Your application will be available at `http://localhost:5173`.
+
+## Verification
+
+```sh
+pnpm typecheck
+pnpm build
+pnpm preview
 ```
 
 ## Deployment
 
-First, build your app for production:
+Deployments use Wrangler. Preview and production bindings must be configured
+separately and must never point an untrusted preview at production mutation
+endpoints.
 
 ```sh
-npm run build
+pnpm deploy
 ```
-
-Then run the app in production mode:
-
-```sh
-npm start
-```
-
-Now you'll need to pick a host to deploy it to.
-
-### DIY
-
-If you're familiar with deploying Node applications, the built-in Remix app server is production-ready.
-
-Make sure to deploy the output of `npm run build`
-
-- `build/server`
-- `build/client`
-
-## Styling
-
-This template comes with [Tailwind CSS](https://tailwindcss.com/) already configured for a simple default starting experience. You can use whatever css framework you prefer. See the [Vite docs on css](https://vitejs.dev/guide/features.html#css) for more information.
-# hyre

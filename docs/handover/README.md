@@ -92,7 +92,13 @@ The related airport-completion controller, migration, notifications, and status-
 
 Do not bulk-delete or bulk-commit these working trees. The API repository also contains untracked backup/key-like artifacts that require a secrets review and must not be swept into source control.
 
-Do not delete legacy files until:
+`hyre-web` is not the production web deployment. Once its active patches are
+isolated on their existing branches, the RR v8 foundation may replace the
+tracked RR7 root rather than create a temporary second application. `hireApp`
+remains the immutable, deployable parity reference throughout migration.
+
+Do not delete legacy files from `hireApp`, or remove an implemented capability
+from the migration reference, until:
 
 1. the current work and patches in every repository are safely preserved;
 2. a visual and route baseline has been captured;

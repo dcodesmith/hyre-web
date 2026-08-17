@@ -1,13 +1,14 @@
-node_modules
-
-/.cache
-/build
+.DS_Store
 .env
-.vercel
-.react-router/
+/node_modules/
+*.tsbuildinfo
 
-# Playwright
-/test-results/
-/playwright-report/
-/blob-report/
-/playwright/.cache/
+# React Router
+/.react-router/
+/build/
+
+# Cloudflare
+.mf
+.wrangler
+.dev.vars*
+worker-configuration.d.ts
