@@ -1,2 +1,0 @@
--- AlterTable
-ALTER TABLE "Car" ADD COLUMN     "hourlyRate" INTEGER NOT NULL DEFAULT 0;
