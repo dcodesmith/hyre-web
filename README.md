@@ -19,11 +19,15 @@ pnpm dev
 ```
 
 Your application will be available at `http://localhost:5173`.
+The local Worker expects the Nest API at `http://127.0.0.1:3000`. Override
+`API_ORIGIN` with an uncommitted `.dev.vars` file when using a different local
+API origin.
 
 ## Verification
 
 ```sh
 pnpm typecheck
+pnpm test
 pnpm build
 pnpm preview
 ```
