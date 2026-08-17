@@ -4,6 +4,7 @@ import {
   normalizeProblemDetails,
   type ProblemDetails,
 } from "./problem-details";
+import { HTTP_STATUS } from "./http-status";
 
 const DEFAULT_TIMEOUT_MS = 10_000;
 const TRACE_HEADERS = [
@@ -96,7 +97,7 @@ export function createApiClient({
         if (abort.didTimeout()) {
           throw localApiError(
             "timeout",
-            504,
+            HTTP_STATUS.GATEWAY_TIMEOUT,
             "UPSTREAM_TIMEOUT",
             "Upstream API timeout",
             "The upstream API did not respond before the request timed out.",
@@ -107,7 +108,7 @@ export function createApiClient({
         if (options.request?.signal.aborted) {
           throw localApiError(
             "aborted",
-            499,
+            HTTP_STATUS.CLIENT_CLOSED_REQUEST,
             "REQUEST_ABORTED",
             "Request aborted",
             "The request was cancelled before the upstream API responded.",
@@ -117,7 +118,7 @@ export function createApiClient({
 
         throw localApiError(
           "network",
-          503,
+          HTTP_STATUS.SERVICE_UNAVAILABLE,
           "UPSTREAM_UNAVAILABLE",
           "Upstream API unavailable",
           "The upstream API could not be reached.",
@@ -152,11 +153,11 @@ export function createApiClient({
       if (!parsed.success) {
         throw new ApiRequestError(
           "contract",
-          502,
+          HTTP_STATUS.BAD_GATEWAY,
           {
             type: "UPSTREAM_INVALID_RESPONSE",
             title: "Invalid upstream response",
-            status: 502,
+            status: HTTP_STATUS.BAD_GATEWAY,
             detail: "The upstream API returned an unexpected response shape.",
             instance: options.path,
             details: {

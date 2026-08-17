@@ -1,10 +1,5 @@
 import { z } from "zod";
 
-export const carCategoriesOptionsSchema = z.object({
-  limit: z.number().int().min(1).max(100).default(50),
-  from: z.date().optional(),
-});
-
 const promotionSchema = z.object({
   id: z.string(),
   name: z.string().nullable(),
@@ -40,5 +35,4 @@ export const carCategoriesResponseSchema = z.object({
   total: z.number().int(),
 });
 
-export type CarCategoriesOptions = z.input<typeof carCategoriesOptionsSchema>;
 export type CarCategoriesResponse = z.infer<typeof carCategoriesResponseSchema>;

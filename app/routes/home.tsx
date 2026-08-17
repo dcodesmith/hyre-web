@@ -5,7 +5,7 @@ import { ApiRequestError } from "~/lib/api/api.server";
 import { getCarCategories } from "~/lib/api/cars.server";
 import type { Route } from "./+types/home";
 
-export function meta({}: Route.MetaArgs) {
+export function meta() {
   return [
     { title: "Hyre Web" },
     {

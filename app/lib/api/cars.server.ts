@@ -1,26 +1,18 @@
 import { env } from "cloudflare:workers";
 
 import { createApiClient } from "./api.server";
-import {
-  carCategoriesOptionsSchema,
-  carCategoriesResponseSchema,
-  type CarCategoriesOptions,
-} from "./contracts/car-categories";
-import { apiEndpoints } from "./endpoints";
+import { carCategoriesResponseSchema } from "./contracts/car-categories";
 
-const nestApi = createApiClient({ apiOrigin: env.API_ORIGIN });
+const apiClient = createApiClient({ apiOrigin: env.API_ORIGIN });
 
-type GetCarCategoriesOptions = CarCategoriesOptions & {
-  request?: Request;
-};
+export function getCarCategories(
+  options: { request?: Request; limit?: number } = {},
+) {
+  const search = new URLSearchParams({ limit: String(options.limit ?? 50) });
 
-export async function getCarCategories(options: GetCarCategoriesOptions = {}) {
-  const { limit, from } = carCategoriesOptionsSchema.parse(options);
-
-  return nestApi.request({
-    path: apiEndpoints.cars.categories({ limit, from }),
+  return apiClient.request({
+    path: `/api/cars/categories?${search}`,
     request: options.request,
     schema: carCategoriesResponseSchema,
-    timeoutMs: 10_000,
   });
 }

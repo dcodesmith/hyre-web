@@ -3,8 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import { ApiRequestError, createApiClient } from "./api.server";
 import { carCategoriesResponseSchema } from "./contracts/car-categories";
-import { apiEndpoints } from "./endpoints";
-
+import { HTTP_STATUS } from "./http-status";
 const okSchema = z.object({ ok: z.boolean() });
 
 describe("createApiClient", () => {
@@ -14,7 +13,9 @@ describe("createApiClient", () => {
     const fetchImpl: typeof fetch = async (input, init) => {
       capturedUrl = String(input);
       capturedInit = init;
-      return jsonResponse({ ok: true }, 200, { "cache-control": "public, max-age=300" });
+      return jsonResponse({ ok: true }, HTTP_STATUS.OK, {
+        "cache-control": "public, max-age=300",
+      });
     };
     const incoming = new Request("https://hyre.example/", {
       headers: {
@@ -43,7 +44,10 @@ describe("createApiClient", () => {
     expect(headers.get("traceparent")).toBe("00-trace-parent");
     expect(headers.get("cookie")).toBeNull();
     expect(headers.get("origin")).toBeNull();
-    expect(response).toMatchObject({ data: { ok: true }, status: 200 });
+    expect(response).toMatchObject({
+      data: { ok: true },
+      status: HTTP_STATUS.OK,
+    });
     expect(response.headers.get("cache-control")).toBe("public, max-age=300");
   });
 
@@ -119,12 +123,12 @@ describe("createApiClient", () => {
           {
             type: "VALIDATION_ERROR",
             title: "Validation Failed",
-            status: 400,
+            status: HTTP_STATUS.BAD_REQUEST,
             detail: "One or more validation errors occurred",
             instance: "/api/cars/categories",
             errors: [{ field: "limit", message: "Too large" }],
           },
-          400,
+          HTTP_STATUS.BAD_REQUEST,
           { "x-request-id": "upstream-request" },
         ),
     });
@@ -139,11 +143,11 @@ describe("createApiClient", () => {
     expect(error).toBeInstanceOf(ApiRequestError);
     expect(error).toMatchObject({
       kind: "http",
-      status: 400,
+      status: HTTP_STATUS.BAD_REQUEST,
       problem: {
         type: "VALIDATION_ERROR",
         title: "Validation Failed",
-        status: 400,
+        status: HTTP_STATUS.BAD_REQUEST,
         instance: "/api/cars/categories",
       },
     });
@@ -157,7 +161,7 @@ describe("createApiClient", () => {
       apiOrigin: "https://api.example",
       fetchImpl: async () =>
         new Response("Service unavailable", {
-          status: 503,
+          status: HTTP_STATUS.SERVICE_UNAVAILABLE,
           statusText: "Service Unavailable",
           headers: { "content-type": "text/plain" },
         }),
@@ -172,11 +176,11 @@ describe("createApiClient", () => {
 
     expect(error).toMatchObject({
       kind: "http",
-      status: 503,
+      status: HTTP_STATUS.SERVICE_UNAVAILABLE,
       problem: {
         type: "UPSTREAM_HTTP_ERROR",
         title: "Service Unavailable",
-        status: 503,
+        status: HTTP_STATUS.SERVICE_UNAVAILABLE,
       },
     });
   });
@@ -196,10 +200,10 @@ describe("createApiClient", () => {
 
     expect(error).toMatchObject({
       kind: "contract",
-      status: 502,
+      status: HTTP_STATUS.BAD_GATEWAY,
       problem: {
         type: "UPSTREAM_INVALID_RESPONSE",
-        status: 502,
+        status: HTTP_STATUS.BAD_GATEWAY,
       },
     });
   });
@@ -231,7 +235,7 @@ describe("createApiClient", () => {
 
     expect(error).toMatchObject({
       kind: "timeout",
-      status: 504,
+      status: HTTP_STATUS.GATEWAY_TIMEOUT,
       problem: { type: "UPSTREAM_TIMEOUT" },
     });
   });
@@ -272,22 +276,9 @@ describe("carCategoriesResponseSchema", () => {
   });
 });
 
-describe("apiEndpoints", () => {
-  it("serializes validated category query values", () => {
-    expect(
-      apiEndpoints.cars.categories({
-        limit: 25,
-        from: new Date("2026-08-17T12:00:00.000Z"),
-      }),
-    ).toBe(
-      "/api/cars/categories?limit=25&from=2026-08-17T12%3A00%3A00.000Z",
-    );
-  });
-});
-
 function jsonResponse(
   body: unknown,
-  status = 200,
+  status = HTTP_STATUS.OK,
   headers: HeadersInit = {},
 ) {
   return new Response(JSON.stringify(body), {
