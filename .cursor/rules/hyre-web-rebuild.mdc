@@ -1,0 +1,43 @@
+---
+description: Keep the Hyre web rebuild aligned with its handover and trusted skills
+alwaysApply: true
+---
+
+# Hyre web rebuild
+
+Before planning or changing migration code, read
+`docs/handover/README.md` and the documents relevant to the task:
+
+- framework choices: `00-FRAMEWORK-DECISION.md`;
+- architecture, data flow, and React effects: `01-ARCHITECTURE.md`;
+- PR sequencing and migration scope: `02-MIGRATION-PLAN.md`;
+- routes and API coverage: `03-ROUTE-API-READINESS.md`;
+- Cloudflare runtime and deployment: `04-CLOUDFLARE-RUNBOOK.md`;
+- skill selection and quality gates: `05-IMPLEMENTATION-SKILLS.md`.
+
+Use this source-of-truth order:
+
+1. `hyre-worker-nestjs` controllers, DTOs, guards, and tests define API
+   contracts and authorization.
+2. `hyre-mobile` shows currently exercised API behavior.
+3. `hireApp` defines web UI, URLs, SEO, accessibility, and browser workflows.
+4. Legacy web server code is reference material, not the new architecture.
+
+Inspect those repositories directly for each vertical slice; do not rely on
+chat memory or infer missing contracts.
+
+Before React Router work, read
+`.agents/skills/react-router/SKILL.md` and its relevant version-aware
+reference. Before React implementation or review, read
+`.agents/skills/vercel-react-best-practices/SKILL.md`. Handover decisions
+override generic skill advice.
+
+Keep route modules thin, call Nest through server-only BFF adapters, and never
+add Prisma or business authorization to the Worker. Prefer loaders, actions,
+forms, fetchers, URL state, and render-time derivation. Direct `useEffect` is
+allowed only in reviewed external-integration hooks as defined by the
+architecture.
+
+Keep stacked PRs small, dependency-ordered, and independently verifiable.
+Surface conflicts or unverified API assumptions instead of silently choosing
+an implementation.
