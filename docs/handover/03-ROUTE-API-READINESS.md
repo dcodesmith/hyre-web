@@ -1,0 +1,316 @@
+# Route and API readiness
+
+This inventory is a planning aid, not a generated API specification. It was derived from Nest controller decorators and current mobile usage. Confirm DTOs, guards, query parameters, and response status codes before implementing each route.
+
+No Swagger/OpenAPI generation was found in Nest. Mobile currently maintains manual response types and casts. Until Nest publishes a generated contract, route readiness must include explicit runtime transport validation for critical flows.
+
+Backend coverage gaps in this document are framework-independent. Choosing TanStack Start would not remove or type missing Nest endpoints.
+
+## Status meanings
+
+- **Available**: a matching Nest controller endpoint was observed.
+- **Verify**: a related endpoint exists, but parity with the legacy route is unproven.
+- **Gap**: no matching controller endpoint was observed.
+- **Web-owned**: belongs to React Router/Cloudflare rather than Nest.
+- **Remove/redirect**: duplicate legacy backend endpoint; Nest should own it.
+
+## Observed Nest surface
+
+### Auth and account
+
+- `ALL /api/auth/*` — Better Auth
+- `GET /auth/session`
+- `POST /api/account/delete`
+- `POST|DELETE /api/users/me/push-tokens`
+
+Better Auth response and error bodies bypass Nest's normal Problem Details filter and require a separate web parser.
+
+### Public cars, search, maps, and flights
+
+- `GET /api/cars/categories`
+- `GET /api/cars/search`
+- `GET /api/cars/:carId`
+- `GET /api/rates`
+- `GET /api/places/autocomplete`
+- `POST /api/places/resolve`
+- `POST /api/places/validate`
+- `GET /api/calculate-trip-duration`
+- `GET /api/search-flight`
+- `POST /api/ai-search`
+
+### Bookings and payments
+
+- `POST /api/bookings`
+- `GET /api/bookings`
+- `GET /api/bookings/payment-status`
+- `GET /api/bookings/:bookingId`
+- `PATCH /api/bookings/:bookingId`
+- `PATCH /api/bookings/:bookingId/cancel`
+- `POST /api/bookings/pricing-preview`
+- `POST /api/bookings/:bookingId/extensions`
+- provisional `GET|POST /api/bookings/:bookingId/airport-completion` using `X-Booking-Completion-Token`
+- `POST /api/payments/initialize`
+- `GET /api/payments/status/:txRef`
+- `POST /api/payments/booking-confirmation`
+- `POST /api/payments/booking-expiration`
+- `POST /api/payments/:txRef/refund`
+
+### Reviews and referrals
+
+- `POST /api/reviews/create`
+- `GET /api/reviews/car/:carId`
+- `GET /api/reviews/chauffeur/:chauffeurId`
+- `GET /api/reviews/booking/:bookingId`
+- `GET|PUT /api/reviews/:reviewId`
+- `DELETE /api/reviews/:reviewId` — admin-only moderation/hide, not customer deletion
+- `GET /api/referrals/validate/:code` — session required; unlike the legacy public route
+- `GET /api/referrals/eligibility` — session required; current type schema excludes airport pickup
+- `GET /api/referrals/user` — session required
+
+### Fleet-owner and chauffeur
+
+- `GET|POST /api/fleet-owner/cars`
+- `GET|PATCH /api/fleet-owner/cars/:carId`
+- `PUT /api/fleet-owner/cars/:carId/images/:imageId/file`
+- `PUT /api/fleet-owner/cars/:carId/documents/:documentId/file`
+- `PATCH /api/fleet-owner/bookings/:bookingId/chauffeur`
+- `GET|POST /api/fleet-owner/promotions`
+- `POST /api/fleet-owner/promotions/:promotionId/deactivate`
+- `GET /api/dashboard/overview`
+- `GET /api/dashboard/earnings`
+- `GET /api/dashboard/payouts`
+- `GET /api/dashboard/payouts/summary`
+- provisional chauffeur airport-completion endpoints under `/chauffeur/airport-trips` (currently uncommitted)
+
+### Admin
+
+- `GET /api/admin/cars`
+- `GET /api/admin/cars/:carId`
+- `POST /api/admin/cars/:carId/approve`
+- `PATCH /api/admin/cars/:carId/cover`
+- image approve/reject under `/api/admin/cars/:carId/images`
+- document approve/reject under `/api/admin/documents`
+- admin rates under `/api/rates/admin`
+- platform fee, VAT, add-on create/end under `/api/rates`
+- refund/payout list, detail, and reconcile under `/api/admin/financial-operations`
+
+### Backend-only integrations
+
+- Flutterwave webhook under `/api/payments/webhook/flutterwave`
+- Twilio webhook endpoints
+- FlightAware webhook
+- document proxy
+- `GET /health` — not `/api/health`
+- job/manual trigger endpoint
+
+These should not be reimplemented in the Worker.
+
+## Legacy web route readiness
+
+### Public and SEO
+
+**Available**
+
+- `/search` -> car search, rates, places
+- `/cars/:id` -> car detail and reviews
+- `/chauffeur-service-lagos` -> web content plus public car/search data
+
+**Gap unless an endpoint is added**
+
+- `/partners/:slug`
+- `/partners/:slug/search`
+- `/partners/:slug/cars/:id`
+
+No partner/slug controller was observed. Partner pages require partner identity, branding, attribution, scoped inventory, and canonical behavior.
+
+**Verify**
+
+- `/` and home sections -> confirm every homepage aggregate can be built from public car/category/rate endpoints
+
+**Web-owned**
+
+- `/about`
+- `/faq`
+- `/terms`
+- `/privacy`
+- `/cookies`
+- `/robots.txt`
+- `/sitemap.xml`
+- catch-all 404
+- API documentation/discovery pages if retained
+
+### Authentication
+
+**Available**
+
+- customer OTP login/verify
+- fleet-owner OTP login/verify
+- admin OTP login/verify
+- session lookup and logout
+
+All roles use the Nest Better Auth endpoints. Role-specific pages remain separate for UI parity, but authentication must not be reimplemented.
+
+### Customer
+
+**Available**
+
+- `/bookings`
+- `/bookings/:id`
+- `/bookings/:id/extend`
+- `/bookings/payment-status`
+- `/referrals`
+- review reads, create, and owner update
+- account deletion
+
+**Gap unless an endpoint is added**
+
+- `/profile` update -> no `PATCH /api/users/me` equivalent was observed
+- `/bookings/lookup` -> no guest email/reference lookup endpoint was observed
+- booking receipt PDF -> no dedicated booking receipt endpoint was observed
+- review deletion -> observed DELETE is admin-only moderation
+
+**Verify**
+
+- every legacy booking mutation and cancellation policy
+- referral attribution inputs during signup/booking
+- referral validation public/signup behavior because the REST validation endpoint requires a session
+- referral eligibility for airport-pickup bookings
+- booking idempotency and guest `paymentStatusToken` persistence/header forwarding
+
+### Fleet owner
+
+**Available or closely matched**
+
+- cars list/detail/create/update/upload
+- promotions
+- booking chauffeur assignment
+- payout list/summary
+
+**Verify**
+
+- dashboard overview/earnings: the legacy dashboard also needs owner-driver state, utilization, chauffeur availability, unassigned/recent bookings, and next payout
+- fleet booking detail through the generic booking endpoint requires ownership/field parity verification
+- `/fleet-owner/payout-transactions` may map to dashboard payout endpoints
+- exact car onboarding/document workflow
+- airport-completion controls; their Nest controller and migration are currently uncommitted
+
+**Gap unless another endpoint is discovered**
+
+- fleet-owner onboarding completion
+- bank-account resolution and payout-details update
+- `GET /api/fleet-owner/bookings` list/filter endpoint
+- chauffeur list/create/detail/update
+- fleet car deletion
+- any fleet-specific report not covered by dashboard endpoints
+
+### Admin
+
+**Available or closely matched**
+
+- car list/detail/approval/cover/image approval
+- document approval/rejection actions
+- fees/VAT/add-on rates
+- refund and payout reconciliation actions
+
+**Gap unless another endpoint is discovered**
+
+- admin dashboard aggregate parity
+- owner list/detail/update
+- owner car/chauffeur management pages
+- staff management
+- reports
+- admin review moderation/listing
+- referral configuration
+- referral attribution list/detail/manual attribution
+- referral rewards
+- pending document/image list for the admin documents page
+- legacy booking reconciliation aggregate
+
+Do not port the legacy Prisma-based admin loaders to Cloudflare to fill these gaps. Add guarded Nest controllers and contract tests.
+
+## Legacy resource/API route disposition
+
+### Remove or replace with BFF calls
+
+- local Better Auth catch-all
+- AI search
+- trip-duration calculation
+- flight search
+- reviews
+- referrals
+- account deletion
+- payment status and mutations
+- admin reconciliation
+- document proxy
+
+The UI may retain the same browser-visible route where required, but implementation must delegate to Nest.
+
+### Redirect/configure external providers to Nest
+
+- Flutterwave webhook
+- Twilio webhooks
+- FlightAware webhook
+
+Verify provider dashboards and secrets before cutover.
+
+### Remove from production
+
+- test OTP;
+- test booking details;
+- test booking activation;
+- test seed-car routes.
+
+Equivalent test support belongs behind explicit Nest test infrastructure, never a production Worker route.
+
+### Keep web-owned
+
+- robots;
+- sitemap;
+- public API docs/catalog/OpenAPI resources when intentionally part of the website;
+- markdown content negotiation for the website, if still required.
+
+## Mobile reference coverage
+
+Current mobile code demonstrates:
+
+- central base URL and timeout;
+- JSON parsing and typed `ApiError`;
+- OTP request/verify/session/logout;
+- bearer authentication;
+- car categories/search/detail;
+- rates;
+- places;
+- booking pricing/create/list/detail/actions;
+- payment confirmation/expiration;
+- referrals;
+- reviews;
+- flight search and trip duration;
+- push tokens.
+
+Reuse endpoint and payload knowledge. Do not copy:
+
+- Expo environment discovery;
+- secure-store bearer tokens;
+- `X-Client-Type: mobile`;
+- device-specific Origin handling;
+- TanStack Query defaults without a web need;
+- native navigation/cache invalidation behavior.
+
+## Backend backlog gate
+
+Before a migration phase starts, create one backend issue per missing capability containing:
+
+- legacy web route and screenshot;
+- required role;
+- URL/search-parameter schema;
+- request/query shape;
+- expected and validated response DTO;
+- BFF loader/action/server-function ownership;
+- cookie or guest-token requirements;
+- authenticated/public cache policy;
+- Problem Details/error codes;
+- authorization and ownership rules;
+- pagination/filter/sort behavior;
+- contract and e2e test acceptance criteria.
+
+An endpoint is ready only when it exists in Nest, is authorized, is tested, and is usable without importing Prisma types into the web app.
