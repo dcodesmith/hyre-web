@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import { ApiRequestError, createApiClient } from "./api.server";
 import { carCategoriesResponseSchema } from "./contracts/car-categories";
-import { HTTP_STATUS } from "./http-status";
+import { HTTP_STATUS, type HttpStatus } from "./http-status";
 const okSchema = z.object({ ok: z.boolean() });
 
 describe("createApiClient", () => {
@@ -278,7 +278,7 @@ describe("carCategoriesResponseSchema", () => {
 
 function jsonResponse(
   body: unknown,
-  status = HTTP_STATUS.OK,
+  status: HttpStatus = HTTP_STATUS.OK,
   headers: HeadersInit = {},
 ) {
   return new Response(JSON.stringify(body), {
