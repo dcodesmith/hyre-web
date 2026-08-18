@@ -64,6 +64,9 @@ test("filters FAQ questions and exposes an empty state", async ({ page }) => {
   await page.goto("/faq");
 
   const airportTab = page.getByRole("tab", { name: /Airport Transfers/ });
+  await airportTab.evaluate((element) => {
+    element.scrollIntoView({ block: "center", inline: "nearest" });
+  });
   await airportTab.click();
   await expect(airportTab).toHaveAttribute("aria-selected", "true");
 

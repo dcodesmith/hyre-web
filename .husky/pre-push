@@ -1,0 +1,17 @@
+set -e
+
+# Functional Playwright coverage before the remote sees the commit. Keep
+# pre-commit on Biome only — full e2e is too slow for every local commit.
+# Ignore snapshots here: visual baselines are Linux CI artifacts.
+if git rev-parse --abbrev-ref --symbolic-full-name @{upstream} >/dev/null 2>&1; then
+  range="@{upstream}..HEAD"
+else
+  range="origin/main...HEAD"
+fi
+
+changed=$(git diff --name-only "$range" -- app e2e playwright.config.ts package.json pnpm-lock.yaml || true)
+if [ -z "$changed" ]; then
+  exit 0
+fi
+
+pnpm test:e2e -- --ignore-snapshots

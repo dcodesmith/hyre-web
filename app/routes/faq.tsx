@@ -93,7 +93,7 @@ export default function FaqPage() {
                     key={category.id}
                     value={category.id}
                     className={cn(
-                      "w-full justify-start rounded-lg px-4 py-2 whitespace-nowrap transition-colors md:whitespace-normal",
+                      "w-full scroll-mb-24 justify-start rounded-lg px-4 py-2 whitespace-nowrap transition-colors md:scroll-mb-0 md:whitespace-normal",
                       "data-[state=active]:bg-gray-900 data-[state=active]:text-white data-[state=active]:shadow-none",
                       "data-[state=inactive]:bg-transparent data-[state=inactive]:text-gray-700 data-[state=inactive]:hover:bg-gray-100",
                     )}
