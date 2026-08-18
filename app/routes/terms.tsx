@@ -17,7 +17,7 @@ export default function TermsPage() {
   const { companyName, supportEmail } = LEGAL_CONSTANTS;
 
   return (
-    <LegalPageLayout title="Terms of Service">
+    <LegalPageLayout path="/terms" title="Terms of Service">
       <section className="mb-8">
         <h2 className="mb-4 text-xl font-semibold text-gray-900">1. Acceptance of Terms</h2>
         <p className="mb-4 text-gray-600">

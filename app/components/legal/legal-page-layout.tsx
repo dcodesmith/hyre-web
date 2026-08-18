@@ -1,16 +1,25 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router";
 
+import { BreadcrumbStructuredData } from "~/components/seo/structured-data";
 import { LEGAL_CONSTANTS } from "~/constants/legal";
+import { SITE_ORIGIN } from "~/lib/seo";
 
 interface LegalPageLayoutProps {
   readonly children: ReactNode;
+  readonly path: `/${string}`;
   readonly title: string;
 }
 
-export function LegalPageLayout({ children, title }: LegalPageLayoutProps) {
+export function LegalPageLayout({ children, path, title }: LegalPageLayoutProps) {
   return (
     <div className="min-h-screen bg-white">
+      <BreadcrumbStructuredData
+        items={[
+          { name: "Home", url: SITE_ORIGIN },
+          { name: title, url: `${SITE_ORIGIN}${path}` },
+        ]}
+      />
       <div className="mx-auto max-w-4xl px-4 py-12 sm:px-6 lg:px-8">
         <article className="max-w-none">
           <h1 className="mb-2 text-3xl font-bold text-gray-900">{title}</h1>

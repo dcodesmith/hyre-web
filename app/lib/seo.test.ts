@@ -28,14 +28,10 @@ describe("buildPageMetadata", () => {
       description: "Tripdly ".repeat(30),
       path: "/faq",
     });
-    const description = metadata.find(
-      (descriptor) => "name" in descriptor && descriptor.name === "description",
-    );
-
-    expect(description).toBeDefined();
-    expect("content" in (description ?? {}) ? description?.content.length : 0).toBeLessThanOrEqual(
-      155,
-    );
+    expect(metadata).toContainEqual({
+      name: "description",
+      content: expect.stringMatching(/^.{1,155}$/),
+    });
   });
 });
 

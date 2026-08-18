@@ -21,7 +21,7 @@ export default function CookiesPage() {
   const { companyName, privacyEmail } = LEGAL_CONSTANTS;
 
   return (
-    <LegalPageLayout title="Cookie Policy">
+    <LegalPageLayout path="/cookies" title="Cookie Policy">
       <section className="mb-8">
         <h2 className="mb-4 text-xl font-semibold text-gray-900">1. Introduction</h2>
         <p className="mb-4 text-gray-600">

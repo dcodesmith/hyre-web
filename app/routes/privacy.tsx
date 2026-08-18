@@ -18,7 +18,7 @@ export default function PrivacyPage() {
   const { companyName, privacyEmail } = LEGAL_CONSTANTS;
 
   return (
-    <LegalPageLayout title="Privacy Policy">
+    <LegalPageLayout path="/privacy" title="Privacy Policy">
       <section className="mb-8">
         <h2 className="mb-4 text-xl font-semibold text-gray-900">1. Introduction</h2>
         <p className="mb-4 text-gray-600">
@@ -152,6 +152,16 @@ export default function PrivacyPage() {
           </li>
           <li>
             <strong>Withdraw Consent:</strong> Withdraw consent where processing is based on consent
+          </li>
+          <li>
+            <strong>Restrict Processing:</strong> Request that we limit how we process your data
+          </li>
+          <li>
+            <strong>Lodge a Complaint:</strong> Complain to the Nigeria Data Protection Commission
+          </li>
+          <li>
+            <strong>Automated Decisions:</strong> Protection from decisions based solely on
+            automated processing that produce legal or similarly significant effects
           </li>
         </ul>
         <p className="mb-4 text-gray-600">
