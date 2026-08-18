@@ -1,4 +1,4 @@
-const assetPathPattern = /(?:href|src)="(\/assets\/[^"]+)"/;
+const assetPathPattern = /(?:href|src)="(\/assets\/[A-Za-z0-9._-]+-[A-Za-z0-9_-]{8}\.(?:css|js))"/;
 const previewUrl = process.argv[2];
 const apiUrl = process.argv[3];
 

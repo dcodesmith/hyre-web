@@ -74,4 +74,6 @@ jobs:
             --var "VALUE_FROM_CLOUDFLARE:Hyre Web is running on Cloudflare"
 
       - name: Smoke test preview
-        run: pnpm smoke:preview "${{ steps.preview.outputs.origin }}" "$STAGING_API_ORIGIN"
+        env:
+          PREVIEW_ORIGIN: ${{ steps.preview.outputs.origin }}
+        run: pnpm smoke:preview "$PREVIEW_ORIGIN" "$STAGING_API_ORIGIN"
