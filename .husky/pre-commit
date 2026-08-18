@@ -1,13 +1,11 @@
 set -e
 
-# Biome check and format on staged files only (filter to files Biome can process)
+# Validate staged source files only. Do not format or git add — that can
+# commit unstaged hunks. Skip when the index has no Biome-processable files;
+# otherwise `biome check --staged` fails with "No files were processed".
 files=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(ts|tsx|js|jsx|json|jsonc)$' || true)
-if [ -n "$files" ]; then
-  echo "$files" | xargs pnpm exec biome check --write
+if [ -z "$files" ]; then
+  exit 0
 fi
 
-# Stage any files that were fixed by biome (only re-add files that biome processed)
-files=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(ts|tsx|js|jsx|json|jsonc)$' || true)
-if [ -n "$files" ]; then
-  echo "$files" | xargs git add
-fi
+pnpm exec biome check --staged

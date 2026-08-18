@@ -167,7 +167,17 @@ export function createApiClient({
 }
 
 function normalizeApiOrigin(value: string) {
-  const url = new URL(value);
+  if (value.trim() === "") {
+    throw new TypeError("API_ORIGIN is required");
+  }
+
+  let url: URL;
+
+  try {
+    url = new URL(value);
+  } catch {
+    throw new TypeError("API_ORIGIN must be a valid absolute URL");
+  }
 
   if (url.protocol !== "http:" && url.protocol !== "https:") {
     throw new TypeError("API_ORIGIN must use http or https");

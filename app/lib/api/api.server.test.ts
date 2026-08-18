@@ -139,6 +139,9 @@ describe("createApiClient", () => {
   });
 
   it("rejects API origins that include paths or credentials", () => {
+    expect(() => createApiClient({ apiOrigin: "" })).toThrow("API_ORIGIN is required");
+    expect(() => createApiClient({ apiOrigin: "   " })).toThrow("API_ORIGIN is required");
+    expect(() => createApiClient({ apiOrigin: "not-a-url" })).toThrow("valid absolute URL");
     expect(() => createApiClient({ apiOrigin: "https://api.example/base" })).toThrow(
       "must not include",
     );
