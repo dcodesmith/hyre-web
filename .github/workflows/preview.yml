@@ -40,7 +40,7 @@ jobs:
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
-      - run: pnpm build
+      - run: CLOUDFLARE_ENV=preview pnpm build
       - run: pnpm check:bundle
 
       - name: Prepare preview configuration
@@ -66,7 +66,6 @@ jobs:
           PREVIEW_ORIGIN: ${{ steps.preview.outputs.origin }}
         run: >-
           pnpm exec wrangler versions upload
-          --env preview
           --preview-alias "$PREVIEW_ALIAS"
           --var "API_ORIGIN:$STAGING_API_ORIGIN"
           --var "APP_ENV:preview"

@@ -1,22 +1,19 @@
 import { isbot } from "isbot";
 import { renderToReadableStream } from "react-dom/server";
-import type { EntryContext, RouterContextProvider, ServerInstrumentation } from "react-router";
+import type {
+  EntryContext,
+  HandleErrorFunction,
+  InstrumentationHandlerResult,
+  RouterContextProvider,
+  ServerInstrumentation,
+} from "react-router";
 import { ServerRouter } from "react-router";
 
 export const streamTimeout = 5_000;
 
-type InstrumentedCall = () => Promise<{
-  status: "error" | "success";
-  error?: unknown;
-}>;
-
-type InstrumentedRequestInfo = {
-  pattern?: string;
-  request: {
-    headers: { get(name: string): string | null };
-    method: string;
-  };
-};
+type InstrumentedServerRoute = Parameters<NonNullable<ServerInstrumentation["route"]>>[0];
+type ServerRouteInstrumentations = Parameters<InstrumentedServerRoute["instrument"]>[0];
+type ServerRouteInfo = Parameters<NonNullable<ServerRouteInstrumentations["loader"]>>[1];
 
 const loggingInstrumentation: ServerInstrumentation = {
   handler({ instrument }) {
@@ -50,6 +47,12 @@ const loggingInstrumentation: ServerInstrumentation = {
 
 export const instrumentations = [loggingInstrumentation];
 
+export const handleError: HandleErrorFunction = (_error, { request }) => {
+  if (!request.signal.aborted) {
+    logRenderingError("react-router.request-error", request);
+  }
+};
+
 export default async function handleRequest(
   request: Request,
   responseStatusCode: number,
@@ -72,13 +75,13 @@ export default async function handleRequest(
     <ServerRouter context={routerContext} url={request.url} />,
     {
       signal: AbortSignal.timeout(streamTimeout + 1000),
-      onError(error: unknown) {
+      onError() {
         responseStatusCode = 500;
         // Log streaming rendering errors from inside the shell. Don't log
         // errors encountered during initial shell rendering since they'll
         // reject and get logged in handleDocumentRequest.
         if (shellRendered) {
-          console.error(error);
+          logRenderingError("react-router.stream-error", request);
         }
       },
     },
@@ -101,8 +104,8 @@ export default async function handleRequest(
 async function observeRoute(
   operation: "action" | "loader" | "middleware",
   routeId: string,
-  callRoute: InstrumentedCall,
-  info: InstrumentedRequestInfo,
+  callRoute: () => Promise<InstrumentationHandlerResult>,
+  info: ServerRouteInfo,
 ) {
   const startedAt = performance.now();
   const result = await callRoute();
@@ -113,9 +116,21 @@ async function observeRoute(
       requestId: info.request.headers.get("x-request-id") ?? "missing",
       method: info.request.method,
       routeId,
-      pattern: info.pattern ?? "unknown",
+      pattern: info.pattern,
       outcome: result.status,
       durationMs: Math.round(performance.now() - startedAt),
+    }),
+  );
+}
+
+function logRenderingError(
+  event: "react-router.request-error" | "react-router.stream-error",
+  request: Request,
+) {
+  console.error(
+    JSON.stringify({
+      event,
+      requestId: request.headers.get("x-request-id") ?? "missing",
     }),
   );
 }

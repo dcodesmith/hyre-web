@@ -1,12 +1,11 @@
 import { StrictMode, startTransition } from "react";
 import { hydrateRoot } from "react-dom/client";
-import type { ClientInstrumentation } from "react-router";
+import type {
+  ClientInstrumentation,
+  InstrumentationClientRouterResult,
+  InstrumentationHandlerResult,
+} from "react-router";
 import { HydratedRouter } from "react-router/dom";
-
-type InstrumentedCall = () => Promise<{
-  status: "error" | "success";
-  meta?: { pattern?: string };
-}>;
 
 const performanceInstrumentation: ClientInstrumentation = {
   router({ instrument }) {
@@ -34,7 +33,10 @@ startTransition(() => {
   );
 });
 
-async function measureRouterOperation(operation: "fetcher" | "navigation", call: InstrumentedCall) {
+async function measureRouterOperation(
+  operation: "fetcher" | "navigation",
+  call: () => Promise<InstrumentationClientRouterResult>,
+) {
   const startedAt = performance.now();
   const result = await call();
   const pattern = result.meta?.pattern ?? "unknown";
@@ -48,13 +50,13 @@ async function measureRouterOperation(operation: "fetcher" | "navigation", call:
 async function measureRouteOperation(
   operation: "action" | "loader" | "middleware",
   routeId: string,
-  pattern: string | undefined,
-  call: InstrumentedCall,
+  pattern: string,
+  call: () => Promise<InstrumentationHandlerResult>,
 ) {
   const startedAt = performance.now();
 
   await call();
-  performance.measure(`react-router.${operation}:${routeId}:${pattern ?? "unknown"}`, {
+  performance.measure(`react-router.${operation}:${routeId}:${pattern}`, {
     start: startedAt,
     duration: performance.now() - startedAt,
   });

@@ -29,6 +29,10 @@ assert(
   "Security headers are missing",
 );
 assert(
+  response.headers.get("strict-transport-security")?.includes("max-age=31536000"),
+  "Strict-Transport-Security header is missing",
+);
+assert(
   response.headers.get("x-robots-tag")?.includes("noindex"),
   "Preview response is not marked noindex",
 );
