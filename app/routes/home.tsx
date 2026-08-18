@@ -8,10 +8,10 @@ import type { Route } from "./+types/home";
 
 export function meta() {
   return [
-    { title: "Hyre Web" },
+    { title: "Tripdly | Chauffeur-driven vehicle booking" },
     {
       name: "description",
-      content: "Hyre's chauffeur-driven vehicle booking experience.",
+      content: "Book vetted chauffeurs and premium vehicles with Tripdly.",
     },
   ];
 }
@@ -42,11 +42,11 @@ export async function loader({ request }: Route.LoaderArgs) {
 
 export default function Home({ loaderData }: Route.ComponentProps) {
   return (
-    <main className="mx-auto flex min-h-screen max-w-3xl flex-col justify-center gap-4 px-6">
+    <div className="mx-auto flex min-h-[500px] max-w-3xl flex-col justify-center gap-4 px-6 py-16">
       <p className="text-sm font-medium uppercase tracking-[0.2em] text-slate-500">
         React Router v8 foundation
       </p>
-      <h1 className="text-4xl font-semibold tracking-tight text-slate-950">Hyre Web</h1>
+      <h1 className="font-brand text-5xl font-bold tracking-tight text-slate-950">Tripdly</h1>
       <p className="max-w-xl text-lg text-slate-600">
         The Cloudflare Workers SSR foundation is connected to the Nest API.
       </p>
@@ -55,6 +55,6 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         API {loaderData.apiStatus.status}: validated {loaderData.apiStatus.totalCars} cars across{" "}
         {loaderData.apiStatus.categoryCount} categories.
       </p>
-    </main>
+    </div>
   );
 }

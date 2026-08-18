@@ -5,6 +5,9 @@ import { defineConfig } from "vite";
 
 export default defineConfig({
   plugins: [cloudflare({ viteEnvironment: { name: "ssr" } }), tailwindcss(), reactRouter()],
+  optimizeDeps: {
+    include: ["class-variance-authority", "clsx", "lucide-react", "radix-ui", "tailwind-merge"],
+  },
   resolve: {
     tsconfigPaths: true,
   },

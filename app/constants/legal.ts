@@ -1,0 +1,7 @@
+export const LEGAL_CONSTANTS = {
+  companyName: "Tripdly",
+  privacyEmail: "privacy@tripdly.com",
+  supportEmail: "support@tripdly.com",
+  supportPhone: "+2347048003350",
+  supportPhoneDisplay: "+234 704 800 3350",
+} as const;

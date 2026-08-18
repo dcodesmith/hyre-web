@@ -47,7 +47,7 @@ const html = await response.text();
 
 assert(response.status === 200, `Expected home status 200, received ${response.status}`);
 assert(response.headers.get("content-type")?.includes("text/html"), "Home response is not HTML");
-assert(html.includes("Hyre Web"), "Home response does not contain the expected SSR content");
+assert(html.includes("Tripdly"), "Home response does not contain the expected SSR content");
 assert(
   html.replaceAll("<!-- -->", "").includes("API 200: validated"),
   "Home response does not contain the expected Nest API success state",
