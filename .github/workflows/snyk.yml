@@ -13,15 +13,25 @@ permissions:
 
 jobs:
   security:
+    # Dependabot pull_request runs do not receive Actions secrets, so
+    # SNYK_TOKEN is empty and snyk/actions fails with 401. The Snyk GitHub
+    # App still reports on those PRs. Regular PRs, main, and the weekly
+    # schedule keep running this job.
+    if: >-
+      ${{ github.actor != 'dependabot[bot]' &&
+          (github.event_name != 'pull_request' ||
+           github.event.pull_request.head.repo.full_name == github.repository) }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: 10.20.0
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
           cache: pnpm
@@ -29,7 +39,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       - name: Run Snyk to check for vulnerabilities
-        uses: snyk/actions/node@0.4.0
+        uses: snyk/actions/node@v1.0.0
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
