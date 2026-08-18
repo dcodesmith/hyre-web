@@ -99,7 +99,11 @@ assert(
 const assetPath = assetPathPattern.exec(html)?.[1];
 assert(assetPath, "Home response does not reference a fingerprinted static asset");
 
-const assetResponse = await fetchWithRetry(new URL(assetPath, origin));
+const assetResponse = await fetchWithRetry(
+  new URL(assetPath, origin),
+  { method: "HEAD" },
+  hasImmutableAssetHeaders,
+);
 const assetCacheControl = assetResponse.headers.get("cache-control") ?? "";
 assert(assetResponse.ok, `Static asset returned ${assetResponse.status}: ${assetPath}`);
 assert(
@@ -115,7 +119,18 @@ assert(
 
 console.log(`Preview smoke checks passed: ${origin.origin}`);
 
-async function fetchWithRetry(input, init) {
+function hasImmutableAssetHeaders(response) {
+  const cacheControl = response.headers.get("cache-control") ?? "";
+
+  return (
+    response.ok &&
+    cacheControl.includes("public") &&
+    cacheControl.includes("max-age=31536000") &&
+    cacheControl.includes("immutable")
+  );
+}
+
+async function fetchWithRetry(input, init, shouldAccept = hasSettledStatus) {
   let lastError;
 
   for (let attempt = 1; attempt <= 8; attempt += 1) {
@@ -125,11 +140,12 @@ async function fetchWithRetry(input, init) {
         signal: AbortSignal.timeout(15_000),
       });
 
-      if (response.status < 500 || attempt === 8) {
+      if (shouldAccept(response) || attempt === 8) {
         return response;
       }
 
-      lastError = new Error(`Received ${response.status}`);
+      lastError = new Error(`Response did not satisfy smoke readiness (status ${response.status})`);
+      await response.body?.cancel();
     } catch (error) {
       lastError = error;
     }
@@ -138,6 +154,10 @@ async function fetchWithRetry(input, init) {
   }
 
   throw lastError;
+}
+
+function hasSettledStatus(response) {
+  return response.status < 500;
 }
 
 function assert(condition, message) {
