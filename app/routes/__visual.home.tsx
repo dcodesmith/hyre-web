@@ -1,6 +1,9 @@
 import { HomePage } from "~/components/home/home-page";
 import type { CarCategoriesResponse } from "~/lib/api/contracts/car-categories";
 
+// Relative to each run so "New" badges do not disappear after a fixed createdAt ages out.
+const recentListingCreatedAt = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString();
+
 const fixtureCars: CarCategoriesResponse["allCars"] = [
   {
     id: "cmfixturetoyotacamry001",
@@ -13,7 +16,7 @@ const fixtureCars: CarCategoriesResponse["allCars"] = [
     vehicleType: "SEDAN",
     serviceTier: "EXECUTIVE",
     images: [{ url: "/images/hero-640.webp" }],
-    createdAt: "2026-08-16T09:00:00.000Z",
+    createdAt: recentListingCreatedAt,
     promotion: null,
     averageRating: 4.8,
     totalReviews: 24,
@@ -29,7 +32,7 @@ const fixtureCars: CarCategoriesResponse["allCars"] = [
     vehicleType: "SUV",
     serviceTier: "LUXURY",
     images: [{ url: "/images/hero-1200.webp" }],
-    createdAt: "2026-08-15T09:00:00.000Z",
+    createdAt: recentListingCreatedAt,
     promotion: {
       id: "promo-fixture",
       name: "August offer",
