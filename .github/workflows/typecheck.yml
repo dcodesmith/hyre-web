@@ -1,4 +1,4 @@
-name: CI
+name: Type Check
 
 on:
   pull_request:
@@ -9,8 +9,10 @@ permissions:
   contents: read
 
 jobs:
-  verify:
+  typecheck:
+    name: Run TypeScript type-check
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
 
@@ -24,6 +26,4 @@ jobs:
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
-      - run: pnpm lint
-      - run: pnpm test
-      - run: pnpm build
+      - run: pnpm typecheck

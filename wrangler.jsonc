@@ -6,6 +6,14 @@
   "vars": {
     "VALUE_FROM_CLOUDFLARE": "Hyre Web is running on Cloudflare"
   },
+  "env": {
+    "production": {
+      "vars": {
+        "API_ORIGIN": "https://hyre-worker-nestjs.fly.dev",
+        "VALUE_FROM_CLOUDFLARE": "Hyre Web is running on Cloudflare"
+      }
+    }
+  },
   "observability": {
     "enabled": true
   }
