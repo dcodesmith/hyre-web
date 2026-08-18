@@ -2,9 +2,11 @@ import { execFile } from "node:child_process";
 import { glob, mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
+const wranglerTimeoutMs = 120_000;
 const forbiddenRuntimeMarkers = [
   "@aws-sdk/client-s3",
   "@prisma/client",
@@ -24,19 +26,28 @@ const forbiddenRuntimeMarkers = [
 const outputDirectory = await mkdtemp(path.join(tmpdir(), "hyre-web-worker-"));
 
 try {
-  const wranglerPath = path.resolve(
-    "node_modules",
-    ".bin",
-    process.platform === "win32" ? "wrangler.cmd" : "wrangler",
-  );
-  const { stderr, stdout } = await execFileAsync(
-    wranglerPath,
-    ["deploy", "--dry-run", "--outdir", outputDirectory],
-    {
-      env: { ...process.env, WRANGLER_SEND_METRICS: "false" },
-      maxBuffer: 10 * 1024 * 1024,
-    },
-  );
+  const wranglerPackagePath = fileURLToPath(import.meta.resolve("wrangler/package.json"));
+  const wranglerCliPath = path.join(path.dirname(wranglerPackagePath), "bin", "wrangler.js");
+  let stderr;
+  let stdout;
+
+  try {
+    ({ stderr, stdout } = await execFileAsync(
+      process.execPath,
+      [wranglerCliPath, "deploy", "--dry-run", "--outdir", outputDirectory],
+      {
+        env: { ...process.env, WRANGLER_SEND_METRICS: "false" },
+        maxBuffer: 10 * 1024 * 1024,
+        timeout: wranglerTimeoutMs,
+      },
+    ));
+  } catch (error) {
+    if (isTimedOut(error)) {
+      throw new Error(`Wrangler dry run exceeded ${wranglerTimeoutMs}ms`, { cause: error });
+    }
+
+    throw error;
+  }
 
   process.stdout.write(stdout);
   process.stderr.write(stderr);
@@ -71,4 +82,8 @@ try {
   console.log(`Worker bundle check passed (${files.length} files scanned)`);
 } finally {
   await rm(outputDirectory, { force: true, recursive: true });
+}
+
+function isTimedOut(error) {
+  return typeof error === "object" && error !== null && "killed" in error && error.killed === true;
 }

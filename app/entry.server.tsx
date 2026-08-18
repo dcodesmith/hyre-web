@@ -60,6 +60,8 @@ export default async function handleRequest(
   routerContext: EntryContext,
   _loadContext: RouterContextProvider,
 ) {
+  responseHeaders.set("Content-Type", "text/html");
+
   // https://httpwg.org/specs/rfc9110.html#HEAD
   if (request.method.toUpperCase() === "HEAD") {
     return new Response(null, {
@@ -94,7 +96,6 @@ export default async function handleRequest(
     await body.allReady;
   }
 
-  responseHeaders.set("Content-Type", "text/html");
   return new Response(body, {
     headers: responseHeaders,
     status: responseStatusCode,
