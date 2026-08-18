@@ -28,14 +28,15 @@ test("renders crawlable homepage metadata and booking controls", async ({ page }
 
   const searchForm = page.locator('form[action="/search"]');
   await expect(searchForm).toBeVisible();
-  await expect(searchForm.getByRole("button", { name: "Same Day", exact: true })).toHaveAttribute(
+  await expect(searchForm.getByRole("button", { name: "Same Day" })).toHaveAttribute(
     "aria-pressed",
     "true",
   );
-  await searchForm.getByRole("button", { name: "Airport Pickup", exact: true }).click();
-  await expect(
-    searchForm.getByRole("button", { name: "Airport Pickup", exact: true }),
-  ).toHaveAttribute("aria-pressed", "true");
+  await searchForm.getByRole("button", { name: "Airport" }).click();
+  await expect(searchForm.getByRole("button", { name: "Airport" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
   await expect(page.getByLabel("Flight Number")).toBeVisible();
 
   const structuredData = await page.locator('script[type="application/ld+json"]').allTextContents();
@@ -44,7 +45,7 @@ test("renders crawlable homepage metadata and booking controls", async ({ page }
 
   await page.goto("/?bookingType=NIGHT");
   const nightSearchForm = page.locator('form[action="/search"]');
-  await expect(nightSearchForm.getByRole("button", { name: "Night", exact: true })).toHaveAttribute(
+  await expect(nightSearchForm.getByRole("button", { name: "Night" })).toHaveAttribute(
     "aria-pressed",
     "true",
   );
