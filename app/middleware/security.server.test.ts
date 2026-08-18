@@ -99,6 +99,22 @@ describe("applyResponsePolicy", () => {
     expect(response.headers.get("server-timing")).toBe("app;dur=12.3");
   });
 
+  it("overrides public cache headers on preview", () => {
+    const response = applyResponsePolicy(
+      new Request("https://preview.example/"),
+      new Response("<html></html>", {
+        headers: { "cache-control": "public, max-age=300" },
+      }),
+      {
+        environment: "preview",
+        requestId: "request-123",
+      },
+    );
+
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(response.headers.get("x-robots-tag")).toBe("noindex, nofollow, noarchive");
+  });
+
   it("keeps public production pages indexable", () => {
     const response = applyResponsePolicy(
       new Request("https://hyre.example/about"),

@@ -122,6 +122,9 @@ export function applyResponsePolicy(
 
   if (hasSensitiveState) {
     headers.set("Cache-Control", "private, no-store");
+  } else if (!isProduction) {
+    // Preview and local HTML must stay uncached so PR deploys are immediately visible.
+    headers.set("Cache-Control", "no-store");
   } else if (!headers.has("cache-control")) {
     // Public caching is opt-in per route once its complete cache key is known.
     headers.set("Cache-Control", "no-store");

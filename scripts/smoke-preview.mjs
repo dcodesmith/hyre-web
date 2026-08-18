@@ -49,8 +49,13 @@ assert(response.status === 200, `Expected home status 200, received ${response.s
 assert(response.headers.get("content-type")?.includes("text/html"), "Home response is not HTML");
 assert(html.includes("Tripdly"), "Home response does not contain the expected SSR content");
 assert(
-  html.replaceAll("<!-- -->", "").includes("API 200: validated"),
-  "Home response does not contain the expected Nest API success state",
+  html.includes("Your Ride, Your Choice") && html.includes('action="/search"'),
+  "Home response does not contain the expected homepage search UI",
+);
+assert(
+  !html.includes("Vehicles are temporarily unavailable") &&
+    (html.includes("All vehicles") || html.includes("No vehicles available right now")),
+  "Home response does not contain the expected Nest category data",
 );
 assert(response.headers.get("x-request-id") === requestId, "Request ID was not propagated");
 assert(
