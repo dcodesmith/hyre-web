@@ -241,7 +241,12 @@ function CookiePreferencesManager() {
   );
 }
 
-function ExternalLink({ children, href }: Readonly<{ children: ReactNode; href: string }>) {
+interface ExternalLinkProps {
+  readonly children: ReactNode;
+  readonly href: string;
+}
+
+function ExternalLink({ children, href }: ExternalLinkProps) {
   return (
     <a
       href={href}

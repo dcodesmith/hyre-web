@@ -179,10 +179,18 @@ export default function AboutPage() {
   );
 }
 
-function PlatformAudience({
-  title,
-  description,
-}: Readonly<{ title: string; description: string }>) {
+interface PlatformAudienceProps {
+  readonly description: string;
+  readonly title: string;
+}
+
+interface FeatureCardProps {
+  readonly description: string;
+  readonly icon: ReactNode;
+  readonly title: string;
+}
+
+function PlatformAudience({ title, description }: PlatformAudienceProps) {
   return (
     <div className="flex items-start gap-3">
       <CheckCircle2 aria-hidden="true" className="mt-0.5 size-6 shrink-0 text-green-600" />
@@ -194,11 +202,7 @@ function PlatformAudience({
   );
 }
 
-function FeatureCard({
-  icon,
-  title,
-  description,
-}: Readonly<{ icon: ReactNode; title: string; description: string }>) {
+function FeatureCard({ icon, title, description }: FeatureCardProps) {
   return (
     <Card className="h-full">
       <CardHeader className="pb-4">

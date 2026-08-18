@@ -8,16 +8,26 @@ interface FaqItem {
   readonly question: string;
 }
 
-function StructuredData({ value }: Readonly<{ value: object }>) {
+interface StructuredDataProps {
+  readonly value: object;
+}
+
+interface BreadcrumbStructuredDataProps {
+  readonly items: readonly BreadcrumbItem[];
+}
+
+interface FaqStructuredDataProps {
+  readonly items: readonly FaqItem[];
+}
+
+function StructuredData({ value }: StructuredDataProps) {
   const json = JSON.stringify(value).replaceAll("<", String.raw`\u003c`);
 
   // biome-ignore lint/security/noDangerouslySetInnerHtml: JSON-LD requires raw script text; "<" is escaped above.
   return <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: json }} />;
 }
 
-export function BreadcrumbStructuredData({
-  items,
-}: Readonly<{ items: readonly BreadcrumbItem[] }>) {
+export function BreadcrumbStructuredData({ items }: BreadcrumbStructuredDataProps) {
   return (
     <StructuredData
       value={{
@@ -34,7 +44,7 @@ export function BreadcrumbStructuredData({
   );
 }
 
-export function FaqStructuredData({ items }: Readonly<{ items: readonly FaqItem[] }>) {
+export function FaqStructuredData({ items }: FaqStructuredDataProps) {
   return (
     <StructuredData
       value={{

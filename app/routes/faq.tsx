@@ -147,10 +147,23 @@ export default function FaqPage() {
 
 type FaqQuestion = (typeof FAQ_ITEMS)[number];
 
-function FaqAccordion({
-  categoryId,
-  questions,
-}: Readonly<{ categoryId: string; questions: readonly FaqQuestion[] }>) {
+interface FaqAccordionProps {
+  readonly categoryId: string;
+  readonly questions: readonly FaqQuestion[];
+}
+
+interface FaqSearchCategory {
+  readonly id: string;
+  readonly name: string;
+  readonly questions: readonly FaqQuestion[];
+}
+
+interface FaqSearchResultsProps {
+  readonly categories: readonly FaqSearchCategory[];
+  readonly query: string;
+}
+
+function FaqAccordion({ categoryId, questions }: FaqAccordionProps) {
   return (
     <Accordion type="multiple" className="rounded-lg border bg-white">
       {questions.map((item, index) => (
@@ -171,17 +184,7 @@ function FaqAccordion({
   );
 }
 
-function FaqSearchResults({
-  query,
-  categories,
-}: Readonly<{
-  query: string;
-  categories: ReadonlyArray<{
-    readonly id: string;
-    readonly name: string;
-    readonly questions: readonly FaqQuestion[];
-  }>;
-}>) {
+function FaqSearchResults({ query, categories }: FaqSearchResultsProps) {
   return (
     <div aria-live="polite">
       <h2 className="mb-6 text-lg font-semibold">
