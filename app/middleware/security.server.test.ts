@@ -115,6 +115,21 @@ describe("applyResponsePolicy", () => {
     expect(response.headers.get("x-robots-tag")).toBe("noindex, nofollow, noarchive");
   });
 
+  it("keeps opt-in public cache headers in local", () => {
+    const response = applyResponsePolicy(
+      new Request("http://localhost:5173/about"),
+      new Response("<html></html>", {
+        headers: { "cache-control": "public, max-age=300" },
+      }),
+      {
+        environment: "local",
+        requestId: "request-123",
+      },
+    );
+
+    expect(response.headers.get("cache-control")).toBe("public, max-age=300");
+  });
+
   it("keeps public production pages indexable", () => {
     const response = applyResponsePolicy(
       new Request("https://hyre.example/about"),
