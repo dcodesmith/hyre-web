@@ -14,4 +14,4 @@ if [ -z "$changed" ]; then
   exit 0
 fi
 
-pnpm test:e2e -- --ignore-snapshots
+pnpm exec playwright test --ignore-snapshots
