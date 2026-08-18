@@ -173,7 +173,7 @@ function FaqAccordion({ categoryId, questions }: FaqAccordionProps) {
           className="border-b border-gray-200 px-6 last:border-0"
         >
           <AccordionTrigger className="text-left hover:no-underline">
-            <span className="pr-4 font-medium text-gray-900">{item.question}</span>
+            <span className="min-w-0 flex-1 pr-4 font-medium text-gray-900">{item.question}</span>
           </AccordionTrigger>
           <AccordionContent>
             <p className="leading-relaxed text-gray-600">{item.answer}</p>

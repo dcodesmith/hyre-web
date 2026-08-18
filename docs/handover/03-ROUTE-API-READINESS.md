@@ -125,7 +125,16 @@ No partner/slug controller was observed. Partner pages require partner identity,
 
 **Verify**
 
-- `/` and home sections -> confirm every homepage aggregate can be built from public car/category/rate endpoints
+- `/` fleet sections can be built from `GET /api/cars/categories`; the response already includes
+  promotions, rating aggregates, and `createdAt` (see
+  [`hyre-worker-nestjs#191`](https://github.com/dcodesmith/hyre-worker-nestjs/pull/191)), so the
+  homepage does not need rates or separate review reads. Web treats `createdAt` as optional until
+  that field is on every environment.
+- Category navigation metadata remains a contract follow-up:
+  [`hyre-worker-nestjs#190`](https://github.com/dcodesmith/hyre-worker-nestjs/issues/190).
+  Nest currently returns category names, titles, dimensions, and cars, but not the concrete
+  multi-value filters accepted by `/api/cars/search`. Web and mobile must temporarily map names to
+  filters; complete the issue before or with the public search slice to remove that duplication.
 
 **Web-owned**
 

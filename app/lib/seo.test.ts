@@ -33,6 +33,20 @@ describe("buildPageMetadata", () => {
       content: expect.stringMatching(/^.{1,155}$/),
     });
   });
+
+  it("adds large social-image metadata when a page provides an image", () => {
+    const image = "https://tripdly.com/og-image.jpg";
+    const metadata = buildPageMetadata({
+      title: "Tripdly",
+      description: "Book a chauffeur-driven vehicle.",
+      path: "/",
+      image,
+    });
+
+    expect(metadata).toContainEqual({ property: "og:image", content: image });
+    expect(metadata).toContainEqual({ name: "twitter:image", content: image });
+    expect(metadata).toContainEqual({ name: "twitter:card", content: "summary_large_image" });
+  });
 });
 
 describe("staticPageHeaders", () => {
