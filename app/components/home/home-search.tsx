@@ -17,7 +17,7 @@ import {
   nextPickupTimeOnFromChange,
   nextToDateOnFromChange,
 } from "~/lib/booking-utils";
-import { formatLagosDate } from "~/lib/timezone";
+import { formatZonedDate } from "~/lib/timezone";
 
 function isBookingType(value: string | null): value is BookingType {
   return value !== null && (BOOKING_TYPE_OPTIONS as readonly string[]).includes(value);
@@ -162,8 +162,8 @@ function HomeSearchFields({ initialBookingType }: { readonly initialBookingType:
   return (
     <Form method="get" action="/search" className="w-full text-left">
       <input type="hidden" name="bookingType" value={bookingType} />
-      {fromDate ? <input type="hidden" name="from" value={formatLagosDate(fromDate)} /> : null}
-      {toDate ? <input type="hidden" name="to" value={formatLagosDate(toDate)} /> : null}
+      {fromDate ? <input type="hidden" name="from" value={formatZonedDate(fromDate)} /> : null}
+      {toDate ? <input type="hidden" name="to" value={formatZonedDate(toDate)} /> : null}
       {isAirportPickup ? <input type="hidden" name="flightNumber" value={flightNumber} /> : null}
       {isNight ? <input type="hidden" name="pickupTime" value="11 PM" /> : null}
 

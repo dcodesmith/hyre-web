@@ -3,12 +3,12 @@ import { describe, expect, it } from "vitest";
 import {
   getEarliestBookableDate,
   getToDateMinDate,
-  isLagosCutoffTomorrow,
+  isSameDayCutoffTomorrow,
   isValidToDateSelection,
   nextPickupTimeOnFromChange,
   nextToDateOnFromChange,
 } from "./booking-utils";
-import { formatLagosDate } from "./timezone";
+import { formatZonedDate } from "./timezone";
 
 describe("booking date rules", () => {
   it("blocks same-day To dates for night and full-day bookings", () => {
@@ -19,34 +19,36 @@ describe("booking date rules", () => {
     expect(isValidToDateSelection("DAY", from, from)).toBe(true);
   });
 
-  it("requires the next Lagos day as the To minimum for overnight bookings", () => {
+  it("requires the next service-timezone day as the To minimum for overnight bookings", () => {
     const from = new Date("2026-08-18T10:00:00+01:00");
     const minTo = getToDateMinDate("NIGHT", from);
 
-    expect(minTo).toBeDefined();
-    expect(formatLagosDate(minTo as Date)).toBe("2026-08-19");
+    expect(minTo).toBeInstanceOf(Date);
+    if (minTo) {
+      expect(formatZonedDate(minTo)).toBe("2026-08-19");
+    }
     expect(getToDateMinDate("DAY", from)).toEqual(from);
     expect(getToDateMinDate("DAY", undefined)).toBeUndefined();
   });
 
-  it("uses the Lagos calendar day, not the runtime local date", () => {
-    const afterUtcMidnightBeforeLagosCutoff = new Date("2026-08-18T23:30:00.000Z");
+  it("uses the service-timezone calendar day, not the runtime local date", () => {
+    const afterUtcMidnightBeforeCutoff = new Date("2026-08-18T23:30:00.000Z");
 
     expect(
-      formatLagosDate(
+      formatZonedDate(
         getEarliestBookableDate({
           bookingType: "DAY",
-          now: afterUtcMidnightBeforeLagosCutoff,
+          now: afterUtcMidnightBeforeCutoff,
         }),
       ),
     ).toBe("2026-08-19");
   });
 
-  it("pushes Same Day bookings to tomorrow after the Lagos 11:00 cutoff", () => {
+  it("pushes Same Day bookings to tomorrow after the 11:00 cutoff", () => {
     const afterDayCutoff = new Date("2026-08-19T10:30:00.000Z");
 
     expect(
-      formatLagosDate(
+      formatZonedDate(
         getEarliestBookableDate({
           bookingType: "DAY",
           now: afterDayCutoff,
@@ -119,11 +121,11 @@ describe("booking date rules", () => {
     ).toBeUndefined();
   });
 
-  it("matches the hireApp Lagos booking cutoff", () => {
-    expect(isLagosCutoffTomorrow("DAY", 11)).toBe(true);
-    expect(isLagosCutoffTomorrow("DAY", 10)).toBe(false);
-    expect(isLagosCutoffTomorrow("NIGHT", 23)).toBe(true);
-    expect(isLagosCutoffTomorrow("AIRPORT_PICKUP", 23)).toBe(false);
-    expect(isLagosCutoffTomorrow("FULL_DAY", 23)).toBe(false);
+  it("matches the hireApp same-day booking cutoff", () => {
+    expect(isSameDayCutoffTomorrow("DAY", 11)).toBe(true);
+    expect(isSameDayCutoffTomorrow("DAY", 10)).toBe(false);
+    expect(isSameDayCutoffTomorrow("NIGHT", 23)).toBe(true);
+    expect(isSameDayCutoffTomorrow("AIRPORT_PICKUP", 23)).toBe(false);
+    expect(isSameDayCutoffTomorrow("FULL_DAY", 23)).toBe(false);
   });
 });

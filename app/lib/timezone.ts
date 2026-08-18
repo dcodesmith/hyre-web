@@ -1,31 +1,33 @@
-export const LAGOS_TIMEZONE = "Africa/Lagos";
+/** Current live market. Nest `TZ` uses the same IANA zone. */
+export const SERVICE_TIMEZONE = "Africa/Lagos";
 
-const lagosDateTimeFormat = new Intl.DateTimeFormat("en-GB", {
-  timeZone: LAGOS_TIMEZONE,
+const dateTimeFormat = new Intl.DateTimeFormat("en-GB", {
+  timeZone: SERVICE_TIMEZONE,
   year: "numeric",
   month: "numeric",
   day: "numeric",
   hour: "numeric",
   minute: "numeric",
+  second: "numeric",
   hourCycle: "h23",
 });
 
-const lagosDateFormat = new Intl.DateTimeFormat("en-CA", {
-  timeZone: LAGOS_TIMEZONE,
+const dateFormat = new Intl.DateTimeFormat("en-CA", {
+  timeZone: SERVICE_TIMEZONE,
   year: "numeric",
   month: "2-digit",
   day: "2-digit",
 });
 
 const pickerDateFormat = new Intl.DateTimeFormat("en-US", {
-  timeZone: LAGOS_TIMEZONE,
+  timeZone: SERVICE_TIMEZONE,
   month: "short",
   day: "2-digit",
 });
 
-function getLagosParts(date: Date) {
+function getZonedParts(date: Date) {
   const parts = Object.fromEntries(
-    lagosDateTimeFormat.formatToParts(date).map((part) => [part.type, part.value]),
+    dateTimeFormat.formatToParts(date).map((part) => [part.type, part.value]),
   );
 
   return {
@@ -34,27 +36,30 @@ function getLagosParts(date: Date) {
     day: Number(parts.day),
     hour: Number(parts.hour),
     minute: Number(parts.minute),
+    second: Number(parts.second),
   };
 }
 
-export function getLagosTime(date: Date = new Date()) {
-  const { year, month, day, hour, minute } = getLagosParts(date);
-  return new Date(year, month, day, hour, minute);
+function getTimeZoneOffsetMs(date: Date) {
+  const { year, month, day, hour, minute, second } = getZonedParts(date);
+  return Date.UTC(year, month, day, hour, minute, second) - date.getTime();
 }
 
-export function getLagosHour(date: Date = new Date()) {
-  return getLagosParts(date).hour;
+export function getZonedHour(date: Date = new Date()) {
+  return getZonedParts(date).hour;
 }
 
-export function formatLagosDate(date: Date) {
-  return lagosDateFormat.format(date);
+export function formatZonedDate(date: Date) {
+  return dateFormat.format(date);
 }
 
 export function formatPickerDate(date: Date) {
   return pickerDateFormat.format(date);
 }
 
-/** Midnight in Africa/Lagos as a real instant. Nigeria stays on UTC+1. */
-export function startOfLagosDay(date: Date = new Date()) {
-  return new Date(`${formatLagosDate(date)}T00:00:00+01:00`);
+/** Midnight in the service timezone as a real UTC instant. */
+export function startOfZonedDay(date: Date = new Date()) {
+  const calendarDate = formatZonedDate(date);
+  const noonUtc = new Date(`${calendarDate}T12:00:00.000Z`);
+  return new Date(Date.parse(`${calendarDate}T00:00:00.000Z`) - getTimeZoneOffsetMs(noonUtc));
 }

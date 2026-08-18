@@ -4,7 +4,7 @@ import { LabeledDateTrigger } from "~/components/booking/date-picker-triggers";
 import { Popover, PopoverContent, PopoverTrigger } from "~/components/ui/popover";
 import type { BookingType } from "~/lib/booking-types";
 import { getDisabledBookableDays, getEarliestBookableDate } from "~/lib/booking-utils";
-import { formatPickerDate, LAGOS_TIMEZONE } from "~/lib/timezone";
+import { formatPickerDate, SERVICE_TIMEZONE } from "~/lib/timezone";
 import { cn } from "~/lib/utils";
 
 const Calendar = lazy(async () => {
@@ -83,7 +83,7 @@ export function SingleDatePicker({
                 <Calendar
                   autoFocus
                   mode="single"
-                  timeZone={LAGOS_TIMEZONE}
+                  timeZone={SERVICE_TIMEZONE}
                   selected={normalizedDate}
                   defaultMonth={normalizedDate ?? earliestDate}
                   onSelect={handleDateChange}

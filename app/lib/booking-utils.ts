@@ -6,20 +6,20 @@ import {
   FULL_DAY_BOOKING_TYPE,
   NIGHT_BOOKING_TYPE,
 } from "./booking-types";
-import { formatLagosDate, getLagosHour, getLagosTime, startOfLagosDay } from "./timezone";
+import { formatZonedDate, getZonedHour, startOfZonedDay } from "./timezone";
 
 const TIME_FORMAT_REGEX = /^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)$/i;
 
-export function isLagosCutoffTomorrow(bookingType: BookingType, currentLagosHour: number) {
+export function isSameDayCutoffTomorrow(bookingType: BookingType, currentHour: number) {
   if (bookingType === AIRPORT_PICKUP_BOOKING_TYPE || bookingType === FULL_DAY_BOOKING_TYPE) {
     return false;
   }
 
   if (bookingType === NIGHT_BOOKING_TYPE) {
-    return currentLagosHour >= 23;
+    return currentHour >= 23;
   }
 
-  return currentLagosHour >= 11;
+  return currentHour >= 11;
 }
 
 export function getEarliestBookableDate({
@@ -31,8 +31,8 @@ export function getEarliestBookableDate({
   readonly minDate?: Date;
   readonly now?: Date;
 }) {
-  const today = startOfLagosDay(now);
-  const earliestDate = isLagosCutoffTomorrow(bookingType, getLagosHour(now))
+  const today = startOfZonedDay(now);
+  const earliestDate = isSameDayCutoffTomorrow(bookingType, getZonedHour(now))
     ? addDays(today, 1)
     : today;
 
@@ -40,7 +40,7 @@ export function getEarliestBookableDate({
     return earliestDate;
   }
 
-  return new Date(Math.max(startOfLagosDay(minDate).getTime(), earliestDate.getTime()));
+  return new Date(Math.max(startOfZonedDay(minDate).getTime(), earliestDate.getTime()));
 }
 
 export function getDisabledBookableDays(minDate: Date) {
@@ -57,7 +57,7 @@ export function isValidToDateSelection(
     fromDate &&
     toDate
   ) {
-    return formatLagosDate(fromDate) !== formatLagosDate(toDate);
+    return formatZonedDate(fromDate) !== formatZonedDate(toDate);
   }
 
   return true;
@@ -69,7 +69,7 @@ export function getToDateMinDate(bookingType: BookingType, fromDate: Date | unde
   }
 
   if (bookingType === NIGHT_BOOKING_TYPE || bookingType === FULL_DAY_BOOKING_TYPE) {
-    return addDays(startOfLagosDay(fromDate), 1);
+    return addDays(startOfZonedDay(fromDate), 1);
   }
 
   return fromDate;
@@ -125,14 +125,7 @@ function formatHourLabel(hour: number) {
 }
 
 function hasPickupHourPassed(selectedDate: Date, hour: number, now: Date) {
-  const nowLagos = getLagosTime(now);
-  const selectedLagos = getLagosTime(selectedDate);
-  const sameDay =
-    nowLagos.getFullYear() === selectedLagos.getFullYear() &&
-    nowLagos.getMonth() === selectedLagos.getMonth() &&
-    nowLagos.getDate() === selectedLagos.getDate();
-
-  return sameDay && nowLagos.getHours() >= hour;
+  return formatZonedDate(now) === formatZonedDate(selectedDate) && getZonedHour(now) >= hour;
 }
 
 export function getPickupTimes(date: Date, bookingType: BookingType = "DAY", now = new Date()) {
