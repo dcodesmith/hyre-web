@@ -1,24 +1,57 @@
+const assetPathPattern = /(?:href|src)="(\/assets\/[^"]+)"/;
 const previewUrl = process.argv[2];
+const apiUrl = process.argv[3];
 
-if (!previewUrl) {
-  throw new Error("Usage: node scripts/smoke-preview.mjs <preview-url>");
+if (!previewUrl || !apiUrl) {
+  throw new Error("Usage: node scripts/smoke-preview.mjs <preview-url> <api-origin>");
 }
 
 const origin = new URL(previewUrl);
+const apiOrigin = new URL(apiUrl);
 
 if (origin.protocol !== "https:") {
   throw new Error("Preview URL must use HTTPS");
 }
 
+if (
+  apiOrigin.protocol !== "https:" ||
+  apiOrigin.username ||
+  apiOrigin.password ||
+  apiOrigin.pathname !== "/" ||
+  apiOrigin.search ||
+  apiOrigin.hash
+) {
+  throw new Error("API origin must be an HTTPS origin without credentials, path, query, or hash");
+}
+
 const requestId = `smoke-${Date.now()}`;
-const response = await fetchWithRetry(origin, {
-  headers: { "x-request-id": requestId },
-});
+const healthRequestId = `${requestId}-health`;
+const rejectedMutationRequestId = `${requestId}-cross-origin`;
+const [response, healthResponse, rejectedMutationResponse] = await Promise.all([
+  fetchWithRetry(origin, {
+    headers: { "x-request-id": requestId },
+  }),
+  fetchWithRetry(new URL("/health", apiOrigin), {
+    headers: { "x-request-id": healthRequestId },
+  }),
+  fetchWithRetry(origin, {
+    method: "POST",
+    headers: {
+      Origin: "https://cross-origin-smoke.invalid",
+      "Sec-Fetch-Site": "cross-site",
+      "x-request-id": rejectedMutationRequestId,
+    },
+  }),
+]);
 const html = await response.text();
 
 assert(response.status === 200, `Expected home status 200, received ${response.status}`);
 assert(response.headers.get("content-type")?.includes("text/html"), "Home response is not HTML");
 assert(html.includes("Hyre Web"), "Home response does not contain the expected SSR content");
+assert(
+  html.replaceAll("<!-- -->", "").includes("API 200: validated"),
+  "Home response does not contain the expected Nest API success state",
+);
 assert(response.headers.get("x-request-id") === requestId, "Request ID was not propagated");
 assert(
   response.headers.get("content-security-policy")?.includes("default-src 'self'"),
@@ -39,12 +72,46 @@ assert(
 assert(response.headers.get("cache-control") === "no-store", "Preview home must not be cached");
 assert(response.headers.has("server-timing"), "Server timing header is missing");
 
-const assetPath = html.match(/(?:href|src)="(\/assets\/[^"]+)"/)?.[1];
+assert(
+  healthResponse.status === 200,
+  `Expected Nest health status 200, received ${healthResponse.status}`,
+);
+const health = await healthResponse.json();
+assert(health?.status === "ok", "Nest health response is not healthy");
+assert(
+  healthResponse.headers.get("x-request-id") === healthRequestId,
+  "Nest health request ID was not propagated",
+);
 
-if (assetPath) {
-  const assetResponse = await fetchWithRetry(new URL(assetPath, origin));
-  assert(assetResponse.ok, `Static asset returned ${assetResponse.status}: ${assetPath}`);
-}
+assert(
+  rejectedMutationResponse.status === 403,
+  `Expected cross-origin mutation status 403, received ${rejectedMutationResponse.status}`,
+);
+assert(
+  rejectedMutationResponse.headers.get("cache-control") === "private, no-store",
+  "Rejected mutation must not be cached",
+);
+assert(
+  rejectedMutationResponse.headers.get("x-request-id") === rejectedMutationRequestId,
+  "Rejected mutation request ID was not propagated",
+);
+
+const assetPath = assetPathPattern.exec(html)?.[1];
+assert(assetPath, "Home response does not reference a fingerprinted static asset");
+
+const assetResponse = await fetchWithRetry(new URL(assetPath, origin));
+const assetCacheControl = assetResponse.headers.get("cache-control") ?? "";
+assert(assetResponse.ok, `Static asset returned ${assetResponse.status}: ${assetPath}`);
+assert(
+  assetCacheControl.includes("public") &&
+    assetCacheControl.includes("max-age=31536000") &&
+    assetCacheControl.includes("immutable"),
+  "Fingerprinted static asset is missing long-lived immutable caching",
+);
+assert(
+  assetResponse.headers.get("x-content-type-options") === "nosniff",
+  "Static asset security headers are missing",
+);
 
 console.log(`Preview smoke checks passed: ${origin.origin}`);
 

@@ -20,8 +20,6 @@ jobs:
     timeout-minutes: 20
     environment: preview
     env:
-      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_WORKERS_SUBDOMAIN: ${{ vars.CLOUDFLARE_WORKERS_SUBDOMAIN }}
       STAGING_API_ORIGIN: ${{ vars.STAGING_API_ORIGIN }}
 
@@ -48,8 +46,6 @@ jobs:
         env:
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          test -n "$CLOUDFLARE_ACCOUNT_ID"
-          test -n "$CLOUDFLARE_API_TOKEN"
           test -n "$CLOUDFLARE_WORKERS_SUBDOMAIN"
           test -n "$STAGING_API_ORIGIN"
 
@@ -62,15 +58,20 @@ jobs:
 
       - name: Upload preview Worker version
         env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           PREVIEW_ALIAS: ${{ steps.preview.outputs.alias }}
           PREVIEW_ORIGIN: ${{ steps.preview.outputs.origin }}
-        run: >-
-          pnpm exec wrangler versions upload
-          --preview-alias "$PREVIEW_ALIAS"
-          --var "API_ORIGIN:$STAGING_API_ORIGIN"
-          --var "APP_ENV:preview"
-          --var "APP_ORIGIN:$PREVIEW_ORIGIN"
-          --var "VALUE_FROM_CLOUDFLARE:Hyre Web is running on Cloudflare"
+        run: |
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          test -n "$CLOUDFLARE_API_TOKEN"
+
+          pnpm exec wrangler versions upload \
+            --preview-alias "$PREVIEW_ALIAS" \
+            --var "API_ORIGIN:$STAGING_API_ORIGIN" \
+            --var "APP_ENV:preview" \
+            --var "APP_ORIGIN:$PREVIEW_ORIGIN" \
+            --var "VALUE_FROM_CLOUDFLARE:Hyre Web is running on Cloudflare"
 
       - name: Smoke test preview
-        run: pnpm smoke:preview "${{ steps.preview.outputs.origin }}"
+        run: pnpm smoke:preview "${{ steps.preview.outputs.origin }}" "$STAGING_API_ORIGIN"
