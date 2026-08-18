@@ -5,9 +5,11 @@
   "packageManager": "pnpm@10.20.0",
   "scripts": {
     "build": "react-router build",
+    "check:bundle": "node scripts/check-worker-bundle.mjs",
     "dev": "react-router dev",
-    "deploy": "CLOUDFLARE_ENV=production pnpm run build && wrangler deploy --env production",
+    "deploy": "CLOUDFLARE_ENV=production pnpm run build && pnpm run check:bundle && wrangler deploy",
     "preview": "pnpm run build && vite preview",
+    "smoke:preview": "node scripts/smoke-preview.mjs",
     "cf-typegen": "wrangler types --env production",
     "typecheck": "wrangler types --env production && react-router typegen && tsc -b",
     "lint": "biome check .",

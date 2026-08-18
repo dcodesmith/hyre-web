@@ -30,6 +30,7 @@ pnpm lint
 pnpm typecheck
 pnpm test
 pnpm build
+pnpm check:bundle
 pnpm preview
 ```
 
@@ -48,3 +49,13 @@ endpoints.
 ```sh
 pnpm deploy
 ```
+
+Pull requests from this repository upload a non-production Worker version and
+run smoke checks against its aliased preview URL. Configure a protected GitHub
+`preview` environment with:
+
+- secrets: `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN`;
+- variables: `CLOUDFLARE_WORKERS_SUBDOMAIN`, `STAGING_API_ORIGIN`.
+
+The staging API origin must be isolated from production mutation data. The
+Worker must be deployed once before Wrangler can upload preview versions.

@@ -3,14 +3,27 @@
   "name": "hyre-web",
   "compatibility_date": "2026-08-17",
   "main": "./workers/app.ts",
+  "preview_urls": true,
   "vars": {
     "API_ORIGIN": "http://127.0.0.1:3000",
+    "APP_ENV": "local",
+    "APP_ORIGIN": "http://localhost:5173",
     "VALUE_FROM_CLOUDFLARE": "Hyre Web is running on Cloudflare"
   },
   "env": {
+    "preview": {
+      "vars": {
+        "API_ORIGIN": "https://staging-api.invalid",
+        "APP_ENV": "preview",
+        "APP_ORIGIN": "https://preview.invalid",
+        "VALUE_FROM_CLOUDFLARE": "Hyre Web is running on Cloudflare"
+      }
+    },
     "production": {
       "vars": {
         "API_ORIGIN": "https://hyre-worker-nestjs.fly.dev",
+        "APP_ENV": "production",
+        "APP_ORIGIN": "https://tripdly.com",
         "VALUE_FROM_CLOUDFLARE": "Hyre Web is running on Cloudflare"
       }
     }

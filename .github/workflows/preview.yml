@@ -1,0 +1,79 @@
+name: Preview
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  deploy-preview:
+    if: >-
+      ${{ github.actor != 'dependabot[bot]' &&
+          github.event.pull_request.head.repo.full_name == github.repository }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: preview
+    env:
+      CLOUDFLARE_WORKERS_SUBDOMAIN: ${{ vars.CLOUDFLARE_WORKERS_SUBDOMAIN }}
+      STAGING_API_ORIGIN: ${{ vars.STAGING_API_ORIGIN }}
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.20.0
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: CLOUDFLARE_ENV=preview pnpm build
+      - run: pnpm check:bundle
+
+      - name: Prepare preview configuration
+        id: preview
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          test -n "$CLOUDFLARE_WORKERS_SUBDOMAIN"
+          test -n "$STAGING_API_ORIGIN"
+
+          workers_subdomain="${CLOUDFLARE_WORKERS_SUBDOMAIN%.workers.dev}"
+          preview_alias="pr-${PR_NUMBER}"
+          preview_origin="https://${preview_alias}-hyre-web-preview.${workers_subdomain}.workers.dev"
+
+          echo "alias=${preview_alias}" >> "$GITHUB_OUTPUT"
+          echo "origin=${preview_origin}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload preview Worker version
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          PREVIEW_ALIAS: ${{ steps.preview.outputs.alias }}
+          PREVIEW_ORIGIN: ${{ steps.preview.outputs.origin }}
+        run: |
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          test -n "$CLOUDFLARE_API_TOKEN"
+
+          pnpm exec wrangler versions upload \
+            --preview-alias "$PREVIEW_ALIAS" \
+            --var "API_ORIGIN:$STAGING_API_ORIGIN" \
+            --var "APP_ENV:preview" \
+            --var "APP_ORIGIN:$PREVIEW_ORIGIN" \
+            --var "VALUE_FROM_CLOUDFLARE:Hyre Web is running on Cloudflare"
+
+      - name: Smoke test preview
+        env:
+          PREVIEW_ORIGIN: ${{ steps.preview.outputs.origin }}
+        run: pnpm smoke:preview "$PREVIEW_ORIGIN" "$STAGING_API_ORIGIN"
