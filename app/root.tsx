@@ -28,7 +28,11 @@ export const links: Route.LinksFunction = () => [
   },
 ];
 
-export function Layout({ children }: Readonly<{ children: React.ReactNode }>) {
+interface LayoutProps {
+  readonly children: React.ReactNode;
+}
+
+export function Layout({ children }: LayoutProps) {
   return (
     <html lang="en" className="h-full" data-theme="tripdly">
       <head>

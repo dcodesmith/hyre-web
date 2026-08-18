@@ -20,7 +20,8 @@ export function CookieConsentBanner() {
         <div className="flex flex-col gap-1">
           <h2 className="text-sm font-semibold text-gray-900">Cookie Preferences</h2>
           <p className="text-sm text-gray-600">
-            We use cookies to improve your experience and analyze site usage.{" "}
+            We use essential cookies to keep the service working. You can also choose whether to
+            allow analytics if they become available.{" "}
             <Link to="/cookies" className="text-primary hover:underline">
               Learn more
             </Link>

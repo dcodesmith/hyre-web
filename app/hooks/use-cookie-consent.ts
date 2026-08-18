@@ -85,6 +85,7 @@ export function useCookieConsent() {
 
   return {
     isLoaded,
+    consent,
     hasConsented: consent !== null && consent.timestamp > 0,
     acceptAll: () => saveConsent(true),
     declineAll: () => saveConsent(false),

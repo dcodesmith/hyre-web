@@ -80,7 +80,7 @@ export function PublicFooter() {
             </p>
             <div className="flex gap-4">
               <a
-                href="https://facebook.com"
+                href="https://facebook.com/tripdly"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-gray-400 transition-colors hover:text-gray-600"
@@ -89,7 +89,7 @@ export function PublicFooter() {
                 <FacebookIcon className="size-5" />
               </a>
               <a
-                href="https://instagram.com"
+                href="https://instagram.com/tripdly"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-gray-400 transition-colors hover:text-gray-600"
@@ -98,7 +98,7 @@ export function PublicFooter() {
                 <InstagramIcon className="size-5" />
               </a>
               <a
-                href="https://x.com"
+                href="https://x.com/tripdly"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-gray-400 transition-colors hover:text-gray-600"

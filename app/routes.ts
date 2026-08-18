@@ -6,5 +6,13 @@ const visualRoutes =
     : [];
 
 export default [
-  layout("routes/_public.tsx", [index("routes/home.tsx"), ...visualRoutes]),
+  layout("routes/_public.tsx", [
+    index("routes/home.tsx"),
+    route("about", "routes/about.tsx"),
+    route("faq", "routes/faq.tsx"),
+    route("terms", "routes/terms.tsx"),
+    route("privacy", "routes/privacy.tsx"),
+    route("cookies", "routes/cookies.tsx"),
+    ...visualRoutes,
+  ]),
 ] satisfies RouteConfig;
