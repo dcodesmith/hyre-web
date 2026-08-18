@@ -209,8 +209,10 @@ describe("createApiClient", () => {
       status: HTTP_STATUS.SERVICE_UNAVAILABLE,
       problem: {
         type: "UPSTREAM_HTTP_ERROR",
-        title: "Service Unavailable",
+        title: "Upstream API error",
         status: HTTP_STATUS.SERVICE_UNAVAILABLE,
+        detail: "The upstream API returned an error.",
+        instance: "/api/cars/categories",
       },
     });
   });
@@ -247,15 +249,50 @@ describe("createApiClient", () => {
       status: HTTP_STATUS.SERVICE_UNAVAILABLE,
       problem: {
         type: "UPSTREAM_HTTP_ERROR",
-        title: "Upstream request failed",
+        title: "Upstream API error",
         status: HTTP_STATUS.SERVICE_UNAVAILABLE,
-        detail: "Upstream request failed",
+        detail: "The upstream API returned an error.",
         instance: "/api/cars/categories",
       },
     });
     expect((error as ApiRequestError).problem).not.toHaveProperty("errors");
     expect((error as ApiRequestError).problem).not.toHaveProperty("details");
     expect((error as ApiRequestError).problem).not.toHaveProperty("errorCode");
+  });
+
+  it("preserves the upstream 5xx status while sanitizing its details", async () => {
+    const client = createApiClient({
+      apiOrigin: "https://api.example",
+      fetchImpl: async () =>
+        jsonResponse(
+          {
+            type: "INTERNAL_SERVER_ERROR",
+            title: "Internal Server Error",
+            status: HTTP_STATUS.INTERNAL_SERVER_ERROR,
+            detail: "prisma query failed",
+          },
+          HTTP_STATUS.INTERNAL_SERVER_ERROR,
+        ),
+    });
+
+    const error = await client
+      .request({
+        path: "/api/cars/categories",
+        schema: okSchema,
+      })
+      .catch((caught: unknown) => caught);
+
+    expect(error).toMatchObject({
+      kind: "http",
+      status: HTTP_STATUS.INTERNAL_SERVER_ERROR,
+      problem: {
+        type: "UPSTREAM_HTTP_ERROR",
+        title: "Upstream API error",
+        status: HTTP_STATUS.INTERNAL_SERVER_ERROR,
+        detail: "The upstream API returned an error.",
+        instance: "/api/cars/categories",
+      },
+    });
   });
 
   it("reports invalid successful responses as contract failures", async () => {
@@ -278,6 +315,12 @@ describe("createApiClient", () => {
         type: "UPSTREAM_INVALID_RESPONSE",
         status: HTTP_STATUS.BAD_GATEWAY,
       },
+    });
+    expect(toPublicProblemDetails((error as ApiRequestError).problem)).toMatchObject({
+      type: "UPSTREAM_HTTP_ERROR",
+      title: "Upstream API error",
+      status: HTTP_STATUS.BAD_GATEWAY,
+      detail: "The upstream API returned an error.",
     });
     expect(toPublicProblemDetails((error as ApiRequestError).problem)).not.toHaveProperty(
       "details",

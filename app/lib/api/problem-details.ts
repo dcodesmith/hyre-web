@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { HTTP_STATUS } from "./http-status";
 
 export const problemDetailsSchema = z.object({
   type: z.string(),
@@ -20,20 +21,30 @@ type ProblemFallback = {
   instance: string;
 };
 
+const PUBLIC_UPSTREAM_ERROR = {
+  type: "UPSTREAM_HTTP_ERROR",
+  title: "Upstream API error",
+  detail: "The upstream API returned an error.",
+} as const;
+
+function toPublicUpstreamError(status: number, instance?: string): ProblemDetails {
+  return {
+    type: PUBLIC_UPSTREAM_ERROR.type,
+    title: PUBLIC_UPSTREAM_ERROR.title,
+    status,
+    detail: PUBLIC_UPSTREAM_ERROR.detail,
+    instance,
+  };
+}
+
 export function normalizeProblemDetails(input: unknown, fallback: ProblemFallback): ProblemDetails {
+  if (fallback.status >= HTTP_STATUS.INTERNAL_SERVER_ERROR) {
+    return toPublicUpstreamError(fallback.status, fallback.instance);
+  }
+
   const parsed = problemDetailsSchema.safeParse(input);
 
   if (parsed.success) {
-    if (fallback.status >= 500) {
-      return {
-        type: "UPSTREAM_HTTP_ERROR",
-        title: fallback.title,
-        status: fallback.status,
-        detail: fallback.detail,
-        instance: fallback.instance,
-      };
-    }
-
     return {
       type: parsed.data.type,
       title: parsed.data.title,
@@ -56,15 +67,9 @@ export function normalizeProblemDetails(input: unknown, fallback: ProblemFallbac
 }
 
 export function toPublicProblemDetails(problem: ProblemDetails): ProblemDetails {
-  if (problem.status < 500) {
+  if (problem.status < HTTP_STATUS.INTERNAL_SERVER_ERROR) {
     return problem;
   }
 
-  return {
-    type: problem.type,
-    title: problem.title,
-    status: problem.status,
-    detail: problem.detail,
-    instance: problem.instance,
-  };
+  return toPublicUpstreamError(problem.status, problem.instance);
 }
