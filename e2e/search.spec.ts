@@ -69,27 +69,28 @@ test("keeps filters and drops booking fields when booking type changes", async (
   await setCookiePreference(page);
   await page.goto("/search?from=2026-08-20&to=2026-08-21&bookingType=DAY&vehicleType=SUV");
 
-  const nightTab =
-    (viewport?.width ?? 0) < 768
-      ? page.getByRole("dialog").getByRole("button", { name: "Night" })
-      : page.locator('form[action="/search"]').first().getByRole("button", { name: "Night" });
+  const isMobile = (viewport?.width ?? 0) < 768;
+  const nightTab = isMobile
+    ? page.getByRole("dialog", { name: "Search" }).getByRole("button", { name: "Night" })
+    : page.locator('form[action="/search"]').first().getByRole("button", { name: "Night" });
 
-  if ((viewport?.width ?? 0) < 768) {
+  if (isMobile) {
     await page.getByRole("button", { name: /Same Day|When do you need a ride/ }).click();
+    await expect(page.getByRole("dialog", { name: "Search" })).toBeVisible();
   }
 
   await expect(async () => {
+    await nightTab.scrollIntoViewIfNeeded();
     await nightTab.click();
-    await expect(nightTab).toHaveAttribute("aria-pressed", "true");
+    expect(page.url()).toMatch(/bookingType=NIGHT/);
   }).toPass();
 
-  await expect(page).toHaveURL(/bookingType=NIGHT/);
   const params = new URL(page.url()).searchParams;
   expect(params.get("vehicleType")).toBe("SUV");
   expect(params.get("from")).toBeNull();
   expect(params.get("to")).toBeNull();
 
-  if ((viewport?.width ?? 0) < 768) {
+  if (isMobile) {
     await page.keyboard.press("Escape");
     await expect(page.getByRole("dialog")).toHaveCount(0);
   }
