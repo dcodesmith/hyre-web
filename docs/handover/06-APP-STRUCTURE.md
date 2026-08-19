@@ -42,15 +42,15 @@ app/
     problem-details.ts
     http-status.ts
     cars/
-      cars.server.ts              # GET /api/cars/categories
-      schema.ts                   # PublicCar, categories
+      cars.server.ts              # GET /api/cars/categories, GET /api/cars/search
+      schema.ts                   # PublicCar, SearchCar, categories, search
 
   car/
-    car-domain.ts                 # CarDomain(car)
+    car-domain.ts                 # CarDomain(car, now, bookingType)
     car-domain.test.ts
     paths.ts                      # /cars/:slug-id, category → /search?…
     paths.test.ts
-    vehicle-card.tsx
+    vehicle-card.tsx              # carousel + grid
     compact-star-rating.tsx
 
   booking/
@@ -59,15 +59,27 @@ app/
     dates.test.ts
     pickup.ts
     pickup.test.ts
-    booking-type-tabs.tsx
+    booking-type-tabs.tsx         # hero | modal | compact
     booking-type-input.tsx
     booking-time-select.tsx
     single-date-picker.tsx
     date-picker-triggers.tsx
 
+  search/
+    search-url.ts                 # /search query contract + API serialization
+    search-url.test.ts
+    search-form.tsx               # GET /search, hero / compact / modal
+    search-page.tsx
+    search-filters.tsx
+    search-heading.ts
+    search-heading.test.ts
+    compact-search-bar.tsx
+    search-modal.tsx
+    car-skeleton.tsx
+    pagination-control.tsx        # sr-only SEO pagination
+
   home/
-    home-page.tsx
-    home-search.tsx               # already GET /search; moves in the search PR
+    home-page.tsx                 # hero collapse + mobile compact bar
 
   time/
     timezone.ts                   # Africa/Lagos
@@ -86,36 +98,37 @@ app/
   lib/
     utils.ts                      # cn() only
 
+  hooks/
+    use-hero-scroll.ts            # 100/50 hysteresis + matchMedia
+    use-infinite-scroll.ts        # IntersectionObserver + fetcher
+    use-search-filter-count.ts    # debounced countOnly fetcher
+
   components/
-    ui/
+    ui/                       # shadcn primitives; do not hand-edit
     layout/
     errors/
     legal/
     icons/
     cookie-consent-banner.tsx
 
-  hooks/
   middleware/
   routes/
 ```
 
 ## Next (do not create empty)
 
-The homepage already submits `GET /search` with `bookingType`, `from`, `to`,
-`pickupTime`, and `flightNumber`. There is no `/search` route yet, so that
-navigation 404s. The search PR should add the route and
-`app/search/search-url.ts`.
-
-Unverified: those query names vs Nest `GET /api/cars/search`. Category pills
-also map names to filters until
+`GET /search` is live. The browser URL uses the same names as
+`GET /api/cars/search`: `bookingType`, `from`, `to`, `pickupTime`,
+`flightNumber`, `q`, `vehicleType`, `serviceTier`, `make`, `color`, `model`,
+`minPrice`, `maxPrice`, `minCapacity`, `fuelIncluded`, `dealsOnly`, `page`,
+`limit`, and `countOnly`. Category pills still map names to filters until
 [`hyre-worker-nestjs#190`](https://github.com/dcodesmith/hyre-worker-nestjs/issues/190)
-lands. Do not invent a second mapping in this slice.
+lands. Do not invent a second mapping.
 
-- `app/search/` with `search-url.ts` (URL contract for `/search`)
-- Grow `app/api/cars` for search and detail
+- Grow `app/api/cars` for public car detail
 - `app/api/places/`, `app/api/rates/`, `app/api/reviews/`
 - `app/review/` for the public review list
-- Move `home/home-search.tsx` → `search/search-form.tsx`
+- AI search / places / flights (Phase 3 item 5)
 
 ## Later (verified API only)
 
@@ -136,7 +149,7 @@ lands. Do not invent a second mapping in this slice.
 |---|---|
 | Client file | `app/api/api.server.ts` |
 | Transport schemas | `schema.ts` per `app/api/{noun}/` folder |
-| Search URL contract | `app/search/search-url.ts` when the `/search` route is added (homepage already GET `/search`) |
+| Search URL contract | `app/search/search-url.ts` |
 | Fleet dashboard adapter | `app/api/fleet/dashboard/` → `/api/dashboard/*` |
 | Admin car assembler | `app/admin/cars/car-approval.ts` |
 | SEO / time | `app/seo/`, `app/time/` |
@@ -149,7 +162,7 @@ scaffold partners, fleet chauffeurs, fleet booking list, admin owners, admin
 dashboard aggregate, guest booking lookup, profile update, or receipt PDF
 until the API is verified.
 
-## Current → target (homepage slice, done)
+## Current → target (homepage + search slices)
 
 | Was | Now |
 |---|---|
@@ -161,6 +174,7 @@ until the API is verified.
 | `lib/seo.ts` | `seo/metadata.ts` |
 | `components/home/vehicle-card.tsx` | `car/vehicle-card.tsx` |
 | `components/home/home-page.tsx` | `home/home-page.tsx` |
+| `home/home-search.tsx` | `search/search-form.tsx` |
 | `components/booking/*` | `booking/*` |
 | `components/seo/*` | `seo/structured-data.tsx` |
 | `constants/legal.ts` | `content/legal.ts` |

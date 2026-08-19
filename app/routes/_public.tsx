@@ -23,7 +23,7 @@ export default function PublicLayout() {
         <main
           id="main-content"
           tabIndex={-1}
-          className={cn("min-h-125 flex-1", isHeroPage ? "md:pt-0" : "md:pt-17.25")}
+          className={cn("min-h-125 flex-1 text-sm", isHeroPage ? "md:pt-0" : "md:pt-17.25")}
         >
           <Outlet />
         </main>

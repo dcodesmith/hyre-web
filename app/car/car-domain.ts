@@ -1,4 +1,5 @@
-import type { PublicCar } from "~/api/cars/schema";
+import type { PublicCar, SearchCar } from "~/api/cars/schema";
+import { type BookingType, DAY_BOOKING_TYPE } from "~/booking/types";
 import { buildCarDetailPath } from "~/car/paths";
 
 const currencyFormatter = new Intl.NumberFormat("en-NG", {
@@ -29,6 +30,39 @@ function promotionBadgeLabel(discountPercent: number) {
   return `${value}% OFF`;
 }
 
+export const BOOKING_TYPE_RATE_LABELS: Readonly<Record<BookingType, string>> = {
+  DAY: "/ day",
+  NIGHT: "/ night",
+  FULL_DAY: "/ full day",
+  AIRPORT_PICKUP: "/ pickup",
+};
+
+export type DisplayCar = PublicCar | SearchCar;
+
+export function formatNaira(value: number) {
+  return formatCurrency(value);
+}
+
+export function getRateForBookingType(car: DisplayCar, bookingType: BookingType) {
+  if (!("nightRate" in car)) {
+    return car.dayRate;
+  }
+
+  if (bookingType === "NIGHT") {
+    return car.nightRate ?? car.dayRate;
+  }
+
+  if (bookingType === "FULL_DAY") {
+    return car.fullDayRate ?? car.dayRate;
+  }
+
+  if (bookingType === "AIRPORT_PICKUP") {
+    return car.airportPickupRate ?? car.dayRate;
+  }
+
+  return car.dayRate;
+}
+
 function hasActivePromotion(
   promotion: PublicCar["promotion"] | undefined,
 ): promotion is NonNullable<PublicCar["promotion"]> {
@@ -52,11 +86,16 @@ function isNewListing(createdAt: string | undefined, now: Date) {
 }
 
 /** Public-car display facts from the API DTO. Not availability, payable totals, or auth. */
-export function CarDomain(car: PublicCar, now = new Date()) {
+export function CarDomain(
+  car: DisplayCar,
+  now = new Date(),
+  bookingType: BookingType = DAY_BOOKING_TYPE,
+) {
   const promotion = hasActivePromotion(car.promotion) ? car.promotion : null;
+  const listRate = getRateForBookingType(car, bookingType);
   const displayRate = promotion
-    ? applyPromotionDiscount(car.dayRate, promotion.discountValue)
-    : car.dayRate;
+    ? applyPromotionDiscount(listRate, promotion.discountValue)
+    : listRate;
   const displayRating = Math.max(0, Math.min(5, car.averageRating));
 
   return {
@@ -67,13 +106,14 @@ export function CarDomain(car: PublicCar, now = new Date()) {
     displayRating,
     ratingLabel: `Average rating: ${displayRating.toFixed(1)} out of 5 stars`,
     name: `${car.make} ${car.model} (${car.year})`,
-    href: buildCarDetailPath(car),
+    href: buildCarDetailPath(car, bookingType),
     imageUrl: car.images[0]?.url,
-    listRate: car.dayRate,
+    listRate,
     displayRate,
-    showPromoPrice: promotion != null && displayRate < car.dayRate,
-    listRateLabel: formatCurrency(car.dayRate),
+    showPromoPrice: promotion != null && displayRate < listRate,
+    listRateLabel: formatCurrency(listRate),
     displayRateLabel: formatCurrency(displayRate),
+    rateLabel: BOOKING_TYPE_RATE_LABELS[bookingType],
     passengerCapacity: car.passengerCapacity,
     pricingIncludesFuel: car.pricingIncludesFuel,
     totalReviews: car.totalReviews,

@@ -3,8 +3,7 @@ import { AIRPORT_PICKUP_BOOKING_TYPE, type BookingType, NIGHT_BOOKING_TYPE } fro
 
 export const bookingFieldLabelClass = "text-xs font-semibold leading-tight text-gray-700";
 export const bookingFieldValueTextClass = "text-sm leading-tight text-gray-900";
-export const bookingFieldStackClass =
-  "flex h-10 w-full flex-col items-start justify-center gap-2 px-0 py-2 text-left";
+export const bookingFieldStackClass = "flex h-[38px] w-full flex-col justify-center text-left";
 
 interface BookingTypeInputProps {
   readonly bookingType: BookingType;
@@ -14,6 +13,7 @@ interface BookingTypeInputProps {
   readonly fallbackDate: Date;
   readonly onPickupTimeChange?: (value: string) => void;
   readonly onFlightNumberChange?: (value: string) => void;
+  readonly isCompact?: boolean;
 }
 
 export function BookingTypeInput({
@@ -24,6 +24,7 @@ export function BookingTypeInput({
   fallbackDate,
   onPickupTimeChange,
   onFlightNumberChange,
+  isCompact = false,
 }: BookingTypeInputProps) {
   if (bookingType === NIGHT_BOOKING_TYPE) {
     return (
@@ -45,7 +46,7 @@ export function BookingTypeInput({
           placeholder="e.g. BA123…"
           autoComplete="off"
           spellCheck={false}
-          className="w-full cursor-text bg-transparent p-0 text-sm leading-tight text-gray-900 outline-none placeholder:text-gray-400"
+          className="w-full cursor-text border-b border-transparent bg-transparent p-0 text-sm leading-tight text-gray-900 outline-none placeholder:text-gray-400 focus-visible:border-gray-900"
         />
       </label>
     );
@@ -62,7 +63,7 @@ export function BookingTypeInput({
       containerClassName={bookingFieldStackClass}
       labelClassName={bookingFieldLabelClass}
       showLabel
-      placeholder="Select pickup time…"
+      placeholder={isCompact ? "Select time" : "Select pickup time…"}
     />
   );
 }

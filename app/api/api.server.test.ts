@@ -454,7 +454,7 @@ describe("createApiClient", () => {
 });
 
 describe("carCategoriesResponseSchema", () => {
-  it("validates the current Nest public categories contract", () => {
+  it("validates the current public categories API contract", () => {
     const car = {
       id: "car_123",
       make: "Toyota",
@@ -487,7 +487,7 @@ describe("carCategoriesResponseSchema", () => {
     ).toMatchObject({ total: 1 });
   });
 
-  it("accepts optional createdAt ISO timestamps from Nest", () => {
+  it("accepts optional createdAt ISO timestamps from the API", () => {
     const car = {
       id: "car_123",
       make: "Toyota",

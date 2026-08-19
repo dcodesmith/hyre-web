@@ -1,5 +1,7 @@
 import type { CarCategory, PublicCar } from "~/api/cars/schema";
+import { type BookingType, DAY_BOOKING_TYPE } from "~/booking/types";
 
+// Temporary name → filter map until hyre-worker-nestjs#190 ships category.search.
 const categoryQueries: Readonly<
   Partial<Record<CarCategory["name"], Readonly<Record<string, string>>>>
 > = {
@@ -33,7 +35,10 @@ export function getCategorySectionId(category: CarCategory) {
   return categorySectionIds[category.name];
 }
 
-export function buildCarDetailPath(car: Pick<PublicCar, "id" | "make" | "model" | "year">) {
+export function buildCarDetailPath(
+  car: Pick<PublicCar, "id" | "make" | "model" | "year">,
+  bookingType: BookingType = DAY_BOOKING_TYPE,
+) {
   const shortId = car.id.slice(0, 13);
   let slug = `${car.year}-${car.make}-${car.model}`
     .toLowerCase()
@@ -46,5 +51,5 @@ export function buildCarDetailPath(car: Pick<PublicCar, "id" | "make" | "model" 
     slug = slug.slice(0, -1);
   }
 
-  return `/cars/${slug}-${shortId}?bookingType=DAY`;
+  return `/cars/${slug}-${shortId}?bookingType=${bookingType}`;
 }

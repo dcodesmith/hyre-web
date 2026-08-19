@@ -4,18 +4,46 @@ import { cn } from "~/lib/utils";
 interface BookingTypeTabsProps {
   readonly value: BookingType;
   readonly onValueChange: (value: BookingType) => void;
-  readonly variant?: "hero" | "modal";
+  readonly variant?: "hero" | "modal" | "compact";
 }
 
 export function BookingTypeTabs({ value, onValueChange, variant = "hero" }: BookingTypeTabsProps) {
+  if (variant === "compact") {
+    return (
+      <fieldset className="inline-flex h-7 items-center justify-center gap-0.5 rounded-full border-0 bg-gray-100 p-0.5">
+        <legend className="sr-only">Booking type</legend>
+        {BOOKING_TYPE_OPTIONS.map((type) => {
+          const option = BOOKING_TYPE_OPTIONS_MAP[type];
+          const isActive = value === type;
+
+          return (
+            <button
+              key={type}
+              type="button"
+              data-state={isActive ? "active" : "inactive"}
+              aria-pressed={isActive}
+              onClick={() => onValueChange(type)}
+              className={cn(
+                "inline-flex h-6 items-center justify-center rounded-full px-2.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 motion-reduce:transition-none",
+                isActive && "bg-white shadow-sm",
+              )}
+            >
+              {option.label}
+            </button>
+          );
+        })}
+      </fieldset>
+    );
+  }
+
   return (
-    <fieldset className="mb-4 w-full">
+    <fieldset className="w-full">
       <legend className="sr-only">Booking type</legend>
       <div
         className={cn(
           "inline-flex h-auto w-full items-center justify-center rounded-lg p-1",
           variant === "hero"
-            ? "border border-white/20 bg-white/10 backdrop-blur-xs"
+            ? "border border-white/20 bg-white/10 backdrop-blur-sm"
             : "border border-gray-200 bg-gray-100",
         )}
       >

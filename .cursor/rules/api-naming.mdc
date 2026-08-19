@@ -1,0 +1,21 @@
+---
+description: Call the backend the API, not Nest
+alwaysApply: true
+---
+
+# API naming
+
+`hyre-worker-nestjs` is **the API**. NestJS is only the framework that repository uses.
+
+- Say **the API**, **API controllers**, **API DTOs**, **API endpoints**.
+- Do not call the service Nest, the Nest API, or Nest.
+- Keep the repo name `hyre-worker-nestjs`.
+- Use NestJS only when talking about the framework itself.
+
+```text
+# ❌ BAD
+Call Nest from the loader. Nest owns availability.
+
+# ✅ GOOD
+Call the API from the loader. The API owns availability.
+```

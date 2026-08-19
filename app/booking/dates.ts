@@ -1,8 +1,11 @@
 import { addDays } from "date-fns/addDays";
+import { differenceInCalendarDays } from "date-fns/differenceInCalendarDays";
+import { isAfter } from "date-fns/isAfter";
 
 import {
   AIRPORT_PICKUP_BOOKING_TYPE,
   type BookingType,
+  DAY_BOOKING_TYPE,
   FULL_DAY_BOOKING_TYPE,
   NIGHT_BOOKING_TYPE,
 } from "~/booking/types";
@@ -95,4 +98,37 @@ export function nextToDateOnFromChange(
   }
 
   return currentToDate;
+}
+
+export function calculateBookingUnits(
+  from: Date | string | undefined | null,
+  to: Date | string | undefined | null,
+  bookingType: BookingType = DAY_BOOKING_TYPE,
+) {
+  if (!from || !to) {
+    return 1;
+  }
+
+  const fromDate = typeof from === "string" ? new Date(from) : from;
+  const toDate = typeof to === "string" ? new Date(to) : to;
+
+  if (
+    Number.isNaN(fromDate.getTime()) ||
+    Number.isNaN(toDate.getTime()) ||
+    isAfter(fromDate, toDate)
+  ) {
+    return 1;
+  }
+
+  const differenceInDays = differenceInCalendarDays(toDate, fromDate);
+
+  if (bookingType === NIGHT_BOOKING_TYPE || bookingType === FULL_DAY_BOOKING_TYPE) {
+    return Math.max(1, differenceInDays);
+  }
+
+  if (bookingType === DAY_BOOKING_TYPE) {
+    return Math.max(1, differenceInDays + 1);
+  }
+
+  return 1;
 }

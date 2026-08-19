@@ -34,7 +34,7 @@ React Router wins for this form- and mutation-heavy product because of its matur
 
 TanStack Start is a credible alternative and its server functions can implement the BFF. It is stronger for typed search parameters, explicit client caching, TanStack Query integration, and Cloudflare prerendering. It is currently a Release Candidate, while React Router v8 is stable.
 
-React Router's search parameters require explicit runtime validation. Use per-route Zod URL contracts. API type safety must come from Nest DTOs/OpenAPI or shared transport schemas in either framework.
+React Router's search parameters require explicit runtime validation. Use per-route Zod URL contracts. API type safety must come from API DTOs/OpenAPI or shared transport schemas in either framework.
 
 See [Framework decision](./00-FRAMEWORK-DECISION.md) for the weighted comparison and conditions that would change the decision.
 
@@ -48,21 +48,21 @@ Mobile stores bearer tokens and uses TanStack Query because it is a native clien
 Browser form/navigation
   -> same-origin React Router loader/action
   -> central server-only API client
-  -> Nest API
+  -> the API
 ```
 
 The BFF:
 
-- forwards the incoming session cookie to Nest;
+- forwards the incoming session cookie to the API;
 - relays every `Set-Cookie` header returned by Better Auth;
-- maps Nest RFC 7807-style errors into route responses;
+- maps API RFC 7807-style errors into route responses;
 - keeps private API configuration out of browser bundles;
 - provides same-origin progressive enhancement;
 - enables authenticated SSR.
 
-Direct browser-to-Nest requests should be exceptional, not the default.
+Direct browser-to-API requests should be exceptional, not the default.
 
-### The Nest API owns business behavior
+### The API owns business behavior
 
 Keep these out of `hyre-web`:
 
@@ -75,7 +75,7 @@ Keep these out of `hyre-web`:
 - booking availability, pricing, promotions, referral, and status-transition rules;
 - duplicated domain models that can drift from the API.
 
-React Router loaders may compose multiple API reads for a page. Actions may validate web form shape, but Nest must remain authoritative for domain validation.
+React Router loaders may compose multiple API reads for a page. Actions may validate web form shape, but the API must remain authoritative for domain validation.
 
 ## Current repository warning
 
@@ -102,14 +102,14 @@ from the migration reference, until:
 
 1. the current work and patches in every repository are safely preserved;
 2. a visual and route baseline has been captured;
-3. the corresponding Nest endpoint has been verified;
+3. the corresponding API endpoint has been verified;
 4. the replacement route passes parity tests.
 
 ## Source-of-truth order
 
 When implementations disagree:
 
-1. Nest controllers, DTOs, guards, and tests define the API contract and authorization.
+1. API controllers, DTOs, guards, and tests define the API contract and authorization.
 2. `hyre-mobile` demonstrates currently exercised API behavior.
 3. `hireApp` defines web UI, URLs, SEO, accessibility, and browser workflows.
 4. Old `hireApp` server services are migration references only; they do not define the new runtime architecture.
@@ -129,10 +129,10 @@ When implementations disagree:
 The rebuild is complete when:
 
 - public, customer, fleet-owner, chauffeur, and admin web flows have functional and visual parity;
-- all business data and mutations go through the Nest API;
+- all business data and mutations go through the API;
 - authenticated routes SSR correctly using the BFF cookie relay;
 - no Prisma client or business-service implementation remains in the web runtime;
-- webhooks and scheduled work terminate at the Nest service, not Cloudflare;
+- webhooks and scheduled work terminate at the API, not Cloudflare;
 - public routes retain metadata, canonical URLs, sitemap, robots rules, and structured data;
 - accessibility and critical Playwright journeys pass;
 - direct `useEffect` usage is mechanically restricted to reviewed external-integration hooks;

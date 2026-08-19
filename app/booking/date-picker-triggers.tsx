@@ -11,6 +11,7 @@ interface LabeledDateTriggerProps {
   readonly label: string;
   readonly formattedDate: string | null;
   readonly placeholder: string;
+  readonly isCompact?: boolean;
 }
 
 export function LabeledDateTrigger({
@@ -21,6 +22,7 @@ export function LabeledDateTrigger({
   label,
   formattedDate,
   placeholder,
+  isCompact = false,
   className,
   ref,
   ...buttonProps
@@ -36,6 +38,7 @@ export function LabeledDateTrigger({
       className={cn(
         bookingFieldStackClass,
         "cursor-pointer appearance-none border-0 bg-transparent font-normal outline-none",
+        isCompact ? "h-auto gap-0.5 px-0" : "h-10 px-0",
         !hasDate && "text-muted-foreground",
         isDisabled && "cursor-not-allowed opacity-50",
         className,

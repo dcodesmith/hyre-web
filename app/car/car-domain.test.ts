@@ -100,4 +100,20 @@ describe("CarDomain", () => {
     expect(view.displayRating).toBe(4.8);
     expect(view.displayRate).toBe(80_000);
   });
+
+  it("uses the booking-type rate on search cars and falls back to the day rate", () => {
+    const searchCar = {
+      ...car(),
+      color: "Black",
+      nightRate: 80_000,
+      fullDayRate: null,
+      airportPickupRate: 40_000,
+      owner: { username: null, name: "Owner" },
+    };
+
+    expect(CarDomain(searchCar, now, "NIGHT").listRate).toBe(80_000);
+    expect(CarDomain(searchCar, now, "FULL_DAY").listRate).toBe(100_000);
+    expect(CarDomain(searchCar, now, "AIRPORT_PICKUP").rateLabel).toBe("/ pickup");
+    expect(CarDomain(searchCar, now, "NIGHT").href).toContain("bookingType=NIGHT");
+  });
 });

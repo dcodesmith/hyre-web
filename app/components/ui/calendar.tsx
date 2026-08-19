@@ -1,26 +1,16 @@
 import { ChevronDownIcon } from "lucide-react";
 import type * as React from "react";
-import { type ChevronProps, type DayButton, DayPicker } from "react-day-picker";
+import { type DayButton, DayPicker, getDefaultClassNames, type Locale } from "react-day-picker";
 
+import { Button } from "~/components/ui/button";
 import { useFocusWhen } from "~/hooks/use-focus-when";
 import { cn } from "~/lib/utils";
 
-const hireAppDayButtonClass =
-  "inline-flex h-9 w-9 items-center justify-center rounded-[0.375rem] p-0 text-sm font-normal ring-offset-background transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50";
-
 const hireAppNavButtonClass =
-  "inline-flex h-7 w-7 items-center justify-center rounded-[0.375rem] border border-input bg-transparent p-0 opacity-50 hover:bg-accent hover:text-accent-foreground hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2";
+  "inline-flex size-7 items-center justify-center rounded-md border border-input bg-transparent p-0 text-sm font-medium opacity-50 ring-offset-background transition-colors hover:bg-accent hover:text-accent-foreground hover:opacity-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50";
 
-function CalendarRoot({
-  className,
-  rootRef,
-  ...props
-}: {
-  className?: string;
-  rootRef?: React.Ref<HTMLDivElement>;
-} & React.ComponentProps<"div">) {
-  return <div data-slot="calendar" ref={rootRef} className={cn(className)} {...props} />;
-}
+const hireAppDayButtonClass =
+  "inline-flex size-9 items-center justify-center rounded-md p-0 text-sm font-normal ring-offset-background transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 aria-selected:opacity-100";
 
 function HireAppNavChevron({
   className,
@@ -37,7 +27,7 @@ function HireAppNavChevron({
       strokeWidth={1.5}
       stroke="currentColor"
       aria-hidden="true"
-      className={cn("h-4 w-4", className)}
+      className={cn("size-4", className)}
     >
       <path
         strokeLinecap="round"
@@ -48,69 +38,117 @@ function HireAppNavChevron({
   );
 }
 
-function CalendarChevron({ className, orientation }: ChevronProps) {
-  if (orientation === "left" || orientation === "right") {
-    return <HireAppNavChevron className={className} orientation={orientation} />;
-  }
-
-  return <ChevronDownIcon className={cn("size-4", className)} />;
-}
-
-function CalendarWeekNumber({ children, ...props }: React.ComponentProps<"td">) {
-  return (
-    <td {...props}>
-      <div className="flex size-9 items-center justify-center text-center">{children}</div>
-    </td>
-  );
-}
-
 function Calendar({
   className,
   classNames,
   showOutsideDays = true,
   captionLayout = "label",
-  navLayout = "around",
+  buttonVariant: _buttonVariant = "outline",
   locale,
   formatters,
   components,
   ...props
-}: React.ComponentProps<typeof DayPicker>) {
+}: React.ComponentProps<typeof DayPicker> & {
+  buttonVariant?: React.ComponentProps<typeof Button>["variant"];
+}) {
+  const defaultClassNames = getDefaultClassNames();
+
   return (
     <DayPicker
       showOutsideDays={showOutsideDays}
-      className={cn("w-fit bg-background p-3", className)}
+      className={cn(
+        "group/calendar w-fit bg-background p-3 [--cell-radius:0.375rem] [--cell-size:--spacing(9)]",
+        String.raw`rtl:**:[.rdp-button\_next>svg]:rotate-180`,
+        String.raw`rtl:**:[.rdp-button\_previous>svg]:rotate-180`,
+        className,
+      )}
       captionLayout={captionLayout}
-      navLayout={navLayout}
+      navLayout="around"
       locale={locale}
       formatters={{
         formatMonthDropdown: (date) => date.toLocaleString(locale?.code, { month: "short" }),
         ...formatters,
       }}
       classNames={{
-        months: "flex flex-col space-y-4 sm:flex-row sm:space-x-4 sm:space-y-0",
-        month: "relative space-y-4",
-        month_caption: "relative flex items-center justify-center pt-1",
-        caption_label: "text-sm font-medium",
-        nav: "flex items-center space-x-1",
-        button_previous: cn(hireAppNavButtonClass, "absolute top-0 left-1"),
-        button_next: cn(hireAppNavButtonClass, "absolute top-0 right-1"),
-        month_grid: "w-full border-collapse space-y-1",
-        weekdays: "flex",
-        weekday: "w-9 rounded-[0.375rem] text-[0.8rem] font-normal text-neutral-500",
-        week: "mt-2 flex w-full",
-        day: "relative h-9 w-9 p-0 text-center text-sm",
-        hidden: "invisible",
-        range_start: "[&>button]:rounded-l-md",
-        range_middle:
+        root: cn("w-fit", defaultClassNames.root),
+        months: cn(defaultClassNames.months, "relative flex flex-col sm:flex-row sm:gap-4"),
+        month: cn(defaultClassNames.month, "relative flex w-fit flex-col gap-4"),
+        nav: cn(
+          defaultClassNames.nav,
+          "absolute inset-x-0 top-1 flex items-center justify-between",
+        ),
+        button_previous: cn(
+          defaultClassNames.button_previous,
+          hireAppNavButtonClass,
+          "absolute top-0 left-1",
+        ),
+        button_next: cn(
+          defaultClassNames.button_next,
+          hireAppNavButtonClass,
+          "absolute top-0 right-1",
+        ),
+        month_caption: cn(
+          defaultClassNames.month_caption,
+          "relative flex h-auto items-center justify-center px-0 pt-1",
+        ),
+        dropdowns: cn(
+          defaultClassNames.dropdowns,
+          "flex h-7 items-center justify-center gap-1.5 text-sm font-medium",
+        ),
+        dropdown_root: cn(defaultClassNames.dropdown_root, "relative rounded-md"),
+        dropdown: cn(defaultClassNames.dropdown, "absolute inset-0 bg-popover opacity-0"),
+        caption_label: cn(
+          defaultClassNames.caption_label,
+          "text-sm font-medium select-none",
+          captionLayout === "label"
+            ? undefined
+            : "flex items-center gap-1 rounded-md [&>svg]:size-3.5 [&>svg]:text-muted-foreground",
+        ),
+        month_grid: cn(defaultClassNames.month_grid, "w-full border-collapse"),
+        weekdays: cn(defaultClassNames.weekdays, "flex"),
+        weekday: cn(
+          defaultClassNames.weekday,
+          "h-auto w-9 flex-none rounded-md text-[0.8rem] font-normal text-neutral-500 select-none",
+        ),
+        week: cn(defaultClassNames.week, "mt-2 flex w-full"),
+        week_number_header: cn(defaultClassNames.week_number_header, "w-9 select-none"),
+        week_number: cn(
+          defaultClassNames.week_number,
+          "text-[0.8rem] text-neutral-500 select-none",
+        ),
+        day: cn(
+          defaultClassNames.day,
+          "group/day relative size-9 p-0 text-center text-sm select-none",
+        ),
+        range_start: cn(defaultClassNames.range_start, "[&>button]:rounded-l-md"),
+        range_middle: cn(
+          defaultClassNames.range_middle,
           "[&>button]:rounded-none [&>button]:bg-neutral-100 [&>button]:text-neutral-900",
-        range_end: "[&>button]:rounded-r-md",
+        ),
+        range_end: cn(defaultClassNames.range_end, "[&>button]:rounded-r-md"),
+        today: cn(defaultClassNames.today, "bg-transparent"),
+        outside: cn(defaultClassNames.outside, "bg-transparent opacity-100"),
+        disabled: cn(defaultClassNames.disabled, "bg-transparent opacity-100"),
+        hidden: cn("invisible", defaultClassNames.hidden),
         ...classNames,
       }}
       components={{
-        Root: CalendarRoot,
-        Chevron: CalendarChevron,
-        DayButton: CalendarDayButton,
-        WeekNumber: CalendarWeekNumber,
+        Root: ({ className, rootRef, ...props }) => (
+          <div data-slot="calendar" ref={rootRef} className={cn(className)} {...props} />
+        ),
+        Chevron: ({ className, orientation }) => {
+          if (orientation === "left" || orientation === "right") {
+            return <HireAppNavChevron className={className} orientation={orientation} />;
+          }
+
+          return <ChevronDownIcon className={cn("size-4", className)} />;
+        },
+        DayButton: ({ ...props }) => <CalendarDayButton locale={locale} {...props} />,
+        WeekNumber: ({ children, ...props }) => (
+          <td {...props}>
+            <div className="flex size-9 items-center justify-center text-center">{children}</div>
+          </td>
+        ),
         ...components,
       }}
       {...props}
@@ -122,30 +160,34 @@ function CalendarDayButton({
   className,
   day,
   modifiers,
+  locale,
   ...props
-}: React.ComponentProps<typeof DayButton>) {
+}: React.ComponentProps<typeof DayButton> & { locale?: Partial<Locale> }) {
   const ref = useFocusWhen(modifiers.focused);
 
   return (
     <button
       ref={ref}
       type="button"
-      data-day={day.date.toLocaleDateString()}
+      data-day={day.date.toLocaleDateString(locale?.code)}
       data-selected-single={
         modifiers.selected &&
         !modifiers.range_start &&
         !modifiers.range_end &&
         !modifiers.range_middle
       }
+      data-range-start={modifiers.range_start}
+      data-range-end={modifiers.range_end}
+      data-range-middle={modifiers.range_middle}
       data-today={modifiers.today}
       className={cn(
         hireAppDayButtonClass,
-        className,
         modifiers.today && "bg-neutral-100 text-neutral-900",
         modifiers.selected &&
           "bg-neutral-900 text-neutral-50 hover:bg-neutral-900 hover:text-neutral-50 focus:bg-neutral-900 focus:text-neutral-50",
         modifiers.outside && "text-neutral-500 opacity-50",
         modifiers.disabled && "text-neutral-500 opacity-50",
+        className,
       )}
       {...props}
     />

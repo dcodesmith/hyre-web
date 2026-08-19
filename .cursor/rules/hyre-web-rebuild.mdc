@@ -35,7 +35,7 @@ reference. Before React implementation or review, read
 `.agents/skills/vercel-react-best-practices/SKILL.md`. Handover decisions
 override generic skill advice.
 
-Keep route modules thin, call Nest through server-only BFF adapters, and never
+Keep route modules thin, call the API through server-only BFF adapters, and never
 add Prisma or business authorization to the Worker. Prefer loaders, actions,
 forms, fetchers, URL state, and render-time derivation. Direct `useEffect` is
 allowed only in reviewed external-integration hooks as defined by the

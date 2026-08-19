@@ -77,7 +77,7 @@ Dynamic SSR plus deliberate edge caching is accepted for this application. If st
 
 Both can implement the required cookie-relaying BFF securely.
 
-TanStack Start has strong server-function validation, middleware, session primitives, and CSRF middleware. React Router has middleware, actions, raw Web requests/responses, and mature cookie/session utilities. The existing Nest API remains the actual authorization boundary in either framework.
+TanStack Start has strong server-function validation, middleware, session primitives, and CSRF middleware. React Router has middleware, actions, raw Web requests/responses, and mature cookie/session utilities. The existing API remains the actual authorization boundary in either framework.
 
 React Router's direct response control is especially useful for preserving multiple Better Auth `Set-Cookie` headers, redirects, status codes, and Problem Details.
 
@@ -100,7 +100,7 @@ Mitigation for React Router:
 - define Zod URL schemas per search-heavy route;
 - expose canonical parse/serialize helpers;
 - test defaults, arrays, pagination, filtering, and sorting;
-- never pass unvalidated URL values directly to Nest.
+- never pass unvalidated URL values directly to the API.
 
 
 
@@ -109,9 +109,9 @@ Mitigation for React Router:
 - React Router: 9.5/10
 - TanStack Start: 9/10
 
-React Router loaders/actions naturally receive Web `Request` objects and return values or `Response` objects. That closely matches the Nest HTTP boundary.
+React Router loaders/actions naturally receive Web `Request` objects and return values or `Response` objects. That closely matches the API HTTP boundary.
 
-TanStack `createServerFn` is a viable and strongly typed BFF primitive. It does not, however, make the external Nest boundary type-safe by itself. Both choices still require generated OpenAPI types or explicit runtime schemas.
+TanStack `createServerFn` is a viable and strongly typed BFF primitive. It does not, however, make the external API boundary type-safe by itself. Both choices still require generated OpenAPI types or explicit runtime schemas.
 
 ### Caching and invalidation — 10%
 
@@ -164,7 +164,7 @@ React Router v8 can provide everything currently required:
 - SEO metadata, robots, sitemap, structured data, and canonical URLs;
 - customer, fleet-owner, chauffeur, admin, and staff route trees;
 - progressive forms and non-navigation mutations;Ok
-- file uploads and streamed downloads through the Nest API;
+- file uploads and streamed downloads through the API;
 - Better Auth cookie relay;
 - route middleware and role-aware UX guards;
 - typed route params and loader/action data;
@@ -178,7 +178,7 @@ It also improves on the legacy architecture by adding:
 - RR v8 request/route instrumentation;
 - Cloudflare-native SSR;
 - Zod URL contracts;
-- generated Nest API contracts when OpenAPI is added;
+- generated API contracts when OpenAPI is added;
 - isolated contract and end-to-end tests;
 - explicit cache and error policy;
 - no Prisma or business secrets in the web runtime.

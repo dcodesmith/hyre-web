@@ -25,6 +25,12 @@ const pickerDateFormat = new Intl.DateTimeFormat("en-US", {
   day: "2-digit",
 });
 
+const compactPickerDateFormat = new Intl.DateTimeFormat("en-US", {
+  timeZone: SERVICE_TIMEZONE,
+  month: "short",
+  day: "numeric",
+});
+
 function getZonedParts(date: Date) {
   const parts = Object.fromEntries(
     dateTimeFormat.formatToParts(date).map((part) => [part.type, part.value]),
@@ -55,6 +61,26 @@ export function formatZonedDate(date: Date) {
 
 export function formatPickerDate(date: Date) {
   return pickerDateFormat.format(date);
+}
+
+export function formatCompactPickerDate(date: Date) {
+  return compactPickerDateFormat.format(date);
+}
+
+const CALENDAR_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+export function parseZonedCalendarDate(value: string) {
+  if (!CALENDAR_DATE_PATTERN.test(value)) {
+    return undefined;
+  }
+
+  const parsed = new Date(`${value}T12:00:00.000Z`);
+
+  if (Number.isNaN(parsed.getTime()) || formatZonedDate(parsed) !== value) {
+    return undefined;
+  }
+
+  return startOfZonedDay(parsed);
 }
 
 /** Midnight in the service timezone as a real UTC instant. */

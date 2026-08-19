@@ -5,7 +5,7 @@
 1. Preserve behavior before improving architecture or visual design.
 2. Port presentation; replace business implementation.
 3. Migrate vertical journeys, not folders in bulk.
-4. A route moves only when its required Nest endpoints exist.
+4. A route moves only when its required API endpoints exist.
 5. Keep `hireApp` deployable until production cutover.
 6. Do not combine framework, UI redesign, and API redesign in one change.
 
@@ -21,7 +21,7 @@ Initial stack:
    repository-state preservation, screenshots, metadata, and critical journeys.
 2. **RR v8 Cloudflare foundation** — current official scaffold, SSR Worker
    runtime, bindings, scripts, and a minimal route.
-3. **BFF transport** — central Nest client, endpoint builders, runtime response
+3. **BFF transport** — central API client, endpoint builders, runtime response
    schemas, Problem Details, aborts, timeouts, and one public API call.
 4. **Security and preview** — request IDs, security/cache headers,
    observability, staging bindings, preview deployment, and smoke tests.
@@ -31,7 +31,7 @@ Initial stack:
 7. **Authentication** — OTP, complete cookie relay, session/logout, and
    role-specific Origin/Referer behavior.
 8. **Customer, fleet, and admin journeys** — small capability-focused stacks,
-   gated by verified Nest contracts.
+   gated by verified API contracts.
 9. **Legacy removal and cutover** — delete replaced backend code, verify
    production configuration, rehearse rollback, and switch traffic.
 
@@ -40,14 +40,14 @@ Workers execution and preview deployment are foundation concerns; production
 domains, DNS, secrets, and traffic switching remain cutover concerns.
 
 Use the initial pragmatic organization from `01-ARCHITECTURE.md`: thin routes,
-shared UI under `components`, and capability-grouped Nest adapters under
+shared UI under `components`, and capability-grouped API adapters under
 `lib/api`. Extract complex vertical slices selectively rather than imposing
 them on every route.
 
 ## Phase 0: preserve the baseline
 
 - Preserve patches and working-tree state for `hyre-web`, `hireApp`, `hyre-worker-nestjs`, and `hyre-mobile`.
-- Treat the uncommitted Nest airport-completion controller/migration as unavailable until reviewed and committed.
+- Treat the uncommitted API airport-completion controller/migration as unavailable until reviewed and committed.
 - Do not bulk-stage the API repository; exclude backup dumps and key-like artifacts from source control and rotate any credential found outside approved secret storage.
 - Record the commit hashes and intentional patches of all source repositories.
 - Capture desktop and mobile screenshots for every major route state.
@@ -84,8 +84,8 @@ Foundation tasks:
 - replace the Node `PassThrough`-based `entry.server.tsx` with the Cloudflare/RR v8 request entry;
 - enable SSR;
 - add `API_ORIGIN` as a server-only Worker variable;
-- create the central Nest API client and Problem Details parser;
-- decide and establish the Nest Zod/OpenAPI/shared-contract publication path;
+- create the central API client and Problem Details parser;
+- decide and establish the API Zod/OpenAPI/shared-contract publication path;
 - implement security headers and request IDs;
 - set up test, typecheck, lint, preview, and deploy scripts;
 - configure preview and production Workers separately.
@@ -102,7 +102,7 @@ Architecture constraint: Cloudflare's React Router integration currently support
 Exit criteria:
 
 - hello-world SSR runs under the local Workers runtime;
-- preview deployment can call Nest `GET /health` and one public endpoint;
+- preview deployment can call the API `GET /health` and one public endpoint;
 - no Node-only backend dependency is required by the Worker.
 
 ## Phase 2: port the visual system
@@ -146,9 +146,9 @@ Suggested order:
 5. AI search, places, trip duration, and flight search;
 6. robots, sitemap, canonical metadata, structured data, and API-discovery resources.
 
-Use Nest public endpoints where available. Do not port legacy database queries.
+Use public API endpoints where available. Do not port legacy database queries.
 
-Unknown partner behavior must be verified against `/api/cars/search` and `/api/cars/:carId`; add Nest endpoints or parameters if the API does not preserve partner scoping.
+Unknown partner behavior must be verified against `/api/cars/search` and `/api/cars/:carId`; add API endpoints or parameters if the API does not preserve partner scoping.
 
 Exit criteria:
 
@@ -161,15 +161,15 @@ Exit criteria:
 
 Implement auth as a BFF flow before protected pages.
 
-- OTP request action -> Nest Better Auth endpoint.
-- OTP verify action -> Nest, then relay all `Set-Cookie` headers.
+- OTP request action -> the API's Better Auth endpoint.
+- OTP verify action -> the API, then relay all `Set-Cookie` headers.
 - include `role` in both OTP payloads;
 - forward a trusted canonical `Origin` and role-specific `/auth`, `/fleet-owner`, or `/admin` referer;
-- root/session loader -> forward incoming cookie to Nest `/auth/session`.
-- logout action -> Nest sign-out, relay cookie deletion.
-- role helpers -> use session roles returned by Nest.
-- route guards -> redirect for UX; Nest remains authoritative.
-- add web and preview origins to Nest `TRUSTED_ORIGINS`.
+- root/session loader -> forward incoming cookie to the API `/auth/session`.
+- logout action -> API sign-out, relay cookie deletion.
+- role helpers -> use session roles returned by the API.
+- route guards -> redirect for UX; the API remains authoritative.
+- add web and preview origins to the API `TRUSTED_ORIGINS`.
 
 Test:
 
@@ -222,7 +222,7 @@ Each slice requires:
 
 Do not begin a screen until the API readiness matrix is green.
 
-Likely-ready areas include fleet cars, promotions, and booking assignment. Dashboard/earnings, airport completion, chauffeur management, onboarding, deletion, and some payout behavior need explicit API verification or new controllers. Airport completion remains provisional while its Nest changes are uncommitted.
+Likely-ready areas include fleet cars, promotions, and booking assignment. Dashboard/earnings, airport completion, chauffeur management, onboarding, deletion, and some payout behavior need explicit API verification or new controllers. Airport completion remains provisional while its API changes are uncommitted.
 
 Port section layouts before individual screens so nested route guards and navigation are tested once.
 
@@ -253,18 +253,18 @@ Delete from `hyre-web` only after replacement routes pass:
 - server-side S3/OpenAI/Flutterwave/Twilio/Resend packages;
 - Vercel packages and configuration;
 - backend environment variables;
-- test-only API routes that belong to Nest.
+- test-only API routes that belong to the API.
 
 Retain web presentation utilities and transport-neutral schemas only when still used.
 
 ## Phase 9: cutover
 
-- Run full parity tests against staging Nest and staging Worker.
-- Load-test public search and the BFF-to-Nest path.
+- Run full parity tests against the staging API and staging Worker.
+- Load-test public search and the BFF-to-API path.
 - Validate cache and security headers.
-- Verify webhook URLs still target Nest.
+- Verify webhook URLs still target the API.
 - Configure DNS and production Worker routes.
-- Add production web origin to Nest before switching traffic.
+- Add production web origin to the API before switching traffic.
 - Verify the legacy app against the final database schema and API-owned jobs/webhooks.
 - Prove cross-version session compatibility or announce that rollback forces reauthentication.
 - Nominate exactly one owner for every webhook and scheduled job in both forward and rollback states.
@@ -279,7 +279,7 @@ Use this checklist for every route:
 ```text
 [ ] Legacy URL, params, query string, and role captured
 [ ] Visual states/screenshots captured
-[ ] Nest endpoint and DTO verified
+[ ] API endpoint and DTO verified
 [ ] Missing backend behavior tracked separately
 [ ] Loader/action uses central API client
 [ ] No database/business service import
@@ -304,13 +304,13 @@ Use this checklist for every route:
 
 ### Contract
 
-- web transport expectations against Nest test/staging;
+- web transport expectations against the API test/staging;
 - all documented status codes;
 - response schemas for critical booking/payment/auth flows.
 
 ### Integration
 
-- route loaders/actions with a mocked HTTP Nest server;
+- route loaders/actions with a mocked HTTP API server;
 - multiple cookies;
 - timeout/abort behavior;
 - upload and binary download behavior.
@@ -318,7 +318,7 @@ Use this checklist for every route:
 
 ### End-to-end
 
-- run against an isolated Nest test environment with disposable data;
+- run against an isolated API test environment with disposable data;
 - public search -> car -> booking;
 - OTP login/logout for each role;
 - payment status;

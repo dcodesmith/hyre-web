@@ -1,5 +1,5 @@
 import { ArrowRight, ChevronLeft, ChevronRight, Fingerprint, ShieldCheck } from "lucide-react";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { Link } from "react-router";
 
 import type { CarCategoriesResponse, CarCategory, PublicCar } from "~/api/cars/schema";
@@ -13,7 +13,11 @@ import {
   AccordionTrigger,
 } from "~/components/ui/accordion";
 import { HOME_FAQ_ITEMS } from "~/content/home";
-import { HomeSearch } from "~/home/home-search";
+import { getHeroHeightClasses, useHeroScroll } from "~/hooks/use-hero-scroll";
+import { cn } from "~/lib/utils";
+import { CompactSearchBar } from "~/search/compact-search-bar";
+import { SearchForm } from "~/search/search-form";
+import { SearchModal } from "~/search/search-modal";
 import { HomeStructuredData } from "~/seo/structured-data";
 
 interface HomePageProps {
@@ -42,18 +46,19 @@ function CategoryPills({ categories }: CategoryPillsProps) {
   }
 
   return (
-    <nav aria-label="Vehicle categories" className="overflow-x-auto">
-      <div className="flex w-max min-w-full gap-2 pb-1">
-        {categories.map((category) => (
-          <Link
-            key={category.name}
-            to={buildCategorySearchPath(category)}
-            className="shrink-0 rounded-full border border-gray-300 px-3 py-2 text-xs font-medium text-gray-800 transition-colors hover:border-gray-900 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:px-4 md:text-sm"
-          >
-            {category.title} ({category.cars.length})
-          </Link>
-        ))}
-      </div>
+    <nav
+      aria-label="Vehicle categories"
+      className="flex items-center gap-2 overflow-x-auto scrollbar-hide md:gap-3"
+    >
+      {categories.map((category) => (
+        <Link
+          key={category.name}
+          to={buildCategorySearchPath(category)}
+          className="shrink-0 rounded-full border border-gray-300 px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors hover:border-gray-900 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none md:px-4 md:py-2 md:text-sm"
+        >
+          {category.title} ({category.cars.length})
+        </Link>
+      ))}
     </nav>
   );
 }
@@ -73,16 +78,14 @@ function VehicleSection({ cars, href, id, priority = false, title }: VehicleSect
   };
 
   return (
-    <section id={id} className="scroll-mt-20">
-      <div className="mb-3 flex items-center justify-between gap-4">
+    <section id={id} className="relative mx-auto max-w-350 scroll-mt-20 px-6 md:px-8">
+      <div className="mb-2 flex items-center justify-between">
         <Link
           to={href}
           className="group inline-flex items-center gap-2 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         >
-          <h2 className="text-lg font-semibold text-gray-950 group-hover:underline md:text-xl">
-            {title}
-          </h2>
-          <span className="inline-flex size-8 items-center justify-center rounded-full border bg-white transition-colors group-hover:border-gray-900">
+          <h2 className="text-lg font-semibold group-hover:underline md:text-xl">{title}</h2>
+          <span className="inline-flex size-8 items-center justify-center rounded-full border border-input bg-background p-1.5 transition-colors group-hover:border-gray-900">
             <ArrowRight aria-hidden="true" className="size-4" />
           </span>
         </Link>
@@ -109,7 +112,7 @@ function VehicleSection({ cars, href, id, priority = false, title }: VehicleSect
 
       <div
         ref={scrollContainerRef}
-        className="flex snap-x snap-mandatory gap-4 overflow-x-auto pb-3 scrollbar-none md:gap-6 [&::-webkit-scrollbar]:hidden"
+        className="flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth scrollbar-hide md:gap-6"
       >
         {cars.map((car, index) => (
           <VehicleCard key={car.id} car={car} priority={priority && index < 4} />
@@ -124,7 +127,7 @@ function FleetSections({ fleet }: FleetSectionsProps) {
     return (
       <section
         aria-labelledby="fleet-unavailable-heading"
-        className="rounded-xl border border-amber-200 bg-amber-50 px-6 py-10 text-center"
+        className="mx-auto max-w-7xl rounded-xl border border-amber-200 bg-amber-50 px-4 py-10 text-center md:px-6 lg:px-8"
       >
         <h2 id="fleet-unavailable-heading" className="text-lg font-semibold text-gray-950">
           Vehicles are temporarily unavailable
@@ -138,7 +141,7 @@ function FleetSections({ fleet }: FleetSectionsProps) {
 
   if (fleet.allCars.length === 0) {
     return (
-      <section className="py-12 text-center">
+      <section className="mx-auto max-w-7xl px-4 py-16 text-center md:px-6 lg:px-8">
         <h2 className="text-xl font-semibold text-gray-950">No vehicles available right now</h2>
         <p className="mt-2 text-gray-600">Please check back later for available vehicles.</p>
       </section>
@@ -177,12 +180,38 @@ function FleetSections({ fleet }: FleetSectionsProps) {
 }
 
 export function HomePage({ fleet }: HomePageProps) {
+  const { isDesktopCollapsed, isMobileScrolled } = useHeroScroll(true);
+  const { containerClass, heroOpacity, desktopHeight, contentTransform } =
+    getHeroHeightClasses(isDesktopCollapsed);
+  const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
+
   return (
     <div className="w-full bg-white">
       <HomeStructuredData />
 
-      <section className="relative min-h-135 overflow-hidden bg-gray-950">
-        <div className="absolute inset-0">
+      {isMobileScrolled ? (
+        <div className="fixed top-0 right-0 left-0 z-50 border-b border-gray-200 bg-white px-4 py-3 shadow-md md:hidden">
+          <CompactSearchBar onClick={() => setIsSearchModalOpen(true)} />
+        </div>
+      ) : null}
+
+      {isSearchModalOpen ? (
+        <SearchModal isOpen onClose={() => setIsSearchModalOpen(false)} />
+      ) : null}
+
+      <section
+        className={cn(
+          "w-full overflow-hidden bg-gray-950 transition-[height,opacity,padding] duration-300 ease-out motion-reduce:transition-none",
+          containerClass,
+          heroOpacity,
+        )}
+      >
+        <div
+          className={cn(
+            "absolute inset-0 transition-opacity duration-300",
+            isDesktopCollapsed ? "opacity-0" : "opacity-100",
+          )}
+        >
           <picture className="absolute inset-0">
             <source media="(max-width: 767px)" srcSet="/images/hero-640.webp" type="image/webp" />
             <source
@@ -203,66 +232,112 @@ export function HomePage({ fleet }: HomePageProps) {
           <div className="absolute inset-0 bg-linear-to-b from-black/50 via-black/30 to-black/60" />
         </div>
 
-        <div className="relative z-10 mx-auto flex min-h-135 max-w-4xl flex-col items-center justify-center px-4 py-12">
-          <h1 className="text-center text-3xl font-bold text-pretty text-white md:text-4xl lg:text-5xl">
-            Your Ride, Your Choice
-          </h1>
-          <p className="mt-3 text-center text-base leading-relaxed text-white/90 md:text-lg">
-            Comfort. Safety. Professional. Every ride.
-          </p>
+        <div
+          className={cn(
+            "pointer-events-none absolute inset-0 hidden border-b border-gray-200 bg-white transition-opacity duration-300 md:block",
+            isDesktopCollapsed ? "md:opacity-100" : "md:opacity-0",
+          )}
+        />
 
-          <div className="mt-8 w-full max-w-2xl">
-            <HomeSearch />
+        <div
+          className={cn(
+            "relative z-10 mx-auto flex h-full max-w-4xl flex-col items-center px-4 transition-[padding] duration-300 motion-reduce:transition-none",
+            isDesktopCollapsed ? "justify-center py-4" : "justify-center pt-16 md:pt-20",
+          )}
+        >
+          <div
+            className={cn(
+              "overflow-hidden transition-[max-height,opacity,margin] duration-300 motion-reduce:transition-none",
+              isDesktopCollapsed || isMobileScrolled
+                ? "mb-0 max-h-0 opacity-0"
+                : "mb-6 max-h-40 opacity-100",
+            )}
+          >
+            <h1 className="mb-3 text-center text-3xl font-bold text-white md:text-4xl lg:text-5xl">
+              Your Ride, Your Choice
+            </h1>
+            <p className="max-w-2xl text-center text-base leading-relaxed text-white/90 md:text-lg">
+              Comfort. Safety. Professional. Every ride.
+            </p>
           </div>
 
-          <div className="mt-6 flex flex-wrap justify-center gap-4 text-sm font-medium text-white md:gap-6">
-            <span className="inline-flex items-center gap-2">
-              <ShieldCheck aria-hidden="true" className="size-5 text-green-400" />
-              Vetted fleet owners
-            </span>
-            <span className="inline-flex items-center gap-2">
-              <Fingerprint aria-hidden="true" className="size-5 text-orange-400" />
-              Secure booking
-            </span>
+          <div
+            className={cn(
+              "w-full max-w-2xl space-y-3 transition-[max-height,opacity] duration-300 motion-reduce:transition-none",
+              isDesktopCollapsed && "md:max-h-0 md:overflow-hidden md:opacity-0",
+            )}
+          >
+            <SearchForm />
+          </div>
+
+          <div
+            className={cn(
+              "flex flex-wrap justify-center gap-4 overflow-hidden text-white transition-[max-height,opacity,margin] duration-300 motion-reduce:transition-none md:gap-6",
+              isDesktopCollapsed ? "mt-0 max-h-0 opacity-0" : "mt-6 max-h-20 opacity-100",
+            )}
+          >
+            <div className="flex items-center gap-2">
+              <ShieldCheck aria-hidden="true" className="size-4 text-green-400 md:size-5" />
+              <span>Vetted fleet owners</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Fingerprint aria-hidden="true" className="size-4 text-orange-400 md:size-5" />
+              <span>Secure booking</span>
+            </div>
           </div>
         </div>
       </section>
+      <div
+        className={cn(
+          "hidden transition-[height] duration-300 motion-reduce:transition-none md:block",
+          desktopHeight,
+        )}
+      />
 
-      <div className="mx-auto max-w-350 space-y-8 px-4 py-10 md:space-y-10 md:px-8 md:py-12">
-        {fleet ? <CategoryPills categories={fleet.categories} /> : null}
-        <FleetSections fleet={fleet} />
+      <div className={cn("transition-transform duration-300", contentTransform)}>
+        <div className="relative z-0 space-y-6 bg-white pt-8 md:pt-12">
+          <div className="space-y-6">
+            {fleet && fleet.categories.length > 0 ? (
+              <div className="mx-auto max-w-350 px-4 md:px-8">
+                <CategoryPills categories={fleet.categories} />
+              </div>
+            ) : null}
+            <FleetSections fleet={fleet} />
+          </div>
+
+          <section className="border-t bg-gray-50 py-12 md:py-16">
+            <div className="mx-auto max-w-4xl px-4 md:px-8">
+              <h2 className="mb-8 text-center text-2xl font-bold md:text-3xl">
+                Frequently Asked Questions
+              </h2>
+              <Accordion type="single" collapsible className="rounded-lg border bg-white">
+                {HOME_FAQ_ITEMS.map((item, index) => (
+                  <AccordionItem
+                    key={item.question}
+                    value={`home-faq-${index}`}
+                    className="border-b border-gray-200 px-6 last:border-0"
+                  >
+                    <AccordionTrigger className="text-left hover:no-underline">
+                      <span className="pr-4 font-medium text-gray-900">{item.question}</span>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <p className="leading-relaxed text-gray-600">{item.answer}</p>
+                    </AccordionContent>
+                  </AccordionItem>
+                ))}
+              </Accordion>
+              <div className="mt-6 text-center">
+                <Link
+                  to="/faq"
+                  className="inline-flex items-center gap-1 font-medium text-gray-900 hover:underline"
+                >
+                  View all FAQs <span aria-hidden="true">→</span>
+                </Link>
+              </div>
+            </div>
+          </section>
+        </div>
       </div>
-
-      <section className="border-t bg-gray-50 py-12 md:py-16">
-        <div className="mx-auto max-w-4xl px-4 md:px-8">
-          <h2 className="mb-8 text-center text-2xl font-bold text-pretty text-gray-950 md:text-3xl">
-            Frequently Asked Questions
-          </h2>
-          <Accordion type="single" collapsible className="rounded-lg border bg-white">
-            {HOME_FAQ_ITEMS.map((item, index) => (
-              <AccordionItem
-                key={item.question}
-                value={`home-faq-${index}`}
-                className="border-b border-gray-200 px-6 last:border-0"
-              >
-                <AccordionTrigger className="text-left hover:no-underline">
-                  <span className="min-w-0 flex-1 pr-4 font-medium text-gray-900">
-                    {item.question}
-                  </span>
-                </AccordionTrigger>
-                <AccordionContent>
-                  <p className="leading-relaxed text-gray-600">{item.answer}</p>
-                </AccordionContent>
-              </AccordionItem>
-            ))}
-          </Accordion>
-          <div className="mt-6 text-center">
-            <Link to="/faq" className="font-medium text-gray-900 hover:underline">
-              View all FAQs <span aria-hidden="true">→</span>
-            </Link>
-          </div>
-        </div>
-      </section>
     </div>
   );
 }
