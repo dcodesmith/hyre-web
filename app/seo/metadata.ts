@@ -39,9 +39,10 @@ export function buildPageMetadata({
   ];
 
   if (image) {
+    const imageUrl = new URL(image, SITE_ORIGIN).href;
     metadata.push(
-      { property: "og:image", content: image },
-      { name: "twitter:image", content: image },
+      { property: "og:image", content: imageUrl },
+      { name: "twitter:image", content: imageUrl },
     );
   }
 

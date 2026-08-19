@@ -47,6 +47,24 @@ describe("buildPageMetadata", () => {
     expect(metadata).toContainEqual({ name: "twitter:image", content: image });
     expect(metadata).toContainEqual({ name: "twitter:card", content: "summary_large_image" });
   });
+
+  it("resolves a relative social image against the production origin", () => {
+    const metadata = buildPageMetadata({
+      title: "Tripdly",
+      description: "Book a chauffeur-driven vehicle.",
+      path: "/",
+      image: "/og-image.jpg",
+    });
+
+    expect(metadata).toContainEqual({
+      property: "og:image",
+      content: "https://tripdly.com/og-image.jpg",
+    });
+    expect(metadata).toContainEqual({
+      name: "twitter:image",
+      content: "https://tripdly.com/og-image.jpg",
+    });
+  });
 });
 
 describe("staticPageHeaders", () => {

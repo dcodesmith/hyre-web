@@ -67,7 +67,7 @@ app/
 
   home/
     home-page.tsx
-    home-search.tsx               # moves to search/search-form.tsx in the search PR
+    home-search.tsx               # already GET /search; moves in the search PR
 
   time/
     timezone.ts                   # Africa/Lagos
@@ -101,6 +101,16 @@ app/
 
 ## Next (do not create empty)
 
+The homepage already submits `GET /search` with `bookingType`, `from`, `to`,
+`pickupTime`, and `flightNumber`. There is no `/search` route yet, so that
+navigation 404s. The search PR should add the route and
+`app/search/search-url.ts`.
+
+Unverified: those query names vs Nest `GET /api/cars/search`. Category pills
+also map names to filters until
+[`hyre-worker-nestjs#190`](https://github.com/dcodesmith/hyre-worker-nestjs/issues/190)
+lands. Do not invent a second mapping in this slice.
+
 - `app/search/` with `search-url.ts` (URL contract for `/search`)
 - Grow `app/api/cars` for search and detail
 - `app/api/places/`, `app/api/rates/`, `app/api/reviews/`
@@ -126,7 +136,7 @@ app/
 |---|---|
 | Client file | `app/api/api.server.ts` |
 | Transport schemas | `schema.ts` per `app/api/{noun}/` folder |
-| Search URL contract | `app/search/search-url.ts` when `/search` starts |
+| Search URL contract | `app/search/search-url.ts` when the `/search` route is added (homepage already GET `/search`) |
 | Fleet dashboard adapter | `app/api/fleet/dashboard/` → `/api/dashboard/*` |
 | Admin car assembler | `app/admin/cars/car-approval.ts` |
 | SEO / time | `app/seo/`, `app/time/` |

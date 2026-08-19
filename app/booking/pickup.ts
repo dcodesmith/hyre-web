@@ -16,7 +16,8 @@ export function normalizePickupTime(time: string | undefined) {
   }
 
   const hour = Number.parseInt(match[1], 10);
-  if (hour < 1 || hour > 12) {
+  const minute = match[2] ? Number.parseInt(match[2], 10) : 0;
+  if (hour < 1 || hour > 12 || minute !== 0) {
     return trimmed;
   }
 

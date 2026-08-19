@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { getPickupTimes, nextPickupTimeOnFromChange } from "~/booking/pickup";
+import { getPickupTimes, nextPickupTimeOnFromChange, normalizePickupTime } from "~/booking/pickup";
 
 describe("booking pickup times", () => {
   it("keeps pickup time only when it is still offered for the new From date", () => {
@@ -41,6 +41,28 @@ describe("booking pickup times", () => {
         fromDate: undefined,
         currentPickupTime: "9 AM",
         fallbackDate: today,
+        now: morning,
+      }),
+    ).toBeUndefined();
+  });
+
+  it("normalizes hourly times and leaves non-hourly minutes unchanged", () => {
+    expect(normalizePickupTime("9 AM")).toBe("9 AM");
+    expect(normalizePickupTime("9:00 am")).toBe("9 AM");
+    expect(normalizePickupTime("9:30 AM")).toBe("9:30 AM");
+    expect(normalizePickupTime("9:99 AM")).toBe("9:99 AM");
+  });
+
+  it("drops a non-hourly pickup time when the From date changes", () => {
+    const morning = new Date("2026-08-18T09:30:00+01:00");
+    const tomorrow = new Date("2026-08-19T00:00:00+01:00");
+
+    expect(
+      nextPickupTimeOnFromChange({
+        bookingType: "DAY",
+        fromDate: tomorrow,
+        currentPickupTime: "9:30 AM",
+        fallbackDate: tomorrow,
         now: morning,
       }),
     ).toBeUndefined();

@@ -271,7 +271,7 @@ function createAbortContext(requestSignal: AbortSignal | undefined, timeoutMs: n
 
   return {
     signal: controller.signal,
-    didTimeout: () => timedOut,
+    didTimeout: () => timedOut && !requestSignal?.aborted,
     cleanup() {
       clearTimeout(timeout);
       requestSignal?.removeEventListener("abort", forwardAbort);
