@@ -22,6 +22,7 @@ interface SingleDatePickerProps {
   readonly disabled?: boolean;
   readonly label?: string;
   readonly placeholder?: string;
+  readonly isCompact?: boolean;
 }
 
 export function SingleDatePicker({
@@ -33,6 +34,7 @@ export function SingleDatePicker({
   disabled = false,
   label = "Date",
   placeholder = "Select date…",
+  isCompact = false,
 }: SingleDatePickerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const rootId = useId();
@@ -70,6 +72,7 @@ export function SingleDatePicker({
             label={label}
             formattedDate={formattedDate}
             placeholder={placeholder}
+            isCompact={isCompact}
           />
         </PopoverTrigger>
         <PopoverContent

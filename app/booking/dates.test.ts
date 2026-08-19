@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  calculateBookingUnits,
   getEarliestBookableDate,
   getToDateMinDate,
   isSameDayCutoffTomorrow,
@@ -83,5 +84,14 @@ describe("booking date rules", () => {
     expect(isSameDayCutoffTomorrow("NIGHT", 23)).toBe(true);
     expect(isSameDayCutoffTomorrow("AIRPORT_PICKUP", 23)).toBe(false);
     expect(isSameDayCutoffTomorrow("FULL_DAY", 23)).toBe(false);
+  });
+
+  it("counts booking units the same way hireApp prices a date range", () => {
+    expect(calculateBookingUnits("2026-10-26", "2026-10-26", "DAY")).toBe(1);
+    expect(calculateBookingUnits("2026-10-26", "2026-10-27", "DAY")).toBe(2);
+    expect(calculateBookingUnits("2026-10-26", "2026-10-27", "NIGHT")).toBe(1);
+    expect(calculateBookingUnits("2026-10-26", "2026-10-28", "FULL_DAY")).toBe(2);
+    expect(calculateBookingUnits("2026-10-26", "2026-10-28", "AIRPORT_PICKUP")).toBe(1);
+    expect(calculateBookingUnits(undefined, "2026-10-28", "DAY")).toBe(1);
   });
 });

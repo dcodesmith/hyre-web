@@ -14,6 +14,7 @@ interface BookingTypeInputProps {
   readonly fallbackDate: Date;
   readonly onPickupTimeChange?: (value: string) => void;
   readonly onFlightNumberChange?: (value: string) => void;
+  readonly isCompact?: boolean;
 }
 
 export function BookingTypeInput({
@@ -24,6 +25,7 @@ export function BookingTypeInput({
   fallbackDate,
   onPickupTimeChange,
   onFlightNumberChange,
+  isCompact = false,
 }: BookingTypeInputProps) {
   if (bookingType === NIGHT_BOOKING_TYPE) {
     return (
@@ -62,7 +64,7 @@ export function BookingTypeInput({
       containerClassName={bookingFieldStackClass}
       labelClassName={bookingFieldLabelClass}
       showLabel
-      placeholder="Select pickup time…"
+      placeholder={isCompact ? "Select time" : "Select pickup time…"}
     />
   );
 }

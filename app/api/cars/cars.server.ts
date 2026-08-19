@@ -2,7 +2,7 @@ import { env } from "cloudflare:workers";
 import { z } from "zod";
 
 import { createApiClient } from "../api.server";
-import { carCategoriesResponseSchema } from "./schema";
+import { carCategoriesResponseSchema, carSearchResponseSchema } from "./schema";
 
 const carCategoriesLimitSchema = z.number().int().min(1).max(100).default(50);
 let apiClient: ReturnType<typeof createApiClient> | undefined;
@@ -21,5 +21,13 @@ export function getCarCategories(options: { request?: Request; limit?: number } 
     path: `/api/cars/categories?${search}`,
     request: options.request,
     schema: carCategoriesResponseSchema,
+  });
+}
+
+export function searchCars(options: { request?: Request; search: URLSearchParams }) {
+  return getApiClient().request({
+    path: `/api/cars/search?${options.search}`,
+    request: options.request,
+    schema: carSearchResponseSchema,
   });
 }

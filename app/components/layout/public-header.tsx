@@ -2,20 +2,22 @@ import { Link, useLocation } from "react-router";
 
 import { Button } from "~/components/ui/button";
 import { LEGAL_CONSTANTS } from "~/content/legal";
-import { useHasScrolled } from "~/hooks/use-has-scrolled";
+import { useHeroScroll } from "~/hooks/use-hero-scroll";
 import { cn } from "~/lib/utils";
+import { SearchForm } from "~/search/search-form";
 
 export function PublicHeader() {
   const { pathname } = useLocation();
   const isHeroPage = pathname === "/";
-  const hasScrolled = useHasScrolled(isHeroPage);
-
+  const { hasScrolled } = useHeroScroll(isHeroPage);
   const isTransparent = isHeroPage && !hasScrolled;
+  const showCompactSearch = isHeroPage && hasScrolled;
 
   return (
     <header
       className={cn(
-        "fixed inset-x-0 top-0 z-40 hidden h-17.25 items-center justify-between px-4 transition-[background-color,border-color,box-shadow] duration-300 md:flex",
+        "fixed inset-x-0 top-0 z-50 hidden justify-between px-4 transition-all duration-300 md:flex",
+        showCompactSearch ? "items-start py-4" : "h-17.25 items-center",
         isTransparent
           ? "border-b border-transparent bg-transparent"
           : "border-b border-gray-200 bg-white shadow-sm",
@@ -32,12 +34,20 @@ export function PublicHeader() {
         {LEGAL_CONSTANTS.companyName}
       </Link>
 
+      {showCompactSearch ? (
+        <div className="mx-4 flex max-w-3xl flex-1 flex-col items-center">
+          <div className="w-full">
+            <SearchForm isCompact />
+          </div>
+        </div>
+      ) : null}
+
       <Button
         asChild
         variant="outline"
         size="sm"
         className={cn(
-          "h-9 rounded-md px-3 text-sm transition-colors duration-300 active:translate-y-0",
+          "h-9 shrink-0 rounded-md px-3 text-sm transition-colors duration-300 active:translate-y-0",
           isTransparent &&
             "border-white/40 bg-white/20 text-white hover:bg-white/30 hover:text-white",
         )}
