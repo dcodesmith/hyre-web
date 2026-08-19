@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
 import { ApiRequestError, createApiClient } from "./api.server";
-import { carCategoriesResponseSchema } from "./contracts/car-categories";
+import { carCategoriesResponseSchema } from "./cars/schema";
 import { HTTP_STATUS, type HttpStatus } from "./http-status";
 import { toPublicProblemDetails } from "./problem-details";
 

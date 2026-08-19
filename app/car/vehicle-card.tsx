@@ -1,16 +1,9 @@
 import { Sparkles, Tag, Users } from "lucide-react";
 import { Link } from "react-router";
 
-import { CompactStarRating } from "~/components/home/compact-star-rating";
-import type { PublicCar } from "~/lib/api/contracts/car-categories";
-import {
-  applyPromotionDiscount,
-  buildCarDetailPath,
-  formatCurrency,
-  hasActivePromotion,
-  isNewListing,
-  promotionBadgeLabel,
-} from "~/lib/car-presentation";
+import type { PublicCar } from "~/api/cars/schema";
+import { CarDomain } from "~/car/car-domain";
+import { CompactStarRating } from "~/car/compact-star-rating";
 import { cn } from "~/lib/utils";
 
 interface VehicleCardProps {
@@ -19,45 +12,46 @@ interface VehicleCardProps {
 }
 
 interface VehicleCardBadgesProps {
-  readonly createdAt: PublicCar["createdAt"];
-  readonly promotion: PublicCar["promotion"];
-  readonly averageRating: number;
+  readonly isNew: boolean;
+  readonly hasPromotion: boolean;
+  readonly promotionLabel: string | null;
+  readonly showRating: boolean;
+  readonly displayRating: number;
+  readonly ratingLabel: string;
   readonly totalReviews: number;
 }
 
 function VehicleCardBadges({
-  createdAt,
-  promotion,
-  averageRating,
+  isNew,
+  hasPromotion,
+  promotionLabel,
+  showRating,
+  displayRating,
+  ratingLabel,
   totalReviews,
 }: VehicleCardBadgesProps) {
-  const onPromotion = hasActivePromotion(promotion);
-  const showNewBadge = isNewListing(createdAt);
-  const displayRating = Math.max(0, Math.min(5, averageRating));
-  const ratingLabel = `Average rating: ${displayRating.toFixed(1)} out of 5 stars`;
-
   return (
     <>
-      {showNewBadge || onPromotion ? (
+      {isNew || hasPromotion ? (
         <div className="absolute top-3 left-3 flex items-center gap-1.5">
-          {showNewBadge ? (
+          {isNew ? (
             <div className="flex items-center gap-1 rounded-full bg-white/90 px-2 py-1.5 shadow-md">
               <Sparkles aria-hidden="true" className="size-3 text-amber-500" />
               <span className="text-xs leading-none font-medium text-gray-800">New</span>
             </div>
           ) : null}
-          {onPromotion ? (
+          {hasPromotion && promotionLabel ? (
             <div className="flex items-center gap-1 rounded-full bg-red-500/95 px-2 py-1.5 shadow-md">
               <Tag aria-hidden="true" className="size-3 text-white" />
               <span className="text-xs leading-none font-semibold text-white">
-                {promotionBadgeLabel(promotion.discountValue)}
+                {promotionLabel}
               </span>
             </div>
           ) : null}
         </div>
       ) : null}
 
-      {totalReviews > 0 ? (
+      {showRating ? (
         <div className="absolute top-3 right-3 flex items-center gap-1.5 rounded-full bg-white/90 px-2 py-1.5 shadow-md transition-colors hover:bg-white">
           <CompactStarRating rating={displayRating} ariaLabel={ratingLabel} />
           <span className="text-xs leading-none font-medium text-gray-700">
@@ -70,24 +64,18 @@ function VehicleCardBadges({
 }
 
 export function VehicleCard({ car, priority = false }: VehicleCardProps) {
-  const promotion = car.promotion;
-  const onPromotion = hasActivePromotion(promotion);
-  const discountedRate = onPromotion
-    ? applyPromotionDiscount(car.dayRate, promotion.discountValue)
-    : car.dayRate;
-  const showPromoPrice = onPromotion && discountedRate < car.dayRate;
-  const carName = `${car.make} ${car.model} (${car.year})`;
+  const view = CarDomain(car);
 
   return (
     <Link
-      to={buildCarDetailPath(car)}
+      to={view.href}
       className="group block w-55 shrink-0 snap-start rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-4 md:w-62.5"
     >
       <div className="relative aspect-4/3 overflow-hidden rounded-xl bg-gray-100">
-        {car.images[0]?.url ? (
+        {view.imageUrl ? (
           <img
-            src={car.images[0].url}
-            alt={`${carName} available for chauffeur hire`}
+            src={view.imageUrl}
+            alt={`${view.name} available for chauffeur hire`}
             width={500}
             height={375}
             loading={priority ? "eager" : "lazy"}
@@ -101,28 +89,34 @@ export function VehicleCard({ car, priority = false }: VehicleCardProps) {
         )}
 
         <VehicleCardBadges
-          createdAt={car.createdAt}
-          promotion={promotion}
-          averageRating={car.averageRating}
-          totalReviews={car.totalReviews}
+          isNew={view.isNew}
+          hasPromotion={view.hasPromotion}
+          promotionLabel={view.promotionLabel}
+          showRating={view.showRating}
+          displayRating={view.displayRating}
+          ratingLabel={view.ratingLabel}
+          totalReviews={view.totalReviews}
         />
       </div>
 
       <div className="pt-3">
-        <h3 className="truncate text-sm font-semibold tracking-wide text-gray-950">{carName}</h3>
+        <h3 className="truncate text-sm font-semibold tracking-wide text-gray-950">{view.name}</h3>
         <p className="mt-1 flex items-center gap-1.5 text-xs text-gray-600">
           <Users aria-hidden="true" className="size-3.5" />
-          {car.passengerCapacity}-Seater
-          {car.pricingIncludesFuel ? <span>• Fuel included</span> : null}
+          {view.passengerCapacity}-Seater
+          {view.pricingIncludesFuel ? <span>• Fuel included</span> : null}
         </p>
         <p className="mt-1 flex flex-wrap items-baseline gap-1 text-sm tabular-nums">
-          {showPromoPrice ? (
-            <span className="text-gray-400 line-through">{formatCurrency(car.dayRate)}</span>
+          {view.showPromoPrice ? (
+            <span className="text-gray-400 line-through">{view.listRateLabel}</span>
           ) : null}
           <span
-            className={cn("font-semibold", showPromoPrice ? "text-red-600/95" : "text-gray-950")}
+            className={cn(
+              "font-semibold",
+              view.showPromoPrice ? "text-red-600/95" : "text-gray-950",
+            )}
           >
-            {formatCurrency(discountedRate)}
+            {view.displayRateLabel}
           </span>
           <span className="text-gray-600">/ day</span>
         </p>

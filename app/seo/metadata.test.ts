@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildPageMetadata, staticPageHeaders } from "./seo";
+import { buildPageMetadata, staticPageHeaders } from "./metadata";
 
 describe("buildPageMetadata", () => {
   it("builds canonical and social metadata from the production origin", () => {

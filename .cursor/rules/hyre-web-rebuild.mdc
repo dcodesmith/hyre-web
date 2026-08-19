@@ -13,7 +13,10 @@ Before planning or changing migration code, read
 - PR sequencing and migration scope: `02-MIGRATION-PLAN.md`;
 - routes and API coverage: `03-ROUTE-API-READINESS.md`;
 - Cloudflare runtime and deployment: `04-CLOUDFLARE-RUNBOOK.md`;
-- skill selection and quality gates: `05-IMPLEMENTATION-SKILLS.md`.
+- skill selection and quality gates: `05-IMPLEMENTATION-SKILLS.md`;
+- live `app/` folders, naming, and import rules: `06-APP-STRUCTURE.md`.
+
+Before adding or moving files under `app/`, read `06-APP-STRUCTURE.md`.
 
 Use this source-of-truth order:
 

@@ -1,8 +1,4 @@
-import {
-  BOOKING_TYPE_OPTIONS,
-  BOOKING_TYPE_OPTIONS_MAP,
-  type BookingType,
-} from "~/lib/booking-types";
+import { BOOKING_TYPE_OPTIONS, BOOKING_TYPE_OPTIONS_MAP, type BookingType } from "~/booking/types";
 import { cn } from "~/lib/utils";
 
 interface BookingTypeTabsProps {

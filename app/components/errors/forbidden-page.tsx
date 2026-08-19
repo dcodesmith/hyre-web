@@ -3,7 +3,7 @@ import { Link } from "react-router";
 
 import { ErrorPageLayout } from "~/components/errors/error-page-layout";
 import { Button } from "~/components/ui/button";
-import { LEGAL_CONSTANTS } from "~/constants/legal";
+import { LEGAL_CONSTANTS } from "~/content/legal";
 
 export function ForbiddenPage() {
   return (

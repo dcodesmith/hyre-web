@@ -1,6 +1,6 @@
-import { LEGAL_CONSTANTS } from "~/constants/legal";
 import { HOME_FAQ_ITEMS } from "~/content/home";
-import { SITE_ORIGIN } from "~/lib/seo";
+import { LEGAL_CONSTANTS } from "~/content/legal";
+import { SITE_ORIGIN } from "~/seo/metadata";
 
 interface BreadcrumbItem {
   readonly name: string;

@@ -1,11 +1,10 @@
 import { lazy, Suspense, useId, useState } from "react";
-
-import { LabeledDateTrigger } from "~/components/booking/date-picker-triggers";
+import { LabeledDateTrigger } from "~/booking/date-picker-triggers";
+import { getDisabledBookableDays, getEarliestBookableDate } from "~/booking/dates";
+import type { BookingType } from "~/booking/types";
 import { Popover, PopoverContent, PopoverTrigger } from "~/components/ui/popover";
-import type { BookingType } from "~/lib/booking-types";
-import { getDisabledBookableDays, getEarliestBookableDate } from "~/lib/booking-utils";
-import { formatPickerDate, SERVICE_TIMEZONE } from "~/lib/timezone";
 import { cn } from "~/lib/utils";
+import { formatPickerDate, SERVICE_TIMEZONE } from "~/time/timezone";
 
 const Calendar = lazy(async () => {
   const { Calendar: CalendarComponent } = await import("~/components/ui/calendar");

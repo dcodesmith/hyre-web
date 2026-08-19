@@ -2,9 +2,10 @@ import { ArrowRight, ChevronLeft, ChevronRight, Fingerprint, ShieldCheck } from 
 import { useRef } from "react";
 import { Link } from "react-router";
 
-import { HomeSearch } from "~/components/home/home-search";
-import { VehicleCard } from "~/components/home/vehicle-card";
-import { HomeStructuredData } from "~/components/seo/structured-data";
+import type { CarCategoriesResponse, CarCategory, PublicCar } from "~/api/cars/schema";
+import { CarDomain } from "~/car/car-domain";
+import { buildCategorySearchPath, getCategorySectionId } from "~/car/paths";
+import { VehicleCard } from "~/car/vehicle-card";
 import {
   Accordion,
   AccordionContent,
@@ -12,12 +13,8 @@ import {
   AccordionTrigger,
 } from "~/components/ui/accordion";
 import { HOME_FAQ_ITEMS } from "~/content/home";
-import type {
-  CarCategoriesResponse,
-  CarCategory,
-  PublicCar,
-} from "~/lib/api/contracts/car-categories";
-import { buildCategorySearchPath, getCategorySectionId } from "~/lib/car-presentation";
+import { HomeSearch } from "~/home/home-search";
+import { HomeStructuredData } from "~/seo/structured-data";
 
 interface HomePageProps {
   readonly fleet: CarCategoriesResponse | null;
@@ -148,9 +145,7 @@ function FleetSections({ fleet }: FleetSectionsProps) {
     );
   }
 
-  const onSaleCars = fleet.allCars.filter(
-    (car) => car.promotion && car.promotion.discountValue > 0,
-  );
+  const onSaleCars = fleet.allCars.filter((car) => CarDomain(car).hasPromotion);
 
   return (
     <>

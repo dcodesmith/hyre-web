@@ -1,9 +1,9 @@
 import { data } from "react-router";
 
-import { HomePage } from "~/components/home/home-page";
-import { ApiRequestError } from "~/lib/api/api.server";
-import { getCarCategories } from "~/lib/api/cars.server";
-import { buildPageMetadata, SITE_ORIGIN } from "~/lib/seo";
+import { ApiRequestError } from "~/api/api.server";
+import { getCarCategories } from "~/api/cars/cars.server";
+import { HomePage } from "~/home/home-page";
+import { buildPageMetadata, SITE_ORIGIN } from "~/seo/metadata";
 import type { Route } from "./+types/home";
 
 const HOME_CACHE_CONTROL = "public, max-age=300, s-maxage=300, stale-while-revalidate=1800";

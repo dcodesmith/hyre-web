@@ -1,9 +1,5 @@
-import { BookingTimeSelect } from "~/components/booking/booking-time-select";
-import {
-  AIRPORT_PICKUP_BOOKING_TYPE,
-  type BookingType,
-  NIGHT_BOOKING_TYPE,
-} from "~/lib/booking-types";
+import { BookingTimeSelect } from "~/booking/booking-time-select";
+import { AIRPORT_PICKUP_BOOKING_TYPE, type BookingType, NIGHT_BOOKING_TYPE } from "~/booking/types";
 
 export const bookingFieldLabelClass = "text-xs font-semibold leading-tight text-gray-700";
 export const bookingFieldValueTextClass = "text-sm leading-tight text-gray-900";

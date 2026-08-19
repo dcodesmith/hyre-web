@@ -1,4 +1,4 @@
-/** Current live market. Nest `TZ` uses the same IANA zone. */
+/** Current live market. The API `TZ` uses the same IANA zone. */
 export const SERVICE_TIMEZONE = "Africa/Lagos";
 
 const dateTimeFormat = new Intl.DateTimeFormat("en-GB", {

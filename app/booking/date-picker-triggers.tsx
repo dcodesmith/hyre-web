@@ -1,9 +1,6 @@
 import type { ComponentProps } from "react";
 
-import {
-  bookingFieldLabelClass,
-  bookingFieldStackClass,
-} from "~/components/booking/booking-type-input";
+import { bookingFieldLabelClass, bookingFieldStackClass } from "~/booking/booking-type-input";
 import { cn } from "~/lib/utils";
 
 interface LabeledDateTriggerProps {

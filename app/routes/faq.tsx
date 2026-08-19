@@ -1,7 +1,5 @@
 import { Mail, Phone, Search } from "lucide-react";
 import { useState } from "react";
-
-import { BreadcrumbStructuredData, FaqStructuredData } from "~/components/seo/structured-data";
 import {
   Accordion,
   AccordionContent,
@@ -10,10 +8,11 @@ import {
 } from "~/components/ui/accordion";
 import { Button } from "~/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
-import { LEGAL_CONSTANTS } from "~/constants/legal";
 import { FAQ_CATEGORIES, FAQ_ITEMS } from "~/content/faq";
-import { buildPageMetadata, SITE_ORIGIN, staticPageHeaders } from "~/lib/seo";
+import { LEGAL_CONSTANTS } from "~/content/legal";
 import { cn } from "~/lib/utils";
+import { buildPageMetadata, SITE_ORIGIN } from "~/seo/metadata";
+import { BreadcrumbStructuredData, FaqStructuredData } from "~/seo/structured-data";
 
 export const meta = () =>
   buildPageMetadata({
@@ -23,7 +22,7 @@ export const meta = () =>
     path: "/faq",
   });
 
-export const headers = staticPageHeaders;
+export { staticPageHeaders as headers } from "~/seo/metadata";
 
 export default function FaqPage() {
   const [searchQuery, setSearchQuery] = useState("");

@@ -1,7 +1,7 @@
 import { Home, LogIn } from "lucide-react";
 import { NavLink } from "react-router";
 
-import { LEGAL_CONSTANTS } from "~/constants/legal";
+import { LEGAL_CONSTANTS } from "~/content/legal";
 import { cn } from "~/lib/utils";
 
 const itemClassName =

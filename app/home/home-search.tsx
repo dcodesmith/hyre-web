@@ -1,26 +1,39 @@
+import { Search } from "lucide-react";
 import { useState } from "react";
 import { Form, useSearchParams } from "react-router";
 
-import { BookingTypeInput } from "~/components/booking/booking-type-input";
-import { BookingTypeTabs } from "~/components/booking/booking-type-tabs";
-import { SearchButton } from "~/components/booking/search-button";
-import { SingleDatePicker } from "~/components/booking/single-date-picker";
+import { BookingTypeInput } from "~/booking/booking-type-input";
+import { BookingTypeTabs } from "~/booking/booking-type-tabs";
+import { getToDateMinDate, isValidToDateSelection, nextToDateOnFromChange } from "~/booking/dates";
+import { nextPickupTimeOnFromChange } from "~/booking/pickup";
+import { SingleDatePicker } from "~/booking/single-date-picker";
 import {
   AIRPORT_PICKUP_BOOKING_TYPE,
   BOOKING_TYPE_OPTIONS,
   type BookingType,
   NIGHT_BOOKING_TYPE,
-} from "~/lib/booking-types";
-import {
-  getToDateMinDate,
-  isValidToDateSelection,
-  nextPickupTimeOnFromChange,
-  nextToDateOnFromChange,
-} from "~/lib/booking-utils";
-import { formatZonedDate } from "~/lib/timezone";
+} from "~/booking/types";
+import { formatZonedDate } from "~/time/timezone";
 
 function isBookingType(value: string | null): value is BookingType {
   return value !== null && (BOOKING_TYPE_OPTIONS as readonly string[]).includes(value);
+}
+
+function SearchButton() {
+  return (
+    <div className="flex items-center justify-center self-stretch border-t md:border-t-0 md:border-l md:border-gray-200">
+      <div className="flex min-h-15 w-full items-center justify-center px-4 py-3 sm:px-3 md:w-auto md:py-2">
+        <button
+          type="submit"
+          aria-label="Search for vehicles"
+          className="inline-flex h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-full bg-primary px-6 py-2 text-sm font-semibold text-primary-foreground transition-colors duration-300 hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 md:w-auto md:px-8 md:text-base"
+        >
+          <Search className="mr-2 size-4 shrink-0" aria-hidden="true" />
+          <span className="md:hidden">Search</span>
+        </button>
+      </div>
+    </div>
+  );
 }
 
 interface AirportSearchFieldsProps {

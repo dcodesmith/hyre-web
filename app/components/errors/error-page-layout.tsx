@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router";
 
-import { LEGAL_CONSTANTS } from "~/constants/legal";
+import { LEGAL_CONSTANTS } from "~/content/legal";
 
 interface ErrorPageLayoutProps {
   readonly children: ReactNode;

@@ -1,7 +1,7 @@
 import { Link, useLocation } from "react-router";
 
 import { Button } from "~/components/ui/button";
-import { LEGAL_CONSTANTS } from "~/constants/legal";
+import { LEGAL_CONSTANTS } from "~/content/legal";
 import { useHasScrolled } from "~/hooks/use-has-scrolled";
 import { cn } from "~/lib/utils";
 

@@ -1,5 +1,5 @@
-import { HomePage } from "~/components/home/home-page";
-import type { CarCategoriesResponse } from "~/lib/api/contracts/car-categories";
+import type { CarCategoriesResponse } from "~/api/cars/schema";
+import { HomePage } from "~/home/home-page";
 
 // Relative to each run so "New" badges do not disappear after a fixed createdAt ages out.
 const recentListingCreatedAt = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString();

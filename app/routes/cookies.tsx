@@ -3,9 +3,9 @@ import { Link } from "react-router";
 
 import { LegalPageLayout } from "~/components/legal/legal-page-layout";
 import { Button } from "~/components/ui/button";
-import { LEGAL_CONSTANTS } from "~/constants/legal";
+import { LEGAL_CONSTANTS } from "~/content/legal";
 import { useCookieConsent } from "~/hooks/use-cookie-consent";
-import { buildPageMetadata, staticPageHeaders } from "~/lib/seo";
+import { buildPageMetadata } from "~/seo/metadata";
 
 export const meta = () =>
   buildPageMetadata({
@@ -15,7 +15,7 @@ export const meta = () =>
     path: "/cookies",
   });
 
-export const headers = staticPageHeaders;
+export { staticPageHeaders as headers } from "~/seo/metadata";
 
 export default function CookiesPage() {
   const { companyName, privacyEmail } = LEGAL_CONSTANTS;
