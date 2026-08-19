@@ -249,7 +249,7 @@ export function shouldRevalidateSearch(
   currentParams: URLSearchParams,
   nextParams: URLSearchParams,
 ): boolean {
-  if (nextParams.get("countOnly") === "1") {
+  if (parseBooleanParam(nextParams.get("countOnly"))) {
     return false;
   }
 

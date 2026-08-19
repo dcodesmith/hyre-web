@@ -2,6 +2,18 @@ import { expect, type Page, test } from "@playwright/test";
 
 const consentKey = "tripdly-cookie-consent:v1";
 
+function futureServiceDate(daysFromToday: number) {
+  const today = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Africa/Lagos",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+  const [year, month, day] = today.split("-").map(Number);
+
+  return new Date(Date.UTC(year, month - 1, day + daysFromToday)).toISOString().slice(0, 10);
+}
+
 async function setCookiePreference(page: Page) {
   await page.addInitScript((key) => {
     localStorage.setItem(key, JSON.stringify({ analytics: false, timestamp: 1 }));
@@ -67,7 +79,9 @@ test("keeps filters and drops booking fields when booking type changes", async (
   viewport,
 }) => {
   await setCookiePreference(page);
-  await page.goto("/search?from=2026-08-20&to=2026-08-21&bookingType=DAY&vehicleType=SUV");
+  const from = futureServiceDate(7);
+  const to = futureServiceDate(8);
+  await page.goto(`/search?from=${from}&to=${to}&bookingType=DAY&vehicleType=SUV`);
 
   const isMobile = (viewport?.width ?? 0) < 768;
   const nightTab = isMobile

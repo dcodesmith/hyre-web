@@ -146,13 +146,14 @@ describe("search URL contract", () => {
     expect(searchResultsIdentity(current)).toBe(searchResultsIdentity(next));
     expect(shouldRevalidateSearch(current, next)).toBe(false);
     expect(shouldRevalidateSearch(current, new URLSearchParams("countOnly=1"))).toBe(false);
+    expect(shouldRevalidateSearch(current, new URLSearchParams("countOnly=true"))).toBe(false);
   });
 
   it("revalidates search when dates or price filters make booking type affect the list", () => {
     expect(
       shouldRevalidateSearch(
         new URLSearchParams("from=2026-08-20&to=2026-08-21&bookingType=DAY&vehicleType=SUV"),
-        new URLSearchParams("vehicleType=SUV&bookingType=NIGHT"),
+        new URLSearchParams("from=2026-08-20&to=2026-08-21&vehicleType=SUV&bookingType=NIGHT"),
       ),
     ).toBe(true);
     expect(
