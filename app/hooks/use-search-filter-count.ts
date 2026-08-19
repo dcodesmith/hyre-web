@@ -1,12 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { useFetcher } from "react-router";
 
+import type { CarSearchResponse } from "~/api/cars/schema";
 import { applySearchFiltersToParams, type SearchFilterValues } from "~/search/search-url";
 
 interface CountLoaderData {
-  readonly result?: {
-    readonly pagination?: { total: number };
-  };
+  readonly result: CarSearchResponse | null;
 }
 
 /**

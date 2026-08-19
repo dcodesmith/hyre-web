@@ -1,5 +1,5 @@
 import { BOOKING_TYPE_OPTIONS, type BookingType } from "~/booking/types";
-import { formatZonedDate } from "~/time/timezone";
+import { formatZonedDate, parseZonedCalendarDate } from "~/time/timezone";
 
 export const VEHICLE_TYPES = ["SEDAN", "SUV", "VAN", "CROSSOVER"] as const;
 export const SERVICE_TIERS = ["STANDARD", "EXECUTIVE", "LUXURY", "ULTRA_LUXURY"] as const;
@@ -41,6 +41,7 @@ export const SEARCH_BOOKING_PARAM_KEYS = [
 ] as const;
 
 const DATE_PARAM_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+const NON_NEGATIVE_INT_PATTERN = /^\d+$/;
 const PICKUP_TIME_PATTERN = /^(1[0-2]|[1-9])(:[0-5]\d)?\s?(AM|PM)$/i;
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 12;
@@ -242,13 +243,13 @@ function parseEnumList<T extends string>(
 }
 
 function parseNonNegativeInt(value: string | null): number | null {
-  if (!value) {
+  if (!value || !NON_NEGATIVE_INT_PATTERN.test(value)) {
     return null;
   }
 
   const parsed = Number.parseInt(value, 10);
 
-  return Number.isInteger(parsed) && parsed >= 0 ? parsed : null;
+  return Number.isSafeInteger(parsed) && parsed >= 0 ? parsed : null;
 }
 
 function parseBoundedInt(
@@ -284,7 +285,7 @@ function parseDateParam(value: string | null): string | null {
   }
 
   if (DATE_PARAM_PATTERN.test(trimmed)) {
-    return trimmed;
+    return parseZonedCalendarDate(trimmed) ? trimmed : null;
   }
 
   const parsed = new Date(trimmed);

@@ -3,7 +3,7 @@ import { data, type ShouldRevalidateFunctionArgs } from "react-router";
 import { ApiRequestError } from "~/api/api.server";
 import { searchCars } from "~/api/cars/cars.server";
 import { buildSearchSeoContext } from "~/search/search-heading";
-import { createEmptySearchResult, SearchPage } from "~/search/search-page";
+import { SearchPage } from "~/search/search-page";
 import { parseSearchUrl, toApiSearchParams } from "~/search/search-url";
 import { buildPageMetadata, SITE_ORIGIN } from "~/seo/metadata";
 import type { Route } from "./+types/search";
@@ -87,7 +87,7 @@ export async function loader({ request }: Route.LoaderArgs) {
 
       return data(
         {
-          result: query.countOnly ? createEmptySearchResult() : null,
+          result: null,
         },
         {
           headers: {

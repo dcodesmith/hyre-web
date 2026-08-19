@@ -7,10 +7,10 @@ interface PaginationData {
 }
 
 interface InfiniteScrollLoaderData<TItem> {
-  readonly result?: {
+  readonly result: {
     readonly cars?: TItem[];
     readonly pagination?: PaginationData;
-  };
+  } | null;
 }
 
 interface UseInfiniteScrollOptions<TItem> {
@@ -53,10 +53,20 @@ export function useInfiniteScroll<TItem extends { id: string }>({
   );
 
   useEffect(() => {
-    const data = fetcher.data?.result;
-    const nextPage = data?.pagination?.page;
+    if (fetcher.data == null) {
+      return;
+    }
 
-    if (!data || nextPage == null || seenPageRef.current === nextPage) {
+    if (fetcher.data.result === null) {
+      setFetchError("Failed to load more vehicles. Please try again.");
+      setHasMore(false);
+      return;
+    }
+
+    const data = fetcher.data.result;
+    const nextPage = data.pagination?.page;
+
+    if (nextPage == null || seenPageRef.current === nextPage) {
       return;
     }
 

@@ -181,7 +181,7 @@ function FleetSections({ fleet }: FleetSectionsProps) {
 }
 
 export function HomePage({ fleet }: HomePageProps) {
-  const { isDesktopCollapsed, isMobile, isMobileScrolled } = useHeroScroll(true);
+  const { isDesktopCollapsed, isMobileScrolled } = useHeroScroll(true);
   const { containerClass, heroOpacity, desktopHeight, contentTransform } =
     getHeroHeightClasses(isDesktopCollapsed);
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
@@ -233,14 +233,12 @@ export function HomePage({ fleet }: HomePageProps) {
           <div className="absolute inset-0 bg-linear-to-b from-black/50 via-black/30 to-black/60" />
         </div>
 
-        {isMobile ? null : (
-          <div
-            className={cn(
-              "absolute inset-0 border-b border-gray-200 bg-white transition-opacity duration-300",
-              isDesktopCollapsed ? "opacity-100" : "opacity-0",
-            )}
-          />
-        )}
+        <div
+          className={cn(
+            "pointer-events-none absolute inset-0 hidden border-b border-gray-200 bg-white transition-opacity duration-300 md:block",
+            isDesktopCollapsed ? "md:opacity-100" : "md:opacity-0",
+          )}
+        />
 
         <div
           className={cn(

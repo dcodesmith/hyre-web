@@ -40,5 +40,9 @@ describe("service timezone helpers", () => {
       expect(formatZonedDate(parsed)).toBe("2026-08-19");
     }
     expect(parseZonedCalendarDate("19-08-2026")).toBeUndefined();
+    expect(parseZonedCalendarDate("2026-13-45")).toBeUndefined();
+    expect(parseZonedCalendarDate("2026-02-31")).toBeUndefined();
+    expect(parseZonedCalendarDate("2023-02-29")).toBeUndefined();
+    expect(parseZonedCalendarDate("2024-02-29")).toBeInstanceOf(Date);
   });
 });

@@ -104,7 +104,7 @@ app/
     use-search-filter-count.ts    # debounced countOnly fetcher
 
   components/
-    ui/
+    ui/                       # shadcn primitives; do not hand-edit
     layout/
     errors/
     legal/

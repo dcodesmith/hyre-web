@@ -74,7 +74,13 @@ export function parseZonedCalendarDate(value: string) {
     return undefined;
   }
 
-  return startOfZonedDay(new Date(`${value}T12:00:00.000Z`));
+  const parsed = new Date(`${value}T12:00:00.000Z`);
+
+  if (Number.isNaN(parsed.getTime()) || formatZonedDate(parsed) !== value) {
+    return undefined;
+  }
+
+  return startOfZonedDay(parsed);
 }
 
 /** Midnight in the service timezone as a real UTC instant. */

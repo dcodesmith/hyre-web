@@ -172,7 +172,7 @@ export function VehicleCard({
               >
                 {view.displayRateLabel}
               </span>
-              <span className="text-gray-600">/ day</span>
+              <span className="text-gray-600">{view.rateLabel}</span>
             </p>
           </div>
         )}

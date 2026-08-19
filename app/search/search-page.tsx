@@ -212,7 +212,6 @@ export function SearchPage({ result }: SearchPageProps) {
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const [searchParams] = useSearchParams();
   const resultsKey = new URLSearchParams(searchParams);
-  resultsKey.delete("page");
   resultsKey.delete("countOnly");
 
   return (

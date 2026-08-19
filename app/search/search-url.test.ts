@@ -96,6 +96,24 @@ describe("search URL contract", () => {
     expect(next.has("page")).toBe(false);
   });
 
+  it("rejects malformed integers and impossible calendar dates", () => {
+    const query = parseSearchUrl(
+      new URLSearchParams(
+        "minPrice=12abc&maxPrice=9007199254740992&page=2x&from=2026-02-31&to=2023-02-29",
+      ),
+    );
+
+    expect(query.minPrice).toBeNull();
+    expect(query.maxPrice).toBeNull();
+    expect(query.page).toBe(1);
+    expect(query.from).toBeNull();
+    expect(query.to).toBeNull();
+
+    const leap = parseSearchUrl(new URLSearchParams("from=2024-02-29&minPrice=12"));
+    expect(leap.from).toBe("2024-02-29");
+    expect(leap.minPrice).toBe(12);
+  });
+
   it("counts active filters and can clear them without dropping booking params", () => {
     const params = new URLSearchParams(
       "from=2026-08-20&bookingType=NIGHT&vehicleType=SUV&dealsOnly=1&page=2",
