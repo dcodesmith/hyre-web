@@ -6,7 +6,7 @@ import { parseSearchUrl } from "~/search/search-url";
 import { formatCompactPickerDate, parseZonedCalendarDate } from "~/time/timezone";
 
 interface CompactSearchBarProps {
-  readonly onClick: () => void;
+  readonly onClick?: () => void;
 }
 
 function formatDateRangeText(from: string | null, to: string | null) {

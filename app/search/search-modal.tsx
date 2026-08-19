@@ -1,9 +1,12 @@
+import type { ReactNode } from "react";
+
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
 } from "~/components/ui/dialog";
 import { cn } from "~/lib/utils";
 import { SearchForm } from "~/search/search-form";
@@ -11,6 +14,8 @@ import { SearchForm } from "~/search/search-form";
 interface SearchModalProps {
   readonly isOpen: boolean;
   readonly onClose: () => void;
+  readonly onOpen?: () => void;
+  readonly trigger?: ReactNode;
   readonly preserveFilterParams?: boolean;
 }
 
@@ -22,9 +27,26 @@ const dialogContentClasses = cn(
   "md:data-open:slide-in-from-top-[48%]",
 );
 
-export function SearchModal({ isOpen, onClose, preserveFilterParams = false }: SearchModalProps) {
+export function SearchModal({
+  isOpen,
+  onClose,
+  onOpen,
+  trigger,
+  preserveFilterParams = false,
+}: SearchModalProps) {
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (open) {
+          onOpen?.();
+          return;
+        }
+
+        onClose();
+      }}
+    >
+      {trigger ? <DialogTrigger asChild>{trigger}</DialogTrigger> : null}
       <DialogContent className={dialogContentClasses} showCloseButton>
         <DialogHeader className="sr-only">
           <DialogTitle>Search</DialogTitle>

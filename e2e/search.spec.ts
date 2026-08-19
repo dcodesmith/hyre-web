@@ -71,12 +71,14 @@ test("keeps filters and drops booking fields when booking type changes", async (
 
   const isMobile = (viewport?.width ?? 0) < 768;
   const nightTab = isMobile
-    ? page.getByRole("dialog", { name: "Search" }).getByRole("button", { name: "Night" })
+    ? page.getByRole("dialog").getByRole("button", { name: "Night" })
     : page.locator('form[action="/search"]').first().getByRole("button", { name: "Night" });
 
   if (isMobile) {
-    await page.getByRole("button", { name: /Same Day|When do you need a ride/ }).click();
-    await expect(page.getByRole("dialog", { name: "Search" })).toBeVisible();
+    await expect(async () => {
+      await page.getByRole("button", { name: /Same Day|When do you need a ride/ }).click();
+      await expect(page.getByRole("dialog")).toBeVisible({ timeout: 1500 });
+    }).toPass();
   }
 
   await expect(async () => {

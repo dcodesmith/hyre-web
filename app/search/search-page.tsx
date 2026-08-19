@@ -213,16 +213,16 @@ export function SearchPage({ result }: SearchPageProps) {
             <SearchForm isCompact preserveFilterParams />
           </div>
           <div className="md:hidden">
-            <CompactSearchBar onClick={() => setIsSearchModalOpen(true)} />
+            <SearchModal
+              isOpen={isSearchModalOpen}
+              onOpen={() => setIsSearchModalOpen(true)}
+              onClose={() => setIsSearchModalOpen(false)}
+              trigger={<CompactSearchBar />}
+              preserveFilterParams
+            />
           </div>
         </div>
       </div>
-
-      <SearchModal
-        isOpen={isSearchModalOpen}
-        onClose={() => setIsSearchModalOpen(false)}
-        preserveFilterParams
-      />
 
       <div className="mx-auto my-24 w-full px-4 sm:max-w-160 md:max-w-3xl lg:max-w-5xl xl:max-w-7xl">
         {result ? (
