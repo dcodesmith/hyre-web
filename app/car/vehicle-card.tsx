@@ -161,7 +161,7 @@ function VehicleCardGridDetails({ car, view, showTotal, totalPrice }: VehicleCar
 function VehicleCardCarouselDetails({ view }: VehicleCardCarouselDetailsProps) {
   return (
     <div className="pt-3">
-      <h3 className="truncate text-sm font-semibold tracking-wide text-gray-950">{view.name}</h3>
+      <h3 className="truncate text-sm font-semibold tracking-wider">{view.name}</h3>
       <p className="mt-1 flex items-center gap-1.5 text-xs text-gray-600">
         <Users aria-hidden="true" className="size-3.5" />
         {view.passengerCapacity}-Seater

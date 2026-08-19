@@ -3,8 +3,7 @@ import { AIRPORT_PICKUP_BOOKING_TYPE, type BookingType, NIGHT_BOOKING_TYPE } fro
 
 export const bookingFieldLabelClass = "text-xs font-semibold leading-tight text-gray-700";
 export const bookingFieldValueTextClass = "text-sm leading-tight text-gray-900";
-export const bookingFieldStackClass =
-  "flex h-10 w-full flex-col items-start justify-center gap-2 px-0 py-2 text-left";
+export const bookingFieldStackClass = "flex h-[38px] w-full flex-col justify-center text-left";
 
 interface BookingTypeInputProps {
   readonly bookingType: BookingType;

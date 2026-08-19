@@ -46,18 +46,19 @@ function CategoryPills({ categories }: CategoryPillsProps) {
   }
 
   return (
-    <nav aria-label="Vehicle categories" className="overflow-x-auto">
-      <div className="flex w-max min-w-full gap-2 pb-1">
-        {categories.map((category) => (
-          <Link
-            key={category.name}
-            to={buildCategorySearchPath(category)}
-            className="shrink-0 rounded-full border border-gray-300 px-3 py-2 text-xs font-medium text-gray-800 transition-colors hover:border-gray-900 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:px-4 md:text-sm"
-          >
-            {category.title} ({category.cars.length})
-          </Link>
-        ))}
-      </div>
+    <nav
+      aria-label="Vehicle categories"
+      className="flex items-center gap-2 overflow-x-auto scrollbar-hide md:gap-3"
+    >
+      {categories.map((category) => (
+        <Link
+          key={category.name}
+          to={buildCategorySearchPath(category)}
+          className="shrink-0 rounded-full border border-gray-300 px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-all hover:border-gray-900 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:px-4 md:py-2 md:text-sm"
+        >
+          {category.title} ({category.cars.length})
+        </Link>
+      ))}
     </nav>
   );
 }
@@ -77,16 +78,14 @@ function VehicleSection({ cars, href, id, priority = false, title }: VehicleSect
   };
 
   return (
-    <section id={id} className="scroll-mt-20">
-      <div className="mb-3 flex items-center justify-between gap-4">
+    <section id={id} className="relative mx-auto max-w-350 scroll-mt-20 px-6 md:px-8">
+      <div className="mb-2 flex items-center justify-between">
         <Link
           to={href}
           className="group inline-flex items-center gap-2 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         >
-          <h2 className="text-lg font-semibold text-gray-950 group-hover:underline md:text-xl">
-            {title}
-          </h2>
-          <span className="inline-flex size-8 items-center justify-center rounded-full border bg-white transition-colors group-hover:border-gray-900">
+          <h2 className="text-lg font-semibold group-hover:underline md:text-xl">{title}</h2>
+          <span className="inline-flex size-8 items-center justify-center rounded-full border border-input bg-background p-1.5 transition-colors group-hover:border-gray-900">
             <ArrowRight aria-hidden="true" className="size-4" />
           </span>
         </Link>
@@ -113,7 +112,7 @@ function VehicleSection({ cars, href, id, priority = false, title }: VehicleSect
 
       <div
         ref={scrollContainerRef}
-        className="flex snap-x snap-mandatory gap-4 overflow-x-auto pb-3 scrollbar-none md:gap-6 [&::-webkit-scrollbar]:hidden"
+        className="flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth scrollbar-hide md:gap-6"
       >
         {cars.map((car, index) => (
           <VehicleCard key={car.id} car={car} priority={priority && index < 4} />
@@ -128,7 +127,7 @@ function FleetSections({ fleet }: FleetSectionsProps) {
     return (
       <section
         aria-labelledby="fleet-unavailable-heading"
-        className="rounded-xl border border-amber-200 bg-amber-50 px-6 py-10 text-center"
+        className="mx-auto max-w-7xl rounded-xl border border-amber-200 bg-amber-50 px-4 py-10 text-center md:px-6 lg:px-8"
       >
         <h2 id="fleet-unavailable-heading" className="text-lg font-semibold text-gray-950">
           Vehicles are temporarily unavailable
@@ -142,7 +141,7 @@ function FleetSections({ fleet }: FleetSectionsProps) {
 
   if (fleet.allCars.length === 0) {
     return (
-      <section className="py-12 text-center">
+      <section className="mx-auto max-w-7xl px-4 py-16 text-center md:px-6 lg:px-8">
         <h2 className="text-xl font-semibold text-gray-950">No vehicles available right now</h2>
         <p className="mt-2 text-gray-600">Please check back later for available vehicles.</p>
       </section>
@@ -291,41 +290,48 @@ export function HomePage({ fleet }: HomePageProps) {
       <div className={cn("hidden transition-all duration-300 md:block", desktopHeight)} />
 
       <div className={cn("transition-transform duration-300", contentTransform)}>
-        <div className="mx-auto max-w-350 space-y-8 px-4 py-10 md:space-y-10 md:px-8 md:py-12">
-          {fleet ? <CategoryPills categories={fleet.categories} /> : null}
-          <FleetSections fleet={fleet} />
-        </div>
-
-        <section className="border-t bg-gray-50 py-12 md:py-16">
-          <div className="mx-auto max-w-4xl px-4 md:px-8">
-            <h2 className="mb-8 text-center text-2xl font-bold text-pretty text-gray-950 md:text-3xl">
-              Frequently Asked Questions
-            </h2>
-            <Accordion type="single" collapsible className="rounded-lg border bg-white">
-              {HOME_FAQ_ITEMS.map((item, index) => (
-                <AccordionItem
-                  key={item.question}
-                  value={`home-faq-${index}`}
-                  className="border-b border-gray-200 px-6 last:border-0"
-                >
-                  <AccordionTrigger className="text-left hover:no-underline">
-                    <span className="min-w-0 flex-1 pr-4 font-medium text-gray-900">
-                      {item.question}
-                    </span>
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    <p className="leading-relaxed text-gray-600">{item.answer}</p>
-                  </AccordionContent>
-                </AccordionItem>
-              ))}
-            </Accordion>
-            <div className="mt-6 text-center">
-              <Link to="/faq" className="font-medium text-gray-900 hover:underline">
-                View all FAQs <span aria-hidden="true">→</span>
-              </Link>
-            </div>
+        <div className="relative z-0 space-y-6 bg-white pt-8 md:pt-12">
+          <div className="space-y-6">
+            {fleet && fleet.categories.length > 0 ? (
+              <div className="mx-auto max-w-350 px-4 md:px-8">
+                <CategoryPills categories={fleet.categories} />
+              </div>
+            ) : null}
+            <FleetSections fleet={fleet} />
           </div>
-        </section>
+
+          <section className="border-t bg-gray-50 py-12 md:py-16">
+            <div className="mx-auto max-w-4xl px-4 md:px-8">
+              <h2 className="mb-8 text-center text-2xl font-bold md:text-3xl">
+                Frequently Asked Questions
+              </h2>
+              <Accordion type="single" collapsible className="rounded-lg border bg-white">
+                {HOME_FAQ_ITEMS.map((item, index) => (
+                  <AccordionItem
+                    key={item.question}
+                    value={`home-faq-${index}`}
+                    className="border-b border-gray-200 px-6 last:border-0"
+                  >
+                    <AccordionTrigger className="text-left hover:no-underline">
+                      <span className="pr-4 font-medium text-gray-900">{item.question}</span>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <p className="leading-relaxed text-gray-600">{item.answer}</p>
+                    </AccordionContent>
+                  </AccordionItem>
+                ))}
+              </Accordion>
+              <div className="mt-6 text-center">
+                <Link
+                  to="/faq"
+                  className="inline-flex items-center gap-1 font-medium text-gray-900 hover:underline"
+                >
+                  View all FAQs <span aria-hidden="true">→</span>
+                </Link>
+              </div>
+            </div>
+          </section>
+        </div>
       </div>
     </div>
   );

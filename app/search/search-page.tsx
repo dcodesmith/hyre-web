@@ -96,20 +96,20 @@ function SearchEmptyState({
     : "Try adjusting your dates or search criteria.";
 
   return (
-    <Empty className="border py-16">
-      <EmptyHeader>
+    <Empty className="rounded-xl border border-gray-200 bg-white py-16">
+      <EmptyHeader className="max-w-md gap-0">
         <EmptyTitle className="contents">
-          <h3>No vehicles found</h3>
+          <h3 className="mb-2 text-lg font-semibold text-gray-900">No vehicles found</h3>
         </EmptyTitle>
-        <EmptyDescription>{description}</EmptyDescription>
+        <EmptyDescription className="mb-6 text-gray-600">{description}</EmptyDescription>
       </EmptyHeader>
       <EmptyContent className="gap-3 sm:flex-row sm:justify-center">
         {hasActiveFilters ? (
-          <Button variant="outline" className="h-10" asChild>
+          <Button variant="outline" className="h-10 px-4" asChild>
             <Link to={clearSearchFiltersPath(searchParams)}>Clear filters</Link>
           </Button>
         ) : null}
-        <Button className="h-10" asChild>
+        <Button className="h-10 px-4" asChild>
           <Link to="/">Browse all vehicles</Link>
         </Button>
       </EmptyContent>
@@ -200,7 +200,7 @@ function SearchResults({ result }: { readonly result: CarSearchResponse }) {
       ) : null}
 
       {!isUpdatingResults && !hasMore && allCars.length > initialItemsCount ? (
-        <p className="mt-6 py-8 text-center text-sm text-muted-foreground">
+        <p className="mt-6 py-8 text-center text-sm text-gray-500">
           You&apos;ve reached the end of available vehicles
         </p>
       ) : null}
@@ -215,7 +215,7 @@ export function SearchPage({ result }: SearchPageProps) {
   resultsKey.delete("countOnly");
 
   return (
-    <div className="min-h-screen text-sm">
+    <div className="min-h-screen">
       <div className="fixed top-0 right-0 left-0 z-30 border-b-0 bg-white shadow-sm md:top-17.25 md:border-b md:border-gray-200">
         <div className="mx-auto max-w-7xl px-4 py-4">
           <div className="mx-auto hidden max-w-4xl md:block">
@@ -231,16 +231,18 @@ export function SearchPage({ result }: SearchPageProps) {
         <SearchModal isOpen onClose={() => setIsSearchModalOpen(false)} preserveFilterParams />
       ) : null}
 
-      <div className="mx-auto my-24 max-w-7xl px-4">
+      <div className="mx-auto my-24 w-full px-4 sm:max-w-160 md:max-w-3xl lg:max-w-5xl xl:max-w-7xl">
         {result ? (
           <SearchResults key={resultsKey.toString()} result={result} />
         ) : (
-          <Empty className="border px-6 py-10">
+          <Empty className="rounded-xl border border-amber-200 bg-amber-50 px-6 py-10">
             <EmptyHeader>
               <EmptyTitle className="contents">
-                <h1>Vehicles are temporarily unavailable</h1>
+                <h1 className="text-lg font-semibold text-gray-950">
+                  Vehicles are temporarily unavailable
+                </h1>
               </EmptyTitle>
-              <EmptyDescription>
+              <EmptyDescription className="text-gray-600">
                 Please try again shortly or contact Tripdly support for help with a booking.
               </EmptyDescription>
             </EmptyHeader>

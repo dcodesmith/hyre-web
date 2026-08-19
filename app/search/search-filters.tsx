@@ -11,12 +11,11 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "~/components/ui/dialog";
-import { Field, FieldGroup, FieldLabel, FieldLegend, FieldSet } from "~/components/ui/field";
+import { Label } from "~/components/ui/label";
 import { Separator } from "~/components/ui/separator";
 import { Skeleton } from "~/components/ui/skeleton";
 import { Slider } from "~/components/ui/slider";
@@ -46,6 +45,9 @@ const PRICE_UNIT_LABELS: Readonly<Record<BookingType, string>> = {
 };
 
 const CAPACITY_OPTIONS = [4, 5, 6, 7];
+const filterToggleGroupClass = "w-full flex-wrap justify-start gap-2 rounded-none";
+const filterToggleItemClass =
+  "rounded-full px-4 data-[state=on]:bg-accent data-[state=on]:text-accent-foreground";
 
 function getSliderStep(range: number) {
   if (range <= 0) {
@@ -62,6 +64,20 @@ interface SearchFiltersProps {
   readonly facets: SearchFacets | null;
   readonly bookingType: BookingType;
   readonly activeFilterCount: number;
+}
+
+interface FilterSectionProps {
+  readonly title: string;
+  readonly children: React.ReactNode;
+}
+
+function FilterSection({ title, children }: FilterSectionProps) {
+  return (
+    <section className="flex flex-col gap-3">
+      <h3 className="text-sm font-semibold">{title}</h3>
+      {children}
+    </section>
+  );
 }
 
 export function SearchFilters({ facets, bookingType, activeFilterCount }: SearchFiltersProps) {
@@ -116,7 +132,7 @@ export function SearchFilters({ facets, bookingType, activeFilterCount }: Search
       <DialogTrigger asChild>
         <Button
           variant="outline"
-          className="relative h-10 gap-2 rounded-full max-md:size-10 max-md:p-0"
+          className="relative h-10 gap-2 rounded-full px-4 max-md:size-10 max-md:p-0"
           aria-label="Filters"
         >
           <SlidersHorizontal data-icon="inline-start" />
@@ -128,149 +144,128 @@ export function SearchFilters({ facets, bookingType, activeFilterCount }: Search
           ) : null}
         </Button>
       </DialogTrigger>
-      <DialogContent className="flex max-h-[85dvh] w-full max-w-full flex-col gap-0 rounded-sm p-0 sm:rounded-sm md:w-[calc(100%-2rem)] md:max-w-xl">
-        <DialogHeader className="border-b border-gray-200 px-6 py-4 text-center">
-          <DialogTitle className="text-lg font-semibold tracking-tight">Filters</DialogTitle>
+      <DialogContent className="flex max-h-[85dvh] w-full max-w-full flex-col gap-0 rounded-sm border border-neutral-200 bg-white p-0 text-sm text-neutral-950 shadow-lg ring-0 sm:max-w-full sm:rounded-sm md:w-[calc(100%-2rem)] md:max-w-xl">
+        <DialogHeader className="gap-0 border-b border-gray-200 px-6 py-4 text-center">
+          <DialogTitle className="text-lg leading-none font-semibold tracking-tight">
+            Filters
+          </DialogTitle>
           <DialogDescription className="sr-only">
             Narrow down vehicles by price, type, service tier, capacity and more.
           </DialogDescription>
         </DialogHeader>
 
-        <FieldGroup className="flex-1 gap-6 overflow-y-auto px-6 py-6">
+        <div className="flex flex-1 flex-col gap-6 overflow-y-auto px-6 py-6">
           {priceBounds ? (
             <>
-              <FieldSet className="gap-3">
-                <FieldLegend variant="label" className="mb-0 font-semibold">
-                  {`Price range (${priceUnitLabel})`}
-                </FieldLegend>
-                <Field>
-                  <Slider
-                    min={sliderMin}
-                    max={sliderMax}
-                    step={sliderStep}
-                    value={sliderValue}
-                    onValueChange={([low, high]) =>
-                      setDraft((current) => ({
-                        ...current,
-                        minPrice: low <= sliderMin ? null : low,
-                        maxPrice: high >= sliderMax ? null : high,
-                      }))
-                    }
-                    minStepsBetweenThumbs={1}
-                    thumbLabels={["Minimum price", "Maximum price"]}
-                  />
-                  <div className="flex items-center justify-between text-sm text-muted-foreground">
-                    <span>{formatNaira(sliderValue[0])}</span>
-                    <span>
-                      {formatNaira(sliderValue[1])}
-                      {sliderValue[1] >= sliderMax ? "+" : ""}
-                    </span>
-                  </div>
-                </Field>
-              </FieldSet>
+              <FilterSection title={`Price range (${priceUnitLabel})`}>
+                <Slider
+                  min={sliderMin}
+                  max={sliderMax}
+                  step={sliderStep}
+                  value={sliderValue}
+                  onValueChange={([low, high]) =>
+                    setDraft((current) => ({
+                      ...current,
+                      minPrice: low <= sliderMin ? null : low,
+                      maxPrice: high >= sliderMax ? null : high,
+                    }))
+                  }
+                  minStepsBetweenThumbs={1}
+                  thumbLabels={["Minimum price", "Maximum price"]}
+                />
+                <div className="flex items-center justify-between text-sm text-gray-600">
+                  <span>{formatNaira(sliderValue[0])}</span>
+                  <span>
+                    {formatNaira(sliderValue[1])}
+                    {sliderValue[1] >= sliderMax ? "+" : ""}
+                  </span>
+                </div>
+              </FilterSection>
               <Separator />
             </>
           ) : null}
 
-          <FieldSet className="gap-3">
-            <FieldLegend variant="label" className="mb-0 font-semibold">
-              Vehicle type
-            </FieldLegend>
-            <Field>
-              <ToggleGroup
-                type="multiple"
-                variant="outline"
-                value={draft.vehicleTypes}
-                onValueChange={(values) =>
-                  setDraft((current) => ({
-                    ...current,
-                    vehicleTypes: values.filter(isVehicleType),
-                  }))
-                }
-                className="flex-wrap justify-start gap-2"
-              >
-                {VEHICLE_TYPES.map((type) => (
-                  <ToggleGroupItem key={type} value={type} className="rounded-full px-4">
-                    {vehicleTypeLabels[type]}
-                  </ToggleGroupItem>
-                ))}
-              </ToggleGroup>
-            </Field>
-          </FieldSet>
-
-          <Separator />
-
-          <FieldSet className="gap-3">
-            <FieldLegend variant="label" className="mb-0 font-semibold">
-              Service tier
-            </FieldLegend>
-            <Field>
-              <ToggleGroup
-                type="multiple"
-                variant="outline"
-                value={draft.serviceTiers}
-                onValueChange={(values) =>
-                  setDraft((current) => ({
-                    ...current,
-                    serviceTiers: values.filter(isServiceTier),
-                  }))
-                }
-                className="flex-wrap justify-start gap-2"
-              >
-                {SERVICE_TIERS.map((tier) => (
-                  <ToggleGroupItem key={tier} value={tier} className="rounded-full px-4">
-                    {serviceTierLabels[tier]}
-                  </ToggleGroupItem>
-                ))}
-              </ToggleGroup>
-            </Field>
-          </FieldSet>
-
-          <Separator />
-
-          <FieldSet className="gap-3">
-            <FieldLegend variant="label" className="mb-0 font-semibold">
-              Passengers
-            </FieldLegend>
-            <Field>
-              <ToggleGroup
-                type="single"
-                variant="outline"
-                value={draft.minCapacity === null ? "any" : String(draft.minCapacity)}
-                onValueChange={(value) =>
-                  setDraft((current) => ({
-                    ...current,
-                    minCapacity: value && value !== "any" ? Number(value) : null,
-                  }))
-                }
-                className="flex-wrap justify-start gap-2"
-              >
-                <ToggleGroupItem value="any" className="rounded-full px-4">
-                  Any
+          <FilterSection title="Vehicle type">
+            <ToggleGroup
+              type="multiple"
+              variant="outline"
+              value={draft.vehicleTypes}
+              onValueChange={(values) =>
+                setDraft((current) => ({
+                  ...current,
+                  vehicleTypes: values.filter(isVehicleType),
+                }))
+              }
+              className={filterToggleGroupClass}
+            >
+              {VEHICLE_TYPES.map((type) => (
+                <ToggleGroupItem key={type} value={type} className={filterToggleItemClass}>
+                  {vehicleTypeLabels[type]}
                 </ToggleGroupItem>
-                {CAPACITY_OPTIONS.map((capacity) => (
-                  <ToggleGroupItem
-                    key={capacity}
-                    value={String(capacity)}
-                    className="rounded-full px-4"
-                  >
-                    {capacity}+
-                  </ToggleGroupItem>
-                ))}
-              </ToggleGroup>
-            </Field>
-          </FieldSet>
+              ))}
+            </ToggleGroup>
+          </FilterSection>
+
+          <Separator />
+
+          <FilterSection title="Service tier">
+            <ToggleGroup
+              type="multiple"
+              variant="outline"
+              value={draft.serviceTiers}
+              onValueChange={(values) =>
+                setDraft((current) => ({
+                  ...current,
+                  serviceTiers: values.filter(isServiceTier),
+                }))
+              }
+              className={filterToggleGroupClass}
+            >
+              {SERVICE_TIERS.map((tier) => (
+                <ToggleGroupItem key={tier} value={tier} className={filterToggleItemClass}>
+                  {serviceTierLabels[tier]}
+                </ToggleGroupItem>
+              ))}
+            </ToggleGroup>
+          </FilterSection>
+
+          <Separator />
+
+          <FilterSection title="Passengers">
+            <ToggleGroup
+              type="single"
+              variant="outline"
+              value={draft.minCapacity === null ? "any" : String(draft.minCapacity)}
+              onValueChange={(value) =>
+                setDraft((current) => ({
+                  ...current,
+                  minCapacity: value && value !== "any" ? Number(value) : null,
+                }))
+              }
+              className={filterToggleGroupClass}
+            >
+              <ToggleGroupItem value="any" className={filterToggleItemClass}>
+                Any
+              </ToggleGroupItem>
+              {CAPACITY_OPTIONS.map((capacity) => (
+                <ToggleGroupItem
+                  key={capacity}
+                  value={String(capacity)}
+                  className={filterToggleItemClass}
+                >
+                  {capacity}+
+                </ToggleGroupItem>
+              ))}
+            </ToggleGroup>
+          </FilterSection>
 
           {facets && facets.makes.length > 0 ? (
             <>
               <Separator />
-              <FieldSet className="gap-3">
-                <FieldLegend variant="label" className="mb-0 font-semibold">
-                  Make
-                </FieldLegend>
-                <FieldGroup className="grid grid-cols-2 gap-3">
+              <FilterSection title="Make">
+                <div className="grid grid-cols-2 gap-3">
                   {facets.makes.map((make) => (
-                    <Field key={make.name} orientation="horizontal">
+                    <div key={make.name} className="flex items-center gap-2">
                       <Checkbox
                         id={`make-${make.name}`}
                         checked={draft.makes.some(
@@ -287,65 +282,64 @@ export function SearchFilters({ facets, bookingType, activeFilterCount }: Search
                                   ),
                           }))
                         }
+                        className="border-primary [&_svg]:size-4"
                       />
-                      <FieldLabel htmlFor={`make-${make.name}`} className="font-normal">
-                        {make.name} <span className="text-muted-foreground">({make.count})</span>
-                      </FieldLabel>
-                    </Field>
+                      <Label
+                        htmlFor={`make-${make.name}`}
+                        className="inline flex-1 cursor-pointer font-normal"
+                      >
+                        {make.name} <span className="text-gray-400">({make.count})</span>
+                      </Label>
+                    </div>
                   ))}
-                </FieldGroup>
-              </FieldSet>
+                </div>
+              </FilterSection>
             </>
           ) : null}
 
           <Separator />
 
-          <FieldSet className="gap-3">
-            <FieldLegend variant="label" className="mb-0 font-semibold">
-              Extras
-            </FieldLegend>
-            <FieldGroup className="gap-3">
-              <Field orientation="horizontal" className="justify-between">
-                <FieldLabel htmlFor="filter-fuel-included" className="font-normal">
-                  Fuel included in price
-                </FieldLabel>
-                <Switch
-                  id="filter-fuel-included"
-                  checked={draft.fuelIncluded}
-                  onCheckedChange={(checked) =>
-                    setDraft((current) => ({ ...current, fuelIncluded: checked }))
-                  }
-                />
-              </Field>
-              <Field orientation="horizontal" className="justify-between">
-                <FieldLabel htmlFor="filter-deals-only" className="font-normal">
-                  On promotion
-                </FieldLabel>
-                <Switch
-                  id="filter-deals-only"
-                  checked={draft.dealsOnly}
-                  onCheckedChange={(checked) =>
-                    setDraft((current) => ({ ...current, dealsOnly: checked }))
-                  }
-                />
-              </Field>
-            </FieldGroup>
-          </FieldSet>
-        </FieldGroup>
+          <FilterSection title="Extras">
+            <div className="flex items-center justify-between gap-4">
+              <Label htmlFor="filter-fuel-included" className="inline cursor-pointer font-normal">
+                Fuel included in price
+              </Label>
+              <Switch
+                id="filter-fuel-included"
+                checked={draft.fuelIncluded}
+                onCheckedChange={(checked) =>
+                  setDraft((current) => ({ ...current, fuelIncluded: checked }))
+                }
+              />
+            </div>
+            <div className="flex items-center justify-between gap-4">
+              <Label htmlFor="filter-deals-only" className="inline cursor-pointer font-normal">
+                On promotion
+              </Label>
+              <Switch
+                id="filter-deals-only"
+                checked={draft.dealsOnly}
+                onCheckedChange={(checked) =>
+                  setDraft((current) => ({ ...current, dealsOnly: checked }))
+                }
+              />
+            </div>
+          </FilterSection>
+        </div>
 
-        <DialogFooter className="mx-0 mb-0 flex-row items-center justify-between rounded-none border-t border-gray-200 bg-transparent px-6 py-4 sm:justify-between">
+        <div className="flex flex-row items-center justify-between border-t border-gray-200 px-6 py-4">
           <Button
             variant="ghost"
             onClick={() => setDraft(emptySearchFilters())}
             disabled={draftFilterCount === 0}
-            className="h-10 underline"
+            className="h-10 rounded-md px-4 underline"
           >
             Clear all
           </Button>
-          <Button className="h-10" onClick={handleApply}>
+          <Button className="h-10 rounded-md px-4" onClick={handleApply}>
             {applyLabel}
           </Button>
-        </DialogFooter>
+        </div>
       </DialogContent>
     </Dialog>
   );
