@@ -24,7 +24,7 @@ export function BookingTypeTabs({ value, onValueChange, variant = "hero" }: Book
               aria-pressed={isActive}
               onClick={() => onValueChange(type)}
               className={cn(
-                "inline-flex h-6 items-center justify-center rounded-full px-2.5 text-xs font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                "inline-flex h-6 items-center justify-center rounded-full px-2.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 motion-reduce:transition-none",
                 isActive && "bg-white shadow-sm",
               )}
             >

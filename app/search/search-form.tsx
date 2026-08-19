@@ -1,6 +1,6 @@
 import { Loader2, Search } from "lucide-react";
 import { useState } from "react";
-import { Form, useNavigation, useSearchParams } from "react-router";
+import { Form, useLocation, useNavigate, useNavigation, useSearchParams } from "react-router";
 
 import { BookingTypeInput } from "~/booking/booking-type-input";
 import { BookingTypeTabs } from "~/booking/booking-type-tabs";
@@ -14,7 +14,11 @@ import {
   NIGHT_BOOKING_TYPE,
 } from "~/booking/types";
 import { cn } from "~/lib/utils";
-import { parseSearchUrl, SEARCH_FILTER_PARAM_KEYS } from "~/search/search-url";
+import {
+  buildBookingTypeSearchPath,
+  parseSearchUrl,
+  SEARCH_FILTER_PARAM_KEYS,
+} from "~/search/search-url";
 import { formatZonedDate, parseZonedCalendarDate } from "~/time/timezone";
 
 interface SearchFormProps {
@@ -56,7 +60,7 @@ interface StandardSearchFieldsProps {
 function SearchButton({ isCompact }: { readonly isCompact: boolean }) {
   const navigation = useNavigation();
   const isSearching = navigation.state !== "idle" && navigation.location?.pathname === "/search";
-  const searchButtonText = isSearching ? "Searching..." : "Search";
+  const searchButtonText = isSearching ? "Searching…" : "Search";
 
   return (
     <div
@@ -70,7 +74,7 @@ function SearchButton({ isCompact }: { readonly isCompact: boolean }) {
         aria-label={isSearching ? "Searching" : "Search for vehicles"}
         disabled={isSearching}
         className={cn(
-          "inline-flex cursor-pointer items-center justify-center rounded-full bg-primary font-semibold text-primary-foreground transition-all duration-300 hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50",
+          "inline-flex cursor-pointer items-center justify-center rounded-full bg-primary font-semibold text-primary-foreground transition-colors duration-300 hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 motion-reduce:transition-none",
           isCompact
             ? "size-9 p-0"
             : "h-12 w-full gap-2 px-6 py-2 text-sm md:w-auto md:px-8 md:text-base",
@@ -253,6 +257,8 @@ function SearchFormFields({
   initialFlightNumber,
 }: SearchFormFieldsProps) {
   const [searchParams] = useSearchParams();
+  const { pathname } = useLocation();
+  const navigate = useNavigate();
   const [bookingType, setBookingType] = useState<BookingType>(initialBookingType);
   const [fromDate, setFromDate] = useState<Date | undefined>(initialFromDate);
   const [toDate, setToDate] = useState<Date | undefined>(initialToDate);
@@ -268,6 +274,13 @@ function SearchFormFields({
     setToDate(undefined);
     setPickupTime(undefined);
     setFlightNumber("");
+
+    if (pathname === "/search") {
+      navigate(buildBookingTypeSearchPath(nextBookingType, searchParams), {
+        replace: true,
+        preventScrollReset: true,
+      });
+    }
   };
 
   const handleFromDateChange = (date: Date | undefined) => {
@@ -307,7 +320,7 @@ function SearchFormFields({
         : null}
 
       {isCompact ? null : (
-        <div className="mb-4 max-h-24 overflow-hidden opacity-100 transition-all duration-300">
+        <div className="mb-4 max-h-24 overflow-hidden opacity-100 transition-[max-height,opacity] duration-300 motion-reduce:transition-none">
           <BookingTypeTabs
             value={bookingType}
             onValueChange={handleBookingTypeChange}
@@ -319,7 +332,7 @@ function SearchFormFields({
       <div className="w-full">
         <div
           className={cn(
-            "border border-gray-200 bg-white transition-all duration-300",
+            "border border-gray-200 bg-white transition-shadow duration-300 motion-reduce:transition-none",
             isCompact
               ? "rounded-full shadow-md hover:shadow-lg"
               : "rounded-3xl shadow-2xl hover:shadow-xl md:rounded-full",

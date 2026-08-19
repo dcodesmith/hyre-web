@@ -201,6 +201,61 @@ export function buildSearchPath(searchParams: URLSearchParams): string {
   return query ? `/search?${query}` : "/search";
 }
 
+export function buildBookingTypeSearchPath(
+  bookingType: BookingType,
+  searchParams: URLSearchParams = new URLSearchParams(),
+): string {
+  const params = new URLSearchParams(searchParams);
+
+  for (const key of SEARCH_BOOKING_PARAM_KEYS) {
+    params.delete(key);
+  }
+
+  params.set("bookingType", bookingType);
+  params.delete("page");
+  params.delete("countOnly");
+
+  return buildSearchPath(params);
+}
+
+export function searchResultsIdentity(searchParams: URLSearchParams): string {
+  const query = parseSearchUrl(searchParams);
+  const hasDateRange = Boolean(query.from && query.to);
+  const bookingTypeAffectsResults =
+    hasDateRange || query.minPrice !== null || query.maxPrice !== null;
+
+  return JSON.stringify({
+    q: query.q,
+    color: query.color,
+    model: query.model,
+    from: query.from,
+    to: query.to,
+    vehicleTypes: query.vehicleTypes,
+    serviceTiers: query.serviceTiers,
+    makes: query.makes,
+    minPrice: query.minPrice,
+    maxPrice: query.maxPrice,
+    minCapacity: query.minCapacity,
+    fuelIncluded: query.fuelIncluded,
+    dealsOnly: query.dealsOnly,
+    page: query.page,
+    limit: query.limit,
+    bookingType: bookingTypeAffectsResults ? query.bookingType : null,
+    pickupTime: hasDateRange ? query.pickupTime : null,
+  });
+}
+
+export function shouldRevalidateSearch(
+  currentParams: URLSearchParams,
+  nextParams: URLSearchParams,
+): boolean {
+  if (nextParams.get("countOnly") === "1") {
+    return false;
+  }
+
+  return searchResultsIdentity(currentParams) !== searchResultsIdentity(nextParams);
+}
+
 export function clearSearchFiltersPath(searchParams: URLSearchParams): string {
   const params = new URLSearchParams(searchParams);
 
@@ -233,13 +288,17 @@ function parseEnumList<T extends string>(
   value: string | null,
   isAllowed: (item: string) => item is T,
 ): T[] {
-  return [
-    ...new Set(
-      parseListParam(value)
-        .map((item) => item.toUpperCase())
-        .filter(isAllowed),
-    ),
-  ];
+  const unique = new Set<T>();
+
+  for (const item of parseListParam(value)) {
+    const normalized = item.toUpperCase();
+
+    if (isAllowed(normalized)) {
+      unique.add(normalized);
+    }
+  }
+
+  return [...unique];
 }
 
 function parseNonNegativeInt(value: string | null): number | null {

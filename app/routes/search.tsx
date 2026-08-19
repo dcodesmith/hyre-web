@@ -4,7 +4,7 @@ import { ApiRequestError } from "~/api/api.server";
 import { searchCars } from "~/api/cars/cars.server";
 import { buildSearchSeoContext } from "~/search/search-heading";
 import { SearchPage } from "~/search/search-page";
-import { parseSearchUrl, toApiSearchParams } from "~/search/search-url";
+import { parseSearchUrl, shouldRevalidateSearch, toApiSearchParams } from "~/search/search-url";
 import { buildPageMetadata, SITE_ORIGIN } from "~/seo/metadata";
 import type { Route } from "./+types/search";
 
@@ -50,14 +50,15 @@ export function meta({ loaderData, location }: Route.MetaArgs) {
 }
 
 export function shouldRevalidate({
+  currentUrl,
   nextUrl,
   defaultShouldRevalidate,
 }: ShouldRevalidateFunctionArgs) {
-  if (nextUrl.searchParams.get("countOnly") === "1") {
-    return false;
+  if (currentUrl.pathname !== nextUrl.pathname) {
+    return defaultShouldRevalidate;
   }
 
-  return defaultShouldRevalidate;
+  return shouldRevalidateSearch(currentUrl.searchParams, nextUrl.searchParams);
 }
 
 export async function loader({ request }: Route.LoaderArgs) {

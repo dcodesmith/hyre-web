@@ -1,20 +1,20 @@
 # Route and API readiness
 
-This inventory is a planning aid, not a generated API specification. It was derived from Nest controller decorators and current mobile usage. Confirm DTOs, guards, query parameters, and response status codes before implementing each route.
+This inventory is a planning aid, not a generated API specification. It was derived from the API controller decorators and current mobile usage. Confirm DTOs, guards, query parameters, and response status codes before implementing each route.
 
-No Swagger/OpenAPI generation was found in Nest. Mobile currently maintains manual response types and casts. Until Nest publishes a generated contract, route readiness must include explicit runtime transport validation for critical flows.
+No Swagger/OpenAPI generation was found in the API. Mobile currently maintains manual response types and casts. Until the API publishes a generated contract, route readiness must include explicit runtime transport validation for critical flows.
 
-Backend coverage gaps in this document are framework-independent. Choosing TanStack Start would not remove or type missing Nest endpoints.
+Backend coverage gaps in this document are framework-independent. Choosing TanStack Start would not remove or type missing API endpoints.
 
 ## Status meanings
 
-- **Available**: a matching Nest controller endpoint was observed.
+- **Available**: a matching API controller endpoint was observed.
 - **Verify**: a related endpoint exists, but parity with the legacy route is unproven.
 - **Gap**: no matching controller endpoint was observed.
-- **Web-owned**: belongs to React Router/Cloudflare rather than Nest.
-- **Remove/redirect**: duplicate legacy backend endpoint; Nest should own it.
+- **Web-owned**: belongs to React Router/Cloudflare rather than the API.
+- **Remove/redirect**: duplicate legacy backend endpoint; the API should own it.
 
-## Observed Nest surface
+## Observed API surface
 
 ### Auth and account
 
@@ -23,7 +23,7 @@ Backend coverage gaps in this document are framework-independent. Choosing TanSt
 - `POST /api/account/delete`
 - `POST|DELETE /api/users/me/push-tokens`
 
-Better Auth response and error bodies bypass Nest's normal Problem Details filter and require a separate web parser.
+Better Auth response and error bodies bypass the API's normal Problem Details filter and require a separate web parser.
 
 ### Public cars, search, maps, and flights
 
@@ -132,7 +132,7 @@ No partner/slug controller was observed. Partner pages require partner identity,
   that field is on every environment.
 - Category navigation metadata remains a contract follow-up:
   [`hyre-worker-nestjs#190`](https://github.com/dcodesmith/hyre-worker-nestjs/issues/190).
-  Nest currently returns category names, titles, dimensions, and cars, but not the concrete
+  The API currently returns category names, titles, dimensions, and cars, but not the concrete
   multi-value filters accepted by `/api/cars/search`. Web and mobile must temporarily map names to
   filters; complete the issue before or with the public search slice to remove that duplication.
 
@@ -157,7 +157,7 @@ No partner/slug controller was observed. Partner pages require partner identity,
 - admin OTP login/verify
 - session lookup and logout
 
-All roles use the Nest Better Auth endpoints. Role-specific pages remain separate for UI parity, but authentication must not be reimplemented.
+All roles use the API's Better Auth endpoints. Role-specific pages remain separate for UI parity, but authentication must not be reimplemented.
 
 ### Customer
 
@@ -201,7 +201,7 @@ All roles use the Nest Better Auth endpoints. Role-specific pages remain separat
 - fleet booking detail through the generic booking endpoint requires ownership/field parity verification
 - `/fleet-owner/payout-transactions` may map to dashboard payout endpoints
 - exact car onboarding/document workflow
-- airport-completion controls; their Nest controller and migration are currently uncommitted
+- airport-completion controls; their API controller and migration are currently uncommitted
 
 **Gap unless another endpoint is discovered**
 
@@ -235,7 +235,7 @@ All roles use the Nest Better Auth endpoints. Role-specific pages remain separat
 - pending document/image list for the admin documents page
 - legacy booking reconciliation aggregate
 
-Do not port the legacy Prisma-based admin loaders to Cloudflare to fill these gaps. Add guarded Nest controllers and contract tests.
+Do not port the legacy Prisma-based admin loaders to Cloudflare to fill these gaps. Add guarded API controllers and contract tests.
 
 ## Legacy resource/API route disposition
 
@@ -252,9 +252,9 @@ Do not port the legacy Prisma-based admin loaders to Cloudflare to fill these ga
 - admin reconciliation
 - document proxy
 
-The UI may retain the same browser-visible route where required, but implementation must delegate to Nest.
+The UI may retain the same browser-visible route where required, but implementation must delegate to the API.
 
-### Redirect/configure external providers to Nest
+### Redirect/configure external providers to the API
 
 - Flutterwave webhook
 - Twilio webhooks
@@ -269,7 +269,7 @@ Verify provider dashboards and secrets before cutover.
 - test booking activation;
 - test seed-car routes.
 
-Equivalent test support belongs behind explicit Nest test infrastructure, never a production Worker route.
+Equivalent test support belongs behind explicit API test infrastructure, never a production Worker route.
 
 ### Keep web-owned
 
@@ -322,4 +322,4 @@ Before a migration phase starts, create one backend issue per missing capability
 - pagination/filter/sort behavior;
 - contract and e2e test acceptance criteria.
 
-An endpoint is ready only when it exists in Nest, is authorized, is tested, and is usable without importing Prisma types into the web app.
+An endpoint is ready only when it exists in the API, is authorized, is tested, and is usable without importing Prisma types into the web app.

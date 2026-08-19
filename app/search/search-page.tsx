@@ -4,7 +4,6 @@ import { Link, useNavigation, useSearchParams } from "react-router";
 import type { CarSearchResponse, SearchCar } from "~/api/cars/schema";
 import { calculateBookingUnits } from "~/booking/dates";
 import { type BookingType, DAY_BOOKING_TYPE } from "~/booking/types";
-import { CarDomain } from "~/car/car-domain";
 import { VehicleCard } from "~/car/vehicle-card";
 import { Alert, AlertAction, AlertDescription, AlertTitle } from "~/components/ui/alert";
 import { Button } from "~/components/ui/button";
@@ -29,20 +28,12 @@ import {
   countActiveSearchFilters,
   parseSearchFilters,
   parseSearchUrl,
+  searchResultsIdentity,
 } from "~/search/search-url";
 
 interface SearchPageProps {
   readonly result: CarSearchResponse | null;
 }
-
-const emptyPagination = {
-  page: 1,
-  limit: 12,
-  total: 0,
-  totalPages: 0,
-  hasNextPage: false,
-  hasPreviousPage: false,
-};
 
 function SearchCarGrid({
   cars,
@@ -62,22 +53,17 @@ function SearchCarGrid({
   return (
     <>
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {cars.map((car, index) => {
-          const view = CarDomain(car, new Date(), bookingType);
-          const totalPrice = hasDateFilters ? view.displayRate * totalUnits : undefined;
-
-          return (
-            <VehicleCard
-              key={car.id}
-              car={car}
-              bookingType={bookingType}
-              priority={index < 6}
-              variant="grid"
-              showTotal={hasDateFilters}
-              totalPrice={totalPrice}
-            />
-          );
-        })}
+        {cars.map((car, index) => (
+          <VehicleCard
+            key={car.id}
+            car={car}
+            bookingType={bookingType}
+            priority={index < 6}
+            variant="grid"
+            showTotal={hasDateFilters}
+            totalUnits={totalUnits}
+          />
+        ))}
       </div>
       {hasMore ? <div ref={sentinelRef} className="h-1" aria-hidden="true" /> : null}
     </>
@@ -122,8 +108,14 @@ function SearchResults({ result }: { readonly result: CarSearchResponse }) {
   const navigation = useNavigation();
   const query = parseSearchUrl(searchParams);
   const bookingType: BookingType = query.bookingType ?? DAY_BOOKING_TYPE;
+  const nextSearchParams = navigation.location
+    ? new URLSearchParams(navigation.location.search)
+    : null;
   const isUpdatingResults =
-    navigation.state === "loading" && navigation.location?.pathname === "/search";
+    navigation.state === "loading" &&
+    navigation.location?.pathname === "/search" &&
+    nextSearchParams !== null &&
+    searchResultsIdentity(searchParams) !== searchResultsIdentity(nextSearchParams);
   const {
     allItems: allCars,
     hasMore,
@@ -211,8 +203,7 @@ function SearchResults({ result }: { readonly result: CarSearchResponse }) {
 export function SearchPage({ result }: SearchPageProps) {
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const [searchParams] = useSearchParams();
-  const resultsKey = new URLSearchParams(searchParams);
-  resultsKey.delete("countOnly");
+  const resultsKey = searchResultsIdentity(searchParams);
 
   return (
     <div className="min-h-screen">
@@ -233,7 +224,7 @@ export function SearchPage({ result }: SearchPageProps) {
 
       <div className="mx-auto my-24 w-full px-4 sm:max-w-160 md:max-w-3xl lg:max-w-5xl xl:max-w-7xl">
         {result ? (
-          <SearchResults key={resultsKey.toString()} result={result} />
+          <SearchResults key={resultsKey} result={result} />
         ) : (
           <Empty className="rounded-xl border border-amber-200 bg-amber-50 px-6 py-10">
             <EmptyHeader>
@@ -251,13 +242,4 @@ export function SearchPage({ result }: SearchPageProps) {
       </div>
     </div>
   );
-}
-
-export function createEmptySearchResult(): CarSearchResponse {
-  return {
-    cars: [],
-    filters: { serviceTiers: [], vehicleTypes: [], bookingType: null },
-    facets: null,
-    pagination: emptyPagination,
-  };
 }

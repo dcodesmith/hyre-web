@@ -45,6 +45,7 @@ test("carries homepage booking params onto /search", async ({ page, viewport }) 
     await expect(airportTab).toHaveAttribute("aria-pressed", "true");
   }).toPass();
   await expect(searchForm.getByLabel("Flight Number")).toBeVisible();
+  await expect(page).toHaveURL("/");
   await searchForm.getByLabel("Flight Number").fill("BA123");
   await searchForm.getByRole("button", { name: "Search for vehicles" }).click();
 
@@ -59,6 +60,33 @@ test("carries homepage booking params onto /search", async ({ page, viewport }) 
   } else {
     await expect(page.locator('form[action="/search"]').first()).toBeVisible();
   }
+});
+
+test("keeps filters and drops booking fields when booking type changes", async ({
+  page,
+  viewport,
+}) => {
+  await setCookiePreference(page);
+  await page.goto("/search?from=2026-08-20&to=2026-08-21&bookingType=DAY&vehicleType=SUV");
+
+  if ((viewport?.width ?? 0) < 768) {
+    await page.getByRole("button", { name: /Same Day|When do you need a ride/ }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "Night" }).click();
+  } else {
+    await page
+      .locator('form[action="/search"]')
+      .first()
+      .getByRole("button", { name: "Night" })
+      .click();
+  }
+
+  await expect(page).toHaveURL(/\/search\?/);
+  const params = new URL(page.url()).searchParams;
+  expect(params.get("bookingType")).toBe("NIGHT");
+  expect(params.get("vehicleType")).toBe("SUV");
+  expect(params.get("from")).toBeNull();
+  expect(params.get("to")).toBeNull();
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
 });
 
 test("matches the responsive search baseline", async ({ page }) => {

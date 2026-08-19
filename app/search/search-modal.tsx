@@ -30,7 +30,7 @@ export function SearchModal({ isOpen, onClose, preserveFilterParams = false }: S
           <DialogTitle>Search</DialogTitle>
           <DialogDescription>Search for chauffeur-driven vehicles</DialogDescription>
         </DialogHeader>
-        <div className="flex-1 overflow-y-auto px-4 py-6">
+        <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-6">
           <SearchForm
             context="modal"
             preserveFilterParams={preserveFilterParams}

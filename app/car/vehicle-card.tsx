@@ -13,7 +13,7 @@ interface VehicleCardProps {
   readonly bookingType?: BookingType;
   readonly priority?: boolean;
   readonly showTotal?: boolean;
-  readonly totalPrice?: number;
+  readonly totalUnits?: number;
   readonly variant?: "carousel" | "grid";
 }
 
@@ -43,7 +43,7 @@ interface VehicleCardGridDetailsProps {
   readonly car: DisplayCar;
   readonly view: CarView;
   readonly showTotal: boolean;
-  readonly totalPrice?: number;
+  readonly totalUnits: number;
 }
 
 interface VehicleCardCarouselDetailsProps {
@@ -126,10 +126,12 @@ function VehicleCardRate({ view, priceClassName }: VehicleCardRateProps) {
   );
 }
 
-function VehicleCardGridDetails({ car, view, showTotal, totalPrice }: VehicleCardGridDetailsProps) {
+function VehicleCardGridDetails({ car, view, showTotal, totalUnits }: VehicleCardGridDetailsProps) {
+  const totalPrice = showTotal && totalUnits > 0 ? view.displayRate * totalUnits : undefined;
+
   return (
     <div className="space-y-0.5">
-      <h3 className="text-sm font-semibold tracking-wider">
+      <h3 className="wrap-break-word text-sm font-semibold tracking-wider">
         {car.make} {car.model} ({car.year})
       </h3>
       <div className="flex items-center gap-1.5 text-xs text-gray-600">
@@ -141,8 +143,8 @@ function VehicleCardGridDetails({ car, view, showTotal, totalPrice }: VehicleCar
           </>
         ) : null}
       </div>
-      <div className="flex flex-wrap items-baseline gap-1 text-sm">
-        {showTotal && totalPrice ? (
+      <div className="flex flex-wrap items-baseline gap-1 text-sm tabular-nums">
+        {totalPrice ? (
           <>
             <span className="text-sm font-semibold">{formatNaira(totalPrice)}</span>
             <span className="text-gray-600">total</span>
@@ -185,7 +187,7 @@ export function VehicleCard({
   bookingType = DAY_BOOKING_TYPE,
   priority = false,
   showTotal = false,
-  totalPrice,
+  totalUnits = 0,
   variant = "carousel",
 }: VehicleCardProps) {
   const view = CarDomain(car, new Date(), bookingType);
@@ -226,7 +228,7 @@ export function VehicleCard({
             car={car}
             view={view}
             showTotal={showTotal}
-            totalPrice={totalPrice}
+            totalUnits={totalUnits}
           />
         ) : (
           <VehicleCardCarouselDetails view={view} />

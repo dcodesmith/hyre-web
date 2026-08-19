@@ -54,7 +54,7 @@ function CategoryPills({ categories }: CategoryPillsProps) {
         <Link
           key={category.name}
           to={buildCategorySearchPath(category)}
-          className="shrink-0 rounded-full border border-gray-300 px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-all hover:border-gray-900 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:px-4 md:py-2 md:text-sm"
+          className="shrink-0 rounded-full border border-gray-300 px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors hover:border-gray-900 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none md:px-4 md:py-2 md:text-sm"
         >
           {category.title} ({category.cars.length})
         </Link>
@@ -201,7 +201,7 @@ export function HomePage({ fleet }: HomePageProps) {
 
       <section
         className={cn(
-          "w-full overflow-hidden bg-gray-950 transition-all duration-300 ease-out",
+          "w-full overflow-hidden bg-gray-950 transition-[height,opacity,padding] duration-300 ease-out motion-reduce:transition-none",
           containerClass,
           heroOpacity,
         )}
@@ -241,13 +241,13 @@ export function HomePage({ fleet }: HomePageProps) {
 
         <div
           className={cn(
-            "relative z-10 mx-auto flex h-full max-w-4xl flex-col items-center px-4 transition-all duration-300",
+            "relative z-10 mx-auto flex h-full max-w-4xl flex-col items-center px-4 transition-[padding] duration-300 motion-reduce:transition-none",
             isDesktopCollapsed ? "justify-center py-4" : "justify-center pt-16 md:pt-20",
           )}
         >
           <div
             className={cn(
-              "overflow-hidden transition-all duration-300",
+              "overflow-hidden transition-[max-height,opacity,margin] duration-300 motion-reduce:transition-none",
               isDesktopCollapsed || isMobileScrolled
                 ? "mb-0 max-h-0 opacity-0"
                 : "mb-6 max-h-40 opacity-100",
@@ -263,7 +263,7 @@ export function HomePage({ fleet }: HomePageProps) {
 
           <div
             className={cn(
-              "w-full max-w-2xl space-y-3 transition-all duration-300",
+              "w-full max-w-2xl space-y-3 transition-[max-height,opacity] duration-300 motion-reduce:transition-none",
               isDesktopCollapsed && "md:max-h-0 md:overflow-hidden md:opacity-0",
             )}
           >
@@ -272,7 +272,7 @@ export function HomePage({ fleet }: HomePageProps) {
 
           <div
             className={cn(
-              "flex flex-wrap justify-center gap-4 overflow-hidden text-white transition-all duration-300 md:gap-6",
+              "flex flex-wrap justify-center gap-4 overflow-hidden text-white transition-[max-height,opacity,margin] duration-300 motion-reduce:transition-none md:gap-6",
               isDesktopCollapsed ? "mt-0 max-h-0 opacity-0" : "mt-6 max-h-20 opacity-100",
             )}
           >
@@ -287,7 +287,12 @@ export function HomePage({ fleet }: HomePageProps) {
           </div>
         </div>
       </section>
-      <div className={cn("hidden transition-all duration-300 md:block", desktopHeight)} />
+      <div
+        className={cn(
+          "hidden transition-[height] duration-300 motion-reduce:transition-none md:block",
+          desktopHeight,
+        )}
+      />
 
       <div className={cn("transition-transform duration-300", contentTransform)}>
         <div className="relative z-0 space-y-6 bg-white pt-8 md:pt-12">

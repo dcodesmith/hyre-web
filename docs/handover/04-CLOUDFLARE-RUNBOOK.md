@@ -69,7 +69,7 @@ Use the compatibility settings emitted by the current official template. For new
 
 ### Required web runtime configuration
 
-- `API_ORIGIN` — Nest public origin, no trailing slash.
+- `API_ORIGIN` — the API public origin, no trailing slash.
 - `APP_ORIGIN` — canonical web origin.
 - public Google Maps browser key, if still needed by UI.
 - public Flutterwave key, if checkout requires it.
@@ -84,14 +84,14 @@ Use the compatibility settings emitted by the current official template. For new
 
 - `DATABASE_URL`;
 - Prisma/Neon credentials;
-- Redis credentials used by Nest;
+- Redis credentials used by the API;
 - Flutterwave secret/encryption/webhook keys;
 - Twilio credentials;
 - AWS secret keys;
 - Resend/SMTP credentials;
 - OpenAI/Anthropic secrets;
 - FlightAware secret;
-- Nest session secret.
+- API session secret.
 
 Configure non-sensitive values as Worker vars and sensitive values with Cloudflare secrets. Do not commit `.dev.vars`.
 
@@ -99,9 +99,9 @@ Wrangler vars and secrets are non-inheritable. Define every required binding exp
 
 Use separate Cloudflare environments or Workers for:
 
-- local development -> local/staging Nest;
-- pull-request preview -> staging Nest;
-- production -> production Nest.
+- local development -> the local/staging API;
+- pull-request preview -> the staging API;
+- production -> the production API.
 
 Never point untrusted preview deployments at production mutation endpoints.
 
@@ -128,7 +128,7 @@ Remove:
 - Mailpit/email-server startup;
 - backend load-test scripts that target code no longer in web.
 
-Database migrations remain a Nest deployment responsibility.
+Database migrations remain an API deployment responsibility.
 
 ## Domains
 
@@ -136,20 +136,20 @@ Recommended:
 
 ```text
 https://www.<domain> or https://<domain> -> Cloudflare Worker
-https://api.<domain>                    -> Nest on Fly
+https://api.<domain>                    -> the API on Fly
 ```
 
 Even with related custom domains, the BFF cookie relay remains necessary because production Better Auth uses host-only `__Host-` cookies.
 
 Before deploying auth:
 
-- add local, preview, and production web origins to Nest `TRUSTED_ORIGINS`;
-- confirm Nest `AUTH_BASE_URL`;
+- add local, preview, and production web origins to the API `TRUSTED_ORIGINS`;
+- confirm the API `AUTH_BASE_URL`;
 - verify OTP callbacks and generated URLs;
 - test forwarded `Origin`, role payload, and role-specific `Referer` behavior;
 - confirm cookies are secure, host-only, and not exposed to JavaScript.
 
-If `hyre-web` owns chauffeur airport-completion pages, add a dedicated canonical web-origin setting to Nest notification link generation. Do not use API `AUTH_BASE_URL` to generate web page links.
+If `hyre-web` owns chauffeur airport-completion pages, add a dedicated canonical web-origin setting to the API notification link generation. Do not use API `AUTH_BASE_URL` to generate web page links.
 
 ## Worker entry behavior
 
@@ -159,10 +159,10 @@ The entry should:
 2. delegate website requests to React Router;
 3. register RR v8 instrumentation for requests, middleware, loaders, actions, navigations, and fetchers;
 4. record matched route patterns and status without sensitive raw values;
-5. propagate request/trace IDs to Nest;
+5. propagate request/trace IDs to the API;
 6. apply security headers to HTML and data responses;
 7. avoid becoming an unrestricted generic proxy;
-8. expose no webhook or job handler duplicated from Nest.
+8. expose no webhook or job handler duplicated from the API.
 
 Preview responses should be globally `noindex`. Production should noindex only private/API route groups, never the whole site.
 
@@ -178,7 +178,7 @@ If a same-origin `/api/*` proxy is introduced, use an allowlist and preserve:
 
 Prefer explicit loaders/actions over a broad proxy until a concrete browser API requirement exists.
 
-Nest CORS currently allows only `Content-Type`, `Authorization`, and `Cookie`. Booking/payment/completion flows also use `Idempotency-Key`, `X-Payment-Status-Token`, and `X-Booking-Completion-Token`. Keep those calls server-to-server through the BFF, or expand Nest's CORS allowlist before any direct browser usage.
+The API CORS currently allows only `Content-Type`, `Authorization`, and `Cookie`. Booking/payment/completion flows also use `Idempotency-Key`, `X-Payment-Status-Token`, and `X-Booking-Completion-Token`. Keep those calls server-to-server through the BFF, or expand the API's CORS allowlist before any direct browser usage.
 
 ## Networking and placement
 
@@ -187,7 +187,7 @@ The Worker calls a regional Fly API, which then calls Neon. Edge execution does 
 Start with normal Workers placement and measure:
 
 - Worker-to-Fly connection time;
-- Nest processing time;
+- the API processing time;
 - total loader/action duration from Nigeria and target regions.
 
 Evaluate Smart Placement only after measurements show it helps. Do not add Hyperdrive to `hyre-web`; the Worker does not connect to Neon.
@@ -198,7 +198,7 @@ Evaluate Smart Placement only after measurements show it helps. Do not add Hyper
 - Add explicit long-lived immutable headers for fingerprinted assets.
 - Keep authenticated loader/action responses `private, no-store`.
 - Keep authenticated RR data responses and every response involving cookies `private, no-store`.
-- Do not cache Nest responses blindly at the Worker.
+- Do not cache API responses blindly at the Worker.
 - Ensure any public cache key includes every response-varying query/header.
 - Bypass cache for cookies, authorization, payments, availability, and user-scoped data.
 
@@ -206,12 +206,12 @@ Evaluate Smart Placement only after measurements show it helps. Do not add Hyper
 
 Prefer:
 
-- browser -> RR action -> Nest for small uploads; or
-- browser -> presigned S3 upload issued by Nest for large files.
+- browser -> RR action -> the API for small uploads; or
+- browser -> presigned S3 upload issued by the API for large files.
 
 Do not buffer large uploads unnecessarily in the Worker.
 
-Receipts/PDFs should be generated or served by Nest/object storage. The Worker may authorize and stream/redirect, but must not use the legacy PDFKit/filesystem implementation.
+Receipts/PDFs should be generated or served by the API/object storage. The Worker may authorize and stream/redirect, but must not use the legacy PDFKit/filesystem implementation.
 
 ## CI/CD gates
 
@@ -228,7 +228,7 @@ For every pull request:
 
 For production:
 
-- verify Nest `GET /health`;
+- verify the API `GET /health`;
 - verify configured origins;
 - deploy Worker;
 - run public/authenticated/payment smoke tests;
@@ -242,17 +242,17 @@ Maintain:
 - previous Worker deployment;
 - previous DNS target or route;
 - unchanged `hireApp` production deployment during migration;
-- backward-compatible Nest endpoints through the observation window.
+- backward-compatible API endpoints through the observation window.
 
-Rollback the web independently from Nest. Do not remove or change a shared endpoint until both mobile and the new web deployment are compatible.
+Rollback the web independently from the API. Do not remove or change a shared endpoint until both mobile and the new web deployment are compatible.
 
 ## First deployment smoke test
 
 ```text
 [ ] Home returns SSR HTML
 [ ] Static assets load from Cloudflare
-[ ] Public car search reaches staging Nest
-[ ] Nest outage produces a controlled 503/error boundary
+[ ] Public car search reaches the staging API
+[ ] API outage produces a controlled 503/error boundary
 [ ] OTP request and verification work
 [ ] Customer, fleet-owner, admin, and staff role payload/Referer rules work
 [ ] Set-Cookie is stored for web origin
@@ -264,5 +264,5 @@ Rollback the web independently from Nest. Do not remove or change a shared endpo
 [ ] CSP and other security headers are present
 [ ] robots/sitemap behavior matches environment
 [ ] Guest booking retries reuse one idempotency key
-[ ] Guest payment token remains HttpOnly and reaches Nest only as X-Payment-Status-Token
+[ ] Guest payment token remains HttpOnly and reaches the API only as X-Payment-Status-Token
 ```

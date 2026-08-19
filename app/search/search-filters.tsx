@@ -144,7 +144,7 @@ export function SearchFilters({ facets, bookingType, activeFilterCount }: Search
           ) : null}
         </Button>
       </DialogTrigger>
-      <DialogContent className="flex max-h-[85dvh] w-full max-w-full flex-col gap-0 rounded-sm border border-neutral-200 bg-white p-0 text-sm text-neutral-950 shadow-lg ring-0 sm:max-w-full sm:rounded-sm md:w-[calc(100%-2rem)] md:max-w-xl">
+      <DialogContent className="flex max-h-[85dvh] w-full max-w-full flex-col gap-0 overflow-hidden overscroll-contain rounded-sm border border-neutral-200 bg-white p-0 text-sm text-neutral-950 shadow-lg ring-0 sm:max-w-full sm:rounded-sm md:w-[calc(100%-2rem)] md:max-w-xl">
         <DialogHeader className="gap-0 border-b border-gray-200 px-6 py-4 text-center">
           <DialogTitle className="text-lg leading-none font-semibold tracking-tight">
             Filters
@@ -154,7 +154,7 @@ export function SearchFilters({ facets, bookingType, activeFilterCount }: Search
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex flex-1 flex-col gap-6 overflow-y-auto px-6 py-6">
+        <div className="flex flex-1 flex-col gap-6 overflow-y-auto overscroll-contain px-6 py-6">
           {priceBounds ? (
             <>
               <FilterSection title={`Price range (${priceUnitLabel})`}>
@@ -173,7 +173,7 @@ export function SearchFilters({ facets, bookingType, activeFilterCount }: Search
                   minStepsBetweenThumbs={1}
                   thumbLabels={["Minimum price", "Maximum price"]}
                 />
-                <div className="flex items-center justify-between text-sm text-gray-600">
+                <div className="flex items-center justify-between text-sm text-gray-600 tabular-nums">
                   <span>{formatNaira(sliderValue[0])}</span>
                   <span>
                     {formatNaira(sliderValue[1])}
@@ -300,30 +300,24 @@ export function SearchFilters({ facets, bookingType, activeFilterCount }: Search
           <Separator />
 
           <FilterSection title="Extras">
-            <div className="flex items-center justify-between gap-4">
-              <Label htmlFor="filter-fuel-included" className="inline cursor-pointer font-normal">
-                Fuel included in price
-              </Label>
+            <Label className="flex cursor-pointer items-center justify-between gap-4 font-normal">
+              Fuel included in price
               <Switch
-                id="filter-fuel-included"
                 checked={draft.fuelIncluded}
                 onCheckedChange={(checked) =>
                   setDraft((current) => ({ ...current, fuelIncluded: checked }))
                 }
               />
-            </div>
-            <div className="flex items-center justify-between gap-4">
-              <Label htmlFor="filter-deals-only" className="inline cursor-pointer font-normal">
-                On promotion
-              </Label>
+            </Label>
+            <Label className="flex cursor-pointer items-center justify-between gap-4 font-normal">
+              On promotion
               <Switch
-                id="filter-deals-only"
                 checked={draft.dealsOnly}
                 onCheckedChange={(checked) =>
                   setDraft((current) => ({ ...current, dealsOnly: checked }))
                 }
               />
-            </div>
+            </Label>
           </FilterSection>
         </div>
 
@@ -336,7 +330,7 @@ export function SearchFilters({ facets, bookingType, activeFilterCount }: Search
           >
             Clear all
           </Button>
-          <Button className="h-10 rounded-md px-4" onClick={handleApply}>
+          <Button className="h-10 rounded-md px-4" onClick={handleApply} aria-live="polite">
             {applyLabel}
           </Button>
         </div>

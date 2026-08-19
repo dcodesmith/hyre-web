@@ -19,7 +19,7 @@ pnpm dev
 ```
 
 Your application will be available at `http://localhost:5173`.
-The default local binding points to the Nest API at `http://127.0.0.1:3000`.
+The default local binding points to the API at `http://127.0.0.1:3000`.
 Copy `.dev.vars.example` to the uncommitted `.dev.vars` file and override
 `API_ORIGIN` when using a different local API origin.
 

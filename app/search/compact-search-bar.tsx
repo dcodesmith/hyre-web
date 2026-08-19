@@ -54,7 +54,7 @@ export function CompactSearchBar({ onClick }: CompactSearchBarProps) {
       <Search className="size-5 shrink-0 text-gray-500" aria-hidden="true" />
 
       {hasSelections ? (
-        <div className="flex items-center gap-2 text-sm font-medium text-gray-900">
+        <div className="flex min-w-0 items-center gap-2 text-sm font-medium text-gray-900">
           <span className="truncate">{formatDateRangeText(query.from, query.to)}</span>
           <span className="text-gray-300">•</span>
           <span className="truncate">{BOOKING_TYPE_OPTIONS_MAP[bookingType].label}</span>

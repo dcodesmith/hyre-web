@@ -2,12 +2,15 @@ import { describe, expect, it } from "vitest";
 
 import {
   applySearchFiltersToParams,
+  buildBookingTypeSearchPath,
   buildSearchPath,
   clearSearchFiltersPath,
   countActiveSearchFilters,
   emptySearchFilters,
   parseSearchUrl,
+  searchResultsIdentity,
   serializeSearchUrl,
+  shouldRevalidateSearch,
   toApiSearchParams,
 } from "~/search/search-url";
 
@@ -122,5 +125,59 @@ describe("search URL contract", () => {
 
     expect(countActiveSearchFilters(filters)).toBe(2);
     expect(clearSearchFiltersPath(params)).toBe("/search?from=2026-08-20&bookingType=NIGHT");
+  });
+
+  it("keeps filters and drops booking fields when booking type changes", () => {
+    expect(buildBookingTypeSearchPath("NIGHT")).toBe("/search?bookingType=NIGHT");
+    expect(
+      buildBookingTypeSearchPath(
+        "NIGHT",
+        new URLSearchParams(
+          "from=2026-08-20&to=2026-08-21&bookingType=DAY&pickupTime=9%20AM&vehicleType=SUV&dealsOnly=1&page=2",
+        ),
+      ),
+    ).toBe("/search?vehicleType=SUV&dealsOnly=1&bookingType=NIGHT");
+  });
+
+  it("skips result revalidation when only display booking type changes", () => {
+    const current = new URLSearchParams("vehicleType=SUV&bookingType=DAY");
+    const next = new URLSearchParams("vehicleType=SUV&bookingType=NIGHT");
+
+    expect(searchResultsIdentity(current)).toBe(searchResultsIdentity(next));
+    expect(shouldRevalidateSearch(current, next)).toBe(false);
+    expect(shouldRevalidateSearch(current, new URLSearchParams("countOnly=1"))).toBe(false);
+  });
+
+  it("revalidates search when dates or price filters make booking type affect the list", () => {
+    expect(
+      shouldRevalidateSearch(
+        new URLSearchParams("from=2026-08-20&to=2026-08-21&bookingType=DAY&vehicleType=SUV"),
+        new URLSearchParams("vehicleType=SUV&bookingType=NIGHT"),
+      ),
+    ).toBe(true);
+    expect(
+      shouldRevalidateSearch(
+        new URLSearchParams("minPrice=50000&bookingType=DAY"),
+        new URLSearchParams("minPrice=50000&bookingType=NIGHT"),
+      ),
+    ).toBe(true);
+    expect(
+      shouldRevalidateSearch(
+        new URLSearchParams("vehicleType=SUV&bookingType=DAY"),
+        new URLSearchParams("vehicleType=SEDAN&bookingType=DAY"),
+      ),
+    ).toBe(true);
+    expect(
+      shouldRevalidateSearch(
+        new URLSearchParams("from=2026-08-20&to=2026-08-21&bookingType=DAY&pickupTime=9%20AM"),
+        new URLSearchParams("from=2026-08-20&to=2026-08-21&bookingType=DAY&pickupTime=10%20AM"),
+      ),
+    ).toBe(true);
+    expect(
+      shouldRevalidateSearch(
+        new URLSearchParams("bookingType=DAY&pickupTime=9%20AM"),
+        new URLSearchParams("bookingType=DAY&pickupTime=10%20AM"),
+      ),
+    ).toBe(false);
   });
 });
