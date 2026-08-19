@@ -68,5 +68,6 @@ describe("car presentation", () => {
     expect(isNewListing("not-a-date", now)).toBe(false);
     expect(isNewListing("2026-08-12T12:00:00.000Z", now)).toBe(true);
     expect(isNewListing("2026-08-11T12:00:00.000Z", now)).toBe(false);
+    expect(isNewListing("2026-08-19T12:00:00.000Z", now)).toBe(false);
   });
 });

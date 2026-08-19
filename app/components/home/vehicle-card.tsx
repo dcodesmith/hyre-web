@@ -33,7 +33,8 @@ function VehicleCardBadges({
 }: VehicleCardBadgesProps) {
   const onPromotion = hasActivePromotion(promotion);
   const showNewBadge = isNewListing(createdAt);
-  const ratingLabel = `Average rating: ${averageRating.toFixed(1)} out of 5 stars`;
+  const displayRating = Math.max(0, Math.min(5, averageRating));
+  const ratingLabel = `Average rating: ${displayRating.toFixed(1)} out of 5 stars`;
 
   return (
     <>
@@ -58,9 +59,9 @@ function VehicleCardBadges({
 
       {totalReviews > 0 ? (
         <div className="absolute top-3 right-3 flex items-center gap-1.5 rounded-full bg-white/90 px-2 py-1.5 shadow-md transition-colors hover:bg-white">
-          <CompactStarRating rating={averageRating} ariaLabel={ratingLabel} />
+          <CompactStarRating rating={displayRating} ariaLabel={ratingLabel} />
           <span className="text-xs leading-none font-medium text-gray-700">
-            {averageRating.toFixed(1)} ({totalReviews})
+            {displayRating.toFixed(1)} ({totalReviews})
           </span>
         </div>
       ) : null}

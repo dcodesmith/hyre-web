@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   getEarliestBookableDate,
+  getPickupTimes,
   getToDateMinDate,
   isSameDayCutoffTomorrow,
   isValidToDateSelection,
@@ -119,6 +120,25 @@ describe("booking date rules", () => {
         now: morning,
       }),
     ).toBeUndefined();
+  });
+
+  it("offers only 11 PM for night bookings and keeps it across From changes", () => {
+    const morning = new Date("2026-08-18T09:30:00+01:00");
+    const today = new Date("2026-08-18T00:00:00+01:00");
+    const tomorrow = new Date("2026-08-19T00:00:00+01:00");
+
+    expect(getPickupTimes(tomorrow, "NIGHT", morning)).toEqual([
+      { label: "11 PM", value: "11 PM" },
+    ]);
+    expect(
+      nextPickupTimeOnFromChange({
+        bookingType: "NIGHT",
+        fromDate: tomorrow,
+        currentPickupTime: "11 PM",
+        fallbackDate: today,
+        now: morning,
+      }),
+    ).toBe("11 PM");
   });
 
   it("matches the hireApp same-day booking cutoff", () => {

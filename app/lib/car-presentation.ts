@@ -65,7 +65,8 @@ export function isNewListing(createdAt: string | undefined, now: Date = new Date
     return false;
   }
 
-  return now.getTime() - createdTime < NEW_LISTING_WINDOW_MS;
+  const ageMs = now.getTime() - createdTime;
+  return ageMs >= 0 && ageMs < NEW_LISTING_WINDOW_MS;
 }
 
 export function buildCategorySearchPath(category: CarCategory) {

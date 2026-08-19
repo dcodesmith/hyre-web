@@ -130,8 +130,12 @@ function hasPickupHourPassed(selectedDate: Date, hour: number, now: Date) {
 
 export function getPickupTimes(date: Date, bookingType: BookingType = "DAY", now = new Date()) {
   const times: Array<{ label: string; value: string }> = [];
-  const startHour = bookingType === FULL_DAY_BOOKING_TYPE ? 5 : 7;
-  const endHour = bookingType === FULL_DAY_BOOKING_TYPE ? 23 : 11;
+  const [startHour, endHour] =
+    bookingType === FULL_DAY_BOOKING_TYPE
+      ? [5, 23]
+      : bookingType === NIGHT_BOOKING_TYPE
+        ? [23, 23]
+        : [7, 11];
 
   for (let hour = startHour; hour <= endHour; hour += 1) {
     if (!hasPickupHourPassed(date, hour, now)) {
