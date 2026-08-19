@@ -63,12 +63,14 @@ test("filters FAQ questions and exposes an empty state", async ({ page }) => {
   await setCookiePreference(page);
   await page.goto("/faq");
 
+  const bookingTab = page.getByRole("tab", { name: /Booking & Reservations/ });
   const airportTab = page.getByRole("tab", { name: /Airport Transfers/ });
-  await airportTab.evaluate((element) => {
-    element.scrollIntoView({ block: "center", inline: "nearest" });
-  });
-  await airportTab.click();
-  await expect(airportTab).toHaveAttribute("aria-selected", "true");
+  await expect(bookingTab).toHaveAttribute("aria-selected", "true");
+  await expect(async () => {
+    await airportTab.scrollIntoViewIfNeeded();
+    await airportTab.click();
+    await expect(airportTab).toHaveAttribute("aria-selected", "true");
+  }).toPass();
 
   const search = page.getByRole("searchbox", { name: "Search frequently asked questions" });
   await search.fill("flight tracking");
