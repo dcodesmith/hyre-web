@@ -6,6 +6,8 @@ import { CarDomain, type DisplayCar, formatNaira } from "~/car/car-domain";
 import { CompactStarRating } from "~/car/compact-star-rating";
 import { cn } from "~/lib/utils";
 
+type CarView = ReturnType<typeof CarDomain>;
+
 interface VehicleCardProps {
   readonly car: DisplayCar;
   readonly bookingType?: BookingType;
@@ -23,6 +25,29 @@ interface VehicleCardBadgesProps {
   readonly displayRating: number;
   readonly ratingLabel: string;
   readonly totalReviews: number;
+}
+
+interface VehicleCardImageProps {
+  readonly imageUrl: string | undefined;
+  readonly name: string;
+  readonly isGrid: boolean;
+  readonly priority: boolean;
+}
+
+interface VehicleCardRateProps {
+  readonly view: CarView;
+  readonly priceClassName: string;
+}
+
+interface VehicleCardGridDetailsProps {
+  readonly car: DisplayCar;
+  readonly view: CarView;
+  readonly showTotal: boolean;
+  readonly totalPrice?: number;
+}
+
+interface VehicleCardCarouselDetailsProps {
+  readonly view: CarView;
 }
 
 function VehicleCardBadges({
@@ -67,6 +92,94 @@ function VehicleCardBadges({
   );
 }
 
+function VehicleCardImage({ imageUrl, name, isGrid, priority }: VehicleCardImageProps) {
+  if (!imageUrl) {
+    return (
+      <div className="flex size-full items-center justify-center text-sm text-gray-500">
+        Image unavailable
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={imageUrl}
+      alt={`${name} available for chauffeur hire`}
+      width={isGrid ? 800 : 500}
+      height={isGrid ? 600 : 375}
+      loading={priority ? "eager" : "lazy"}
+      fetchPriority={priority ? "high" : "auto"}
+      className="size-full object-cover transition-transform duration-300 group-hover:scale-[1.02] motion-reduce:transition-none"
+    />
+  );
+}
+
+function VehicleCardRate({ view, priceClassName }: VehicleCardRateProps) {
+  return (
+    <>
+      {view.showPromoPrice ? (
+        <span className="text-gray-400 line-through">{view.listRateLabel}</span>
+      ) : null}
+      <span className={priceClassName}>{view.displayRateLabel}</span>
+      <span className="text-gray-600">{view.rateLabel}</span>
+    </>
+  );
+}
+
+function VehicleCardGridDetails({ car, view, showTotal, totalPrice }: VehicleCardGridDetailsProps) {
+  return (
+    <div className="space-y-0.5">
+      <h3 className="text-sm font-semibold tracking-wider">
+        {car.make} {car.model} ({car.year})
+      </h3>
+      <div className="flex items-center gap-1.5 text-xs text-gray-600">
+        <span>{view.passengerCapacity}-Seater</span>
+        {view.pricingIncludesFuel ? (
+          <>
+            <span>•</span>
+            <span>Fuel Included</span>
+          </>
+        ) : null}
+      </div>
+      <div className="flex flex-wrap items-baseline gap-1 text-sm">
+        {showTotal && totalPrice ? (
+          <>
+            <span className="text-sm font-semibold">{formatNaira(totalPrice)}</span>
+            <span className="text-gray-600">total</span>
+          </>
+        ) : (
+          <VehicleCardRate
+            view={view}
+            priceClassName={cn("font-semibold", view.showPromoPrice && "text-red-600/95")}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function VehicleCardCarouselDetails({ view }: VehicleCardCarouselDetailsProps) {
+  return (
+    <div className="pt-3">
+      <h3 className="truncate text-sm font-semibold tracking-wide text-gray-950">{view.name}</h3>
+      <p className="mt-1 flex items-center gap-1.5 text-xs text-gray-600">
+        <Users aria-hidden="true" className="size-3.5" />
+        {view.passengerCapacity}-Seater
+        {view.pricingIncludesFuel ? <span>• Fuel included</span> : null}
+      </p>
+      <p className="mt-1 flex flex-wrap items-baseline gap-1 text-sm tabular-nums">
+        <VehicleCardRate
+          view={view}
+          priceClassName={cn(
+            "font-semibold",
+            view.showPromoPrice ? "text-red-600/95" : "text-gray-950",
+          )}
+        />
+      </p>
+    </div>
+  );
+}
+
 export function VehicleCard({
   car,
   bookingType = DAY_BOOKING_TYPE,
@@ -90,21 +203,12 @@ export function VehicleCard({
     >
       <div className={cn(isGrid && "group space-y-3 overflow-hidden")}>
         <div className="relative aspect-4/3 overflow-hidden rounded-xl bg-gray-100">
-          {view.imageUrl ? (
-            <img
-              src={view.imageUrl}
-              alt={`${view.name} available for chauffeur hire`}
-              width={isGrid ? 800 : 500}
-              height={isGrid ? 600 : 375}
-              loading={priority ? "eager" : "lazy"}
-              fetchPriority={priority ? "high" : "auto"}
-              className="size-full object-cover transition-transform duration-300 group-hover:scale-[1.02] motion-reduce:transition-none"
-            />
-          ) : (
-            <div className="flex size-full items-center justify-center text-sm text-gray-500">
-              Image unavailable
-            </div>
-          )}
+          <VehicleCardImage
+            imageUrl={view.imageUrl}
+            name={view.name}
+            isGrid={isGrid}
+            priority={priority}
+          />
 
           <VehicleCardBadges
             isNew={view.isNew}
@@ -118,63 +222,14 @@ export function VehicleCard({
         </div>
 
         {isGrid ? (
-          <div className="space-y-0.5">
-            <h3 className="text-sm font-semibold tracking-wider">
-              {car.make} {car.model} ({car.year})
-            </h3>
-            <div className="flex items-center gap-1.5 text-xs text-gray-600">
-              <span>{view.passengerCapacity}-Seater</span>
-              {view.pricingIncludesFuel ? (
-                <>
-                  <span>•</span>
-                  <span>Fuel Included</span>
-                </>
-              ) : null}
-            </div>
-            <div className="flex flex-wrap items-baseline gap-1 text-sm">
-              {showTotal && totalPrice ? (
-                <>
-                  <span className="text-sm font-semibold">{formatNaira(totalPrice)}</span>
-                  <span className="text-gray-600">total</span>
-                </>
-              ) : (
-                <>
-                  {view.showPromoPrice ? (
-                    <span className="text-gray-400 line-through">{view.listRateLabel}</span>
-                  ) : null}
-                  <span className={cn("font-semibold", view.showPromoPrice && "text-red-600/95")}>
-                    {view.displayRateLabel}
-                  </span>
-                  <span className="text-gray-600">{view.rateLabel}</span>
-                </>
-              )}
-            </div>
-          </div>
+          <VehicleCardGridDetails
+            car={car}
+            view={view}
+            showTotal={showTotal}
+            totalPrice={totalPrice}
+          />
         ) : (
-          <div className="pt-3">
-            <h3 className="truncate text-sm font-semibold tracking-wide text-gray-950">
-              {view.name}
-            </h3>
-            <p className="mt-1 flex items-center gap-1.5 text-xs text-gray-600">
-              <Users aria-hidden="true" className="size-3.5" />
-              {view.passengerCapacity}-Seater
-              {view.pricingIncludesFuel ? <span>• Fuel included</span> : null}
-            </p>
-            <p className="mt-1 flex flex-wrap items-baseline gap-1 text-sm tabular-nums">
-              {view.showPromoPrice ? (
-                <span className="text-gray-400 line-through">{view.listRateLabel}</span>
-              ) : null}
-              <span
-                className={cn(
-                  "font-semibold",
-                  view.showPromoPrice ? "text-red-600/95" : "text-gray-950",
-                )}
-              >
-                {view.displayRateLabel}
-              </span>
-              <span className="text-gray-600">{view.rateLabel}</span>
-            </p>
-          </div>
+          <VehicleCardCarouselDetails view={view} />
         )}
       </div>
     </Link>
