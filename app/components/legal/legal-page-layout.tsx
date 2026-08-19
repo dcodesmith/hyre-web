@@ -1,9 +1,9 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router";
 
-import { BreadcrumbStructuredData } from "~/components/seo/structured-data";
-import { LEGAL_CONSTANTS } from "~/constants/legal";
-import { SITE_ORIGIN } from "~/lib/seo";
+import { LEGAL_CONSTANTS } from "~/content/legal";
+import { SITE_ORIGIN } from "~/seo/metadata";
+import { BreadcrumbStructuredData } from "~/seo/structured-data";
 
 interface LegalPageLayoutProps {
   readonly children: ReactNode;

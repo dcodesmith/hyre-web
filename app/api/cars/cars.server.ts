@@ -1,8 +1,8 @@
 import { env } from "cloudflare:workers";
 import { z } from "zod";
 
-import { createApiClient } from "./api.server";
-import { carCategoriesResponseSchema } from "./contracts/car-categories";
+import { createApiClient } from "../api.server";
+import { carCategoriesResponseSchema } from "./schema";
 
 const carCategoriesLimitSchema = z.number().int().min(1).max(100).default(50);
 let apiClient: ReturnType<typeof createApiClient> | undefined;

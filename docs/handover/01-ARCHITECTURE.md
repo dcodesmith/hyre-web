@@ -104,6 +104,11 @@ Authenticated payment requests use the relayed Better Auth cookie. The guest pay
 
 ## Proposed web modules
 
+The live `app/` layout, naming, and import rules are in
+[App structure](./06-APP-STRUCTURE.md). That document supersedes the
+`lib/api` sketch below for implementation. The boundaries in this section
+still apply.
+
 ```text
 app/
   lib/

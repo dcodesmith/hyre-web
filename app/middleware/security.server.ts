@@ -24,7 +24,7 @@ const CONTENT_SECURITY_POLICY = [
   "font-src 'self' https://fonts.gstatic.com",
   "form-action 'self'",
   "frame-ancestors 'self'",
-  "img-src 'self' data: blob:",
+  "img-src 'self' data: blob: https://*.s3.eu-west-1.amazonaws.com https://*.s3.eu-west-2.amazonaws.com",
   "object-src 'none'",
   "script-src 'self' 'unsafe-inline'",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
@@ -122,6 +122,9 @@ export function applyResponsePolicy(
 
   if (hasSensitiveState) {
     headers.set("Cache-Control", "private, no-store");
+  } else if (options.environment === "preview") {
+    // Preview HTML must stay uncached so PR deploys are immediately visible.
+    headers.set("Cache-Control", "no-store");
   } else if (!headers.has("cache-control")) {
     // Public caching is opt-in per route once its complete cache key is known.
     headers.set("Cache-Control", "no-store");

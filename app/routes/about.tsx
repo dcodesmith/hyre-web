@@ -1,11 +1,10 @@
 import { ArrowRight, Building2, CheckCircle2, Clock, ShieldCheck, UserCheck } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link } from "react-router";
-
-import { BreadcrumbStructuredData } from "~/components/seo/structured-data";
 import { Button } from "~/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
-import { buildPageMetadata, SITE_ORIGIN, staticPageHeaders } from "~/lib/seo";
+import { buildPageMetadata, SITE_ORIGIN } from "~/seo/metadata";
+import { BreadcrumbStructuredData } from "~/seo/structured-data";
 
 export const meta = () =>
   buildPageMetadata({
@@ -15,7 +14,7 @@ export const meta = () =>
     path: "/about",
   });
 
-export const headers = staticPageHeaders;
+export { staticPageHeaders as headers } from "~/seo/metadata";
 
 export default function AboutPage() {
   return (

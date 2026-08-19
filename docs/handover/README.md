@@ -122,6 +122,7 @@ When implementations disagree:
 - [Route and API readiness](./03-ROUTE-API-READINESS.md)
 - [Cloudflare runbook](./04-CLOUDFLARE-RUNBOOK.md)
 - [Implementation skills and React effect policy](./05-IMPLEMENTATION-SKILLS.md)
+- [App structure](./06-APP-STRUCTURE.md)
 
 ## Definition of done
 

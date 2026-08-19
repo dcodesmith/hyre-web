@@ -10,13 +10,19 @@ interface PageMetadata {
   readonly title: string;
   readonly description: string;
   readonly path: `/${string}`;
+  readonly image?: string;
 }
 
-export function buildPageMetadata({ title, description, path }: PageMetadata): MetaDescriptor[] {
+export function buildPageMetadata({
+  title,
+  description,
+  path,
+  image,
+}: PageMetadata): MetaDescriptor[] {
   const canonical = `${SITE_ORIGIN}${path}`;
   const safeDescription = truncateDescription(description);
 
-  return [
+  const metadata: MetaDescriptor[] = [
     { title },
     { name: "description", content: safeDescription },
     { name: "robots", content: "index, follow" },
@@ -26,11 +32,21 @@ export function buildPageMetadata({ title, description, path }: PageMetadata): M
     { property: "og:type", content: "website" },
     { property: "og:site_name", content: SITE_NAME },
     { property: "og:locale", content: "en_NG" },
-    { name: "twitter:card", content: "summary" },
+    { name: "twitter:card", content: image ? "summary_large_image" : "summary" },
     { name: "twitter:title", content: title },
     { name: "twitter:description", content: safeDescription },
     { tagName: "link", rel: "canonical", href: canonical },
   ];
+
+  if (image) {
+    const imageUrl = new URL(image, SITE_ORIGIN).href;
+    metadata.push(
+      { property: "og:image", content: imageUrl },
+      { name: "twitter:image", content: imageUrl },
+    );
+  }
+
+  return metadata;
 }
 
 export function staticPageHeaders() {

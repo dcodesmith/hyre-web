@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildPageMetadata, staticPageHeaders } from "./seo";
+import { buildPageMetadata, staticPageHeaders } from "./metadata";
 
 describe("buildPageMetadata", () => {
   it("builds canonical and social metadata from the production origin", () => {
@@ -31,6 +31,38 @@ describe("buildPageMetadata", () => {
     expect(metadata).toContainEqual({
       name: "description",
       content: expect.stringMatching(/^.{1,155}$/),
+    });
+  });
+
+  it("adds large social-image metadata when a page provides an image", () => {
+    const image = "https://tripdly.com/og-image.jpg";
+    const metadata = buildPageMetadata({
+      title: "Tripdly",
+      description: "Book a chauffeur-driven vehicle.",
+      path: "/",
+      image,
+    });
+
+    expect(metadata).toContainEqual({ property: "og:image", content: image });
+    expect(metadata).toContainEqual({ name: "twitter:image", content: image });
+    expect(metadata).toContainEqual({ name: "twitter:card", content: "summary_large_image" });
+  });
+
+  it("resolves a relative social image against the production origin", () => {
+    const metadata = buildPageMetadata({
+      title: "Tripdly",
+      description: "Book a chauffeur-driven vehicle.",
+      path: "/",
+      image: "/og-image.jpg",
+    });
+
+    expect(metadata).toContainEqual({
+      property: "og:image",
+      content: "https://tripdly.com/og-image.jpg",
+    });
+    expect(metadata).toContainEqual({
+      name: "twitter:image",
+      content: "https://tripdly.com/og-image.jpg",
     });
   });
 });

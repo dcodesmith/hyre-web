@@ -2,7 +2,7 @@ import { Mail, MapPin, Phone } from "lucide-react";
 import { Link } from "react-router";
 
 import { FacebookIcon, InstagramIcon, XIcon } from "~/components/icons/social-icons";
-import { LEGAL_CONSTANTS } from "~/constants/legal";
+import { LEGAL_CONSTANTS } from "~/content/legal";
 
 const serviceLinks = [
   { to: "/chauffeur-service-lagos", label: "Chauffeur Service Lagos" },

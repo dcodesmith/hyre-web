@@ -1,8 +1,8 @@
 import { Link } from "react-router";
 
 import { LegalPageLayout } from "~/components/legal/legal-page-layout";
-import { LEGAL_CONSTANTS } from "~/constants/legal";
-import { buildPageMetadata, staticPageHeaders } from "~/lib/seo";
+import { LEGAL_CONSTANTS } from "~/content/legal";
+import { buildPageMetadata } from "~/seo/metadata";
 
 export const meta = () =>
   buildPageMetadata({
@@ -11,7 +11,7 @@ export const meta = () =>
     path: "/terms",
   });
 
-export const headers = staticPageHeaders;
+export { staticPageHeaders as headers } from "~/seo/metadata";
 
 export default function TermsPage() {
   const { companyName, supportEmail } = LEGAL_CONSTANTS;

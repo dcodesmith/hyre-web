@@ -17,6 +17,7 @@ const publicCarSchema = z.object({
   vehicleType: z.enum(["SEDAN", "SUV", "VAN", "CROSSOVER"]),
   serviceTier: z.enum(["STANDARD", "EXECUTIVE", "LUXURY", "ULTRA_LUXURY"]),
   images: z.array(z.object({ url: z.string() })),
+  createdAt: z.iso.datetime({ offset: true }).optional(),
   promotion: promotionSchema.nullable(),
   averageRating: z.number(),
   totalReviews: z.number().int(),
@@ -35,4 +36,6 @@ export const carCategoriesResponseSchema = z.object({
   total: z.number().int(),
 });
 
+export type PublicCar = z.infer<typeof publicCarSchema>;
+export type CarCategory = z.infer<typeof categorySchema>;
 export type CarCategoriesResponse = z.infer<typeof carCategoriesResponseSchema>;

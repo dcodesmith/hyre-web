@@ -58,7 +58,7 @@ export function normalizeProblemDetails(input: unknown, fallback: ProblemFallbac
   }
 
   return {
-    type: "UPSTREAM_HTTP_ERROR",
+    type: PUBLIC_UPSTREAM_ERROR.type,
     title: fallback.title,
     status: fallback.status,
     detail: fallback.detail,

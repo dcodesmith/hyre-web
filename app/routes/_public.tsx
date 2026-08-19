@@ -1,11 +1,15 @@
-import { Outlet } from "react-router";
+import { Outlet, useLocation } from "react-router";
 
 import { CookieConsentBanner } from "~/components/cookie-consent-banner";
 import { PublicFooter } from "~/components/layout/public-footer";
 import { PublicHeader } from "~/components/layout/public-header";
 import { PublicMobileNav } from "~/components/layout/public-mobile-nav";
+import { cn } from "~/lib/utils";
 
 export default function PublicLayout() {
+  const { pathname } = useLocation();
+  const isHeroPage = pathname === "/";
+
   return (
     <>
       <a
@@ -16,7 +20,11 @@ export default function PublicLayout() {
       </a>
       <div className="flex min-h-screen flex-col">
         <PublicHeader />
-        <main id="main-content" tabIndex={-1} className="min-h-125 flex-1 md:pt-17.25">
+        <main
+          id="main-content"
+          tabIndex={-1}
+          className={cn("min-h-125 flex-1", isHeroPage ? "md:pt-0" : "md:pt-17.25")}
+        >
           <Outlet />
         </main>
         <PublicFooter />

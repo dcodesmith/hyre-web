@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
 import { ApiRequestError, createApiClient } from "./api.server";
-import { carCategoriesResponseSchema } from "./contracts/car-categories";
+import { carCategoriesResponseSchema } from "./cars/schema";
 import { HTTP_STATUS, type HttpStatus } from "./http-status";
 import { toPublicProblemDetails } from "./problem-details";
 
@@ -485,6 +485,33 @@ describe("carCategoriesResponseSchema", () => {
         total: 1,
       }),
     ).toMatchObject({ total: 1 });
+  });
+
+  it("accepts optional createdAt ISO timestamps from Nest", () => {
+    const car = {
+      id: "car_123",
+      make: "Toyota",
+      model: "Camry",
+      year: 2024,
+      dayRate: 50_000,
+      passengerCapacity: 4,
+      pricingIncludesFuel: true,
+      vehicleType: "SEDAN",
+      serviceTier: "STANDARD",
+      images: [{ url: "https://images.example/car.jpg" }],
+      createdAt: "2026-08-11T09:00:00.000Z",
+      promotion: null,
+      averageRating: 4.5,
+      totalReviews: 10,
+    };
+
+    expect(
+      carCategoriesResponseSchema.parse({
+        categories: [],
+        allCars: [car],
+        total: 1,
+      }).allCars[0]?.createdAt,
+    ).toBe("2026-08-11T09:00:00.000Z");
   });
 });
 

@@ -89,11 +89,45 @@ describe("applyResponsePolicy", () => {
 
     expect(response.headers.get("x-request-id")).toBe("request-123");
     expect(response.headers.get("content-security-policy")).toContain("default-src 'self'");
+    expect(response.headers.get("content-security-policy")).toContain(
+      "img-src 'self' data: blob: https://*.s3.eu-west-1.amazonaws.com https://*.s3.eu-west-2.amazonaws.com",
+    );
     expect(response.headers.get("strict-transport-security")).toContain("max-age=31536000");
     expect(response.headers.get("x-content-type-options")).toBe("nosniff");
     expect(response.headers.get("x-robots-tag")).toBe("noindex, nofollow, noarchive");
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect(response.headers.get("server-timing")).toBe("app;dur=12.3");
+  });
+
+  it("overrides public cache headers on preview", () => {
+    const response = applyResponsePolicy(
+      new Request("https://preview.example/"),
+      new Response("<html></html>", {
+        headers: { "cache-control": "public, max-age=300" },
+      }),
+      {
+        environment: "preview",
+        requestId: "request-123",
+      },
+    );
+
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(response.headers.get("x-robots-tag")).toBe("noindex, nofollow, noarchive");
+  });
+
+  it("keeps opt-in public cache headers in local", () => {
+    const response = applyResponsePolicy(
+      new Request("http://localhost:5173/about"),
+      new Response("<html></html>", {
+        headers: { "cache-control": "public, max-age=300" },
+      }),
+      {
+        environment: "local",
+        requestId: "request-123",
+      },
+    );
+
+    expect(response.headers.get("cache-control")).toBe("public, max-age=300");
   });
 
   it("keeps public production pages indexable", () => {
