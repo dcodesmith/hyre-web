@@ -34,15 +34,16 @@ test("carries homepage booking params onto /search", async ({ page, viewport }) 
   await page.goto("/");
 
   const searchForm = page.locator('form[action="/search"]').first();
+  const airportTab = searchForm.getByRole("button", { name: "Airport" });
   await expect(searchForm.getByRole("button", { name: "Same Day" })).toHaveAttribute(
     "aria-pressed",
     "true",
   );
-  await searchForm.getByRole("button", { name: "Airport" }).click();
-  await expect(searchForm.getByRole("button", { name: "Airport" })).toHaveAttribute(
-    "aria-pressed",
-    "true",
-  );
+  await expect(async () => {
+    await airportTab.scrollIntoViewIfNeeded();
+    await airportTab.click();
+    await expect(airportTab).toHaveAttribute("aria-pressed", "true");
+  }).toPass();
   await expect(searchForm.getByLabel("Flight Number")).toBeVisible();
   await searchForm.getByLabel("Flight Number").fill("BA123");
   await searchForm.getByRole("button", { name: "Search for vehicles" }).click();
