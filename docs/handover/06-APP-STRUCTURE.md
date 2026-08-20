@@ -42,16 +42,29 @@ app/
     problem-details.ts
     http-status.ts
     cars/
-      cars.server.ts              # GET /api/cars/categories, GET /api/cars/search
-      schema.ts                   # PublicCar, SearchCar, categories, search
+      cars.server.ts              # GET /api/cars/categories, GET /api/cars/search, GET /api/cars/:carId
+      schema.ts                   # PublicCar, SearchCar, PublicCarDetail, categories, search
+    reviews/
+      reviews.server.ts           # GET /api/reviews/car/:carId
+      schema.ts                   # public review list + optional ratings
 
   car/
-    car-domain.ts                 # CarDomain(car, now, bookingType)
+    car-domain.ts                 # CarDomain(car, now, bookingType, booking)
     car-domain.test.ts
-    paths.ts                      # /cars/:slug-id, category → /search?…
+    paths.ts                      # /cars/:slug-fullCuid, category → /search?…
     paths.test.ts
+    car-url.ts                    # booking + reviews query on /cars/:slug
+    car-url.test.ts
     vehicle-card.tsx              # carousel + grid
     compact-star-rating.tsx
+    car-detail-page.tsx
+    car-gallery.tsx
+    car-information.tsx
+    car-booking-card.tsx          # URL booking chrome only; no pay
+
+  review/
+    review-list.tsx
+    review-sheet.tsx              # URL-driven dialog, no invented sub-ratings
 
   booking/
     types.ts                      # DAY | NIGHT | FULL_DAY | AIRPORT_PICKUP
@@ -117,18 +130,28 @@ app/
 
 ## Next (do not create empty)
 
-`GET /search` is live. The browser URL uses the same names as
-`GET /api/cars/search`: `bookingType`, `from`, `to`, `pickupTime`,
-`flightNumber`, `q`, `vehicleType`, `serviceTier`, `make`, `color`, `model`,
-`minPrice`, `maxPrice`, `minCapacity`, `fuelIncluded`, `dealsOnly`, `page`,
-`limit`, and `countOnly`. Category pills still map names to filters until
+`GET /search` and `GET /cars/:carSlug` are live. The browser search URL uses
+the same names as `GET /api/cars/search`: `bookingType`, `from`, `to`,
+`pickupTime`, `flightNumber`, `q`, `vehicleType`, `serviceTier`, `make`,
+`color`, `model`, `minPrice`, `maxPrice`, `minCapacity`, `fuelIncluded`,
+`dealsOnly`, `page`, `limit`, and `countOnly`. Category pills still map names
+to filters until
 [`hyre-worker-nestjs#190`](https://github.com/dcodesmith/hyre-worker-nestjs/issues/190)
 lands. Do not invent a second mapping.
 
-- Grow `app/api/cars` for public car detail
-- `app/api/places/`, `app/api/rates/`, `app/api/reviews/`
-- `app/review/` for the public review list
+Car detail keeps those booking and filter params and adds `reviews` plus
+`reviewsPage`. It does not reuse search `page`. Canonical slugs end with the
+**full 25-character CUID** because `GET /api/cars/:carId` validates
+`z.cuid()`. hireApp 13-character prefixes cannot be resolved without Prisma
+in the Worker or a new API prefix lookup, so they 404 until the API adds
+that. That is a cutover/SEO follow-up, not the preferred public URL shape.
+See [03-ROUTE-API-READINESS.md](./03-ROUTE-API-READINESS.md#follow-ups-found-during-implementation).
+Do not invent payable totals, availability, or review sub-rating aggregates
+here.
+
+- `app/api/places/`, `app/api/rates/`
 - AI search / places / flights (Phase 3 item 5)
+- Booking create / pricing-preview / pay (Phase 5)
 
 ## Later (verified API only)
 

@@ -4,6 +4,7 @@ import {
   calculateBookingUnits,
   getEarliestBookableDate,
   getToDateMinDate,
+  hasCompleteBookingDates,
   isSameDayCutoffTomorrow,
   isValidToDateSelection,
   nextToDateOnFromChange,
@@ -55,6 +56,15 @@ describe("booking date rules", () => {
         }),
       ),
     ).toBe("2026-08-20");
+  });
+
+  it("treats airport pickup as complete when only From is set", () => {
+    const from = new Date("2026-08-18T10:00:00+01:00");
+
+    expect(hasCompleteBookingDates("AIRPORT_PICKUP", from, undefined)).toBe(true);
+    expect(hasCompleteBookingDates("DAY", from, undefined)).toBe(false);
+    expect(hasCompleteBookingDates("DAY", from, from)).toBe(true);
+    expect(hasCompleteBookingDates("AIRPORT_PICKUP", undefined, undefined)).toBe(false);
   });
 
   it("clears To when From is cleared or moves past To", () => {

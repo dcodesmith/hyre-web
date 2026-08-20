@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   formatCompactPickerDate,
+  formatOutlinePickerDate,
   formatPickerDate,
   formatZonedDate,
   getZonedHour,
@@ -16,6 +17,10 @@ describe("service timezone helpers", () => {
 
   it("formats a service-timezone calendar date for the picker trigger", () => {
     expect(formatPickerDate(new Date("2026-08-18T23:00:00.000Z"))).toBe("Aug 19");
+  });
+
+  it("formats a service-timezone calendar date for the outlined picker trigger", () => {
+    expect(formatOutlinePickerDate(new Date("2026-08-18T23:00:00.000Z"))).toBe("Aug 19, 2026");
   });
 
   it("formats compact search-bar dates without a leading zero", () => {

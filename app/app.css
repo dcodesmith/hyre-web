@@ -168,6 +168,31 @@
   animation: fade-up 0.45s ease both;
 }
 
+/* Tailwind v3 container screens so car detail `lg:container` matches hireApp. */
+@utility container {
+  width: 100%;
+
+  @media (width >= 40rem) {
+    max-width: 40rem;
+  }
+
+  @media (width >= 48rem) {
+    max-width: 48rem;
+  }
+
+  @media (width >= 64rem) {
+    max-width: 64rem;
+  }
+
+  @media (width >= 80rem) {
+    max-width: 80rem;
+  }
+
+  @media (width >= 96rem) {
+    max-width: 96rem;
+  }
+}
+
 @utility scrollbar-hide {
   -ms-overflow-style: none;
   scrollbar-width: none;

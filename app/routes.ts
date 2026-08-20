@@ -6,6 +6,7 @@ const visualRoutes =
         route("__visual/public-shell", "routes/__visual.public-shell.tsx"),
         route("__visual/home", "routes/__visual.home.tsx"),
         route("__visual/search", "routes/__visual.search.tsx"),
+        route("__visual/car", "routes/__visual.car.tsx"),
       ]
     : [];
 
@@ -13,6 +14,7 @@ export default [
   layout("routes/_public.tsx", [
     index("routes/home.tsx"),
     route("search", "routes/search.tsx"),
+    route("cars/:carSlug", "routes/cars.$carSlug.tsx"),
     route("about", "routes/about.tsx"),
     route("faq", "routes/faq.tsx"),
     route("terms", "routes/terms.tsx"),

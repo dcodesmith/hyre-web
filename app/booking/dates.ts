@@ -76,6 +76,18 @@ export function getToDateMinDate(bookingType: BookingType, fromDate: Date | unde
   return fromDate;
 }
 
+export function hasCompleteBookingDates(
+  bookingType: BookingType,
+  fromDate: Date | undefined,
+  toDate: Date | undefined,
+) {
+  if (!fromDate) {
+    return false;
+  }
+
+  return bookingType === AIRPORT_PICKUP_BOOKING_TYPE || Boolean(toDate);
+}
+
 export function nextToDateOnFromChange(
   bookingType: BookingType,
   fromDate: Date | undefined,

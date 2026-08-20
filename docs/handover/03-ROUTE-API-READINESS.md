@@ -112,7 +112,9 @@ These should not be reimplemented in the Worker.
 **Available**
 
 - `/search` -> car search, rates, places
-- `/cars/:id` -> car detail and reviews
+- `/cars/:id` -> car detail and reviews. Canonical slugs use the full CUID
+  because `GET /api/cars/:carId` is `z.cuid()`. hireApp 13-character prefixes
+  404 until the API adds prefix lookup.
 - `/chauffeur-service-lagos` -> web content plus public car/search data
 
 **Gap unless an endpoint is added**
@@ -323,3 +325,65 @@ Before a migration phase starts, create one backend issue per missing capability
 - contract and e2e test acceptance criteria.
 
 An endpoint is ready only when it exists in the API, is authorized, is tested, and is usable without importing Prisma types into the web app.
+
+## Follow-ups found during implementation
+
+Append here when a shipped slice works but a better contract or SEO shape is
+blocked on the API. Do not invent the missing endpoint in the Worker.
+
+### Public car slugs and SEO
+
+hireApp canonical URLs are `{year}-{make}-{model}-{id.slice(0, 13)}`, for
+example `/cars/2019-lexus-ux-f-sport-cmmz4f7x00000`. The year-make-model
+prefix is the ranking-relevant part. The trailing id only disambiguates two
+listings with the same name. hireApp sitemap and any already-indexed Tripdly
+URLs use that short form.
+
+`GET /api/cars/:carId` validates a full CUID. This slice therefore ships
+`{year}-{make}-{model}-{fullCuid}` and 404s the 13-character prefix. That is
+the honest BFF choice. It is not the better SEO or cutover choice.
+
+What already fits:
+
+- title, description, and canonical omit booking query params;
+- wrong full-CUID slugs 301 to the generated slug;
+- Vehicle + Breadcrumb JSON-LD sit on the detail page.
+
+What does not fit:
+
+- existing hireApp URLs and sitemap locs will 404 after cutover unless we
+  301 them;
+- the extra 12 CUID characters add no keywords and make share URLs longer;
+- raw `/cars/{cuid}` works, then 301s, which is fine, but short slugs do not.
+
+Better end state, in the API, not Prisma in the Worker:
+
+1. Add public prefix lookup (`id startsWith` the last hyphen segment, or an
+   explicit `?idPrefix=` / slug resolve endpoint).
+2. Decide one canonical shape and keep it forever. Preferred for parity:
+   restore the 13-character hireApp slug and 301 full-CUID and raw-CUID
+   requests to it.
+3. Acceptable alternative: keep full CUID as the new canonical, but still
+   resolve short slugs and 301 them so indexed equity moves.
+4. Emit that same canonical in the later sitemap slice. Do not let sitemap
+   and `generateCarSlug` drift.
+
+13 characters was hireApp's uniqueness compromise, not a search keyword.
+Do not invent a human slug (`2019-lexus-ux-f-sport`) without a unique key;
+duplicate year-make-model listings would collide.
+
+### Other car-detail notes
+
+- Vehicle JSON-LD omits `aggregateRating` because hireApp did. The car DTO
+  already has `averageRating` and `totalReviews`. Adding the schema is an
+  SEO improvement once we decide to exceed hireApp, not an API gap.
+- Features and transmission copy are still static hireApp text. Seating
+  correctly uses `passengerCapacity`. Do not invent DTO fields for the rest.
+- If `GET /api/reviews/car/:carId` fails, the page hides the review CTA even
+  when the car DTO has a count. Safer than a broken sheet; weaker than
+  showing the car-level rating with a retry.
+- Sitemap (Phase 3 item 6) has no public “all approved cars” list. Categories
+  and search are paginated. The sitemap will need a dedicated public list or
+  an agreed composition of existing endpoints.
+- Card hrefs always include `bookingType=DAY`. Canonical stays clean. Fine
+  for UX; default `DAY` could be omitted later for shorter share links.

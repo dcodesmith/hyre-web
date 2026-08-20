@@ -4,6 +4,7 @@ import { Link } from "react-router";
 import { type BookingType, DAY_BOOKING_TYPE } from "~/booking/types";
 import { CarDomain, type DisplayCar, formatNaira } from "~/car/car-domain";
 import { CompactStarRating } from "~/car/compact-star-rating";
+import type { CarDetailBookingQuery } from "~/car/paths";
 import { cn } from "~/lib/utils";
 
 type CarView = ReturnType<typeof CarDomain>;
@@ -11,6 +12,7 @@ type CarView = ReturnType<typeof CarDomain>;
 interface VehicleCardProps {
   readonly car: DisplayCar;
   readonly bookingType?: BookingType;
+  readonly booking?: CarDetailBookingQuery;
   readonly priority?: boolean;
   readonly showTotal?: boolean;
   readonly totalUnits?: number;
@@ -185,12 +187,13 @@ function VehicleCardCarouselDetails({ view }: VehicleCardCarouselDetailsProps) {
 export function VehicleCard({
   car,
   bookingType = DAY_BOOKING_TYPE,
+  booking,
   priority = false,
   showTotal = false,
   totalUnits = 0,
   variant = "carousel",
 }: VehicleCardProps) {
-  const view = CarDomain(car, new Date(), bookingType);
+  const view = CarDomain(car, new Date(), bookingType, booking);
   const isGrid = variant === "grid";
 
   return (

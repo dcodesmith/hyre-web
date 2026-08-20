@@ -74,8 +74,14 @@ export const carSearchResponseSchema = z.object({
   pagination: searchPaginationSchema,
 });
 
+export const publicCarDetailSchema = searchCarSchema.extend({
+  hourlyRate: z.number().nullable(),
+  fuelUpgradeRate: z.number().nullable(),
+});
+
 export type PublicCar = z.infer<typeof publicCarSchema>;
 export type SearchCar = z.infer<typeof searchCarSchema>;
+export type PublicCarDetail = z.infer<typeof publicCarDetailSchema>;
 export type CarCategory = z.infer<typeof categorySchema>;
 export type CarCategoriesResponse = z.infer<typeof carCategoriesResponseSchema>;
 export type CarSearchResponse = z.infer<typeof carSearchResponseSchema>;
