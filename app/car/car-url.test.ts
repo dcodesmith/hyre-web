@@ -25,6 +25,13 @@ describe("car detail URL contract", () => {
     expect(query.search.vehicleTypes).toEqual(["SUV"]);
   });
 
+  it("rejects partial and non-decimal reviewsPage values", () => {
+    expect(parseCarDetailUrl(new URLSearchParams("reviewsPage=2junk")).reviewsPage).toBe(1);
+    expect(parseCarDetailUrl(new URLSearchParams("reviewsPage=2.5")).reviewsPage).toBe(1);
+    expect(parseCarDetailUrl(new URLSearchParams("reviewsPage=0")).reviewsPage).toBe(1);
+    expect(parseCarDetailUrl(new URLSearchParams("reviewsPage=3")).reviewsPage).toBe(3);
+  });
+
   it("serializes booking, filters, and review state", () => {
     const query = parseCarDetailUrl(
       new URLSearchParams(

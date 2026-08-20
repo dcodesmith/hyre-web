@@ -136,7 +136,7 @@ export function CarGallery({ images, carName, priority = false }: CarGalleryProp
       </div>
 
       {canNavigate ? (
-        <div className="absolute inset-0 items-center justify-between px-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300 hidden md:flex">
+        <div className="absolute inset-0 items-center justify-between px-4 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-300 hidden md:flex">
           <Button
             type="button"
             aria-label="Previous slide"

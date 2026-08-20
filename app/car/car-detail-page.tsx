@@ -129,7 +129,7 @@ export function CarDetailPage({ car, reviews }: CarDetailPageProps) {
           {car.make} {car.model} - {car.year}
         </h1>
 
-        <div className="lg:grid lg:grid-cols-[60%_40%] lg:gap-4">
+        <div className="lg:grid lg:grid-cols-[3fr_2fr] lg:gap-4">
           <div className="flex flex-col gap-4">
             <div className="hidden lg:block">
               <CarGallery images={images} carName={carName} priority />
