@@ -72,6 +72,13 @@ describe("publicCarDetailSchema", () => {
     expect(
       publicCarDetailSchema.safeParse({
         ...detailCar,
+        hourlyRate: null,
+        fuelUpgradeRate: null,
+      }).success,
+    ).toBe(true);
+    expect(
+      publicCarDetailSchema.safeParse({
+        ...detailCar,
         createdAt: "2026-08-12T12:00:00.000Z",
       }).success,
     ).toBe(true);

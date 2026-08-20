@@ -12,16 +12,23 @@ export interface CarDetailUrlQuery {
   readonly reviewsPage: number;
 }
 
+function parseReviewsPage(value: string | null) {
+  if (!value || !/^\d+$/.test(value)) {
+    return DEFAULT_REVIEWS_PAGE;
+  }
+
+  const page = Number(value);
+  return page >= 1 ? page : DEFAULT_REVIEWS_PAGE;
+}
+
 export function parseCarDetailUrl(searchParams: URLSearchParams): CarDetailUrlQuery {
   const search = parseSearchUrl(searchParams);
-  const reviewsPage = Number.parseInt(searchParams.get("reviewsPage") ?? "", 10);
 
   return {
     search,
     bookingType: search.bookingType ?? DAY_BOOKING_TYPE,
     reviewsOpen: searchParams.get("reviews") === "1" || searchParams.get("reviews") === "true",
-    reviewsPage:
-      Number.isInteger(reviewsPage) && reviewsPage >= 1 ? reviewsPage : DEFAULT_REVIEWS_PAGE,
+    reviewsPage: parseReviewsPage(searchParams.get("reviewsPage")),
   };
 }
 
