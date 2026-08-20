@@ -25,6 +25,13 @@ const pickerDateFormat = new Intl.DateTimeFormat("en-US", {
   day: "2-digit",
 });
 
+const outlinePickerDateFormat = new Intl.DateTimeFormat("en-US", {
+  timeZone: SERVICE_TIMEZONE,
+  month: "short",
+  day: "2-digit",
+  year: "numeric",
+});
+
 const compactPickerDateFormat = new Intl.DateTimeFormat("en-US", {
   timeZone: SERVICE_TIMEZONE,
   month: "short",
@@ -61,6 +68,10 @@ export function formatZonedDate(date: Date) {
 
 export function formatPickerDate(date: Date) {
   return pickerDateFormat.format(date);
+}
+
+export function formatOutlinePickerDate(date: Date) {
+  return outlinePickerDateFormat.format(date);
 }
 
 export function formatCompactPickerDate(date: Date) {

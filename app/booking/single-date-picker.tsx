@@ -1,10 +1,10 @@
 import { lazy, Suspense, useId, useState } from "react";
-import { LabeledDateTrigger } from "~/booking/date-picker-triggers";
+import { LabeledDateTrigger, OutlineDateTrigger } from "~/booking/date-picker-triggers";
 import { getDisabledBookableDays, getEarliestBookableDate } from "~/booking/dates";
 import type { BookingType } from "~/booking/types";
 import { Popover, PopoverContent, PopoverTrigger } from "~/components/ui/popover";
 import { cn } from "~/lib/utils";
-import { formatPickerDate, SERVICE_TIMEZONE } from "~/time/timezone";
+import { formatOutlinePickerDate, formatPickerDate, SERVICE_TIMEZONE } from "~/time/timezone";
 
 const Calendar = lazy(async () => {
   const { Calendar: CalendarComponent } = await import("~/components/ui/calendar");
@@ -23,6 +23,7 @@ interface SingleDatePickerProps {
   readonly label?: string;
   readonly placeholder?: string;
   readonly isCompact?: boolean;
+  readonly showLabel?: boolean;
 }
 
 export function SingleDatePicker({
@@ -33,8 +34,9 @@ export function SingleDatePicker({
   minDate,
   disabled = false,
   label = "Date",
-  placeholder = "Select date…",
+  placeholder: customPlaceholder,
   isCompact = false,
+  showLabel = true,
 }: SingleDatePickerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const rootId = useId();
@@ -57,23 +59,36 @@ export function SingleDatePicker({
   };
 
   const hasDate = Boolean(normalizedDate);
-  const formattedDate = normalizedDate ? formatPickerDate(normalizedDate) : null;
+  const formatTriggerDate = showLabel ? formatPickerDate : formatOutlinePickerDate;
+  const formattedDate = normalizedDate ? formatTriggerDate(normalizedDate) : null;
+  const placeholder = customPlaceholder ?? (showLabel ? "Select date…" : "Pick a date");
 
   return (
     <div className={cn("w-full", className)}>
       <Popover open={isOpen && !disabled} onOpenChange={setIsOpen}>
         <PopoverTrigger asChild>
-          <LabeledDateTrigger
-            triggerId={triggerId}
-            labelTextId={labelTextId}
-            valueTextId={valueTextId}
-            disabled={disabled}
-            hasDate={hasDate}
-            label={label}
-            formattedDate={formattedDate}
-            placeholder={placeholder}
-            isCompact={isCompact}
-          />
+          {showLabel ? (
+            <LabeledDateTrigger
+              triggerId={triggerId}
+              labelTextId={labelTextId}
+              valueTextId={valueTextId}
+              disabled={disabled}
+              hasDate={hasDate}
+              label={label}
+              formattedDate={formattedDate}
+              placeholder={placeholder}
+              isCompact={isCompact}
+            />
+          ) : (
+            <OutlineDateTrigger
+              triggerId={triggerId}
+              disabled={disabled}
+              hasDate={hasDate}
+              formattedDate={formattedDate}
+              placeholder={placeholder}
+              isOpen={isOpen}
+            />
+          )}
         </PopoverTrigger>
         <PopoverContent
           className="w-auto gap-0 rounded border border-neutral-200 bg-white p-0 text-neutral-950 shadow-md ring-0"

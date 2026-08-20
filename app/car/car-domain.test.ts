@@ -30,7 +30,7 @@ describe("CarDomain", () => {
     const view = CarDomain(car(), now);
 
     expect(view.name).toBe("Lexus UX F-Sport (2019)");
-    expect(view.href).toBe("/cars/2019-lexus-ux-f-sport-cmmz4f7x00000?bookingType=DAY");
+    expect(view.href).toBe("/cars/2019-lexus-ux-f-sport-cmmz4f7x00000l804jj2d6ikn?bookingType=DAY");
     expect(view.imageUrl).toBe("/images/hero-640.webp");
   });
 
@@ -115,5 +115,11 @@ describe("CarDomain", () => {
     expect(CarDomain(searchCar, now, "FULL_DAY").listRate).toBe(100_000);
     expect(CarDomain(searchCar, now, "AIRPORT_PICKUP").rateLabel).toBe("/ pickup");
     expect(CarDomain(searchCar, now, "NIGHT").href).toContain("bookingType=NIGHT");
+    expect(
+      CarDomain(searchCar, now, "DAY", {
+        from: "2026-08-20",
+        to: "2026-08-21",
+      }).href,
+    ).toContain("from=2026-08-20");
   });
 });

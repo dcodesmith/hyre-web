@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { carSearchResponseSchema } from "./schema";
+import { carSearchResponseSchema, publicCarDetailSchema } from "./schema";
 
 describe("carSearchResponseSchema", () => {
   it("accepts a live search car whose owner name is null", () => {
@@ -40,5 +40,40 @@ describe("carSearchResponseSchema", () => {
     });
 
     expect(parsed.success).toBe(true);
+  });
+});
+
+describe("publicCarDetailSchema", () => {
+  const detailCar = {
+    id: "cmmz4f7x00000l804jj2d6ikn",
+    make: "Lexus",
+    model: "UX F-Sport",
+    year: 2019,
+    color: "Black",
+    dayRate: 100_000,
+    nightRate: 80_000,
+    fullDayRate: 160_000,
+    airportPickupRate: 70_000,
+    hourlyRate: 12_000,
+    fuelUpgradeRate: 15_000,
+    passengerCapacity: 5,
+    pricingIncludesFuel: true,
+    vehicleType: "SUV",
+    serviceTier: "LUXURY",
+    images: [{ url: "https://example.com/lexus.jpg" }],
+    owner: { username: "fleet-one", name: null },
+    promotion: null,
+    averageRating: 4.8,
+    totalReviews: 12,
+  };
+
+  it("accepts extra booking rates and optional listing time", () => {
+    expect(publicCarDetailSchema.safeParse(detailCar).success).toBe(true);
+    expect(
+      publicCarDetailSchema.safeParse({
+        ...detailCar,
+        createdAt: "2026-08-12T12:00:00.000Z",
+      }).success,
+    ).toBe(true);
   });
 });

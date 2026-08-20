@@ -38,6 +38,7 @@ interface SearchPageProps {
 function SearchCarGrid({
   cars,
   bookingType,
+  searchParams,
   hasDateFilters,
   totalUnits,
   hasMore,
@@ -45,6 +46,7 @@ function SearchCarGrid({
 }: {
   readonly cars: SearchCar[];
   readonly bookingType: BookingType;
+  readonly searchParams: URLSearchParams;
   readonly hasDateFilters: boolean;
   readonly totalUnits: number;
   readonly hasMore: boolean;
@@ -58,6 +60,7 @@ function SearchCarGrid({
             key={car.id}
             car={car}
             bookingType={bookingType}
+            booking={{ preserveSearch: searchParams }}
             priority={index < 6}
             variant="grid"
             showTotal={hasDateFilters}
@@ -162,6 +165,7 @@ function SearchResults({ result }: { readonly result: CarSearchResponse }) {
         <SearchCarGrid
           cars={allCars}
           bookingType={bookingType}
+          searchParams={searchParams}
           hasDateFilters={hasDateFilters}
           totalUnits={totalUnits}
           hasMore={hasMore}

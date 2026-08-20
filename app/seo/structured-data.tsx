@@ -67,6 +67,62 @@ export function FaqStructuredData({ items }: FaqStructuredDataProps) {
   );
 }
 
+interface VehicleStructuredDataProps {
+  readonly name: string;
+  readonly description: string;
+  readonly image: string;
+  readonly url: string;
+  readonly brand: string;
+  readonly model: string;
+  readonly year: number;
+  readonly color: string | null;
+  readonly seatingCapacity: number;
+  readonly vehicleType: string;
+  readonly price: number;
+}
+
+export function VehicleStructuredData({
+  name,
+  description,
+  image,
+  url,
+  brand,
+  model,
+  year,
+  color,
+  seatingCapacity,
+  vehicleType,
+  price,
+}: VehicleStructuredDataProps) {
+  return (
+    <StructuredData
+      value={{
+        "@context": "https://schema.org",
+        "@type": "Vehicle",
+        name,
+        description,
+        image,
+        url,
+        brand: {
+          "@type": "Brand",
+          name: brand,
+        },
+        model,
+        vehicleModelDate: String(year),
+        color: color ?? undefined,
+        seatingCapacity,
+        vehicleConfiguration: vehicleType,
+        offers: {
+          "@type": "Offer",
+          price,
+          priceCurrency: "NGN",
+          availability: "https://schema.org/InStock",
+        },
+      }}
+    />
+  );
+}
+
 export function HomeStructuredData() {
   return (
     <>

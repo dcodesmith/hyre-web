@@ -3,6 +3,7 @@ import { Link } from "react-router";
 
 import { FacebookIcon, InstagramIcon, XIcon } from "~/components/icons/social-icons";
 import { LEGAL_CONSTANTS } from "~/content/legal";
+import { cn } from "~/lib/utils";
 
 const serviceLinks = [
   { to: "/chauffeur-service-lagos", label: "Chauffeur Service Lagos" },
@@ -65,9 +66,14 @@ function FooterLinkList({ links }: FooterLinkListProps) {
   );
 }
 
-export function PublicFooter() {
+export function PublicFooter({ isCarDetailPage = false }: { readonly isCarDetailPage?: boolean }) {
   return (
-    <footer className="border-t border-gray-200 bg-gray-50 pb-24 md:pb-0">
+    <footer
+      className={cn(
+        "border-t border-gray-200 bg-gray-50",
+        isCarDetailPage ? "hidden lg:mt-10 lg:block" : "pb-24 md:pb-0",
+      )}
+    >
       <div className="mx-auto max-w-7xl px-4 py-12 md:px-6 lg:px-8">
         <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-4 lg:gap-12">
           <div className="flex flex-col gap-4">

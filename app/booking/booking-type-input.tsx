@@ -46,7 +46,7 @@ export function BookingTypeInput({
           placeholder="e.g. BA123…"
           autoComplete="off"
           spellCheck={false}
-          className="w-full cursor-text border-b border-transparent bg-transparent p-0 text-sm leading-tight text-gray-900 outline-none placeholder:text-gray-400 focus-visible:border-gray-900"
+          className="w-full cursor-text border-0 bg-transparent p-0 text-sm leading-tight text-gray-900 shadow-none outline-none placeholder:text-gray-400 focus:ring-0 focus-visible:ring-0"
         />
       </label>
     );

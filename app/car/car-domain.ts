@@ -1,6 +1,6 @@
 import type { PublicCar, SearchCar } from "~/api/cars/schema";
 import { type BookingType, DAY_BOOKING_TYPE } from "~/booking/types";
-import { buildCarDetailPath } from "~/car/paths";
+import { buildCarDetailPath, type CarDetailBookingQuery } from "~/car/paths";
 
 const currencyFormatter = new Intl.NumberFormat("en-NG", {
   style: "currency",
@@ -90,6 +90,7 @@ export function CarDomain(
   car: DisplayCar,
   now = new Date(),
   bookingType: BookingType = DAY_BOOKING_TYPE,
+  booking: CarDetailBookingQuery = {},
 ) {
   const promotion = hasActivePromotion(car.promotion) ? car.promotion : null;
   const listRate = getRateForBookingType(car, bookingType);
@@ -106,7 +107,7 @@ export function CarDomain(
     displayRating,
     ratingLabel: `Average rating: ${displayRating.toFixed(1)} out of 5 stars`,
     name: `${car.make} ${car.model} (${car.year})`,
-    href: buildCarDetailPath(car, bookingType),
+    href: buildCarDetailPath(car, bookingType, booking),
     imageUrl: car.images[0]?.url,
     listRate,
     displayRate,
