@@ -45,7 +45,9 @@ test("shows airport pickup flight and address fields when a from date is present
   await expect(page.getByLabel("Pickup Address")).toBeVisible();
   await expect(page.getByLabel("Drop-off Address")).toBeVisible();
 
-  await page.getByLabel("Flight Number").fill("BA");
+  const flightNumber = page.getByLabel("Flight Number");
+  await flightNumber.click();
+  await flightNumber.pressSequentially("BA");
   await expect(page.getByRole("button", { name: /British Airways/ })).toBeVisible();
 });
 

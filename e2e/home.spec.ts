@@ -38,7 +38,9 @@ test("renders crawlable homepage metadata and booking controls", async ({ page }
     "true",
   );
   await expect(page.getByLabel("Flight Number")).toBeVisible();
-  await page.getByLabel("Flight Number").fill("BA");
+  const flightNumber = page.getByLabel("Flight Number");
+  await flightNumber.click();
+  await flightNumber.pressSequentially("BA");
   await expect(page.getByRole("button", { name: /British Airways/ })).toBeVisible();
 
   const structuredData = await page.locator('script[type="application/ld+json"]').allTextContents();

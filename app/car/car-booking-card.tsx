@@ -391,7 +391,6 @@ export function CarBookingCard({ car }: CarBookingCardProps) {
     query.search.from,
     query.search.to,
     query.search.pickupTime,
-    query.search.flightNumber,
   ].join("|");
   const airportPickup = useAirportPickup({
     onFlightFound: (flight) => {
