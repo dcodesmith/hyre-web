@@ -1,6 +1,4 @@
-import type { TripDurationResponse } from "~/api/flights/schema";
 import { AddressAutocomplete } from "~/booking/address-autocomplete";
-import { formatTripDuration } from "~/booking/airport-pickup";
 import { Checkbox } from "~/components/ui/checkbox";
 import { Label } from "~/components/ui/label";
 
@@ -15,7 +13,6 @@ interface BookingLocationFieldsProps {
   readonly pickupIsReadOnly: boolean;
   readonly showDropOff: boolean;
   readonly nightHelper: string | null;
-  readonly tripDuration: TripDurationResponse | null;
   readonly onPickupAddressSelect: (address: string) => void;
   readonly onDropOffAddressSelect: (address: string) => void;
   readonly onSameLocationChange: (checked: boolean) => void;
@@ -32,7 +29,6 @@ export function BookingLocationFields({
   pickupIsReadOnly,
   showDropOff,
   nightHelper,
-  tripDuration,
   onPickupAddressSelect,
   onDropOffAddressSelect,
   onSameLocationChange,
@@ -78,11 +74,6 @@ export function BookingLocationFields({
             value={dropOffAddress}
             onSelect={onDropOffAddressSelect}
           />
-          {tripDuration ? (
-            <p className="text-xs text-gray-600" aria-live="polite">
-              {formatTripDuration(tripDuration)}
-            </p>
-          ) : null}
         </div>
       ) : null}
     </>

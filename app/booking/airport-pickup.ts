@@ -33,12 +33,64 @@ export function composeAirportPickupAddress(flight: SearchFlight) {
   );
 }
 
-export function formatFlightArrivalSummary(flight: SearchFlight) {
+export function formatLagosClock(value: Date | string) {
+  return arrivalTimeFormat.format(new Date(value)).replace(/\s+/g, " ");
+}
+
+export function formatFlightRoute(flight: SearchFlight) {
   const origin = flight.originIATA?.trim() || flight.origin.trim();
   const destination = flight.destinationIATA?.trim() || flight.destination.trim();
-  const arrival = arrivalTimeFormat.format(new Date(flight.arrivalTime)).replace(/\s+/g, " ");
 
-  return `${origin} → ${destination} • ${arrival}`;
+  return `${origin} → ${destination}`;
+}
+
+export function formatFlightArrivalSummary(flight: SearchFlight) {
+  return `${formatFlightRoute(flight)} • ${formatLagosClock(flight.arrivalTime)}`;
+}
+
+const PICKUP_AFTER_ARRIVAL_MS = 40 * 60 * 1000;
+
+export function bufferedDriveMinutes(durationMinutes: number) {
+  return Math.ceil(durationMinutes * 1.2);
+}
+
+export function formatBufferedDrive(minutes: number) {
+  if (minutes < 60) {
+    return `${minutes} mins`;
+  }
+
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+
+  if (remainingMinutes === 0) {
+    return `${hours} hour${hours > 1 ? "s" : ""}`;
+  }
+
+  return `${hours} hour${hours > 1 ? "s" : ""} ${remainingMinutes} mins`;
+}
+
+export function formatDistanceText(distanceMeters: number) {
+  if (distanceMeters <= 0) {
+    return "Distance unavailable";
+  }
+
+  return `${(distanceMeters / 1000).toFixed(1)} km`;
+}
+
+export function buildTripDetails(arrivalTime: string, duration: TripDurationResponse) {
+  const arrival = new Date(arrivalTime);
+  const pickup = new Date(arrival.getTime() + PICKUP_AFTER_ARRIVAL_MS);
+  const driveMinutes = bufferedDriveMinutes(duration.durationMinutes);
+  const dropOff = new Date(pickup.getTime() + driveMinutes * 60 * 1000);
+
+  return {
+    arrivalTime: formatLagosClock(arrival),
+    pickupTime: formatLagosClock(pickup),
+    driveText: formatBufferedDrive(driveMinutes),
+    distanceText: formatDistanceText(duration.distanceMeters),
+    dropOffTime: formatLagosClock(dropOff),
+    isEstimate: duration.isEstimate,
+  };
 }
 
 export function nightBookingHelperText(bookingType: BookingType, nights: number): string | null {
@@ -47,11 +99,4 @@ export function nightBookingHelperText(bookingType: BookingType, nights: number)
   }
 
   return `All overnight bookings start at 11pm and end at 5am. Booking for ${nights} night${nights === 1 ? "" : "s"}.`;
-}
-
-export function formatTripDuration(duration: TripDurationResponse) {
-  const minutes = Math.max(1, Math.round(duration.durationMinutes));
-  const estimate = duration.isEstimate ? " (estimate)" : "";
-
-  return `About ${minutes} min from the airport${estimate}`;
 }

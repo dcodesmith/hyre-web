@@ -44,6 +44,9 @@ test("shows airport pickup flight and address fields when a from date is present
   await expect(page.getByLabel("Flight Number")).toBeVisible();
   await expect(page.getByLabel("Pickup Address")).toBeVisible();
   await expect(page.getByLabel("Drop-off Address")).toBeVisible();
+
+  await page.getByLabel("Flight Number").fill("BA");
+  await expect(page.getByRole("button", { name: /British Airways/ })).toBeVisible();
 });
 
 test("returns 404 for a hireApp short slug the API cannot resolve", async ({ page }) => {

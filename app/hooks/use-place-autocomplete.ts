@@ -34,15 +34,13 @@ export function usePlaceAutocomplete({
   const resolveFetcher = useFetcher<ResolveActionData>();
   const autocompleteFetcherRef = useRef(autocompleteFetcher);
   const onResolvedRef = useRef(onResolved);
-  const sessionTokenRef = useRef(crypto.randomUUID());
+  const sessionTokenRef = useRef<string | null>(null);
+  const resolveFallbackRef = useRef("");
   const lastResolvedRef = useRef<string | null>(null);
   const [requestedInput, setRequestedInput] = useState<string | null>(null);
 
+  autocompleteFetcherRef.current = autocompleteFetcher;
   onResolvedRef.current = onResolved;
-
-  useEffect(() => {
-    autocompleteFetcherRef.current = autocompleteFetcher;
-  }, [autocompleteFetcher]);
 
   useEffect(() => {
     const trimmed = input.trim();
@@ -52,6 +50,7 @@ export function usePlaceAutocomplete({
     }
 
     const timeout = setTimeout(() => {
+      sessionTokenRef.current ??= crypto.randomUUID();
       const params = new URLSearchParams({
         input: trimmed,
         sessionToken: sessionTokenRef.current,
@@ -64,11 +63,11 @@ export function usePlaceAutocomplete({
   }, [enabled, input]);
 
   useEffect(() => {
-    if (resolveFetcher.state !== "idle") {
+    if (resolveFetcher.state !== "idle" || resolveFetcher.data == null) {
       return;
     }
 
-    const address = resolveFetcher.data?.address;
+    const address = resolveFetcher.data.address ?? resolveFallbackRef.current;
 
     if (!address || address === lastResolvedRef.current) {
       return;
@@ -78,8 +77,10 @@ export function usePlaceAutocomplete({
     onResolvedRef.current(address);
   }, [resolveFetcher.data, resolveFetcher.state]);
 
-  const resolve = (placeId: string) => {
+  const resolve = (placeId: string, fallbackAddress: string) => {
     lastResolvedRef.current = null;
+    resolveFallbackRef.current = fallbackAddress;
+    sessionTokenRef.current ??= crypto.randomUUID();
     resolveFetcher.submit(
       { placeId, sessionToken: sessionTokenRef.current },
       { method: "POST", action: "/api/places/resolve" },

@@ -390,7 +390,9 @@ duplicate year-make-model listings would collide.
 - Places autocomplete/resolve and `GET /api/search-flight` /
   `GET /api/calculate-trip-duration` are wired on the car booking card.
   hireApp sent `arrivalTime` on trip duration; the API only accepts
-  `destination`. Web does not rewrite `from`/`to`/`pickupTime` from the
+  `destination`. The BFF forwards `CF-Connecting-IP` as `X-Forwarded-For`
+  so API per-IP limits apply per browser, not per Worker egress.
+  Web does not rewrite `from`/`to`/`pickupTime` from the
   flight window yet — that stays with booking create (Phase 5).
 - `GET /api/rates` and `POST /api/ai-search` are still unused. Rates are
   payable totals. AI search is a separate home/search modal.

@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  buildTripDetails,
   composeAirportPickupAddress,
+  formatBufferedDrive,
+  formatDistanceText,
   formatFlightArrivalSummary,
-  formatTripDuration,
+  formatFlightRoute,
   isCompleteFlightNumber,
   nightBookingHelperText,
   normalizeFlightNumber,
@@ -46,11 +49,28 @@ describe("airport pickup helpers", () => {
     ).toBe("Lagos");
   });
 
-  it("formats arrival and drive-time copy", () => {
-    expect(formatFlightArrivalSummary(flight)).toMatch(/^ATL → LOS • /);
-    expect(formatTripDuration({ durationMinutes: 48.2, distanceMeters: 1, isEstimate: true })).toBe(
-      "About 48 min from the airport (estimate)",
-    );
+  it("formats arrival and trip-detail copy", () => {
+    expect(formatFlightRoute(flight)).toBe("ATL → LOS");
+    expect(formatFlightArrivalSummary(flight)).toBe("ATL → LOS • 6:45 PM");
+    expect(formatBufferedDrive(48)).toBe("48 mins");
+    expect(formatBufferedDrive(60)).toBe("1 hour");
+    expect(formatBufferedDrive(90)).toBe("1 hour 30 mins");
+    expect(formatDistanceText(22_000)).toBe("22.0 km");
+    expect(formatDistanceText(0)).toBe("Distance unavailable");
+    expect(
+      buildTripDetails(flight.arrivalTime, {
+        durationMinutes: 48,
+        distanceMeters: 22_000,
+        isEstimate: false,
+      }),
+    ).toEqual({
+      arrivalTime: "6:45 PM",
+      pickupTime: "7:25 PM",
+      driveText: "58 mins",
+      distanceText: "22.0 km",
+      dropOffTime: "8:23 PM",
+      isEstimate: false,
+    });
   });
 
   it("builds night helper copy only for overnight bookings", () => {

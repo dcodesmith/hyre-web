@@ -19,13 +19,13 @@ interface TripDurationLoaderData {
  * Same-origin airport-pickup flight lookup and trip-duration estimate.
  *
  * Fetcher completion is an external system, so the fetchers live here
- * instead of in the booking card.
+ * instead of in the booking card or search form.
  */
 export function useAirportPickup({
   onFlightFound,
 }: {
-  readonly onFlightFound: (flight: SearchFlight) => void;
-}) {
+  readonly onFlightFound?: (flight: SearchFlight) => void;
+} = {}) {
   const flightFetcher = useFetcher<SearchFlightLoaderData>();
   const durationFetcher = useFetcher<TripDurationLoaderData>();
   const onFlightFoundRef = useRef(onFlightFound);
@@ -45,7 +45,7 @@ export function useAirportPickup({
     }
 
     lastAppliedFlightIdRef.current = flight.flightId;
-    onFlightFoundRef.current(flight);
+    onFlightFoundRef.current?.(flight);
   }, [flightFetcher.data, flightFetcher.state]);
 
   const flightResult = flightFetcher.state === "idle" ? flightFetcher.data : undefined;

@@ -88,6 +88,10 @@ app/
     booking-location-fields.tsx
     airport-pickup.ts
     airport-pickup.test.ts
+    trip-details.tsx              # airport pickup arrival / drive / drop-off
+    airlines.json                 # Nigeria-serving airlines for flight suggestions
+    airlines.ts
+    airlines.test.ts
 
   search/
     search-url.ts                 # /search query contract + API serialization
