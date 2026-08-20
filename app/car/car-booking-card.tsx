@@ -147,7 +147,7 @@ function CarBookingCardFields({
   };
 
   return (
-    <Card className="gap-0 rounded py-0 shadow-xl ring-0 inset-shadow-sm transform-gpu">
+    <Card className="gap-0 overflow-visible rounded border py-0 shadow-xl ring-0 transform-gpu">
       <CardHeader className="px-4 lg:px-6 py-4">
         <CardTitle className="font-semibold leading-none tracking-tight">
           <span className="text-lg" aria-live="polite">
@@ -173,8 +173,8 @@ function CarBookingCardFields({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4 [&>div:first-of-type]:mt-0 px-4 pb-6 lg:px-6">
-        <div className="space-y-1">
-          <Label className="font-semibold">Booking Type</Label>
+        <div className="flex flex-col gap-2">
+          <Label className="block font-semibold">Booking Type</Label>
           <BookingTypeTabs
             value={bookingType}
             onValueChange={handleBookingTypeChange}
@@ -182,8 +182,8 @@ function CarBookingCardFields({
           />
         </div>
 
-        <div className="space-y-1">
-          <Label className="font-semibold">
+        <div className="flex flex-col gap-2">
+          <Label className="block font-semibold">
             {isAirportPickup ? "Select Date" : "Select Dates"}
           </Label>
           {isAirportPickup ? (
@@ -218,8 +218,8 @@ function CarBookingCardFields({
         </div>
 
         {hasCompleteDates && isAirportPickup ? (
-          <div className="space-y-1">
-            <Label htmlFor={flightNumberId} className="font-semibold">
+          <div className="flex flex-col gap-2">
+            <Label htmlFor={flightNumberId} className="block font-semibold">
               Flight Number
             </Label>
             <input
@@ -235,14 +235,14 @@ function CarBookingCardFields({
               placeholder="e.g. BA123…"
               autoComplete="off"
               spellCheck={false}
-              className="flex h-10 w-full rounded-lg border border-input bg-transparent px-3 text-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+              className="flex h-10 w-full rounded border border-input bg-transparent px-3 text-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
             />
           </div>
         ) : null}
 
         {hasCompleteDates && !isAirportPickup && bookingType !== NIGHT_BOOKING_TYPE ? (
-          <div className="space-y-1">
-            <Label htmlFor={pickupTimeId} className="font-semibold">
+          <div className="flex flex-col gap-2">
+            <Label htmlFor={pickupTimeId} className="block font-semibold">
               Pickup Time
             </Label>
             <BookingTimeSelect
@@ -277,9 +277,8 @@ export function CarBookingCard({ car }: CarBookingCardProps) {
   const [searchParams] = useSearchParams();
   const query = parseCarDetailUrl(searchParams);
   const initialFromDate = query.search.from ? parseZonedCalendarDate(query.search.from) : undefined;
-  const initialToDate = query.search.to
-    ? parseZonedCalendarDate(query.search.to)
-    : nextToDateOnFromChange(query.bookingType, initialFromDate, undefined);
+  const parsedToDate = query.search.to ? parseZonedCalendarDate(query.search.to) : undefined;
+  const initialToDate = nextToDateOnFromChange(query.bookingType, initialFromDate, parsedToDate);
   const resetKey = [
     query.bookingType,
     query.search.from,

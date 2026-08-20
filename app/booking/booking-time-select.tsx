@@ -82,7 +82,7 @@ export function BookingTimeSelect({
         className={cn(
           containerClassName
             ? "h-auto w-full cursor-pointer items-center justify-start gap-0 rounded-none border-0 bg-transparent p-0 text-left text-sm leading-tight font-normal shadow-none hover:bg-transparent focus:ring-0 focus-visible:border-transparent focus-visible:ring-0 focus-visible:ring-offset-0 data-[size=default]:h-auto dark:bg-transparent dark:hover:bg-transparent [&_svg]:hidden *:data-[slot=select-value]:block *:data-[slot=select-value]:h-auto *:data-[slot=select-value]:text-gray-900"
-            : "h-10 w-full rounded data-[size=default]:h-10",
+            : "h-10 w-full rounded data-[size=default]:h-10 data-[size=default]:rounded",
           className,
         )}
       >

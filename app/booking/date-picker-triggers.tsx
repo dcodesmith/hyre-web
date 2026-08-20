@@ -88,7 +88,7 @@ export function OutlineDateTrigger({
       type="button"
       variant="outline"
       className={cn(
-        "h-10 w-full justify-start px-3 text-left text-sm font-normal",
+        "h-10 w-full justify-start rounded px-3 text-left text-sm font-normal",
         !hasDate && "text-muted-foreground",
         isDisabled && "cursor-not-allowed opacity-50",
         className,
