@@ -11,6 +11,10 @@ const visualRoutes =
     : [];
 
 export default [
+  route("api/places/autocomplete", "routes/api.places.autocomplete.ts"),
+  route("api/places/resolve", "routes/api.places.resolve.ts"),
+  route("api/search-flight", "routes/api.search-flight.ts"),
+  route("api/calculate-trip-duration", "routes/api.calculate-trip-duration.ts"),
   layout("routes/_public.tsx", [
     index("routes/home.tsx"),
     route("search", "routes/search.tsx"),

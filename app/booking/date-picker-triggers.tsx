@@ -97,9 +97,9 @@ export function OutlineDateTrigger({
     >
       {formattedDate ?? <span>{placeholder}</span>}
       {isOpen ? (
-        <ChevronsDownUp className="ml-auto h-4 w-4" />
+        <ChevronsDownUp aria-hidden="true" className="ml-auto h-4 w-4" />
       ) : (
-        <ChevronsUpDown className="ml-auto h-4 w-4" />
+        <ChevronsUpDown aria-hidden="true" className="ml-auto h-4 w-4" />
       )}
     </Button>
   );

@@ -112,7 +112,9 @@ export function CarGallery({ images, carName, priority = false }: CarGalleryProp
       <div
         className={cn(
           "flex will-change-transform",
-          isDragging ? "transition-none" : "transition-transform duration-200 ease-out",
+          isDragging
+            ? "transition-none"
+            : "transition-transform duration-200 ease-out motion-reduce:transition-none",
         )}
         style={{
           transform: `translateX(calc(-${currentIndex * 100}% + ${dragOffset}px))`,
@@ -144,7 +146,7 @@ export function CarGallery({ images, carName, priority = false }: CarGalleryProp
             disabled={currentIndex === 0}
             className="bg-white/90 text-black hover:bg-white rounded-full h-8 w-8 p-0 disabled:opacity-25 disabled:cursor-not-allowed shadow-md"
           >
-            <MoveLeft className="h-4 w-4" />
+            <MoveLeft aria-hidden="true" className="h-4 w-4" />
           </Button>
           <Button
             type="button"
@@ -153,7 +155,7 @@ export function CarGallery({ images, carName, priority = false }: CarGalleryProp
             disabled={currentIndex === imageCount - 1}
             className="bg-white/90 text-black hover:bg-white rounded-full h-8 w-8 p-0 disabled:opacity-25 disabled:cursor-not-allowed shadow-md"
           >
-            <MoveRight className="h-4 w-4" />
+            <MoveRight aria-hidden="true" className="h-4 w-4" />
           </Button>
         </div>
       ) : null}
@@ -177,7 +179,7 @@ export function CarGallery({ images, carName, priority = false }: CarGalleryProp
                 setCurrentIndex(index);
               }}
               className={cn(
-                "w-1.5 h-1.5 rounded-full transition-all",
+                "h-1.5 w-1.5 rounded-full transition-[width,background-color] motion-reduce:transition-none",
                 index === currentIndex ? "bg-white w-6 cursor-not-allowed" : "bg-white/60",
               )}
               aria-label={`Go to slide ${index + 1}`}

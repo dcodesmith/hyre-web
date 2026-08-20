@@ -3,6 +3,13 @@ import { useId, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 
 import type { PublicCarDetail } from "~/api/cars/schema";
+import {
+  composeAirportPickupAddress,
+  isCompleteFlightNumber,
+  nightBookingHelperText,
+} from "~/booking/airport-pickup";
+import { BookingFlightField } from "~/booking/booking-flight-field";
+import { BookingLocationFields } from "~/booking/booking-location-fields";
 import { BookingTimeSelect } from "~/booking/booking-time-select";
 import { BookingTypeTabs } from "~/booking/booking-type-tabs";
 import {
@@ -24,6 +31,7 @@ import {
 } from "~/car/car-url";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Label } from "~/components/ui/label";
+import { useAirportPickup } from "~/hooks/use-airport-pickup";
 import { formatZonedDate, parseZonedCalendarDate } from "~/time/timezone";
 
 interface CarBookingCardProps {
@@ -37,6 +45,7 @@ interface CarBookingCardFieldsProps {
   readonly initialToDate: Date | undefined;
   readonly initialPickupTime: string | undefined;
   readonly initialFlightNumber: string;
+  readonly airportPickup: ReturnType<typeof useAirportPickup>;
 }
 
 function CarBookingCardFields({
@@ -46,14 +55,21 @@ function CarBookingCardFields({
   initialToDate,
   initialPickupTime,
   initialFlightNumber,
+  airportPickup,
 }: CarBookingCardFieldsProps) {
   const navigate = useNavigate();
   const pickupTimeId = useId();
   const flightNumberId = useId();
+  const pickupAddressId = useId();
+  const dropOffAddressId = useId();
+  const sameLocationId = useId();
   const [fromDate, setFromDate] = useState(initialFromDate);
   const [toDate, setToDate] = useState(initialToDate);
   const [pickupTime, setPickupTime] = useState(initialPickupTime);
   const [flightNumber, setFlightNumber] = useState(initialFlightNumber);
+  const pickupAddress = query.pickupAddress ?? "";
+  const dropOffAddress = query.dropOffAddress ?? "";
+  const sameLocation = query.sameLocation;
   const [fallbackDate] = useState(() => new Date());
   const bookingType = query.bookingType;
   const isAirportPickup = bookingType === AIRPORT_PICKUP_BOOKING_TYPE;
@@ -65,6 +81,9 @@ function CarBookingCardFields({
     bookingType,
   );
   const displayTotal = hasCompleteDates ? view.displayRate * totalUnits : undefined;
+  const nightHelper = nightBookingHelperText(bookingType, totalUnits);
+  const showDropOff = hasCompleteDates && (isAirportPickup || !sameLocation);
+  const pickupIsReadOnly = isAirportPickup && pickupAddress.length > 0;
 
   const commitQuery = (next: CarDetailUrlQuery) => {
     navigate(buildCarDetailSearchPath(car, next), {
@@ -78,8 +97,16 @@ function CarBookingCardFields({
     readonly to?: string | null;
     readonly pickupTime?: string | null;
     readonly flightNumber?: string | null;
+    readonly pickupAddress?: string | null;
+    readonly dropOffAddress?: string | null;
+    readonly sameLocation?: boolean;
   }): CarDetailUrlQuery => ({
     ...query,
+    sameLocation: overrides.sameLocation ?? sameLocation,
+    pickupAddress:
+      overrides.pickupAddress !== undefined ? overrides.pickupAddress : query.pickupAddress,
+    dropOffAddress:
+      overrides.dropOffAddress !== undefined ? overrides.dropOffAddress : query.dropOffAddress,
     search: {
       ...query.search,
       bookingType,
@@ -97,6 +124,9 @@ function CarBookingCardFields({
     readonly to?: string | null;
     readonly pickupTime?: string | null;
     readonly flightNumber?: string | null;
+    readonly pickupAddress?: string | null;
+    readonly dropOffAddress?: string | null;
+    readonly sameLocation?: boolean;
   }) => {
     commitQuery(
       nextQuery({
@@ -144,6 +174,47 @@ function CarBookingCardFields({
   const handlePickupTimeChange = (value: string | undefined) => {
     setPickupTime(value);
     commitBookingFields({ pickupTime: value ?? null });
+  };
+
+  const handleFlightBlur = (value: string) => {
+    setFlightNumber(value);
+
+    if (!value || !fromDate || !isCompleteFlightNumber(value)) {
+      airportPickup.resetFlight();
+      commitBookingFields({
+        flightNumber: value || null,
+        pickupAddress: value ? query.pickupAddress : null,
+      });
+      return;
+    }
+
+    commitBookingFields({ flightNumber: value });
+    airportPickup.searchFlight(value, formatZonedDate(fromDate));
+  };
+
+  const handlePickupAddressSelect = (address: string) => {
+    commitBookingFields({ pickupAddress: address || null });
+  };
+
+  const handleDropOffAddressSelect = (address: string) => {
+    commitBookingFields({ dropOffAddress: address || null, sameLocation: false });
+
+    if (!isAirportPickup || !address) {
+      airportPickup.resetDuration();
+      return;
+    }
+
+    airportPickup.calculateDuration(address);
+  };
+
+  const handleSameLocationChange = (checked: boolean) => {
+    if (checked) {
+      airportPickup.resetDuration();
+      commitBookingFields({ sameLocation: true, dropOffAddress: null });
+      return;
+    }
+
+    commitBookingFields({ sameLocation: false });
   };
 
   return (
@@ -218,26 +289,19 @@ function CarBookingCardFields({
         </div>
 
         {hasCompleteDates && isAirportPickup ? (
-          <div className="flex flex-col gap-2">
-            <Label htmlFor={flightNumberId} className="block font-semibold">
-              Flight Number
-            </Label>
-            <input
-              id={flightNumberId}
-              type="text"
-              value={flightNumber}
-              onChange={(event) => setFlightNumber(event.target.value)}
-              onBlur={(event) => {
-                const value = event.target.value;
-                setFlightNumber(value);
-                commitBookingFields({ flightNumber: value || null });
-              }}
-              placeholder="e.g. BA123…"
-              autoComplete="off"
-              spellCheck={false}
-              className="flex h-10 w-full rounded border border-input bg-transparent px-3 text-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-            />
-          </div>
+          <BookingFlightField
+            id={flightNumberId}
+            value={flightNumber}
+            flight={airportPickup.flight}
+            error={airportPickup.flightError}
+            warning={airportPickup.flightWarning}
+            isValidating={airportPickup.isValidatingFlight}
+            onChange={(value) => {
+              setFlightNumber(value);
+              airportPickup.resetFlight();
+            }}
+            onBlur={handleFlightBlur}
+          />
         ) : null}
 
         {hasCompleteDates && !isAirportPickup && bookingType !== NIGHT_BOOKING_TYPE ? (
@@ -254,6 +318,25 @@ function CarBookingCardFields({
               onValueChange={handlePickupTimeChange}
             />
           </div>
+        ) : null}
+
+        {hasCompleteDates ? (
+          <BookingLocationFields
+            pickupAddressId={pickupAddressId}
+            dropOffAddressId={dropOffAddressId}
+            sameLocationId={sameLocationId}
+            pickupAddress={pickupAddress}
+            dropOffAddress={dropOffAddress}
+            sameLocation={sameLocation}
+            isAirportPickup={isAirportPickup}
+            pickupIsReadOnly={pickupIsReadOnly}
+            showDropOff={showDropOff}
+            nightHelper={nightHelper}
+            tripDuration={airportPickup.tripDuration}
+            onPickupAddressSelect={handlePickupAddressSelect}
+            onDropOffAddressSelect={handleDropOffAddressSelect}
+            onSameLocationChange={handleSameLocationChange}
+          />
         ) : null}
 
         {displayTotal ? (
@@ -275,6 +358,7 @@ function CarBookingCardFields({
 
 export function CarBookingCard({ car }: CarBookingCardProps) {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const query = parseCarDetailUrl(searchParams);
   const initialFromDate = query.search.from ? parseZonedCalendarDate(query.search.from) : undefined;
   const parsedToDate = query.search.to ? parseZonedCalendarDate(query.search.to) : undefined;
@@ -286,6 +370,21 @@ export function CarBookingCard({ car }: CarBookingCardProps) {
     query.search.pickupTime,
     query.search.flightNumber,
   ].join("|");
+  const airportPickup = useAirportPickup({
+    onFlightFound: (flight) => {
+      navigate(
+        buildCarDetailSearchPath(car, {
+          ...query,
+          pickupAddress: composeAirportPickupAddress(flight),
+          sameLocation: false,
+        }),
+        {
+          replace: true,
+          preventScrollReset: true,
+        },
+      );
+    },
+  });
 
   return (
     <CarBookingCardFields
@@ -296,6 +395,7 @@ export function CarBookingCard({ car }: CarBookingCardProps) {
       initialToDate={initialToDate}
       initialPickupTime={query.search.pickupTime ?? undefined}
       initialFlightNumber={query.search.flightNumber ?? ""}
+      airportPickup={airportPickup}
     />
   );
 }

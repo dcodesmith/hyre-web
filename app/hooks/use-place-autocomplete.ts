@@ -1,0 +1,101 @@
+import { useEffect, useRef, useState } from "react";
+import { useFetcher } from "react-router";
+
+import type { PlaceSuggestion } from "~/api/places/schema";
+
+interface AutocompleteLoaderData {
+  readonly suggestions: PlaceSuggestion[];
+  readonly degraded: boolean;
+  readonly error: string | null;
+}
+
+interface ResolveActionData {
+  readonly placeId: string | null;
+  readonly address: string | null;
+  readonly error: string | null;
+}
+
+/**
+ * Debounced same-origin places autocomplete + resolve.
+ *
+ * The timer and fetchers are external synchronization, so they live here
+ * instead of in the address field.
+ */
+export function usePlaceAutocomplete({
+  input,
+  enabled,
+  onResolved,
+}: {
+  readonly input: string;
+  readonly enabled: boolean;
+  readonly onResolved: (address: string) => void;
+}) {
+  const autocompleteFetcher = useFetcher<AutocompleteLoaderData>();
+  const resolveFetcher = useFetcher<ResolveActionData>();
+  const autocompleteFetcherRef = useRef(autocompleteFetcher);
+  const onResolvedRef = useRef(onResolved);
+  const sessionTokenRef = useRef(crypto.randomUUID());
+  const lastResolvedRef = useRef<string | null>(null);
+  const [requestedInput, setRequestedInput] = useState<string | null>(null);
+
+  onResolvedRef.current = onResolved;
+
+  useEffect(() => {
+    autocompleteFetcherRef.current = autocompleteFetcher;
+  }, [autocompleteFetcher]);
+
+  useEffect(() => {
+    const trimmed = input.trim();
+
+    if (!enabled || trimmed.length < 2) {
+      return;
+    }
+
+    const timeout = setTimeout(() => {
+      const params = new URLSearchParams({
+        input: trimmed,
+        sessionToken: sessionTokenRef.current,
+      });
+      setRequestedInput(trimmed);
+      autocompleteFetcherRef.current.load(`/api/places/autocomplete?${params}`);
+    }, 250);
+
+    return () => clearTimeout(timeout);
+  }, [enabled, input]);
+
+  useEffect(() => {
+    if (resolveFetcher.state !== "idle") {
+      return;
+    }
+
+    const address = resolveFetcher.data?.address;
+
+    if (!address || address === lastResolvedRef.current) {
+      return;
+    }
+
+    lastResolvedRef.current = address;
+    onResolvedRef.current(address);
+  }, [resolveFetcher.data, resolveFetcher.state]);
+
+  const resolve = (placeId: string) => {
+    lastResolvedRef.current = null;
+    resolveFetcher.submit(
+      { placeId, sessionToken: sessionTokenRef.current },
+      { method: "POST", action: "/api/places/resolve" },
+    );
+    sessionTokenRef.current = crypto.randomUUID();
+  };
+
+  const suggestionsAreCurrent =
+    autocompleteFetcher.state === "idle" && requestedInput === input.trim();
+
+  return {
+    suggestions: suggestionsAreCurrent ? (autocompleteFetcher.data?.suggestions ?? []) : [],
+    isLoadingSuggestions:
+      autocompleteFetcher.state !== "idle" ||
+      (requestedInput !== input.trim() && enabled && input.trim().length >= 2),
+    isResolving: resolveFetcher.state !== "idle",
+    resolve,
+  };
+}
