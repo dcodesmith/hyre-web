@@ -53,6 +53,9 @@ app/
     flights/
       flights.server.ts           # GET /api/search-flight, GET /api/calculate-trip-duration
       schema.ts
+    ai-search/
+      ai-search.server.ts         # POST /api/ai-search
+      schema.ts
 
   car/
     car-domain.ts                 # CarDomain(car, now, bookingType, booking)
@@ -103,6 +106,7 @@ app/
     search-heading.test.ts
     compact-search-bar.tsx
     search-modal.tsx
+    ai-search-modal.tsx           # home/search modal; same-origin POST /api/ai-search
     car-skeleton.tsx
     pagination-control.tsx        # sr-only SEO pagination
 
@@ -169,7 +173,6 @@ Do not invent payable totals, availability, or review sub-rating aggregates
 here.
 
 - `app/api/rates/` — platform fee/VAT/security add-on; wait for booking pay
-- AI search (`POST /api/ai-search`) — home/search modal, not the booking card
 - Booking create / pricing-preview / pay (Phase 5)
 
 ## Later (verified API only)

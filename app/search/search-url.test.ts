@@ -117,6 +117,28 @@ describe("search URL contract", () => {
     expect(leap.minPrice).toBe(12);
   });
 
+  it("maps AI search params onto the public search URL and drops unknown keys", () => {
+    expect(
+      buildSearchPath(
+        serializeSearchUrl(
+          parseSearchUrl(
+            new URLSearchParams({
+              vehicleType: "SUV",
+              make: "Toyota",
+              color: "black",
+              bookingType: "DAY",
+              from: "2026-08-21",
+              to: "2026-08-26",
+              pickupLocation: "Eko Hotel",
+            }),
+          ),
+        ),
+      ),
+    ).toBe(
+      "/search?vehicleType=SUV&make=Toyota&color=black&from=2026-08-21&to=2026-08-26&bookingType=DAY",
+    );
+  });
+
   it("counts active filters and can clear them without dropping booking params", () => {
     const params = new URLSearchParams(
       "from=2026-08-20&bookingType=NIGHT&vehicleType=SUV&dealsOnly=1&page=2",

@@ -392,7 +392,10 @@ duplicate year-make-model listings would collide.
   hireApp sent `arrivalTime` on trip duration; the API only accepts
   `destination`. The BFF forwards `CF-Connecting-IP` as `X-Forwarded-For`
   so API per-IP limits apply per browser, not per Worker egress.
+  The car booking card re-looks up a flight from `flightNumber` + `from`
+  in the URL so homepage search still fills the airport pickup address.
   Web does not rewrite `from`/`to`/`pickupTime` from the
   flight window yet — that stays with booking create (Phase 5).
-- `GET /api/rates` and `POST /api/ai-search` are still unused. Rates are
-  payable totals. AI search is a separate home/search modal.
+- `POST /api/ai-search` is wired from the home/search modal. The BFF
+  redirects to `/search` with the extracted params. It does not re-check
+  airport flights in the modal. `GET /api/rates` is still unused.

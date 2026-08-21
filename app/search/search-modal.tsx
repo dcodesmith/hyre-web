@@ -9,6 +9,7 @@ import {
   DialogTrigger,
 } from "~/components/ui/dialog";
 import { cn } from "~/lib/utils";
+import { AiSearchModal } from "~/search/ai-search-modal";
 import { SearchForm } from "~/search/search-form";
 
 interface SearchModalProps {
@@ -58,6 +59,9 @@ export function SearchModal({
             preserveFilterParams={preserveFilterParams}
             onSearchComplete={onClose}
           />
+          <div className="mt-4 flex justify-center">
+            <AiSearchModal />
+          </div>
         </div>
       </DialogContent>
     </Dialog>
