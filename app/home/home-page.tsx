@@ -15,6 +15,7 @@ import {
 import { HOME_FAQ_ITEMS } from "~/content/home";
 import { getHeroHeightClasses, useHeroScroll } from "~/hooks/use-hero-scroll";
 import { cn } from "~/lib/utils";
+import { AiSearchModal } from "~/search/ai-search-modal";
 import { CompactSearchBar } from "~/search/compact-search-bar";
 import { SearchForm } from "~/search/search-form";
 import { SearchModal } from "~/search/search-modal";
@@ -268,6 +269,9 @@ export function HomePage({ fleet }: HomePageProps) {
             )}
           >
             <SearchForm />
+            <div className="flex justify-center">
+              <AiSearchModal />
+            </div>
           </div>
 
           <div

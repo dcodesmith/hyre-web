@@ -167,12 +167,7 @@ function CarBookingCardFields({
       pickupAddress: isAirportPickup && !shouldLookupFlight ? null : undefined,
     });
 
-    if (shouldLookupFlight && date) {
-      airportPickup.searchFlight(flightNumber, formatZonedDate(date));
-      return;
-    }
-
-    if (isAirportPickup) {
+    if (!shouldLookupFlight && isAirportPickup) {
       airportPickup.resetFlight();
       airportPickup.resetDuration();
     }
@@ -393,6 +388,9 @@ export function CarBookingCard({ car }: CarBookingCardProps) {
     query.search.pickupTime,
   ].join("|");
   const airportPickup = useAirportPickup({
+    flightNumber:
+      query.bookingType === AIRPORT_PICKUP_BOOKING_TYPE ? query.search.flightNumber : null,
+    date: query.bookingType === AIRPORT_PICKUP_BOOKING_TYPE ? query.search.from : null,
     onFlightFound: (flight) => {
       const latest = parseCarDetailUrl(new URLSearchParams(window.location.search));
 
