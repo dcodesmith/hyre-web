@@ -2,7 +2,7 @@ const REQUEST_ID_HEADER = "x-request-id";
 const SAFE_REQUEST_ID = /^[A-Za-z0-9._:-]{8,128}$/;
 
 const MUTATION_METHODS = new Set(["DELETE", "PATCH", "POST", "PUT"]);
-const PRIVATE_PATH_PREFIXES = [
+export const PRIVATE_PATH_PREFIXES = [
   "/account",
   "/admin",
   "/api",

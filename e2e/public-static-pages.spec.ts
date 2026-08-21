@@ -82,6 +82,24 @@ test("filters FAQ questions and exposes an empty state", async ({ page }) => {
   await expect(page.getByText("No questions found matching your search.")).toBeVisible();
 });
 
+test("serves robots.txt and a crawlable sitemap", async ({ page }) => {
+  const robots = await page.request.get("/robots.txt");
+  expect(robots.status()).toBe(200);
+  expect(robots.headers()["content-type"]).toContain("text/plain");
+  const robotsText = await robots.text();
+  expect(robotsText).toMatch(/User-agent: \*/);
+  expect(robotsText).toContain("Disallow: /");
+
+  const sitemap = await page.request.get("/sitemap.xml");
+  expect(sitemap.status()).toBe(200);
+  expect(sitemap.headers()["content-type"]).toContain("xml");
+  const xml = await sitemap.text();
+  expect(xml).toContain("https://tripdly.com/");
+  expect(xml).toContain("https://tripdly.com/search");
+  expect(xml).toContain("https://tripdly.com/about");
+  expect(xml).not.toContain("/partners/");
+});
+
 test("updates analytics consent from the cookie policy", async ({ page }) => {
   await setCookiePreference(page, false);
   await page.goto("/cookies");

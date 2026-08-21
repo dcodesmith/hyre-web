@@ -16,6 +16,8 @@ export default [
   route("api/search-flight", "routes/api.search-flight.ts"),
   route("api/calculate-trip-duration", "routes/api.calculate-trip-duration.ts"),
   route("api/ai-search", "routes/api.ai-search.ts"),
+  route("robots.txt", "routes/robots.txt.ts"),
+  route("sitemap.xml", "routes/sitemap.xml.ts"),
   layout("routes/_public.tsx", [
     index("routes/home.tsx"),
     route("search", "routes/search.tsx"),

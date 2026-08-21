@@ -1,7 +1,8 @@
 import { env } from "cloudflare:workers";
 import { z } from "zod";
 
-import { createApiClient } from "../api.server";
+import { collectPublicSitemapCars, sitemapSearchParams } from "~/seo/sitemap";
+import { ApiRequestError, createApiClient } from "../api.server";
 import {
   carCategoriesResponseSchema,
   carSearchResponseSchema,
@@ -34,6 +35,27 @@ export function searchCars(options: { request?: Request; search: URLSearchParams
     request: options.request,
     schema: carSearchResponseSchema,
   });
+}
+
+export function listPublicSitemapCars(options: { request?: Request } = {}) {
+  return collectPublicSitemapCars({
+    searchPage: async (page) => {
+      const response = await searchCars({
+        request: options.request,
+        search: sitemapSearchParams(page),
+      });
+
+      return {
+        cars: response.data.cars,
+        totalPages: response.data.pagination.totalPages,
+      };
+    },
+    isAbortError,
+  });
+}
+
+function isAbortError(error: unknown) {
+  return error instanceof ApiRequestError && error.kind === "aborted";
 }
 
 export function getPublicCar(options: { request?: Request; carId: string; from?: string | null }) {
