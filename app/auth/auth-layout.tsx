@@ -10,7 +10,7 @@ interface AuthLayoutProps {
 export function AuthLayout({ children }: AuthLayoutProps) {
   return (
     <div className="relative grid min-h-dvh w-full place-items-center bg-white px-6 py-8">
-      <header className={cn("absolute inset-x-0 top-0 z-10", brandBarClassName)}>
+      <header className={cn("absolute inset-x-0 top-0 z-10 flex", brandBarClassName)}>
         <BrandLink className="text-neutral-900" />
       </header>
 
