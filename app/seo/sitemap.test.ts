@@ -2,9 +2,12 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildSitemapXml,
+  collectPublicSitemapCars,
   remainingSitemapPages,
   SITEMAP_MAX_PAGES,
+  SITEMAP_SEARCH_PAGE_SIZE,
   sitemapLoc,
+  sitemapSearchParams,
   uniqueSitemapCars,
 } from "./sitemap";
 
@@ -19,6 +22,55 @@ describe("remainingSitemapPages", () => {
     expect(remainingSitemapPages(SITEMAP_MAX_PAGES + 5)).toEqual(
       Array.from({ length: SITEMAP_MAX_PAGES - 1 }, (_, index) => index + 2),
     );
+  });
+});
+
+describe("sitemapSearchParams", () => {
+  it("sends only unfiltered page and limit", () => {
+    expect(Object.fromEntries(sitemapSearchParams(2))).toEqual({
+      page: "2",
+      limit: String(SITEMAP_SEARCH_PAGE_SIZE),
+    });
+  });
+});
+
+describe("collectPublicSitemapCars", () => {
+  it("keeps successful later pages when another page fails", async () => {
+    const cars = await collectPublicSitemapCars({
+      searchPage: async (page) => {
+        if (page === 3) {
+          throw new Error("unavailable");
+        }
+
+        return {
+          totalPages: 3,
+          cars: [{ id: `page-${page}` }],
+        };
+      },
+      isAbortError: () => false,
+    });
+
+    expect(cars).toEqual([{ id: "page-1" }, { id: "page-2" }]);
+  });
+
+  it("rethrows abort errors from later pages", async () => {
+    const abort = new Error("aborted");
+
+    await expect(
+      collectPublicSitemapCars({
+        searchPage: async (page) => {
+          if (page === 3) {
+            throw abort;
+          }
+
+          return {
+            totalPages: 3,
+            cars: [{ id: `page-${page}` }],
+          };
+        },
+        isAbortError: (error) => error === abort,
+      }),
+    ).rejects.toBe(abort);
   });
 });
 

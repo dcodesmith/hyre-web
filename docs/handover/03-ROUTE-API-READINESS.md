@@ -388,8 +388,9 @@ duplicate year-make-model listings would collide.
   plus car locs from paged `GET /api/cars/search?limit=50` (max 20 pages),
   using `generateCarSlug` so locs match car-detail canonicals. It omits
   partners, referrals, and `/chauffeur-service-lagos` until those routes
-  exist. A later dedicated public-car list can replace paging if the fleet
-  outgrows the cap.
+  exist. A failed later search page keeps the pages that already succeeded.
+  A later dedicated public-car list can replace paging if the fleet outgrows
+  the cap.
 - Card hrefs always include `bookingType=DAY`. Canonical stays clean. Fine
   for UX; default `DAY` could be omitted later for shorter share links.
 - Places autocomplete/resolve and `GET /api/search-flight` /

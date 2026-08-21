@@ -30,6 +30,45 @@ export function remainingSitemapPages(totalPages: number) {
   return Array.from({ length: last - 1 }, (_, index) => index + 2);
 }
 
+export function sitemapSearchParams(page: number) {
+  return new URLSearchParams({
+    page: String(page),
+    limit: String(SITEMAP_SEARCH_PAGE_SIZE),
+  });
+}
+
+export async function collectPublicSitemapCars<T extends { id: string }>({
+  searchPage,
+  isAbortError,
+}: {
+  searchPage: (page: number) => Promise<{ cars: readonly T[]; totalPages: number }>;
+  isAbortError: (error: unknown) => boolean;
+}): Promise<T[]> {
+  const first = await searchPage(1);
+  const cars = [...first.cars];
+  const rest = await Promise.all(
+    remainingSitemapPages(first.totalPages).map(async (page) => {
+      try {
+        return await searchPage(page);
+      } catch (error) {
+        if (isAbortError(error)) {
+          throw error;
+        }
+
+        return undefined;
+      }
+    }),
+  );
+
+  for (const page of rest) {
+    if (page) {
+      cars.push(...page.cars);
+    }
+  }
+
+  return uniqueSitemapCars(cars);
+}
+
 export function uniqueSitemapCars<T extends { id: string }>(cars: readonly T[]) {
   const seen = new Set<string>();
 
