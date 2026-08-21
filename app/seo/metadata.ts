@@ -11,6 +11,7 @@ interface PageMetadata {
   readonly description: string;
   readonly path: `/${string}`;
   readonly image?: string;
+  readonly index?: boolean;
 }
 
 export function buildPageMetadata({
@@ -18,6 +19,7 @@ export function buildPageMetadata({
   description,
   path,
   image,
+  index = true,
 }: PageMetadata): MetaDescriptor[] {
   const canonical = `${SITE_ORIGIN}${path}`;
   const safeDescription = truncateDescription(description);
@@ -25,7 +27,7 @@ export function buildPageMetadata({
   const metadata: MetaDescriptor[] = [
     { title },
     { name: "description", content: safeDescription },
-    { name: "robots", content: "index, follow" },
+    { name: "robots", content: index ? "index, follow" : "noindex, nofollow" },
     { property: "og:title", content: title },
     { property: "og:description", content: safeDescription },
     { property: "og:url", content: canonical },

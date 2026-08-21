@@ -10,7 +10,7 @@ import {
 import { ApiRequestError } from "~/api/api.server";
 import { getAuthSession, isSecureAuthCookie, sendSignInOtp } from "~/api/auth/auth.server";
 import { authResponseHeaders } from "~/api/auth/cookie-relay.server";
-import { authClientErrorMessage } from "~/api/auth/errors";
+import { authClientErrorMessage, authClientErrorStatus } from "~/api/auth/errors";
 import { loginFormSchema } from "~/auth/auth-form-schema";
 import { pendingOtpSetCookie } from "~/auth/pending-otp";
 import { safeRedirectPath } from "~/auth/referer";
@@ -20,14 +20,13 @@ import type { Route } from "./+types/auth";
 
 const NO_STORE = { "Cache-Control": "private, no-store" };
 
-export const meta = () => [
-  ...buildPageMetadata({
+export const meta = () =>
+  buildPageMetadata({
     title: "Log in | Tripdly",
     description: "Sign in or create your Tripdly account with a one-time email code.",
     path: "/auth",
-  }),
-  { name: "robots", content: "noindex, nofollow" },
-];
+    index: false,
+  });
 
 export async function loader({ request }: Route.LoaderArgs) {
   try {
@@ -79,7 +78,10 @@ export async function action({ request }: Route.ActionArgs) {
       throw error;
     }
 
-    return data({ error: authClientErrorMessage(error) }, { status: 400, headers: NO_STORE });
+    return data(
+      { error: authClientErrorMessage(error) },
+      { status: authClientErrorStatus(error), headers: NO_STORE },
+    );
   }
 
   const headers = authResponseHeaders();

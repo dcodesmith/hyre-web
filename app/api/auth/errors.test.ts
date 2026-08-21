@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { ApiRequestError } from "../api.server";
-import { authClientErrorMessage } from "./errors";
+import { authClientErrorMessage, authClientErrorStatus } from "./errors";
 
 function httpError(status: number, detail: string, headers?: Headers) {
   return new ApiRequestError(
@@ -37,5 +37,13 @@ describe("authClientErrorMessage", () => {
     expect(authClientErrorMessage(httpError(502, "database password"))).toBe(
       "Something went wrong. Please try again.",
     );
+  });
+});
+
+describe("authClientErrorStatus", () => {
+  it("keeps 429 and maps 5xx to 502", () => {
+    expect(authClientErrorStatus(httpError(429, "Too many requests"))).toBe(429);
+    expect(authClientErrorStatus(httpError(502, "database password"))).toBe(502);
+    expect(authClientErrorStatus(httpError(400, "Invalid OTP"))).toBe(400);
   });
 });

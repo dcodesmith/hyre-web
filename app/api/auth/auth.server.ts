@@ -96,5 +96,5 @@ export function signOut(options: { request: Request }) {
 }
 
 export function isSecureAuthCookie() {
-  return env.APP_ENV === "production";
+  return env.APP_ENV !== "local";
 }

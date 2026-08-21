@@ -16,7 +16,7 @@ import {
   verifySignInOtp,
 } from "~/api/auth/auth.server";
 import { authResponseHeaders } from "~/api/auth/cookie-relay.server";
-import { authClientErrorMessage } from "~/api/auth/errors";
+import { authClientErrorMessage, authClientErrorStatus } from "~/api/auth/errors";
 import { verifyFormSchema } from "~/auth/auth-form-schema";
 import {
   parsePendingOtp,
@@ -31,14 +31,13 @@ import type { Route } from "./+types/verify";
 
 const NO_STORE = { "Cache-Control": "private, no-store" };
 
-export const meta = () => [
-  ...buildPageMetadata({
+export const meta = () =>
+  buildPageMetadata({
     title: "Verify email | Tripdly",
     description: "Enter the one-time code sent to your email to finish signing in.",
     path: "/verify",
-  }),
-  { name: "robots", content: "noindex, nofollow" },
-];
+    index: false,
+  });
 
 function readPendingOtp(request: Request) {
   return parsePendingOtp(
@@ -99,7 +98,7 @@ export async function action({ request }: Route.ActionArgs) {
 
       return data(
         { error: authClientErrorMessage(error), notice: undefined },
-        { status: 400, headers: NO_STORE },
+        { status: authClientErrorStatus(error), headers: NO_STORE },
       );
     }
   }
@@ -135,7 +134,7 @@ export async function action({ request }: Route.ActionArgs) {
 
     return data(
       { error: authClientErrorMessage(error), notice: undefined },
-      { status: 400, headers: NO_STORE },
+      { status: authClientErrorStatus(error), headers: NO_STORE },
     );
   }
 }
