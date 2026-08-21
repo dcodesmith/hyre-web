@@ -22,7 +22,34 @@ describe("car detail URL contract", () => {
     expect(query.bookingType).toBe("DAY");
     expect(query.reviewsOpen).toBe(false);
     expect(query.reviewsPage).toBe(1);
+    expect(query.sameLocation).toBe(true);
+    expect(query.pickupAddress).toBeNull();
     expect(query.search.vehicleTypes).toEqual(["SUV"]);
+  });
+
+  it("keeps addresses on the car URL and strips them from back-to-search", () => {
+    const query = parseCarDetailUrl(
+      new URLSearchParams(
+        "bookingType=DAY&pickupAddress=12+Glover+Road&dropOffAddress=Eko+Hotel&sameLocation=false",
+      ),
+    );
+
+    expect(query.pickupAddress).toBe("12 Glover Road");
+    expect(query.dropOffAddress).toBe("Eko Hotel");
+    expect(query.sameLocation).toBe(false);
+    expect(buildCarDetailSearchPath(car, query)).toContain("pickupAddress=12+Glover+Road");
+    expect(
+      buildBackToSearchPath(
+        new URLSearchParams(buildCarDetailSearchPath(car, query).split("?")[1]),
+      ),
+    ).toBe("/search?bookingType=DAY");
+  });
+
+  it("forces airport pickup to different locations", () => {
+    const query = parseCarDetailUrl(new URLSearchParams("bookingType=AIRPORT_PICKUP"));
+
+    expect(query.sameLocation).toBe(false);
+    expect(buildCarDetailSearchPath(car, query)).toContain("sameLocation=false");
   });
 
   it("rejects partial and non-decimal reviewsPage values", () => {
@@ -44,9 +71,11 @@ describe("car detail URL contract", () => {
     );
   });
 
-  it("clears dates when the booking type changes", () => {
+  it("clears dates and addresses when the booking type changes", () => {
     const query = parseCarDetailUrl(
-      new URLSearchParams("bookingType=DAY&from=2026-08-20&to=2026-08-21&vehicleType=SUV"),
+      new URLSearchParams(
+        "bookingType=DAY&from=2026-08-20&to=2026-08-21&vehicleType=SUV&pickupAddress=12+Glover+Road",
+      ),
     );
 
     expect(buildBookingTypeCarPath(car, "NIGHT", query)).toBe(

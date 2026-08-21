@@ -47,6 +47,12 @@ app/
     reviews/
       reviews.server.ts           # GET /api/reviews/car/:carId
       schema.ts                   # public review list + optional ratings
+    places/
+      places.server.ts            # GET /api/places/autocomplete, POST /api/places/resolve
+      schema.ts
+    flights/
+      flights.server.ts           # GET /api/search-flight, GET /api/calculate-trip-duration
+      schema.ts
 
   car/
     car-domain.ts                 # CarDomain(car, now, bookingType, booking)
@@ -60,7 +66,7 @@ app/
     car-detail-page.tsx
     car-gallery.tsx
     car-information.tsx
-    car-booking-card.tsx          # URL booking chrome only; no pay
+    car-booking-card.tsx          # URL booking chrome; places/flight/duration; no pay
 
   review/
     review-list.tsx
@@ -77,6 +83,15 @@ app/
     booking-time-select.tsx
     single-date-picker.tsx
     date-picker-triggers.tsx
+    address-autocomplete.tsx
+    booking-flight-field.tsx
+    booking-location-fields.tsx
+    airport-pickup.ts
+    airport-pickup.test.ts
+    trip-details.tsx              # airport pickup arrival / drive / drop-off
+    airlines.json                 # Nigeria-serving airlines for flight suggestions
+    airlines.ts
+    airlines.test.ts
 
   search/
     search-url.ts                 # /search query contract + API serialization
@@ -115,6 +130,8 @@ app/
     use-hero-scroll.ts            # 100/50 hysteresis + matchMedia
     use-infinite-scroll.ts        # IntersectionObserver + fetcher
     use-search-filter-count.ts    # debounced countOnly fetcher
+    use-place-autocomplete.ts     # debounced places fetcher + resolve
+    use-airport-pickup.ts         # flight + trip-duration fetchers
 
   components/
     ui/                       # shadcn primitives; do not hand-edit
@@ -139,8 +156,10 @@ to filters until
 [`hyre-worker-nestjs#190`](https://github.com/dcodesmith/hyre-worker-nestjs/issues/190)
 lands. Do not invent a second mapping.
 
-Car detail keeps those booking and filter params and adds `reviews` plus
-`reviewsPage`. It does not reuse search `page`. Canonical slugs end with the
+Car detail keeps those booking and filter params and adds `reviews`,
+`reviewsPage`, `pickupAddress`, `dropOffAddress`, and `sameLocation`.
+Address params stay on `/cars/:slug` and are stripped from back-to-search.
+They are not sent to `GET /api/cars/search`. Canonical slugs end with the
 **full 25-character CUID** because `GET /api/cars/:carId` validates
 `z.cuid()`. hireApp 13-character prefixes cannot be resolved without Prisma
 in the Worker or a new API prefix lookup, so they 404 until the API adds
@@ -149,8 +168,8 @@ See [03-ROUTE-API-READINESS.md](./03-ROUTE-API-READINESS.md#follow-ups-found-dur
 Do not invent payable totals, availability, or review sub-rating aggregates
 here.
 
-- `app/api/places/`, `app/api/rates/`
-- AI search / places / flights (Phase 3 item 5)
+- `app/api/rates/` — platform fee/VAT/security add-on; wait for booking pay
+- AI search (`POST /api/ai-search`) — home/search modal, not the booking card
 - Booking create / pricing-preview / pay (Phase 5)
 
 ## Later (verified API only)

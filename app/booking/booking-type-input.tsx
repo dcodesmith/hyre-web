@@ -1,5 +1,11 @@
+import { useId } from "react";
+
+import type { SearchFlight } from "~/api/flights/schema";
+import { formatFlightRoute, formatLagosClock } from "~/booking/airport-pickup";
+import { FlightNumberAutocomplete } from "~/booking/booking-flight-field";
 import { BookingTimeSelect } from "~/booking/booking-time-select";
 import { AIRPORT_PICKUP_BOOKING_TYPE, type BookingType, NIGHT_BOOKING_TYPE } from "~/booking/types";
+import { cn } from "~/lib/utils";
 
 export const bookingFieldLabelClass = "text-xs font-semibold leading-tight text-gray-700";
 export const bookingFieldValueTextClass = "text-sm leading-tight text-gray-900";
@@ -11,9 +17,45 @@ interface BookingTypeInputProps {
   readonly flightNumber: string;
   readonly fromDate: Date | undefined;
   readonly fallbackDate: Date;
+  readonly validatedFlight?: SearchFlight | null;
+  readonly flightError?: string | null;
   readonly onPickupTimeChange?: (value: string) => void;
   readonly onFlightNumberChange?: (value: string) => void;
+  readonly onFlightNumberBlur?: (value: string) => void;
   readonly isCompact?: boolean;
+}
+
+function SearchFlightStatus({
+  flight,
+  error,
+}: {
+  readonly flight: SearchFlight | null;
+  readonly error: string | null;
+}) {
+  if (flight) {
+    const route = formatFlightRoute(flight);
+    const time = formatLagosClock(flight.arrivalTime);
+
+    return (
+      <span className="text-green-600">
+        <span className="sm:hidden">
+          {route} • {time}
+        </span>
+        <span className="hidden items-center gap-1 sm:inline-flex">
+          <span>
+            <span className="block">{route}</span>
+            <span className="block">{time}</span>
+          </span>
+        </span>
+      </span>
+    );
+  }
+
+  if (error) {
+    return <span className="text-gray-500">{error}</span>;
+  }
+
+  return null;
 }
 
 export function BookingTypeInput({
@@ -22,10 +64,16 @@ export function BookingTypeInput({
   flightNumber,
   fromDate,
   fallbackDate,
+  validatedFlight = null,
+  flightError = null,
   onPickupTimeChange,
   onFlightNumberChange,
+  onFlightNumberBlur,
   isCompact = false,
 }: BookingTypeInputProps) {
+  const flightNumberId = useId();
+  const hasStatus = validatedFlight != null || flightError != null;
+
   if (bookingType === NIGHT_BOOKING_TYPE) {
     return (
       <div className={bookingFieldStackClass}>
@@ -37,18 +85,31 @@ export function BookingTypeInput({
 
   if (bookingType === AIRPORT_PICKUP_BOOKING_TYPE) {
     return (
-      <label className={bookingFieldStackClass}>
-        <span className={bookingFieldLabelClass}>Flight Number</span>
-        <input
-          type="text"
-          value={flightNumber}
-          onChange={(event) => onFlightNumberChange?.(event.target.value)}
-          placeholder="e.g. BA123…"
-          autoComplete="off"
-          spellCheck={false}
-          className="w-full cursor-text border-0 bg-transparent p-0 text-sm leading-tight text-gray-900 shadow-none outline-none placeholder:text-gray-400 focus:ring-0 focus-visible:ring-0"
-        />
-      </label>
+      <div className={bookingFieldStackClass}>
+        <div className="flex items-start gap-2">
+          <div className={cn("flex min-w-0 flex-col", hasStatus ? "w-[45%]" : "flex-1")}>
+            <label htmlFor={flightNumberId} className={bookingFieldLabelClass}>
+              Flight Number
+            </label>
+            <FlightNumberAutocomplete
+              id={flightNumberId}
+              value={flightNumber}
+              onChange={(next) => onFlightNumberChange?.(next)}
+              onBlur={onFlightNumberBlur}
+              placeholder="e.g. BA123…"
+              className="w-full cursor-text border-0 bg-transparent p-0 text-sm leading-tight text-gray-900 shadow-none outline-none placeholder:text-gray-400 focus-visible:ring-2 focus-visible:ring-ring/50"
+            />
+          </div>
+          {hasStatus ? (
+            <div
+              className="min-w-0 flex-1 break-words pt-0.5 text-right text-xs leading-tight"
+              aria-live="polite"
+            >
+              <SearchFlightStatus flight={validatedFlight} error={flightError} />
+            </div>
+          ) : null}
+        </div>
+      </div>
     );
   }
 

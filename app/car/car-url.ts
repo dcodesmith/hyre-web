@@ -1,15 +1,20 @@
-import { type BookingType, DAY_BOOKING_TYPE } from "~/booking/types";
+import { AIRPORT_PICKUP_BOOKING_TYPE, type BookingType, DAY_BOOKING_TYPE } from "~/booking/types";
 import { generateCarSlug } from "~/car/paths";
 import { parseSearchUrl, type SearchUrlQuery, serializeSearchUrl } from "~/search/search-url";
 
 export const DEFAULT_REVIEWS_PAGE = 1;
 export const CAR_REVIEWS_LIMIT = 12;
+const MAX_ADDRESS_LENGTH = 256;
+const CAR_LOCATION_PARAM_KEYS = ["pickupAddress", "dropOffAddress", "sameLocation"] as const;
 
 export interface CarDetailUrlQuery {
   readonly search: SearchUrlQuery;
   readonly bookingType: BookingType;
   readonly reviewsOpen: boolean;
   readonly reviewsPage: number;
+  readonly pickupAddress: string | null;
+  readonly dropOffAddress: string | null;
+  readonly sameLocation: boolean;
 }
 
 function parseReviewsPage(value: string | null) {
@@ -21,14 +26,29 @@ function parseReviewsPage(value: string | null) {
   return page >= 1 ? page : DEFAULT_REVIEWS_PAGE;
 }
 
+function parseAddress(value: string | null) {
+  const trimmed = value?.trim();
+
+  if (!trimmed || trimmed.length > MAX_ADDRESS_LENGTH) {
+    return null;
+  }
+
+  return trimmed;
+}
+
 export function parseCarDetailUrl(searchParams: URLSearchParams): CarDetailUrlQuery {
   const search = parseSearchUrl(searchParams);
+  const bookingType = search.bookingType ?? DAY_BOOKING_TYPE;
+  const isAirportPickup = bookingType === AIRPORT_PICKUP_BOOKING_TYPE;
 
   return {
     search,
-    bookingType: search.bookingType ?? DAY_BOOKING_TYPE,
+    bookingType,
     reviewsOpen: searchParams.get("reviews") === "1" || searchParams.get("reviews") === "true",
     reviewsPage: parseReviewsPage(searchParams.get("reviewsPage")),
+    pickupAddress: parseAddress(searchParams.get("pickupAddress")),
+    dropOffAddress: parseAddress(searchParams.get("dropOffAddress")),
+    sameLocation: isAirportPickup ? false : searchParams.get("sameLocation") !== "false",
   };
 }
 
@@ -56,6 +76,18 @@ export function buildCarDetailSearchPath(
     params.set("reviewsPage", String(query.reviewsPage));
   }
 
+  if (query.pickupAddress) {
+    params.set("pickupAddress", query.pickupAddress);
+  }
+
+  if (!query.sameLocation && query.dropOffAddress) {
+    params.set("dropOffAddress", query.dropOffAddress);
+  }
+
+  if (!query.sameLocation) {
+    params.set("sameLocation", "false");
+  }
+
   return `/cars/${generateCarSlug(car)}?${params}`;
 }
 
@@ -76,6 +108,9 @@ export function buildBookingTypeCarPath(
     bookingType,
     reviewsOpen: current.reviewsOpen,
     reviewsPage: current.reviewsPage,
+    pickupAddress: null,
+    dropOffAddress: null,
+    sameLocation: bookingType !== AIRPORT_PICKUP_BOOKING_TYPE,
   });
 }
 
@@ -93,6 +128,11 @@ export function buildBackToSearchPath(searchParams: URLSearchParams) {
   const params = new URLSearchParams(searchParams);
   params.delete("reviews");
   params.delete("reviewsPage");
+
+  for (const key of CAR_LOCATION_PARAM_KEYS) {
+    params.delete(key);
+  }
+
   const query = params.toString();
 
   return query ? `/search?${query}` : "/search";

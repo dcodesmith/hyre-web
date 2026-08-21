@@ -30,6 +30,27 @@ test("renders crawlable car metadata and booking chrome from the fixture", async
   }
 });
 
+test("shows airport pickup flight and address fields when a from date is present", async ({
+  page,
+}) => {
+  await setCookiePreference(page);
+  const response = await page.goto("/__visual/car?bookingType=AIRPORT_PICKUP&from=2026-08-21");
+
+  expect(response?.status()).toBe(200);
+  await expect(page.getByRole("button", { name: "Airport" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await expect(page.getByLabel("Flight Number")).toBeVisible();
+  await expect(page.getByLabel("Pickup Address")).toBeVisible();
+  await expect(page.getByLabel("Drop-off Address")).toBeVisible();
+
+  const flightNumber = page.getByLabel("Flight Number");
+  await flightNumber.click();
+  await flightNumber.pressSequentially("BA");
+  await expect(page.getByRole("button", { name: /British Airways/ })).toBeVisible();
+});
+
 test("returns 404 for a hireApp short slug the API cannot resolve", async ({ page }) => {
   await setCookiePreference(page);
   const response = await page.goto("/cars/2019-lexus-ux-f-sport-cmmz4f7x00000");

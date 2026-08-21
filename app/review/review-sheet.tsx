@@ -64,7 +64,7 @@ export function ReviewSheet({ car, query, reviews }: ReviewSheetProps) {
     >
       <DialogContent
         showCloseButton
-        className="top-auto bottom-0 left-1/2 max-h-[92vh] w-full max-w-5xl translate-x-[-50%] translate-y-0 overflow-y-auto rounded-t-3xl sm:max-w-5xl"
+        className="top-auto bottom-0 left-1/2 max-h-[92vh] w-full max-w-5xl translate-x-[-50%] translate-y-0 overflow-y-auto overscroll-contain rounded-t-3xl sm:max-w-5xl"
       >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl">

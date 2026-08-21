@@ -235,6 +235,13 @@ function buildHeaders<TSchema extends z.ZodType>(
     copyHeader(incomingHeaders, headers, "origin");
   }
 
+  const clientIp = incomingHeaders.get("cf-connecting-ip");
+
+  if (clientIp) {
+    headers.set("cf-connecting-ip", clientIp);
+    headers.set("x-forwarded-for", clientIp);
+  }
+
   return headers;
 }
 

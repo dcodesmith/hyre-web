@@ -2,6 +2,8 @@ import { Loader2, Search } from "lucide-react";
 import { useState } from "react";
 import { Form, useLocation, useNavigate, useNavigation, useSearchParams } from "react-router";
 
+import type { SearchFlight } from "~/api/flights/schema";
+import { isCompleteFlightNumber } from "~/booking/airport-pickup";
 import { BookingTypeInput } from "~/booking/booking-type-input";
 import { BookingTypeTabs } from "~/booking/booking-type-tabs";
 import { getToDateMinDate, isValidToDateSelection, nextToDateOnFromChange } from "~/booking/dates";
@@ -13,6 +15,7 @@ import {
   DAY_BOOKING_TYPE,
   NIGHT_BOOKING_TYPE,
 } from "~/booking/types";
+import { useAirportPickup } from "~/hooks/use-airport-pickup";
 import { cn } from "~/lib/utils";
 import {
   buildBookingTypeSearchPath,
@@ -41,8 +44,11 @@ interface AirportSearchFieldsProps {
   readonly fromDate: Date | undefined;
   readonly flightNumber: string;
   readonly fallbackDate: Date;
+  readonly validatedFlight: SearchFlight | null;
+  readonly flightError: string | null;
   readonly onFromDateChange: (date: Date | undefined) => void;
   readonly onFlightNumberChange: (value: string) => void;
+  readonly onFlightNumberBlur: (value: string) => void;
 }
 
 interface StandardSearchFieldsProps {
@@ -102,8 +108,11 @@ function AirportSearchFields({
   fromDate,
   flightNumber,
   fallbackDate,
+  validatedFlight,
+  flightError,
   onFromDateChange,
   onFlightNumberChange,
+  onFlightNumberBlur,
 }: AirportSearchFieldsProps) {
   if (isCompact) {
     return (
@@ -125,7 +134,10 @@ function AirportSearchFields({
             flightNumber={flightNumber}
             fromDate={fromDate}
             fallbackDate={fallbackDate}
+            validatedFlight={validatedFlight}
+            flightError={flightError}
             onFlightNumberChange={onFlightNumberChange}
+            onFlightNumberBlur={onFlightNumberBlur}
             isCompact
           />
         </div>
@@ -151,7 +163,10 @@ function AirportSearchFields({
           flightNumber={flightNumber}
           fromDate={fromDate}
           fallbackDate={fallbackDate}
+          validatedFlight={validatedFlight}
+          flightError={flightError}
           onFlightNumberChange={onFlightNumberChange}
+          onFlightNumberBlur={onFlightNumberBlur}
         />
       </div>
     </>
@@ -265,8 +280,18 @@ function SearchFormFields({
   const [pickupTime, setPickupTime] = useState<string | undefined>(initialPickupTime);
   const [flightNumber, setFlightNumber] = useState(initialFlightNumber);
   const [fallbackDate] = useState(() => new Date());
+  const airportPickup = useAirportPickup();
   const isAirportPickup = bookingType === AIRPORT_PICKUP_BOOKING_TYPE;
   const isNight = bookingType === NIGHT_BOOKING_TYPE;
+
+  const lookupFlight = (value: string, date: Date | undefined) => {
+    if (date && isCompleteFlightNumber(value)) {
+      airportPickup.searchFlight(value, formatZonedDate(date));
+      return;
+    }
+
+    airportPickup.resetFlight();
+  };
 
   const handleBookingTypeChange = (nextBookingType: BookingType) => {
     setBookingType(nextBookingType);
@@ -274,6 +299,7 @@ function SearchFormFields({
     setToDate(undefined);
     setPickupTime(undefined);
     setFlightNumber("");
+    airportPickup.resetFlight();
 
     if (pathname === "/search") {
       navigate(buildBookingTypeSearchPath(nextBookingType, searchParams), {
@@ -294,6 +320,17 @@ function SearchFormFields({
         fallbackDate,
       }),
     );
+    lookupFlight(flightNumber, date);
+  };
+
+  const handleFlightNumberChange = (value: string) => {
+    setFlightNumber(value);
+    airportPickup.resetFlight();
+  };
+
+  const handleFlightNumberBlur = (value: string) => {
+    setFlightNumber(value);
+    lookupFlight(value, fromDate);
   };
 
   const handleToDateChange = (date: Date | undefined) => {
@@ -360,8 +397,11 @@ function SearchFormFields({
                 fromDate={fromDate}
                 flightNumber={flightNumber}
                 fallbackDate={fallbackDate}
+                validatedFlight={airportPickup.flight}
+                flightError={airportPickup.flightError}
                 onFromDateChange={handleFromDateChange}
-                onFlightNumberChange={setFlightNumber}
+                onFlightNumberChange={handleFlightNumberChange}
+                onFlightNumberBlur={handleFlightNumberBlur}
               />
             ) : (
               <StandardSearchFields

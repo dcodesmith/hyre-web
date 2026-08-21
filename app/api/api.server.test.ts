@@ -25,6 +25,8 @@ describe("createApiClient", () => {
         origin: "https://hyre.example",
         traceparent: "00-trace-parent",
         "x-request-id": "request-123",
+        "cf-connecting-ip": "203.0.113.10",
+        "x-forwarded-for": "198.51.100.1",
       },
     });
     const client = createApiClient({
@@ -46,11 +48,38 @@ describe("createApiClient", () => {
     expect(headers.get("traceparent")).toBe("00-trace-parent");
     expect(headers.get("cookie")).toBeNull();
     expect(headers.get("origin")).toBeNull();
+    expect(headers.get("cf-connecting-ip")).toBe("203.0.113.10");
+    expect(headers.get("x-forwarded-for")).toBe("203.0.113.10");
+    expect(headers.get("x-forwarded-for")).not.toBe("198.51.100.1");
     expect(response).toMatchObject({
       data: { ok: true },
       status: HTTP_STATUS.OK,
     });
     expect(response.headers.get("cache-control")).toBe("public, max-age=300");
+  });
+
+  it("does not forward a spoofed x-forwarded-for without CF-Connecting-IP", async () => {
+    let capturedInit: RequestInit | undefined;
+    const fetchImpl: typeof fetch = async (_input, init) => {
+      capturedInit = init;
+      return jsonResponse({ ok: true });
+    };
+    const client = createApiClient({
+      apiOrigin: "https://api.example",
+      fetchImpl,
+    });
+
+    await client.request({
+      path: "/api/example",
+      request: new Request("https://hyre.example/", {
+        headers: { "x-forwarded-for": "198.51.100.1" },
+      }),
+      schema: okSchema,
+    });
+
+    const headers = new Headers(capturedInit?.headers);
+    expect(headers.get("cf-connecting-ip")).toBeNull();
+    expect(headers.get("x-forwarded-for")).toBeNull();
   });
 
   it("forwards cookies and origins only when explicitly enabled", async () => {
