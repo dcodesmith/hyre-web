@@ -22,6 +22,7 @@ import {
   parsePendingOtp,
   pendingOtpClearCookie,
   pendingOtpCookieName,
+  pendingOtpSetCookie,
   readCookieValue,
 } from "~/auth/pending-otp";
 import { safeRedirectPath } from "~/auth/referer";
@@ -90,7 +91,9 @@ export async function action({ request }: Route.ActionArgs) {
         role: "user",
         referralCode: pending.referralCode,
       });
-      return data({ error: undefined, notice: "A new code is on its way." }, { headers: NO_STORE });
+      const headers = authResponseHeaders();
+      headers.append("Set-Cookie", pendingOtpSetCookie(pending, isSecureAuthCookie()));
+      return data({ error: undefined, notice: "A new code is on its way." }, { headers });
     } catch (error) {
       if (error instanceof ApiRequestError && error.kind === "aborted") {
         throw error;

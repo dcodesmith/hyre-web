@@ -24,15 +24,28 @@ describe("authResponseHeaders", () => {
 });
 
 describe("expireSessionCookies", () => {
-  it("expires both host and non-host session cookies", () => {
+  it("expires Better Auth 1.6 names and Path=/", () => {
     const cookies = expireSessionCookies();
 
-    expect(cookies.some((cookie) => cookie.startsWith("session_token=;"))).toBe(true);
+    expect(cookies.some((cookie) => cookie.startsWith("better-auth.session_token=;"))).toBe(true);
     expect(
       cookies.some(
-        (cookie) => cookie.startsWith("__Host-session_token=;") && cookie.includes("Secure"),
+        (cookie) =>
+          cookie.startsWith("__Secure-__Host-.session_token=;") &&
+          cookie.includes("Path=/") &&
+          cookie.includes("Secure"),
       ),
     ).toBe(true);
-    expect(cookies.every((cookie) => cookie.includes("Max-Age=0"))).toBe(true);
+    expect(
+      cookies.every((cookie) => cookie.includes("Path=/") && cookie.includes("Max-Age=0")),
+    ).toBe(true);
+  });
+
+  it("also expires session cookies present on the request", () => {
+    const cookies = expireSessionCookies("__Secure-__Host-.session_token=abc; other=1");
+
+    expect(cookies.some((cookie) => cookie.startsWith("__Secure-__Host-.session_token=;"))).toBe(
+      true,
+    );
   });
 });

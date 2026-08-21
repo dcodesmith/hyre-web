@@ -1,4 +1,10 @@
 const SESSION_COOKIE_NAMES = [
+  "better-auth.session_token",
+  "better-auth.session_data",
+  "__Secure-better-auth.session_token",
+  "__Secure-better-auth.session_data",
+  "__Secure-__Host-.session_token",
+  "__Secure-__Host-.session_data",
   "session_token",
   "session_data",
   "__Host-session_token",
@@ -13,16 +19,36 @@ export function appendSetCookies(target: Headers, source: Headers) {
   return target;
 }
 
-export function expireSessionCookies() {
-  return SESSION_COOKIE_NAMES.map((name) => {
-    const attributes = [`${name}=`, "Path=/", "HttpOnly", "SameSite=Lax", "Max-Age=0"];
+export function expireSessionCookies(cookieHeader?: string | null) {
+  const names = new Set<string>(SESSION_COOKIE_NAMES);
 
-    if (name.startsWith("__Host-")) {
-      attributes.push("Secure");
+  if (cookieHeader) {
+    for (const part of cookieHeader.split(";")) {
+      const separator = part.indexOf("=");
+
+      if (separator === -1) {
+        continue;
+      }
+
+      const name = part.slice(0, separator).trim();
+
+      if (name.includes("session_token") || name.includes("session_data")) {
+        names.add(name);
+      }
     }
+  }
 
-    return attributes.join("; ");
-  });
+  return [...names].map((name) => expireCookie(name));
+}
+
+function expireCookie(name: string) {
+  const attributes = [`${name}=`, "Path=/", "HttpOnly", "SameSite=Lax", "Max-Age=0"];
+
+  if (name.startsWith("__Host-") || name.startsWith("__Secure-")) {
+    attributes.push("Secure");
+  }
+
+  return attributes.join("; ");
 }
 
 export function authResponseHeaders(source?: Headers) {

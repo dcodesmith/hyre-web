@@ -22,7 +22,7 @@ export async function action({ request }: Route.ActionArgs) {
     }
   }
 
-  for (const cookie of expireSessionCookies()) {
+  for (const cookie of expireSessionCookies(request.headers.get("Cookie"))) {
     headers.append("Set-Cookie", cookie);
   }
   headers.append("Set-Cookie", pendingOtpClearCookie(isSecureAuthCookie()));
