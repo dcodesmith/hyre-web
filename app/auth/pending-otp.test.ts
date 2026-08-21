@@ -24,6 +24,16 @@ describe("pending OTP cookie", () => {
     ).toEqual({ email: "ada@tripdly.com" });
   });
 
+  it("rejects an unbounded referral code", () => {
+    expect(
+      parsePendingOtp(
+        encodeURIComponent(
+          JSON.stringify({ email: "ada@tripdly.com", referralCode: "not-a-valid-code" }),
+        ),
+      ),
+    ).toBeNull();
+  });
+
   it("uses a host-only name when cookies are secure", () => {
     expect(pendingOtpCookieName(true)).toBe("__Host-otp_pending");
     expect(pendingOtpSetCookie({ email: "ada@tripdly.com" }, true)).toContain("Secure");

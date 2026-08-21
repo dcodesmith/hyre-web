@@ -3,12 +3,6 @@ const SESSION_COOKIE_NAMES = [
   "better-auth.session_data",
   "__Secure-better-auth.session_token",
   "__Secure-better-auth.session_data",
-  "__Secure-__Host-.session_token",
-  "__Secure-__Host-.session_data",
-  "session_token",
-  "session_data",
-  "__Host-session_token",
-  "__Host-session_data",
 ] as const;
 
 export function appendSetCookies(target: Headers, source: Headers) {

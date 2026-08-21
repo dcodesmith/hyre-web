@@ -1,24 +1,24 @@
-import {
-  data,
-  Form,
-  Link,
-  redirect,
-  useActionData,
-  useNavigation,
-  useSearchParams,
-} from "react-router";
+import { getFormProps, getInputProps, useForm } from "@conform-to/react";
+import { getZodConstraint, parseWithZod } from "@conform-to/zod/v4";
+import { data, Form, Link, redirect, useNavigation, useSearchParams } from "react-router";
 import { ApiRequestError } from "~/api/api.server";
-import { getAuthSession, isSecureAuthCookie, sendSignInOtp } from "~/api/auth/auth.server";
+import { isSecureAuthCookie, sendSignInOtp } from "~/api/auth/auth.server";
 import { authResponseHeaders } from "~/api/auth/cookie-relay.server";
 import { authClientErrorMessage, authClientErrorStatus } from "~/api/auth/errors";
+import {
+  AUTH_INPUT_CLASS,
+  AUTH_INPUT_INVALID_CLASS,
+  AuthCheckbox,
+  AuthError,
+  AuthSubmitButton,
+} from "~/auth/auth-form-primitives";
 import { loginFormSchema } from "~/auth/auth-form-schema";
+import { AUTH_NO_STORE, redirectAuthenticatedUser } from "~/auth/guest-only.server";
 import { pendingOtpSetCookie } from "~/auth/pending-otp";
-import { safeRedirectPath } from "~/auth/referer";
-import { Button } from "~/components/ui/button";
+import { authPath } from "~/auth/referer";
+import { cn } from "~/lib/utils";
 import { buildPageMetadata } from "~/seo/metadata";
 import type { Route } from "./+types/auth";
-
-const NO_STORE = { "Cache-Control": "private, no-store" };
 
 export const meta = () =>
   buildPageMetadata({
@@ -29,47 +29,25 @@ export const meta = () =>
   });
 
 export async function loader({ request }: Route.LoaderArgs) {
-  try {
-    const session = await getAuthSession({ request });
-
-    if (session) {
-      throw redirect("/", { headers: NO_STORE });
-    }
-  } catch (error) {
-    if (error instanceof Response) {
-      throw error;
-    }
-
-    if (error instanceof ApiRequestError && error.kind === "aborted") {
-      throw error;
-    }
-  }
-
+  await redirectAuthenticatedUser(request);
   return null;
 }
 
 export async function action({ request }: Route.ActionArgs) {
-  const form = await request.formData();
-  const parsed = loginFormSchema.safeParse({
-    email: String(form.get("email") ?? ""),
-    referralCode: String(form.get("referralCode") ?? ""),
-    acceptTerms: String(form.get("acceptTerms") ?? ""),
-  });
+  const formData = await request.formData();
+  const submission = parseWithZod(formData, { schema: loginFormSchema });
 
-  if (!parsed.success) {
-    return data(
-      { error: parsed.error.issues[0]?.message ?? "Check your details and try again." },
-      { status: 400, headers: NO_STORE },
-    );
+  if (submission.status !== "success") {
+    return data(submission.reply(), { status: 400, headers: AUTH_NO_STORE });
   }
 
-  const referralCode = parsed.data.referralCode || undefined;
-  const redirectTo = safeRedirectPath(new URL(request.url).searchParams.get("redirectTo"));
+  const referralCode = submission.value.referralCode || undefined;
+  const search = new URL(request.url).searchParams;
 
   try {
     await sendSignInOtp({
       request,
-      email: parsed.data.email,
+      email: submission.value.email,
       role: "user",
       referralCode,
     });
@@ -78,10 +56,10 @@ export async function action({ request }: Route.ActionArgs) {
       throw error;
     }
 
-    return data(
-      { error: authClientErrorMessage(error) },
-      { status: authClientErrorStatus(error), headers: NO_STORE },
-    );
+    return data(submission.reply({ formErrors: [authClientErrorMessage(error)] }), {
+      status: authClientErrorStatus(error),
+      headers: AUTH_NO_STORE,
+    });
   }
 
   const headers = authResponseHeaders();
@@ -89,103 +67,111 @@ export async function action({ request }: Route.ActionArgs) {
     "Set-Cookie",
     pendingOtpSetCookie(
       {
-        email: parsed.data.email,
+        email: submission.value.email,
         referralCode,
       },
       isSecureAuthCookie(),
     ),
   );
 
-  throw redirect(
-    redirectTo === "/" ? "/verify" : `/verify?redirectTo=${encodeURIComponent(redirectTo)}`,
-    {
-      headers,
-    },
-  );
+  throw redirect(authPath("/verify", { redirectTo: search.get("redirectTo") }), {
+    headers,
+  });
 }
 
-export default function AuthPage() {
-  const actionData = useActionData<typeof action>();
+export default function AuthPage({ actionData }: Route.ComponentProps) {
   const [searchParams] = useSearchParams();
   const navigation = useNavigation();
   const referralFromUrl = searchParams.get("ref")?.trim().toUpperCase() ?? "";
-  const isSubmitting = navigation.state !== "idle";
+  const isSubmitting = navigation.formMethod != null;
+  const [form, fields] = useForm({
+    id: "login",
+    lastResult: actionData,
+    constraint: getZodConstraint(loginFormSchema),
+    shouldValidate: "onSubmit",
+    shouldRevalidate: "onInput",
+    defaultValue: {
+      referralCode: referralFromUrl,
+    },
+    onValidate({ formData }) {
+      return parseWithZod(formData, { schema: loginFormSchema });
+    },
+  });
+  const { email, referralCode, acceptTerms } = fields;
 
   return (
-    <div className="mx-auto w-full max-w-md px-4 py-16">
-      <h1 className="mb-2 text-3xl font-bold text-gray-900">Welcome back</h1>
-      <p className="mb-8 text-gray-600">Enter your email to sign in or create your account.</p>
+    <>
+      <h1 className="sr-only">Log in</h1>
 
-      <Form method="post" className="flex flex-col gap-4">
-        <div className="space-y-1.5">
-          <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-            Email address
-          </label>
-          <input
-            id="email"
-            name="email"
-            type="email"
-            autoComplete="email"
-            spellCheck={false}
-            required
-            placeholder="you@example.com"
-            className="w-full rounded-lg border border-gray-300 px-4 py-3 focus-visible:border-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-900"
-          />
-        </div>
-
-        {referralFromUrl ? (
-          <p className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-gray-700">
-            You&apos;re signing up with referral code: <strong>{referralFromUrl}</strong>
-            <input type="hidden" name="referralCode" value={referralFromUrl} />
-          </p>
-        ) : (
-          <div className="space-y-1.5">
-            <label htmlFor="referralCode" className="block text-sm font-medium text-gray-700">
-              Referral code <span className="font-normal text-gray-500">(optional)</span>
-            </label>
+      <Form method="post" {...getFormProps(form)}>
+        <div className="flex flex-col gap-4">
+          <div>
             <input
-              id="referralCode"
-              name="referralCode"
-              type="text"
-              autoComplete="off"
+              {...getInputProps(email, { type: "email" })}
+              autoComplete="email"
               spellCheck={false}
-              placeholder="e.g. ABCD2345"
-              className="w-full rounded-lg border border-gray-300 px-4 py-3 focus-visible:border-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-900"
+              placeholder="Email"
+              aria-label="Email"
+              className={cn(AUTH_INPUT_CLASS, email.errors && AUTH_INPUT_INVALID_CLASS)}
             />
+            <AuthError id={email.errorId} errors={email.errors} />
           </div>
-        )}
 
-        <label htmlFor="acceptTerms" className="flex items-start gap-2.5 text-sm text-gray-600">
-          <input
-            id="acceptTerms"
-            name="acceptTerms"
-            type="checkbox"
-            value="on"
-            required
-            className="mt-1 size-4"
-          />
-          <span>
-            I agree to Tripdly&apos;s{" "}
-            <Link to="/terms" className="text-primary underline-offset-4 hover:underline">
-              Terms of Service
-            </Link>{" "}
-            and{" "}
-            <Link to="/privacy" className="text-primary underline-offset-4 hover:underline">
-              Privacy Policy
-            </Link>
-          </span>
-        </label>
+          <div>
+            {referralFromUrl ? (
+              <p className="text-sm text-neutral-600">
+                Referral code:{" "}
+                <span className="font-medium text-neutral-900">{referralFromUrl}</span>
+                <input type="hidden" name={referralCode.name} value={referralFromUrl} />
+              </p>
+            ) : (
+              <input
+                {...getInputProps(referralCode, { type: "text" })}
+                autoComplete="off"
+                spellCheck={false}
+                placeholder="Referral code (optional)"
+                aria-label="Referral code (optional)"
+                className={cn(AUTH_INPUT_CLASS, referralCode.errors && AUTH_INPUT_INVALID_CLASS)}
+              />
+            )}
+            <AuthError id={referralCode.errorId} errors={referralCode.errors} />
+          </div>
 
-        {actionData?.error ? (
-          <p className="text-sm text-destructive" role="alert">
-            {actionData.error}
-          </p>
-        ) : null}
+          <div>
+            <label
+              htmlFor={acceptTerms.id}
+              className="flex cursor-pointer items-start gap-2.5 text-sm text-neutral-600"
+            >
+              <AuthCheckbox
+                {...getInputProps(acceptTerms, { type: "checkbox", value: "on" })}
+                aria-label="I agree to Tripdly's Terms of Service and Privacy Policy"
+                className={acceptTerms.errors ? "border-red-500" : undefined}
+              />
+              <span>
+                I agree to Tripdly&apos;s{" "}
+                <Link to="/terms" className="underline" target="_blank" rel="noopener noreferrer">
+                  Terms
+                </Link>{" "}
+                and{" "}
+                <Link to="/privacy" className="underline" target="_blank" rel="noopener noreferrer">
+                  Privacy Policy
+                </Link>
+              </span>
+            </label>
+            <AuthError id={acceptTerms.errorId} errors={acceptTerms.errors} />
+          </div>
 
-        <Button type="submit" disabled={isSubmitting} className="h-11">
-          {isSubmitting ? "Sending code…" : "Send code"}
-        </Button>
+          <AuthError id={form.errorId} errors={form.errors} />
+
+          <AuthSubmitButton
+            pending={isSubmitting}
+            pendingLabel="Sending code…"
+            ariaLabel={isSubmitting ? "Sending verification code" : "Continue"}
+          >
+            Continue
+          </AuthSubmitButton>
+        </div>
       </Form>
-    </div>
+    </>
   );
 }

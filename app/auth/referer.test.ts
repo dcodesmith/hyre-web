@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { authReferer, safeRedirectPath } from "./referer";
+import { authPath, authReferer, safeRedirectPath } from "./referer";
 
 describe("authReferer", () => {
   it("builds a role-scoped referer from the app origin", () => {
@@ -13,10 +13,28 @@ describe("authReferer", () => {
 });
 
 describe("safeRedirectPath", () => {
-  it("rejects protocol-relative and off-site targets", () => {
+  it("rejects protocol-relative, off-site, and control-character targets", () => {
     expect(safeRedirectPath("/bookings")).toBe("/bookings");
     expect(safeRedirectPath("//evil.example")).toBe("/");
     expect(safeRedirectPath("https://evil.example")).toBe("/");
     expect(safeRedirectPath("\\auth")).toBe("/");
+    expect(safeRedirectPath("/bookings\r\nSet-Cookie: a=1")).toBe("/");
+    expect(safeRedirectPath("/bookings\0")).toBe("/");
+  });
+});
+
+describe("authPath", () => {
+  it("keeps a safe redirectTo and a valid referral on /auth", () => {
+    expect(authPath("/auth", { redirectTo: "/cars/abc", ref: "abcd2345" })).toBe(
+      "/auth?redirectTo=%2Fcars%2Fabc&ref=ABCD2345",
+    );
+  });
+
+  it("omits home redirects, invalid refs, and unsafe targets", () => {
+    expect(authPath("/auth", { redirectTo: "/", ref: "nope" })).toBe("/auth");
+    expect(authPath("/verify", { redirectTo: "//evil.example", ref: "ABCD2345" })).toBe("/verify");
+    expect(authPath("/verify", { redirectTo: "/bookings", ref: "ABCD2345" })).toBe(
+      "/verify?redirectTo=%2Fbookings",
+    );
   });
 });

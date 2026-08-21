@@ -24,14 +24,14 @@ describe("authResponseHeaders", () => {
 });
 
 describe("expireSessionCookies", () => {
-  it("expires Better Auth 1.6 names and Path=/", () => {
+  it("expires Better Auth names and Path=/", () => {
     const cookies = expireSessionCookies();
 
     expect(cookies.some((cookie) => cookie.startsWith("better-auth.session_token=;"))).toBe(true);
     expect(
       cookies.some(
         (cookie) =>
-          cookie.startsWith("__Secure-__Host-.session_token=;") &&
+          cookie.startsWith("__Secure-better-auth.session_token=;") &&
           cookie.includes("Path=/") &&
           cookie.includes("Secure"),
       ),

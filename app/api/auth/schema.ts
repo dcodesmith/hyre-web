@@ -9,24 +9,20 @@ export const sendOtpResponseSchema = z.object({
 });
 
 export const signInResponseSchema = z.object({
-  user: z
-    .object({
-      id: z.string(),
-      email: z.email(),
-      roles: z.array(z.string()).optional(),
-    })
-    .passthrough(),
+  user: z.object({
+    id: z.string(),
+    email: z.email(),
+    roles: z.array(z.string()).optional(),
+  }),
   token: z.string().optional(),
 });
 
 export const sessionResponseSchema = z.object({
-  user: z
-    .object({
-      id: z.string(),
-      email: z.email(),
-      roles: z.array(z.string()),
-    })
-    .passthrough(),
+  user: z.object({
+    id: z.string(),
+    email: z.email(),
+    roles: z.array(z.string()),
+  }),
   session: z.unknown(),
 });
 

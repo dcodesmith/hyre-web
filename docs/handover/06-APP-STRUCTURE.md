@@ -125,9 +125,12 @@ app/
     timezone.test.ts
 
   auth/
+    auth-layout.tsx               # viewport-centered login chrome; logo top-left to home
+    auth-form-primitives.tsx      # Uber-like inputs, checkbox, submit, errors
     auth-form-schema.ts           # email / OTP / pending cookie
     referer.ts                    # APP_ORIGIN + role path; never caller URLs
     pending-otp.ts                # HttpOnly pending OTP cookie
+    guest-only.server.ts          # signed-in /auth and /verify redirect
 
   seo/
     metadata.ts
@@ -156,6 +159,7 @@ app/
   components/
     ui/                       # shadcn primitives; do not hand-edit
     layout/
+      brand-link.tsx          # shared Tripdly wordmark → /
     errors/
     legal/
     icons/
@@ -165,6 +169,7 @@ app/
   routes/
     robots.txt.ts                 # production Allow; preview/local Disallow
     sitemap.xml.ts                # static locs + paged public search cars
+    _auth.tsx                     # auth layout: no public header/footer
     auth.tsx                      # customer OTP request
     verify.tsx                    # customer OTP verify + resend
     logout.ts                     # POST sign-out; GET redirects home

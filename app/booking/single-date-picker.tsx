@@ -1,17 +1,11 @@
-import { lazy, Suspense, useId, useState } from "react";
+import { useId, useState } from "react";
 import { LabeledDateTrigger, OutlineDateTrigger } from "~/booking/date-picker-triggers";
 import { getDisabledBookableDays, getEarliestBookableDate } from "~/booking/dates";
 import type { BookingType } from "~/booking/types";
+import { Calendar } from "~/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "~/components/ui/popover";
 import { cn } from "~/lib/utils";
 import { formatOutlinePickerDate, formatPickerDate, SERVICE_TIMEZONE } from "~/time/timezone";
-
-const Calendar = lazy(async () => {
-  const { Calendar: CalendarComponent } = await import("~/components/ui/calendar");
-  return { default: CalendarComponent };
-});
-
-const calendarFallback = <div className="h-75 w-70" aria-hidden="true" />;
 
 interface SingleDatePickerProps {
   readonly bookingType: BookingType;
@@ -96,18 +90,16 @@ export function SingleDatePicker({
         >
           <div className="flex w-auto flex-col">
             {isOpen ? (
-              <Suspense fallback={calendarFallback}>
-                <Calendar
-                  autoFocus
-                  mode="single"
-                  timeZone={SERVICE_TIMEZONE}
-                  selected={normalizedDate}
-                  defaultMonth={normalizedDate ?? earliestDate}
-                  onSelect={handleDateChange}
-                  numberOfMonths={1}
-                  disabled={disabledDays}
-                />
-              </Suspense>
+              <Calendar
+                autoFocus
+                mode="single"
+                timeZone={SERVICE_TIMEZONE}
+                selected={normalizedDate}
+                defaultMonth={normalizedDate ?? earliestDate}
+                onSelect={handleDateChange}
+                numberOfMonths={1}
+                disabled={disabledDays}
+              />
             ) : null}
             <div className="flex w-full flex-col items-center justify-between gap-2 border-t p-2 sm:flex-row">
               <div className="flex h-10 items-center text-sm font-semibold">
