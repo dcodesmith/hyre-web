@@ -43,6 +43,7 @@ app/
     http-status.ts
     cars/
       cars.server.ts              # GET /api/cars/categories, GET /api/cars/search, GET /api/cars/:carId
+                                  # listPublicSitemapCars pages unfiltered search
       schema.ts                   # PublicCar, SearchCar, PublicCarDetail, categories, search
     reviews/
       reviews.server.ts           # GET /api/reviews/car/:carId
@@ -122,6 +123,10 @@ app/
     metadata.ts
     metadata.test.ts
     structured-data.tsx
+    robots.ts                     # production allow-list; preview/local Disallow: /
+    robots.test.ts
+    sitemap.ts                    # static locs + paged public search helpers
+    sitemap.test.ts
 
   content/
     home.ts
@@ -148,6 +153,8 @@ app/
 
   middleware/
   routes/
+    robots.txt.ts                 # production Allow; preview/local Disallow
+    sitemap.xml.ts                # static locs + paged public search cars
 ```
 
 ## Next (do not create empty)

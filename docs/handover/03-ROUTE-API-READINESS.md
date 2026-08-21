@@ -365,8 +365,8 @@ Better end state, in the API, not Prisma in the Worker:
    requests to it.
 3. Acceptable alternative: keep full CUID as the new canonical, but still
    resolve short slugs and 301 them so indexed equity moves.
-4. Emit that same canonical in the later sitemap slice. Do not let sitemap
-   and `generateCarSlug` drift.
+4. Emit that same canonical from `/sitemap.xml`. The sitemap already uses
+   `generateCarSlug`; do not let those drift.
 
 13 characters was hireApp's uniqueness compromise, not a search keyword.
 Do not invent a human slug (`2019-lexus-ux-f-sport`) without a unique key;
@@ -382,9 +382,14 @@ duplicate year-make-model listings would collide.
 - If `GET /api/reviews/car/:carId` fails, the page hides the review CTA even
   when the car DTO has a count. Safer than a broken sheet; weaker than
   showing the car-level rating with a retry.
-- Sitemap (Phase 3 item 6) has no public “all approved cars” list. Categories
-  and search are paginated. The sitemap will need a dedicated public list or
-  an agreed composition of existing endpoints.
+- `/robots.txt` and `/sitemap.xml` are web-owned. Production robots allow the
+  public site and point at `https://tripdly.com/sitemap.xml`. Preview and
+  local robots send `Disallow: /`. The sitemap lists existing static pages
+  plus car locs from paged `GET /api/cars/search?limit=50` (max 20 pages),
+  using `generateCarSlug` so locs match car-detail canonicals. It omits
+  partners, referrals, and `/chauffeur-service-lagos` until those routes
+  exist. A later dedicated public-car list can replace paging if the fleet
+  outgrows the cap.
 - Card hrefs always include `bookingType=DAY`. Canonical stays clean. Fine
   for UX; default `DAY` could be omitted later for shorter share links.
 - Places autocomplete/resolve and `GET /api/search-flight` /
