@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useEffectEvent, useRef } from "react";
 import { useFetcher } from "react-router";
 
 import type { SearchFlight, TripDurationResponse } from "~/api/flights/schema";
@@ -32,28 +32,26 @@ export function useAirportPickup({
 } = {}) {
   const flightFetcher = useFetcher<SearchFlightLoaderData>();
   const durationFetcher = useFetcher<TripDurationLoaderData>();
-  const flightFetcherRef = useRef(flightFetcher);
-  const onFlightFoundRef = useRef(onFlightFound);
   const lastAppliedFlightIdRef = useRef<string | null>(null);
   const lastRequestedKeyRef = useRef<string | null>(null);
-  const requestFlightLookupRef = useRef<
-    ((nextFlightNumber: string, nextDate: string) => void) | null
-  >(null);
 
-  const requestFlightLookup = (nextFlightNumber: string, nextDate: string) => {
-    const normalized = normalizeFlightNumber(nextFlightNumber);
-    lastRequestedKeyRef.current = `${normalized}|${nextDate}`;
-    lastAppliedFlightIdRef.current = null;
-    const params = new URLSearchParams({
-      flightNumber: normalized,
-      date: nextDate,
-    });
-    void flightFetcherRef.current.load(`/api/search-flight?${params}`);
-  };
+  const notifyFlightFound = useEffectEvent((flight: SearchFlight) => {
+    onFlightFound?.(flight);
+  });
 
-  flightFetcherRef.current = flightFetcher;
-  onFlightFoundRef.current = onFlightFound;
-  requestFlightLookupRef.current = requestFlightLookup;
+  const requestFlightLookup = useCallback(
+    (nextFlightNumber: string, nextDate: string) => {
+      const normalized = normalizeFlightNumber(nextFlightNumber);
+      lastRequestedKeyRef.current = `${normalized}|${nextDate}`;
+      lastAppliedFlightIdRef.current = null;
+      const params = new URLSearchParams({
+        flightNumber: normalized,
+        date: nextDate,
+      });
+      void flightFetcher.load(`/api/search-flight?${params}`);
+    },
+    [flightFetcher],
+  );
 
   useEffect(() => {
     if (!flightNumber || !date || !isCompleteFlightNumber(flightNumber)) {
@@ -66,8 +64,8 @@ export function useAirportPickup({
       return;
     }
 
-    requestFlightLookupRef.current?.(flightNumber, date);
-  }, [date, flightNumber]);
+    requestFlightLookup(flightNumber, date);
+  }, [date, flightNumber, requestFlightLookup]);
 
   useEffect(() => {
     if (flightFetcher.state !== "idle") {
@@ -90,8 +88,8 @@ export function useAirportPickup({
     }
 
     lastAppliedFlightIdRef.current = flight.flightId;
-    onFlightFoundRef.current?.(flight);
-  }, [flightFetcher.data, flightFetcher.state]);
+    notifyFlightFound(flight);
+  }, [flightFetcher.data, flightFetcher.state, notifyFlightFound]);
 
   const flightResult = flightFetcher.state === "idle" ? flightFetcher.data : undefined;
   const durationResult = durationFetcher.state === "idle" ? durationFetcher.data : undefined;

@@ -1,6 +1,7 @@
 import { env } from "cloudflare:workers";
 import { createApiClient } from "../api.server";
-import { aiSearchQuerySchema, aiSearchResponseSchema } from "./schema";
+import { aiSearchQuerySchema } from "./ai-search-form-schema";
+import { aiSearchResponseSchema } from "./schema";
 
 let apiClient: ReturnType<typeof createApiClient> | undefined;
 

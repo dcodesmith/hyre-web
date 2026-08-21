@@ -55,7 +55,8 @@ app/
       schema.ts
     ai-search/
       ai-search.server.ts         # POST /api/ai-search
-      schema.ts
+      ai-search-form-schema.ts    # request query validation
+      schema.ts                   # AI search response DTO
 
   car/
     car-domain.ts                 # CarDomain(car, now, bookingType, booking)

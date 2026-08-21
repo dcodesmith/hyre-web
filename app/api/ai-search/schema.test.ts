@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { aiSearchQuerySchema, aiSearchResponseSchema } from "./schema";
+import { aiSearchQuerySchema } from "./ai-search-form-schema";
+import { aiSearchResponseSchema } from "./schema";
 
 describe("aiSearchQuerySchema", () => {
   it("requires a trimmed query and caps length", () => {
