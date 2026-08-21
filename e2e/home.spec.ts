@@ -59,8 +59,14 @@ test("renders crawlable homepage metadata and booking controls", async ({ page }
 test("opens the AI search dialog from the homepage", async ({ page }) => {
   await setCookiePreference(page);
   await page.goto("/");
-  await page.getByRole("button", { name: "Search by AI" }).click();
-  await expect(page.getByRole("dialog", { name: "Search by AI" })).toBeVisible();
+  const trigger = page.getByRole("button", { name: "Search by AI" });
+  await expect(async () => {
+    await trigger.scrollIntoViewIfNeeded();
+    await trigger.click();
+    await expect(page.getByRole("dialog", { name: "Search by AI" })).toBeVisible({
+      timeout: 1500,
+    });
+  }).toPass();
   await expect(page.getByLabel("Describe your search")).toBeVisible();
 });
 
