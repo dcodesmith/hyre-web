@@ -14,6 +14,11 @@ export const problemDetailsSchema = z.object({
 
 export type ProblemDetails = z.infer<typeof problemDetailsSchema>;
 
+const betterAuthErrorSchema = z.object({
+  message: z.string().min(1),
+  code: z.string().optional(),
+});
+
 type ProblemFallback = {
   status: number;
   title: string;
@@ -54,6 +59,19 @@ export function normalizeProblemDetails(input: unknown, fallback: ProblemFallbac
       errorCode: parsed.data.errorCode,
       errors: parsed.data.errors,
       details: parsed.data.details,
+    };
+  }
+
+  const betterAuth = betterAuthErrorSchema.safeParse(input);
+
+  if (betterAuth.success && fallback.status < HTTP_STATUS.INTERNAL_SERVER_ERROR) {
+    return {
+      type: "BETTER_AUTH_ERROR",
+      title: betterAuth.data.code ?? fallback.title,
+      status: fallback.status,
+      detail: betterAuth.data.message,
+      instance: fallback.instance,
+      errorCode: betterAuth.data.code,
     };
   }
 

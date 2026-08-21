@@ -27,6 +27,9 @@ export default [
     route("terms", "routes/terms.tsx"),
     route("privacy", "routes/privacy.tsx"),
     route("cookies", "routes/cookies.tsx"),
+    route("auth", "routes/auth.tsx"),
+    route("verify", "routes/verify.tsx"),
+    route("logout", "routes/logout.ts"),
     ...visualRoutes,
   ]),
 ] satisfies RouteConfig;
