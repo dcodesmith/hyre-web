@@ -28,12 +28,15 @@ test("shows inline field errors without native validation", async ({ page }) => 
 
 test("clears only the terms error after the checkbox is checked", async ({ page }) => {
   await page.goto("/auth");
+  await page.reload();
   await page.getByRole("button", { name: "Continue" }).click();
 
   const termsError = page.getByText("You must accept the Terms of Service and Privacy Policy");
   await expect(termsError).toBeVisible();
 
-  await page.getByRole("checkbox", { name: /Terms/ }).check();
+  const terms = page.getByRole("checkbox", { name: /Terms/ });
+  await terms.click();
+  await expect(terms).toBeChecked();
 
   await expect(termsError).toBeHidden();
   await expect(page.getByText("Email address is not valid.")).toBeVisible();
