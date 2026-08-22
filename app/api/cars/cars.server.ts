@@ -18,7 +18,27 @@ function getApiClient() {
   return apiClient;
 }
 
-export function getCarCategories(options: { request?: Request; limit?: number } = {}) {
+export type GetCarCategoriesOptions = {
+  request?: Request;
+  limit?: number;
+};
+
+export type SearchCarsOptions = {
+  request?: Request;
+  search: URLSearchParams;
+};
+
+export type ListPublicSitemapCarsOptions = {
+  request?: Request;
+};
+
+export type GetPublicCarOptions = {
+  request?: Request;
+  carId: string;
+  from?: string | null;
+};
+
+export function getCarCategories(options: GetCarCategoriesOptions = {}) {
   const limit = carCategoriesLimitSchema.parse(options.limit);
   const search = new URLSearchParams({ limit: String(limit) });
 
@@ -29,7 +49,7 @@ export function getCarCategories(options: { request?: Request; limit?: number } 
   });
 }
 
-export function searchCars(options: { request?: Request; search: URLSearchParams }) {
+export function searchCars(options: SearchCarsOptions) {
   return getApiClient().request({
     path: `/api/cars/search?${options.search}`,
     request: options.request,
@@ -37,7 +57,7 @@ export function searchCars(options: { request?: Request; search: URLSearchParams
   });
 }
 
-export function listPublicSitemapCars(options: { request?: Request } = {}) {
+export function listPublicSitemapCars(options: ListPublicSitemapCarsOptions = {}) {
   return collectPublicSitemapCars({
     searchPage: async (page) => {
       const response = await searchCars({
@@ -58,7 +78,7 @@ function isAbortError(error: unknown) {
   return error instanceof ApiRequestError && error.kind === "aborted";
 }
 
-export function getPublicCar(options: { request?: Request; carId: string; from?: string | null }) {
+export function getPublicCar(options: GetPublicCarOptions) {
   const search = new URLSearchParams();
 
   if (options.from) {

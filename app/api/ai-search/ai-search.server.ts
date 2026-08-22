@@ -11,7 +11,12 @@ function getApiClient() {
   return apiClient;
 }
 
-export function searchWithAi(options: { request?: Request; query: string }) {
+export type SearchWithAiOptions = {
+  request?: Request;
+  query: string;
+};
+
+export function searchWithAi(options: SearchWithAiOptions) {
   return getApiClient().request({
     path: "/api/ai-search",
     method: "POST",

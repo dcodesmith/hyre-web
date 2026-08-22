@@ -44,6 +44,16 @@ test("sends an unauthenticated verify visit back to login", async ({ page }) => 
   await expect(page).toHaveURL(/\/auth$/);
 });
 
+test("locks a valid referral from the URL and leaves an invalid one editable", async ({ page }) => {
+  await page.goto("/auth?ref=ABCD2345");
+  await expect(page.getByText("Referral code: ABCD2345")).toBeVisible();
+  await expect(page.getByPlaceholder("Referral code (optional)")).toHaveCount(0);
+
+  await page.goto("/auth?ref=nope");
+  await expect(page.getByPlaceholder("Referral code (optional)")).toBeVisible();
+  await expect(page.getByText("Referral code: NOPE")).toHaveCount(0);
+});
+
 test("keeps redirectTo and referral when verify has no pending OTP", async ({ page }) => {
   await page.goto("/verify?redirectTo=/cars/test-car&ref=ABCD2345");
   await expect(page).toHaveURL((url) => {

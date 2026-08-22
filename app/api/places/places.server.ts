@@ -15,12 +15,20 @@ function getApiClient() {
   return apiClient;
 }
 
-export function autocompletePlaces(options: {
+export type AutocompletePlacesOptions = {
   request?: Request;
   input: string;
   sessionToken?: string;
   limit?: number;
-}) {
+};
+
+export type ResolvePlaceOptions = {
+  request?: Request;
+  placeId: string;
+  sessionToken?: string;
+};
+
+export function autocompletePlaces(options: AutocompletePlacesOptions) {
   const search = new URLSearchParams({
     input: autocompleteInputSchema.parse(options.input),
     limit: String(options.limit ?? 4),
@@ -38,11 +46,7 @@ export function autocompletePlaces(options: {
   });
 }
 
-export function resolvePlace(options: {
-  request?: Request;
-  placeId: string;
-  sessionToken?: string;
-}) {
+export function resolvePlace(options: ResolvePlaceOptions) {
   return getApiClient().request({
     path: "/api/places/resolve",
     method: "POST",

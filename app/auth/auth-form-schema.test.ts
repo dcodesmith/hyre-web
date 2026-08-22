@@ -7,6 +7,7 @@ import {
   loginFormSchema,
   OTP_CODE_ERROR,
   TERMS_ACCEPTANCE_ERROR,
+  validReferralCode,
   verifyFormSchema,
 } from "./auth-form-schema";
 
@@ -102,5 +103,13 @@ describe("verifyFormSchema", () => {
     }
 
     expect(firstFieldError(invalid.error, "code")).toBe(OTP_CODE_ERROR);
+  });
+});
+
+describe("validReferralCode", () => {
+  it("keeps a matching code and drops anything else", () => {
+    expect(validReferralCode(" abcd2345 ")).toBe("ABCD2345");
+    expect(validReferralCode("nope")).toBe("");
+    expect(validReferralCode(null)).toBe("");
   });
 });

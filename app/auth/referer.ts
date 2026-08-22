@@ -1,5 +1,5 @@
 import type { AuthRole } from "~/api/auth/schema";
-import { REFERRAL_CODE_PATTERN } from "~/auth/auth-form-schema";
+import { validReferralCode } from "~/auth/auth-form-schema";
 
 export const AUTH_ROLE_PATHS = {
   user: "/auth",
@@ -44,9 +44,9 @@ export function authPath(
   }
 
   if (path === "/auth") {
-    const ref = query.ref?.trim().toUpperCase() ?? "";
+    const ref = validReferralCode(query.ref);
 
-    if (REFERRAL_CODE_PATTERN.test(ref)) {
+    if (ref) {
       params.set("ref", ref);
     }
   }

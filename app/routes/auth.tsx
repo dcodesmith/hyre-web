@@ -12,7 +12,7 @@ import {
   AuthError,
   AuthSubmitButton,
 } from "~/auth/auth-form-primitives";
-import { loginFormSchema } from "~/auth/auth-form-schema";
+import { loginFormSchema, validReferralCode } from "~/auth/auth-form-schema";
 import { AUTH_NO_STORE, redirectAuthenticatedUser } from "~/auth/guest-only.server";
 import { pendingOtpSetCookie } from "~/auth/pending-otp";
 import { authPath } from "~/auth/referer";
@@ -82,7 +82,7 @@ export async function action({ request }: Route.ActionArgs) {
 export default function AuthPage({ actionData }: Route.ComponentProps) {
   const [searchParams] = useSearchParams();
   const navigation = useNavigation();
-  const referralFromUrl = searchParams.get("ref")?.trim().toUpperCase() ?? "";
+  const referralFromUrl = validReferralCode(searchParams.get("ref"));
   const isSubmitting = navigation.formMethod != null;
   const [form, fields] = useForm({
     id: "login",

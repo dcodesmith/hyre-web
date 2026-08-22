@@ -18,6 +18,28 @@ function getApiClient() {
   return apiClient;
 }
 
+export type SendSignInOtpOptions = {
+  request?: Request;
+  email: string;
+  role: AuthRole;
+  referralCode?: string;
+};
+
+export type VerifySignInOtpOptions = {
+  request?: Request;
+  email: string;
+  otp: string;
+  role: AuthRole;
+};
+
+export type GetAuthSessionOptions = {
+  request: Request;
+};
+
+export type SignOutOptions = {
+  request: Request;
+};
+
 function authHeaders(role: AuthRole) {
   return {
     origin: env.APP_ORIGIN,
@@ -25,12 +47,7 @@ function authHeaders(role: AuthRole) {
   };
 }
 
-export function sendSignInOtp(options: {
-  request?: Request;
-  email: string;
-  role: AuthRole;
-  referralCode?: string;
-}) {
+export function sendSignInOtp(options: SendSignInOtpOptions) {
   return getApiClient().request({
     path: "/api/auth/email-otp/send-verification-otp",
     method: "POST",
@@ -46,12 +63,7 @@ export function sendSignInOtp(options: {
   });
 }
 
-export function verifySignInOtp(options: {
-  request?: Request;
-  email: string;
-  otp: string;
-  role: AuthRole;
-}) {
+export function verifySignInOtp(options: VerifySignInOtpOptions) {
   return getApiClient().request({
     path: "/api/auth/sign-in/email-otp",
     method: "POST",
@@ -66,7 +78,7 @@ export function verifySignInOtp(options: {
   });
 }
 
-export async function getAuthSession(options: { request: Request }) {
+export async function getAuthSession(options: GetAuthSessionOptions) {
   try {
     return await getApiClient().request({
       path: "/auth/session",
@@ -83,7 +95,7 @@ export async function getAuthSession(options: { request: Request }) {
   }
 }
 
-export function signOut(options: { request: Request }) {
+export function signOut(options: SignOutOptions) {
   return getApiClient().request({
     path: "/api/auth/sign-out",
     method: "POST",

@@ -5,6 +5,11 @@ export const EMAIL_INVALID_ERROR = "Email address is not valid.";
 export const OTP_CODE_ERROR = "Code must be exactly 6 digits.";
 export const REFERRAL_CODE_PATTERN = /^[123456789ABCDEFGHJKLMNPQRSTUVWXYZ]{8}$/;
 
+export function validReferralCode(value: string | null | undefined) {
+  const ref = value?.trim().toUpperCase() ?? "";
+  return REFERRAL_CODE_PATTERN.test(ref) ? ref : "";
+}
+
 const referralCodeSchema = z
   .string()
   .trim()

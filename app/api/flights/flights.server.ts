@@ -22,11 +22,18 @@ function getApiClient() {
   return apiClient;
 }
 
-export function searchAirportPickupFlight(options: {
+export type SearchAirportPickupFlightOptions = {
   request?: Request;
   flightNumber: string;
   date: string;
-}) {
+};
+
+export type CalculateAirportTripDurationOptions = {
+  request?: Request;
+  destination: string;
+};
+
+export function searchAirportPickupFlight(options: SearchAirportPickupFlightOptions) {
   const search = new URLSearchParams({
     flightNumber: flightNumberSchema.parse(options.flightNumber),
     date: flightDateSchema.parse(options.date),
@@ -39,7 +46,7 @@ export function searchAirportPickupFlight(options: {
   });
 }
 
-export function calculateAirportTripDuration(options: { request?: Request; destination: string }) {
+export function calculateAirportTripDuration(options: CalculateAirportTripDurationOptions) {
   const search = new URLSearchParams({
     destination: destinationSchema.parse(options.destination),
   });
