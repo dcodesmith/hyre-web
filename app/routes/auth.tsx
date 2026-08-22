@@ -118,22 +118,14 @@ export default function AuthPage({ actionData }: Route.ComponentProps) {
           </div>
 
           <div>
-            {referralFromUrl ? (
-              <p className="text-sm text-neutral-600">
-                Referral code:{" "}
-                <span className="font-medium text-neutral-900">{referralFromUrl}</span>
-                <input type="hidden" name={referralCode.name} value={referralFromUrl} />
-              </p>
-            ) : (
-              <input
-                {...getInputProps(referralCode, { type: "text" })}
-                autoComplete="off"
-                spellCheck={false}
-                placeholder="Referral code (optional)"
-                aria-label="Referral code (optional)"
-                className={cn(AUTH_INPUT_CLASS, referralCode.errors && AUTH_INPUT_INVALID_CLASS)}
-              />
-            )}
+            <input
+              {...getInputProps(referralCode, { type: "text" })}
+              autoComplete="off"
+              spellCheck={false}
+              placeholder="Referral code (optional)"
+              aria-label="Referral code (optional)"
+              className={cn(AUTH_INPUT_CLASS, referralCode.errors && AUTH_INPUT_INVALID_CLASS)}
+            />
             <AuthError id={referralCode.errorId} errors={referralCode.errors} />
           </div>
 

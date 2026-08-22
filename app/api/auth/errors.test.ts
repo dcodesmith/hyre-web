@@ -40,6 +40,15 @@ describe("authClientErrorMessage", () => {
         ),
       ),
     ).toBe("Too many attempts. Try again in 30 seconds.");
+    expect(
+      authClientErrorMessage(
+        httpError(
+          HTTP_STATUS.TOO_MANY_REQUESTS,
+          "Too many requests",
+          new Headers({ "retry-after": "30" }),
+        ),
+      ),
+    ).toBe("Too many attempts. Try again in 30 seconds.");
   });
 
   it("does not leak 5xx details", () => {
@@ -54,9 +63,9 @@ describe("authClientErrorStatus", () => {
     expect(
       authClientErrorStatus(httpError(HTTP_STATUS.TOO_MANY_REQUESTS, "Too many requests")),
     ).toBe(HTTP_STATUS.TOO_MANY_REQUESTS);
-    expect(authClientErrorStatus(httpError(HTTP_STATUS.BAD_GATEWAY, "database password"))).toBe(
-      HTTP_STATUS.BAD_GATEWAY,
-    );
+    expect(
+      authClientErrorStatus(httpError(HTTP_STATUS.INTERNAL_SERVER_ERROR, "database password")),
+    ).toBe(HTTP_STATUS.BAD_GATEWAY);
     expect(authClientErrorStatus(httpError(HTTP_STATUS.BAD_REQUEST, "Invalid OTP"))).toBe(
       HTTP_STATUS.BAD_REQUEST,
     );
