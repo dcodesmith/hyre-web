@@ -37,6 +37,13 @@ describe("hasSessionCookie", () => {
   it("detects Better Auth session cookies", () => {
     expect(hasSessionCookie("better-auth.session_token=one; other=1")).toBe(true);
     expect(hasSessionCookie("__Secure-better-auth.session_data=two")).toBe(true);
+    expect(hasSessionCookie("__Host-.session_token=three")).toBe(true);
+    expect(hasSessionCookie("__Secure-__Host-.session_data=four")).toBe(true);
+  });
+
+  it("ignores unrelated cookie names", () => {
+    expect(hasSessionCookie("marketing_session_token=1; otp_pending=abc")).toBe(false);
+    expect(hasSessionCookie("session_token_backup=1")).toBe(false);
   });
 });
 
@@ -58,11 +65,14 @@ describe("expireSessionCookies", () => {
     ).toBe(true);
   });
 
-  it("also expires session cookies present on the request", () => {
-    const cookies = expireSessionCookies("__Secure-__Host-.session_token=abc; other=1");
+  it("expires production Better Auth names without touching unrelated cookies", () => {
+    const cookies = expireSessionCookies(
+      "__Secure-__Host-.session_token=abc; marketing_session_token=1; other=1",
+    );
 
     expect(cookies.some((cookie) => cookie.startsWith("__Secure-__Host-.session_token=;"))).toBe(
       true,
     );
+    expect(cookies.some((cookie) => cookie.startsWith("marketing_session_token="))).toBe(false);
   });
 });

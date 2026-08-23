@@ -3,7 +3,13 @@ const SESSION_COOKIE_NAMES = [
   "better-auth.session_data",
   "__Secure-better-auth.session_token",
   "__Secure-better-auth.session_data",
+  "__Host-.session_token",
+  "__Host-.session_data",
+  "__Secure-__Host-.session_token",
+  "__Secure-__Host-.session_data",
 ] as const;
+
+const SESSION_COOKIE_NAME_SET: ReadonlySet<string> = new Set(SESSION_COOKIE_NAMES);
 
 export function appendSetCookies(target: Headers, source: Headers) {
   for (const cookie of source.getSetCookie()) {
@@ -14,7 +20,7 @@ export function appendSetCookies(target: Headers, source: Headers) {
 }
 
 function isSessionCookieName(name: string) {
-  return name.includes("session_token") || name.includes("session_data");
+  return SESSION_COOKIE_NAME_SET.has(name);
 }
 
 export function hasSessionCookie(cookieHeader?: string | null) {
