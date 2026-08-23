@@ -58,6 +58,11 @@ app/
       ai-search.server.ts         # POST /api/ai-search
       ai-search-form-schema.ts    # request query validation
       schema.ts                   # AI search response DTO
+    auth/
+      auth.server.ts              # OTP send/verify, GET /auth/session, sign-out
+      cookie-relay.server.ts      # copy every Set-Cookie; never join
+      errors.ts                   # Better Auth 4xx / 429 / hide 403 role detail
+      schema.ts                   # session + OTP DTOs
 
   car/
     car-domain.ts                 # CarDomain(car, now, bookingType, booking)
@@ -119,6 +124,16 @@ app/
     timezone.ts                   # Africa/Lagos
     timezone.test.ts
 
+  auth/
+    auth-layout.tsx               # viewport-centered login chrome; logo top-left to home
+    auth-form-primitives.tsx      # Uber-like inputs, checkbox, submit, errors
+    auth-form-schema.ts           # email / OTP / pending cookie
+    referer.ts                    # APP_ORIGIN + role path; never caller URLs
+    pending-otp.ts                # HttpOnly pending OTP cookie
+    guest-only.server.ts          # signed-in /auth and /verify redirect
+    session.server.ts             # public-layout signed-in check for chrome
+    user-nav.tsx                  # Register or Log in / Log out
+
   seo/
     metadata.ts
     metadata.test.ts
@@ -146,6 +161,7 @@ app/
   components/
     ui/                       # shadcn primitives; do not hand-edit
     layout/
+      brand-link.tsx          # shared Tripdly wordmark → /
     errors/
     legal/
     icons/
@@ -155,6 +171,11 @@ app/
   routes/
     robots.txt.ts                 # production Allow; preview/local Disallow
     sitemap.xml.ts                # static locs + paged public search cars
+    _public.tsx                   # public layout; loads session for header/nav
+    _auth.tsx                     # auth layout: no public header/footer
+    auth.tsx                      # customer OTP request
+    verify.tsx                    # customer OTP verify + resend
+    logout.ts                     # POST sign-out; GET redirects home
 ```
 
 ## Next (do not create empty)
@@ -185,12 +206,11 @@ here.
 
 ## Later (verified API only)
 
-- `app/api/auth/` — `auth.server.ts`, `cookie-relay.server.ts`, Better Auth errors
 - `app/api/bookings/`, `app/api/payments/` including `guest-payment-token.server.ts`
 - `app/api/fleet/{cars,dashboard,promotions,bookings}/` — dashboard calls
   `/api/dashboard/*`, not `/api/fleet-owner/dashboard`
 - `app/api/admin/{cars,documents,rates,financial}/`
-- `app/auth/`, grow `app/booking/`, `app/account/`
+- grow `app/auth/` for fleet/admin login, `app/booking/`, `app/account/`
 - `app/fleet/` and `app/admin/` consoles
 - `app/components/console/`, `app/components/table/`
 

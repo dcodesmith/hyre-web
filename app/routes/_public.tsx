@@ -1,12 +1,18 @@
 import { Outlet, useLocation } from "react-router";
 
+import { readAuthUser } from "~/auth/session.server";
 import { CookieConsentBanner } from "~/components/cookie-consent-banner";
 import { PublicFooter } from "~/components/layout/public-footer";
 import { PublicHeader } from "~/components/layout/public-header";
 import { PublicMobileNav } from "~/components/layout/public-mobile-nav";
 import { cn } from "~/lib/utils";
+import type { Route } from "./+types/_public";
 
-export default function PublicLayout() {
+export async function loader({ request }: Route.LoaderArgs) {
+  return { user: await readAuthUser(request) };
+}
+
+export default function PublicLayout({ loaderData }: Route.ComponentProps) {
   const { pathname } = useLocation();
   const isHeroPage = pathname === "/";
   const isCarDetail = pathname.startsWith("/cars/") || pathname.startsWith("/__visual/car");
@@ -20,7 +26,7 @@ export default function PublicLayout() {
         Skip to main content
       </a>
       <div className="flex min-h-screen flex-col">
-        <PublicHeader />
+        <PublicHeader user={loaderData.user} />
         <main
           id="main-content"
           tabIndex={-1}
@@ -34,7 +40,7 @@ export default function PublicLayout() {
         </main>
         <PublicFooter isCarDetailPage={isCarDetail} />
       </div>
-      {isCarDetail ? null : <PublicMobileNav />}
+      {isCarDetail ? null : <PublicMobileNav user={loaderData.user} />}
       <CookieConsentBanner />
     </>
   );

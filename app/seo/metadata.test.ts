@@ -34,6 +34,18 @@ describe("buildPageMetadata", () => {
     });
   });
 
+  it("marks private pages noindex", () => {
+    const metadata = buildPageMetadata({
+      title: "Log in | Tripdly",
+      description: "Sign in with a one-time email code.",
+      path: "/auth",
+      index: false,
+    });
+
+    expect(metadata).toContainEqual({ name: "robots", content: "noindex, nofollow" });
+    expect(metadata).not.toContainEqual({ name: "robots", content: "index, follow" });
+  });
+
   it("adds large social-image metadata when a page provides an image", () => {
     const image = "https://tripdly.com/og-image.jpg";
     const metadata = buildPageMetadata({

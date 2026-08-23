@@ -8,6 +8,12 @@ importers:
 
   .:
     dependencies:
+      '@conform-to/react':
+        specifier: ^1.21.1
+        version: 1.21.1(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      '@conform-to/zod':
+        specifier: ^1.21.1
+        version: 1.21.1(zod@4.4.3)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -327,6 +333,20 @@ packages:
     engines: {node: '>=16'}
     cpu: [x64]
     os: [win32]
+
+  '@conform-to/dom@1.21.1':
+    resolution: {integrity: sha512-pYnhrJoM1xDbAx36rVxxm4643TFWwquTDoI8abtgnC40XIHDZDUhy3pIrZrv+QjwtLEgSWGP5GX/LqJ+IDfe/Q==}
+
+  '@conform-to/react@1.21.1':
+    resolution: {integrity: sha512-q0kzC5dEHL4okfmdbih95OfuelXw6xlLeN9WvtxQ7CP047D6A5lRK+0DykZZHCFP4idsQzC8NUBQd/tkKXPukg==}
+    peerDependencies:
+      react: '>=18'
+      react-dom: '>=18'
+
+  '@conform-to/zod@1.21.1':
+    resolution: {integrity: sha512-VqMuYoUVtZJ57P1EYD4tDuOyOaN5jiep1Ui6BRl7aP1m6tA8Do+mKioR7WXkGKULiNsjgPR7/FyWLtMUmtJNHg==}
+    peerDependencies:
+      zod: ^3.21.0 || ^4.0.0
 
   '@cspotcode/source-map-support@0.8.1':
     resolution: {integrity: sha512-IchNf6dN4tHoMFIn/7OE8LWZ19Y6q/67Bmf6vnGREv8RSbBVb9LPJxEcnwrcwX6ixSvaiGoomAUvu4YSxXrVgw==}
@@ -3676,6 +3696,19 @@ snapshots:
 
   '@cloudflare/workerd-windows-64@1.20260811.1':
     optional: true
+
+  '@conform-to/dom@1.21.1': {}
+
+  '@conform-to/react@1.21.1(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
+    dependencies:
+      '@conform-to/dom': 1.21.1
+      react: 19.2.8
+      react-dom: 19.2.8(react@19.2.8)
+
+  '@conform-to/zod@1.21.1(zod@4.4.3)':
+    dependencies:
+      '@conform-to/dom': 1.21.1
+      zod: 4.4.3
 
   '@cspotcode/source-map-support@0.8.1':
     dependencies:

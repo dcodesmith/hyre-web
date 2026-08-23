@@ -27,16 +27,17 @@ test("renders crawlable homepage metadata and booking controls", async ({ page }
   );
 
   const searchForm = page.locator('form[action="/search"]');
+  const airportTab = searchForm.getByRole("button", { name: "Airport" });
   await expect(searchForm).toBeVisible();
   await expect(searchForm.getByRole("button", { name: "Same Day" })).toHaveAttribute(
     "aria-pressed",
     "true",
   );
-  await searchForm.getByRole("button", { name: "Airport" }).click();
-  await expect(searchForm.getByRole("button", { name: "Airport" })).toHaveAttribute(
-    "aria-pressed",
-    "true",
-  );
+  await expect(async () => {
+    await airportTab.scrollIntoViewIfNeeded();
+    await airportTab.click();
+    await expect(airportTab).toHaveAttribute("aria-pressed", "true");
+  }).toPass();
   await expect(page.getByLabel("Flight Number")).toBeVisible();
   const flightNumber = page.getByLabel("Flight Number");
   await flightNumber.click();

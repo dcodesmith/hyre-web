@@ -120,8 +120,8 @@ export function CarDetailPage({ car, reviews }: CarDetailPageProps) {
       </div>
 
       <div className="lg:max-w-6xl lg:space-y-4 lg:mx-auto lg:pt-4">
-        <div className="hidden lg:block">
-          <Link to={backToSearch} className="hover:underline mb-1 block">
+        <div className="gap-2 hidden lg:flex">
+          <Link to={backToSearch} className="hover:underline">
             &larr; Back to search results
           </Link>
         </div>

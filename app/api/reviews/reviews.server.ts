@@ -14,13 +14,15 @@ function getApiClient() {
   return apiClient;
 }
 
-export function getCarReviews(options: {
+export type GetCarReviewsOptions = {
   request?: Request;
   carId: string;
   page?: number;
   limit?: number;
   includeRatings?: boolean;
-}) {
+};
+
+export function getCarReviews(options: GetCarReviewsOptions) {
   const search = new URLSearchParams({
     page: String(reviewPageSchema.parse(options.page)),
     limit: String(reviewLimitSchema.parse(options.limit)),
