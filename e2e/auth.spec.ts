@@ -1,5 +1,18 @@
 import { expect, test } from "@playwright/test";
 
+test("guest chrome offers login and hides log out", async ({ page, viewport }) => {
+  await page.goto("/");
+
+  if ((viewport?.width ?? 0) < 768) {
+    const nav = page.getByRole("navigation", { name: "Primary" });
+    await expect(nav.getByRole("link", { name: "Log in" })).toBeVisible();
+    await expect(nav.getByRole("button", { name: "Log out" })).toHaveCount(0);
+  } else {
+    await expect(page.getByRole("link", { name: "Register or Log in" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Log out" })).toHaveCount(0);
+  }
+});
+
 test("renders the customer login form", async ({ page }) => {
   await page.goto("/auth");
 

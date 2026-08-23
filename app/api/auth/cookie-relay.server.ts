@@ -13,6 +13,30 @@ export function appendSetCookies(target: Headers, source: Headers) {
   return target;
 }
 
+function isSessionCookieName(name: string) {
+  return name.includes("session_token") || name.includes("session_data");
+}
+
+export function hasSessionCookie(cookieHeader?: string | null) {
+  if (!cookieHeader) {
+    return false;
+  }
+
+  for (const part of cookieHeader.split(";")) {
+    const separator = part.indexOf("=");
+
+    if (separator === -1) {
+      continue;
+    }
+
+    if (isSessionCookieName(part.slice(0, separator).trim())) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 export function expireSessionCookies(cookieHeader?: string | null) {
   const names = new Set<string>(SESSION_COOKIE_NAMES);
 
@@ -26,7 +50,7 @@ export function expireSessionCookies(cookieHeader?: string | null) {
 
       const name = part.slice(0, separator).trim();
 
-      if (name.includes("session_token") || name.includes("session_data")) {
+      if (isSessionCookieName(name)) {
         names.add(name);
       }
     }

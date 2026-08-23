@@ -39,5 +39,4 @@ export const pendingOtpSchema = z.object({
   referralCode: z.string().trim().toUpperCase().regex(REFERRAL_CODE_PATTERN).optional(),
 });
 
-export type LoginForm = z.infer<typeof loginFormSchema>;
 export type PendingOtp = z.infer<typeof pendingOtpSchema>;

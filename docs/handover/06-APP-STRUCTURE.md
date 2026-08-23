@@ -131,6 +131,8 @@ app/
     referer.ts                    # APP_ORIGIN + role path; never caller URLs
     pending-otp.ts                # HttpOnly pending OTP cookie
     guest-only.server.ts          # signed-in /auth and /verify redirect
+    session.server.ts             # public-layout signed-in check for chrome
+    user-nav.tsx                  # Register or Log in / Log out
 
   seo/
     metadata.ts
@@ -169,6 +171,7 @@ app/
   routes/
     robots.txt.ts                 # production Allow; preview/local Disallow
     sitemap.xml.ts                # static locs + paged public search cars
+    _public.tsx                   # public layout; loads session for header/nav
     _auth.tsx                     # auth layout: no public header/footer
     auth.tsx                      # customer OTP request
     verify.tsx                    # customer OTP verify + resend

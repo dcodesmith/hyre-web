@@ -1,7 +1,7 @@
 import type { AuthRole } from "~/api/auth/schema";
 import { validReferralCode } from "~/auth/auth-form-schema";
 
-export const AUTH_ROLE_PATHS = {
+const AUTH_ROLE_PATHS = {
   user: "/auth",
   fleetOwner: "/fleet-owner/login",
   admin: "/admin/login",

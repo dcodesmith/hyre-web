@@ -385,8 +385,10 @@ duplicate year-make-model listings would collide.
 - Customer `/auth`, `/verify`, and `POST /logout` are a same-origin BFF over
   Better Auth. The Worker sends `role` plus a built `Origin`/`Referer` from
   `APP_ORIGIN`, relays every `Set-Cookie`, and never stores the bearer token
-  or sends `X-Client-Type: mobile`. Fleet/admin login pages are not wired
-  yet. Production API `TRUSTED_ORIGINS` must include `https://tripdly.com`.
+  or sends `X-Client-Type: mobile`. The public layout reads `/auth/session`
+  when a session cookie is present and swaps the header/mobile nav to Log
+  out. Profile, bookings, referrals, and fleet/admin login are later slices.
+  Production API `TRUSTED_ORIGINS` must include `https://tripdly.com`.
   PR preview hosts (`https://pr-*-hyre-web-preview.tripdly.workers.dev`)
   will fail OTP until the API trusts them. Local `APP_ORIGIN` is
   `http://localhost:5173`.

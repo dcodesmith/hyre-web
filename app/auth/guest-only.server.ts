@@ -2,11 +2,16 @@ import { redirect } from "react-router";
 
 import { ApiRequestError } from "~/api/api.server";
 import { getAuthSession } from "~/api/auth/auth.server";
+import { hasSessionCookie } from "~/api/auth/cookie-relay.server";
 import { safeRedirectPath } from "~/auth/referer";
 
 export const AUTH_NO_STORE = { "Cache-Control": "private, no-store" };
 
 export async function redirectAuthenticatedUser(request: Request) {
+  if (!hasSessionCookie(request.headers.get("Cookie"))) {
+    return;
+  }
+
   try {
     const session = await getAuthSession({ request });
 

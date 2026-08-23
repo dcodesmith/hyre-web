@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { appendSetCookies, authResponseHeaders, expireSessionCookies } from "./cookie-relay.server";
+import {
+  appendSetCookies,
+  authResponseHeaders,
+  expireSessionCookies,
+  hasSessionCookie,
+} from "./cookie-relay.server";
 
 describe("appendSetCookies", () => {
   it("copies every Set-Cookie without joining them", () => {
@@ -20,6 +25,18 @@ describe("appendSetCookies", () => {
 describe("authResponseHeaders", () => {
   it("marks auth responses uncached", () => {
     expect(authResponseHeaders().get("Cache-Control")).toBe("private, no-store");
+  });
+});
+
+describe("hasSessionCookie", () => {
+  it("ignores missing cookies and the pending OTP cookie", () => {
+    expect(hasSessionCookie(null)).toBe(false);
+    expect(hasSessionCookie("otp_pending=abc")).toBe(false);
+  });
+
+  it("detects Better Auth session cookies", () => {
+    expect(hasSessionCookie("better-auth.session_token=one; other=1")).toBe(true);
+    expect(hasSessionCookie("__Secure-better-auth.session_data=two")).toBe(true);
   });
 });
 

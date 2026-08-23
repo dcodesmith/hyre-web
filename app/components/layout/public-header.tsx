@@ -1,12 +1,12 @@
-import { Link, useLocation } from "react-router";
+import { useLocation } from "react-router";
 
+import { UserNav } from "~/auth/user-nav";
 import { BrandLink, brandBarClassName } from "~/components/layout/brand-link";
-import { Button } from "~/components/ui/button";
 import { useHeroScroll } from "~/hooks/use-hero-scroll";
 import { cn } from "~/lib/utils";
 import { SearchForm } from "~/search/search-form";
 
-export function PublicHeader() {
+export function PublicHeader({ user }: { readonly user: boolean }) {
   const { pathname } = useLocation();
   const isHeroPage = pathname === "/";
   const { hasScrolled } = useHeroScroll(isHeroPage);
@@ -38,18 +38,7 @@ export function PublicHeader() {
         </div>
       ) : null}
 
-      <Button
-        asChild
-        variant="outline"
-        size="sm"
-        className={cn(
-          "h-9 shrink-0 rounded-md px-3 text-sm transition-colors duration-300 active:translate-y-0",
-          isTransparent &&
-            "border-white/40 bg-white/20 text-white hover:bg-white/30 hover:text-white",
-        )}
-      >
-        <Link to="/auth">Register or Log in</Link>
-      </Button>
+      <UserNav user={user} isTransparent={isTransparent} />
     </header>
   );
 }
