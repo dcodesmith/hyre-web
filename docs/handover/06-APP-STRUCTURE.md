@@ -63,6 +63,9 @@ app/
       cookie-relay.server.ts      # copy every Set-Cookie; never join
       errors.ts                   # Better Auth 4xx / 429 / hide 403 role detail
       schema.ts                   # session + OTP DTOs
+    bookings/
+      bookings.server.ts          # GET /api/bookings
+      schema.ts                   # list rows by status; review → reviewed flag
 
   car/
     car-domain.ts                 # CarDomain(car, now, bookingType, booking)
@@ -102,6 +105,10 @@ app/
     airlines.json                 # Nigeria-serving airlines for flight suggestions
     airlines.ts
     airlines.test.ts
+    bookings-url.ts               # /bookings?status=
+    bookings-url.test.ts
+    bookings-list.tsx             # signed-in list rows; no detail/cancel/edit
+    bookings-list.test.ts         # Lagos PPPp date copy
 
   search/
     search-url.ts                 # /search query contract + API serialization
@@ -132,7 +139,7 @@ app/
     pending-otp.ts                # HttpOnly pending OTP cookie
     guest-only.server.ts          # signed-in /auth and /verify redirect
     session.server.ts             # public-layout signed-in check for chrome
-    user-nav.tsx                  # Register or Log in / Log out
+    user-nav.tsx                  # Register or Log in / Bookings + Log out
 
   seo/
     metadata.ts
@@ -176,6 +183,7 @@ app/
     auth.tsx                      # customer OTP request
     verify.tsx                    # customer OTP verify + resend
     logout.ts                     # POST sign-out; GET redirects home
+    bookings.tsx                  # signed-in list; guests → /auth?redirectTo=
 ```
 
 ## Next (do not create empty)
@@ -203,10 +211,12 @@ here.
 
 - `app/api/rates/` — platform fee/VAT/security add-on; wait for booking pay
 - Booking create / pricing-preview / pay (Phase 5)
+- Booking detail / cancel / modify / extend
+- Guest booking lookup (`/bookings/lookup`) — API gap
 
 ## Later (verified API only)
 
-- `app/api/bookings/`, `app/api/payments/` including `guest-payment-token.server.ts`
+- `app/api/bookings/` detail/cancel/extend, `app/api/payments/` including `guest-payment-token.server.ts`
 - `app/api/fleet/{cars,dashboard,promotions,bookings}/` — dashboard calls
   `/api/dashboard/*`, not `/api/fleet-owner/dashboard`
 - `app/api/admin/{cars,documents,rates,financial}/`

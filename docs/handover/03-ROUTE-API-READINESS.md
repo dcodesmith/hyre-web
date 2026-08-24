@@ -331,6 +331,25 @@ An endpoint is ready only when it exists in the API, is authorized, is tested, a
 Append here when a shipped slice works but a better contract or SEO shape is
 blocked on the API. Do not invent the missing endpoint in the Worker.
 
+### Profile update
+
+hireApp `/profile` is action-only; the form lives in the header modal / mobile
+sheet. Fields: `name`, `email`, `phoneNumber`, `city`, `address`,
+`marketingConsent`. hireApp wrote those via Prisma — forbidden here. The API
+still has no `PATCH /api/users/me`. `GET /auth/session` is `id`, `email`,
+`roles` only, so the form cannot be prefilled. Do not scaffold `app/account/`
+or use Better Auth `update-user` for those extra fields. Account deletion
+(`POST /api/account/delete`) is a later Phase 5 slice and is not blocked.
+
+### Signed-in bookings list
+
+`GET /bookings` is a same-origin BFF over `GET /api/bookings` (`SessionGuard`).
+Guests redirect to `/auth?redirectTo=/bookings`. Tabs use hireApp
+`?status=active|confirmed|completed|cancelled`. Rows show car image / make /
+model / year, reference, Lagos dates, amount, and a completed-review badge.
+This slice does not ship detail, cancel, modify, extend, create, pay, or
+guest email lookup (`/bookings/lookup` remains an API gap).
+
 ### Public car slugs and SEO
 
 hireApp canonical URLs are `{year}-{make}-{model}-{id.slice(0, 13)}`, for
@@ -387,7 +406,8 @@ duplicate year-make-model listings would collide.
   `APP_ORIGIN`, relays every `Set-Cookie`, and never stores the bearer token
   or sends `X-Client-Type: mobile`. The public layout reads `/auth/session`
   when a session cookie is present and swaps the header/mobile nav to Log
-  out. Profile, bookings, referrals, and fleet/admin login are later slices.
+  out. Signed-in `/bookings` lists `GET /api/bookings` by status. Profile
+  update, referrals, and fleet/admin login are later slices.
   Production API `TRUSTED_ORIGINS` must include `https://tripdly.com`.
   PR preview hosts (`https://pr-*-hyre-web-preview.tripdly.workers.dev`)
   will fail OTP until the API trusts them. Local `APP_ORIGIN` is

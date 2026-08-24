@@ -1,4 +1,4 @@
-import { Home, LogIn, LogOut } from "lucide-react";
+import { Calendar, Home, LogIn, LogOut } from "lucide-react";
 import { Form, NavLink, useNavigation } from "react-router";
 
 import { isLogoutFormAction } from "~/auth/user-nav";
@@ -18,7 +18,12 @@ export function PublicMobileNav({ user }: { readonly user: boolean }) {
       aria-label="Primary"
       className="fixed right-4 bottom-[max(1rem,env(safe-area-inset-bottom))] left-4 z-40 rounded-full border border-border/50 bg-background/95 shadow-lg backdrop-blur-md md:hidden"
     >
-      <div className="mx-auto flex min-h-13 max-w-md items-center justify-around px-16 py-2">
+      <div
+        className={cn(
+          "mx-auto flex min-h-13 max-w-md items-center justify-around py-2",
+          user ? "px-6" : "px-16",
+        )}
+      >
         <NavLink
           to="/"
           end
@@ -30,6 +35,18 @@ export function PublicMobileNav({ user }: { readonly user: boolean }) {
             {LEGAL_CONSTANTS.companyName}
           </span>
         </NavLink>
+        {user ? (
+          <NavLink
+            to="/bookings"
+            prefetch="intent"
+            className={({ isActive }) =>
+              cn(itemClassName, isActive && "font-semibold text-primary")
+            }
+          >
+            <Calendar aria-hidden="true" className="mb-1 size-4" />
+            <span className="max-w-full truncate text-xs font-medium">Bookings</span>
+          </NavLink>
+        ) : null}
         {user ? (
           <Form method="post" action="/logout" className="flex min-w-0 flex-1">
             <button
