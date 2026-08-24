@@ -28,6 +28,9 @@ describe("authPath", () => {
     expect(authPath("/auth", { redirectTo: "/cars/abc", ref: "abcd2345" })).toBe(
       "/auth?redirectTo=%2Fcars%2Fabc&ref=ABCD2345",
     );
+    expect(authPath("/auth", { redirectTo: "/bookings?status=completed" })).toBe(
+      "/auth?redirectTo=%2Fbookings%3Fstatus%3Dcompleted",
+    );
   });
 
   it("omits home redirects, invalid refs, and unsafe targets", () => {

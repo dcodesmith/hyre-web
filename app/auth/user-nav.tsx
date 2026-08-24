@@ -33,17 +33,24 @@ export function UserNav({
   }
 
   return (
-    <Form method="post" action="/logout">
-      <Button
-        type="submit"
-        variant="outline"
-        size="sm"
-        disabled={isLoggingOut}
-        aria-label={isLoggingOut ? "Logging out" : "Log out"}
-        className={className}
-      >
-        {isLoggingOut ? "Logging out…" : "Log out"}
+    <div className="flex items-center gap-2">
+      <Button asChild variant="outline" size="sm" className={className}>
+        <Link to="/bookings" prefetch="intent">
+          Bookings
+        </Link>
       </Button>
-    </Form>
+      <Form method="post" action="/logout">
+        <Button
+          type="submit"
+          variant="outline"
+          size="sm"
+          disabled={isLoggingOut}
+          aria-label={isLoggingOut ? "Logging out" : "Log out"}
+          className={className}
+        >
+          {isLoggingOut ? "Logging out…" : "Log out"}
+        </Button>
+      </Form>
+    </div>
   );
 }
