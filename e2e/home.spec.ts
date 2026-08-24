@@ -40,9 +40,12 @@ test("renders crawlable homepage metadata and booking controls", async ({ page }
   }).toPass();
   await expect(page.getByLabel("Flight Number")).toBeVisible();
   const flightNumber = page.getByLabel("Flight Number");
-  await flightNumber.click();
-  await flightNumber.pressSequentially("BA");
-  await expect(page.getByRole("button", { name: /British Airways/ })).toBeVisible();
+  await expect(async () => {
+    await flightNumber.click();
+    await flightNumber.fill("");
+    await flightNumber.pressSequentially("BA");
+    await expect(page.getByRole("button", { name: /British Airways/ })).toBeVisible();
+  }).toPass();
 
   const structuredData = await page.locator('script[type="application/ld+json"]').allTextContents();
   expect(structuredData.some((value) => value.includes('"@type":"LocalBusiness"'))).toBe(true);
