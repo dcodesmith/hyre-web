@@ -32,10 +32,14 @@ const bookingListItemSchema = z
     reviewed: review != null,
   }));
 
-export const bookingsByStatusSchema = z.partialRecord(
-  bookingStatusSchema,
-  z.array(bookingListItemSchema),
-);
+export const bookingsByStatusSchema = z
+  .partialRecord(bookingStatusSchema, z.array(bookingListItemSchema))
+  .refine((bookings) =>
+    BOOKING_STATUSES.every((status) => {
+      const rows = bookings[status];
+      return rows == null || rows.every((row) => row.status === status);
+    }),
+  );
 
 export type BookingListItem = z.output<typeof bookingListItemSchema>;
 export type BookingsByStatus = z.output<typeof bookingsByStatusSchema>;

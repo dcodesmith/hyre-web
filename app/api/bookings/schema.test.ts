@@ -52,14 +52,20 @@ describe("bookingsByStatusSchema", () => {
   });
 
   it("accepts an empty map and treats a missing review as not reviewed", () => {
+    const completed = { ...listItem, status: "COMPLETED" };
+
     expect(bookingsByStatusSchema.safeParse({}).success).toBe(true);
-    expect(bookingsByStatusSchema.parse({ COMPLETED: [listItem] }).COMPLETED[0]?.reviewed).toBe(
+    expect(bookingsByStatusSchema.parse({ COMPLETED: [completed] }).COMPLETED?.[0]?.reviewed).toBe(
       false,
     );
     expect(
-      bookingsByStatusSchema.parse({ COMPLETED: [{ ...listItem, review: null }] }).COMPLETED[0]
+      bookingsByStatusSchema.parse({ COMPLETED: [{ ...completed, review: null }] }).COMPLETED?.[0]
         ?.reviewed,
     ).toBe(false);
+  });
+
+  it("rejects a row whose status does not match its group", () => {
+    expect(bookingsByStatusSchema.safeParse({ COMPLETED: [listItem] }).success).toBe(false);
   });
 
   it("rejects a row without the list car or an unknown status", () => {
