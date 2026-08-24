@@ -89,7 +89,7 @@ export function useAirportPickup({
 
     lastAppliedFlightIdRef.current = flight.flightId;
     notifyFlightFound(flight);
-  }, [flightFetcher.data, flightFetcher.state, notifyFlightFound]);
+  }, [flightFetcher.data, flightFetcher.state]);
 
   const flightResult = flightFetcher.state === "idle" ? flightFetcher.data : undefined;
   const durationResult = durationFetcher.state === "idle" ? durationFetcher.data : undefined;

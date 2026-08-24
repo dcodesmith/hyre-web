@@ -40,20 +40,20 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.1.2",
+    "@biomejs/biome": "2.5.9",
     "@cloudflare/vite-plugin": "^1.52.1",
     "@playwright/test": "1.62.1",
     "@react-router/dev": "^8",
     "@tailwindcss/vite": "^4.2.2",
-    "@types/node": "^22",
+    "@types/node": "^26.2.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "husky": "^9.1.7",
     "tailwindcss": "^4.2.2",
-    "typescript": "^5.9.3",
-    "vite": "^8.0.3",
+    "typescript": "^7.0.2",
+    "vite": "^8.2.2",
     "vitest": "^4.1.10",
-    "wrangler": "^4.123.0"
+    "wrangler": "^4.125.0"
   },
   "engines": {
     "node": ">=22.22.0 <23"

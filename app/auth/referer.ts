@@ -25,7 +25,7 @@ export function authReferer(origin: string, role: AuthRole) {
 }
 
 export function safeRedirectPath(value: string | null | undefined, fallback = "/") {
-  if (!value || !value.startsWith("/") || value.startsWith("//") || hasUnsafeRedirectChars(value)) {
+  if (!value?.startsWith("/") || value.startsWith("//") || hasUnsafeRedirectChars(value)) {
     return fallback;
   }
 
