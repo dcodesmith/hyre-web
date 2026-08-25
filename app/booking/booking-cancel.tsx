@@ -40,9 +40,7 @@ function CancelSpinner({ className }: { readonly className: string }) {
   );
 }
 
-function focusCancelError(node: HTMLParagraphElement | null) {
-  node?.focus();
-}
+const focusCancelError = (node: HTMLParagraphElement | null) => node?.focus();
 
 function CancelError({ message }: { readonly message: string }) {
   return (

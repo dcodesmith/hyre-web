@@ -15,7 +15,7 @@ const FLIGHT_STATUS_CLASS = {
   CANCELLED: "border-red-200 bg-red-100 text-red-800",
   DIVERTED: "border-orange-200 bg-orange-100 text-orange-800",
   UNKNOWN: "border-gray-200 bg-gray-100 text-gray-800",
-} as const;
+} as const satisfies Record<BookingFlightView["status"], string>;
 
 export function BookingFlightCard({ flight }: { readonly flight: BookingFlightView }) {
   return (

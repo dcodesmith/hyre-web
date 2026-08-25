@@ -56,6 +56,8 @@ describe("car detail URL contract", () => {
     expect(parseReviewsPage("2.5")).toBe(1);
     expect(parseReviewsPage("0")).toBe(1);
     expect(parseReviewsPage("3")).toBe(3);
+    expect(parseReviewsPage("9007199254740992")).toBe(1);
+    expect(parseReviewsPage(`1${"0".repeat(20)}`)).toBe(1);
   });
 
   it("serializes booking and filters without review sheet state", () => {

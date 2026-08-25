@@ -88,7 +88,7 @@ app/
 
   review/
     review-list.tsx
-    review-sheet.tsx              # local-state dialog + fetcher paging; no invented sub-ratings
+    review-sheet.tsx              # local-state dialog + same-page fetcher paging
 
   booking/
     types.ts                      # DAY | NIGHT | FULL_DAY | AIRPORT_PICKUP
@@ -221,8 +221,13 @@ lands. Do not invent a second mapping.
 
 Car detail keeps those booking and filter params and adds
 `pickupAddress`, `dropOffAddress`, and `sameLocation`. Review sheet
-open/close is local state; paging uses a same-page fetcher with
-`reviewsPage` on the loader request, not the browser URL.
+open/close is local state. The browser URL stays on `/cars/:slug` with no
+review query. Today, paging reuses the car loader via `reviewsPage` on the
+fetcher request. Later PR: first paint still loads page 1 from the car
+loader; later pages use a reviews-only fetcher to web
+`GET /api/reviews/car/:carId?page=`, which calls only `getCarReviews`. Do
+not page through the car loader once that route exists. The API endpoint
+already exists.
 Address params stay on `/cars/:slug` and are stripped from back-to-search.
 They are not sent to `GET /api/cars/search`. Canonical slugs end with the
 **full 25-character CUID** because `GET /api/cars/:carId` validates
@@ -234,6 +239,9 @@ Do not invent payable totals, availability, or review sub-rating aggregates
 here.
 
 - `app/api/rates/` — platform fee/VAT/security add-on; wait for booking pay
+- Review paging resource: `app/routes/api.reviews.car.$carId.ts` +
+  `app/review/review-url.ts` — web `GET /api/reviews/car/:carId?page=`
+  over existing `GET /api/reviews/car/:carId`. Keep the car URL clean.
 - Booking create / pricing-preview / pay (Phase 5)
 - Booking modify / extend
 - Guest booking lookup (`/bookings/lookup`) — API gap

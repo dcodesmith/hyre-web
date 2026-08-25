@@ -21,7 +21,7 @@ export function parseReviewsPage(value: string | null) {
   }
 
   const page = Number(value);
-  return page >= 1 ? page : DEFAULT_REVIEWS_PAGE;
+  return Number.isSafeInteger(page) && page >= 1 ? page : DEFAULT_REVIEWS_PAGE;
 }
 
 function parseAddress(value: string | null) {

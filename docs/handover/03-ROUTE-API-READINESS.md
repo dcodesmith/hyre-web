@@ -410,7 +410,9 @@ duplicate year-make-model listings would collide.
   correctly uses `passengerCapacity`. Do not invent DTO fields for the rest.
 - If `GET /api/reviews/car/:carId` fails, the page hides the review CTA even
   when the car DTO has a count. Safer than a broken sheet; weaker than
-  showing the car-level rating with a retry.
+  showing the car-level rating with a retry. Review paging currently
+  `fetcher.load`s the car route, so `getPublicCar` starts again. Later PR:
+  a reviews-only web resource over the same API. No new API work.
 - Customer `/auth`, `/verify`, and `POST /logout` are a same-origin BFF over
   Better Auth. The Worker sends `role` plus a built `Origin`/`Referer` from
   `APP_ORIGIN`, relays every `Set-Cookie`, and never stores the bearer token

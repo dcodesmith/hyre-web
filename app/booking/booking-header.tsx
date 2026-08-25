@@ -1,7 +1,6 @@
-import { CheckCircle, CreditCard } from "lucide-react";
+import { CheckCircle, CreditCard, XCircle } from "lucide-react";
 import { OutlineBadge } from "~/booking/booking-detail-card";
 import type { BookingView } from "~/booking/booking-domain";
-import { cn } from "~/lib/utils";
 
 const PAYMENT_STATUS_CLASS = {
   REFUNDED: "bg-blue-100 text-blue-800 border-blue-200",
@@ -19,13 +18,17 @@ export function BookingHeader({ booking }: { readonly booking: BookingView }) {
       </div>
       <div className="flex flex-wrap gap-2 md:items-end">
         <OutlineBadge
-          className={cn(
+          className={
             booking.isCancelled
               ? "border-red-200 bg-red-100 text-red-800"
-              : "border-green-200 bg-green-100 text-green-800",
-          )}
+              : "border-green-200 bg-green-100 text-green-800"
+          }
         >
-          <CheckCircle className="mr-1 h-3 w-3" aria-hidden="true" />
+          {booking.isCancelled ? (
+            <XCircle className="mr-1 h-3 w-3" aria-hidden="true" />
+          ) : (
+            <CheckCircle className="mr-1 h-3 w-3" aria-hidden="true" />
+          )}
           {booking.statusLabel}
         </OutlineBadge>
         <OutlineBadge
