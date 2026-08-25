@@ -39,6 +39,11 @@ export function UserNav({
           Bookings
         </Link>
       </Button>
+      <Button asChild variant="outline" size="sm" className={className}>
+        <Link to="/profile" prefetch="intent">
+          Profile
+        </Link>
+      </Button>
       <Form method="post" action="/logout">
         <Button
           type="submit"

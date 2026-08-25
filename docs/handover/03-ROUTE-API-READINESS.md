@@ -166,6 +166,7 @@ All roles use the API's Better Auth endpoints. Role-specific pages remain separa
 **Available**
 
 - `/bookings`
+- `/profile` -> `GET|PATCH /api/users/me`
 - `/bookings/:id`
 - `/bookings/:id/extend`
 - `/bookings/payment-status`
@@ -175,7 +176,6 @@ All roles use the API's Better Auth endpoints. Role-specific pages remain separa
 
 **Gap unless an endpoint is added**
 
-- `/profile` update -> no `PATCH /api/users/me` equivalent was observed
 - `/bookings/lookup` -> no guest email/reference lookup endpoint was observed
 - booking receipt PDF -> no dedicated booking receipt endpoint was observed
 - review deletion -> observed DELETE is admin-only moderation
@@ -333,13 +333,12 @@ blocked on the API. Do not invent the missing endpoint in the Worker.
 
 ### Profile update
 
-hireApp `/profile` is action-only; the form lives in the header modal / mobile
-sheet. Fields: `name`, `email`, `phoneNumber`, `city`, `address`,
-`marketingConsent`. hireApp wrote those via Prisma — forbidden here. The API
-still has no `PATCH /api/users/me`. `GET /auth/session` is `id`, `email`,
-`roles` only, so the form cannot be prefilled. Do not scaffold `app/account/`
-or use Better Auth `update-user` for those extra fields. Account deletion
-(`POST /api/account/delete`) is a later Phase 5 slice and is not blocked.
+`GET /profile` is a same-origin BFF over `GET|PATCH /api/users/me`
+(`SessionGuard`). Guests redirect to `/auth?redirectTo=/profile`. The form
+edits `name`, `phoneNumber`, `city`, `address`, and `marketingConsent`. Email
+is read-only from `GET /auth/session`. This slice does not change email, call
+Better Auth `update-user`, or delete the account (`POST /api/account/delete`
+stays a later Phase 5 slice).
 
 ### Signed-in bookings list
 
@@ -406,8 +405,9 @@ duplicate year-make-model listings would collide.
   `APP_ORIGIN`, relays every `Set-Cookie`, and never stores the bearer token
   or sends `X-Client-Type: mobile`. The public layout reads `/auth/session`
   when a session cookie is present and swaps the header/mobile nav to Log
-  out. Signed-in `/bookings` lists `GET /api/bookings` by status. Profile
-  update, referrals, and fleet/admin login are later slices.
+  out. Signed-in `/bookings` lists `GET /api/bookings` by status. Signed-in
+  `/profile` reads and patches `GET|PATCH /api/users/me`. Referrals and
+  fleet/admin login are later slices.
   Production API `TRUSTED_ORIGINS` must include `https://tripdly.com`.
   PR preview hosts (`https://pr-*-hyre-web-preview.tripdly.workers.dev`)
   will fail OTP until the API trusts them. Local `APP_ORIGIN` is

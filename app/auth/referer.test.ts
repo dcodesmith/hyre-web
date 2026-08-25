@@ -31,6 +31,7 @@ describe("authPath", () => {
     expect(authPath("/auth", { redirectTo: "/bookings?status=completed" })).toBe(
       "/auth?redirectTo=%2Fbookings%3Fstatus%3Dcompleted",
     );
+    expect(authPath("/auth", { redirectTo: "/profile" })).toBe("/auth?redirectTo=%2Fprofile");
   });
 
   it("omits home redirects, invalid refs, and unsafe targets", () => {

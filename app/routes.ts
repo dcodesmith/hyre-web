@@ -8,6 +8,7 @@ const visualRoutes =
         route("__visual/search", "routes/__visual.search.tsx"),
         route("__visual/car", "routes/__visual.car.tsx"),
         route("__visual/bookings", "routes/__visual.bookings.tsx"),
+        route("__visual/profile", "routes/__visual.profile.tsx"),
       ]
     : [];
 
@@ -29,6 +30,7 @@ export default [
     route("privacy", "routes/privacy.tsx"),
     route("cookies", "routes/cookies.tsx"),
     route("bookings", "routes/bookings.tsx"),
+    route("profile", "routes/profile.tsx"),
     route("logout", "routes/logout.ts"),
     ...visualRoutes,
   ]),
