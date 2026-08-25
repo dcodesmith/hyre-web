@@ -32,7 +32,10 @@ const FLIGHT_STATUSES = [
 
 const bookingStatusSchema = z.enum(BOOKING_STATUSES);
 const paymentStatusSchema = z.enum(PAYMENT_STATUSES);
-const moneySchema = z.coerce.number();
+const moneySchema = z.union([
+  z.number(),
+  z.string().trim().min(1).transform(Number).pipe(z.number()),
+]);
 const optionalMoneySchema = moneySchema.nullish();
 const isoDateSchema = z.union([z.string(), z.date()]).transform((value) => {
   return value instanceof Date ? value.toISOString() : value;

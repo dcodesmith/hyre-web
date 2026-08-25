@@ -126,4 +126,31 @@ describe("bookingDetailSchema", () => {
     expect(parsed.data).not.toHaveProperty("canEdit");
     expect(parsed.data).not.toHaveProperty("user");
   });
+
+  it("coerces numeric strings and rejects values that Number() would turn into 0", () => {
+    const payload = {
+      id: "booking-1",
+      bookingReference: "TD-1001",
+      status: "COMPLETED",
+      paymentStatus: "PAID",
+      type: "DAY",
+      startDate: "2026-07-02T08:00:00.000Z",
+      endDate: "2026-07-02T20:00:00.000Z",
+      pickupLocation: "Ikeja",
+      returnLocation: "Marina",
+      totalAmount: "150000.50",
+      netTotal: null,
+      car: { make: "Lexus", model: "UX F-Sport", year: 2019 },
+      chauffeur: null,
+      flight: null,
+      legs: [],
+    };
+
+    expect(bookingDetailSchema.parse(payload).totalAmount).toBe(150_000.5);
+    expect(bookingDetailSchema.parse(payload).netTotal).toBeNull();
+    expect(bookingDetailSchema.safeParse({ ...payload, totalAmount: "" }).success).toBe(false);
+    expect(bookingDetailSchema.safeParse({ ...payload, totalAmount: null }).success).toBe(false);
+    expect(bookingDetailSchema.safeParse({ ...payload, totalAmount: false }).success).toBe(false);
+    expect(bookingDetailSchema.safeParse({ ...payload, netTotal: "" }).success).toBe(false);
+  });
 });

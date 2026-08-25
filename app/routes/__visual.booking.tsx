@@ -40,5 +40,5 @@ const fixtureBooking = {
 } satisfies BookingDetail;
 
 export default function BookingDetailFixture() {
-  return <BookingDetailPage booking={fixtureBooking} />;
+  return <BookingDetailPage booking={fixtureBooking} now="2026-08-01T12:00:00.000Z" />;
 }

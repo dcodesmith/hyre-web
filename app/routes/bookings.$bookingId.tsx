@@ -10,7 +10,17 @@ import { buildPageMetadata } from "~/seo/metadata";
 import type { Route } from "./+types/bookings.$bookingId";
 
 export function meta({ loaderData }: Route.MetaArgs) {
-  const { booking } = loaderData;
+  const booking = loaderData?.booking;
+
+  if (!booking) {
+    return buildPageMetadata({
+      title: "Booking | Tripdly",
+      description: "View your Tripdly chauffeur booking.",
+      path: "/bookings",
+      index: false,
+    });
+  }
+
   const carName = `${booking.car.make} ${booking.car.model} ${booking.car.year}`;
 
   return buildPageMetadata({
@@ -44,7 +54,7 @@ export async function loader({ request, params }: Route.LoaderArgs) {
   try {
     const booking = await getBookingById({ request, bookingId: params.bookingId });
 
-    return { booking: booking.data };
+    return { booking: booking.data, now: new Date().toISOString() };
   } catch (error) {
     if (error instanceof ApiRequestError && error.status === 401) {
       throw loginRedirect(request);
@@ -59,5 +69,5 @@ export async function loader({ request, params }: Route.LoaderArgs) {
 }
 
 export default function BookingDetailRoute({ loaderData }: Route.ComponentProps) {
-  return <BookingDetailPage booking={loaderData.booking} />;
+  return <BookingDetailPage booking={loaderData.booking} now={loaderData.now} />;
 }

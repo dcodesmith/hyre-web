@@ -3,6 +3,7 @@ import { type BookingType, DAY_BOOKING_TYPE } from "~/booking/types";
 import { buildCarDetailPath, type CarDetailBookingQuery } from "~/car/paths";
 
 const DEFAULT_CURRENCY = "NGN";
+const ISO_CURRENCY = /^[A-Za-z]{3}$/;
 
 const LOCALE_BY_CURRENCY: Readonly<Record<string, string>> = {
   NGN: "en-NG",
@@ -15,7 +16,7 @@ const currencyFormatters = new Map<string, Intl.NumberFormat>();
 
 /** Current live market is NGN. Pass an ISO 4217 code when the API sends one. */
 export function formatCurrency(value: number, currency = DEFAULT_CURRENCY) {
-  const code = currency || DEFAULT_CURRENCY;
+  const code = ISO_CURRENCY.test(currency) ? currency.toUpperCase() : DEFAULT_CURRENCY;
   const cached = currencyFormatters.get(code);
 
   if (cached) {

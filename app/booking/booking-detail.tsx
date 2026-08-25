@@ -726,8 +726,14 @@ function PaymentSummaryCard({ booking }: { readonly booking: BookingDetail }) {
   );
 }
 
-export function BookingDetailPage({ booking }: { readonly booking: BookingDetail }) {
-  const now = new Date();
+export function BookingDetailPage({
+  booking,
+  now,
+}: {
+  readonly booking: BookingDetail;
+  readonly now: string;
+}) {
+  const clock = new Date(now);
   const backTo = bookingListPath(
     parseBookingListStatus(new URLSearchParams({ status: booking.status.toLowerCase() })),
   );
@@ -773,7 +779,7 @@ export function BookingDetailPage({ booking }: { readonly booking: BookingDetail
                       booking={booking}
                       leg={leg}
                       index={index}
-                      now={now}
+                      now={clock}
                     />
                   ))}
                 </div>
