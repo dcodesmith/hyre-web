@@ -2,17 +2,43 @@ import type { PublicCar, SearchCar } from "~/api/cars/schema";
 import { type BookingType, DAY_BOOKING_TYPE } from "~/booking/types";
 import { buildCarDetailPath, type CarDetailBookingQuery } from "~/car/paths";
 
-const currencyFormatter = new Intl.NumberFormat("en-NG", {
-  style: "currency",
-  currency: "NGN",
-  maximumFractionDigits: 0,
-});
+const DEFAULT_CURRENCY = "NGN";
+const ISO_CURRENCY = /^[A-Za-z]{3}$/;
+
+const LOCALE_BY_CURRENCY: Readonly<Record<string, string>> = {
+  NGN: "en-NG",
+  USD: "en-US",
+  EUR: "en-GB",
+  GBP: "en-GB",
+};
+
+const currencyFormatters = new Map<string, Intl.NumberFormat>();
+
+/** Current live market is NGN. Pass an ISO 4217 code when the API sends one. */
+export function formatCurrency(value: number, currency = DEFAULT_CURRENCY) {
+  const code = ISO_CURRENCY.test(currency) ? currency.toUpperCase() : DEFAULT_CURRENCY;
+  const cached = currencyFormatters.get(code);
+
+  if (cached) {
+    return cached.format(value);
+  }
+
+  const formatter = new Intl.NumberFormat(LOCALE_BY_CURRENCY[code] ?? "en", {
+    style: "currency",
+    currency: code,
+    maximumFractionDigits: 0,
+    minimumFractionDigits: 0,
+  });
+
+  currencyFormatters.set(code, formatter);
+  return formatter.format(value);
+}
+
+export function formatNaira(value: number) {
+  return formatCurrency(value);
+}
 
 const NEW_LISTING_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
-
-function formatCurrency(value: number) {
-  return currencyFormatter.format(value);
-}
 
 function applyPromotionDiscount(originalRate: number, discountPercent: number) {
   if (originalRate <= 0 || discountPercent <= 0) {
@@ -38,10 +64,6 @@ export const BOOKING_TYPE_RATE_LABELS: Readonly<Record<BookingType, string>> = {
 };
 
 export type DisplayCar = PublicCar | SearchCar;
-
-export function formatNaira(value: number) {
-  return formatCurrency(value);
-}
 
 export function getRateForBookingType(car: DisplayCar, bookingType: BookingType) {
   if (!("nightRate" in car)) {

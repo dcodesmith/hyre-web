@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { PublicCar } from "~/api/cars/schema";
-import { CarDomain } from "~/car/car-domain";
+import { CarDomain, formatCurrency } from "~/car/car-domain";
 
 function car(overrides: Partial<PublicCar> = {}): PublicCar {
   return {
@@ -121,5 +121,16 @@ describe("CarDomain", () => {
         to: "2026-08-21",
       }).href,
     ).toContain("from=2026-08-20");
+  });
+});
+
+describe("formatCurrency", () => {
+  it("defaults to NGN and accepts another ISO currency", () => {
+    expect(formatCurrency(150_000)).toBe("₦150,000");
+    expect(formatCurrency(150_000, "NGN")).toBe("₦150,000");
+    expect(formatCurrency(1_500, "USD")).toBe("$1,500");
+    expect(formatCurrency(1_500, "usd")).toBe("$1,500");
+    expect(formatCurrency(1_500, "")).toBe("₦1,500");
+    expect(formatCurrency(1_500, "naira")).toBe("₦1,500");
   });
 });

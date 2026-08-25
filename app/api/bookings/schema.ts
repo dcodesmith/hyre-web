@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { BOOKING_TYPE_OPTIONS } from "~/booking/types";
+
 const BOOKING_STATUSES = [
   "PENDING",
   "CONFIRMED",
@@ -9,7 +11,40 @@ const BOOKING_STATUSES = [
   "REJECTED",
 ] as const;
 
+const PAYMENT_STATUSES = [
+  "UNPAID",
+  "PAID",
+  "REFUNDED",
+  "PARTIALLY_REFUNDED",
+  "REFUND_PROCESSING",
+  "REFUND_FAILED",
+] as const;
+
+const FLIGHT_STATUSES = [
+  "SCHEDULED",
+  "DEPARTED",
+  "EN_ROUTE",
+  "LANDED",
+  "CANCELLED",
+  "DIVERTED",
+  "UNKNOWN",
+] as const;
+
 const bookingStatusSchema = z.enum(BOOKING_STATUSES);
+const paymentStatusSchema = z.enum(PAYMENT_STATUSES);
+const moneySchema = z.union([
+  z.number(),
+  z.string().trim().min(1).transform(Number).pipe(z.number()),
+]);
+const optionalMoneySchema = moneySchema.nullish();
+const currencySchema = z
+  .string()
+  .trim()
+  .transform((value) => (/^[A-Za-z]{3}$/.test(value) ? value.toUpperCase() : undefined))
+  .nullish();
+const isoDateSchema = z.union([z.string(), z.date()]).transform((value) => {
+  return value instanceof Date ? value.toISOString() : value;
+});
 
 const bookingListItemSchema = z
   .object({
@@ -19,6 +54,7 @@ const bookingListItemSchema = z
     startDate: z.string(),
     endDate: z.string(),
     totalAmount: z.number(),
+    currency: currencySchema,
     car: z.object({
       make: z.string(),
       model: z.string(),
@@ -41,5 +77,76 @@ export const bookingsByStatusSchema = z
     }),
   );
 
+const bookingDetailExtensionSchema = z.object({
+  extendedDurationHours: z.number().int(),
+  netTotal: optionalMoneySchema,
+});
+
+const bookingDetailLegSchema = z.object({
+  id: z.string(),
+  legDate: isoDateSchema,
+  legStartTime: isoDateSchema,
+  legEndTime: isoDateSchema,
+  extensions: z.array(bookingDetailExtensionSchema).default([]),
+});
+
+const bookingDetailFlightSchema = z.object({
+  flightNumber: z.string(),
+  flightDate: isoDateSchema,
+  status: z.enum(FLIGHT_STATUSES),
+  originCode: z.string(),
+  originCodeIATA: z.string().nullish(),
+  originName: z.string().nullish(),
+  originCity: z.string().nullish(),
+  destinationCode: z.string(),
+  destinationCodeIATA: z.string().nullish(),
+  destinationName: z.string().nullish(),
+  destinationCity: z.string().nullish(),
+  scheduledArrival: isoDateSchema,
+  estimatedArrival: isoDateSchema.nullish(),
+  actualArrival: isoDateSchema.nullish(),
+  delayMinutes: z.number().int().nullish(),
+  aircraftType: z.string().nullish(),
+  registration: z.string().nullish(),
+});
+
+export const bookingDetailSchema = z.object({
+  id: z.string(),
+  bookingReference: z.string(),
+  status: bookingStatusSchema,
+  paymentStatus: paymentStatusSchema,
+  type: z.enum(BOOKING_TYPE_OPTIONS),
+  startDate: isoDateSchema,
+  endDate: isoDateSchema,
+  pickupLocation: z.string(),
+  returnLocation: z.string(),
+  totalAmount: moneySchema,
+  currency: currencySchema,
+  netTotal: optionalMoneySchema,
+  platformCustomerServiceFeeAmount: optionalMoneySchema,
+  platformCustomerServiceFeeRatePercent: optionalMoneySchema,
+  vatAmount: optionalMoneySchema,
+  vatRatePercent: optionalMoneySchema,
+  securityDetailCost: optionalMoneySchema,
+  fuelUpgradeCost: optionalMoneySchema,
+  referralDiscountAmount: optionalMoneySchema,
+  referralCreditsUsed: optionalMoneySchema,
+  car: z.object({
+    make: z.string(),
+    model: z.string(),
+    year: z.number().int(),
+  }),
+  chauffeur: z
+    .object({
+      name: z.string().nullable(),
+    })
+    .nullish(),
+  flight: bookingDetailFlightSchema.nullish(),
+  legs: z.array(bookingDetailLegSchema),
+});
+
 export type BookingListItem = z.output<typeof bookingListItemSchema>;
 export type BookingsByStatus = z.output<typeof bookingsByStatusSchema>;
+export type BookingDetail = z.output<typeof bookingDetailSchema>;
+export type BookingDetailLeg = z.output<typeof bookingDetailLegSchema>;
+export type BookingDetailFlight = z.output<typeof bookingDetailFlightSchema>;
