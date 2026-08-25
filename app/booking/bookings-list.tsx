@@ -65,7 +65,7 @@ function BookingRow({ booking }: { readonly booking: BookingListItem }) {
               <p className="block sm:hidden">{startLabel}</p>
               <p className="block sm:hidden">{endLabel}</p>
               <p className="text-pretty text-sm font-semibold tabular-nums">
-                {formatCurrency(booking.totalAmount)}
+                {formatCurrency(booking.totalAmount, booking.currency ?? undefined)}
               </p>
             </div>
           </div>

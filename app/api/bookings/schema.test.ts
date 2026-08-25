@@ -95,6 +95,7 @@ describe("bookingDetailSchema", () => {
       pickupLocation: "Ikeja",
       returnLocation: "Marina",
       totalAmount: 150_000,
+      currency: "usd",
       netTotal: 130_435,
       platformCustomerServiceFeeAmount: 9_130,
       platformCustomerServiceFeeRatePercent: 7,
@@ -123,8 +124,36 @@ describe("bookingDetailSchema", () => {
 
     expect(parsed.data.car).toEqual({ make: "Lexus", model: "UX F-Sport", year: 2019 });
     expect(parsed.data.chauffeur).toEqual({ name: "Bola Adebayo" });
+    expect(parsed.data.currency).toBe("USD");
     expect(parsed.data).not.toHaveProperty("canEdit");
     expect(parsed.data).not.toHaveProperty("user");
+  });
+
+  it("drops an invalid currency instead of failing the booking", () => {
+    const parsed = bookingDetailSchema.safeParse({
+      id: "booking-1",
+      bookingReference: "TD-1001",
+      status: "COMPLETED",
+      paymentStatus: "PAID",
+      type: "DAY",
+      startDate: "2026-07-02T08:00:00.000Z",
+      endDate: "2026-07-02T20:00:00.000Z",
+      pickupLocation: "Ikeja",
+      returnLocation: "Marina",
+      totalAmount: 150_000,
+      currency: "naira",
+      car: { make: "Lexus", model: "UX F-Sport", year: 2019 },
+      chauffeur: null,
+      flight: null,
+      legs: [],
+    });
+
+    expect(parsed.success).toBe(true);
+    if (!parsed.success) {
+      return;
+    }
+
+    expect(parsed.data.currency).toBeUndefined();
   });
 
   it("coerces numeric strings and rejects values that Number() would turn into 0", () => {

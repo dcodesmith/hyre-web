@@ -65,7 +65,7 @@ app/
       schema.ts                   # session + OTP DTOs
     bookings/
       bookings.server.ts          # GET /api/bookings, GET /api/bookings/:bookingId
-      schema.ts                   # list rows by status; review → reviewed flag; detail DTO
+      schema.ts                   # list/detail DTOs; optional ISO currency
     users/
       users.server.ts             # GET|PATCH /api/users/me
       schema.ts                   # name, phone, city, address, marketingConsent

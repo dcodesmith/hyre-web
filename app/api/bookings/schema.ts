@@ -37,6 +37,11 @@ const moneySchema = z.union([
   z.string().trim().min(1).transform(Number).pipe(z.number()),
 ]);
 const optionalMoneySchema = moneySchema.nullish();
+const currencySchema = z
+  .string()
+  .trim()
+  .transform((value) => (/^[A-Za-z]{3}$/.test(value) ? value.toUpperCase() : undefined))
+  .nullish();
 const isoDateSchema = z.union([z.string(), z.date()]).transform((value) => {
   return value instanceof Date ? value.toISOString() : value;
 });
@@ -49,6 +54,7 @@ const bookingListItemSchema = z
     startDate: z.string(),
     endDate: z.string(),
     totalAmount: z.number(),
+    currency: currencySchema,
     car: z.object({
       make: z.string(),
       model: z.string(),
@@ -115,6 +121,7 @@ export const bookingDetailSchema = z.object({
   pickupLocation: z.string(),
   returnLocation: z.string(),
   totalAmount: moneySchema,
+  currency: currencySchema,
   netTotal: optionalMoneySchema,
   platformCustomerServiceFeeAmount: optionalMoneySchema,
   platformCustomerServiceFeeRatePercent: optionalMoneySchema,

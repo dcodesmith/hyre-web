@@ -642,6 +642,7 @@ function PaymentSummaryCard({ booking }: { readonly booking: BookingDetail }) {
   const paymentSummary = createPaymentSummary(booking);
   const dayCount = booking.legs.length;
   const dayLabel = dayCount === 1 ? "day" : "days";
+  const moneyLabel = (value: number) => formatCurrency(value, booking.currency ?? undefined);
 
   return (
     <DetailCard>
@@ -655,7 +656,7 @@ function PaymentSummaryCard({ booking }: { readonly booking: BookingDetail }) {
             <span className="text-slate-600">
               Net Total ({dayCount} {dayLabel})
             </span>
-            <span className="font-medium">{formatCurrency(paymentSummary.netTotal)}</span>
+            <span className="font-medium">{moneyLabel(paymentSummary.netTotal)}</span>
           </div>
           {paymentSummary.extensionNetTotal > 0 ? (
             <div className="flex justify-between">
@@ -663,7 +664,7 @@ function PaymentSummaryCard({ booking }: { readonly booking: BookingDetail }) {
                 Extension ({paymentSummary.totalExtendedHours} hours)
               </span>
               <span className="text-sm font-medium">
-                {formatCurrency(paymentSummary.extensionNetTotal)}
+                {moneyLabel(paymentSummary.extensionNetTotal)}
               </span>
             </div>
           ) : null}
@@ -673,7 +674,7 @@ function PaymentSummaryCard({ booking }: { readonly booking: BookingDetail }) {
                 Security Detail ({dayCount} {dayLabel})
               </span>
               <span className="text-sm font-medium">
-                {formatCurrency(money(booking.securityDetailCost))}
+                {moneyLabel(money(booking.securityDetailCost))}
               </span>
             </div>
           ) : null}
@@ -681,7 +682,7 @@ function PaymentSummaryCard({ booking }: { readonly booking: BookingDetail }) {
             <div className="flex justify-between">
               <span className="text-sm text-slate-600">Fuel Upgrade</span>
               <span className="text-sm font-medium">
-                {formatCurrency(paymentSummary.fuelUpgradeCost)}
+                {moneyLabel(paymentSummary.fuelUpgradeCost)}
               </span>
             </div>
           ) : null}
@@ -689,7 +690,7 @@ function PaymentSummaryCard({ booking }: { readonly booking: BookingDetail }) {
             <div className="flex justify-between">
               <span className="text-sm text-green-600">Referral Discount</span>
               <span className="text-sm font-medium text-green-600">
-                -{formatCurrency(paymentSummary.referralDiscountAmount)}
+                -{moneyLabel(paymentSummary.referralDiscountAmount)}
               </span>
             </div>
           ) : null}
@@ -697,7 +698,7 @@ function PaymentSummaryCard({ booking }: { readonly booking: BookingDetail }) {
             <div className="flex justify-between">
               <span className="text-sm text-green-600">Referral Credits Used</span>
               <span className="text-sm font-medium text-green-600">
-                -{formatCurrency(money(booking.referralCreditsUsed))}
+                -{moneyLabel(money(booking.referralCreditsUsed))}
               </span>
             </div>
           ) : null}
@@ -707,18 +708,18 @@ function PaymentSummaryCard({ booking }: { readonly booking: BookingDetail }) {
                 Platform Fee ({money(booking.platformCustomerServiceFeeRatePercent)}%)
               </span>
               <span className="text-sm font-medium">
-                {formatCurrency(paymentSummary.platformCustomerServiceFeeAmount)}
+                {moneyLabel(paymentSummary.platformCustomerServiceFeeAmount)}
               </span>
             </div>
           ) : null}
           <div className="flex justify-between">
             <span className="text-sm text-slate-600">VAT ({paymentSummary.vatRatePercent}%)</span>
-            <span className="text-sm font-medium">{formatCurrency(paymentSummary.vatAmount)}</span>
+            <span className="text-sm font-medium">{moneyLabel(paymentSummary.vatAmount)}</span>
           </div>
           <hr className="h-px w-full border-0 bg-border" />
           <div className="flex justify-between font-bold">
             <span>Total Amount</span>
-            <span>{formatCurrency(paymentSummary.totalAmount)}</span>
+            <span>{moneyLabel(paymentSummary.totalAmount)}</span>
           </div>
         </div>
       </DetailCardBody>
