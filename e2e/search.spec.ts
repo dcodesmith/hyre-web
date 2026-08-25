@@ -1,5 +1,8 @@
 import { expect, type Page, test } from "@playwright/test";
 
+import { HTTP_STATUS } from "../app/api/http-status";
+import { expectVisualScreenshot } from "./expect-visual-screenshot";
+
 const consentKey = "tripdly-cookie-consent:v1";
 
 function futureServiceDate(daysFromToday: number) {
@@ -24,7 +27,7 @@ test("renders crawlable search metadata and booking chrome", async ({ page, view
   await setCookiePreference(page);
   const response = await page.goto("/search?vehicleType=SUV");
 
-  expect(response?.status()).toBe(200);
+  expect(response?.status()).toBe(HTTP_STATUS.OK);
   await expect(page).toHaveTitle("SUV in Lagos | Tripdly");
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
     "href",
@@ -125,7 +128,7 @@ test("matches the responsive search baseline", async ({ page }) => {
     );
   });
 
-  await expect(page).toHaveScreenshot("search.png", {
+  await expectVisualScreenshot(page, "search.png", {
     fullPage: true,
     mask: [page.locator("[data-visual-dynamic]")],
     maskColor: "#f3f4f6",

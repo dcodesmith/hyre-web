@@ -2,9 +2,12 @@ import { data, redirect } from "react-router";
 
 import { ApiRequestError } from "~/api/api.server";
 import { hasSessionCookie } from "~/api/auth/cookie-relay.server";
-import { getBookingById } from "~/api/bookings/bookings.server";
+import { cancelBooking, getBookingById } from "~/api/bookings/bookings.server";
+import { HTTP_STATUS } from "~/api/http-status";
 import { AUTH_NO_STORE } from "~/auth/guest-only.server";
 import { authPath } from "~/auth/referer";
+import type { BookingCancelActionData } from "~/booking/booking-cancel";
+import { cancelBookingFormSchema } from "~/booking/booking-cancel-form-schema";
 import { BookingDetailPage } from "~/booking/booking-detail";
 import { buildPageMetadata } from "~/seo/metadata";
 import type { Route } from "./+types/bookings.$bookingId";
@@ -44,7 +47,7 @@ function loginRedirect(request: Request) {
 
 export async function loader({ request, params }: Route.LoaderArgs) {
   if (!params.bookingId) {
-    throw data(null, { status: 404 });
+    throw data(null, { status: HTTP_STATUS.NOT_FOUND });
   }
 
   if (!hasSessionCookie(request.headers.get("Cookie"))) {
@@ -56,16 +59,62 @@ export async function loader({ request, params }: Route.LoaderArgs) {
 
     return { booking: booking.data, now: new Date().toISOString() };
   } catch (error) {
-    if (error instanceof ApiRequestError && error.status === 401) {
+    if (error instanceof ApiRequestError && error.status === HTTP_STATUS.UNAUTHORIZED) {
       throw loginRedirect(request);
     }
 
-    if (error instanceof ApiRequestError && error.status === 404) {
-      throw data(null, { status: 404 });
+    if (error instanceof ApiRequestError && error.status === HTTP_STATUS.NOT_FOUND) {
+      throw data(null, { status: HTTP_STATUS.NOT_FOUND });
     }
 
     throw error;
   }
+}
+
+export async function action({ request, params }: Route.ActionArgs) {
+  if (!params.bookingId) {
+    throw data(null, { status: HTTP_STATUS.NOT_FOUND });
+  }
+
+  if (!hasSessionCookie(request.headers.get("Cookie"))) {
+    throw loginRedirect(request);
+  }
+
+  const parsed = cancelBookingFormSchema.safeParse(Object.fromEntries(await request.formData()));
+
+  if (!parsed.success) {
+    return data<BookingCancelActionData>(
+      { error: "This booking cannot be cancelled." },
+      { status: HTTP_STATUS.BAD_REQUEST, headers: AUTH_NO_STORE },
+    );
+  }
+
+  try {
+    await cancelBooking({ request, bookingId: params.bookingId });
+  } catch (error) {
+    if (error instanceof ApiRequestError && error.status === HTTP_STATUS.UNAUTHORIZED) {
+      throw loginRedirect(request);
+    }
+
+    if (error instanceof ApiRequestError && error.kind === "aborted") {
+      throw error;
+    }
+
+    const message =
+      error instanceof ApiRequestError && error.status < HTTP_STATUS.INTERNAL_SERVER_ERROR
+        ? error.problem.detail
+        : "Failed to cancel booking. Please try again.";
+
+    return data<BookingCancelActionData>(
+      { error: message },
+      {
+        status: error instanceof ApiRequestError ? error.status : HTTP_STATUS.BAD_GATEWAY,
+        headers: AUTH_NO_STORE,
+      },
+    );
+  }
+
+  return data<BookingCancelActionData>({ ok: true }, { headers: AUTH_NO_STORE });
 }
 
 export default function BookingDetailRoute({ loaderData }: Route.ComponentProps) {

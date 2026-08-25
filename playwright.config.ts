@@ -13,6 +13,8 @@ export default defineConfig({
   expect: {
     timeout: 10_000,
     toHaveScreenshot: {
+      // Baselines are Linux CI (`mcr.microsoft.com/playwright:v1.62.1-noble`).
+      // Local macOS compares are skipped in e2e/expect-visual-screenshot.ts.
       animations: "disabled",
       maxDiffPixelRatio: 0.01,
       threshold: 0.2,

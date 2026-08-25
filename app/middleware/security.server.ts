@@ -1,3 +1,5 @@
+import { HTTP_STATUS } from "~/api/http-status";
+
 const REQUEST_ID_HEADER = "x-request-id";
 const SAFE_REQUEST_ID = /^[A-Za-z0-9._:-]{8,128}$/;
 
@@ -63,11 +65,11 @@ export function validateMutationOrigin(request: Request): Response | undefined {
     {
       type: "INVALID_REQUEST_ORIGIN",
       title: "Forbidden",
-      status: 403,
+      status: HTTP_STATUS.FORBIDDEN,
       detail: "The request origin could not be verified.",
       instance: new URL(request.url).pathname,
     },
-    { status: 403 },
+    { status: HTTP_STATUS.FORBIDDEN },
   );
 }
 

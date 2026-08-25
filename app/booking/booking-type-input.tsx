@@ -25,39 +25,6 @@ interface BookingTypeInputProps {
   readonly isCompact?: boolean;
 }
 
-function SearchFlightStatus({
-  flight,
-  error,
-}: {
-  readonly flight: SearchFlight | null;
-  readonly error: string | null;
-}) {
-  if (flight) {
-    const route = formatFlightRoute(flight);
-    const time = formatLagosClock(flight.arrivalTime);
-
-    return (
-      <span className="text-green-600">
-        <span className="sm:hidden">
-          {route} • {time}
-        </span>
-        <span className="hidden items-center gap-1 sm:inline-flex">
-          <span>
-            <span className="block">{route}</span>
-            <span className="block">{time}</span>
-          </span>
-        </span>
-      </span>
-    );
-  }
-
-  if (error) {
-    return <span className="text-gray-500">{error}</span>;
-  }
-
-  return null;
-}
-
 export function BookingTypeInput({
   bookingType,
   pickupTime,
@@ -84,6 +51,9 @@ export function BookingTypeInput({
   }
 
   if (bookingType === AIRPORT_PICKUP_BOOKING_TYPE) {
+    const route = validatedFlight ? formatFlightRoute(validatedFlight) : null;
+    const time = validatedFlight ? formatLagosClock(validatedFlight.arrivalTime) : null;
+
     return (
       <div className={bookingFieldStackClass}>
         <div className="flex items-start gap-2">
@@ -105,7 +75,19 @@ export function BookingTypeInput({
               className="min-w-0 flex-1 break-words pt-0.5 text-right text-xs leading-tight"
               aria-live="polite"
             >
-              <SearchFlightStatus flight={validatedFlight} error={flightError} />
+              {route && time ? (
+                <span className="text-green-600">
+                  <span className="sm:hidden">
+                    {route} • {time}
+                  </span>
+                  <span className="hidden sm:block">
+                    <span className="block">{route}</span>
+                    <span className="block">{time}</span>
+                  </span>
+                </span>
+              ) : (
+                <span className="text-gray-500">{flightError}</span>
+              )}
             </div>
           ) : null}
         </div>

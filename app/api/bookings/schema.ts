@@ -143,6 +143,11 @@ export const bookingDetailSchema = z.object({
     .nullish(),
   flight: bookingDetailFlightSchema.nullish(),
   legs: z.array(bookingDetailLegSchema),
+  canCancel: z.boolean(),
+});
+
+export const cancelBookingResponseSchema = z.object({
+  id: z.string(),
 });
 
 export type BookingListItem = z.output<typeof bookingListItemSchema>;

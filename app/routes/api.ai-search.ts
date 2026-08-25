@@ -3,6 +3,7 @@ import { ZodError } from "zod";
 
 import { searchWithAi } from "~/api/ai-search/ai-search.server";
 import { ApiRequestError } from "~/api/api.server";
+import { HTTP_STATUS } from "~/api/http-status";
 import { buildSearchPath, parseSearchUrl, serializeSearchUrl } from "~/search/search-url";
 import type { Route } from "./+types/api.ai-search";
 
@@ -30,7 +31,7 @@ export async function action({ request }: Route.ActionArgs) {
     if (error instanceof ZodError) {
       return data(
         { error: error.issues[0]?.message ?? "Invalid request" },
-        { status: 400, headers: NO_STORE },
+        { status: HTTP_STATUS.BAD_REQUEST, headers: NO_STORE },
       );
     }
 

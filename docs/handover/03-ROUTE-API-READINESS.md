@@ -354,9 +354,10 @@ API gap).
 
 `GET /bookings/:id` is a same-origin BFF over `GET /api/bookings/:bookingId`
 (`SessionGuard`). Guests and 401s redirect to `/auth?redirectTo=`. Missing
-bookings 404. The page is read-only hireApp detail (header, type note,
-timeline, locations, chauffeur, airport flight, payment summary) inside the
-public shell. This slice does not cancel, modify, extend, write reviews,
+bookings 404. The page is hireApp detail (header, type note, timeline,
+locations, chauffeur, airport flight, payment summary) inside the public
+shell. Cancel uses API `canCancel` and `PATCH /api/bookings/:bookingId/cancel`
+through a same-page fetcher. This slice does not modify, extend, write reviews,
 download a receipt, or look up guest bookings.
 
 ### Public car slugs and SEO

@@ -1,6 +1,7 @@
 import { CarFront, House, RouteOff } from "lucide-react";
 import { Link } from "react-router";
 
+import { HTTP_STATUS } from "~/api/http-status";
 import { ErrorPageLayout } from "~/components/errors/error-page-layout";
 import { Button } from "~/components/ui/button";
 import { LEGAL_CONSTANTS } from "~/content/legal";
@@ -14,7 +15,7 @@ export function NotFoundPage() {
             <RouteOff aria-hidden="true" className="size-20 text-neutral-400 md:size-24" />
           </div>
           <div className="absolute -top-2 -right-2 rounded-full bg-neutral-900 px-3 py-1 text-sm font-bold text-white">
-            404
+            {HTTP_STATUS.NOT_FOUND}
           </div>
         </div>
       </div>

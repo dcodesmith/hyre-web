@@ -10,14 +10,12 @@ const CAR_LOCATION_PARAM_KEYS = ["pickupAddress", "dropOffAddress", "sameLocatio
 export interface CarDetailUrlQuery {
   readonly search: SearchUrlQuery;
   readonly bookingType: BookingType;
-  readonly reviewsOpen: boolean;
-  readonly reviewsPage: number;
   readonly pickupAddress: string | null;
   readonly dropOffAddress: string | null;
   readonly sameLocation: boolean;
 }
 
-function parseReviewsPage(value: string | null) {
+export function parseReviewsPage(value: string | null) {
   if (!value || !/^\d+$/.test(value)) {
     return DEFAULT_REVIEWS_PAGE;
   }
@@ -44,8 +42,6 @@ export function parseCarDetailUrl(searchParams: URLSearchParams): CarDetailUrlQu
   return {
     search,
     bookingType,
-    reviewsOpen: searchParams.get("reviews") === "1" || searchParams.get("reviews") === "true",
-    reviewsPage: parseReviewsPage(searchParams.get("reviewsPage")),
     pickupAddress: parseAddress(searchParams.get("pickupAddress")),
     dropOffAddress: parseAddress(searchParams.get("dropOffAddress")),
     sameLocation: isAirportPickup ? false : searchParams.get("sameLocation") !== "false",
@@ -67,14 +63,8 @@ export function buildCarDetailSearchPath(
   params.delete("page");
   params.delete("limit");
   params.delete("countOnly");
-
-  if (query.reviewsOpen) {
-    params.set("reviews", "1");
-  }
-
-  if (query.reviewsPage > DEFAULT_REVIEWS_PAGE) {
-    params.set("reviewsPage", String(query.reviewsPage));
-  }
+  params.delete("reviews");
+  params.delete("reviewsPage");
 
   if (query.pickupAddress) {
     params.set("pickupAddress", query.pickupAddress);
@@ -106,8 +96,6 @@ export function buildBookingTypeCarPath(
       flightNumber: null,
     },
     bookingType,
-    reviewsOpen: current.reviewsOpen,
-    reviewsPage: current.reviewsPage,
     pickupAddress: null,
     dropOffAddress: null,
     sameLocation: bookingType !== AIRPORT_PICKUP_BOOKING_TYPE,
@@ -121,7 +109,7 @@ export function shouldRevalidateCarDetail(
   const current = parseCarDetailUrl(currentParams);
   const next = parseCarDetailUrl(nextParams);
 
-  return current.search.from !== next.search.from || current.reviewsPage !== next.reviewsPage;
+  return current.search.from !== next.search.from;
 }
 
 export function buildBackToSearchPath(searchParams: URLSearchParams) {

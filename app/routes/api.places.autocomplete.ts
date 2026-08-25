@@ -2,6 +2,7 @@ import { data } from "react-router";
 import { ZodError } from "zod";
 
 import { ApiRequestError } from "~/api/api.server";
+import { HTTP_STATUS } from "~/api/http-status";
 import { autocompletePlaces } from "~/api/places/places.server";
 import type { Route } from "./+types/api.places.autocomplete";
 
@@ -30,10 +31,16 @@ export async function loader({ request }: Route.LoaderArgs) {
       throw error;
     }
 
-    if (error instanceof ZodError || (error instanceof ApiRequestError && error.status < 500)) {
+    if (
+      error instanceof ZodError ||
+      (error instanceof ApiRequestError && error.status < HTTP_STATUS.INTERNAL_SERVER_ERROR)
+    ) {
       return data(
         { suggestions: [], degraded: false, error: resourceErrorMessage(error) },
-        { status: error instanceof ZodError ? 400 : error.status, headers: NO_STORE },
+        {
+          status: error instanceof ZodError ? HTTP_STATUS.BAD_REQUEST : error.status,
+          headers: NO_STORE,
+        },
       );
     }
 

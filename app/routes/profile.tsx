@@ -5,6 +5,7 @@ import { profileFormSchema } from "~/account/profile-form-schema";
 import { ApiRequestError } from "~/api/api.server";
 import { getAuthSession } from "~/api/auth/auth.server";
 import { hasSessionCookie } from "~/api/auth/cookie-relay.server";
+import { HTTP_STATUS } from "~/api/http-status";
 import { getCurrentUserProfile, updateCurrentUserProfile } from "~/api/users/users.server";
 import { AUTH_NO_STORE } from "~/auth/guest-only.server";
 import { authPath } from "~/auth/referer";
@@ -51,7 +52,7 @@ export async function loader({ request }: Route.LoaderArgs) {
       throw error;
     }
 
-    if (error instanceof ApiRequestError && error.status === 401) {
+    if (error instanceof ApiRequestError && error.status === HTTP_STATUS.UNAUTHORIZED) {
       throw loginRedirect(request);
     }
 
@@ -67,7 +68,7 @@ export async function action({ request }: Route.ActionArgs) {
   const submission = parseWithZod(await request.formData(), { schema: profileFormSchema });
 
   if (submission.status !== "success") {
-    return data(submission.reply(), { status: 400, headers: AUTH_NO_STORE });
+    return data(submission.reply(), { status: HTTP_STATUS.BAD_REQUEST, headers: AUTH_NO_STORE });
   }
 
   try {
@@ -82,7 +83,7 @@ export async function action({ request }: Route.ActionArgs) {
       },
     });
   } catch (error) {
-    if (error instanceof ApiRequestError && error.status === 401) {
+    if (error instanceof ApiRequestError && error.status === HTTP_STATUS.UNAUTHORIZED) {
       throw loginRedirect(request);
     }
 
@@ -91,12 +92,12 @@ export async function action({ request }: Route.ActionArgs) {
     }
 
     const message =
-      error instanceof ApiRequestError && error.status < 500
+      error instanceof ApiRequestError && error.status < HTTP_STATUS.INTERNAL_SERVER_ERROR
         ? error.problem.detail
         : "Failed to update profile";
 
     return data(submission.reply({ formErrors: [message] }), {
-      status: error instanceof ApiRequestError ? error.status : 502,
+      status: error instanceof ApiRequestError ? error.status : HTTP_STATUS.BAD_GATEWAY,
       headers: AUTH_NO_STORE,
     });
   }

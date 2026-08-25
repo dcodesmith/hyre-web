@@ -14,7 +14,8 @@ route loader/action  →  app/api/{noun}/*.server.ts  →  api.server.ts  →  A
 route component      →  app/{noun} | app/home | app/fleet | app/admin  →  components/ui
 ```
 
-`CarDomain` reads types from `~/api/cars/schema`. It never imports `*.server.ts`.
+`CarDomain` reads types from `~/api/cars/schema`. `BookingDomain` reads types
+from `~/api/bookings/schema`. Neither imports `*.server.ts`.
 
 ## Non-negotiable rules
 
@@ -24,7 +25,8 @@ route component      →  app/{noun} | app/home | app/fleet | app/admin  →  co
 3. Public, fleet, and admin car schemas stay separate. Only public cars use
    `CarDomain(car)`.
 4. `CarDomain` is display from DTO fields only — not availability, payable
-   totals, or authorization.
+   totals, or authorization. `BookingDomain` is the same for booking detail —
+   not `canCancel` or pay authorization.
 5. `app/review/` is customer reviews. Admin car approval lives in
    `app/admin/cars/` (`car-approval.ts`), not `ReviewCarDomain`.
 6. Auth transport and the guest payment token stay under `app/api/`.
@@ -64,8 +66,8 @@ app/
       errors.ts                   # Better Auth 4xx / 429 / hide 403 role detail
       schema.ts                   # session + OTP DTOs
     bookings/
-      bookings.server.ts          # GET /api/bookings, GET /api/bookings/:bookingId
-      schema.ts                   # list/detail DTOs; optional ISO currency
+      bookings.server.ts          # GET list/detail, PATCH /api/bookings/:bookingId/cancel
+      schema.ts                   # list/detail DTOs; canCancel; optional ISO currency
     users/
       users.server.ts             # GET|PATCH /api/users/me
       schema.ts                   # name, phone, city, address, marketingConsent
@@ -75,7 +77,7 @@ app/
     car-domain.test.ts
     paths.ts                      # /cars/:slug-fullCuid, category → /search?…
     paths.test.ts
-    car-url.ts                    # booking + reviews query on /cars/:slug
+    car-url.ts                    # booking query on /cars/:slug; reviewsPage for fetcher loads
     car-url.test.ts
     vehicle-card.tsx              # carousel + grid
     compact-star-rating.tsx
@@ -86,7 +88,7 @@ app/
 
   review/
     review-list.tsx
-    review-sheet.tsx              # URL-driven dialog, no invented sub-ratings
+    review-sheet.tsx              # local-state dialog + fetcher paging; no invented sub-ratings
 
   booking/
     types.ts                      # DAY | NIGHT | FULL_DAY | AIRPORT_PICKUP
@@ -111,8 +113,18 @@ app/
     bookings-url.ts               # /bookings?status= and Lagos list date copy
     bookings-url.test.ts
     bookings-list.tsx             # signed-in list rows link to /bookings/:id
-    booking-detail.tsx            # read-only hireApp detail; no cancel/modify/extend
-    booking-detail.test.ts        # Lagos timeline copy + payment summary
+    booking-cancel-form-schema.ts # POST intent=cancel
+    booking-cancel.tsx            # hireApp cancel card + Dialog confirm
+    booking-domain.ts             # BookingDomain + Lagos timeline + payment rollup
+    booking-domain.test.ts
+    booking-detail-card.tsx       # shared detail chrome
+    booking-header.tsx
+    booking-timeline.tsx
+    booking-location-card.tsx
+    booking-chauffeur-card.tsx
+    booking-flight-card.tsx
+    booking-payment-card.tsx
+    booking-detail.tsx            # page composer + cancel; no modify/extend
 
   account/
     profile-form-schema.ts        # profile fields; marketingConsent checkbox
@@ -192,7 +204,7 @@ app/
     verify.tsx                    # customer OTP verify + resend
     logout.ts                     # POST sign-out; GET redirects home
     bookings.tsx                  # signed-in list; guests → /auth?redirectTo=
-    bookings.$bookingId.tsx       # signed-in read-only detail; guests → /auth?redirectTo=
+    bookings.$bookingId.tsx       # signed-in detail + cancel; guests → /auth?redirectTo=
     profile.tsx                   # signed-in edit; guests → /auth?redirectTo=
 ```
 
@@ -207,8 +219,10 @@ to filters until
 [`hyre-worker-nestjs#190`](https://github.com/dcodesmith/hyre-worker-nestjs/issues/190)
 lands. Do not invent a second mapping.
 
-Car detail keeps those booking and filter params and adds `reviews`,
-`reviewsPage`, `pickupAddress`, `dropOffAddress`, and `sameLocation`.
+Car detail keeps those booking and filter params and adds
+`pickupAddress`, `dropOffAddress`, and `sameLocation`. Review sheet
+open/close is local state; paging uses a same-page fetcher with
+`reviewsPage` on the loader request, not the browser URL.
 Address params stay on `/cars/:slug` and are stripped from back-to-search.
 They are not sent to `GET /api/cars/search`. Canonical slugs end with the
 **full 25-character CUID** because `GET /api/cars/:carId` validates
@@ -221,12 +235,12 @@ here.
 
 - `app/api/rates/` — platform fee/VAT/security add-on; wait for booking pay
 - Booking create / pricing-preview / pay (Phase 5)
-- Booking cancel / modify / extend
+- Booking modify / extend
 - Guest booking lookup (`/bookings/lookup`) — API gap
 
 ## Later (verified API only)
 
-- `app/api/bookings/` cancel/extend, `app/api/payments/` including `guest-payment-token.server.ts`
+- `app/api/bookings/` extend, `app/api/payments/` including `guest-payment-token.server.ts`
 - `app/api/fleet/{cars,dashboard,promotions,bookings}/` — dashboard calls
   `/api/dashboard/*`, not `/api/fleet-owner/dashboard`
 - `app/api/admin/{cars,documents,rates,financial}/`
@@ -263,6 +277,7 @@ until the API is verified.
 | `lib/car-presentation.ts` | `car/car-domain.ts` + `car/paths.ts` |
 | `lib/booking-types.ts` | `booking/types.ts` |
 | `lib/booking-utils.ts` | `booking/dates.ts` + `booking/pickup.ts` |
+| booking detail helpers in the page | `booking/booking-domain.ts` |
 | `lib/timezone.ts` | `time/timezone.ts` |
 | `lib/seo.ts` | `seo/metadata.ts` |
 | `components/home/vehicle-card.tsx` | `car/vehicle-card.tsx` |
