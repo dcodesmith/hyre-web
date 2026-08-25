@@ -66,6 +66,9 @@ app/
     bookings/
       bookings.server.ts          # GET /api/bookings
       schema.ts                   # list rows by status; review → reviewed flag
+    users/
+      users.server.ts             # GET|PATCH /api/users/me
+      schema.ts                   # name, phone, city, address, marketingConsent
 
   car/
     car-domain.ts                 # CarDomain(car, now, bookingType, booking)
@@ -110,6 +113,10 @@ app/
     bookings-list.tsx             # signed-in list rows; no detail/cancel/edit
     bookings-list.test.ts         # Lagos PPPp date copy
 
+  account/
+    profile-form-schema.ts        # profile fields; marketingConsent checkbox
+    profile-form.tsx              # Edit Profile page; email read-only
+
   search/
     search-url.ts                 # /search query contract + API serialization
     search-url.test.ts
@@ -139,7 +146,7 @@ app/
     pending-otp.ts                # HttpOnly pending OTP cookie
     guest-only.server.ts          # signed-in /auth and /verify redirect
     session.server.ts             # public-layout signed-in check for chrome
-    user-nav.tsx                  # Register or Log in / Bookings + Log out
+    user-nav.tsx                  # Register or Log in / Bookings + Profile + Log out
 
   seo/
     metadata.ts
@@ -184,6 +191,7 @@ app/
     verify.tsx                    # customer OTP verify + resend
     logout.ts                     # POST sign-out; GET redirects home
     bookings.tsx                  # signed-in list; guests → /auth?redirectTo=
+    profile.tsx                   # signed-in edit; guests → /auth?redirectTo=
 ```
 
 ## Next (do not create empty)
@@ -242,7 +250,7 @@ here.
 
 Gaps stay in [03-ROUTE-API-READINESS.md](./03-ROUTE-API-READINESS.md). Do not
 scaffold partners, fleet chauffeurs, fleet booking list, admin owners, admin
-dashboard aggregate, guest booking lookup, profile update, or receipt PDF
+dashboard aggregate, guest booking lookup, or receipt PDF
 until the API is verified.
 
 ## Current → target (homepage + search slices)

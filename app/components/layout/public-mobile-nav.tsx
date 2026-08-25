@@ -1,4 +1,4 @@
-import { Calendar, Home, LogIn, LogOut } from "lucide-react";
+import { Calendar, Home, LogIn, LogOut, User } from "lucide-react";
 import { Form, NavLink, useNavigation } from "react-router";
 
 import { isLogoutFormAction } from "~/auth/user-nav";
@@ -36,31 +36,41 @@ export function PublicMobileNav({ user }: { readonly user: boolean }) {
           </span>
         </NavLink>
         {user ? (
-          <NavLink
-            to="/bookings"
-            prefetch="intent"
-            className={({ isActive }) =>
-              cn(itemClassName, isActive && "font-semibold text-primary")
-            }
-          >
-            <Calendar aria-hidden="true" className="mb-1 size-4" />
-            <span className="max-w-full truncate text-xs font-medium">Bookings</span>
-          </NavLink>
-        ) : null}
-        {user ? (
-          <Form method="post" action="/logout" className="flex min-w-0 flex-1">
-            <button
-              type="submit"
-              disabled={isLoggingOut}
-              aria-label={isLoggingOut ? "Logging out" : "Log out"}
-              className={itemClassName}
+          <>
+            <NavLink
+              to="/bookings"
+              prefetch="intent"
+              className={({ isActive }) =>
+                cn(itemClassName, isActive && "font-semibold text-primary")
+              }
             >
-              <LogOut aria-hidden="true" className="mb-1 size-4" />
-              <span className="max-w-full truncate text-xs font-medium">
-                {isLoggingOut ? "Logging out…" : "Log out"}
-              </span>
-            </button>
-          </Form>
+              <Calendar aria-hidden="true" className="mb-1 size-4" />
+              <span className="max-w-full truncate text-xs font-medium">Bookings</span>
+            </NavLink>
+            <NavLink
+              to="/profile"
+              prefetch="intent"
+              className={({ isActive }) =>
+                cn(itemClassName, isActive && "font-semibold text-primary")
+              }
+            >
+              <User aria-hidden="true" className="mb-1 size-4" />
+              <span className="max-w-full truncate text-xs font-medium">Profile</span>
+            </NavLink>
+            <Form method="post" action="/logout" className="flex min-w-0 flex-1">
+              <button
+                type="submit"
+                disabled={isLoggingOut}
+                aria-label={isLoggingOut ? "Logging out" : "Log out"}
+                className={itemClassName}
+              >
+                <LogOut aria-hidden="true" className="mb-1 size-4" />
+                <span className="max-w-full truncate text-xs font-medium">
+                  {isLoggingOut ? "Logging out…" : "Log out"}
+                </span>
+              </button>
+            </Form>
+          </>
         ) : (
           <NavLink
             to="/auth"
