@@ -5,6 +5,7 @@ import {
   buildBookingTypeCarPath,
   buildCarDetailSearchPath,
   parseCarDetailUrl,
+  parseReviewsPage,
   shouldRevalidateCarDetail,
 } from "~/car/car-url";
 
@@ -16,12 +17,10 @@ const car = {
 };
 
 describe("car detail URL contract", () => {
-  it("defaults booking type and review paging", () => {
+  it("defaults booking type without review sheet state", () => {
     const query = parseCarDetailUrl(new URLSearchParams("vehicleType=SUV"));
 
     expect(query.bookingType).toBe("DAY");
-    expect(query.reviewsOpen).toBe(false);
-    expect(query.reviewsPage).toBe(1);
     expect(query.sameLocation).toBe(true);
     expect(query.pickupAddress).toBeNull();
     expect(query.search.vehicleTypes).toEqual(["SUV"]);
@@ -53,13 +52,15 @@ describe("car detail URL contract", () => {
   });
 
   it("rejects partial and non-decimal reviewsPage values", () => {
-    expect(parseCarDetailUrl(new URLSearchParams("reviewsPage=2junk")).reviewsPage).toBe(1);
-    expect(parseCarDetailUrl(new URLSearchParams("reviewsPage=2.5")).reviewsPage).toBe(1);
-    expect(parseCarDetailUrl(new URLSearchParams("reviewsPage=0")).reviewsPage).toBe(1);
-    expect(parseCarDetailUrl(new URLSearchParams("reviewsPage=3")).reviewsPage).toBe(3);
+    expect(parseReviewsPage("2junk")).toBe(1);
+    expect(parseReviewsPage("2.5")).toBe(1);
+    expect(parseReviewsPage("0")).toBe(1);
+    expect(parseReviewsPage("3")).toBe(3);
+    expect(parseReviewsPage("9007199254740992")).toBe(1);
+    expect(parseReviewsPage(`1${"0".repeat(20)}`)).toBe(1);
   });
 
-  it("serializes booking, filters, and review state", () => {
+  it("serializes booking and filters without review sheet state", () => {
     const query = parseCarDetailUrl(
       new URLSearchParams(
         "bookingType=NIGHT&from=2026-08-20&to=2026-08-21&vehicleType=SUV&reviews=1&reviewsPage=2",
@@ -67,7 +68,7 @@ describe("car detail URL contract", () => {
     );
 
     expect(buildCarDetailSearchPath(car, query)).toBe(
-      "/cars/2019-lexus-ux-f-sport-cmmz4f7x00000l804jj2d6ikn?vehicleType=SUV&from=2026-08-20&to=2026-08-21&bookingType=NIGHT&reviews=1&reviewsPage=2",
+      "/cars/2019-lexus-ux-f-sport-cmmz4f7x00000l804jj2d6ikn?vehicleType=SUV&from=2026-08-20&to=2026-08-21&bookingType=NIGHT",
     );
   });
 
@@ -83,8 +84,8 @@ describe("car detail URL contract", () => {
     );
   });
 
-  it("revalidates only when from or the reviews page changes", () => {
-    const current = new URLSearchParams("bookingType=DAY&from=2026-08-20&reviews=1");
+  it("revalidates only when from changes", () => {
+    const current = new URLSearchParams("bookingType=DAY&from=2026-08-20");
 
     expect(
       shouldRevalidateCarDetail(current, new URLSearchParams("bookingType=NIGHT&from=2026-08-20")),
@@ -95,12 +96,12 @@ describe("car detail URL contract", () => {
     expect(
       shouldRevalidateCarDetail(
         current,
-        new URLSearchParams("bookingType=DAY&from=2026-08-20&reviews=1&reviewsPage=2"),
+        new URLSearchParams("bookingType=DAY&from=2026-08-20&reviewsPage=2"),
       ),
-    ).toBe(true);
+    ).toBe(false);
   });
 
-  it("builds a back-to-search path without review state", () => {
+  it("builds a back-to-search path without leftover review params", () => {
     expect(
       buildBackToSearchPath(
         new URLSearchParams("bookingType=DAY&vehicleType=SUV&reviews=1&reviewsPage=2"),

@@ -144,7 +144,7 @@ export function SearchFilters({ facets, bookingType, activeFilterCount }: Search
           ) : null}
         </Button>
       </DialogTrigger>
-      <DialogContent className="flex max-h-[85dvh] w-full max-w-full flex-col gap-0 overflow-hidden overscroll-contain rounded-sm border border-neutral-200 bg-white p-0 text-sm text-neutral-950 shadow-lg ring-0 sm:max-w-full sm:rounded-sm md:w-[calc(100%-2rem)] md:max-w-xl">
+      <DialogContent className="flex max-h-[calc(100dvh-2rem)] w-full max-w-full flex-col gap-0 overflow-hidden overscroll-contain rounded-sm border border-neutral-200 bg-white p-0 text-sm text-neutral-950 shadow-lg ring-0 sm:max-w-full sm:rounded-sm md:w-[calc(100%-2rem)] md:max-w-xl">
         <DialogHeader className="gap-0 border-b border-gray-200 px-6 py-4 text-center">
           <DialogTitle className="text-lg leading-none font-semibold tracking-tight">
             Filters

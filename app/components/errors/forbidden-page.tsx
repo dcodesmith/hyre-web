@@ -1,6 +1,7 @@
 import { House, LockKeyhole } from "lucide-react";
 import { Link } from "react-router";
 
+import { HTTP_STATUS } from "~/api/http-status";
 import { ErrorPageLayout } from "~/components/errors/error-page-layout";
 import { Button } from "~/components/ui/button";
 import { LEGAL_CONSTANTS } from "~/content/legal";
@@ -14,7 +15,7 @@ export function ForbiddenPage() {
             <LockKeyhole aria-hidden="true" className="size-16 text-amber-400 md:size-20" />
           </div>
           <div className="absolute -top-2 -right-2 rounded-full bg-amber-500 px-3 py-1 text-sm font-bold text-white">
-            403
+            {HTTP_STATUS.FORBIDDEN}
           </div>
         </div>
       </div>

@@ -131,7 +131,7 @@ export async function action({ request }: Route.ActionArgs) {
   if (submission.status !== "success") {
     return data(
       { lastResult: submission.reply(), notice: undefined },
-      { status: 400, headers: AUTH_NO_STORE },
+      { status: HTTP_STATUS.BAD_REQUEST, headers: AUTH_NO_STORE },
     );
   }
 

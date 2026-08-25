@@ -9,6 +9,8 @@ import type {
 } from "react-router";
 import { ServerRouter } from "react-router";
 
+import { HTTP_STATUS } from "~/api/http-status";
+
 export const streamTimeout = 5_000;
 
 type InstrumentedServerRoute = Parameters<NonNullable<ServerInstrumentation["route"]>>[0];
@@ -78,7 +80,7 @@ export default async function handleRequest(
     {
       signal: AbortSignal.timeout(streamTimeout + 1000),
       onError() {
-        responseStatusCode = 500;
+        responseStatusCode = HTTP_STATUS.INTERNAL_SERVER_ERROR;
         // Log streaming rendering errors from inside the shell. Don't log
         // errors encountered during initial shell rendering since they'll
         // reject and get logged in handleDocumentRequest.

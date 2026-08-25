@@ -1,12 +1,13 @@
 import { ArrowLeft } from "lucide-react";
-import { Link, useNavigate, useSearchParams } from "react-router";
+import { useState } from "react";
+import { Link, useSearchParams } from "react-router";
 
 import type { PublicCarDetail } from "~/api/cars/schema";
 import type { CarReviewsResponse } from "~/api/reviews/schema";
 import { CarBookingCard } from "~/car/car-booking-card";
 import { CarGallery } from "~/car/car-gallery";
 import { CarInformationFeatures } from "~/car/car-information";
-import { buildBackToSearchPath, buildCarDetailSearchPath, parseCarDetailUrl } from "~/car/car-url";
+import { buildBackToSearchPath } from "~/car/car-url";
 import { DetailStarRating } from "~/car/compact-star-rating";
 import { generateCarSlug } from "~/car/paths";
 import { ReviewSheet } from "~/review/review-sheet";
@@ -34,6 +35,7 @@ function MobileReviewSummary({
     <button
       type="button"
       className="w-full pt-4 pb-2 px-4 flex items-center justify-center gap-6"
+      aria-label={`${totalReviews} ${totalReviews === 1 ? "review" : "reviews"}`}
       onClick={onOpen}
     >
       <div className="flex flex-col items-center">
@@ -55,9 +57,8 @@ function MobileReviewSummary({
 }
 
 export function CarDetailPage({ car, reviews }: CarDetailPageProps) {
-  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const query = parseCarDetailUrl(searchParams);
+  const [reviewsOpen, setReviewsOpen] = useState(false);
   const images = car.images.map((image) => image.url);
   const carName = `${car.year} ${car.make} ${car.model}`;
   const carUrl = `${SITE_ORIGIN}/cars/${generateCarSlug(car)}`;
@@ -68,13 +69,6 @@ export function CarDetailPage({ car, reviews }: CarDetailPageProps) {
   const colorPrefix = car.color ? `${car.color} ` : "";
   const vehicleTypeLabel = vehicleTypeLabels[car.vehicleType];
   const backToSearch = buildBackToSearchPath(searchParams);
-
-  const openReviews = () => {
-    navigate(buildCarDetailSearchPath(car, { ...query, reviewsOpen: true }), {
-      replace: true,
-      preventScrollReset: true,
-    });
-  };
 
   return (
     <>
@@ -114,7 +108,7 @@ export function CarDetailPage({ car, reviews }: CarDetailPageProps) {
           <MobileReviewSummary
             averageRating={averageRating}
             totalReviews={totalReviews}
-            onOpen={openReviews}
+            onOpen={() => setReviewsOpen(true)}
           />
         ) : null}
       </div>
@@ -141,7 +135,7 @@ export function CarDetailPage({ car, reviews }: CarDetailPageProps) {
                   <button
                     type="button"
                     className="underline underline-offset-2 hover:no-underline"
-                    onClick={openReviews}
+                    onClick={() => setReviewsOpen(true)}
                   >
                     {totalReviews} {totalReviews === 1 ? "review" : "reviews"}
                   </button>
@@ -163,7 +157,13 @@ export function CarDetailPage({ car, reviews }: CarDetailPageProps) {
         </div>
 
         {canOpenReviews && reviews ? (
-          <ReviewSheet car={car} query={query} reviews={reviews} />
+          <ReviewSheet
+            key={car.id}
+            car={car}
+            reviews={reviews}
+            open={reviewsOpen}
+            onOpenChange={setReviewsOpen}
+          />
         ) : null}
       </div>
     </>

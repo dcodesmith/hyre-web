@@ -1,14 +1,17 @@
+import { data } from "react-router";
+
 import type { BookingDetail } from "~/api/bookings/schema";
+import type { BookingCancelActionData } from "~/booking/booking-cancel";
 import { BookingDetailPage } from "~/booking/booking-detail";
 
 const fixtureBooking = {
-  id: "booking-detail-1",
+  id: "booking-cancel-1",
   bookingReference: "TD-1001",
-  status: "COMPLETED",
+  status: "CONFIRMED",
   paymentStatus: "PAID",
   type: "DAY",
-  startDate: "2026-07-02T08:00:00.000Z",
-  endDate: "2026-07-02T20:00:00.000Z",
+  startDate: "2026-08-21T08:00:00.000Z",
+  endDate: "2026-08-21T20:00:00.000Z",
   pickupLocation: "Murtala Muhammed Airport, Ikeja",
   returnLocation: "12 Marina, Lagos Island",
   totalAmount: 150_000,
@@ -28,18 +31,22 @@ const fixtureBooking = {
   },
   chauffeur: { name: "Bola Adebayo" },
   flight: null,
-  canCancel: false,
+  canCancel: true,
   legs: [
     {
       id: "leg-1",
-      legDate: "2026-07-02T00:00:00.000Z",
-      legStartTime: "2026-07-02T08:00:00.000Z",
-      legEndTime: "2026-07-02T20:00:00.000Z",
+      legDate: "2026-08-21T00:00:00.000Z",
+      legStartTime: "2026-08-21T08:00:00.000Z",
+      legEndTime: "2026-08-21T20:00:00.000Z",
       extensions: [],
     },
   ],
 } satisfies BookingDetail;
 
-export default function BookingDetailFixture() {
+export function action() {
+  return data<BookingCancelActionData>({ ok: true });
+}
+
+export default function BookingCancelFixture() {
   return <BookingDetailPage booking={fixtureBooking} now="2026-08-01T12:00:00.000Z" />;
 }

@@ -1,12 +1,8 @@
-import { Link, useNavigate } from "react-router";
+import { useRef } from "react";
+import { useFetcher, useLocation } from "react-router";
 
 import type { PublicCarDetail } from "~/api/cars/schema";
 import type { CarReviewsResponse } from "~/api/reviews/schema";
-import {
-  buildCarDetailSearchPath,
-  type CarDetailUrlQuery,
-  DEFAULT_REVIEWS_PAGE,
-} from "~/car/car-url";
 import { Button } from "~/components/ui/button";
 import {
   Dialog,
@@ -17,33 +13,46 @@ import {
 } from "~/components/ui/dialog";
 import { ReviewList } from "~/review/review-list";
 
+type CarReviewsLoaderData = {
+  readonly reviews: CarReviewsResponse | null;
+};
+
 interface ReviewSheetProps {
   readonly car: Pick<
     PublicCarDetail,
     "id" | "make" | "model" | "year" | "averageRating" | "totalReviews"
   >;
-  readonly query: CarDetailUrlQuery;
   readonly reviews: CarReviewsResponse;
+  readonly open: boolean;
+  readonly onOpenChange: (open: boolean) => void;
 }
 
 const STAR_LEVELS = [5, 4, 3, 2, 1] as const;
 
-export function ReviewSheet({ car, query, reviews }: ReviewSheetProps) {
-  const navigate = useNavigate();
-  const ratings = reviews.ratings;
-  const totalReviews = ratings?.totalReviews ?? (reviews.pagination.total || car.totalReviews);
+export function ReviewSheet({ car, reviews, open, onOpenChange }: ReviewSheetProps) {
+  const fetcher = useFetcher<CarReviewsLoaderData>();
+  const location = useLocation();
+  const lastGoodRef = useRef(reviews);
+  const displayed = fetcher.data?.reviews ?? lastGoodRef.current;
+  const pageLoadFailed =
+    fetcher.state === "idle" && fetcher.data !== undefined && fetcher.data.reviews == null;
+  const isPaging = fetcher.state !== "idle";
+  const ratings = displayed.ratings;
+  const totalReviews = ratings?.totalReviews ?? (displayed.pagination.total || car.totalReviews);
   const averageRating = ratings?.averageRating ?? car.averageRating;
   const roundedRating = averageRating.toFixed(1);
 
   const closeReviews = () => {
-    navigate(
-      buildCarDetailSearchPath(car, {
-        ...query,
-        reviewsOpen: false,
-        reviewsPage: DEFAULT_REVIEWS_PAGE,
-      }),
-      { replace: true, preventScrollReset: true },
-    );
+    fetcher.reset();
+    lastGoodRef.current = reviews;
+    onOpenChange(false);
+  };
+
+  const loadPage = (page: number) => {
+    lastGoodRef.current = displayed;
+    const params = new URLSearchParams(location.search);
+    params.set("reviewsPage", String(page));
+    fetcher.load(`${location.pathname}?${params}`);
   };
 
   const ratingBreakdown = STAR_LEVELS.map((stars) => {
@@ -55,16 +64,19 @@ export function ReviewSheet({ car, query, reviews }: ReviewSheetProps) {
 
   return (
     <Dialog
-      open={query.reviewsOpen}
-      onOpenChange={(open) => {
-        if (!open) {
-          closeReviews();
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (nextOpen) {
+          onOpenChange(true);
+          return;
         }
+
+        closeReviews();
       }}
     >
       <DialogContent
         showCloseButton
-        className="top-auto bottom-0 left-1/2 max-h-[92vh] w-full max-w-5xl translate-x-[-50%] translate-y-0 overflow-y-auto overscroll-contain rounded-t-3xl sm:max-w-5xl"
+        className="max-h-[calc(100dvh-2rem)] w-full max-w-[min(64rem,calc(100%-2rem))] overflow-y-auto overscroll-contain sm:max-w-[min(64rem,calc(100%-2rem))]"
       >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl">
@@ -96,37 +108,36 @@ export function ReviewSheet({ car, query, reviews }: ReviewSheetProps) {
             <h3 className="text-xl font-medium">
               {totalReviews} {totalReviews === 1 ? "review" : "reviews"}
             </h3>
-            <ReviewList reviews={reviews.reviews} />
-            {reviews.pagination.totalPages > 1 ? (
+            {pageLoadFailed ? (
+              <p className="text-sm text-red-600" role="alert">
+                Couldn't load more reviews. Showing the last page that loaded.
+              </p>
+            ) : null}
+            <ReviewList reviews={displayed.reviews} />
+            {displayed.pagination.totalPages > 1 ? (
               <div className="flex items-center justify-between gap-3">
-                {reviews.pagination.hasPreviousPage ? (
-                  <Button variant="outline" size="sm" asChild>
-                    <Link
-                      to={buildCarDetailSearchPath(car, {
-                        ...query,
-                        reviewsOpen: true,
-                        reviewsPage: query.reviewsPage - 1,
-                      })}
-                      preventScrollReset
-                    >
-                      Previous reviews
-                    </Link>
+                {displayed.pagination.hasPreviousPage ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    type="button"
+                    disabled={isPaging}
+                    onClick={() => loadPage(displayed.pagination.page - 1)}
+                  >
+                    Previous reviews
                   </Button>
                 ) : (
                   <span />
                 )}
-                {reviews.pagination.hasNextPage ? (
-                  <Button variant="outline" size="sm" asChild>
-                    <Link
-                      to={buildCarDetailSearchPath(car, {
-                        ...query,
-                        reviewsOpen: true,
-                        reviewsPage: query.reviewsPage + 1,
-                      })}
-                      preventScrollReset
-                    >
-                      Next reviews
-                    </Link>
+                {displayed.pagination.hasNextPage ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    type="button"
+                    disabled={isPaging}
+                    onClick={() => loadPage(displayed.pagination.page + 1)}
+                  >
+                    Next reviews
                   </Button>
                 ) : null}
               </div>

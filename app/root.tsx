@@ -7,6 +7,7 @@ import {
   ScrollRestoration,
 } from "react-router";
 
+import { HTTP_STATUS } from "~/api/http-status";
 import { ForbiddenPage } from "~/components/errors/forbidden-page";
 import { NotFoundPage } from "~/components/errors/not-found-page";
 import { ServerErrorPage } from "~/components/errors/server-error-page";
@@ -56,10 +57,10 @@ export default function App() {
 
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
   if (isRouteErrorResponse(error)) {
-    if (error.status === 404) {
+    if (error.status === HTTP_STATUS.NOT_FOUND) {
       return <NotFoundPage />;
     }
-    if (error.status === 403) {
+    if (error.status === HTTP_STATUS.FORBIDDEN) {
       return <ForbiddenPage />;
     }
 

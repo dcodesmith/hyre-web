@@ -2,6 +2,7 @@ import { env } from "cloudflare:workers";
 
 import { authReferer } from "~/auth/referer";
 import { ApiRequestError, createApiClient } from "../api.server";
+import { HTTP_STATUS } from "../http-status";
 import type { AuthRole } from "./schema";
 import {
   sendOtpResponseSchema,
@@ -87,7 +88,7 @@ export async function getAuthSession(options: GetAuthSessionOptions) {
       schema: sessionResponseSchema,
     });
   } catch (error) {
-    if (error instanceof ApiRequestError && error.status === 401) {
+    if (error instanceof ApiRequestError && error.status === HTTP_STATUS.UNAUTHORIZED) {
       return null;
     }
 

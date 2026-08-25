@@ -93,7 +93,7 @@ export function CarGallery({ images, carName, priority = false }: CarGalleryProp
 
   if (imageCount === 0) {
     return (
-      <div className="flex aspect-[4/3] items-center justify-center bg-gray-100 text-sm text-gray-500">
+      <div className="flex aspect-4/3 items-center justify-center bg-gray-100 text-sm text-gray-500">
         Image unavailable
       </div>
     );
@@ -125,7 +125,7 @@ export function CarGallery({ images, carName, priority = false }: CarGalleryProp
             key={image}
             src={image}
             alt={`${carName}, ${index + 1} of ${imageCount}`}
-            className="w-full aspect-[4/3] object-cover flex-shrink-0"
+            className="w-full aspect-4/3 object-cover shrink-0"
             width={BOOKING_IMAGE_WIDTH}
             height={BOOKING_IMAGE_HEIGHT}
             sizes={BOOKING_IMAGE_SIZES}

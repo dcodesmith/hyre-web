@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
 
+import { HTTP_STATUS } from "./http-status";
 import { normalizeProblemDetails } from "./problem-details";
 
 const fallback = {
-  status: 400,
+  status: HTTP_STATUS.BAD_REQUEST,
   title: "Bad Request",
   detail: "Bad Request",
   instance: "/api/auth/sign-in/email-otp",
@@ -16,7 +17,7 @@ describe("normalizeProblemDetails", () => {
     ).toEqual({
       type: "BETTER_AUTH_ERROR",
       title: "INVALID_OTP",
-      status: 400,
+      status: HTTP_STATUS.BAD_REQUEST,
       detail: "Invalid OTP",
       instance: "/api/auth/sign-in/email-otp",
       errorCode: "INVALID_OTP",
@@ -27,12 +28,12 @@ describe("normalizeProblemDetails", () => {
     expect(
       normalizeProblemDetails(
         { message: "secret" },
-        { ...fallback, status: 500, title: "Error", detail: "Error" },
+        { ...fallback, status: HTTP_STATUS.INTERNAL_SERVER_ERROR, title: "Error", detail: "Error" },
       ),
     ).toMatchObject({
       type: "UPSTREAM_HTTP_ERROR",
       detail: "The upstream API returned an error.",
-      status: 500,
+      status: HTTP_STATUS.INTERNAL_SERVER_ERROR,
     });
   });
 });

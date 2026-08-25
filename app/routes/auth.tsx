@@ -5,6 +5,7 @@ import { ApiRequestError } from "~/api/api.server";
 import { isSecureAuthCookie, sendSignInOtp } from "~/api/auth/auth.server";
 import { authResponseHeaders } from "~/api/auth/cookie-relay.server";
 import { authClientErrorMessage, authClientErrorStatus } from "~/api/auth/errors";
+import { HTTP_STATUS } from "~/api/http-status";
 import {
   AUTH_INPUT_CLASS,
   AUTH_INPUT_INVALID_CLASS,
@@ -38,7 +39,7 @@ export async function action({ request }: Route.ActionArgs) {
   const submission = parseWithZod(formData, { schema: loginFormSchema });
 
   if (submission.status !== "success") {
-    return data(submission.reply(), { status: 400, headers: AUTH_NO_STORE });
+    return data(submission.reply(), { status: HTTP_STATUS.BAD_REQUEST, headers: AUTH_NO_STORE });
   }
 
   const referralCode = submission.value.referralCode || undefined;

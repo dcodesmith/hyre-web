@@ -22,10 +22,9 @@ interface SearchModalProps {
 
 const dialogContentClasses = cn(
   "flex w-full flex-col gap-0 p-0 pt-4",
-  "top-0 h-full max-h-screen translate-y-0 rounded-none",
-  "data-open:slide-in-from-top",
-  "max-w-full md:top-[50%] md:h-auto md:max-h-[90vh] md:max-w-2xl md:translate-y-[-50%] md:rounded-lg",
-  "md:data-open:slide-in-from-top-[48%]",
+  "inset-0 max-h-none max-w-none translate-x-0 translate-y-0 rounded-none sm:max-w-none",
+  "duration-200 data-open:!zoom-in-100 data-closed:!zoom-out-100",
+  "md:inset-auto md:top-1/2 md:left-1/2 md:h-auto md:max-h-[calc(100dvh-2rem)] md:max-w-2xl md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-lg",
 );
 
 export function SearchModal({

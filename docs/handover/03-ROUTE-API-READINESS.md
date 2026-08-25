@@ -354,9 +354,10 @@ API gap).
 
 `GET /bookings/:id` is a same-origin BFF over `GET /api/bookings/:bookingId`
 (`SessionGuard`). Guests and 401s redirect to `/auth?redirectTo=`. Missing
-bookings 404. The page is read-only hireApp detail (header, type note,
-timeline, locations, chauffeur, airport flight, payment summary) inside the
-public shell. This slice does not cancel, modify, extend, write reviews,
+bookings 404. The page is hireApp detail (header, type note, timeline,
+locations, chauffeur, airport flight, payment summary) inside the public
+shell. Cancel uses API `canCancel` and `PATCH /api/bookings/:bookingId/cancel`
+through a same-page fetcher. This slice does not modify, extend, write reviews,
 download a receipt, or look up guest bookings.
 
 ### Public car slugs and SEO
@@ -409,7 +410,9 @@ duplicate year-make-model listings would collide.
   correctly uses `passengerCapacity`. Do not invent DTO fields for the rest.
 - If `GET /api/reviews/car/:carId` fails, the page hides the review CTA even
   when the car DTO has a count. Safer than a broken sheet; weaker than
-  showing the car-level rating with a retry.
+  showing the car-level rating with a retry. Review paging currently
+  `fetcher.load`s the car route, so `getPublicCar` starts again. Later PR:
+  a reviews-only web resource over the same API. No new API work.
 - Customer `/auth`, `/verify`, and `POST /logout` are a same-origin BFF over
   Better Auth. The Worker sends `role` plus a built `Origin`/`Referer` from
   `APP_ORIGIN`, relays every `Set-Cookie`, and never stores the bearer token

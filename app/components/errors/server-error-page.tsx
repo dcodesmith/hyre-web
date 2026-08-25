@@ -1,6 +1,7 @@
 import { CircleAlert, House, RefreshCw } from "lucide-react";
 import { Link } from "react-router";
 
+import { HTTP_STATUS } from "~/api/http-status";
 import { ErrorPageLayout } from "~/components/errors/error-page-layout";
 import { Button } from "~/components/ui/button";
 import { LEGAL_CONSTANTS } from "~/content/legal";
@@ -14,7 +15,7 @@ interface ServerErrorPageProps {
 export function ServerErrorPage({
   details,
   showDetails = false,
-  status = 500,
+  status = HTTP_STATUS.INTERNAL_SERVER_ERROR,
 }: ServerErrorPageProps) {
   return (
     <ErrorPageLayout>

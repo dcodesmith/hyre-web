@@ -3,6 +3,7 @@ import { redirect } from "react-router";
 import { ApiRequestError } from "~/api/api.server";
 import { hasSessionCookie } from "~/api/auth/cookie-relay.server";
 import { getBookingsByStatus } from "~/api/bookings/bookings.server";
+import { HTTP_STATUS } from "~/api/http-status";
 import { AUTH_NO_STORE } from "~/auth/guest-only.server";
 import { authPath } from "~/auth/referer";
 import { BookingsList } from "~/booking/bookings-list";
@@ -38,7 +39,7 @@ export async function loader({ request }: Route.LoaderArgs) {
 
     return { bookings: bookings.data, status: parseBookingListStatus(url.searchParams) };
   } catch (error) {
-    if (error instanceof ApiRequestError && error.status === 401) {
+    if (error instanceof ApiRequestError && error.status === HTTP_STATUS.UNAUTHORIZED) {
       throw loginRedirect();
     }
 

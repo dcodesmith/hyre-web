@@ -2,10 +2,16 @@ import { data, redirect, type ShouldRevalidateFunctionArgs } from "react-router"
 
 import { ApiRequestError } from "~/api/api.server";
 import { getPublicCar } from "~/api/cars/cars.server";
+import { HTTP_STATUS } from "~/api/http-status";
 import { getCarReviews } from "~/api/reviews/reviews.server";
 import { CarDetailPage } from "~/car/car-detail-page";
 import { formatNaira } from "~/car/car-domain";
-import { CAR_REVIEWS_LIMIT, parseCarDetailUrl, shouldRevalidateCarDetail } from "~/car/car-url";
+import {
+  CAR_REVIEWS_LIMIT,
+  parseCarDetailUrl,
+  parseReviewsPage,
+  shouldRevalidateCarDetail,
+} from "~/car/car-url";
 import { extractCarIdFromSlug, generateCarSlug } from "~/car/paths";
 import { vehicleTypeLabels } from "~/search/search-url";
 import { buildPageMetadata, SITE_ORIGIN } from "~/seo/metadata";
@@ -17,7 +23,7 @@ function isMissingCar(error: unknown) {
   return (
     error instanceof ApiRequestError &&
     error.kind === "http" &&
-    (error.status === 404 || error.status === 400)
+    (error.status === HTTP_STATUS.NOT_FOUND || error.status === HTTP_STATUS.BAD_REQUEST)
   );
 }
 
@@ -51,7 +57,7 @@ export async function loader({ request, params }: Route.LoaderArgs) {
   const carId = extractCarIdFromSlug(params.carSlug ?? "");
 
   if (!carId) {
-    throw data(null, { status: 404 });
+    throw data(null, { status: HTTP_STATUS.NOT_FOUND });
   }
 
   const url = new URL(request.url);
@@ -64,7 +70,7 @@ export async function loader({ request, params }: Route.LoaderArgs) {
   const reviewsPromise = getCarReviews({
     request,
     carId,
-    page: query.reviewsPage,
+    page: parseReviewsPage(url.searchParams.get("reviewsPage")),
     limit: CAR_REVIEWS_LIMIT,
     includeRatings: true,
   })
@@ -87,7 +93,7 @@ export async function loader({ request, params }: Route.LoaderArgs) {
     }
 
     if (isMissingCar(error)) {
-      throw data(null, { status: 404 });
+      throw data(null, { status: HTTP_STATUS.NOT_FOUND });
     }
 
     throw error;
@@ -97,7 +103,7 @@ export async function loader({ request, params }: Route.LoaderArgs) {
   const canonicalSlug = generateCarSlug(car);
 
   if (params.carSlug !== canonicalSlug) {
-    throw redirect(`/cars/${canonicalSlug}${url.search}`, 301);
+    throw redirect(`/cars/${canonicalSlug}${url.search}`, HTTP_STATUS.MOVED_PERMANENTLY);
   }
 
   return data(

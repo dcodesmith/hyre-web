@@ -23,11 +23,11 @@ const EXAMPLE_QUERIES = [
 
 const dialogContentClasses = cn(
   "flex w-full flex-col gap-0 overflow-y-auto overscroll-contain p-0",
-  "top-0 h-full max-h-screen translate-y-0 rounded-none",
+  "inset-0 max-h-none max-w-none translate-x-0 translate-y-0 rounded-none sm:max-w-none",
   "pt-[max(1.5rem,env(safe-area-inset-top))] pb-[env(safe-area-inset-bottom)]",
-  "data-open:slide-in-from-top",
-  "max-w-full md:top-[50%] md:h-auto md:max-h-[90vh] md:max-w-2xl md:translate-y-[-50%] md:rounded-lg",
-  "md:pt-0 md:pb-0 md:data-open:slide-in-from-top-[48%]",
+  "duration-200 data-open:!zoom-in-100 data-closed:!zoom-out-100",
+  "md:inset-auto md:top-1/2 md:left-1/2 md:h-auto md:max-h-[calc(100dvh-2rem)] md:max-w-2xl md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-lg",
+  "md:pt-0 md:pb-0",
 );
 
 interface AiSearchActionData {

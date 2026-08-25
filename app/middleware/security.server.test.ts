@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { HTTP_STATUS } from "~/api/http-status";
 import { applyResponsePolicy, prepareRequest, validateMutationOrigin } from "./security.server";
 
 describe("prepareRequest", () => {
@@ -63,13 +64,13 @@ describe("validateMutationOrigin", () => {
       }),
     );
 
-    expect(crossOrigin?.status).toBe(403);
+    expect(crossOrigin?.status).toBe(HTTP_STATUS.FORBIDDEN);
     expect(await crossOrigin?.json()).toMatchObject({
       type: "INVALID_REQUEST_ORIGIN",
-      status: 403,
+      status: HTTP_STATUS.FORBIDDEN,
       instance: "/bookings",
     });
-    expect(missingOrigin?.status).toBe(403);
+    expect(missingOrigin?.status).toBe(HTTP_STATUS.FORBIDDEN);
   });
 });
 

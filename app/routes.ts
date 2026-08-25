@@ -9,6 +9,7 @@ const visualRoutes =
         route("__visual/car", "routes/__visual.car.tsx"),
         route("__visual/bookings", "routes/__visual.bookings.tsx"),
         route("__visual/booking", "routes/__visual.booking.tsx"),
+        route("__visual/booking-cancel", "routes/__visual.booking-cancel.tsx"),
         route("__visual/profile", "routes/__visual.profile.tsx"),
       ]
     : [];

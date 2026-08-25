@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { bookingDetailSchema, bookingsByStatusSchema } from "./schema";
+import { bookingDetailSchema, bookingsByStatusSchema, cancelBookingResponseSchema } from "./schema";
 
 const listItem = {
   id: "booking-1",
@@ -114,6 +114,7 @@ describe("bookingDetailSchema", () => {
         },
       ],
       canEdit: false,
+      canCancel: true,
       user: { email: "hidden@example.com" },
     });
 
@@ -125,6 +126,7 @@ describe("bookingDetailSchema", () => {
     expect(parsed.data.car).toEqual({ make: "Lexus", model: "UX F-Sport", year: 2019 });
     expect(parsed.data.chauffeur).toEqual({ name: "Bola Adebayo" });
     expect(parsed.data.currency).toBe("USD");
+    expect(parsed.data.canCancel).toBe(true);
     expect(parsed.data).not.toHaveProperty("canEdit");
     expect(parsed.data).not.toHaveProperty("user");
   });
@@ -146,6 +148,7 @@ describe("bookingDetailSchema", () => {
       chauffeur: null,
       flight: null,
       legs: [],
+      canCancel: false,
     });
 
     expect(parsed.success).toBe(true);
@@ -173,6 +176,7 @@ describe("bookingDetailSchema", () => {
       chauffeur: null,
       flight: null,
       legs: [],
+      canCancel: false,
     };
 
     expect(bookingDetailSchema.parse(payload).totalAmount).toBe(150_000.5);
@@ -181,5 +185,14 @@ describe("bookingDetailSchema", () => {
     expect(bookingDetailSchema.safeParse({ ...payload, totalAmount: null }).success).toBe(false);
     expect(bookingDetailSchema.safeParse({ ...payload, totalAmount: false }).success).toBe(false);
     expect(bookingDetailSchema.safeParse({ ...payload, netTotal: "" }).success).toBe(false);
+    expect(bookingDetailSchema.safeParse({ ...payload, canCancel: undefined }).success).toBe(false);
+  });
+});
+
+describe("cancelBookingResponseSchema", () => {
+  it("only requires the cancelled booking id", () => {
+    expect(cancelBookingResponseSchema.parse({ id: "booking-1", status: "CANCELLED" })).toEqual({
+      id: "booking-1",
+    });
   });
 });

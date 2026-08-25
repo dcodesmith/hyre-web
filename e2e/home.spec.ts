@@ -1,5 +1,8 @@
 import { expect, type Page, test } from "@playwright/test";
 
+import { HTTP_STATUS } from "../app/api/http-status";
+import { expectVisualScreenshot } from "./expect-visual-screenshot";
+
 const consentKey = "tripdly-cookie-consent:v1";
 
 async function setCookiePreference(page: Page) {
@@ -12,7 +15,7 @@ test("renders crawlable homepage metadata and booking controls", async ({ page }
   await setCookiePreference(page);
   const response = await page.goto("/");
 
-  expect(response?.status()).toBe(200);
+  expect(response?.status()).toBe(HTTP_STATUS.OK);
   await expect(page).toHaveTitle("Car Rental in Lagos with Driver | Chauffeur Service | Tripdly");
   await expect(
     page.getByRole("heading", { name: "Your Ride, Your Choice", level: 1 }),
@@ -84,7 +87,7 @@ test("matches the responsive homepage baseline", async ({ page }) => {
     );
   });
 
-  await expect(page).toHaveScreenshot("home.png", {
+  await expectVisualScreenshot(page, "home.png", {
     fullPage: true,
     mask: [page.locator("[data-visual-dynamic]")],
     maskColor: "#f3f4f6",

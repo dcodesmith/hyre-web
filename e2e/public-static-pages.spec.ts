@@ -1,5 +1,8 @@
 import { expect, type Page, test } from "@playwright/test";
 
+import { HTTP_STATUS } from "../app/api/http-status";
+import { expectVisualScreenshot } from "./expect-visual-screenshot";
+
 const consentKey = "tripdly-cookie-consent:v1";
 
 const staticPages = [
@@ -47,7 +50,7 @@ for (const staticPage of staticPages) {
     await setCookiePreference(page);
     const response = await page.goto(staticPage.path);
 
-    expect(response?.status()).toBe(200);
+    expect(response?.status()).toBe(HTTP_STATUS.OK);
     expect(response?.headers()["cache-control"]).toContain("public");
     await expect(page).toHaveTitle(staticPage.title);
     await expect(page.getByRole("heading", { name: staticPage.heading, level: 1 })).toBeVisible();
@@ -84,14 +87,14 @@ test("filters FAQ questions and exposes an empty state", async ({ page }) => {
 
 test("serves robots.txt and a crawlable sitemap", async ({ page }) => {
   const robots = await page.request.get("/robots.txt");
-  expect(robots.status()).toBe(200);
+  expect(robots.status()).toBe(HTTP_STATUS.OK);
   expect(robots.headers()["content-type"]).toContain("text/plain");
   const robotsText = await robots.text();
   expect(robotsText).toMatch(/User-agent: \*/);
   expect(robotsText).toContain("Disallow: /");
 
   const sitemap = await page.request.get("/sitemap.xml");
-  expect(sitemap.status()).toBe(200);
+  expect(sitemap.status()).toBe(HTTP_STATUS.OK);
   expect(sitemap.headers()["content-type"]).toContain("xml");
   const xml = await sitemap.text();
   expect(xml).toContain("https://tripdly.com/");
@@ -115,7 +118,7 @@ test("matches the responsive About page baseline", async ({ page }) => {
   await page.goto("/about");
   await page.evaluate(() => document.fonts.ready);
 
-  await expect(page).toHaveScreenshot("about.png", {
+  await expectVisualScreenshot(page, "about.png", {
     fullPage: true,
     mask: [page.locator("[data-visual-dynamic]")],
     maskColor: "#f3f4f6",
