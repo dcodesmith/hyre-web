@@ -18,8 +18,21 @@ describe("safeRedirectPath", () => {
     expect(safeRedirectPath("//evil.example")).toBe("/");
     expect(safeRedirectPath("https://evil.example")).toBe("/");
     expect(safeRedirectPath("\\auth")).toBe("/");
+    expect(safeRedirectPath("/\\evil.example")).toBe("/");
     expect(safeRedirectPath("/bookings\r\nSet-Cookie: a=1")).toBe("/");
     expect(safeRedirectPath("/bookings\0")).toBe("/");
+  });
+
+  it("keeps encoded slashes as a same-origin path", () => {
+    expect(safeRedirectPath("/%2f%2fevil.example")).toBe("/%2f%2fevil.example");
+  });
+
+  it("strips React Router data-request suffixes from redirect targets", () => {
+    expect(safeRedirectPath("/bookings/booking-1.data")).toBe("/bookings/booking-1");
+    expect(safeRedirectPath("/bookings/booking-1.data?_routes=routes/bookings.$bookingId")).toBe(
+      "/bookings/booking-1",
+    );
+    expect(safeRedirectPath("/bookings?status=completed")).toBe("/bookings?status=completed");
   });
 });
 
@@ -32,6 +45,12 @@ describe("authPath", () => {
       "/auth?redirectTo=%2Fbookings%3Fstatus%3Dcompleted",
     );
     expect(authPath("/auth", { redirectTo: "/profile" })).toBe("/auth?redirectTo=%2Fprofile");
+    expect(authPath("/auth", { redirectTo: "/bookings/booking-1" })).toBe(
+      "/auth?redirectTo=%2Fbookings%2Fbooking-1",
+    );
+    expect(authPath("/auth", { redirectTo: "/bookings/booking-1.data" })).toBe(
+      "/auth?redirectTo=%2Fbookings%2Fbooking-1",
+    );
   });
 
   it("omits home redirects, invalid refs, and unsafe targets", () => {

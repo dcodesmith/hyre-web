@@ -8,6 +8,7 @@ const visualRoutes =
         route("__visual/search", "routes/__visual.search.tsx"),
         route("__visual/car", "routes/__visual.car.tsx"),
         route("__visual/bookings", "routes/__visual.bookings.tsx"),
+        route("__visual/booking", "routes/__visual.booking.tsx"),
         route("__visual/profile", "routes/__visual.profile.tsx"),
       ]
     : [];
@@ -30,6 +31,7 @@ export default [
     route("privacy", "routes/privacy.tsx"),
     route("cookies", "routes/cookies.tsx"),
     route("bookings", "routes/bookings.tsx"),
+    route("bookings/:bookingId", "routes/bookings.$bookingId.tsx"),
     route("profile", "routes/profile.tsx"),
     route("logout", "routes/logout.ts"),
     ...visualRoutes,

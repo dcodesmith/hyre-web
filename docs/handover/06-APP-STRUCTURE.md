@@ -64,14 +64,14 @@ app/
       errors.ts                   # Better Auth 4xx / 429 / hide 403 role detail
       schema.ts                   # session + OTP DTOs
     bookings/
-      bookings.server.ts          # GET /api/bookings
-      schema.ts                   # list rows by status; review → reviewed flag
+      bookings.server.ts          # GET /api/bookings, GET /api/bookings/:bookingId
+      schema.ts                   # list rows by status; review → reviewed flag; detail DTO
     users/
       users.server.ts             # GET|PATCH /api/users/me
       schema.ts                   # name, phone, city, address, marketingConsent
 
   car/
-    car-domain.ts                 # CarDomain(car, now, bookingType, booking)
+    car-domain.ts                 # CarDomain + formatCurrency (default NGN)
     car-domain.test.ts
     paths.ts                      # /cars/:slug-fullCuid, category → /search?…
     paths.test.ts
@@ -108,10 +108,11 @@ app/
     airlines.json                 # Nigeria-serving airlines for flight suggestions
     airlines.ts
     airlines.test.ts
-    bookings-url.ts               # /bookings?status=
+    bookings-url.ts               # /bookings?status= and Lagos list date copy
     bookings-url.test.ts
-    bookings-list.tsx             # signed-in list rows; no detail/cancel/edit
-    bookings-list.test.ts         # Lagos PPPp date copy
+    bookings-list.tsx             # signed-in list rows link to /bookings/:id
+    booking-detail.tsx            # read-only hireApp detail; no cancel/modify/extend
+    booking-detail.test.ts        # Lagos timeline copy + payment summary
 
   account/
     profile-form-schema.ts        # profile fields; marketingConsent checkbox
@@ -191,6 +192,7 @@ app/
     verify.tsx                    # customer OTP verify + resend
     logout.ts                     # POST sign-out; GET redirects home
     bookings.tsx                  # signed-in list; guests → /auth?redirectTo=
+    bookings.$bookingId.tsx       # signed-in read-only detail; guests → /auth?redirectTo=
     profile.tsx                   # signed-in edit; guests → /auth?redirectTo=
 ```
 
@@ -219,12 +221,12 @@ here.
 
 - `app/api/rates/` — platform fee/VAT/security add-on; wait for booking pay
 - Booking create / pricing-preview / pay (Phase 5)
-- Booking detail / cancel / modify / extend
+- Booking cancel / modify / extend
 - Guest booking lookup (`/bookings/lookup`) — API gap
 
 ## Later (verified API only)
 
-- `app/api/bookings/` detail/cancel/extend, `app/api/payments/` including `guest-payment-token.server.ts`
+- `app/api/bookings/` cancel/extend, `app/api/payments/` including `guest-payment-token.server.ts`
 - `app/api/fleet/{cars,dashboard,promotions,bookings}/` — dashboard calls
   `/api/dashboard/*`, not `/api/fleet-owner/dashboard`
 - `app/api/admin/{cars,documents,rates,financial}/`

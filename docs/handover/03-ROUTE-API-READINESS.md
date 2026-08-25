@@ -346,8 +346,18 @@ stays a later Phase 5 slice).
 Guests redirect to `/auth?redirectTo=/bookings`. Tabs use hireApp
 `?status=active|confirmed|completed|cancelled`. Rows show car image / make /
 model / year, reference, Lagos dates, amount, and a completed-review badge.
-This slice does not ship detail, cancel, modify, extend, create, pay, or
-guest email lookup (`/bookings/lookup` remains an API gap).
+List rows link to `/bookings/:id`. This slice does not ship cancel, modify,
+extend, create, pay, or guest email lookup (`/bookings/lookup` remains an
+API gap).
+
+### Signed-in booking detail
+
+`GET /bookings/:id` is a same-origin BFF over `GET /api/bookings/:bookingId`
+(`SessionGuard`). Guests and 401s redirect to `/auth?redirectTo=`. Missing
+bookings 404. The page is read-only hireApp detail (header, type note,
+timeline, locations, chauffeur, airport flight, payment summary) inside the
+public shell. This slice does not cancel, modify, extend, write reviews,
+download a receipt, or look up guest bookings.
 
 ### Public car slugs and SEO
 
@@ -406,6 +416,7 @@ duplicate year-make-model listings would collide.
   or sends `X-Client-Type: mobile`. The public layout reads `/auth/session`
   when a session cookie is present and swaps the header/mobile nav to Log
   out. Signed-in `/bookings` lists `GET /api/bookings` by status. Signed-in
+  `/bookings/:id` reads `GET /api/bookings/:bookingId`. Signed-in
   `/profile` reads and patches `GET|PATCH /api/users/me`. Referrals and
   fleet/admin login are later slices.
   Production API `TRUSTED_ORIGINS` must include `https://tripdly.com`.

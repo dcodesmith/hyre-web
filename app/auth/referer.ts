@@ -24,12 +24,41 @@ export function authReferer(origin: string, role: AuthRole) {
   return `${new URL(origin).origin}${AUTH_ROLE_PATHS[role]}`;
 }
 
+function documentPathname(pathname: string) {
+  if (pathname.endsWith("/_.data")) {
+    return pathname.slice(0, -"/_.data".length) || "/";
+  }
+
+  if (pathname.endsWith(".data")) {
+    return pathname.slice(0, -".data".length) || "/";
+  }
+
+  return pathname;
+}
+
+const REDIRECT_ORIGIN = "https://tripdly.invalid";
+
 export function safeRedirectPath(value: string | null | undefined, fallback = "/") {
   if (!value?.startsWith("/") || value.startsWith("//") || hasUnsafeRedirectChars(value)) {
     return fallback;
   }
 
-  return value;
+  const url = new URL(value, REDIRECT_ORIGIN);
+
+  if (url.origin !== REDIRECT_ORIGIN) {
+    return fallback;
+  }
+
+  url.searchParams.delete("_routes");
+  url.searchParams.delete("index");
+
+  const path = `${documentPathname(url.pathname)}${url.search}`;
+
+  if (!path.startsWith("/") || path.startsWith("//")) {
+    return fallback;
+  }
+
+  return path;
 }
 
 export function authPath(

@@ -6,6 +6,7 @@ import {
   formatPickerDate,
   formatZonedDate,
   getZonedHour,
+  ordinalDay,
   parseZonedCalendarDate,
   startOfZonedDay,
 } from "./timezone";
@@ -25,6 +26,15 @@ describe("service timezone helpers", () => {
 
   it("formats compact search-bar dates without a leading zero", () => {
     expect(formatCompactPickerDate(new Date("2026-08-04T23:00:00.000Z"))).toBe("Aug 5");
+  });
+
+  it("formats English ordinals for calendar-day copy", () => {
+    expect(ordinalDay(1)).toBe("1st");
+    expect(ordinalDay(2)).toBe("2nd");
+    expect(ordinalDay(3)).toBe("3rd");
+    expect(ordinalDay(11)).toBe("11th");
+    expect(ordinalDay(21)).toBe("21st");
+    expect(ordinalDay(22)).toBe("22nd");
   });
 
   it("reads the service-timezone hour from a UTC instant", () => {

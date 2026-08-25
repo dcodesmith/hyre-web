@@ -1,7 +1,7 @@
 import { env } from "cloudflare:workers";
 
 import { createApiClient } from "../api.server";
-import { bookingsByStatusSchema } from "./schema";
+import { bookingDetailSchema, bookingsByStatusSchema } from "./schema";
 
 let apiClient: ReturnType<typeof createApiClient> | undefined;
 
@@ -21,5 +21,19 @@ export function getBookingsByStatus(options: GetBookingsByStatusOptions) {
     request: options.request,
     forwardCookie: true,
     schema: bookingsByStatusSchema,
+  });
+}
+
+export type GetBookingByIdOptions = {
+  request: Request;
+  bookingId: string;
+};
+
+export function getBookingById(options: GetBookingByIdOptions) {
+  return getApiClient().request({
+    path: `/api/bookings/${encodeURIComponent(options.bookingId)}`,
+    request: options.request,
+    forwardCookie: true,
+    schema: bookingDetailSchema,
   });
 }
