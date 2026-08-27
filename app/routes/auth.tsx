@@ -78,10 +78,10 @@ export default function AuthPage({ actionData }: Route.ComponentProps) {
   return (
     <LoginForm
       actionData={actionData}
+      authRole="user"
       heading="Log in"
       id="login"
       referralCode={referralFromUrl}
-      showReferral
     />
   );
 }

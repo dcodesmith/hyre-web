@@ -6,7 +6,7 @@ import { isSecureAuthCookie, sendSignInOtp } from "~/api/auth/auth.server";
 import { authResponseHeaders } from "~/api/auth/cookie-relay.server";
 import { authClientErrorMessage, authClientErrorStatus } from "~/api/auth/errors";
 import { HTTP_STATUS } from "~/api/http-status";
-import { fleetOwnerLoginFormSchema } from "~/auth/auth-form-schema";
+import { roleLoginFormSchema } from "~/auth/auth-form-schema";
 import { redirectAuthenticatedFleetOwner } from "~/auth/fleet-owner-session.server";
 import { AUTH_NO_STORE } from "~/auth/guest-only.server";
 import { LoginForm } from "~/auth/login-form";
@@ -30,7 +30,7 @@ export async function loader({ request }: Route.LoaderArgs) {
 
 export async function action({ request }: Route.ActionArgs) {
   const formData = await request.formData();
-  const submission = parseWithZod(formData, { schema: fleetOwnerLoginFormSchema });
+  const submission = parseWithZod(formData, { schema: roleLoginFormSchema });
 
   if (submission.status !== "success") {
     return data(submission.reply(), { status: HTTP_STATUS.BAD_REQUEST, headers: AUTH_NO_STORE });
@@ -64,5 +64,12 @@ export async function action({ request }: Route.ActionArgs) {
 }
 
 export default function FleetOwnerLoginPage({ actionData }: Route.ComponentProps) {
-  return <LoginForm actionData={actionData} heading="Fleet Owner Login" id="fleet-owner-login" />;
+  return (
+    <LoginForm
+      actionData={actionData}
+      authRole="fleetOwner"
+      heading="Fleet Owner Login"
+      id="fleet-owner-login"
+    />
+  );
 }

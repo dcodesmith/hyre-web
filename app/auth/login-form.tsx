@@ -3,31 +3,27 @@ import { getZodConstraint, parseWithZod } from "@conform-to/zod/v4";
 import { Form, Link, useNavigation } from "react-router";
 import type { z } from "zod";
 
+import type { AuthRole } from "~/api/auth/schema";
 import { AuthCheckbox, AuthSubmitButton } from "~/auth/auth-form-primitives";
-import { fleetOwnerLoginFormSchema, loginFormSchema } from "~/auth/auth-form-schema";
+import { loginFormSchema, roleLoginFormSchema } from "~/auth/auth-form-schema";
 import { FormError } from "~/components/forms/form-primitives";
 import { cn } from "~/lib/utils";
 
 type LoginFormProps = {
   readonly actionData?: SubmissionResult<string[]>;
+  readonly authRole: AuthRole;
   readonly heading: string;
   readonly id: string;
   readonly referralCode?: string;
-  readonly showReferral?: boolean;
 };
 
 type LoginFormValue = z.infer<typeof loginFormSchema>;
 
-export function LoginForm({
-  actionData,
-  heading,
-  id,
-  referralCode,
-  showReferral = false,
-}: LoginFormProps) {
+export function LoginForm({ actionData, authRole, heading, id, referralCode }: LoginFormProps) {
   const navigation = useNavigation();
   const isSubmitting = navigation.formMethod != null;
-  const schema = showReferral ? loginFormSchema : fleetOwnerLoginFormSchema;
+  const showReferral = authRole === "user";
+  const schema = showReferral ? loginFormSchema : roleLoginFormSchema;
   const [form, fields] = useForm<LoginFormValue, LoginFormValue, string[]>({
     id,
     lastResult: actionData,
