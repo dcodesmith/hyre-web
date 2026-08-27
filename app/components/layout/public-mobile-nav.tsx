@@ -1,4 +1,4 @@
-import { Calendar, Home, LogIn, LogOut, User as UserIcon } from "lucide-react";
+import { Calendar, Gift, Home, LogIn, LogOut, User as UserIcon } from "lucide-react";
 import { Form, NavLink, useNavigation } from "react-router";
 import { isLogoutFormAction } from "~/auth/logout-navigation";
 import type { User } from "~/auth/user";
@@ -46,6 +46,16 @@ export function PublicMobileNav({ user }: { readonly user: User | null }) {
             >
               <Calendar aria-hidden="true" className="mb-1 size-4" />
               <span className="max-w-full truncate text-xs font-medium">Bookings</span>
+            </NavLink>
+            <NavLink
+              to="/referrals"
+              prefetch="intent"
+              className={({ isActive }) =>
+                cn(itemClassName, isActive && "font-semibold text-primary")
+              }
+            >
+              <Gift aria-hidden="true" className="mb-1 size-4" />
+              <span className="max-w-full truncate text-xs font-medium">Referrals</span>
             </NavLink>
             <NavLink
               to="/profile"

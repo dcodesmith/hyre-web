@@ -81,6 +81,11 @@ export function UserNav({
                 Bookings
               </Link>
             </DropdownMenuItem>
+            <DropdownMenuItem asChild className="px-2 py-1.5">
+              <Link to="/referrals" prefetch="intent">
+                Referrals
+              </Link>
+            </DropdownMenuItem>
           </DropdownMenuGroup>
           <DropdownMenuSeparator />
           <DropdownMenuItem

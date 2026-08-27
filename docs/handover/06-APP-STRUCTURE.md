@@ -57,6 +57,9 @@ app/
     reviews/
       reviews.server.ts           # GET /api/reviews/car/:carId
       schema.ts                   # public review list + optional ratings
+    referrals/
+      referrals.server.ts         # GET /api/referrals/user
+      schema.ts                   # signed-in summary, stats, referrals, rewards
     places/
       places.server.ts            # GET /api/places/autocomplete, POST /api/places/resolve
       schema.ts
@@ -148,6 +151,11 @@ app/
     profile-form-schema.ts        # profile fields; marketingConsent checkbox
     profile-form.tsx              # Edit Profile page; email read-only
 
+  referral/
+    referral-page.tsx             # hireApp/mobile parity summary + copy/share UI
+    share-referral-link.ts        # native Web Share with clipboard fallback
+    use-copy-feedback.ts          # clipboard feedback timer + unmount cleanup
+
   search/
     search-url.ts                 # /search query contract + API serialization
     search-url.test.ts
@@ -182,7 +190,7 @@ app/
     user.ts                       # header user shape + initials
     use-public-user.ts            # typed public-layout user access
     logout-navigation.ts          # pending logout form action
-    user-nav.tsx                  # Register or Log in / initials dropdown: Profile, Bookings, Log out
+    user-nav.tsx                  # Register or Log in / initials dropdown: Profile, Bookings, Referrals, Log out
     user-nav.test.ts
 
   seo/
@@ -245,6 +253,7 @@ app/
     api.booking-pricing-preview.ts # same-origin pricing BFF
     api.account.delete.ts          # account deletion BFF + local auth-cookie cleanup
     profile.tsx                   # signed-in edit; guests → /auth?redirectTo=
+    referrals.tsx                 # signed-in GET /api/referrals/user summary
 ```
 
 ## Next (do not create empty)

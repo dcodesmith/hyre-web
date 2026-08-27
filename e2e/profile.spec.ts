@@ -1,4 +1,12 @@
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
+
+const consentKey = "tripdly-cookie-consent:v1";
+
+async function setCookiePreference(page: Page) {
+  await page.addInitScript((key) => {
+    localStorage.setItem(key, JSON.stringify({ analytics: false, timestamp: 1 }));
+  }, consentKey);
+}
 
 test("sends guests from /profile to login", async ({ page }) => {
   await page.goto("/profile");
@@ -9,6 +17,7 @@ test("sends guests from /profile to login", async ({ page }) => {
 });
 
 test("renders the profile form fixture", async ({ page }) => {
+  await setCookiePreference(page);
   await page.goto("/__visual/profile");
 
   await expect(page.getByRole("heading", { name: "Edit Profile" })).toBeVisible();
@@ -20,7 +29,9 @@ test("renders the profile form fixture", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Save Changes" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Danger Zone" })).toBeVisible();
 
-  await page.getByRole("button", { name: "Delete Account" }).click();
+  const deleteAccount = page.getByRole("button", { name: "Delete Account" });
+  await deleteAccount.scrollIntoViewIfNeeded();
+  await deleteAccount.click();
 
   const dialog = page.getByRole("dialog");
   await expect(dialog.getByRole("heading", { name: "Are you absolutely sure?" })).toBeVisible();

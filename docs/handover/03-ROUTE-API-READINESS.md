@@ -428,8 +428,10 @@ duplicate year-make-model listings would collide.
   when a session cookie is present and swaps the header/mobile nav to Log
   out. Signed-in `/bookings` lists `GET /api/bookings` by status. Signed-in
   `/bookings/:id` reads `GET /api/bookings/:bookingId`. Signed-in
-  `/profile` reads and patches `GET|PATCH /api/users/me`. Referrals and
-  fleet/admin login are later slices.
+  `/profile` reads and patches `GET|PATCH /api/users/me`. Signed-in
+  `/referrals` reads `GET /api/referrals/user`; its share URL is rebuilt from
+  trusted `APP_ORIGIN`, matching mobile instead of trusting an API-host URL.
+  Fleet/admin login remains a later slice.
   Production API `TRUSTED_ORIGINS` must include `https://tripdly.com`.
   PR preview hosts (`https://pr-*-hyre-web-preview.tripdly.workers.dev`)
   will fail OTP until the API trusts them. Local `APP_ORIGIN` is
@@ -438,9 +440,10 @@ duplicate year-make-model listings would collide.
   public site and point at `https://tripdly.com/sitemap.xml`. Preview and
   local robots send `Disallow: /`. The sitemap lists existing static pages
   plus car locs from paged `GET /api/cars/search?limit=50` (max 20 pages),
-  using `generateCarSlug` so locs match car-detail canonicals. It omits
-  partners, referrals, and `/chauffeur-service-lagos` until those routes
-  exist. A failed later search page keeps the pages that already succeeded.
+  using `generateCarSlug` so locs match car-detail canonicals. It intentionally
+  omits signed-in `/referrals`, and still omits partners and
+  `/chauffeur-service-lagos` until those public routes exist. A failed later
+  search page keeps the pages that already succeeded.
   A later dedicated public-car list can replace paging if the fleet outgrows
   the cap.
 - Card hrefs always include `bookingType=DAY`. Canonical stays clean. Fine

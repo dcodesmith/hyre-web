@@ -11,6 +11,7 @@ const visualRoutes =
         route("__visual/booking", "routes/__visual.booking.tsx"),
         route("__visual/booking-cancel", "routes/__visual.booking-cancel.tsx"),
         route("__visual/profile", "routes/__visual.profile.tsx"),
+        route("__visual/referrals", "routes/__visual.referrals.tsx"),
         route("__visual/user-nav", "routes/__visual.user-nav.tsx"),
       ]
     : [];
@@ -38,6 +39,7 @@ export default [
     route("bookings", "routes/bookings.tsx"),
     route("bookings/:bookingId", "routes/bookings.$bookingId.tsx"),
     route("profile", "routes/profile.tsx"),
+    route("referrals", "routes/referrals.tsx"),
     route("logout", "routes/logout.ts"),
     ...visualRoutes,
   ]),
