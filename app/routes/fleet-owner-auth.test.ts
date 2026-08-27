@@ -180,7 +180,10 @@ describe("fleet-owner authentication routes", () => {
       email: "owner@example.com",
       role: "fleetOwner",
     });
-    expect(result).toBeDefined();
+    const resendHeaders = (result as { init?: ResponseInit }).init?.headers as Headers;
+    expect(resendHeaders.getSetCookie()).toEqual([
+      expect.stringContaining("fleet_owner_otp_pending="),
+    ]);
   });
 
   it("redirects the fleet verification loader when no scoped OTP is pending", async () => {

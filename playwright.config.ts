@@ -49,7 +49,7 @@ export default defineConfig({
     env: {
       VISUAL_TESTING: "true",
     },
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: false,
     timeout: 120_000,
     url: `${baseURL}/__visual/public-shell`,
   },
