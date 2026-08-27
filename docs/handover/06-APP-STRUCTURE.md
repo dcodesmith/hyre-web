@@ -47,6 +47,9 @@ app/
     api.server.test.ts
     problem-details.ts
     http-status.ts
+    account/
+      account.server.ts           # POST /api/account/delete
+      schema.ts                   # deletion success response
     cars/
       cars.server.ts              # GET /api/cars/categories, GET /api/cars/search, GET /api/cars/:carId
                                   # listPublicSitemapCars pages unfiltered search
@@ -141,6 +144,7 @@ app/
     booking-detail.tsx            # page composer + cancel; no modify/extend
 
   account/
+    account-deletion.tsx          # confirmed destructive action + pending/error UI
     profile-form-schema.ts        # profile fields; marketingConsent checkbox
     profile-form.tsx              # Edit Profile page; email read-only
 
@@ -239,6 +243,7 @@ app/
     bookings.$bookingId.tsx       # signed-in detail + cancel; guests → /auth?redirectTo=
     payment-status.tsx            # /bookings/payment-status callback + polling UI
     api.booking-pricing-preview.ts # same-origin pricing BFF
+    api.account.delete.ts          # account deletion BFF + local auth-cookie cleanup
     profile.tsx                   # signed-in edit; guests → /auth?redirectTo=
 ```
 
