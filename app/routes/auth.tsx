@@ -6,17 +6,12 @@ import { isSecureAuthCookie, sendSignInOtp } from "~/api/auth/auth.server";
 import { authResponseHeaders } from "~/api/auth/cookie-relay.server";
 import { authClientErrorMessage, authClientErrorStatus } from "~/api/auth/errors";
 import { HTTP_STATUS } from "~/api/http-status";
-import {
-  AUTH_INPUT_CLASS,
-  AUTH_INPUT_INVALID_CLASS,
-  AuthCheckbox,
-  AuthError,
-  AuthSubmitButton,
-} from "~/auth/auth-form-primitives";
+import { AuthCheckbox, AuthSubmitButton } from "~/auth/auth-form-primitives";
 import { loginFormSchema, validReferralCode } from "~/auth/auth-form-schema";
 import { AUTH_NO_STORE, redirectAuthenticatedUser } from "~/auth/guest-only.server";
 import { pendingOtpSetCookie } from "~/auth/pending-otp";
 import { authPath } from "~/auth/referer";
+import { FormError } from "~/components/forms/form-primitives";
 import { cn } from "~/lib/utils";
 import { buildPageMetadata } from "~/seo/metadata";
 import type { Route } from "./+types/auth";
@@ -113,9 +108,12 @@ export default function AuthPage({ actionData }: Route.ComponentProps) {
               spellCheck={false}
               placeholder="Email"
               aria-label="Email"
-              className={cn(AUTH_INPUT_CLASS, email.errors && AUTH_INPUT_INVALID_CLASS)}
+              className={cn(
+                "h-12 w-full rounded-sm border-2 border-transparent bg-neutral-100 px-3 py-2 text-base text-neutral-900 placeholder:text-neutral-500 focus-visible:border-neutral-900 focus-visible:outline-none focus-visible:ring-0 disabled:cursor-not-allowed disabled:opacity-50",
+                email.errors && "border-red-500",
+              )}
             />
-            <AuthError id={email.errorId} errors={email.errors} />
+            <FormError id={email.errorId} errors={email.errors} />
           </div>
 
           <div>
@@ -125,9 +123,12 @@ export default function AuthPage({ actionData }: Route.ComponentProps) {
               spellCheck={false}
               placeholder="Referral code (optional)"
               aria-label="Referral code (optional)"
-              className={cn(AUTH_INPUT_CLASS, referralCode.errors && AUTH_INPUT_INVALID_CLASS)}
+              className={cn(
+                "h-12 w-full rounded-sm border-2 border-transparent bg-neutral-100 px-3 py-2 text-base text-neutral-900 placeholder:text-neutral-500 focus-visible:border-neutral-900 focus-visible:outline-none focus-visible:ring-0 disabled:cursor-not-allowed disabled:opacity-50",
+                referralCode.errors && "border-red-500",
+              )}
             />
-            <AuthError id={referralCode.errorId} errors={referralCode.errors} />
+            <FormError id={referralCode.errorId} errors={referralCode.errors} />
           </div>
 
           <div>
@@ -151,10 +152,10 @@ export default function AuthPage({ actionData }: Route.ComponentProps) {
                 </Link>
               </span>
             </label>
-            <AuthError id={acceptTerms.errorId} errors={acceptTerms.errors} />
+            <FormError id={acceptTerms.errorId} errors={acceptTerms.errors} />
           </div>
 
-          <AuthError id={form.errorId} errors={form.errors} />
+          <FormError id={form.errorId} errors={form.errors} />
 
           <AuthSubmitButton
             pending={isSubmitting}

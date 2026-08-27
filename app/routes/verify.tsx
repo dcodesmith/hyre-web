@@ -7,12 +7,7 @@ import { isSecureAuthCookie, sendSignInOtp, verifySignInOtp } from "~/api/auth/a
 import { authResponseHeaders } from "~/api/auth/cookie-relay.server";
 import { authClientErrorMessage, authClientErrorStatus } from "~/api/auth/errors";
 import { HTTP_STATUS } from "~/api/http-status";
-import {
-  AUTH_INPUT_CLASS,
-  AUTH_INPUT_INVALID_CLASS,
-  AuthError,
-  AuthSubmitButton,
-} from "~/auth/auth-form-primitives";
+import { AuthSubmitButton } from "~/auth/auth-form-primitives";
 import { type PendingOtp, verifyFormSchema } from "~/auth/auth-form-schema";
 import { AUTH_NO_STORE, redirectAuthenticatedUser } from "~/auth/guest-only.server";
 import {
@@ -23,6 +18,7 @@ import {
   readCookieValue,
 } from "~/auth/pending-otp";
 import { authPath, safeRedirectPath } from "~/auth/referer";
+import { FormError } from "~/components/forms/form-primitives";
 import { Button } from "~/components/ui/button";
 import { cn } from "~/lib/utils";
 import { buildPageMetadata } from "~/seo/metadata";
@@ -119,7 +115,8 @@ export async function action({ request }: Route.ActionArgs) {
   }
 
   const formData = await request.formData();
-  const intent = String(formData.get("intent") ?? "verify");
+  const intentValue = formData.get("intent");
+  const intent = typeof intentValue === "string" ? intentValue : "verify";
   const redirectTo = safeRedirectPath(new URL(request.url).searchParams.get("redirectTo"));
 
   if (intent === "resend") {
@@ -194,15 +191,14 @@ export default function VerifyPage({ loaderData, actionData }: Route.ComponentPr
               placeholder="6-digit code"
               aria-label="Verification code"
               className={cn(
-                AUTH_INPUT_CLASS,
-                "tracking-[0.3em]",
-                code.errors && AUTH_INPUT_INVALID_CLASS,
+                "h-12 w-full rounded-sm border-2 border-transparent bg-neutral-100 px-3 py-2 text-base text-neutral-900 tracking-[0.3em] placeholder:text-neutral-500 focus-visible:border-neutral-900 focus-visible:outline-none focus-visible:ring-0 disabled:cursor-not-allowed disabled:opacity-50",
+                code.errors && "border-red-500",
               )}
             />
-            <AuthError id={code.errorId} errors={code.errors} />
+            <FormError id={code.errorId} errors={code.errors} />
           </div>
 
-          <AuthError id={form.errorId} errors={form.errors} />
+          <FormError id={form.errorId} errors={form.errors} />
           {actionData?.notice ? (
             <p className="text-sm text-neutral-600" aria-live="polite">
               {actionData.notice}

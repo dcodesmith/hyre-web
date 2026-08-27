@@ -34,3 +34,13 @@ export const BOOKING_TYPE_OPTIONS_MAP = {
     value: "airport-pickup",
   },
 } as const;
+
+export const BOOKING_TYPE_LABELS = {
+  [DAY_BOOKING_TYPE]: { singular: "day", plural: "days" },
+  [NIGHT_BOOKING_TYPE]: { singular: "night", plural: "nights" },
+  [FULL_DAY_BOOKING_TYPE]: { singular: "full day", plural: "full days" },
+  [AIRPORT_PICKUP_BOOKING_TYPE]: {
+    singular: "airport pickup",
+    plural: "airport pickups",
+  },
+} as const;

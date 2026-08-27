@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { bookingDetailSchema, bookingsByStatusSchema, cancelBookingResponseSchema } from "./schema";
+import {
+  bookingDetailSchema,
+  bookingsByStatusSchema,
+  cancelBookingResponseSchema,
+  createBookingResponseSchema,
+} from "./schema";
 
 const listItem = {
   id: "booking-1",
@@ -186,6 +191,38 @@ describe("bookingDetailSchema", () => {
     expect(bookingDetailSchema.safeParse({ ...payload, totalAmount: false }).success).toBe(false);
     expect(bookingDetailSchema.safeParse({ ...payload, netTotal: "" }).success).toBe(false);
     expect(bookingDetailSchema.safeParse({ ...payload, canCancel: undefined }).success).toBe(false);
+  });
+});
+
+describe("createBookingResponseSchema", () => {
+  const created = {
+    bookingId: "booking-1",
+    txRef: "tx-1",
+    totalAmount: 63_000,
+    currency: "NGN",
+    bookingStatus: "PENDING",
+    reservationExpiresAt: "2026-08-21T10:00:00.000Z",
+  };
+
+  it("requires an https checkout URL", () => {
+    expect(
+      createBookingResponseSchema.safeParse({
+        ...created,
+        checkoutUrl: "https://checkout.flutterwave.com/pay",
+      }).success,
+    ).toBe(true);
+    expect(
+      createBookingResponseSchema.safeParse({
+        ...created,
+        checkoutUrl: "http://checkout.flutterwave.com/pay",
+      }).success,
+    ).toBe(false);
+    expect(
+      createBookingResponseSchema.safeParse({
+        ...created,
+        checkoutUrl: "javascript:alert(1)",
+      }).success,
+    ).toBe(false);
   });
 });
 

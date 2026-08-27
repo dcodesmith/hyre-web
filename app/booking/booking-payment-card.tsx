@@ -1,7 +1,7 @@
 import { CreditCard } from "lucide-react";
 import { DetailCard, DetailCardBody, DetailCardHeader } from "~/booking/booking-detail-card";
 import type { BookingPaymentView } from "~/booking/booking-domain";
-import { formatCurrency } from "~/car/car-domain";
+import { formatCurrency } from "~/money/currency";
 
 export function BookingPaymentCard({ payment }: { readonly payment: BookingPaymentView }) {
   const moneyLabel = (value: number) => formatCurrency(value, payment.currency);

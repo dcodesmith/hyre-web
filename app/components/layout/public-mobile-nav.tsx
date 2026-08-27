@@ -1,14 +1,14 @@
-import { Calendar, Home, LogIn, LogOut, User } from "lucide-react";
+import { Calendar, Home, LogIn, LogOut, User as UserIcon } from "lucide-react";
 import { Form, NavLink, useNavigation } from "react-router";
-
-import { isLogoutFormAction } from "~/auth/user-nav";
+import { isLogoutFormAction } from "~/auth/logout-navigation";
+import type { User } from "~/auth/user";
 import { LEGAL_CONSTANTS } from "~/content/legal";
 import { cn } from "~/lib/utils";
 
 const itemClassName =
   "flex min-w-0 flex-1 touch-manipulation flex-col items-center justify-center px-1 py-2 text-muted-foreground transition-colors motion-reduce:transition-none hover:text-foreground focus-visible:rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2";
 
-export function PublicMobileNav({ user }: { readonly user: boolean }) {
+export function PublicMobileNav({ user }: { readonly user: User | null }) {
   const navigation = useNavigation();
   const isLoggingOut = navigation.formMethod != null && isLogoutFormAction(navigation.formAction);
 
@@ -54,7 +54,7 @@ export function PublicMobileNav({ user }: { readonly user: boolean }) {
                 cn(itemClassName, isActive && "font-semibold text-primary")
               }
             >
-              <User aria-hidden="true" className="mb-1 size-4" />
+              <UserIcon aria-hidden="true" className="mb-1 size-4" />
               <span className="max-w-full truncate text-xs font-medium">Profile</span>
             </NavLink>
             <Form method="post" action="/logout" className="flex min-w-0 flex-1">

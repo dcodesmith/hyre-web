@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import type { PublicCar } from "~/api/cars/schema";
-import { CarDomain, formatCurrency } from "~/car/car-domain";
+import { CarDomain } from "~/car/car-domain";
+import { formatCurrency } from "~/money/currency";
 
 function car(overrides: Partial<PublicCar> = {}): PublicCar {
   return {

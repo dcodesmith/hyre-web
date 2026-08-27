@@ -29,10 +29,14 @@ from `~/api/bookings/schema`. Neither imports `*.server.ts`.
    not `canCancel` or pay authorization.
 5. `app/review/` is customer reviews. Admin car approval lives in
    `app/admin/cars/` (`car-approval.ts`), not `ReviewCarDomain`.
-6. Auth transport and the guest payment token stay under `app/api/`.
+6. Auth and payment transport stay under `app/api/`; protected web session
+   cookies stay in their web capability folders (`app/auth/`, `app/payment/`).
 7. No `index.ts` barrels in `app/api/` or capability folders.
 8. `app/lib/` contains only `utils.ts` (`cn`). Gap folders are not created
    until the API endpoint, authorization, and DTO are verified.
+9. Keep production source files at 400 lines or fewer. Prefer cohesive files
+   in the 200–400 line range and split by responsibility before exceeding the
+   limit. Test/spec files are exempt when splitting would reduce readability.
 
 ## Implemented now
 
@@ -66,14 +70,17 @@ app/
       errors.ts                   # Better Auth 4xx / 429 / hide 403 role detail
       schema.ts                   # session + OTP DTOs
     bookings/
-      bookings.server.ts          # GET list/detail, PATCH /api/bookings/:bookingId/cancel
-      schema.ts                   # list/detail DTOs; canCancel; optional ISO currency
+      bookings.server.ts          # GET list/detail, PATCH cancel, POST preview + create
+      schema.ts                   # list/detail DTOs; canCancel; preview + create responses
+    payments/
+      payments.server.ts          # booking status, confirmation, expiration reconciliation
+      schema.ts                   # booking payment lifecycle DTO
     users/
       users.server.ts             # GET|PATCH /api/users/me
       schema.ts                   # name, phone, city, address, marketingConsent
 
   car/
-    car-domain.ts                 # CarDomain + formatCurrency (default NGN)
+    car-domain.ts                 # public car display facts
     car-domain.test.ts
     paths.ts                      # /cars/:slug-fullCuid, category → /search?…
     paths.test.ts
@@ -84,7 +91,11 @@ app/
     car-detail-page.tsx
     car-gallery.tsx
     car-information.tsx
-    car-booking-card.tsx          # URL booking chrome; places/flight/duration; no pay
+    car-booking-card.tsx          # URL booking interface; places/flight/duration
+    car-booking-schedule-fields.tsx
+    use-car-booking-card.ts       # date/address/flight handlers
+    car-booking-pay-form.tsx      # Conform booking payload + guest fields
+    car-booking-checkout.tsx      # cost breakdown + responsive Pay Now UI
 
   review/
     review-list.tsx
@@ -113,11 +124,14 @@ app/
     bookings-url.ts               # /bookings?status= and Lagos list date copy
     bookings-url.test.ts
     bookings-list.tsx             # signed-in list rows link to /bookings/:id
+    booking-create-form-schema.ts # car-card Conform/Zod; guest + booking fields
+    booking-cost-breakdown.tsx    # API-owned segments, fees, discounts, VAT, total
+    booking-guest-fields.tsx      # name / email / phone when unsigned-in
     booking-cancel-form-schema.ts # POST intent=cancel
     booking-cancel.tsx            # hireApp cancel card + Dialog confirm
     booking-domain.ts             # BookingDomain + Lagos timeline + payment rollup
     booking-domain.test.ts
-    booking-detail-card.tsx       # shared detail chrome
+    booking-detail-card.tsx       # shared detail layout
     booking-header.tsx
     booking-timeline.tsx
     booking-location-card.tsx
@@ -134,6 +148,7 @@ app/
     search-url.ts                 # /search query contract + API serialization
     search-url.test.ts
     search-form.tsx               # GET /search, hero / compact / modal
+    search-form-controls.tsx      # responsive date, flight, time + submit controls
     search-page.tsx
     search-filters.tsx
     search-heading.ts
@@ -152,14 +167,19 @@ app/
     timezone.test.ts
 
   auth/
-    auth-layout.tsx               # viewport-centered login chrome; logo top-left to home
+    auth-layout.tsx               # viewport-centered login layout; logo top-left to home
     auth-form-primitives.tsx      # Uber-like inputs, checkbox, submit, errors
     auth-form-schema.ts           # email / OTP / pending cookie
     referer.ts                    # APP_ORIGIN + role path; never caller URLs
     pending-otp.ts                # HttpOnly pending OTP cookie
     guest-only.server.ts          # signed-in /auth and /verify redirect
-    session.server.ts             # public-layout signed-in check for chrome
-    user-nav.tsx                  # Register or Log in / Bookings + Profile + Log out
+    session.server.ts             # header user (email + name) from the API session
+    session.server.test.ts        # reads session.data.user from the API envelope
+    user.ts                       # header user shape + initials
+    use-public-user.ts            # typed public-layout user access
+    logout-navigation.ts          # pending logout form action
+    user-nav.tsx                  # Register or Log in / initials dropdown: Profile, Bookings, Log out
+    user-nav.test.ts
 
   seo/
     metadata.ts
@@ -178,15 +198,27 @@ app/
   lib/
     utils.ts                      # cn() only
 
+  money/
+    currency.ts                   # shared ISO currency formatting
+    currency.test.ts
+
+  payment/
+    payment-status-session.server.ts # encrypted HttpOnly callback credential
+
   hooks/
     use-hero-scroll.ts            # 100/50 hysteresis + matchMedia
     use-infinite-scroll.ts        # IntersectionObserver + fetcher
     use-search-filter-count.ts    # debounced countOnly fetcher
     use-place-autocomplete.ts     # debounced places fetcher + resolve
     use-airport-pickup.ts         # flight + trip-duration fetchers
+    use-booking-pricing-preview.ts # API-owned payable pricing
+    use-payment-status-polling.ts # bounded same-origin status polling
+    use-element-height.ts         # ResizeObserver-backed fixed-bar clearance
 
   components/
     ui/                       # shadcn primitives; do not hand-edit
+    forms/
+      form-primitives.tsx     # neutral field errors and invalid state
     layout/
       brand-link.tsx          # shared Tripdly wordmark → /
     errors/
@@ -205,6 +237,8 @@ app/
     logout.ts                     # POST sign-out; GET redirects home
     bookings.tsx                  # signed-in list; guests → /auth?redirectTo=
     bookings.$bookingId.tsx       # signed-in detail + cancel; guests → /auth?redirectTo=
+    payment-status.tsx            # /bookings/payment-status callback + polling UI
+    api.booking-pricing-preview.ts # same-origin pricing BFF
     profile.tsx                   # signed-in edit; guests → /auth?redirectTo=
 ```
 
@@ -238,17 +272,16 @@ See [03-ROUTE-API-READINESS.md](./03-ROUTE-API-READINESS.md#follow-ups-found-dur
 Do not invent payable totals, availability, or review sub-rating aggregates
 here.
 
-- `app/api/rates/` — platform fee/VAT/security add-on; wait for booking pay
 - Review paging resource: `app/routes/api.reviews.car.$carId.ts` +
   `app/review/review-url.ts` — web `GET /api/reviews/car/:carId?page=`
   over existing `GET /api/reviews/car/:carId`. Keep the car URL clean.
-- Booking create / pricing-preview / pay (Phase 5)
 - Booking modify / extend
 - Guest booking lookup (`/bookings/lookup`) — API gap
 
 ## Later (verified API only)
 
-- `app/api/bookings/` extend, `app/api/payments/` including `guest-payment-token.server.ts`
+- Extend `app/api/bookings/` and `app/api/payments/` only as new API endpoints
+  are implemented.
 - `app/api/fleet/{cars,dashboard,promotions,bookings}/` — dashboard calls
   `/api/dashboard/*`, not `/api/fleet-owner/dashboard`
 - `app/api/admin/{cars,documents,rates,financial}/`

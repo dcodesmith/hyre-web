@@ -3,7 +3,6 @@ import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import type { SearchFacets } from "~/api/cars/schema";
 import { type BookingType, DAY_BOOKING_TYPE } from "~/booking/types";
-import { formatNaira } from "~/car/car-domain";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Checkbox } from "~/components/ui/checkbox";
@@ -22,6 +21,7 @@ import { Slider } from "~/components/ui/slider";
 import { Switch } from "~/components/ui/switch";
 import { ToggleGroup, ToggleGroupItem } from "~/components/ui/toggle-group";
 import { useSearchFilterCount } from "~/hooks/use-search-filter-count";
+import { formatCurrency } from "~/money/currency";
 import {
   applySearchFiltersToParams,
   buildSearchPath,
@@ -174,9 +174,9 @@ export function SearchFilters({ facets, bookingType, activeFilterCount }: Search
                   thumbLabels={["Minimum price", "Maximum price"]}
                 />
                 <div className="flex items-center justify-between text-sm text-gray-600 tabular-nums">
-                  <span>{formatNaira(sliderValue[0])}</span>
+                  <span>{formatCurrency(sliderValue[0])}</span>
                   <span>
-                    {formatNaira(sliderValue[1])}
+                    {formatCurrency(sliderValue[1])}
                     {sliderValue[1] >= sliderMax ? "+" : ""}
                   </span>
                 </div>

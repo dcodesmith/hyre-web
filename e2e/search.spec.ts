@@ -23,7 +23,7 @@ async function setCookiePreference(page: Page) {
   }, consentKey);
 }
 
-test("renders crawlable search metadata and booking chrome", async ({ page, viewport }) => {
+test("renders crawlable search metadata and booking controls", async ({ page, viewport }) => {
   await setCookiePreference(page);
   const response = await page.goto("/search?vehicleType=SUV");
 

@@ -12,7 +12,7 @@ export function TripDetails({ arrivalTime, duration }: TripDetailsProps) {
   const details = buildTripDetails(arrivalTime, duration);
 
   return (
-    <div className="w-full">
+    <div className="w-full lg:border-b lg:border-gray-200 lg:pb-4">
       <div className="mb-2 flex items-center gap-2">
         <h3 className="text-sm font-semibold">Trip Details</h3>
         <p className="flex items-center gap-1 text-xs font-normal text-gray-500">
@@ -20,7 +20,7 @@ export function TripDetails({ arrivalTime, duration }: TripDetailsProps) {
           Times are estimates
         </p>
       </div>
-      <div className="transform-gpu rounded border border-neutral-200 bg-white px-4 py-4 shadow-xl inset-shadow-sm">
+      <div className="transform-gpu rounded border border-neutral-200 bg-white px-4 py-4 shadow-xl inset-shadow-sm lg:rounded-none lg:border-none lg:bg-transparent lg:px-0 lg:py-0 lg:shadow-none lg:inset-shadow-none">
         <dl className="space-y-1.5 text-sm text-gray-950">
           <div className="flex justify-between gap-3">
             <dt className="text-gray-600">Flight Arrival</dt>

@@ -11,7 +11,7 @@ async function setCookiePreference(page: Page) {
   }, consentKey);
 }
 
-test("renders crawlable car metadata and booking chrome from the fixture", async ({
+test("renders crawlable car metadata and booking controls from the fixture", async ({
   page,
   viewport,
 }) => {
@@ -26,6 +26,10 @@ test("renders crawlable car metadata and booking chrome from the fixture", async
     "aria-pressed",
     "true",
   );
+  await expect(page.getByRole("button", { name: /Pay Now/ })).toHaveCount(0);
+  await expect(
+    page.getByRole("heading", { name: "Cost Breakdown" }).filter({ visible: true }),
+  ).toHaveCount(0);
 
   if ((viewport?.width ?? 0) >= 1024) {
     await expect(page.getByRole("link", { name: /Back to search results/ })).toBeVisible();
@@ -37,7 +41,9 @@ test("opens the review sheet without changing the car URL", async ({ page }) => 
   await setCookiePreference(page);
   await page.goto("/__visual/car?bookingType=DAY");
 
-  const reviewTrigger = page.getByRole("button", { name: /12 reviews/i });
+  const reviewTrigger = page
+    .getByRole("button", { name: "12 reviews", exact: true })
+    .filter({ visible: true });
   await expect(reviewTrigger).toBeVisible();
   await reviewTrigger.evaluate((node) => {
     node.scrollIntoView({ block: "center", inline: "nearest" });
@@ -59,7 +65,9 @@ test("shows airport pickup flight and address fields when a from date is present
   page,
 }) => {
   await setCookiePreference(page);
-  const response = await page.goto("/__visual/car?bookingType=AIRPORT_PICKUP&from=2026-08-21");
+  const response = await page.goto(
+    "/__visual/car?bookingType=AIRPORT_PICKUP&from=2026-08-21&pickupAddress=MMA2&dropOffAddress=Victoria%20Island&sameLocation=false",
+  );
 
   expect(response?.status()).toBe(HTTP_STATUS.OK);
   await expect(page.getByRole("button", { name: "Airport" })).toHaveAttribute(
@@ -69,6 +77,29 @@ test("shows airport pickup flight and address fields when a from date is present
   await expect(page.getByLabel("Flight Number")).toBeVisible();
   await expect(page.getByLabel("Pickup Address")).toBeVisible();
   await expect(page.getByLabel("Drop-off Address")).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Cost Breakdown" }).filter({ visible: true }),
+  ).toBeVisible();
+  await expect(page.getByText("Platform Fee (5.0%)").filter({ visible: true })).toBeVisible();
+  await expect(page.getByText("VAT (7.5%)").filter({ visible: true })).toBeVisible();
+  await expect(page.getByText("Total", { exact: true }).filter({ visible: true })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Pay Now as Guest" }).filter({ visible: true }),
+  ).toBeVisible();
+  await expect(page.getByLabel("Name")).toBeVisible();
+  await expect(page.getByLabel("Email")).toBeVisible();
+  await expect(page.getByLabel("Phone Number")).toBeVisible();
+
+  await page.getByRole("button", { name: "Pay Now as Guest" }).filter({ visible: true }).click();
+  await expect(page.getByLabel("Name")).toHaveAttribute("aria-invalid", "true");
+  await expect(page.getByLabel("Email")).toHaveAttribute("aria-invalid", "true");
+  await expect(page.getByLabel("Phone Number")).toHaveAttribute("aria-invalid", "true");
+  await expect(page.getByLabel("Name")).toHaveClass(/border-red-500/);
+  const duplicateIds = await page.locator("[id]").evaluateAll((elements) => {
+    const ids = elements.map((element) => element.id);
+    return ids.filter((id, index) => ids.indexOf(id) !== index);
+  });
+  expect(duplicateIds).toEqual([]);
 
   const flightNumber = page.getByLabel("Flight Number");
   await expect(async () => {
@@ -77,6 +108,43 @@ test("shows airport pickup flight and address fields when a from date is present
     await flightNumber.pressSequentially("BA");
     await expect(page.getByRole("button", { name: /British Airways/ })).toBeVisible();
   }).toPass();
+});
+
+test("keeps guest details when booking URL state changes", async ({ page }) => {
+  await setCookiePreference(page);
+  await page.goto(
+    "/__visual/car?bookingType=DAY&from=2026-09-01&to=2026-09-01&pickupTime=9%20AM&pickupAddress=Lekki&sameLocation=true",
+  );
+
+  await page.getByLabel("Name").fill("Ada Lovelace");
+  await page.getByLabel("Email").fill("ada@example.com");
+  await page.getByLabel("Phone Number").fill("08012345678");
+  await page.getByRole("button", { name: "24 Hours" }).click();
+
+  await expect(page.getByLabel("Name")).toHaveValue("Ada Lovelace");
+  await expect(page.getByLabel("Email")).toHaveValue("ada@example.com");
+  await expect(page.getByLabel("Phone Number")).toHaveValue("08012345678");
+});
+
+test("invalidates an edited address and disables checkout", async ({ page }) => {
+  await setCookiePreference(page);
+  await page.goto(
+    "/__visual/car?bookingType=DAY&from=2026-09-01&to=2026-09-01&pickupTime=9%20AM&pickupAddress=Lekki&sameLocation=true",
+  );
+
+  const pickupAddress = page.getByLabel("Pickup Address");
+  await page.waitForFunction(() => {
+    const input = document.querySelector('input[role="combobox"]');
+    return input ? Object.keys(input).some((key) => key.startsWith("__reactProps$")) : false;
+  });
+  await pickupAddress.click();
+  await pickupAddress.press("ControlOrMeta+A");
+  await pickupAddress.pressSequentially("X");
+  await expect(pickupAddress).toHaveValue("X");
+  await expect(page.locator('input[type="hidden"][name="pickupAddress"]')).toHaveValue("");
+
+  const pay = page.getByRole("button", { name: "Pay Now as Guest" }).filter({ visible: true });
+  await expect(pay).toBeDisabled();
 });
 
 test("returns 404 for a hireApp short slug the API cannot resolve", async ({ page }) => {

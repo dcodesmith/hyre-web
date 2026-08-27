@@ -52,6 +52,10 @@ export function buildCarDetailSearchPath(
   car: { id: string; make: string; model: string; year: number },
   query: CarDetailUrlQuery,
 ) {
+  return buildCurrentCarDetailSearchPath(`/cars/${generateCarSlug(car)}`, query);
+}
+
+export function buildCurrentCarDetailSearchPath(pathname: string, query: CarDetailUrlQuery) {
   const params = serializeSearchUrl({
     ...query.search,
     bookingType: query.bookingType,
@@ -78,7 +82,7 @@ export function buildCarDetailSearchPath(
     params.set("sameLocation", "false");
   }
 
-  return `/cars/${generateCarSlug(car)}?${params}`;
+  return `${pathname}?${params}`;
 }
 
 export function buildBookingTypeCarPath(

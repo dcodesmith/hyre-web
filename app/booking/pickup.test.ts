@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { getPickupTimes, nextPickupTimeOnFromChange, normalizePickupTime } from "~/booking/pickup";
+import {
+  getPickupTimes,
+  nextPickupTimeOnFromChange,
+  normalizePickupTime,
+  parsePickupClock,
+} from "~/booking/pickup";
 
 describe("booking pickup times", () => {
   it("keeps pickup time only when it is still offered for the new From date", () => {
@@ -44,6 +49,15 @@ describe("booking pickup times", () => {
         now: morning,
       }),
     ).toBeUndefined();
+  });
+
+  it("parses hourly pickup labels to a 24-hour clock", () => {
+    expect(parsePickupClock("7 AM")).toEqual({ hour: 7, minute: 0 });
+    expect(parsePickupClock("11 AM")).toEqual({ hour: 11, minute: 0 });
+    expect(parsePickupClock("12 AM")).toEqual({ hour: 0, minute: 0 });
+    expect(parsePickupClock("12 PM")).toEqual({ hour: 12, minute: 0 });
+    expect(parsePickupClock("11 PM")).toEqual({ hour: 23, minute: 0 });
+    expect(parsePickupClock("")).toBeUndefined();
   });
 
   it("normalizes hourly times and leaves non-hourly minutes unchanged", () => {

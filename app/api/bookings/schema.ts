@@ -150,8 +150,65 @@ export const cancelBookingResponseSchema = z.object({
   id: z.string(),
 });
 
+const bookingPricingPromotionSchema = z.object({
+  id: z.string(),
+  name: z.string().nullable(),
+  discountValue: z.number(),
+  startDate: z.string().optional(),
+  endDateExclusive: z.string().optional(),
+});
+
+const bookingPricingSegmentSchema = z.object({
+  kind: z.enum(["PROMO", "STANDARD"]),
+  units: z.number(),
+  unitPrice: moneySchema,
+  total: moneySchema,
+  compareAtUnitPrice: moneySchema.nullable(),
+  label: z.string().nullable(),
+  promotion: bookingPricingPromotionSchema.nullable(),
+});
+
+export const bookingPricingPreviewSchema = z.object({
+  currency: z.literal("NGN"),
+  numberOfLegs: z.number().int(),
+  discountCoverage: z.enum(["NONE", "PARTIAL", "FULL"]),
+  segments: z.array(bookingPricingSegmentSchema),
+  baseTotal: moneySchema,
+  compareAtBaseTotal: moneySchema,
+  securityDetailCost: moneySchema,
+  fuelUpgradeCost: moneySchema,
+  platformFeeRatePercent: moneySchema,
+  platformFeeAmount: moneySchema,
+  compareAtPlatformFeeAmount: moneySchema,
+  subtotalBeforeDiscounts: moneySchema,
+  compareAtSubtotalBeforeDiscounts: moneySchema,
+  referralDiscountAmount: moneySchema,
+  creditsUsed: moneySchema,
+  subtotalAfterDiscounts: moneySchema,
+  vatRatePercent: moneySchema,
+  vatAmount: moneySchema,
+  compareAtVatAmount: moneySchema,
+  totalAmount: moneySchema,
+  compareAtTotalAmount: moneySchema,
+  savingsAmount: moneySchema,
+});
+
+export const createBookingResponseSchema = z.object({
+  bookingId: z.string().min(1),
+  txRef: z.string().min(1),
+  checkoutUrl: z.url().refine((url) => new URL(url).protocol === "https:"),
+  totalAmount: moneySchema,
+  currency: z.literal("NGN"),
+  bookingStatus: bookingStatusSchema,
+  reservationExpiresAt: isoDateSchema,
+  paymentStatusToken: z.string().min(1).optional(),
+});
+
 export type BookingListItem = z.output<typeof bookingListItemSchema>;
 export type BookingsByStatus = z.output<typeof bookingsByStatusSchema>;
 export type BookingDetail = z.output<typeof bookingDetailSchema>;
 export type BookingDetailLeg = z.output<typeof bookingDetailLegSchema>;
 export type BookingDetailFlight = z.output<typeof bookingDetailFlightSchema>;
+export type BookingPricingSegment = z.output<typeof bookingPricingSegmentSchema>;
+export type BookingPricingPreview = z.output<typeof bookingPricingPreviewSchema>;
+export type CreateBookingResponse = z.output<typeof createBookingResponseSchema>;

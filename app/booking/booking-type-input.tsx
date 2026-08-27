@@ -7,10 +7,6 @@ import { BookingTimeSelect } from "~/booking/booking-time-select";
 import { AIRPORT_PICKUP_BOOKING_TYPE, type BookingType, NIGHT_BOOKING_TYPE } from "~/booking/types";
 import { cn } from "~/lib/utils";
 
-export const bookingFieldLabelClass = "text-xs font-semibold leading-tight text-gray-700";
-export const bookingFieldValueTextClass = "text-sm leading-tight text-gray-900";
-export const bookingFieldStackClass = "flex h-[38px] w-full flex-col justify-center text-left";
-
 interface BookingTypeInputProps {
   readonly bookingType: BookingType;
   readonly pickupTime: string | undefined;
@@ -43,9 +39,9 @@ export function BookingTypeInput({
 
   if (bookingType === NIGHT_BOOKING_TYPE) {
     return (
-      <div className={bookingFieldStackClass}>
-        <div className={bookingFieldLabelClass}>Pickup Time</div>
-        <div className={bookingFieldValueTextClass}>11:00 PM</div>
+      <div className="flex h-[38px] w-full flex-col justify-center text-left">
+        <div className="text-xs font-semibold leading-tight text-gray-700">Pickup Time</div>
+        <div className="text-sm leading-tight text-gray-900">11:00 PM</div>
       </div>
     );
   }
@@ -55,10 +51,13 @@ export function BookingTypeInput({
     const time = validatedFlight ? formatLagosClock(validatedFlight.arrivalTime) : null;
 
     return (
-      <div className={bookingFieldStackClass}>
+      <div className="flex h-[38px] w-full flex-col justify-center text-left">
         <div className="flex items-start gap-2">
           <div className={cn("flex min-w-0 flex-col", hasStatus ? "w-[45%]" : "flex-1")}>
-            <label htmlFor={flightNumberId} className={bookingFieldLabelClass}>
+            <label
+              htmlFor={flightNumberId}
+              className="text-xs font-semibold leading-tight text-gray-700"
+            >
               Flight Number
             </label>
             <FlightNumberAutocomplete
@@ -103,8 +102,8 @@ export function BookingTypeInput({
       value={pickupTime}
       onValueChange={onPickupTimeChange}
       name="pickupTime"
-      containerClassName={bookingFieldStackClass}
-      labelClassName={bookingFieldLabelClass}
+      containerClassName="flex h-[38px] w-full flex-col justify-center text-left"
+      labelClassName="text-xs font-semibold leading-tight text-gray-700"
       showLabel
       placeholder={isCompact ? "Select time" : "Select pickup time…"}
     />

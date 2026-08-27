@@ -4,7 +4,8 @@ import { Form, useNavigation } from "react-router";
 
 import { profileFormSchema } from "~/account/profile-form-schema";
 import type { CurrentUserProfile } from "~/api/users/schema";
-import { AuthCheckbox, AuthError } from "~/auth/auth-form-primitives";
+import { AuthCheckbox } from "~/auth/auth-form-primitives";
+import { FormError } from "~/components/forms/form-primitives";
 import { Button } from "~/components/ui/button";
 
 const fieldClassName = "h-9 w-full rounded-md border px-3 text-sm";
@@ -72,7 +73,7 @@ export function ProfilePage({ email, profile, lastResult }: ProfileFields) {
               autoComplete="name"
               className={fieldClassName}
             />
-            <AuthError id={name.errorId} errors={name.errors} />
+            <FormError id={name.errorId} errors={name.errors} />
           </div>
 
           <div className="space-y-1">
@@ -85,7 +86,7 @@ export function ProfilePage({ email, profile, lastResult }: ProfileFields) {
               placeholder="+1234567890"
               className={fieldClassName}
             />
-            <AuthError id={phoneNumber.errorId} errors={phoneNumber.errors} />
+            <FormError id={phoneNumber.errorId} errors={phoneNumber.errors} />
           </div>
 
           <div className="space-y-1">
@@ -97,7 +98,7 @@ export function ProfilePage({ email, profile, lastResult }: ProfileFields) {
               autoComplete="address-level2"
               className={fieldClassName}
             />
-            <AuthError id={city.errorId} errors={city.errors} />
+            <FormError id={city.errorId} errors={city.errors} />
           </div>
 
           <div className="space-y-1">
@@ -109,7 +110,7 @@ export function ProfilePage({ email, profile, lastResult }: ProfileFields) {
               autoComplete="street-address"
               className={fieldClassName}
             />
-            <AuthError id={address.errorId} errors={address.errors} />
+            <FormError id={address.errorId} errors={address.errors} />
           </div>
 
           <label htmlFor={marketingConsent.id} className="flex cursor-pointer items-start gap-2.5">
@@ -122,7 +123,7 @@ export function ProfilePage({ email, profile, lastResult }: ProfileFields) {
             </span>
           </label>
 
-          <AuthError id={form.errorId} errors={form.errors} />
+          <FormError id={form.errorId} errors={form.errors} />
 
           <Button type="submit" disabled={isSaving}>
             {isSaving ? "Saving…" : "Save Changes"}

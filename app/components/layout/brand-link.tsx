@@ -3,8 +3,6 @@ import { Link } from "react-router";
 import { LEGAL_CONSTANTS } from "~/content/legal";
 import { cn } from "~/lib/utils";
 
-export const brandBarClassName = "h-14 items-center px-4 md:h-17.25";
-
 interface BrandLinkProps {
   readonly className?: string;
 }
