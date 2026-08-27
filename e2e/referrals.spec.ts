@@ -1,4 +1,14 @@
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
+
+import { MOCK_REFERRAL_CODE, startMockReferralApi, stopMockReferralApi } from "./mock-referral-api";
+
+const consentKey = "tripdly-cookie-consent:v1";
+
+async function setCookiePreference(page: Page) {
+  await page.addInitScript((key) => {
+    localStorage.setItem(key, JSON.stringify({ analytics: false, timestamp: 1 }));
+  }, consentKey);
+}
 
 test("sends guests from /referrals to login", async ({ page }) => {
   await page.goto("/referrals");
@@ -8,11 +18,44 @@ test("sends guests from /referrals to login", async ({ page }) => {
   });
 });
 
+test("loads the signed-in referral summary from the API", async ({ context, page, baseURL }) => {
+  const api = await startMockReferralApi();
+
+  try {
+    await setCookiePreference(page);
+    await context.addCookies([
+      {
+        name: "better-auth.session_token",
+        value: "e2e-session",
+        url: baseURL ?? "http://localhost:5174",
+      },
+    ]);
+    await page.goto("/referrals");
+
+    await expect(page).toHaveURL(/\/referrals$/);
+    await expect(page.getByRole("heading", { name: "Referral Program" })).toBeVisible();
+    await expect(page.locator("code")).toContainText(MOCK_REFERRAL_CODE);
+    // wrangler.jsonc APP_ORIGIN, not Playwright's :5174 origin
+    await expect(page.getByLabel("Share Link:")).toHaveValue(
+      `http://localhost:5173/auth?ref=${MOCK_REFERRAL_CODE}`,
+    );
+    await expect(page.getByLabel("Share Link:")).not.toHaveValue(
+      "https://api.example/auth?ref=ABCD2345",
+    );
+    await expect(page.getByLabel("Referral statistics")).toContainText("Available Credits");
+    await expect(page.getByRole("heading", { name: "Recent Rewards" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Your Referrals" })).toBeVisible();
+  } finally {
+    await stopMockReferralApi(api);
+  }
+});
+
 test("renders referral details and copies the referral code", async ({
   context,
   page,
   baseURL,
 }) => {
+  await setCookiePreference(page);
   await context.grantPermissions(["clipboard-read", "clipboard-write"], {
     origin: new URL(baseURL ?? "http://localhost:5174").origin,
   });
@@ -39,6 +82,7 @@ test("renders referral details and copies the referral code", async ({
 });
 
 test("shows when the referral program is disabled", async ({ page }) => {
+  await setCookiePreference(page);
   await page.goto("/__visual/referrals?disabled=true");
 
   await expect(page.getByText("Referral Program Temporarily Disabled")).toBeVisible();
