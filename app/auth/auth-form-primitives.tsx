@@ -1,12 +1,6 @@
 import type { ComponentProps, ReactNode } from "react";
-
 import { Button } from "~/components/ui/button";
 import { cn } from "~/lib/utils";
-
-export const AUTH_INPUT_CLASS =
-  "h-12 w-full rounded-sm border-2 border-transparent bg-neutral-100 px-3 py-2 text-base text-neutral-900 placeholder:text-neutral-500 focus-visible:border-neutral-900 focus-visible:outline-none focus-visible:ring-0 disabled:cursor-not-allowed disabled:opacity-50";
-
-export const AUTH_INPUT_INVALID_CLASS = "border-red-500";
 
 interface AuthSubmitButtonProps {
   readonly children: ReactNode;
@@ -30,26 +24,6 @@ export function AuthSubmitButton({
     >
       {pending ? pendingLabel : children}
     </Button>
-  );
-}
-
-interface AuthErrorProps {
-  readonly children?: ReactNode;
-  readonly errors?: readonly string[];
-  readonly id?: string;
-}
-
-export function AuthError({ children, errors, id }: AuthErrorProps) {
-  const message = errors?.filter(Boolean).join(", ") || children;
-
-  if (!message) {
-    return null;
-  }
-
-  return (
-    <p id={id} role="alert" className="mt-1 text-sm text-red-500">
-      {message}
-    </p>
   );
 }
 

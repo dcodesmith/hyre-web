@@ -1,3 +1,4 @@
+import type { BookingPricingPreview } from "~/api/bookings/schema";
 import type { PublicCarDetail } from "~/api/cars/schema";
 import type { CarReviewsResponse } from "~/api/reviews/schema";
 import { CarDetailPage } from "~/car/car-detail-page";
@@ -70,6 +71,43 @@ const fixtureReviews = {
   },
 } satisfies CarReviewsResponse;
 
+const fixturePricing = {
+  currency: "NGN",
+  numberOfLegs: 1,
+  discountCoverage: "NONE",
+  segments: [
+    {
+      kind: "STANDARD",
+      units: 1,
+      unitPrice: 70_000,
+      total: 70_000,
+      compareAtUnitPrice: null,
+      label: null,
+      promotion: null,
+    },
+  ],
+  baseTotal: 70_000,
+  compareAtBaseTotal: 70_000,
+  securityDetailCost: 0,
+  fuelUpgradeCost: 0,
+  platformFeeRatePercent: 5,
+  platformFeeAmount: 3_500,
+  compareAtPlatformFeeAmount: 3_500,
+  subtotalBeforeDiscounts: 73_500,
+  compareAtSubtotalBeforeDiscounts: 73_500,
+  referralDiscountAmount: 0,
+  creditsUsed: 0,
+  subtotalAfterDiscounts: 73_500,
+  vatRatePercent: 7.5,
+  vatAmount: 5_512.5,
+  compareAtVatAmount: 5_512.5,
+  totalAmount: 79_012.5,
+  compareAtTotalAmount: 79_012.5,
+  savingsAmount: 0,
+} satisfies BookingPricingPreview;
+
 export default function CarFixture() {
-  return <CarDetailPage car={fixtureCar} reviews={fixtureReviews} />;
+  return (
+    <CarDetailPage car={fixtureCar} reviews={fixtureReviews} currentPricing={fixturePricing} />
+  );
 }

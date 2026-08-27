@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-test("guest chrome offers login and hides log out", async ({ page, viewport }) => {
+test("guest navigation offers login and hides log out", async ({ page, viewport }) => {
   await page.addInitScript((key) => {
     localStorage.setItem(key, JSON.stringify({ analytics: false, timestamp: 1 }));
   }, "tripdly-cookie-consent:v1");

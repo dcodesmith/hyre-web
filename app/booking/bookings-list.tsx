@@ -8,8 +8,8 @@ import {
   bookingListStatusLabel,
   formatBookingListDateTime,
 } from "~/booking/bookings-url";
-import { formatCurrency } from "~/car/car-domain";
 import { cn } from "~/lib/utils";
+import { formatCurrency } from "~/money/currency";
 
 function BookingRow({ booking }: { readonly booking: BookingListItem }) {
   const imageUrl = booking.car.images[0]?.url;

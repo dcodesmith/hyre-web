@@ -113,6 +113,17 @@ export function parseZonedCalendarDate(value: string) {
   return startOfZonedDay(parsed);
 }
 
+/** Clock time on a yyyy-MM-dd calendar day in the service timezone. */
+export function zonedDateAt(calendarDate: string, hour: number, minute = 0) {
+  const start = parseZonedCalendarDate(calendarDate);
+
+  if (!start || hour < 0 || hour > 23 || minute < 0 || minute > 59) {
+    return undefined;
+  }
+
+  return new Date(start.getTime() + (hour * 60 + minute) * 60 * 1000);
+}
+
 /** Midnight in the service timezone as a real UTC instant. */
 export function startOfZonedDay(date: Date = new Date()) {
   const calendarDate = formatZonedDate(date);

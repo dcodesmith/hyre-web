@@ -14,7 +14,9 @@ interface BookingLocationFieldsProps {
   readonly showDropOff: boolean;
   readonly nightHelper: string | null;
   readonly onPickupAddressSelect: (address: string) => void;
+  readonly onPickupAddressInput: (value: string) => void;
   readonly onDropOffAddressSelect: (address: string) => void;
+  readonly onDropOffAddressInput: (value: string) => void;
   readonly onSameLocationChange: (checked: boolean) => void;
 }
 
@@ -30,7 +32,9 @@ export function BookingLocationFields({
   showDropOff,
   nightHelper,
   onPickupAddressSelect,
+  onPickupAddressInput,
   onDropOffAddressSelect,
+  onDropOffAddressInput,
   onSameLocationChange,
 }: BookingLocationFieldsProps) {
   return (
@@ -41,38 +45,44 @@ export function BookingLocationFields({
         </output>
       ) : null}
 
-      <div className="flex flex-col gap-2">
-        <Label htmlFor={pickupAddressId} className="block font-semibold">
+      <div className="space-y-1">
+        <Label htmlFor={pickupAddressId} className="block font-semibold leading-5">
           Pickup Address
         </Label>
         <AddressAutocomplete
           id={pickupAddressId}
           value={pickupAddress}
           onSelect={onPickupAddressSelect}
+          onValueChange={onPickupAddressInput}
           readOnly={pickupIsReadOnly}
         />
       </div>
 
       {isAirportPickup ? null : (
-        <Label htmlFor={sameLocationId} className="flex cursor-pointer items-center gap-2">
-          <Checkbox
-            id={sameLocationId}
-            checked={sameLocation}
-            onCheckedChange={(checked) => onSameLocationChange(checked === true)}
-          />
-          <span className="text-sm font-medium">Drop-off location same as pickup</span>
-        </Label>
+        <div className="space-y-1">
+          <Label htmlFor={sameLocationId} className="flex cursor-pointer items-center space-x-2">
+            <Checkbox
+              id={sameLocationId}
+              checked={sameLocation}
+              onCheckedChange={(checked) => onSameLocationChange(checked === true)}
+            />
+            <span className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+              Drop-off location same as pickup
+            </span>
+          </Label>
+        </div>
       )}
 
       {showDropOff ? (
-        <div className="flex flex-col gap-2">
-          <Label htmlFor={dropOffAddressId} className="block font-semibold">
+        <div className="space-y-1">
+          <Label htmlFor={dropOffAddressId} className="block font-semibold leading-5">
             Drop-off Address
           </Label>
           <AddressAutocomplete
             id={dropOffAddressId}
             value={dropOffAddress}
             onSelect={onDropOffAddressSelect}
+            onValueChange={onDropOffAddressInput}
           />
         </div>
       ) : null}

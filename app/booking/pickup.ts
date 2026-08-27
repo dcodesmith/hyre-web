@@ -3,6 +3,32 @@ import { formatZonedDate, getZonedHour } from "~/time/timezone";
 
 const TIME_FORMAT_REGEX = /^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)$/i;
 
+export function parsePickupClock(time: string | undefined) {
+  const match = TIME_FORMAT_REGEX.exec(time?.trim() ?? "");
+
+  if (!match) {
+    return undefined;
+  }
+
+  let hour = Number.parseInt(match[1], 10);
+  const minute = match[2] ? Number.parseInt(match[2], 10) : 0;
+  const period = match[3].toUpperCase();
+
+  if (hour < 1 || hour > 12 || minute > 59) {
+    return undefined;
+  }
+
+  if (period === "PM" && hour !== 12) {
+    hour += 12;
+  }
+
+  if (period === "AM" && hour === 12) {
+    hour = 0;
+  }
+
+  return { hour, minute };
+}
+
 export function normalizePickupTime(time: string | undefined) {
   if (!time) {
     return undefined;

@@ -2,10 +2,11 @@ import { Sparkles, Tag, Users } from "lucide-react";
 import { Link } from "react-router";
 
 import { type BookingType, DAY_BOOKING_TYPE } from "~/booking/types";
-import { CarDomain, type DisplayCar, formatNaira } from "~/car/car-domain";
+import { CarDomain, type DisplayCar } from "~/car/car-domain";
 import { CompactStarRating } from "~/car/compact-star-rating";
 import type { CarDetailBookingQuery } from "~/car/paths";
 import { cn } from "~/lib/utils";
+import { formatCurrency } from "~/money/currency";
 
 type CarView = ReturnType<typeof CarDomain>;
 
@@ -148,7 +149,7 @@ function VehicleCardGridDetails({ car, view, showTotal, totalUnits }: VehicleCar
       <div className="flex flex-wrap items-baseline gap-1 text-sm tabular-nums">
         {totalPrice ? (
           <>
-            <span className="text-sm font-semibold">{formatNaira(totalPrice)}</span>
+            <span className="text-sm font-semibold">{formatCurrency(totalPrice)}</span>
             <span className="text-gray-600">total</span>
           </>
         ) : (

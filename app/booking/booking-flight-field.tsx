@@ -126,8 +126,8 @@ export function BookingFlightField({
   const showStatus = Boolean(isValidating || error || (flight && !error));
 
   return (
-    <div className="flex flex-col gap-2">
-      <Label htmlFor={id} className="block font-semibold">
+    <div className="space-y-1">
+      <Label htmlFor={id} className="block font-semibold leading-5">
         Flight Number
       </Label>
       <FlightNumberAutocomplete
@@ -137,7 +137,7 @@ export function BookingFlightField({
         onBlur={onBlur}
         aria-invalid={error != null}
         aria-describedby={showStatus ? statusId : undefined}
-        className="flex h-10 w-full rounded border border-input bg-transparent px-3 text-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+        className="flex h-10 w-full rounded-md border border-input bg-transparent px-3 text-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
       />
       {isValidating ? (
         <p id={statusId} className="text-xs text-gray-600" aria-live="polite">

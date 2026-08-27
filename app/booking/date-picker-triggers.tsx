@@ -1,7 +1,6 @@
 import { ChevronsDownUp, ChevronsUpDown } from "lucide-react";
 import type { ComponentProps } from "react";
 
-import { bookingFieldLabelClass, bookingFieldStackClass } from "~/booking/booking-type-input";
 import { Button } from "~/components/ui/button";
 import { cn } from "~/lib/utils";
 
@@ -38,7 +37,7 @@ export function LabeledDateTrigger({
       id={triggerId}
       type="button"
       className={cn(
-        bookingFieldStackClass,
+        "flex h-[38px] w-full flex-col justify-center text-left",
         "cursor-pointer appearance-none border-0 bg-transparent font-normal outline-none",
         isCompact ? "h-auto gap-0.5 px-0" : "h-10 px-0",
         !hasDate && "text-muted-foreground",
@@ -47,7 +46,7 @@ export function LabeledDateTrigger({
       )}
       aria-labelledby={`${labelTextId} ${valueTextId}`}
     >
-      <span id={labelTextId} className={bookingFieldLabelClass}>
+      <span id={labelTextId} className="text-xs font-semibold leading-tight text-gray-700">
         {label}
       </span>
       <div

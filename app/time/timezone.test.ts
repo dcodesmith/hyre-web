@@ -9,6 +9,7 @@ import {
   ordinalDay,
   parseZonedCalendarDate,
   startOfZonedDay,
+  zonedDateAt,
 } from "./timezone";
 
 describe("service timezone helpers", () => {
@@ -45,6 +46,11 @@ describe("service timezone helpers", () => {
     expect(startOfZonedDay(new Date("2026-08-18T23:00:00.000Z")).toISOString()).toBe(
       "2026-08-18T23:00:00.000Z",
     );
+  });
+
+  it("builds a clock time on a service-timezone calendar day", () => {
+    expect(zonedDateAt("2026-09-01", 9)?.toISOString()).toBe("2026-09-01T08:00:00.000Z");
+    expect(zonedDateAt("2026-09-01", 21)?.toISOString()).toBe("2026-09-01T20:00:00.000Z");
   });
 
   it("parses a yyyy-MM-dd search param as a service-timezone calendar day", () => {

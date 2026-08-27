@@ -1,11 +1,9 @@
 import { Loader2, MapPin } from "lucide-react";
 import { useId, useState } from "react";
+
 import { Popover, PopoverContent, PopoverTrigger } from "~/components/ui/popover";
 import { usePlaceAutocomplete } from "~/hooks/use-place-autocomplete";
-import { cn } from "~/lib/utils";
 
-const fieldClassName =
-  "flex h-10 w-full rounded border border-input bg-transparent px-3 text-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50";
 const suggestionButtonClassName =
   "flex w-full items-center gap-2 rounded p-2 text-left text-sm hover:bg-gray-100 focus-visible:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50";
 
@@ -13,6 +11,7 @@ interface AddressAutocompleteProps {
   readonly id: string;
   readonly value: string;
   readonly onSelect: (address: string) => void;
+  readonly onValueChange?: (value: string) => void;
   readonly placeholder?: string;
   readonly readOnly?: boolean;
 }
@@ -21,22 +20,27 @@ export function AddressAutocomplete({
   id,
   value,
   onSelect,
+  onValueChange,
   placeholder = "Start typing to search for an address…",
   readOnly = false,
 }: AddressAutocompleteProps) {
   const listId = useId();
+  const errorId = `${id}-selection-error`;
   const [query, setQuery] = useState(value);
   const [committedValue, setCommittedValue] = useState(value);
   const [open, setOpen] = useState(false);
 
   if (value !== committedValue) {
+    const shouldReplaceQuery = query === committedValue || value.length > 0;
     setCommittedValue(value);
-    setQuery(value);
+    if (shouldReplaceQuery) {
+      setQuery(value);
+    }
   }
 
   const { suggestions, isLoadingSuggestions, isResolving, resolve } = usePlaceAutocomplete({
     input: query,
-    enabled: !readOnly && query.trim().length >= 2,
+    enabled: !readOnly && query !== committedValue && query.trim().length >= 2,
     onResolved: (address) => {
       setQuery(address);
       setOpen(false);
@@ -44,6 +48,7 @@ export function AddressAutocomplete({
     },
   });
   const listOpen = open && suggestions.length > 0;
+  const hasUnresolvedInput = query.trim().length > 0 && !value;
 
   if (readOnly) {
     return (
@@ -54,7 +59,7 @@ export function AddressAutocomplete({
         readOnly
         autoComplete="off"
         spellCheck={false}
-        className={cn(fieldClassName, "cursor-not-allowed bg-gray-50")}
+        className="flex h-10 w-full cursor-not-allowed rounded-md border border-input bg-gray-50 px-3 text-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
       />
     );
   }
@@ -70,6 +75,8 @@ export function AddressAutocomplete({
             aria-autocomplete="list"
             aria-expanded={listOpen}
             aria-controls={listId}
+            aria-invalid={hasUnresolvedInput}
+            aria-describedby={hasUnresolvedInput ? errorId : undefined}
             value={query}
             autoComplete="off"
             spellCheck={false}
@@ -79,11 +86,9 @@ export function AddressAutocomplete({
               const next = event.target.value;
               setQuery(next);
               setOpen(next.trim().length >= 2);
-              if (next.trim().length === 0) {
-                onSelect("");
-              }
+              onValueChange?.(next);
             }}
-            className={fieldClassName}
+            className="flex h-10 w-full rounded-md border border-input bg-transparent px-3 text-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
           />
           {isLoadingSuggestions || isResolving ? (
             <Loader2
@@ -97,7 +102,7 @@ export function AddressAutocomplete({
         id={listId}
         align="start"
         onOpenAutoFocus={(event) => event.preventDefault()}
-        className="w-[var(--radix-popover-trigger-width)] p-1"
+        className="w-(--radix-popover-trigger-width) p-1"
       >
         {suggestions.map((suggestion) => (
           <button
@@ -112,7 +117,7 @@ export function AddressAutocomplete({
             }}
           >
             <MapPin aria-hidden="true" className="h-4 w-4 shrink-0 text-gray-500" />
-            <span className="min-w-0 break-words">{suggestion.description}</span>
+            <span className="min-w-0 wrap-break-words">{suggestion.description}</span>
           </button>
         ))}
       </PopoverContent>

@@ -11,6 +11,7 @@ const visualRoutes =
         route("__visual/booking", "routes/__visual.booking.tsx"),
         route("__visual/booking-cancel", "routes/__visual.booking-cancel.tsx"),
         route("__visual/profile", "routes/__visual.profile.tsx"),
+        route("__visual/user-nav", "routes/__visual.user-nav.tsx"),
       ]
     : [];
 
@@ -19,6 +20,7 @@ export default [
   route("api/places/resolve", "routes/api.places.resolve.ts"),
   route("api/search-flight", "routes/api.search-flight.ts"),
   route("api/calculate-trip-duration", "routes/api.calculate-trip-duration.ts"),
+  route("api/booking-pricing-preview", "routes/api.booking-pricing-preview.ts"),
   route("api/ai-search", "routes/api.ai-search.ts"),
   route("robots.txt", "routes/robots.txt.ts"),
   route("sitemap.xml", "routes/sitemap.xml.ts"),
@@ -26,6 +28,7 @@ export default [
     index("routes/home.tsx"),
     route("search", "routes/search.tsx"),
     route("cars/:carSlug", "routes/cars.$carSlug.tsx"),
+    route("bookings/payment-status", "routes/payment-status.tsx"),
     route("about", "routes/about.tsx"),
     route("faq", "routes/faq.tsx"),
     route("terms", "routes/terms.tsx"),
