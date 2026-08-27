@@ -21,6 +21,9 @@ const {
 vi.mock("~/api/bookings/bookings.server", () => ({ createBooking }));
 vi.mock("~/api/cars/cars.server", () => ({ getPublicCar }));
 vi.mock("~/api/reviews/reviews.server", () => ({ getCarReviews }));
+vi.mock("cloudflare:workers", () => ({
+  env: { APP_ORIGIN: "https://tripdly.com" },
+}));
 vi.mock("~/auth/session.server", () => ({ readAuthUser }));
 vi.mock("~/auth/guest-only.server", () => ({
   AUTH_NO_STORE: { "Cache-Control": "private, no-store" },

@@ -41,4 +41,23 @@ describe("payment status session", () => {
     expect(paymentStatusClearCookie()).toContain("payment_status=;");
     expect(paymentStatusClearCookie()).toContain("Max-Age=0");
   });
+
+  it("keeps a minimum polling lifetime when the reservation expiry is stale", () => {
+    const now = new Date("2026-08-27T15:00:00.000Z");
+    vi.useFakeTimers();
+    vi.setSystemTime(now);
+
+    try {
+      const session = createPaymentStatusSession({
+        bookingId: "booking-1",
+        txRef: "tx-1",
+        paymentStatusToken: "guest-secret-token",
+        reservationExpiresAt: "2026-08-27T14:00:00.000Z",
+      });
+
+      expect(session.expiresAt).toBe(now.getTime() + 5 * 60 * 1000);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

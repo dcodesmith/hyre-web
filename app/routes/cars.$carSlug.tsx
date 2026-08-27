@@ -1,3 +1,4 @@
+import { env } from "cloudflare:workers";
 import { parseWithZod } from "@conform-to/zod/v4";
 import { data, redirect, type ShouldRevalidateFunctionArgs } from "react-router";
 
@@ -184,7 +185,7 @@ export async function action({ request, params }: Route.ActionArgs) {
       request,
       body: {
         ...createBody,
-        callbackUrl: new URL("/bookings/payment-status", request.url).toString(),
+        callbackUrl: new URL("/bookings/payment-status", env.APP_ORIGIN).toString(),
       },
       idempotencyKey: submission.value.idempotencyKey,
     });

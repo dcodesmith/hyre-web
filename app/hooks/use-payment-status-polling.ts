@@ -28,10 +28,13 @@ export function usePaymentStatusPolling({
   const fetcherRef = useRef(fetcher);
   const startedAtRef = useRef(Date.now());
   const [timedOut, setTimedOut] = useState(false);
-  fetcherRef.current = fetcher;
 
   const fetchedStatus = fetcher.data?.txRef === txRef ? fetcher.data.status : null;
   const status = fetchedStatus ?? initialStatus;
+
+  useEffect(() => {
+    fetcherRef.current = fetcher;
+  }, [fetcher]);
 
   useEffect(() => {
     if (!isPending(status) || timedOut) {

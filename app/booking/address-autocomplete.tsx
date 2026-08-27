@@ -25,7 +25,6 @@ export function AddressAutocomplete({
   readOnly = false,
 }: AddressAutocompleteProps) {
   const listId = useId();
-  const errorId = `${id}-selection-error`;
   const [query, setQuery] = useState(value);
   const [committedValue, setCommittedValue] = useState(value);
   const [open, setOpen] = useState(false);
@@ -76,7 +75,6 @@ export function AddressAutocomplete({
             aria-expanded={listOpen}
             aria-controls={listId}
             aria-invalid={hasUnresolvedInput}
-            aria-describedby={hasUnresolvedInput ? errorId : undefined}
             value={query}
             autoComplete="off"
             spellCheck={false}
@@ -117,7 +115,7 @@ export function AddressAutocomplete({
             }}
           >
             <MapPin aria-hidden="true" className="h-4 w-4 shrink-0 text-gray-500" />
-            <span className="min-w-0 wrap-break-words">{suggestion.description}</span>
+            <span className="min-w-0 wrap-break-word">{suggestion.description}</span>
           </button>
         ))}
       </PopoverContent>

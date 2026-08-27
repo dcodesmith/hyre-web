@@ -1,5 +1,5 @@
 import { Loader2 } from "lucide-react";
-import type { ReactNode } from "react";
+import type { ReactNode, Ref } from "react";
 import { Link } from "react-router";
 
 import type { BookingPricingPreview } from "~/api/bookings/schema";
@@ -9,12 +9,12 @@ import {
   BookingCostBreakdownSkeleton,
 } from "~/booking/booking-cost-breakdown";
 import { TripDetails } from "~/booking/trip-details";
-import { AIRPORT_PICKUP_BOOKING_TYPE, type BookingType } from "~/booking/types";
+import type { BookingType } from "~/booking/types";
 import { FormError } from "~/components/forms/form-primitives";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardFooter } from "~/components/ui/card";
 import { Skeleton } from "~/components/ui/skeleton";
-import { cn } from "~/lib/utils";
+import { useElementHeight } from "~/hooks/use-element-height";
 import { formatCurrency } from "~/money/currency";
 
 const bookingCardShellClassName =
@@ -110,9 +110,15 @@ function CarBookingMobilePayBar({
   errorId,
   bookingErrors,
   canPay,
-}: Omit<CheckoutState, "guest" | "pricingError">) {
+  barRef,
+}: Omit<CheckoutState, "guest" | "pricingError"> & {
+  readonly barRef: Ref<HTMLDivElement>;
+}) {
   return (
-    <div className="fixed inset-x-0 bottom-0 z-50 rounded-t-xl border-t bg-white pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_20px_rgba(0,0,0,0.1)] lg:hidden">
+    <div
+      ref={barRef}
+      className="fixed inset-x-0 bottom-0 z-50 rounded-t-xl border-t bg-white pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_20px_rgba(0,0,0,0.1)] lg:hidden"
+    >
       {bookingErrors.length > 0 ? (
         <div className="border-b border-red-200 bg-red-50 px-4 py-2">
           <FormError id={errorId} errors={bookingErrors} />
@@ -132,14 +138,6 @@ function CarBookingMobilePayBar({
       </div>
     </div>
   );
-}
-
-function mobileCheckoutPadding(isSignedIn: boolean, isAirportPickup: boolean) {
-  if (isSignedIn) {
-    return "pb-40";
-  }
-
-  return isAirportPickup ? "pb-52" : "pb-48";
 }
 
 function PricingBreakdown({
@@ -215,7 +213,7 @@ export function CarBookingCheckout({
     bookingType,
     bookingErrors: checkout.bookingErrors,
   };
-  const isAirportPickup = bookingType === AIRPORT_PICKUP_BOOKING_TYPE;
+  const mobilePayBar = useElementHeight<HTMLDivElement>();
 
   return (
     <>
@@ -248,12 +246,7 @@ export function CarBookingCheckout({
           />
         </CardFooter>
       </div>
-      <div
-        className={cn(
-          "mt-4 space-y-4 lg:hidden",
-          mobileCheckoutPadding(checkout.isSignedIn, isAirportPickup),
-        )}
-      >
+      <div className="mt-4 space-y-4 lg:hidden" style={{ paddingBottom: mobilePayBar.height + 16 }}>
         <CarBookingCheckoutSummary {...checkoutProps} />
       </div>
       <CarBookingMobilePayBar
@@ -265,6 +258,7 @@ export function CarBookingCheckout({
         errorId={`${checkout.errorId}-mobile`}
         bookingErrors={checkout.bookingErrors}
         canPay={checkout.canPay}
+        barRef={mobilePayBar.ref}
       />
     </>
   );

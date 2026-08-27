@@ -25,6 +25,14 @@ describe("resolveBookingAttempt", () => {
     expect(createKey).toHaveBeenCalledTimes(2);
   });
 
+  it("ignores the previous idempotency key when comparing attempts", () => {
+    const first = resolveBookingAttempt(null, bookingFormData(), () => "attempt-1");
+    const retry = bookingFormData();
+    retry.set("idempotencyKey", first.key);
+
+    expect(resolveBookingAttempt(first, retry, () => "attempt-2")).toBe(first);
+  });
+
   it("starts a new attempt when guest details change", () => {
     const first = resolveBookingAttempt(null, bookingFormData(), () => "attempt-1");
     const changed = bookingFormData();

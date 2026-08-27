@@ -13,7 +13,7 @@ interface BookingPricingPreviewLoaderData {
   readonly error: string | null;
 }
 
-function previewSearchParams(input: BookingPricingInput) {
+export function bookingPricingPreviewSearchParams(input: BookingPricingInput) {
   const body = toPricingPreviewBody(input);
 
   if (!body) {
@@ -36,10 +36,13 @@ function previewSearchParams(input: BookingPricingInput) {
 export function useBookingPricingPreview(input: BookingPricingInput | null) {
   const fetcher = useFetcher<BookingPricingPreviewLoaderData>();
   const fetcherRef = useRef(fetcher);
-  fetcherRef.current = fetcher;
 
-  const params = input ? previewSearchParams(input) : null;
+  const params = input ? bookingPricingPreviewSearchParams(input) : null;
   const requestKey = params?.toString() ?? null;
+
+  useEffect(() => {
+    fetcherRef.current = fetcher;
+  }, [fetcher]);
 
   useEffect(() => {
     if (!requestKey) {

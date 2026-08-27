@@ -176,6 +176,7 @@ app/
     session.server.ts             # header user (email + name) from the API session
     session.server.test.ts        # reads session.data.user from the API envelope
     user.ts                       # header user shape + initials
+    use-public-user.ts            # typed public-layout user access
     logout-navigation.ts          # pending logout form action
     user-nav.tsx                  # Register or Log in / initials dropdown: Profile, Bookings, Log out
     user-nav.test.ts
@@ -199,6 +200,7 @@ app/
 
   money/
     currency.ts                   # shared ISO currency formatting
+    currency.test.ts
 
   payment/
     payment-status-session.server.ts # encrypted HttpOnly callback credential
@@ -211,6 +213,7 @@ app/
     use-airport-pickup.ts         # flight + trip-duration fetchers
     use-booking-pricing-preview.ts # API-owned payable pricing
     use-payment-status-polling.ts # bounded same-origin status polling
+    use-element-height.ts         # ResizeObserver-backed fixed-bar clearance
 
   components/
     ui/                       # shadcn primitives; do not hand-edit

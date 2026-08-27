@@ -41,7 +41,9 @@ test("opens the review sheet without changing the car URL", async ({ page }) => 
   await setCookiePreference(page);
   await page.goto("/__visual/car?bookingType=DAY");
 
-  const reviewTrigger = page.getByRole("button", { name: /12 reviews/i });
+  const reviewTrigger = page
+    .getByRole("button", { name: "12 reviews", exact: true })
+    .filter({ visible: true });
   await expect(reviewTrigger).toBeVisible();
   await reviewTrigger.evaluate((node) => {
     node.scrollIntoView({ block: "center", inline: "nearest" });

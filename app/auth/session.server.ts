@@ -21,11 +21,7 @@ export async function readAuthUser(request: Request): Promise<User | null> {
       name: name || null,
     };
   } catch (error) {
-    if (
-      error instanceof ApiRequestError &&
-      error.kind === "http" &&
-      (error.status === 401 || error.status === 403)
-    ) {
+    if (error instanceof ApiRequestError && error.kind === "http" && error.status === 401) {
       return null;
     }
 

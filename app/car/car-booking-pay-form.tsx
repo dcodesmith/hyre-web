@@ -1,12 +1,12 @@
 import { getFormProps, type SubmissionResult, useForm } from "@conform-to/react";
 import { parseWithZod } from "@conform-to/zod/v4";
 import { type ReactNode, useRef } from "react";
-import { Form, useLocation, useNavigation, useRouteLoaderData } from "react-router";
+import { Form, useLocation, useNavigation } from "react-router";
 
 import type { BookingPricingPreview } from "~/api/bookings/schema";
 import type { TripDurationResponse } from "~/api/flights/schema";
 import { authPath } from "~/auth/referer";
-import type { User } from "~/auth/user";
+import { usePublicUser } from "~/auth/use-public-user";
 import { type BookingAttempt, resolveBookingAttempt } from "~/booking/booking-attempt";
 import { createBookingFormSchema } from "~/booking/booking-create-form-schema";
 import { BookingGuestFields } from "~/booking/booking-guest-fields";
@@ -61,8 +61,7 @@ export function CarBookingPayForm({
 }) {
   const location = useLocation();
   const navigation = useNavigation();
-  const publicLayout = useRouteLoaderData("routes/_public") as { user: User | null } | undefined;
-  const isSignedIn = publicLayout?.user != null;
+  const isSignedIn = usePublicUser() != null;
   const schema = createBookingFormSchema(!isSignedIn);
   const idempotencyKeyRef = useRef<HTMLInputElement>(null);
   const attemptRef = useRef<BookingAttempt | null>(null);
@@ -100,7 +99,7 @@ export function CarBookingPayForm({
   return (
     <Form
       method="post"
-      action={location.pathname}
+      action={`${location.pathname}${location.search}`}
       {...getFormProps(form)}
       className="contents"
       onSubmitCapture={(event) => {

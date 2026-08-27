@@ -13,7 +13,9 @@ const currencyFormatters = new Map<string, Intl.NumberFormat>();
 /** Formats API money values with a safe ISO 4217 fallback. */
 export function formatCurrency(value: number, currency = DEFAULT_CURRENCY) {
   const code = ISO_CURRENCY.test(currency) ? currency.toUpperCase() : DEFAULT_CURRENCY;
-  const cached = currencyFormatters.get(code);
+  const fractionDigits = Number.isInteger(value) ? 0 : 2;
+  const formatterKey = `${code}:${fractionDigits}`;
+  const cached = currencyFormatters.get(formatterKey);
 
   if (cached) {
     return cached.format(value);
@@ -22,10 +24,10 @@ export function formatCurrency(value: number, currency = DEFAULT_CURRENCY) {
   const formatter = new Intl.NumberFormat(LOCALE_BY_CURRENCY[code] ?? "en", {
     style: "currency",
     currency: code,
-    maximumFractionDigits: 0,
-    minimumFractionDigits: 0,
+    maximumFractionDigits: fractionDigits,
+    minimumFractionDigits: fractionDigits,
   });
 
-  currencyFormatters.set(code, formatter);
+  currencyFormatters.set(formatterKey, formatter);
   return formatter.format(value);
 }

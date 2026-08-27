@@ -62,7 +62,7 @@ export function UserNav({
             {getUserInitials(user)}
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" forceMount className="w-auto min-w-32">
+        <DropdownMenuContent align="end" className="w-auto min-w-32">
           <DropdownMenuLabel className="px-2 py-1.5 font-normal text-foreground">
             <div className="flex flex-col space-y-1">
               <p className="text-sm leading-none font-medium">{displayName}</p>

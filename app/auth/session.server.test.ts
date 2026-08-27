@@ -60,7 +60,8 @@ describe("readAuthUser", () => {
     });
   });
 
-  it.each([401, 403])("treats an API %i response as a missing session", async (status) => {
+  it("treats an API 401 response as a missing session", async () => {
+    const status = 401;
     getAuthSession.mockRejectedValue(
       new ApiRequestError("http", status, {
         type: "AUTH_ERROR",
@@ -71,6 +72,18 @@ describe("readAuthUser", () => {
     );
 
     await expect(readAuthUser(requestWithCookie())).resolves.toBeNull();
+  });
+
+  it("does not hide API authorization failures", async () => {
+    const error = new ApiRequestError("http", 403, {
+      type: "AUTH_ERROR",
+      title: "Authentication failed",
+      status: 403,
+      detail: "The session is not authorized.",
+    });
+    getAuthSession.mockRejectedValue(error);
+
+    await expect(readAuthUser(requestWithCookie())).rejects.toBe(error);
   });
 
   it("does not hide API availability failures", async () => {

@@ -133,7 +133,11 @@ function buildBookingFormSchema(isGuest: boolean) {
       const pickupAddress = data.pickupAddress ?? "";
 
       if (!isGuest) {
-        return { ...data, pickupAddress };
+        const booking = { ...data };
+        delete booking.name;
+        delete booking.email;
+        delete booking.phoneNumber;
+        return { ...booking, pickupAddress };
       }
 
       const guest = guestInfoSchema.parse({
@@ -204,12 +208,13 @@ function pickupAt(calendarDate: string, bookingType: BookingType, pickupTime: st
 function dayApiWindow(value: BookingWindowInput) {
   const clock = parsePickupClock(resolveCreatePickupTime(value.bookingType, value.pickupTime));
   const pickup = clock ? zonedDateAt(value.from, clock.hour, clock.minute) : undefined;
-  const dropOff = clock ? zonedDateAt(value.to, clock.hour + 12, clock.minute) : undefined;
+  const dropOffStart = clock ? zonedDateAt(value.to, clock.hour, clock.minute) : undefined;
 
-  if (!pickup || !dropOff) {
+  if (!pickup || !dropOffStart) {
     return null;
   }
 
+  const dropOff = new Date(dropOffStart.getTime() + 12 * MS_PER_HOUR);
   return toIsoWindow(pickup, dropOff);
 }
 

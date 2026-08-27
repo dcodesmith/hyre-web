@@ -224,6 +224,20 @@ describe("create booking payload", () => {
     expect(create).not.toHaveProperty("dropOffAddress");
   });
 
+  it("omits submitted guest identity fields from signed-in booking bodies", () => {
+    const value = signedIn.parse({
+      ...signedInDay(),
+      name: "Submitted Name",
+      email: "submitted@example.com",
+      phoneNumber: "08012345678",
+    });
+
+    const body = toCreateBookingBody(value);
+    expect(body).not.toHaveProperty("guestName");
+    expect(body).not.toHaveProperty("guestEmail");
+    expect(body).not.toHaveProperty("guestPhone");
+  });
+
   it("submits the canonical flight number", () => {
     const value = signedIn.parse({
       ...signedInDay(),
@@ -249,6 +263,20 @@ describe("create booking payload", () => {
       endDate: "2026-09-01T18:00:00.000Z",
     });
     expect(window && window.endDate > window.startDate).toBe(true);
+  });
+
+  it("supports a noon DAY pickup without constructing an invalid clock hour", () => {
+    expect(
+      toBookingApiWindow({
+        bookingType: "DAY",
+        from: "2026-09-01",
+        to: "2026-09-01",
+        pickupTime: "12 PM",
+      }),
+    ).toEqual({
+      startDate: "2026-09-01T11:00:00.000Z",
+      endDate: "2026-09-01T23:00:00.000Z",
+    });
   });
 
   it("sends a NIGHT window from 11 PM through 5 AM the next morning", () => {

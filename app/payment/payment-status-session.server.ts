@@ -4,6 +4,7 @@ import { z } from "zod";
 import { readCookieValue } from "~/auth/pending-otp";
 
 const LOCAL_SECRET = "hyre-web-local-payment-status-cookie";
+const MIN_MAX_AGE_SECONDS = 5 * 60;
 const DEFAULT_MAX_AGE_SECONDS = 30 * 60;
 const MAX_AGE_SECONDS = 60 * 60;
 const EXPIRY_GRACE_MS = 10 * 60 * 1000;
@@ -45,7 +46,7 @@ export function requirePaymentStatusCookieSecret() {
 
 function toBase64Url(bytes: Uint8Array) {
   const binary = Array.from(bytes, (byte) => String.fromCodePoint(byte)).join("");
-  return btoa(binary).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "");
+  return btoa(binary).replaceAll("+", "-").replaceAll("/", "_").replaceAll("=", "");
 }
 
 function fromBase64Url(value: string) {
@@ -94,11 +95,15 @@ async function decryptSession(value: string) {
 export function createPaymentStatusSession(
   value: Omit<PaymentStatusSession, "expiresAt"> & { readonly reservationExpiresAt: string },
 ) {
+  const now = Date.now();
   const reservationExpiry = Date.parse(value.reservationExpiresAt);
-  const defaultExpiry = Date.now() + DEFAULT_MAX_AGE_SECONDS * 1000;
+  const defaultExpiry = now + DEFAULT_MAX_AGE_SECONDS * 1000;
   const expiresAt = Number.isNaN(reservationExpiry)
     ? defaultExpiry
-    : Math.min(reservationExpiry + EXPIRY_GRACE_MS, Date.now() + MAX_AGE_SECONDS * 1000);
+    : Math.max(
+        now + MIN_MAX_AGE_SECONDS * 1000,
+        Math.min(reservationExpiry + EXPIRY_GRACE_MS, now + MAX_AGE_SECONDS * 1000),
+      );
 
   return paymentStatusSessionSchema.parse({
     bookingId: value.bookingId,

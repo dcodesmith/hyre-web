@@ -54,6 +54,8 @@ describe("booking pickup times", () => {
   it("parses hourly pickup labels to a 24-hour clock", () => {
     expect(parsePickupClock("7 AM")).toEqual({ hour: 7, minute: 0 });
     expect(parsePickupClock("11 AM")).toEqual({ hour: 11, minute: 0 });
+    expect(parsePickupClock("12 AM")).toEqual({ hour: 0, minute: 0 });
+    expect(parsePickupClock("12 PM")).toEqual({ hour: 12, minute: 0 });
     expect(parsePickupClock("11 PM")).toEqual({ hour: 23, minute: 0 });
     expect(parsePickupClock("")).toBeUndefined();
   });
