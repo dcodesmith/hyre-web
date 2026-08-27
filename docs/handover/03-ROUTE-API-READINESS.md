@@ -336,9 +336,17 @@ blocked on the API. Do not invent the missing endpoint in the Worker.
 `GET /profile` is a same-origin BFF over `GET|PATCH /api/users/me`
 (`SessionGuard`). Guests redirect to `/auth?redirectTo=/profile`. The form
 edits `name`, `phoneNumber`, `city`, `address`, and `marketingConsent`. Email
-is read-only from `GET /auth/session`. This slice does not change email, call
-Better Auth `update-user`, or delete the account (`POST /api/account/delete`
-stays a later Phase 5 slice).
+is read-only from `GET /auth/session`. This slice does not change email or call
+Better Auth `update-user`.
+
+### Account deletion
+
+The profile danger zone submits to same-origin `POST /api/account/delete`,
+which delegates to API `POST /api/account/delete` (`SessionGuard`). The API
+anonymizes the customer's bookings and deletes the user in one transaction;
+the user deletion cascades their API sessions. On success the BFF also expires
+known session and pending-OTP cookies, then redirects to `/auth`. API 4xx
+details remain actionable while 5xx details are hidden behind a retry message.
 
 ### Signed-in bookings list
 

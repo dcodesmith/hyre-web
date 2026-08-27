@@ -18,4 +18,26 @@ test("renders the profile form fixture", async ({ page }) => {
   await expect(page.getByLabel("Phone")).toHaveValue("+2348012345678");
   await expect(page.getByRole("checkbox", { name: /Marketing communications/ })).not.toBeChecked();
   await expect(page.getByRole("button", { name: "Save Changes" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Danger Zone" })).toBeVisible();
+
+  await page.getByRole("button", { name: "Delete Account" }).click();
+
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByRole("heading", { name: "Are you absolutely sure?" })).toBeVisible();
+  await expect(dialog).toContainText("This action cannot be undone.");
+
+  await dialog.getByRole("button", { name: "Cancel" }).click();
+  await expect(dialog).toBeHidden();
+
+  let deletionRequests = 0;
+  await page.route("**/api/account/delete*", async (route) => {
+    deletionRequests += 1;
+    expect(route.request().method()).toBe("POST");
+    await route.fulfill({ status: 204 });
+  });
+
+  await page.getByRole("button", { name: "Delete Account" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Delete Account" }).click();
+
+  await expect.poll(() => deletionRequests).toBe(1);
 });

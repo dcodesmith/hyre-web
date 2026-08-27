@@ -2,6 +2,7 @@ import { getFormProps, getInputProps, type SubmissionResult, useForm } from "@co
 import { getZodConstraint, parseWithZod } from "@conform-to/zod/v4";
 import { Form, useNavigation } from "react-router";
 
+import { AccountDeletion } from "~/account/account-deletion";
 import { profileFormSchema } from "~/account/profile-form-schema";
 import type { CurrentUserProfile } from "~/api/users/schema";
 import { AuthCheckbox } from "~/auth/auth-form-primitives";
@@ -129,6 +130,7 @@ export function ProfilePage({ email, profile, lastResult }: ProfileFields) {
             {isSaving ? "Saving…" : "Save Changes"}
           </Button>
         </Form>
+        <AccountDeletion />
       </div>
     </div>
   );
