@@ -48,7 +48,7 @@ function hasSessionCookie(request: IncomingMessage) {
   return request.headers.cookie?.includes("better-auth.session_token=") === true;
 }
 
-export function startMockReferralApi(port = 3000) {
+export function startMockReferralApi(port = 3100) {
   const server = createServer((request, response) => {
     if (request.method === "GET" && requestPath(request) === "/api/referrals/user") {
       if (!hasSessionCookie(request)) {

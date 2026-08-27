@@ -4,17 +4,17 @@ import { ApiRequestError } from "~/api/api.server";
 import { isSecureAuthCookie, signOut } from "~/api/auth/auth.server";
 import { authResponseHeaders, expireSessionCookies } from "~/api/auth/cookie-relay.server";
 import { pendingOtpClearCookie } from "~/auth/pending-otp";
-import type { Route } from "./+types/logout";
+import type { Route } from "./+types/fleet-owner.logout";
 
 export function loader() {
-  throw redirect("/", { headers: { "Cache-Control": "private, no-store" } });
+  throw redirect("/fleet-owner", { headers: { "Cache-Control": "private, no-store" } });
 }
 
 export async function action({ request }: Route.ActionArgs) {
   let headers = authResponseHeaders();
 
   try {
-    const response = await signOut({ request, role: "user" });
+    const response = await signOut({ request, role: "fleetOwner" });
     headers = authResponseHeaders(response.headers);
   } catch (error) {
     if (error instanceof ApiRequestError && error.kind === "aborted") {
@@ -25,7 +25,7 @@ export async function action({ request }: Route.ActionArgs) {
   for (const cookie of expireSessionCookies(request.headers.get("Cookie"))) {
     headers.append("Set-Cookie", cookie);
   }
-  headers.append("Set-Cookie", pendingOtpClearCookie(isSecureAuthCookie()));
+  headers.append("Set-Cookie", pendingOtpClearCookie(isSecureAuthCookie(), "fleetOwner"));
 
-  throw redirect("/", { headers });
+  throw redirect("/fleet-owner/login", { headers });
 }

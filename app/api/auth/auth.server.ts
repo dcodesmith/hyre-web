@@ -39,6 +39,7 @@ export type GetAuthSessionOptions = {
 
 export type SignOutOptions = {
   request: Request;
+  role: AuthRole;
 };
 
 function authHeaders(role: AuthRole) {
@@ -102,7 +103,7 @@ export function signOut(options: SignOutOptions) {
     method: "POST",
     request: options.request,
     forwardCookie: true,
-    headers: authHeaders("user"),
+    headers: authHeaders(options.role),
     json: {},
     schema: signOutResponseSchema,
   });

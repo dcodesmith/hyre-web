@@ -18,7 +18,7 @@ test("sends guests from /referrals to login", async ({ page }) => {
   });
 });
 
-test("loads the signed-in referral summary from the API", async ({ context, page, baseURL }) => {
+test("loads the signed-in referral summary from the API", async ({ context, page }) => {
   const api = await startMockReferralApi();
 
   try {
@@ -27,7 +27,7 @@ test("loads the signed-in referral summary from the API", async ({ context, page
       {
         name: "better-auth.session_token",
         value: "e2e-session",
-        url: baseURL ?? "http://localhost:5174",
+        url: "http://localhost:5174",
       },
     ]);
     await page.goto("/referrals");

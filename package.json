@@ -16,8 +16,8 @@
     "lint:fix": "biome check --write .",
     "format": "biome format --write .",
     "test": "vitest run --config vitest.config.ts",
-    "test:e2e": "playwright test",
-    "test:e2e:update": "playwright test --update-snapshots",
+    "test:e2e": "node scripts/run-e2e.mjs",
+    "test:e2e:update": "node scripts/run-e2e.mjs --update-snapshots",
     "prepare": "husky",
     "postinstall": "wrangler types --env production"
   },

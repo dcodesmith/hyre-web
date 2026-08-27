@@ -100,8 +100,13 @@ Wrangler vars and secrets are non-inheritable. Define every required binding exp
 Use separate Cloudflare environments or Workers for:
 
 - local development -> the local/staging API;
+- local browser tests -> the isolated mock API on its own port;
 - pull-request preview -> the staging API;
 - production -> the production API.
+
+Playwright selects the `e2e` Wrangler environment with `CLOUDFLARE_ENV=e2e`.
+Mock-backed tests use the dedicated API port from that environment so a
+developer's running API cannot receive test authentication or referral calls.
 
 Never point untrusted preview deployments at production mutation endpoints.
 

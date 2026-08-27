@@ -30,6 +30,8 @@ export const loginFormSchema = z.object({
   }),
 });
 
+export const fleetOwnerLoginFormSchema = loginFormSchema.omit({ referralCode: true });
+
 export const verifyFormSchema = z.object({
   code: z.string({ error: OTP_CODE_ERROR }).regex(/^\d{6}$/, OTP_CODE_ERROR),
 });

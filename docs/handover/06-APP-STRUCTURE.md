@@ -71,7 +71,7 @@ app/
       ai-search-form-schema.ts    # request query validation
       schema.ts                   # AI search response DTO
     auth/
-      auth.server.ts              # OTP send/verify, GET /auth/session, sign-out
+      auth.server.ts              # role-scoped OTP send/verify, GET /auth/session, sign-out
       cookie-relay.server.ts      # copy every Set-Cookie; never join
       errors.ts                   # Better Auth 4xx / 429 / hide 403 role detail
       schema.ts                   # session + OTP DTOs
@@ -182,11 +182,15 @@ app/
     auth-layout.tsx               # viewport-centered login layout; logo top-left to home
     auth-form-primitives.tsx      # Uber-like inputs, checkbox, submit, errors
     auth-form-schema.ts           # email / OTP / pending cookie
+    login-form.tsx                # shared customer/fleet login UI; customer-only referral field
     referer.ts                    # APP_ORIGIN + role path; never caller URLs
     pending-otp.ts                # HttpOnly pending OTP cookie
     guest-only.server.ts          # signed-in /auth and /verify redirect
-    session.server.ts             # header user (email + name) from the API session
+    fleet-owner-session.server.ts # fleet role redirect/403 guard over API session
+    session.server.ts             # API session user/roles; public header projection
     session.server.test.ts        # reads session.data.user from the API envelope
+    verify-form.tsx               # shared customer/fleet OTP UI
+    verify-otp.server.ts          # shared role-scoped OTP verify/resend action flow
     user.ts                       # header user shape + initials
     use-public-user.ts            # typed public-layout user access
     logout-navigation.ts          # pending logout form action
@@ -247,6 +251,11 @@ app/
     auth.tsx                      # customer OTP request
     verify.tsx                    # customer OTP verify + resend
     logout.ts                     # POST sign-out; GET redirects home
+    fleet-owner.login.tsx         # fleetOwner OTP request
+    fleet-owner.verify.tsx        # fleetOwner OTP verify + resend
+    fleet-owner.logout.ts         # role-scoped sign-out + local cookie cleanup
+    fleet-owner.tsx               # protected fleet shell; API session role guard
+    fleet-owner._index.tsx        # minimal authenticated landing before cars
     bookings.tsx                  # signed-in list; guests → /auth?redirectTo=
     bookings.$bookingId.tsx       # signed-in detail + cancel; guests → /auth?redirectTo=
     payment-status.tsx            # /bookings/payment-status callback + polling UI
@@ -299,7 +308,7 @@ here.
 - `app/api/fleet/{cars,dashboard,promotions,bookings}/` — dashboard calls
   `/api/dashboard/*`, not `/api/fleet-owner/dashboard`
 - `app/api/admin/{cars,documents,rates,financial}/`
-- grow `app/auth/` for fleet/admin login, `app/booking/`, `app/account/`
+- grow `app/auth/` for admin login, `app/booking/`, `app/account/`
 - `app/fleet/` and `app/admin/` consoles
 - `app/components/console/`, `app/components/table/`
 

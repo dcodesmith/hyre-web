@@ -80,7 +80,8 @@ Better Auth response and error bodies bypass the API's normal Problem Details fi
 - `GET /api/dashboard/earnings`
 - `GET /api/dashboard/payouts`
 - `GET /api/dashboard/payouts/summary`
-- provisional chauffeur airport-completion endpoints under `/chauffeur/airport-trips` (currently uncommitted)
+- `PATCH /api/fleet-owner/bookings/:bookingId/airport-completion`
+- chauffeur airport-completion page endpoints under `/chauffeur/airport-trips`
 
 ### Admin
 
@@ -192,10 +193,12 @@ All roles use the API's Better Auth endpoints. Role-specific pages remain separa
 
 **Available or closely matched**
 
+- fleet-owner OTP login/verify, session lookup, logout, and role enforcement
 - cars list/detail/create/update/upload
 - promotions
 - booking chauffeur assignment
 - payout list/summary
+- airport-trip completion
 
 **Verify**
 
@@ -203,15 +206,16 @@ All roles use the API's Better Auth endpoints. Role-specific pages remain separa
 - fleet booking detail through the generic booking endpoint requires ownership/field parity verification
 - `/fleet-owner/payout-transactions` may map to dashboard payout endpoints
 - exact car onboarding/document workflow
-- airport-completion controls; their API controller and migration are currently uncommitted
 
 **Gap unless another endpoint is discovered**
 
 - fleet-owner onboarding completion
+- session/profile fields for `hasOnboarded` and `isOwnerDriver`
 - bank-account resolution and payout-details update
 - `GET /api/fleet-owner/bookings` list/filter endpoint
 - chauffeur list/create/detail/update
 - fleet car deletion
+- booking start/end dates on fleet-owner payout-list items
 - any fleet-specific report not covered by dashboard endpoints
 
 ### Admin
@@ -431,7 +435,14 @@ duplicate year-make-model listings would collide.
   `/profile` reads and patches `GET|PATCH /api/users/me`. Signed-in
   `/referrals` reads `GET /api/referrals/user`; its share URL is rebuilt from
   trusted `APP_ORIGIN`, matching mobile instead of trusting an API-host URL.
-  Fleet/admin login remains a later slice.
+  Fleet-owner `/fleet-owner/login`, `/fleet-owner/verify`, and
+  `/fleet-owner/logout` reuse the customer login/verification UI and the same
+  BFF cookie relay with
+  `role: fleetOwner` and a canonical `/fleet-owner/login` referer. Pending
+  fleet verification uses a separate HttpOnly cookie from customer OTP.
+  `/fleet-owner` requires the `fleetOwner` role from `GET /auth/session`;
+  this web check is a UX guard and every fleet API endpoint remains
+  authoritative. Admin login remains a later slice.
   Production API `TRUSTED_ORIGINS` must include `https://tripdly.com`.
   PR preview hosts (`https://pr-*-hyre-web-preview.tripdly.workers.dev`)
   will fail OTP until the API trusts them. Local `APP_ORIGIN` is
