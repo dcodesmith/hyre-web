@@ -67,5 +67,7 @@ export default [
     route("cars", "routes/admin.cars.tsx"),
     route("cars/:carId", "routes/admin.cars.$carId.tsx"),
     route("documents/:documentId", "routes/admin.documents.$documentId.ts"),
+    route("fees", "routes/admin.fees.tsx"),
+    route("addon-rates", "routes/admin.addon-rates.tsx"),
   ]),
 ] satisfies RouteConfig;
