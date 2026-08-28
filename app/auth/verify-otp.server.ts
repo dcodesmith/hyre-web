@@ -20,7 +20,7 @@ import {
 } from "~/auth/pending-otp";
 
 export type OtpVerificationFlow = {
-  readonly role: AuthRole;
+  readonly role: AuthRole | ((pending: PendingOtp) => AuthRole | null);
   readonly scope: PendingOtpScope;
   readonly loginHref: (request: Request, pending?: PendingOtp | null) => string;
   readonly successRedirect: (request: Request) => string;
@@ -37,13 +37,23 @@ function formErrorResult(message: string): SubmissionResult<string[]> {
   return { status: "error", error: { "": [message] } };
 }
 
+function resolveRole(flow: OtpVerificationFlow, pending: PendingOtp) {
+  return typeof flow.role === "function" ? flow.role(pending) : flow.role;
+}
+
 async function resendOtp(request: Request, pending: PendingOtp, flow: OtpVerificationFlow) {
+  const role = resolveRole(flow, pending);
+
+  if (!role) {
+    throw redirect(flow.loginHref(request), { headers: AUTH_NO_STORE });
+  }
+
   try {
     await sendSignInOtp({
       request,
       email: pending.email,
-      role: flow.role,
-      ...(flow.role === "user" ? { referralCode: pending.referralCode } : {}),
+      role,
+      ...(role === "user" ? { referralCode: pending.referralCode } : {}),
     });
     const headers = authResponseHeaders();
     headers.append("Set-Cookie", pendingOtpSetCookie(pending, isSecureAuthCookie(), flow.scope));
@@ -84,7 +94,7 @@ function verificationFailure(
 export function loadOtpVerification(request: Request, flow: OtpVerificationFlow) {
   const pending = readPendingOtp(request, flow.scope);
 
-  if (!pending) {
+  if (!pending || !resolveRole(flow, pending)) {
     throw redirect(flow.loginHref(request), { headers: AUTH_NO_STORE });
   }
 
@@ -95,6 +105,11 @@ export async function handleOtpVerification(request: Request, flow: OtpVerificat
   const pending = readPendingOtp(request, flow.scope);
 
   if (!pending) {
+    throw redirect(flow.loginHref(request), { headers: AUTH_NO_STORE });
+  }
+
+  const role = resolveRole(flow, pending);
+  if (!role) {
     throw redirect(flow.loginHref(request), { headers: AUTH_NO_STORE });
   }
 
@@ -122,7 +137,7 @@ export async function handleOtpVerification(request: Request, flow: OtpVerificat
       request,
       email: pending.email,
       otp: submission.value.code,
-      role: flow.role,
+      role,
     });
     headers = authResponseHeaders(response.headers);
     headers.append("Set-Cookie", pendingOtpClearCookie(isSecureAuthCookie(), flow.scope));

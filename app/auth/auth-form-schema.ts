@@ -32,6 +32,12 @@ export const loginFormSchema = z.object({
 
 export const roleLoginFormSchema = loginFormSchema.omit({ referralCode: true });
 
+export const adminPortalRoleSchema = z.enum(["admin", "staff"]);
+
+export const adminLoginFormSchema = roleLoginFormSchema.extend({
+  role: adminPortalRoleSchema,
+});
+
 export const verifyFormSchema = z.object({
   code: z.string({ error: OTP_CODE_ERROR }).regex(/^\d{6}$/, OTP_CODE_ERROR),
 });
@@ -39,6 +45,8 @@ export const verifyFormSchema = z.object({
 export const pendingOtpSchema = z.object({
   email: z.email(),
   referralCode: z.string().trim().toUpperCase().regex(REFERRAL_CODE_PATTERN).optional(),
+  role: adminPortalRoleSchema.optional(),
 });
 
 export type PendingOtp = z.infer<typeof pendingOtpSchema>;
+export type AdminPortalRole = z.infer<typeof adminPortalRoleSchema>;

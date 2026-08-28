@@ -5,7 +5,12 @@ import type { z } from "zod";
 
 import type { AuthRole } from "~/api/auth/schema";
 import { AuthCheckbox, AuthSubmitButton } from "~/auth/auth-form-primitives";
-import { loginFormSchema, roleLoginFormSchema } from "~/auth/auth-form-schema";
+import type { AdminPortalRole } from "~/auth/auth-form-schema";
+import {
+  adminLoginFormSchema,
+  loginFormSchema,
+  roleLoginFormSchema,
+} from "~/auth/auth-form-schema";
 import { FormError } from "~/components/forms/form-primitives";
 import { cn } from "~/lib/utils";
 
@@ -17,13 +22,21 @@ type LoginFormProps = {
   readonly referralCode?: string;
 };
 
-type LoginFormValue = z.infer<typeof loginFormSchema>;
+type LoginFormValue = z.infer<typeof loginFormSchema> & {
+  role?: AdminPortalRole;
+};
 
 export function LoginForm({ actionData, authRole, heading, id, referralCode }: LoginFormProps) {
   const navigation = useNavigation();
   const isSubmitting = navigation.formMethod != null;
   const showReferral = authRole === "user";
-  const schema = showReferral ? loginFormSchema : roleLoginFormSchema;
+  const showAdminRole = authRole === "admin" || authRole === "staff";
+  let schema = roleLoginFormSchema;
+  if (showReferral) {
+    schema = loginFormSchema;
+  } else if (showAdminRole) {
+    schema = adminLoginFormSchema;
+  }
   const [form, fields] = useForm<LoginFormValue, LoginFormValue, string[]>({
     id,
     lastResult: actionData,
@@ -32,12 +45,13 @@ export function LoginForm({ actionData, authRole, heading, id, referralCode }: L
     shouldRevalidate: "onInput",
     defaultValue: {
       referralCode,
+      role: showAdminRole ? (authRole as AdminPortalRole) : undefined,
     },
     onValidate({ formData }) {
       return parseWithZod(formData, { schema });
     },
   });
-  const { email, referralCode: referralCodeField, acceptTerms } = fields;
+  const { email, referralCode: referralCodeField, acceptTerms, role } = fields;
 
   return (
     <>
@@ -45,6 +59,27 @@ export function LoginForm({ actionData, authRole, heading, id, referralCode }: L
 
       <Form method="post" {...getFormProps(form)}>
         <div className="flex flex-col gap-4">
+          {showAdminRole ? (
+            <fieldset>
+              <legend className="mb-2 text-sm font-medium text-neutral-900">Account type</legend>
+              <div className="grid grid-cols-2 gap-1 rounded-md bg-neutral-100 p-1">
+                {(["admin", "staff"] as const).map((value) => (
+                  <label key={value} htmlFor={`${role.id}-${value}`} className="cursor-pointer">
+                    <input
+                      {...getInputProps(role, { type: "radio", value })}
+                      id={`${role.id}-${value}`}
+                      className="peer sr-only"
+                    />
+                    <span className="flex h-10 items-center justify-center rounded-sm text-sm font-medium text-neutral-600 transition-colors peer-checked:bg-white peer-checked:text-neutral-900 peer-checked:shadow-sm peer-focus-visible:outline-none peer-focus-visible:ring-2 peer-focus-visible:ring-neutral-900 peer-focus-visible:ring-offset-2">
+                      {value === "admin" ? "Administrator" : "Staff"}
+                    </span>
+                  </label>
+                ))}
+              </div>
+              <FormError id={role.errorId} errors={role.errors} />
+            </fieldset>
+          ) : null}
+
           <div>
             <input
               {...getInputProps(email, { type: "email" })}

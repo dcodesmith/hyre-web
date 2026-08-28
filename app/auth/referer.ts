@@ -1,4 +1,5 @@
 import type { AuthRole } from "~/api/auth/schema";
+import type { AdminPortalRole } from "~/auth/auth-form-schema";
 import { validReferralCode } from "~/auth/auth-form-schema";
 
 const AUTH_ROLE_PATHS = {
@@ -67,6 +68,12 @@ export function safeFleetOwnerRedirectPath(value: string | null | undefined) {
   return path === "/fleet-owner" || path.startsWith("/fleet-owner/") ? path : "/fleet-owner";
 }
 
+export function safeAdminRedirectPath(value: string | null | undefined) {
+  const path = safeRedirectPath(value, "");
+
+  return path === "/admin" || path.startsWith("/admin/") ? path : "/admin";
+}
+
 export function authPath(
   path: "/auth" | "/verify",
   query: { redirectTo?: string | null; ref?: string | null } = {},
@@ -99,6 +106,24 @@ export function fleetOwnerAuthPath(
 
   if (target !== "/fleet-owner") {
     params.set("redirectTo", target);
+  }
+
+  const serialized = params.toString();
+  return serialized ? `${path}?${serialized}` : path;
+}
+
+export function adminAuthPath(
+  path: "/admin/login" | "/admin/verify",
+  options: { redirectTo?: string | null; role?: AdminPortalRole } = {},
+) {
+  const params = new URLSearchParams();
+  const target = safeAdminRedirectPath(options.redirectTo);
+
+  if (target !== "/admin") {
+    params.set("redirectTo", target);
+  }
+  if (path === "/admin/login" && options.role) {
+    params.set("role", options.role);
   }
 
   const serialized = params.toString();
