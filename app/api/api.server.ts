@@ -78,6 +78,7 @@ export function createApiClient({
 
     let response: Response;
     let responseBody: unknown;
+    let keepAbortAlive = false;
 
     try {
       response = await fetchImpl(url, {
@@ -89,6 +90,8 @@ export function createApiClient({
       });
       if (readBody || !response.ok) {
         responseBody = await readResponseBody(response);
+      } else {
+        keepAbortAlive = true;
       }
     } catch (cause) {
       if (abort.didTimeout()) {
@@ -125,7 +128,9 @@ export function createApiClient({
         cause,
       );
     } finally {
-      abort.cleanup();
+      if (!keepAbortAlive) {
+        abort.cleanup();
+      }
     }
 
     if (!response.ok) {
@@ -140,7 +145,7 @@ export function createApiClient({
       throw new ApiRequestError("http", response.status, problem, new Headers(response.headers));
     }
 
-    return { response, responseBody };
+    return { response, responseBody, cleanup: abort.cleanup };
   }
 
   return {
@@ -181,10 +186,56 @@ export function createApiClient({
       };
     },
     async requestRaw(options: ApiFetchOptions) {
-      const { response } = await send(options, false);
-      return response;
+      const { response, cleanup } = await send(options, false);
+      return manageResponseBody(response, cleanup);
     },
   };
+}
+
+function manageResponseBody(response: Response, cleanup: () => void) {
+  if (!response.body) {
+    cleanup();
+    return response;
+  }
+
+  const reader = response.body.getReader();
+  let settled = false;
+  const settle = () => {
+    if (!settled) {
+      settled = true;
+      cleanup();
+    }
+  };
+
+  const body = new ReadableStream<Uint8Array>({
+    async pull(controller) {
+      try {
+        const { done, value } = await reader.read();
+        if (done) {
+          settle();
+          controller.close();
+          return;
+        }
+        controller.enqueue(value);
+      } catch (cause) {
+        settle();
+        controller.error(cause);
+      }
+    },
+    async cancel(reason) {
+      try {
+        await reader.cancel(reason);
+      } finally {
+        settle();
+      }
+    },
+  });
+
+  return new Response(body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers: response.headers,
+  });
 }
 
 function normalizeApiOrigin(value: string) {

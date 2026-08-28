@@ -81,6 +81,73 @@ describe("createApiClient", () => {
     expect(new Uint8Array(await response.arrayBuffer())).toEqual(body);
   });
 
+  it("keeps the timeout active while streaming a raw response body", async () => {
+    const upstreamSignals: AbortSignal[] = [];
+    const client = createApiClient({
+      apiOrigin: "https://api.example",
+      fetchImpl: async (_input, init) => {
+        const upstreamSignal = init?.signal;
+        if (upstreamSignal) {
+          upstreamSignals.push(upstreamSignal);
+        }
+        const stream = new ReadableStream<Uint8Array>({
+          start(controller) {
+            const failOnAbort = () => controller.error(upstreamSignal?.reason);
+            upstreamSignal?.addEventListener("abort", failOnAbort, { once: true });
+          },
+        });
+        return new Response(stream, {
+          headers: { "content-type": "application/pdf" },
+        });
+      },
+    });
+
+    const response = await client.requestRaw({
+      path: "/api/proxy-pdf/document-1",
+      timeoutMs: 5,
+    });
+
+    await expect(response.arrayBuffer()).rejects.toBeInstanceOf(DOMException);
+    expect(upstreamSignals[0]?.aborted).toBe(true);
+  });
+
+  it("keeps caller cancellation active while streaming a raw response body", async () => {
+    const requestController = new AbortController();
+    const abortReason = new DOMException("Caller cancelled", "AbortError");
+    const upstreamSignals: AbortSignal[] = [];
+    const client = createApiClient({
+      apiOrigin: "https://api.example",
+      fetchImpl: async (_input, init) => {
+        const upstreamSignal = init?.signal;
+        if (upstreamSignal) {
+          upstreamSignals.push(upstreamSignal);
+        }
+        const stream = new ReadableStream<Uint8Array>({
+          start(controller) {
+            const failOnAbort = () => controller.error(upstreamSignal?.reason);
+            upstreamSignal?.addEventListener("abort", failOnAbort, { once: true });
+          },
+        });
+        return new Response(stream, {
+          headers: { "content-type": "application/pdf" },
+        });
+      },
+    });
+    const request = new Request("https://hyre.example/", {
+      signal: requestController.signal,
+    });
+
+    const response = await client.requestRaw({
+      path: "/api/proxy-pdf/document-1",
+      request,
+    });
+    const body = response.arrayBuffer();
+    requestController.abort(abortReason);
+
+    await expect(body).rejects.toBe(abortReason);
+    expect(upstreamSignals[0]?.aborted).toBe(true);
+  });
+
   it("does not forward a spoofed x-forwarded-for without CF-Connecting-IP", async () => {
     let capturedInit: RequestInit | undefined;
     const fetchImpl: typeof fetch = async (_input, init) => {

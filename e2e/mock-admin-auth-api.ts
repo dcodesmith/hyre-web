@@ -2,6 +2,8 @@ import { createServer, type IncomingMessage, type Server } from "node:http";
 
 type PortalRole = "admin" | "staff";
 
+const ADMIN_SESSION_COOKIE = "better-auth.session_token=admin-e2e-session";
+
 export const MOCK_ADMIN_CAR_ID = "cm12345678901234567890123";
 export const MOCK_ADMIN_IMAGE_ID = "cm22345678901234567890123";
 export const MOCK_ADMIN_DOCUMENT_ID = "cm32345678901234567890123";
@@ -119,6 +121,12 @@ function writeJson(response: import("node:http").ServerResponse, status: number,
   response.end(JSON.stringify(body));
 }
 
+function hasAdminSession(request: IncomingMessage) {
+  return request.headers.cookie
+    ?.split(";")
+    .some((cookie) => cookie.trim() === ADMIN_SESSION_COOKIE);
+}
+
 async function handleAdminCarRequest(
   request: IncomingMessage,
   response: import("node:http").ServerResponse,
@@ -126,6 +134,20 @@ async function handleAdminCarRequest(
   requests: MockAdminAuthApi["requests"],
 ) {
   const path = url.pathname;
+  const isAdminCarPath =
+    path === "/api/admin/cars" ||
+    path.startsWith("/api/admin/cars/") ||
+    path.startsWith("/api/admin/documents/") ||
+    path.startsWith("/api/proxy-pdf/");
+
+  if (!isAdminCarPath) {
+    return false;
+  }
+
+  if (!hasAdminSession(request)) {
+    writeJson(response, 401, { status: 401, detail: "Unauthorized" });
+    return true;
+  }
 
   if (request.method === "GET" && path === "/api/admin/cars") {
     requests.carListQuery = url.search;
@@ -211,7 +233,7 @@ export function startMockAdminAuthApi(port = 3100) {
     }
 
     if (request.method === "GET" && path === "/auth/session") {
-      if (!request.headers.cookie?.includes("better-auth.session_token=admin-e2e-session")) {
+      if (!hasAdminSession(request)) {
         writeJson(response, 401, { status: 401, detail: "Unauthorized" });
         return;
       }
