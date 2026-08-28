@@ -228,8 +228,9 @@ dashboard overview/earnings, and the read-only payout list/summary are
 implemented.
 The car list keeps filter, sort, column visibility, and pagination state in the
 URL while filtering the already-loaded owner inventory in the browser. Car
-create, edit, and upload remain separate until the exact onboarding/document
-workflow is verified. Legacy dashboard extras without API contracts, chauffeur
+editing is implemented through the owner-scoped API endpoint. Car create and
+upload remain separate until the exact onboarding/document workflow is
+verified. Legacy dashboard extras without API contracts, chauffeur
 management, onboarding, fleet booking lists, car
 deletion, and bank details remain gated by the API readiness matrix. Airport
 completion exists in the API but stays separate from these initial console

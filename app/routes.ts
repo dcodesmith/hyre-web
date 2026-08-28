@@ -54,6 +54,7 @@ export default [
     layout("routes/fleet-owner.dashboard.tsx", [index("routes/fleet-owner._index.tsx")]),
     route("cars", "routes/fleet-owner.cars.tsx"),
     route("cars/:carId", "routes/fleet-owner.cars.$carId.tsx"),
+    route("cars/:carId/edit", "routes/fleet-owner.cars.$carId.edit.tsx"),
     route("promotions", "routes/fleet-owner.promotions.tsx"),
     route("payout-transactions", "routes/fleet-owner.payout-transactions.tsx"),
   ]),

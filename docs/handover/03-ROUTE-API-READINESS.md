@@ -197,6 +197,8 @@ All roles use the API's Better Auth endpoints. Role-specific pages remain separa
 - `/fleet-owner/cars` using `GET /api/fleet-owner/cars`, with responsive
   faceted filters, sorting, column visibility, row actions, and pagination
 - `/fleet-owner/cars/:carId` using `GET /api/fleet-owner/cars/:carId`
+- `/fleet-owner/cars/:carId/edit` using owner-scoped
+  `GET|PATCH /api/fleet-owner/cars/:carId`
 - `/fleet-owner/promotions` using `GET|POST /api/fleet-owner/promotions` and
   `POST /api/fleet-owner/promotions/:promotionId/deactivate`
 - `/fleet-owner/payout-transactions` using `GET /api/dashboard/payouts` and
@@ -208,7 +210,7 @@ All roles use the API's Better Auth endpoints. Role-specific pages remain separa
 
 **Available or closely matched**
 
-- car create/update/upload
+- car create/upload
 - booking chauffeur assignment
 - airport-trip completion
 
