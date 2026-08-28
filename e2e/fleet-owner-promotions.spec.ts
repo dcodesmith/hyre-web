@@ -6,8 +6,19 @@ import {
   stopMockFleetOwnerAuthApi,
 } from "./mock-fleet-owner-auth-api";
 
+function dateFromNow(days: number) {
+  const date = new Date();
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
 test("creates and deactivates a fleet-owner promotion", async ({ context, page }) => {
   const api = await startMockFleetOwnerAuthApi();
+  const invalidEndDate = dateFromNow(6);
+  const startDate = dateFromNow(7);
+  const endDate = dateFromNow(9);
+  const fleetStartDate = dateFromNow(14);
+  const fleetEndDate = dateFromNow(15);
 
   try {
     await context.addCookies([
@@ -29,8 +40,8 @@ test("creates and deactivates a fleet-owner promotion", async ({ context, page }
     await page.getByLabel("Apply to").click();
     await page.getByRole("option", { name: /Lexus RX 350 2023/ }).click();
     await page.getByLabel("Discount (%)").fill("60");
-    await page.getByLabel("Start date").fill("2027-10-01");
-    await page.getByLabel("End date (inclusive)").fill("2027-09-30");
+    await page.getByLabel("Start date").fill(startDate);
+    await page.getByLabel("End date (inclusive)").fill(invalidEndDate);
     await page.getByRole("button", { name: "Create promotion" }).click();
 
     await expect(page).toHaveURL("/fleet-owner/promotions?create=1");
@@ -45,8 +56,8 @@ test("creates and deactivates a fleet-owner promotion", async ({ context, page }
     await page.getByLabel("Apply to").click();
     await page.getByRole("option", { name: /Lexus RX 350 2023/ }).click();
     await page.getByLabel("Discount (%)").fill("15");
-    await page.getByLabel("Start date").fill("2027-10-01");
-    await page.getByLabel("End date (inclusive)").fill("2027-10-03");
+    await page.getByLabel("Start date").fill(startDate);
+    await page.getByLabel("End date (inclusive)").fill(endDate);
     await page.getByRole("button", { name: "Create promotion" }).click();
 
     await expect(page).toHaveURL("/fleet-owner/promotions");
@@ -61,8 +72,8 @@ test("creates and deactivates a fleet-owner promotion", async ({ context, page }
         scope: "CAR",
         carId: MOCK_FLEET_CAR_ID,
         discountValue: 15,
-        startDate: "2027-10-01",
-        endDate: "2027-10-03",
+        startDate,
+        endDate,
       });
 
     await page.getByRole("button", { name: "Deactivate October special" }).click();
@@ -77,8 +88,8 @@ test("creates and deactivates a fleet-owner promotion", async ({ context, page }
     await page.getByRole("link", { name: "New promotion" }).click();
     await page.getByLabel("Promotion name (optional)").fill("Fleet deal");
     await page.getByLabel("Discount (%)").fill("10");
-    await page.getByLabel("Start date").fill("2028-11-01");
-    await page.getByLabel("End date (inclusive)").fill("2028-11-02");
+    await page.getByLabel("Start date").fill(fleetStartDate);
+    await page.getByLabel("End date (inclusive)").fill(fleetEndDate);
     await page.getByRole("button", { name: "Create promotion" }).click();
 
     await expect(page.getByText("Fleet deal")).toBeVisible();
@@ -94,8 +105,8 @@ test("creates and deactivates a fleet-owner promotion", async ({ context, page }
         name: "Fleet deal",
         scope: "FLEET",
         discountValue: 10,
-        startDate: "2028-11-01",
-        endDate: "2028-11-02",
+        startDate: fleetStartDate,
+        endDate: fleetEndDate,
       });
   } finally {
     await stopMockFleetOwnerAuthApi(api);
