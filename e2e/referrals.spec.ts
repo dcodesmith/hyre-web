@@ -10,6 +10,25 @@ async function setCookiePreference(page: Page) {
   }, consentKey);
 }
 
+async function stubClipboardWrite(page: Page) {
+  await page.evaluate(() => {
+    const writeText = async () => undefined;
+
+    if (navigator.clipboard) {
+      Object.defineProperty(navigator.clipboard, "writeText", {
+        configurable: true,
+        value: writeText,
+      });
+      return;
+    }
+
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText },
+    });
+  });
+}
+
 test("sends guests from /referrals to login", async ({ page }) => {
   await page.goto("/referrals");
 
@@ -50,17 +69,9 @@ test("loads the signed-in referral summary from the API", async ({ context, page
   }
 });
 
-test("renders referral details and copies the referral code", async ({
-  context,
-  page,
-  baseURL,
-}) => {
+test("renders referral details and copies the referral code", async ({ page }) => {
   await setCookiePreference(page);
-  await context.grantPermissions(["clipboard-write"], {
-    origin: new URL(baseURL ?? "http://localhost:5174").origin,
-  });
   await page.goto("/__visual/referrals");
-  await page.bringToFront();
 
   await expect(page.getByRole("heading", { name: "Referral Program" })).toBeVisible();
   await expect(page.locator("code")).toContainText("ADA2026X");
@@ -69,6 +80,7 @@ test("renders referral details and copies the referral code", async ({
   await expect(page.getByRole("heading", { name: "Your Referrals" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "How it works" })).toBeVisible();
 
+  await stubClipboardWrite(page);
   await page.getByRole("button", { name: "Copy", exact: true }).click();
   await expect(page.getByRole("button", { name: "Copied!" })).toBeVisible();
 

@@ -1,4 +1,4 @@
-import { CarIcon, LayoutDashboardIcon, LogOutIcon } from "lucide-react";
+import { CarIcon, LayoutDashboardIcon, LogOutIcon, TagIcon } from "lucide-react";
 import { Form, Link, useLocation } from "react-router";
 
 import type { User } from "~/auth/user";
@@ -22,6 +22,7 @@ import {
 const navigation = [
   { label: "Dashboard", to: "/fleet-owner", icon: LayoutDashboardIcon, exact: true },
   { label: "Cars", to: "/fleet-owner/cars", icon: CarIcon, exact: false },
+  { label: "Promotions", to: "/fleet-owner/promotions", icon: TagIcon, exact: false },
 ] as const;
 
 type FleetOwnerSidebarProps = {
