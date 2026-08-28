@@ -3,17 +3,13 @@ import { getZodConstraint, parseWithZod } from "@conform-to/zod/v4";
 import { ArrowLeftIcon } from "lucide-react";
 import { Form, Link, useNavigation } from "react-router";
 
-import {
-  type FleetCar,
-  fleetCarServiceTierSchema,
-  fleetCarVehicleTypeSchema,
-} from "~/api/fleet/cars/schema";
+import type { FleetCar } from "~/api/fleet/cars/schema";
 import { FormError } from "~/components/forms/form-primitives";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
 import { Checkbox } from "~/components/ui/checkbox";
+import { Field, FieldContent, FieldGroup, FieldLabel } from "~/components/ui/field";
 import { Input } from "~/components/ui/input";
-import { Label } from "~/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -81,9 +77,6 @@ export function FleetCarEditForm({ actionData, car }: FleetCarEditFormProps) {
       airportPickupRate: String(car.airportPickupRate),
       fuelUpgradeRate: car.fuelUpgradeRate == null ? "" : String(car.fuelUpgradeRate),
       pricingIncludesFuel: car.pricingIncludesFuel ? "on" : "",
-      vehicleType: car.vehicleType,
-      serviceTier: car.serviceTier,
-      passengerCapacity: String(car.passengerCapacity),
       status: car.status === "BOOKED" ? undefined : car.status,
     },
     onValidate({ formData }) {
@@ -93,7 +86,7 @@ export function FleetCarEditForm({ actionData, car }: FleetCarEditFormProps) {
   const pricingIncludesFuel = useInputControl(fields.pricingIncludesFuel);
 
   return (
-    <div className="mx-auto flex max-w-4xl flex-col gap-6">
+    <div className="mx-auto flex max-w-5xl flex-col gap-6">
       <div>
         <Button asChild className="-ml-2 mb-3" size="sm" variant="ghost">
           <Link to={`/fleet-owner/cars/${car.id}`}>
@@ -105,228 +98,195 @@ export function FleetCarEditForm({ actionData, car }: FleetCarEditFormProps) {
           Edit {car.make} {car.model}
         </h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          {car.year} · {car.registrationNumber}
+          Update pricing and availability for {car.registrationNumber}.
         </p>
       </div>
 
-      <Form method="post" {...getFormProps(form)} className="space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>
-              <h3>Pricing</h3>
-            </CardTitle>
-            <CardDescription>Set the base rates customers see for this car.</CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-5 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor={fields.hourlyRate.id}>Hourly rate</Label>
-              <Input
-                {...getInputProps(fields.hourlyRate, { type: "number" })}
-                inputMode="numeric"
-                min={1}
-              />
-              <FormError id={fields.hourlyRate.errorId} errors={fields.hourlyRate.errors} />
-            </div>
+      <Form method="post" {...getFormProps(form)} className="flex flex-col gap-6">
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-start">
+          <Card>
+            <CardHeader>
+              <CardTitle>
+                <h3>Pricing</h3>
+              </CardTitle>
+              <CardDescription>Set the base rates customers see for this car.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <FieldGroup className="grid gap-5 sm:grid-cols-2">
+                <Field data-invalid={Boolean(fields.hourlyRate.errors)}>
+                  <FieldLabel htmlFor={fields.hourlyRate.id}>Hourly rate</FieldLabel>
+                  <Input
+                    {...getInputProps(fields.hourlyRate, { type: "number" })}
+                    inputMode="numeric"
+                    min={1}
+                  />
+                  <FormError id={fields.hourlyRate.errorId} errors={fields.hourlyRate.errors} />
+                </Field>
 
-            <div className="space-y-2">
-              <Label htmlFor={fields.dayRate.id}>Daily rate (12 hours)</Label>
-              <Input
-                {...getInputProps(fields.dayRate, { type: "number" })}
-                inputMode="numeric"
-                min={1}
-              />
-              <FormError id={fields.dayRate.errorId} errors={fields.dayRate.errors} />
-            </div>
+                <Field data-invalid={Boolean(fields.dayRate.errors)}>
+                  <FieldLabel htmlFor={fields.dayRate.id}>Daily rate (12 hours)</FieldLabel>
+                  <Input
+                    {...getInputProps(fields.dayRate, { type: "number" })}
+                    inputMode="numeric"
+                    min={1}
+                  />
+                  <FormError id={fields.dayRate.errorId} errors={fields.dayRate.errors} />
+                </Field>
 
-            <div className="space-y-2">
-              <Label htmlFor={fields.nightRate.id}>Nightly rate (11pm to 5am)</Label>
-              <Input
-                {...getInputProps(fields.nightRate, { type: "number" })}
-                inputMode="numeric"
-                min={1}
-              />
-              <FormError id={fields.nightRate.errorId} errors={fields.nightRate.errors} />
-            </div>
+                <Field data-invalid={Boolean(fields.nightRate.errors)}>
+                  <FieldLabel htmlFor={fields.nightRate.id}>Nightly rate (11pm to 5am)</FieldLabel>
+                  <Input
+                    {...getInputProps(fields.nightRate, { type: "number" })}
+                    inputMode="numeric"
+                    min={1}
+                  />
+                  <FormError id={fields.nightRate.errorId} errors={fields.nightRate.errors} />
+                </Field>
 
-            <div className="space-y-2">
-              <Label htmlFor={fields.fullDayRate.id}>Full day rate (24 hours)</Label>
-              <Input
-                {...getInputProps(fields.fullDayRate, { type: "number" })}
-                inputMode="numeric"
-                min={1}
-              />
-              <FormError id={fields.fullDayRate.errorId} errors={fields.fullDayRate.errors} />
-            </div>
+                <Field data-invalid={Boolean(fields.fullDayRate.errors)}>
+                  <FieldLabel htmlFor={fields.fullDayRate.id}>Full day rate (24 hours)</FieldLabel>
+                  <Input
+                    {...getInputProps(fields.fullDayRate, { type: "number" })}
+                    inputMode="numeric"
+                    min={1}
+                  />
+                  <FormError id={fields.fullDayRate.errorId} errors={fields.fullDayRate.errors} />
+                </Field>
 
-            <div className="space-y-2 sm:col-span-2">
-              <Label htmlFor={fields.airportPickupRate.id}>Airport pickup rate</Label>
-              <Input
-                {...getInputProps(fields.airportPickupRate, { type: "number" })}
-                inputMode="numeric"
-                min={1}
-              />
-              <FormError
-                id={fields.airportPickupRate.errorId}
-                errors={fields.airportPickupRate.errors}
-              />
-            </div>
+                <Field data-invalid={Boolean(fields.airportPickupRate.errors)}>
+                  <FieldLabel htmlFor={fields.airportPickupRate.id}>Airport pickup rate</FieldLabel>
+                  <Input
+                    {...getInputProps(fields.airportPickupRate, { type: "number" })}
+                    inputMode="numeric"
+                    min={1}
+                  />
+                  <FormError
+                    id={fields.airportPickupRate.errorId}
+                    errors={fields.airportPickupRate.errors}
+                  />
+                </Field>
 
-            <label
-              htmlFor={fields.pricingIncludesFuel.id}
-              className="flex cursor-pointer items-start gap-3 rounded-lg border p-4 sm:col-span-2"
-            >
-              <input
-                type="hidden"
-                name={fields.pricingIncludesFuel.name}
-                value={pricingIncludesFuel.value ?? ""}
-              />
-              <Checkbox
-                key={fields.pricingIncludesFuel.key}
-                id={fields.pricingIncludesFuel.id}
-                checked={pricingIncludesFuel.value === "on"}
-                onBlur={pricingIncludesFuel.blur}
-                onCheckedChange={(checked) =>
-                  pricingIncludesFuel.change(checked === true ? "on" : "")
-                }
-              />
-              <span>
-                <span className="block text-sm font-medium">Pricing includes fuel</span>
-                <span className="mt-1 block text-xs text-muted-foreground">
-                  Customers will not be offered a separate fuel upgrade.
-                </span>
-              </span>
-            </label>
+                <Field orientation="horizontal" className="h-9 self-end">
+                  <input
+                    type="hidden"
+                    name={fields.pricingIncludesFuel.name}
+                    value={pricingIncludesFuel.value ?? ""}
+                  />
+                  <Checkbox
+                    key={fields.pricingIncludesFuel.key}
+                    id={fields.pricingIncludesFuel.id}
+                    checked={pricingIncludesFuel.value === "on"}
+                    onBlur={pricingIncludesFuel.blur}
+                    onCheckedChange={(checked) =>
+                      pricingIncludesFuel.change(checked === true ? "on" : "")
+                    }
+                  />
+                  <FieldContent>
+                    <FieldLabel htmlFor={fields.pricingIncludesFuel.id}>
+                      Pricing includes fuel
+                    </FieldLabel>
+                  </FieldContent>
+                </Field>
 
-            {pricingIncludesFuel.value === "on" ? (
-              <input type="hidden" name={fields.fuelUpgradeRate.name} value="" />
-            ) : (
-              <div className="space-y-2 sm:col-span-2">
-                <Label htmlFor={fields.fuelUpgradeRate.id}>Fuel upgrade rate</Label>
-                <Input
-                  {...getInputProps(fields.fuelUpgradeRate, { type: "number" })}
-                  inputMode="numeric"
-                  min={1}
-                  placeholder="Required when fuel is not included"
-                />
-                <FormError
-                  id={fields.fuelUpgradeRate.errorId}
-                  errors={fields.fuelUpgradeRate.errors}
-                />
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>
-              <h3>Vehicle settings</h3>
-            </CardTitle>
-            <CardDescription>Update how this car is classified and listed.</CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-5 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor={fields.vehicleType.id}>Vehicle type</Label>
-              <Select
-                key={fields.vehicleType.key}
-                name={fields.vehicleType.name}
-                defaultValue={fields.vehicleType.initialValue ?? car.vehicleType}
-              >
-                <SelectTrigger
-                  id={fields.vehicleType.id}
-                  className="w-full"
-                  {...errorAttributes(fields.vehicleType.errors, fields.vehicleType.errorId)}
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {fleetCarVehicleTypeSchema.options.map((value) => (
-                    <SelectItem key={value} value={value}>
-                      {getFleetCarVehicleTypeLabel(value)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormError id={fields.vehicleType.errorId} errors={fields.vehicleType.errors} />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor={fields.serviceTier.id}>Service tier</Label>
-              <Select
-                key={fields.serviceTier.key}
-                name={fields.serviceTier.name}
-                defaultValue={fields.serviceTier.initialValue ?? car.serviceTier}
-              >
-                <SelectTrigger
-                  id={fields.serviceTier.id}
-                  className="w-full"
-                  {...errorAttributes(fields.serviceTier.errors, fields.serviceTier.errorId)}
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {fleetCarServiceTierSchema.options.map((value) => (
-                    <SelectItem key={value} value={value}>
-                      {getFleetCarServiceTierLabel(value)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormError id={fields.serviceTier.errorId} errors={fields.serviceTier.errors} />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor={fields.passengerCapacity.id}>Passenger capacity</Label>
-              <Input
-                {...getInputProps(fields.passengerCapacity, { type: "number" })}
-                inputMode="numeric"
-                min={1}
-                max={15}
-              />
-              <FormError
-                id={fields.passengerCapacity.errorId}
-                errors={fields.passengerCapacity.errors}
-              />
-            </div>
-
-            {car.status === "BOOKED" ? (
-              <div className="space-y-2">
-                <Label htmlFor="booked-car-availability">Availability</Label>
-                <p
-                  id="booked-car-availability"
-                  className="flex h-9 items-center rounded-md border px-3 text-sm text-muted-foreground"
-                >
-                  Booked cars keep their current status.
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <Label htmlFor={fields.status.id}>Availability</Label>
-                <Select
-                  key={fields.status.key}
-                  name={fields.status.name}
-                  defaultValue={fields.status.initialValue ?? car.status}
-                >
-                  <SelectTrigger
-                    id={fields.status.id}
-                    className="w-full"
-                    {...errorAttributes(fields.status.errors, fields.status.errorId)}
+                {pricingIncludesFuel.value === "on" ? (
+                  <input type="hidden" name={fields.fuelUpgradeRate.name} value="" />
+                ) : (
+                  <Field
+                    data-invalid={Boolean(fields.fuelUpgradeRate.errors)}
+                    className="sm:col-span-2"
                   >
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {editableFleetCarStatusSchema.options.map((value) => (
-                      <SelectItem key={value} value={value}>
-                        {getFleetCarStatusLabel(value)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormError id={fields.status.errorId} errors={fields.status.errors} />
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                    <FieldLabel htmlFor={fields.fuelUpgradeRate.id}>Fuel upgrade rate</FieldLabel>
+                    <Input
+                      {...getInputProps(fields.fuelUpgradeRate, { type: "number" })}
+                      inputMode="numeric"
+                      min={1}
+                      placeholder="Required when fuel is not included"
+                    />
+                    <FormError
+                      id={fields.fuelUpgradeRate.errorId}
+                      errors={fields.fuelUpgradeRate.errors}
+                    />
+                  </Field>
+                )}
+              </FieldGroup>
+            </CardContent>
+          </Card>
+
+          <div className="flex flex-col gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>
+                  <h3>Availability</h3>
+                </CardTitle>
+                <CardDescription>Control whether this car can accept bookings.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {car.status === "BOOKED" ? (
+                  <p className="text-sm text-muted-foreground">
+                    This car is currently booked. Its availability cannot be changed.
+                  </p>
+                ) : (
+                  <Field data-invalid={Boolean(fields.status.errors)}>
+                    <FieldLabel htmlFor={fields.status.id}>Current status</FieldLabel>
+                    <Select
+                      key={fields.status.key}
+                      name={fields.status.name}
+                      defaultValue={fields.status.initialValue ?? car.status}
+                    >
+                      <SelectTrigger
+                        id={fields.status.id}
+                        className="w-full"
+                        {...errorAttributes(fields.status.errors, fields.status.errorId)}
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {editableFleetCarStatusSchema.options.map((value) => (
+                          <SelectItem key={value} value={value}>
+                            {getFleetCarStatusLabel(value)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormError id={fields.status.errorId} errors={fields.status.errors} />
+                  </Field>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>
+                  <h3>Vehicle profile</h3>
+                </CardTitle>
+                <CardDescription>These details are fixed after onboarding.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <dl className="flex flex-col gap-4 text-sm">
+                  <div>
+                    <dt className="text-muted-foreground">Vehicle type</dt>
+                    <dd className="mt-1 font-medium">
+                      {getFleetCarVehicleTypeLabel(car.vehicleType)}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-muted-foreground">Service tier</dt>
+                    <dd className="mt-1 font-medium">
+                      {getFleetCarServiceTierLabel(car.serviceTier)}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-muted-foreground">Passenger capacity</dt>
+                    <dd className="mt-1 font-medium">
+                      {car.passengerCapacity} passenger
+                      {car.passengerCapacity === 1 ? "" : "s"}
+                    </dd>
+                  </div>
+                </dl>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
 
         <FormError id={form.errorId} errors={form.errors} />
 

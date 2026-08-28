@@ -43,10 +43,7 @@ export type UpdateFleetCarBody = Pick<
   | "fuelUpgradeRate"
   | "hourlyRate"
   | "nightRate"
-  | "passengerCapacity"
   | "pricingIncludesFuel"
-  | "serviceTier"
-  | "vehicleType"
 > & {
   readonly status?: "AVAILABLE" | "HOLD" | "IN_SERVICE";
 };

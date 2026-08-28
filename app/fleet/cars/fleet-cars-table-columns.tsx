@@ -4,7 +4,9 @@ import {
   ArrowUpIcon,
   CheckCircle2Icon,
   ChevronsUpDownIcon,
+  EllipsisIcon,
   EyeIcon,
+  PencilIcon,
   XCircleIcon,
 } from "lucide-react";
 import { Link } from "react-router";
@@ -148,14 +150,33 @@ export const fleetCarsColumns: ColumnDef<FleetCar>[] = [
     enableHiding: false,
     enableSorting: false,
     cell: ({ row }) => (
-      <Button asChild variant="ghost" size="icon" className="size-8">
-        <Link
-          to={`/fleet-owner/cars/${row.original.id}`}
-          aria-label={`View details for ${row.original.make} ${row.original.model}`}
-        >
-          <EyeIcon aria-hidden="true" />
-        </Link>
-      </Button>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="size-8"
+            aria-label={`Open actions for ${row.original.make} ${row.original.model}, ${row.original.registrationNumber}`}
+          >
+            <EllipsisIcon aria-hidden="true" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem asChild>
+            <Link to={`/fleet-owner/cars/${row.original.id}`}>
+              <EyeIcon aria-hidden="true" />
+              View details
+            </Link>
+          </DropdownMenuItem>
+          <DropdownMenuItem asChild>
+            <Link to={`/fleet-owner/cars/${row.original.id}/edit`}>
+              <PencilIcon aria-hidden="true" />
+              Edit
+            </Link>
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     ),
   },
 ];

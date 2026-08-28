@@ -1,11 +1,7 @@
 import type { SubmissionResult } from "@conform-to/react";
 import { z } from "zod";
 
-import {
-  fleetCarServiceTierSchema,
-  fleetCarStatusSchema,
-  fleetCarVehicleTypeSchema,
-} from "~/api/fleet/cars/schema";
+import { fleetCarStatusSchema } from "~/api/fleet/cars/schema";
 
 export const editableFleetCarStatusSchema = fleetCarStatusSchema.exclude(["BOOKED"]);
 
@@ -33,13 +29,6 @@ export const fleetCarEditFormSchema = z
       .string()
       .optional()
       .transform((value) => value === "on"),
-    vehicleType: fleetCarVehicleTypeSchema,
-    serviceTier: fleetCarServiceTierSchema,
-    passengerCapacity: z.coerce
-      .number({ error: "Passenger capacity is required" })
-      .int("Passenger capacity must be a whole number")
-      .min(1, "Passenger capacity must be at least 1")
-      .max(15, "Passenger capacity cannot exceed 15"),
     status: editableFleetCarStatusSchema.optional(),
   })
   .superRefine(({ fuelUpgradeRate, pricingIncludesFuel }, context) => {

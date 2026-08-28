@@ -24,10 +24,7 @@ test("updates a fleet car across responsive viewports", async ({ context, page }
       },
     ]);
 
-    await page.goto(`/fleet-owner/cars/${MOCK_FLEET_CAR_ID}`);
-    await page.getByRole("link", { name: "Edit car" }).click();
-
-    await expect(page).toHaveURL(`/fleet-owner/cars/${MOCK_FLEET_CAR_ID}/edit`);
+    await page.goto(`/fleet-owner/cars/${MOCK_FLEET_CAR_ID}/edit`);
     await expect(page.getByRole("heading", { name: "Edit Lexus RX 350" })).toBeVisible();
     await expect(page.getByLabel("Daily rate (12 hours)")).toHaveValue("80000");
     await expect(page.getByLabel("Pricing includes fuel")).not.toBeChecked();
@@ -42,7 +39,7 @@ test("updates a fleet car across responsive viewports", async ({ context, page }
     await page.getByLabel("Pricing includes fuel").check();
     await expect(page.getByLabel("Fuel upgrade rate")).toHaveCount(0);
     await page.getByLabel("Daily rate (12 hours)").fill("90000");
-    await page.getByRole("combobox", { name: "Availability" }).click();
+    await page.getByRole("combobox", { name: "Current status" }).click();
     await page.getByRole("option", { name: "Hold", exact: true }).click();
     await page.getByRole("button", { name: "Save changes" }).click();
 
@@ -62,9 +59,6 @@ test("updates a fleet car across responsive viewports", async ({ context, page }
           airportPickupRate: 50_000,
           fuelUpgradeRate: null,
           pricingIncludesFuel: true,
-          vehicleType: "SUV",
-          serviceTier: "LUXURY",
-          passengerCapacity: 4,
           status: "HOLD",
         },
       });

@@ -9,9 +9,6 @@ const validForm = {
   fullDayRate: "150000",
   airportPickupRate: "50000",
   fuelUpgradeRate: "20000",
-  vehicleType: "SUV",
-  serviceTier: "LUXURY",
-  passengerCapacity: "4",
   status: "HOLD",
 };
 
@@ -25,9 +22,6 @@ describe("fleetCarEditFormSchema", () => {
       airportPickupRate: 50_000,
       fuelUpgradeRate: 20_000,
       pricingIncludesFuel: false,
-      vehicleType: "SUV",
-      serviceTier: "LUXURY",
-      passengerCapacity: 4,
       status: "HOLD",
     });
   });

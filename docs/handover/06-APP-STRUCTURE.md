@@ -220,7 +220,7 @@ app/
       fleet-cars-list.tsx
       fleet-car-detail.tsx
       fleet-car-edit-form-schema.ts
-      fleet-car-edit-form.tsx     # responsive pricing, classification, and status form
+      fleet-car-edit-form.tsx     # responsive pricing and availability form
     promotions/
       promotion.ts                # status and Lagos date display
       promotion-form-schema.ts    # create/deactivate web form contracts
