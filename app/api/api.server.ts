@@ -39,6 +39,7 @@ export type ApiRequestOptions<TSchema extends z.ZodType> = {
   method?: "DELETE" | "GET" | "PATCH" | "POST" | "PUT";
   request?: Request;
   headers?: HeadersInit;
+  formData?: FormData;
   json?: unknown;
   timeoutMs?: number;
   forwardCookie?: boolean;
@@ -57,16 +58,22 @@ export function createApiClient({
       options: ApiRequestOptions<TSchema>,
     ): Promise<ApiResponse<z.output<TSchema>>> {
       const url = buildApiUrl(origin, options.path);
+      const hasFormDataBody = options.formData !== undefined;
       const hasJsonBody = options.json !== undefined;
-      const method = options.method ?? (hasJsonBody ? "POST" : "GET");
+      const hasRequestBody = hasFormDataBody || hasJsonBody;
+      const method = options.method ?? (hasRequestBody ? "POST" : "GET");
 
-      if (hasJsonBody && (method === "GET" || method === "DELETE")) {
-        throw new TypeError(`${method} requests cannot include a JSON body`);
+      if (hasFormDataBody && hasJsonBody) {
+        throw new TypeError("API requests cannot include both JSON and multipart bodies");
+      }
+
+      if (hasRequestBody && (method === "GET" || method === "DELETE")) {
+        throw new TypeError(`${method} requests cannot include a body`);
       }
 
       const timeoutMs = options.timeoutMs ?? defaultTimeoutMs;
       const headers = buildHeaders(options, hasJsonBody);
-      const requestBody = hasJsonBody ? JSON.stringify(options.json) : undefined;
+      const requestBody = hasJsonBody ? JSON.stringify(options.json) : options.formData;
       const abort = createAbortContext(options.request?.signal, timeoutMs);
 
       let response: Response;
