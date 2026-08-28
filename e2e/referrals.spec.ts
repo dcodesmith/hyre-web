@@ -71,11 +71,15 @@ test("renders referral details and copies the referral code", async ({ page }) =
   await expect(page.getByRole("heading", { name: "How it works" })).toBeVisible();
 
   await stubClipboardWrite(page);
-  await page.getByRole("button", { name: "Copy", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Copied!" })).toBeVisible();
+  await Promise.all([
+    expect(page.getByRole("button", { name: "Copied!" })).toBeVisible(),
+    page.getByRole("button", { name: "Copy", exact: true }).click(),
+  ]);
 
-  await page.getByRole("button", { name: "Copy referral link" }).click();
-  await expect(page.getByText("Referral link copied to clipboard.")).toBeVisible();
+  await Promise.all([
+    expect(page.getByText("Referral link copied to clipboard.")).toBeVisible(),
+    page.getByRole("button", { name: "Copy referral link" }).click(),
+  ]);
 });
 
 test("shows when the referral program is disabled", async ({ page }) => {
