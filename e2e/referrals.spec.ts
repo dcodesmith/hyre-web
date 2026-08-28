@@ -50,17 +50,17 @@ test("loads the signed-in referral summary from the API", async ({ context, page
   }
 });
 
-test("renders referral details and copies the referral code", async ({
-  context,
-  page,
-  baseURL,
-}) => {
+test("renders referral details and copies the referral code", async ({ page }) => {
   await setCookiePreference(page);
-  await context.grantPermissions(["clipboard-write"], {
-    origin: new URL(baseURL ?? "http://localhost:5174").origin,
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: {
+        writeText: async () => undefined,
+      },
+    });
   });
   await page.goto("/__visual/referrals");
-  await page.bringToFront();
 
   await expect(page.getByRole("heading", { name: "Referral Program" })).toBeVisible();
   await expect(page.locator("code")).toContainText("ADA2026X");
