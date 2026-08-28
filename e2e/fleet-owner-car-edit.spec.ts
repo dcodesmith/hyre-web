@@ -44,6 +44,7 @@ test("updates a fleet car across responsive viewports", async ({ context, page }
     await page.getByRole("button", { name: "Save changes" }).click();
 
     await expect(page).toHaveURL(`/fleet-owner/cars/${MOCK_FLEET_CAR_ID}`);
+    await expect(page.getByRole("heading", { name: "Vehicle details" })).toBeVisible();
     await expect(page.getByText("Hold", { exact: true })).toBeVisible();
     await expect(page.getByText("₦90,000")).toBeVisible();
     await expect(page.getByText("Yes", { exact: true })).toBeVisible();
