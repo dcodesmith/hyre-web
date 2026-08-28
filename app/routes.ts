@@ -49,6 +49,8 @@ export default [
     route("verify", "routes/verify.tsx"),
     route("fleet-owner/login", "routes/fleet-owner.login.tsx"),
     route("fleet-owner/verify", "routes/fleet-owner.verify.tsx"),
+    route("admin/login", "routes/admin.login.tsx"),
+    route("admin/verify", "routes/admin.verify.tsx"),
   ]),
   route("fleet-owner/logout", "routes/fleet-owner.logout.ts"),
   route("fleet-owner", "routes/fleet-owner.tsx", [
@@ -59,4 +61,6 @@ export default [
     route("promotions", "routes/fleet-owner.promotions.tsx"),
     route("payout-transactions", "routes/fleet-owner.payout-transactions.tsx"),
   ]),
+  route("admin/logout", "routes/admin.logout.ts"),
+  route("admin", "routes/admin.tsx", [index("routes/admin._index.tsx")]),
 ] satisfies RouteConfig;

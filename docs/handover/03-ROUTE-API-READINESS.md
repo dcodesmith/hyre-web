@@ -236,6 +236,12 @@ All roles use the API's Better Auth endpoints. Role-specific pages remain separa
 
 ### Admin
 
+**Implemented in hyre-web**
+
+- `/admin/login`, `/admin/verify`, and `/admin/logout` through the role-scoped
+  Better Auth BFF flow for `admin` and `staff`
+- protected `/admin` responsive shell using `GET /auth/session` role data
+
 **Available or closely matched**
 
 - car list/detail/approval/cover/image approval
@@ -459,7 +465,9 @@ duplicate year-make-model listings would collide.
   fleet verification uses a separate HttpOnly cookie from customer OTP.
   `/fleet-owner` requires the `fleetOwner` role from `GET /auth/session`;
   this web check is a UX guard and every fleet API endpoint remains
-  authoritative. Admin login remains a later slice.
+  authoritative. Admin/staff authentication follows the same flow under
+  `/admin`, stores the selected role in a separate pending OTP cookie, and
+  protects the console shell with React Router middleware.
   Production API `TRUSTED_ORIGINS` must include `https://tripdly.com`.
   PR preview hosts (`https://pr-*-hyre-web-preview.tripdly.workers.dev`)
   will fail OTP until the API trusts them. Local `APP_ORIGIN` is

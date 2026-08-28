@@ -190,12 +190,13 @@ app/
   auth/
     auth-layout.tsx               # viewport-centered login layout; logo top-left to home
     auth-form-primitives.tsx      # Uber-like inputs, checkbox, submit, errors
-    auth-form-schema.ts           # email / OTP / pending cookie
-    login-form.tsx                # shared customer/fleet login UI; customer-only referral field
+    auth-form-schema.ts           # email / OTP / admin role / pending cookie
+    login-form.tsx                # shared customer/fleet/admin login UI; customer-only referral field
     referer.ts                    # APP_ORIGIN + role path; never caller URLs
     pending-otp.ts                # HttpOnly pending OTP cookie
     guest-only.server.ts          # signed-in /auth and /verify redirect
     fleet-owner-session.server.ts # fleet role redirect/403 guard over API session
+    admin-session.server.ts       # admin/staff redirect/403 guard over API session
     session.server.ts             # API session user/roles; public header projection
     session.server.test.ts        # reads session.data.user from the API envelope
     verify-form.tsx               # shared customer/fleet OTP UI
@@ -232,6 +233,9 @@ app/
       payout.ts                    # status labels and Lagos date display
       payouts-url.ts               # status filter and server pagination URL contract
       fleet-payouts-page.tsx       # responsive summary, cards/table, pagination
+
+  admin/
+    admin-sidebar.tsx              # responsive protected admin/staff navigation
 
   seo/
     metadata.ts
@@ -296,6 +300,11 @@ app/
     fleet-owner.cars.$carId.tsx   # owner car detail + rejected-file actions
     fleet-owner.cars.$carId.edit.tsx # owner-scoped car update
     fleet-owner.payout-transactions.tsx # payout list/summary; status filter + pagination
+    admin.login.tsx               # admin/staff OTP request with explicit role
+    admin.verify.tsx              # role-scoped admin/staff OTP verify + resend
+    admin.logout.ts               # admin-scope sign-out + local cookie cleanup
+    admin.tsx                     # protected responsive console shell + middleware
+    admin._index.tsx              # API-free signed-in shell landing
     bookings.tsx                  # signed-in list; guests → /auth?redirectTo=
     bookings.$bookingId.tsx       # signed-in detail + cancel; guests → /auth?redirectTo=
     payment-status.tsx            # /bookings/payment-status callback + polling UI

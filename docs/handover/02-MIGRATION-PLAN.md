@@ -241,6 +241,10 @@ Port section layouts before individual screens so nested route guards and naviga
 
 Admin API coverage is currently incomplete compared with the legacy UI. Treat missing controllers as backend backlog, not permission to copy Prisma into the Worker.
 
+Admin/staff OTP authentication, logout, role enforcement, and the responsive
+console shell are implemented. The shell exposes no unsupported business
+screens; add navigation only with each verified API-backed slice.
+
 Prioritize:
 
 1. dashboard;

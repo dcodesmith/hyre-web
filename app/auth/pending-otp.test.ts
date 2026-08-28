@@ -16,12 +16,15 @@ describe("pending OTP cookie", () => {
     expect(parsePendingOtp(serializePendingOtp(pending))).toEqual(pending);
   });
 
-  it("drops a forged role from an older cookie", () => {
+  it("stores only supported admin portal roles", () => {
     expect(
       parsePendingOtp(
         encodeURIComponent(JSON.stringify({ email: "ada@tripdly.com", role: "fleetOwner" })),
       ),
-    ).toEqual({ email: "ada@tripdly.com" });
+    ).toBeNull();
+    expect(
+      parsePendingOtp(serializePendingOtp({ email: "ada@tripdly.com", role: "staff" })),
+    ).toEqual({ email: "ada@tripdly.com", role: "staff" });
   });
 
   it("rejects an unbounded referral code", () => {
@@ -46,6 +49,11 @@ describe("pending OTP cookie", () => {
     expect(pendingOtpSetCookie({ email: "owner@tripdly.com" }, false, "fleetOwner")).toContain(
       "fleet_owner_otp_pending=",
     );
+  });
+
+  it("keeps admin verification separate from other roles", () => {
+    expect(pendingOtpCookieName(false, "admin")).toBe("admin_otp_pending");
+    expect(pendingOtpCookieName(true, "admin")).toBe("__Host-admin_otp_pending");
   });
 
   it("reads a named cookie from a header", () => {

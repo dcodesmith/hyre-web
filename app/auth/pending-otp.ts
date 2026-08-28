@@ -2,10 +2,16 @@ import { type PendingOtp, pendingOtpSchema } from "./auth-form-schema";
 
 export const PENDING_OTP_MAX_AGE_SECONDS = 600;
 
-export type PendingOtpScope = "user" | "fleetOwner";
+export type PendingOtpScope = "user" | "fleetOwner" | "admin";
+
+const COOKIE_NAMES: Record<PendingOtpScope, string> = {
+  user: "otp_pending",
+  fleetOwner: "fleet_owner_otp_pending",
+  admin: "admin_otp_pending",
+};
 
 export function pendingOtpCookieName(secure: boolean, scope: PendingOtpScope = "user") {
-  const name = scope === "fleetOwner" ? "fleet_owner_otp_pending" : "otp_pending";
+  const name = COOKIE_NAMES[scope];
   return secure ? `__Host-${name}` : name;
 }
 

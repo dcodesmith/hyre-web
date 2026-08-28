@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  adminAuthPath,
   authPath,
   authReferer,
   fleetOwnerAuthPath,
+  safeAdminRedirectPath,
   safeFleetOwnerRedirectPath,
   safeRedirectPath,
 } from "./referer";
@@ -15,6 +17,7 @@ describe("authReferer", () => {
       "https://tripdly.com/fleet-owner/login",
     );
     expect(authReferer("https://tripdly.com", "admin")).toBe("https://tripdly.com/admin/login");
+    expect(authReferer("https://tripdly.com", "staff")).toBe("https://tripdly.com/admin/login");
   });
 });
 
@@ -75,5 +78,20 @@ describe("fleetOwnerAuthPath", () => {
     );
     expect(fleetOwnerAuthPath("/fleet-owner/verify", "/profile")).toBe("/fleet-owner/verify");
     expect(safeFleetOwnerRedirectPath("//evil.example")).toBe("/fleet-owner");
+  });
+});
+
+describe("adminAuthPath", () => {
+  it("keeps redirects inside the admin route tree", () => {
+    expect(
+      adminAuthPath("/admin/login", {
+        redirectTo: "/admin/cars?approvalStatus=PENDING",
+        role: "staff",
+      }),
+    ).toBe("/admin/login?redirectTo=%2Fadmin%2Fcars%3FapprovalStatus%3DPENDING&role=staff");
+    expect(adminAuthPath("/admin/verify", { redirectTo: "/profile", role: "admin" })).toBe(
+      "/admin/verify",
+    );
+    expect(safeAdminRedirectPath("//evil.example")).toBe("/admin");
   });
 });
