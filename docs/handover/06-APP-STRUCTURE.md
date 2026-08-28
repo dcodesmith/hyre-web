@@ -83,8 +83,8 @@ app/
         dashboard.server.ts       # GET dashboard overview, earnings, payouts
         schema.ts                 # dashboard and payout response DTOs
     bookings/
-      bookings.server.ts          # GET list/detail, PATCH cancel, POST preview + create
-      schema.ts                   # list/detail DTOs; canCancel; preview + create responses
+      bookings.server.ts          # GET list/detail; PATCH modify/cancel; POST preview + create
+      schema.ts                   # list/detail DTOs; canEdit/canCancel; preview + create responses
     payments/
       payments.server.ts          # booking status, confirmation, expiration reconciliation
       schema.ts                   # booking payment lifecycle DTO
@@ -140,6 +140,8 @@ app/
     booking-create-form-schema.ts # car-card Conform/Zod; guest + booking fields
     booking-cost-breakdown.tsx    # API-owned segments, fees, discounts, VAT, total
     booking-guest-fields.tsx      # name / email / phone when unsigned-in
+    booking-modify-form-schema.ts # pickup time/location update form → API PATCH DTO
+    booking-modify.tsx            # API-gated responsive modification dialog
     booking-cancel-form-schema.ts # POST intent=cancel
     booking-cancel.tsx            # hireApp cancel card + Dialog confirm
     booking-domain.ts             # BookingDomain + Lagos timeline + payment rollup
@@ -151,7 +153,7 @@ app/
     booking-chauffeur-card.tsx
     booking-flight-card.tsx
     booking-payment-card.tsx
-    booking-detail.tsx            # page composer + cancel; no modify/extend
+    booking-detail.tsx            # page composer + modify/cancel; no extend
 
   account/
     account-deletion.tsx          # confirmed destructive action + pending/error UI

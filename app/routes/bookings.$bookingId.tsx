@@ -1,14 +1,17 @@
-import { data, redirect } from "react-router";
+import { data, redirect, type ShouldRevalidateFunctionArgs } from "react-router";
+import { z } from "zod";
 
 import { ApiRequestError } from "~/api/api.server";
 import { hasSessionCookie } from "~/api/auth/cookie-relay.server";
-import { cancelBooking, getBookingById } from "~/api/bookings/bookings.server";
+import { cancelBooking, getBookingById, updateBooking } from "~/api/bookings/bookings.server";
 import { HTTP_STATUS } from "~/api/http-status";
 import { AUTH_NO_STORE } from "~/auth/guest-only.server";
 import { authPath } from "~/auth/referer";
 import type { BookingCancelActionData } from "~/booking/booking-cancel";
 import { cancelBookingFormSchema } from "~/booking/booking-cancel-form-schema";
 import { BookingDetailPage } from "~/booking/booking-detail";
+import type { BookingModifyActionData } from "~/booking/booking-modify";
+import { bookingModifyFormSchema } from "~/booking/booking-modify-form-schema";
 import { buildPageMetadata } from "~/seo/metadata";
 import type { Route } from "./+types/bookings.$bookingId";
 
@@ -80,7 +83,29 @@ export async function action({ request, params }: Route.ActionArgs) {
     throw loginRedirect(request);
   }
 
-  const parsed = cancelBookingFormSchema.safeParse(Object.fromEntries(await request.formData()));
+  const formData = await request.formData();
+  const form = Object.fromEntries(formData);
+
+  if (form.intent === "cancel") {
+    return handleCancel(request, params.bookingId, form);
+  }
+
+  if (form.intent === "modify") {
+    return handleModify(request, params.bookingId, form);
+  }
+
+  return data<BookingModifyActionData>(
+    { error: "This booking action is not supported.", revalidate: false },
+    { status: HTTP_STATUS.BAD_REQUEST, headers: AUTH_NO_STORE },
+  );
+}
+
+async function handleCancel(
+  request: Request,
+  bookingId: string,
+  form: Record<string, FormDataEntryValue>,
+) {
+  const parsed = cancelBookingFormSchema.safeParse(form);
 
   if (!parsed.success) {
     return data<BookingCancelActionData>(
@@ -90,31 +115,85 @@ export async function action({ request, params }: Route.ActionArgs) {
   }
 
   try {
-    await cancelBooking({ request, bookingId: params.bookingId });
+    await cancelBooking({ request, bookingId });
   } catch (error) {
-    if (error instanceof ApiRequestError && error.status === HTTP_STATUS.UNAUTHORIZED) {
-      throw loginRedirect(request);
-    }
-
-    if (error instanceof ApiRequestError && error.kind === "aborted") {
-      throw error;
-    }
-
-    const message =
-      error instanceof ApiRequestError && error.status < HTTP_STATUS.INTERNAL_SERVER_ERROR
-        ? error.problem.detail
-        : "Failed to cancel booking. Please try again.";
+    const failure = getBookingActionFailure(
+      error,
+      request,
+      "Failed to cancel booking. Please try again.",
+    );
 
     return data<BookingCancelActionData>(
-      { error: message },
+      { error: failure.message },
       {
-        status: error instanceof ApiRequestError ? error.status : HTTP_STATUS.BAD_GATEWAY,
+        status: failure.status,
         headers: AUTH_NO_STORE,
       },
     );
   }
 
   return data<BookingCancelActionData>({ ok: true }, { headers: AUTH_NO_STORE });
+}
+
+async function handleModify(
+  request: Request,
+  bookingId: string,
+  form: Record<string, FormDataEntryValue>,
+) {
+  const parsed = bookingModifyFormSchema.safeParse(form);
+
+  if (!parsed.success) {
+    return data<BookingModifyActionData>(
+      { fieldErrors: z.flattenError(parsed.error).fieldErrors, revalidate: false },
+      { status: HTTP_STATUS.BAD_REQUEST, headers: AUTH_NO_STORE },
+    );
+  }
+
+  try {
+    await updateBooking({ request, bookingId, body: parsed.data });
+  } catch (error) {
+    const failure = getBookingActionFailure(
+      error,
+      request,
+      "Failed to update booking. Please try again.",
+    );
+
+    return data<BookingModifyActionData>(
+      { error: failure.message },
+      { status: failure.status, headers: AUTH_NO_STORE },
+    );
+  }
+
+  return data<BookingModifyActionData>({ ok: true }, { headers: AUTH_NO_STORE });
+}
+
+function getBookingActionFailure(error: unknown, request: Request, fallback: string) {
+  if (error instanceof ApiRequestError && error.status === HTTP_STATUS.UNAUTHORIZED) {
+    throw loginRedirect(request);
+  }
+
+  if (error instanceof ApiRequestError && error.kind === "aborted") {
+    throw error;
+  }
+
+  return {
+    message:
+      error instanceof ApiRequestError && error.status < HTTP_STATUS.INTERNAL_SERVER_ERROR
+        ? error.problem.detail
+        : fallback,
+    status: error instanceof ApiRequestError ? error.status : HTTP_STATUS.BAD_GATEWAY,
+  };
+}
+
+export function shouldRevalidate({
+  actionResult,
+  defaultShouldRevalidate,
+}: ShouldRevalidateFunctionArgs) {
+  if ((actionResult as BookingModifyActionData | undefined)?.revalidate === false) {
+    return false;
+  }
+
+  return defaultShouldRevalidate;
 }
 
 export default function BookingDetailRoute({ loaderData }: Route.ComponentProps) {

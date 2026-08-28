@@ -8,6 +8,7 @@ import { BookingDomain } from "~/booking/booking-domain";
 import { BookingFlightCard } from "~/booking/booking-flight-card";
 import { BookingHeader } from "~/booking/booking-header";
 import { BookingLocationCard } from "~/booking/booking-location-card";
+import { BookingModifyCard } from "~/booking/booking-modify";
 import { BookingPaymentCard } from "~/booking/booking-payment-card";
 import { BookingTimelineCard } from "~/booking/booking-timeline";
 import { bookingListPath, parseBookingListStatus } from "~/booking/bookings-url";
@@ -60,6 +61,7 @@ export function BookingDetailPage({
             <BookingChauffeurCard booking={booking} />
             {booking.flight ? <BookingFlightCard flight={booking.flight} /> : null}
             <BookingPaymentCard payment={booking.payment} />
+            {detail.canEdit ? <BookingModifyCard booking={detail} /> : null}
             {detail.canCancel ? <BookingCancelCard paymentStatus={detail.paymentStatus} /> : null}
           </div>
         </div>

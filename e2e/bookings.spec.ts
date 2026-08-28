@@ -103,6 +103,34 @@ test("closes the cancel dialog after a successful confirm", async ({ page }) => 
   await expect(page).toHaveURL(/\/__visual\/booking-cancel$/);
 });
 
+test("modifies a booking", async ({ page }) => {
+  await setCookiePreference(page);
+  await page.goto("/__visual/booking-modify");
+
+  const modifyTrigger = page.getByRole("button", { name: "Modify Booking" });
+  await modifyTrigger.scrollIntoViewIfNeeded();
+  await modifyTrigger.click();
+
+  const dialog = page.getByRole("dialog", { name: "Modify Booking" });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByLabel("Pickup address")).toHaveValue("Murtala Muhammed Airport, Ikeja");
+
+  const pickupTime = dialog.getByRole("combobox", { name: "Select pickup time" });
+  await expect(pickupTime).toContainText("9:30 AM");
+  await expect(dialog.locator('input[name="pickupTime"]')).toHaveCount(0);
+  await pickupTime.click();
+  await page.getByRole("option", { name: "10 AM" }).click();
+  await dialog.getByRole("button", { name: "Save Changes" }).click();
+
+  await expect(dialog).toHaveCount(0);
+  await expect(page.locator("output")).toHaveText("Booking updated successfully.");
+
+  await modifyTrigger.click();
+  await expect(dialog).toBeVisible();
+  await dialog.locator("form").getByRole("button", { name: "Close" }).click();
+  await expect(dialog).toHaveCount(0);
+});
+
 test("sends an unauthenticated cancel POST to login", async ({ page, baseURL }) => {
   const response = await page.request.post("/bookings/booking-detail-1", {
     form: { intent: "cancel" },

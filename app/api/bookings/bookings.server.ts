@@ -3,9 +3,9 @@ import { env } from "cloudflare:workers";
 import { createApiClient } from "../api.server";
 import {
   bookingDetailSchema,
+  bookingMutationResponseSchema,
   bookingPricingPreviewSchema,
   bookingsByStatusSchema,
-  cancelBookingResponseSchema,
   createBookingResponseSchema,
 } from "./schema";
 
@@ -58,7 +58,24 @@ export function cancelBooking(options: CancelBookingOptions) {
     request: options.request,
     forwardCookie: true,
     json: { reason: USER_CANCEL_REASON },
-    schema: cancelBookingResponseSchema,
+    schema: bookingMutationResponseSchema,
+  });
+}
+
+export type UpdateBookingOptions = {
+  request: Request;
+  bookingId: string;
+  body: unknown;
+};
+
+export function updateBooking(options: UpdateBookingOptions) {
+  return getApiClient().request({
+    path: `/api/bookings/${encodeURIComponent(options.bookingId)}`,
+    method: "PATCH",
+    request: options.request,
+    forwardCookie: true,
+    json: options.body,
+    schema: bookingMutationResponseSchema,
   });
 }
 

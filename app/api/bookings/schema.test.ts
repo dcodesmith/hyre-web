@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import {
   bookingDetailSchema,
+  bookingMutationResponseSchema,
   bookingsByStatusSchema,
-  cancelBookingResponseSchema,
   createBookingResponseSchema,
 } from "./schema";
 
@@ -120,6 +120,7 @@ describe("bookingDetailSchema", () => {
       ],
       canEdit: false,
       canCancel: true,
+      modificationCutoffAt: "2026-07-01T20:00:00.000Z",
       user: { email: "hidden@example.com" },
     });
 
@@ -131,8 +132,9 @@ describe("bookingDetailSchema", () => {
     expect(parsed.data.car).toEqual({ make: "Lexus", model: "UX F-Sport", year: 2019 });
     expect(parsed.data.chauffeur).toEqual({ name: "Bola Adebayo" });
     expect(parsed.data.currency).toBe("USD");
+    expect(parsed.data.canEdit).toBe(false);
     expect(parsed.data.canCancel).toBe(true);
-    expect(parsed.data).not.toHaveProperty("canEdit");
+    expect(parsed.data.modificationCutoffAt).toBe("2026-07-01T20:00:00.000Z");
     expect(parsed.data).not.toHaveProperty("user");
   });
 
@@ -153,7 +155,9 @@ describe("bookingDetailSchema", () => {
       chauffeur: null,
       flight: null,
       legs: [],
+      canEdit: false,
       canCancel: false,
+      modificationCutoffAt: "2026-07-01T20:00:00.000Z",
     });
 
     expect(parsed.success).toBe(true);
@@ -181,7 +185,9 @@ describe("bookingDetailSchema", () => {
       chauffeur: null,
       flight: null,
       legs: [],
+      canEdit: false,
       canCancel: false,
+      modificationCutoffAt: "2026-07-01T20:00:00.000Z",
     };
 
     expect(bookingDetailSchema.parse(payload).totalAmount).toBe(150_000.5);
@@ -190,7 +196,11 @@ describe("bookingDetailSchema", () => {
     expect(bookingDetailSchema.safeParse({ ...payload, totalAmount: null }).success).toBe(false);
     expect(bookingDetailSchema.safeParse({ ...payload, totalAmount: false }).success).toBe(false);
     expect(bookingDetailSchema.safeParse({ ...payload, netTotal: "" }).success).toBe(false);
+    expect(bookingDetailSchema.safeParse({ ...payload, canEdit: undefined }).success).toBe(false);
     expect(bookingDetailSchema.safeParse({ ...payload, canCancel: undefined }).success).toBe(false);
+    expect(
+      bookingDetailSchema.safeParse({ ...payload, modificationCutoffAt: undefined }).success,
+    ).toBe(false);
   });
 });
 
@@ -226,9 +236,9 @@ describe("createBookingResponseSchema", () => {
   });
 });
 
-describe("cancelBookingResponseSchema", () => {
-  it("only requires the cancelled booking id", () => {
-    expect(cancelBookingResponseSchema.parse({ id: "booking-1", status: "CANCELLED" })).toEqual({
+describe("bookingMutationResponseSchema", () => {
+  it("only requires the mutated booking id", () => {
+    expect(bookingMutationResponseSchema.parse({ id: "booking-1", status: "CONFIRMED" })).toEqual({
       id: "booking-1",
     });
   });

@@ -1,17 +1,17 @@
 import { data } from "react-router";
 
 import type { BookingDetail } from "~/api/bookings/schema";
-import type { BookingCancelActionData } from "~/booking/booking-cancel";
 import { BookingDetailPage } from "~/booking/booking-detail";
+import type { BookingModifyActionData } from "~/booking/booking-modify";
 
 const fixtureBooking = {
-  id: "booking-cancel-1",
-  bookingReference: "TD-1001",
+  id: "booking-modify-1",
+  bookingReference: "TD-1002",
   status: "CONFIRMED",
-  paymentStatus: "PAID",
+  paymentStatus: "UNPAID",
   type: "DAY",
-  startDate: "2026-08-21T08:00:00.000Z",
-  endDate: "2026-08-21T20:00:00.000Z",
+  startDate: "2026-09-21T08:30:00.000Z",
+  endDate: "2026-09-21T20:30:00.000Z",
   pickupLocation: "Murtala Muhammed Airport, Ikeja",
   returnLocation: "12 Marina, Lagos Island",
   totalAmount: 150_000,
@@ -32,23 +32,31 @@ const fixtureBooking = {
   chauffeur: { name: "Bola Adebayo" },
   flight: null,
   canEdit: true,
-  canCancel: true,
-  modificationCutoffAt: "2026-08-20T20:00:00.000Z",
+  canCancel: false,
+  modificationCutoffAt: "2026-09-20T20:00:00.000Z",
   legs: [
     {
       id: "leg-1",
-      legDate: "2026-08-21T00:00:00.000Z",
-      legStartTime: "2026-08-21T08:00:00.000Z",
-      legEndTime: "2026-08-21T20:00:00.000Z",
+      legDate: "2026-09-21T00:00:00.000Z",
+      legStartTime: "2026-09-21T08:30:00.000Z",
+      legEndTime: "2026-09-21T20:30:00.000Z",
       extensions: [],
     },
   ],
 } satisfies BookingDetail;
 
-export function action() {
-  return data<BookingCancelActionData>({ ok: true });
+export async function action({ request }: { request: Request }) {
+  const formData = await request.formData();
+  if (formData.get("pickupTime") !== "10 AM") {
+    return data<BookingModifyActionData>(
+      { error: "Changed pickup time was not submitted." },
+      { status: 400 },
+    );
+  }
+
+  return data<BookingModifyActionData>({ ok: true });
 }
 
-export default function BookingCancelFixture() {
+export default function BookingModifyFixture() {
   return <BookingDetailPage booking={fixtureBooking} now="2026-08-01T12:00:00.000Z" />;
 }
