@@ -55,5 +55,6 @@ export default [
     route("cars", "routes/fleet-owner.cars.tsx"),
     route("cars/:carId", "routes/fleet-owner.cars.$carId.tsx"),
     route("promotions", "routes/fleet-owner.promotions.tsx"),
+    route("payout-transactions", "routes/fleet-owner.payout-transactions.tsx"),
   ]),
 ] satisfies RouteConfig;

@@ -79,6 +79,9 @@ app/
       cars/
         cars.server.ts            # GET fleet-owner car list/detail
         schema.ts                 # fleet-owner car response DTO
+      dashboard/
+        dashboard.server.ts       # GET dashboard payout list/summary
+        schema.ts                 # payout list/summary response DTO
     bookings/
       bookings.server.ts          # GET list/detail, PATCH cancel, POST preview + create
       schema.ts                   # list/detail DTOs; canCancel; preview + create responses
@@ -216,6 +219,10 @@ app/
       promotion.ts                # status and Lagos date display
       promotion-form-schema.ts    # create/deactivate web form contracts
       fleet-promotions-page.tsx   # responsive list, create sheet, deactivate action
+    payouts/
+      payout.ts                    # status labels and Lagos date display
+      payouts-url.ts               # status filter and server pagination URL contract
+      fleet-payouts-page.tsx       # responsive summary, cards/table, pagination
 
   seo/
     metadata.ts
@@ -276,6 +283,7 @@ app/
     fleet-owner.logout.ts         # role-scoped sign-out + local cookie cleanup
     fleet-owner.tsx               # protected fleet shell; API session role guard
     fleet-owner._index.tsx        # minimal authenticated landing before cars
+    fleet-owner.payout-transactions.tsx # payout list/summary; status filter + pagination
     bookings.tsx                  # signed-in list; guests → /auth?redirectTo=
     bookings.$bookingId.tsx       # signed-in detail + cancel; guests → /auth?redirectTo=
     payment-status.tsx            # /bookings/payment-status callback + polling UI

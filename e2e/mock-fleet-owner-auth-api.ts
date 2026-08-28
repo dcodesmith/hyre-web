@@ -85,6 +85,43 @@ const mockFleetCars = [
   },
 ] as const;
 
+const mockPayouts = Array.from({ length: 21 }, (_, index) => {
+  const number = index + 1;
+  const isProcessing = number === 1;
+
+  return {
+    id: `payout-${String(number).padStart(2, "0")}`,
+    amountToPay: 40_000 + number * 1_000,
+    amountPaid: isProcessing ? 0 : 39_500 + number * 1_000,
+    currency: "NGN",
+    status: isProcessing ? "PROCESSING" : "PAID_OUT",
+    payoutProviderReference: isProcessing ? null : `provider-${number}`,
+    initiatedAt: `2026-08-${String(number).padStart(2, "0")}T10:00:00.000Z`,
+    processedAt: isProcessing ? null : `2026-08-${String(number).padStart(2, "0")}T11:00:00.000Z`,
+    completedAt: isProcessing ? null : `2026-08-${String(number).padStart(2, "0")}T12:00:00.000Z`,
+    notes: null,
+    bookingId: `booking-${number}`,
+    extensionId: null,
+  };
+});
+
+const emptyPayoutStatus = { count: 0, amountToPay: 0, amountPaid: 0 };
+
+const mockPayoutSummary = {
+  totalPaidOut: 1_000_000,
+  pendingPayouts: 41_000,
+  failedPayouts: 0,
+  lastPayoutAt: "2026-08-21T12:00:00.000Z",
+  statusBreakdown: {
+    PENDING_APPROVAL: emptyPayoutStatus,
+    PENDING_DISBURSEMENT: emptyPayoutStatus,
+    PROCESSING: { count: 1, amountToPay: 41_000, amountPaid: 0 },
+    PAID_OUT: { count: 20, amountToPay: 1_020_000, amountPaid: 1_010_000 },
+    FAILED: emptyPayoutStatus,
+    REVERSED: emptyPayoutStatus,
+  },
+};
+
 export type CapturedAuthRequest = {
   body: unknown;
   origin?: string;
@@ -96,6 +133,7 @@ export type MockFleetOwnerAuthApi = {
   requests: {
     createPromotions: unknown[];
     deactivatedPromotionIds: string[];
+    payoutQueries: Array<Record<string, string>>;
     sendOtp?: CapturedAuthRequest;
     verifyOtp?: CapturedAuthRequest;
     signOut?: CapturedAuthRequest;
@@ -243,14 +281,56 @@ async function handlePromotionsRequest(
   return false;
 }
 
+function handleDashboardPayoutsRequest(
+  request: IncomingMessage,
+  response: import("node:http").ServerResponse,
+  url: URL,
+  requests: MockFleetOwnerAuthApi["requests"],
+) {
+  if (!url.pathname.startsWith("/api/dashboard/payouts") || request.method !== "GET") {
+    return false;
+  }
+
+  if (!request.headers.cookie?.includes("better-auth.session_token=e2e-session")) {
+    writeJson(response, 401, { status: 401, detail: "Unauthorized" });
+    return true;
+  }
+
+  if (url.pathname === "/api/dashboard/payouts/summary") {
+    writeJson(response, 200, mockPayoutSummary);
+    return true;
+  }
+
+  if (url.pathname !== "/api/dashboard/payouts") {
+    return false;
+  }
+
+  requests.payoutQueries.push(Object.fromEntries(url.searchParams));
+  const page = Number(url.searchParams.get("page") ?? 1);
+  const limit = Number(url.searchParams.get("limit") ?? 20);
+  const status = url.searchParams.get("status");
+  const payouts = status ? mockPayouts.filter((payout) => payout.status === status) : mockPayouts;
+  const start = (page - 1) * limit;
+
+  writeJson(response, 200, {
+    page,
+    limit,
+    total: payouts.length,
+    items: payouts.slice(start, start + limit),
+  });
+  return true;
+}
+
 export function startMockFleetOwnerAuthApi(port = 3100) {
   const requests: MockFleetOwnerAuthApi["requests"] = {
     createPromotions: [],
     deactivatedPromotionIds: [],
+    payoutQueries: [],
   };
   const promotions: MockPromotion[] = [];
   const server = createServer(async (request, response) => {
-    const path = new URL(request.url ?? "/", "http://127.0.0.1").pathname;
+    const url = new URL(request.url ?? "/", "http://127.0.0.1");
+    const path = url.pathname;
 
     if (request.method === "POST" && path === "/api/auth/email-otp/send-verification-otp") {
       requests.sendOtp = capturedRequest(request, await readJson(request));
@@ -297,6 +377,10 @@ export function startMockFleetOwnerAuthApi(port = 3100) {
     }
 
     if (await handlePromotionsRequest(request, response, path, requests, promotions)) {
+      return;
+    }
+
+    if (handleDashboardPayoutsRequest(request, response, url, requests)) {
       return;
     }
 

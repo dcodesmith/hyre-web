@@ -71,6 +71,10 @@ function getPageTitle(pathname: string) {
     return "Promotions";
   }
 
+  if (pathname === "/fleet-owner/payout-transactions") {
+    return "Payout Transactions";
+  }
+
   return "Fleet Manager";
 }
 
