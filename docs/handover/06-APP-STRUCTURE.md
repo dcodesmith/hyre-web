@@ -212,6 +212,10 @@ app/
       fleet-cars-table.tsx        # sortable, filterable responsive owner inventory
       fleet-cars-list.tsx
       fleet-car-detail.tsx
+    promotions/
+      promotion.ts                # status and Lagos date display
+      promotion-form-schema.ts    # create/deactivate web form contracts
+      fleet-promotions-page.tsx   # responsive list, create sheet, deactivate action
 
   seo/
     metadata.ts

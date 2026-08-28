@@ -94,6 +94,8 @@ export type CapturedAuthRequest = {
 export type MockFleetOwnerAuthApi = {
   server: Server;
   requests: {
+    createPromotions: unknown[];
+    deactivatedPromotionIds: string[];
     sendOtp?: CapturedAuthRequest;
     verifyOtp?: CapturedAuthRequest;
     signOut?: CapturedAuthRequest;
@@ -152,8 +154,101 @@ function handleFleetCarsRequest(
   return true;
 }
 
+type MockPromotion = Record<string, unknown> & {
+  id: string;
+  isActive: boolean;
+};
+
+async function handlePromotionsRequest(
+  request: IncomingMessage,
+  response: import("node:http").ServerResponse,
+  path: string,
+  requests: MockFleetOwnerAuthApi["requests"],
+  promotions: MockPromotion[],
+) {
+  if (!path.startsWith("/api/fleet-owner/promotions")) {
+    return false;
+  }
+
+  if (!request.headers.cookie?.includes("better-auth.session_token=e2e-session")) {
+    writeJson(response, 401, { status: 401, detail: "Unauthorized" });
+    return true;
+  }
+
+  if (path === "/api/fleet-owner/promotions" && request.method === "GET") {
+    writeJson(response, 200, promotions);
+    return true;
+  }
+
+  if (path === "/api/fleet-owner/promotions" && request.method === "POST") {
+    const body = (await readJson(request)) as {
+      name?: string;
+      scope: "FLEET" | "CAR";
+      carId?: string;
+      discountValue: number;
+      startDate: string;
+      endDate: string;
+    };
+    requests.createPromotions.push(body);
+
+    const endDate = new Date(`${body.endDate}T00:00:00+01:00`);
+    endDate.setUTCDate(endDate.getUTCDate() + 1);
+    const promotion = {
+      id: `cm${String(promotions.length + 1).padStart(23, "0")}`,
+      ownerId: "owner-1",
+      carId: body.scope === "CAR" ? body.carId : null,
+      name: body.name ?? null,
+      discountValue: String(body.discountValue),
+      startDate: new Date(`${body.startDate}T00:00:00+01:00`).toISOString(),
+      endDate: endDate.toISOString(),
+      isActive: true,
+      createdAt: "2026-08-28T09:00:00.000Z",
+      updatedAt: "2026-08-28T09:00:00.000Z",
+      car:
+        body.scope === "CAR"
+          ? {
+              id: MOCK_FLEET_CAR_ID,
+              make: mockFleetCar.make,
+              model: mockFleetCar.model,
+              year: mockFleetCar.year,
+              registrationNumber: mockFleetCar.registrationNumber,
+            }
+          : null,
+    };
+    promotions.push(promotion);
+    const mutationResponse = { ...promotion };
+    delete mutationResponse.car;
+    writeJson(response, 201, mutationResponse);
+    return true;
+  }
+
+  const deactivateMatch = /^\/api\/fleet-owner\/promotions\/([^/]+)\/deactivate$/.exec(path);
+  if (request.method === "POST" && deactivateMatch) {
+    const promotionId = decodeURIComponent(deactivateMatch[1]);
+    const promotion = promotions.find((item) => item.id === promotionId);
+    requests.deactivatedPromotionIds.push(promotionId);
+
+    if (!promotion) {
+      writeJson(response, 404, { status: 404, detail: "Promotion not found" });
+      return true;
+    }
+
+    promotion.isActive = false;
+    const mutationResponse = { ...promotion };
+    delete mutationResponse.car;
+    writeJson(response, 200, mutationResponse);
+    return true;
+  }
+
+  return false;
+}
+
 export function startMockFleetOwnerAuthApi(port = 3100) {
-  const requests: MockFleetOwnerAuthApi["requests"] = {};
+  const requests: MockFleetOwnerAuthApi["requests"] = {
+    createPromotions: [],
+    deactivatedPromotionIds: [],
+  };
+  const promotions: MockPromotion[] = [];
   const server = createServer(async (request, response) => {
     const path = new URL(request.url ?? "/", "http://127.0.0.1").pathname;
 
@@ -198,6 +293,10 @@ export function startMockFleetOwnerAuthApi(port = 3100) {
     }
 
     if (handleFleetCarsRequest(request, response, path)) {
+      return;
+    }
+
+    if (await handlePromotionsRequest(request, response, path, requests, promotions)) {
       return;
     }
 
