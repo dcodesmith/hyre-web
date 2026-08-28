@@ -7,6 +7,7 @@ const { requireAdminOrStaff } = vi.hoisted(() => ({
 
 vi.mock("~/auth/admin-session.server", () => ({ requireAdminOrStaff }));
 
+import type { Route } from "./+types/admin";
 import { loader, middleware } from "./admin";
 
 describe("admin route middleware", () => {
@@ -23,7 +24,13 @@ describe("admin route middleware", () => {
     const request = new Request("https://tripdly.com/admin");
     const context = new RouterContextProvider();
     requireAdminOrStaff.mockResolvedValue(session);
-    const routeArgs = { request, context, params: {} };
+    const routeArgs: Route.LoaderArgs = {
+      request,
+      context,
+      params: {},
+      url: new URL(request.url),
+      pattern: "/admin",
+    };
 
     await middleware[0](routeArgs, async () => new Response());
     const result = loader(routeArgs);
