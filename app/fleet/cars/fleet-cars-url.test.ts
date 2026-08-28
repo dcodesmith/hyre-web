@@ -6,7 +6,7 @@ describe("fleet cars URL state", () => {
   it("round trips supported filters, sorting, and pagination", () => {
     const view = parseFleetCarsView(
       new URLSearchParams(
-        "filter.make=Lexus,Toyota&filter.model=RX%20350&filter.status=AVAILABLE,HOLD&page=2&pageSize=20&sort=dayRate:desc",
+        "filter.make=Lexus&filter.make=Toyota&filter.model=RX%20350&filter.status=AVAILABLE&filter.status=HOLD&column.hidden=year&page=2&pageSize=20&sort=dayRate:desc",
       ),
     );
 
@@ -14,6 +14,7 @@ describe("fleet cars URL state", () => {
       make: ["Lexus", "Toyota"],
       model: ["RX 350"],
       status: ["AVAILABLE", "HOLD"],
+      hiddenColumns: ["year"],
       page: 2,
       pageSize: 20,
       sortBy: "dayRate",
@@ -25,12 +26,15 @@ describe("fleet cars URL state", () => {
   it("normalizes unsupported URL values", () => {
     expect(
       parseFleetCarsView(
-        new URLSearchParams("filter.status=UNKNOWN&page=-1&pageSize=100&sort=ownerId:desc"),
+        new URLSearchParams(
+          "filter.status=UNKNOWN&column.hidden=registrationNumber&page=-1&pageSize=100&sort=ownerId:desc",
+        ),
       ),
     ).toEqual({
       make: [],
       model: [],
       status: [],
+      hiddenColumns: [],
       page: 1,
       pageSize: 10,
       sortBy: null,
@@ -43,11 +47,20 @@ describe("fleet cars URL state", () => {
 
     expect(
       parseFleetCarsView(
-        new URLSearchParams(`filter.make=${tooLong},Lexus,Lexus&filter.status=UNKNOWN,AVAILABLE`),
+        new URLSearchParams(
+          `filter.make=${tooLong}&filter.make=Lexus&filter.make=Lexus&filter.status=UNKNOWN&filter.status=AVAILABLE`,
+        ),
       ),
     ).toMatchObject({
       make: ["Lexus"],
       status: ["AVAILABLE"],
     });
+  });
+
+  it("round trips filter values containing commas", () => {
+    const view = parseFleetCarsView(new URLSearchParams("filter.model=C%2C+300"));
+
+    expect(view.model).toEqual(["C, 300"]);
+    expect(parseFleetCarsView(serializeFleetCarsView(view)).model).toEqual(["C, 300"]);
   });
 });

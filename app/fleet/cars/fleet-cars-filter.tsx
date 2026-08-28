@@ -28,6 +28,7 @@ function FilterOptions({ title, options, selectedValues, onToggle, inline }: Fle
   const inputId = useId();
   const [query, setQuery] = useState("");
   const normalizedQuery = query.trim().toLocaleLowerCase();
+  const selectedValueSet = new Set(selectedValues);
   const visibleOptions =
     normalizedQuery.length === 0
       ? options
@@ -71,7 +72,7 @@ function FilterOptions({ title, options, selectedValues, onToggle, inline }: Fle
       <div className="max-h-60 space-y-1 overflow-y-auto">
         {visibleOptions.length > 0 ? (
           visibleOptions.map((option) => {
-            const checked = selectedValues.includes(option.value);
+            const checked = selectedValueSet.has(option.value);
 
             return (
               <Button
@@ -132,8 +133,9 @@ export function FleetCarsFilter(props: FleetCarsFilterProps) {
                 {selectedValues.length > 2
                   ? `${selectedValues.length} selected`
                   : selectedValues
-                      .map((value) => options.find((option) => option.value === value)?.label)
-                      .filter(Boolean)
+                      .map(
+                        (value) => options.find((option) => option.value === value)?.label ?? value,
+                      )
                       .join(", ")}
               </Badge>
             </>

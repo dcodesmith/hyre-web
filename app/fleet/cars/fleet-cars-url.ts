@@ -22,31 +22,42 @@ const sortColumnSchema = z.enum([
   "fuelUpgradeRate",
   "status",
 ]);
+const hideableColumnSchema = z.enum([
+  "make",
+  "model",
+  "year",
+  "dayRate",
+  "hourlyRate",
+  "nightRate",
+  "fullDayRate",
+  "fuelUpgradeRate",
+  "status",
+]);
 
 export type FleetCarsView = {
   readonly make: string[];
   readonly model: string[];
   readonly status: FleetCarStatus[];
+  readonly hiddenColumns: z.output<typeof hideableColumnSchema>[];
   readonly page: number;
   readonly pageSize: 10 | 20 | 30 | 40 | 50;
   readonly sortBy: z.output<typeof sortColumnSchema> | null;
   readonly sortDirection: "asc" | "desc";
 };
 
-function parseCommaSeparated<T extends string>(
-  value: string | null,
+function parseRepeated<T extends string>(
+  searchParams: URLSearchParams,
+  key: string,
   schema: z.ZodType<T>,
   limit: number,
 ): T[] {
-  if (!value) {
-    return [];
-  }
-
   const parsedValues: T[] = [];
-  for (const item of value.split(",")) {
+  const parsedValueSet = new Set<T>();
+  for (const item of searchParams.getAll(key)) {
     const parsed = schema.safeParse(item);
-    if (parsed.success && !parsedValues.includes(parsed.data)) {
+    if (parsed.success && !parsedValueSet.has(parsed.data)) {
       parsedValues.push(parsed.data);
+      parsedValueSet.add(parsed.data);
     }
     if (parsedValues.length === limit) {
       break;
@@ -68,9 +79,10 @@ export function parseFleetCarsView(searchParams: URLSearchParams): FleetCarsView
   const parsedSortColumn = sortColumnSchema.safeParse(sortColumn);
 
   return {
-    make: parseCommaSeparated(searchParams.get("filter.make"), textFilterSchema, 20),
-    model: parseCommaSeparated(searchParams.get("filter.model"), textFilterSchema, 20),
-    status: parseCommaSeparated(searchParams.get("filter.status"), fleetCarStatusSchema, 4),
+    make: parseRepeated(searchParams, "filter.make", textFilterSchema, 20),
+    model: parseRepeated(searchParams, "filter.model", textFilterSchema, 20),
+    status: parseRepeated(searchParams, "filter.status", fleetCarStatusSchema, 4),
+    hiddenColumns: parseRepeated(searchParams, "column.hidden", hideableColumnSchema, 9),
     page,
     pageSize,
     sortBy: parsedSortColumn.success ? parsedSortColumn.data : null,
@@ -82,13 +94,22 @@ export function serializeFleetCarsView(view: FleetCarsView) {
   const searchParams = new URLSearchParams();
 
   if (view.make.length > 0) {
-    searchParams.set("filter.make", view.make.join(","));
+    for (const make of view.make) {
+      searchParams.append("filter.make", make);
+    }
   }
   if (view.model.length > 0) {
-    searchParams.set("filter.model", view.model.join(","));
+    for (const model of view.model) {
+      searchParams.append("filter.model", model);
+    }
   }
   if (view.status.length > 0) {
-    searchParams.set("filter.status", view.status.join(","));
+    for (const status of view.status) {
+      searchParams.append("filter.status", status);
+    }
+  }
+  for (const column of view.hiddenColumns) {
+    searchParams.append("column.hidden", column);
   }
   if (view.page > 1) {
     searchParams.set("page", String(view.page));

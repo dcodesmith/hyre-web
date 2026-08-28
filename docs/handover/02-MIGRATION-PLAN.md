@@ -224,7 +224,7 @@ Do not begin a screen until the API readiness matrix is green.
 
 Fleet-owner OTP authentication, cookie-backed SSR session loading, logout, role
 enforcement, and the fleet car list/detail slice are implemented. The car list
-keeps filter, sort, column visibility, row-action, and pagination state in the
+keeps filter, sort, column visibility, and pagination state in the
 URL while filtering the already-loaded owner inventory in the browser. Create,
 edit, and upload remain separate until the exact car onboarding/document
 workflow is verified. The next independently verifiable slices are promotions

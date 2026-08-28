@@ -85,6 +85,12 @@ test("completes fleet-owner OTP login, session loading, and logout", async ({ co
     await expect(page.getByRole("cell", { name: /ABC123XY/ })).toBeVisible();
     await expect(page.getByRole("button", { name: "Toggle columns" })).toBeVisible();
 
+    await page.getByRole("button", { name: "Toggle columns" }).click();
+    await page.getByRole("menuitemcheckbox", { name: "Year" }).click();
+    await expect(page).toHaveURL(/column\.hidden=year/);
+    await page.reload();
+    await expect(page.getByRole("columnheader", { name: "Year" })).toHaveCount(0);
+
     await page.goto("/fleet-owner/cars?page=2");
     await expect(page.getByText("No cars on this page.")).toBeVisible();
     await page.getByRole("button", { name: "Go to first page" }).click();

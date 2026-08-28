@@ -21,7 +21,6 @@ import {
   RotateCcwIcon,
   SlidersHorizontalIcon,
 } from "lucide-react";
-import { useState } from "react";
 import { useSearchParams } from "react-router";
 
 import type { FleetCar, FleetCarStatus } from "~/api/fleet/cars/schema";
@@ -63,6 +62,17 @@ import { fleetCarsColumns } from "./fleet-cars-table-columns";
 import { type FleetCarsView, parseFleetCarsView, serializeFleetCarsView } from "./fleet-cars-url";
 
 const PAGE_SIZES = [10, 20, 30, 40, 50] as const;
+const HIDEABLE_COLUMN_IDS = [
+  "make",
+  "model",
+  "year",
+  "dayRate",
+  "hourlyRate",
+  "nightRate",
+  "fullDayRate",
+  "fuelUpgradeRate",
+  "status",
+] as const satisfies readonly FleetCarsView["hiddenColumns"][number][];
 
 const COLUMN_LABELS: Readonly<Record<string, string>> = {
   registrationNumber: "Registration",
@@ -205,9 +215,11 @@ function TablePagination({ table }: { readonly table: ReactTable<FleetCar> }) {
 
 function useFleetCarsTable(cars: FleetCar[]) {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const view = parseFleetCarsView(searchParams);
   const columnFilters = columnFiltersFromView(view);
+  const columnVisibility: VisibilityState = Object.fromEntries(
+    view.hiddenColumns.map((columnId) => [columnId, false]),
+  );
   const sorting: SortingState = view.sortBy
     ? [{ id: view.sortBy, desc: view.sortDirection === "desc" }]
     : [];
@@ -218,7 +230,6 @@ function useFleetCarsTable(cars: FleetCar[]) {
 
   const updateView = (nextView: FleetCarsView) => {
     setSearchParams(serializeFleetCarsView(nextView), {
-      flushSync: true,
       replace: true,
       preventScrollReset: true,
     });
@@ -234,7 +245,13 @@ function useFleetCarsTable(cars: FleetCar[]) {
       pagination,
       sorting,
     },
-    onColumnVisibilityChange: setColumnVisibility,
+    onColumnVisibilityChange: (updater) => {
+      const next = functionalUpdate(updater, columnVisibility);
+      updateView({
+        ...view,
+        hiddenColumns: HIDEABLE_COLUMN_IDS.filter((columnId) => next[columnId] === false),
+      });
+    },
     onPaginationChange: (updater) => {
       const next = functionalUpdate(updater, pagination);
       updateView({
@@ -310,7 +327,10 @@ export function FleetCarsTable({ cars }: { readonly cars: FleetCar[] }) {
       selectedValues: view.status,
     },
   ];
-  const filterProps = availableFilters.filter(({ options }) => options.length > 1);
+  const filterProps = availableFilters.filter(
+    ({ options, selectedValues }) => options.length > 1 || selectedValues.length > 0,
+  );
+  const hideableColumns = table.getAllColumns().filter((column) => column.getCanHide());
 
   return (
     <div className="space-y-4">
@@ -403,18 +423,15 @@ export function FleetCarsTable({ cars }: { readonly cars: FleetCar[] }) {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            {table
-              .getAllColumns()
-              .filter((column) => column.getCanHide())
-              .map((column) => (
-                <DropdownMenuCheckboxItem
-                  key={column.id}
-                  checked={column.getIsVisible()}
-                  onCheckedChange={(checked) => column.toggleVisibility(Boolean(checked))}
-                >
-                  {COLUMN_LABELS[column.id] ?? column.id}
-                </DropdownMenuCheckboxItem>
-              ))}
+            {hideableColumns.map((column) => (
+              <DropdownMenuCheckboxItem
+                key={column.id}
+                checked={column.getIsVisible()}
+                onCheckedChange={(checked) => column.toggleVisibility(Boolean(checked))}
+              >
+                {COLUMN_LABELS[column.id] ?? column.id}
+              </DropdownMenuCheckboxItem>
+            ))}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
