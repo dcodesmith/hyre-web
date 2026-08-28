@@ -222,12 +222,16 @@ Each slice requires:
 
 Do not begin a screen until the API readiness matrix is green.
 
-Fleet-owner OTP authentication, cookie-backed SSR session loading, logout, and
-role enforcement are implemented first. Next independently verifiable slices
-are fleet cars, promotions, and payouts. Dashboard parity, chauffeur
-management, onboarding, fleet booking lists, car deletion, and bank details
-remain gated by the API readiness matrix. Airport completion exists in the API
-but stays separate from these initial console slices.
+Fleet-owner OTP authentication, cookie-backed SSR session loading, logout, role
+enforcement, and the fleet car list/detail slice are implemented. The car list
+keeps filter, sort, column visibility, row-action, and pagination state in the
+URL while filtering the already-loaded owner inventory in the browser. Create,
+edit, and upload remain separate until the exact car onboarding/document
+workflow is verified. The next independently verifiable slices are promotions
+and payouts. Dashboard parity, chauffeur management, onboarding, fleet booking
+lists, car deletion, and bank details remain gated by the API readiness matrix.
+Airport completion exists in the API but stays separate from these initial
+console slices.
 
 Port section layouts before individual screens so nested route guards and navigation are tested once.
 

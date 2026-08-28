@@ -191,10 +191,16 @@ All roles use the API's Better Auth endpoints. Role-specific pages remain separa
 
 ### Fleet owner
 
-**Available or closely matched**
+**Implemented in hyre-web**
 
 - fleet-owner OTP login/verify, session lookup, logout, and role enforcement
-- cars list/detail/create/update/upload
+- `/fleet-owner/cars` using `GET /api/fleet-owner/cars`, with responsive
+  faceted filters, sorting, column visibility, row actions, and pagination
+- `/fleet-owner/cars/:carId` using `GET /api/fleet-owner/cars/:carId`
+
+**Available or closely matched**
+
+- car create/update/upload
 - promotions
 - booking chauffeur assignment
 - payout list/summary
