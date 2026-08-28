@@ -1,6 +1,10 @@
 import { expect, type Page, test } from "@playwright/test";
 
-import { startMockFleetOwnerAuthApi, stopMockFleetOwnerAuthApi } from "./mock-fleet-owner-auth-api";
+import {
+  MOCK_FLEET_CAR_ID,
+  startMockFleetOwnerAuthApi,
+  stopMockFleetOwnerAuthApi,
+} from "./mock-fleet-owner-auth-api";
 
 async function setCookiePreference(page: Page) {
   await page.addInitScript(() => {
@@ -9,6 +13,20 @@ async function setCookiePreference(page: Page) {
       JSON.stringify({ analytics: false, timestamp: 1 }),
     );
   });
+}
+
+async function filterCarsToLexus(page: Page) {
+  if ((page.viewportSize()?.width ?? 0) >= 640) {
+    await page.getByRole("button", { name: /^Make/ }).first().click();
+    await page.getByRole("checkbox", { name: /^Lexus/ }).click();
+    await expect(page).toHaveURL(/filter\.make=Lexus/);
+    await page.keyboard.press("Escape");
+  } else {
+    await page.getByRole("button", { name: /^Filters/ }).click();
+    await page.getByRole("checkbox", { name: /^Lexus/ }).click();
+    await expect(page).toHaveURL(/filter\.make=Lexus/);
+    await page.getByRole("button", { name: "Done" }).click();
+  }
 }
 
 test("sends fleet-owner guests to their login route", async ({ page }) => {
@@ -60,7 +78,40 @@ test("completes fleet-owner OTP login, session loading, and logout", async ({ co
         role: "fleetOwner",
       });
 
-    await page.getByRole("button", { name: "Log out" }).click();
+    await page.goto("/fleet-owner/cars");
+    await expect(page.getByRole("heading", { name: "Your fleet" })).toBeVisible();
+    await expect(page.getByRole("cell", { name: "Lexus", exact: true })).toBeVisible();
+    await expect(page.getByRole("cell", { name: "RX 350", exact: true })).toBeVisible();
+    await expect(page.getByRole("cell", { name: /ABC123XY/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Toggle columns" })).toBeVisible();
+
+    await page.getByRole("button", { name: "Toggle columns" }).click();
+    await page.getByRole("menuitemcheckbox", { name: "Year" }).click();
+    await expect(page).toHaveURL(/column\.hidden=year/);
+    await page.reload();
+    await expect(page.getByRole("columnheader", { name: "Year" })).toHaveCount(0);
+
+    await page.goto("/fleet-owner/cars?page=2");
+    await expect(page.getByText("No cars on this page.")).toBeVisible();
+    await page.getByRole("button", { name: "Go to first page" }).click();
+    await expect(page).toHaveURL("/fleet-owner/cars");
+
+    await filterCarsToLexus(page);
+    await expect(page.getByRole("cell", { name: "Lexus", exact: true })).toBeVisible();
+    await expect(page.getByRole("cell", { name: "Toyota", exact: true })).toHaveCount(0);
+
+    await page.getByRole("link", { name: "View details for Lexus RX 350" }).click();
+    await expect(page).toHaveURL(`/fleet-owner/cars/${MOCK_FLEET_CAR_ID}`);
+    await expect(page.getByRole("heading", { name: "Lexus RX 350" })).toBeVisible();
+    await expect(page.getByText("Available", { exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Vehicle details" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Documents" })).toBeVisible();
+
+    const logoutButton = page.getByRole("button", { name: "Log out" });
+    if (!(await logoutButton.isVisible())) {
+      await page.getByRole("button", { name: "Toggle Sidebar" }).click();
+    }
+    await logoutButton.click();
 
     await expect(page).toHaveURL("/fleet-owner/login");
     await expect

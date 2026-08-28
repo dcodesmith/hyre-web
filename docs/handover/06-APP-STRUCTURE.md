@@ -75,6 +75,10 @@ app/
       cookie-relay.server.ts      # copy every Set-Cookie; never join
       errors.ts                   # Better Auth 4xx / 429 / hide 403 role detail
       schema.ts                   # session + OTP DTOs
+    fleet/
+      cars/
+        cars.server.ts            # GET fleet-owner car list/detail
+        schema.ts                 # fleet-owner car response DTO
     bookings/
       bookings.server.ts          # GET list/detail, PATCH cancel, POST preview + create
       schema.ts                   # list/detail DTOs; canCancel; preview + create responses
@@ -196,6 +200,18 @@ app/
     logout-navigation.ts          # pending logout form action
     user-nav.tsx                  # Register or Log in / initials dropdown: Profile, Bookings, Referrals, Log out
     user-nav.test.ts
+
+  fleet/
+    fleet-owner-sidebar.tsx       # responsive protected fleet navigation
+    cars/
+      fleet-car.ts                # fleet car display labels
+      fleet-car-status-badge.tsx  # shared fleet badge chrome; status and review tones
+      fleet-cars-url.ts           # filter, sort, and pagination URL contract
+      fleet-cars-filter.tsx       # desktop popover / mobile sheet filter content
+      fleet-cars-table-columns.tsx
+      fleet-cars-table.tsx        # sortable, filterable responsive owner inventory
+      fleet-cars-list.tsx
+      fleet-car-detail.tsx
 
   seo/
     metadata.ts

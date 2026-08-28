@@ -1,8 +1,16 @@
-import { Form, Outlet, useNavigation } from "react-router";
+import {
+  createContext,
+  Outlet,
+  type ShouldRevalidateFunctionArgs,
+  useLocation,
+  useNavigation,
+} from "react-router";
 
 import { requireFleetOwner } from "~/auth/fleet-owner-session.server";
-import { BrandLink } from "~/components/layout/brand-link";
-import { Button } from "~/components/ui/button";
+import { Separator } from "~/components/ui/separator";
+import { SidebarInset, SidebarProvider, SidebarTrigger } from "~/components/ui/sidebar";
+import { TooltipProvider } from "~/components/ui/tooltip";
+import { FleetOwnerSidebar } from "~/fleet/fleet-owner-sidebar";
 import { buildPageMetadata } from "~/seo/metadata";
 import type { Route } from "./+types/fleet-owner";
 
@@ -18,13 +26,52 @@ export function headers() {
   return { "Cache-Control": "private, no-store" };
 }
 
-export async function loader({ request }: Route.LoaderArgs) {
-  return { user: await requireFleetOwner(request) };
+type FleetOwnerUser = Awaited<ReturnType<typeof requireFleetOwner>>;
+
+const fleetOwnerContext = createContext<FleetOwnerUser>();
+
+export const middleware: Route.MiddlewareFunction[] = [
+  async ({ request, context }) => {
+    context.set(fleetOwnerContext, await requireFleetOwner(request));
+  },
+];
+
+export function loader({ context }: Route.LoaderArgs) {
+  return { user: context.get(fleetOwnerContext) };
+}
+
+export function shouldRevalidate({
+  currentUrl,
+  nextUrl,
+  defaultShouldRevalidate,
+}: ShouldRevalidateFunctionArgs) {
+  if (currentUrl.pathname === nextUrl.pathname && currentUrl.search !== nextUrl.search) {
+    return false;
+  }
+
+  return defaultShouldRevalidate;
 }
 
 export type FleetOwnerOutletContext = Awaited<ReturnType<typeof loader>>["user"];
 
+function getPageTitle(pathname: string) {
+  if (pathname === "/fleet-owner") {
+    return "Dashboard";
+  }
+
+  if (pathname === "/fleet-owner/cars") {
+    return "Cars";
+  }
+
+  if (pathname.startsWith("/fleet-owner/cars/")) {
+    return "Car details";
+  }
+
+  return "Fleet Manager";
+}
+
 export default function FleetOwnerLayout({ loaderData }: Route.ComponentProps) {
+  const location = useLocation();
   const navigation = useNavigation();
   const isLoggingOut =
     navigation.formMethod != null &&
@@ -32,18 +79,22 @@ export default function FleetOwnerLayout({ loaderData }: Route.ComponentProps) {
     new URL(navigation.formAction, "https://tripdly.com").pathname === "/fleet-owner/logout";
 
   return (
-    <div className="min-h-dvh bg-[#F7F5F1] text-[#1A1814]">
-      <header className="flex h-17.25 items-center justify-between border-b border-neutral-200 bg-white px-6">
-        <BrandLink className="text-[#1A1814]" />
-        <Form method="post" action="/fleet-owner/logout">
-          <Button type="submit" variant="outline" disabled={isLoggingOut}>
-            {isLoggingOut ? "Logging out…" : "Log out"}
-          </Button>
-        </Form>
-      </header>
-      <main>
-        <Outlet context={loaderData.user} />
-      </main>
-    </div>
+    <TooltipProvider>
+      <SidebarProvider>
+        <FleetOwnerSidebar user={loaderData.user} isLoggingOut={isLoggingOut} />
+        <SidebarInset>
+          <header className="sticky top-0 z-10 flex h-12 shrink-0 items-center border-b bg-background">
+            <div className="flex w-full items-center gap-2 px-4 lg:px-6">
+              <SidebarTrigger className="-ml-1" />
+              <Separator orientation="vertical" className="h-4" />
+              <h1 className="text-sm font-medium">{getPageTitle(location.pathname)}</h1>
+            </div>
+          </header>
+          <div className="flex-1 p-4 sm:p-6">
+            <Outlet context={loaderData.user} />
+          </div>
+        </SidebarInset>
+      </SidebarProvider>
+    </TooltipProvider>
   );
 }
