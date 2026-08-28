@@ -122,6 +122,51 @@ const mockPayoutSummary = {
   },
 };
 
+const mockDashboardOverview = {
+  totalBookings: 18,
+  completedBookings: 12,
+  activeBookings: 4,
+  cancelledBookings: 2,
+  carsCount: 2,
+  ownerDriverTrips: 7,
+  chauffeurTrips: 5,
+  totalEarnings: 920_000,
+  pendingPayoutAmount: 80_000,
+};
+
+const mockDashboardEarnings = {
+  range: {
+    from: "2026-07-29T12:00:00.000Z",
+    to: "2026-08-28T12:00:00.000Z",
+    groupBy: "week",
+  },
+  totals: {
+    gross: 600_000,
+    net: 540_000,
+    fees: 60_000,
+    refunds: 0,
+    rides: 8,
+  },
+  series: [
+    {
+      bucketStart: "2026-08-17T00:00:00.000Z",
+      gross: 250_000,
+      net: 225_000,
+      fees: 25_000,
+      refunds: 0,
+      rides: 3,
+    },
+    {
+      bucketStart: "2026-08-24T00:00:00.000Z",
+      gross: 350_000,
+      net: 315_000,
+      fees: 35_000,
+      refunds: 0,
+      rides: 5,
+    },
+  ],
+};
+
 export type CapturedAuthRequest = {
   body: unknown;
   origin?: string;
@@ -132,8 +177,12 @@ export type MockFleetOwnerAuthApi = {
   server: Server;
   requests: {
     createPromotions: unknown[];
+    dashboardOverviewRequests: number;
     deactivatedPromotionIds: string[];
+    earningsQueries: Array<Record<string, string>>;
+    fleetCarsRequests: number;
     payoutQueries: Array<Record<string, string>>;
+    payoutSummaryRequests: number;
     sendOtp?: CapturedAuthRequest;
     verifyOtp?: CapturedAuthRequest;
     signOut?: CapturedAuthRequest;
@@ -175,6 +224,7 @@ function handleFleetCarsRequest(
   request: IncomingMessage,
   response: import("node:http").ServerResponse,
   path: string,
+  requests: MockFleetOwnerAuthApi["requests"],
 ) {
   if (
     request.method !== "GET" ||
@@ -188,6 +238,9 @@ function handleFleetCarsRequest(
     return true;
   }
 
+  if (path === "/api/fleet-owner/cars") {
+    requests.fleetCarsRequests += 1;
+  }
   writeJson(response, 200, path === "/api/fleet-owner/cars" ? mockFleetCars : mockFleetCar);
   return true;
 }
@@ -297,6 +350,7 @@ function handleDashboardPayoutsRequest(
   }
 
   if (url.pathname === "/api/dashboard/payouts/summary") {
+    requests.payoutSummaryRequests += 1;
     writeJson(response, 200, mockPayoutSummary);
     return true;
   }
@@ -321,11 +375,55 @@ function handleDashboardPayoutsRequest(
   return true;
 }
 
+function handleDashboardRequest(
+  request: IncomingMessage,
+  response: import("node:http").ServerResponse,
+  url: URL,
+  requests: MockFleetOwnerAuthApi["requests"],
+) {
+  if (
+    request.method !== "GET" ||
+    (url.pathname !== "/api/dashboard/overview" && url.pathname !== "/api/dashboard/earnings")
+  ) {
+    return false;
+  }
+
+  if (!request.headers.cookie?.includes("better-auth.session_token=e2e-session")) {
+    writeJson(response, 401, { status: 401, detail: "Unauthorized" });
+    return true;
+  }
+
+  if (url.pathname === "/api/dashboard/overview") {
+    requests.dashboardOverviewRequests += 1;
+    writeJson(response, 200, mockDashboardOverview);
+    return true;
+  }
+
+  requests.earningsQueries.push(Object.fromEntries(url.searchParams));
+  const groupBy = url.searchParams.get("groupBy") ?? "day";
+  writeJson(response, 200, {
+    ...mockDashboardEarnings,
+    range: {
+      ...mockDashboardEarnings.range,
+      groupBy,
+    },
+    series:
+      groupBy === "month"
+        ? [{ bucketStart: "2026-08-01T00:00:00.000Z", ...mockDashboardEarnings.totals }]
+        : mockDashboardEarnings.series,
+  });
+  return true;
+}
+
 export function startMockFleetOwnerAuthApi(port = 3100) {
   const requests: MockFleetOwnerAuthApi["requests"] = {
     createPromotions: [],
+    dashboardOverviewRequests: 0,
     deactivatedPromotionIds: [],
+    earningsQueries: [],
+    fleetCarsRequests: 0,
     payoutQueries: [],
+    payoutSummaryRequests: 0,
   };
   const promotions: MockPromotion[] = [];
   const server = createServer(async (request, response) => {
@@ -372,7 +470,7 @@ export function startMockFleetOwnerAuthApi(port = 3100) {
       return;
     }
 
-    if (handleFleetCarsRequest(request, response, path)) {
+    if (handleFleetCarsRequest(request, response, path, requests)) {
       return;
     }
 
@@ -381,6 +479,10 @@ export function startMockFleetOwnerAuthApi(port = 3100) {
     }
 
     if (handleDashboardPayoutsRequest(request, response, url, requests)) {
+      return;
+    }
+
+    if (handleDashboardRequest(request, response, url, requests)) {
       return;
     }
 

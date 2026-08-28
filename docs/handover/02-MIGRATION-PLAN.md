@@ -223,13 +223,14 @@ Each slice requires:
 Do not begin a screen until the API readiness matrix is green.
 
 Fleet-owner OTP authentication, cookie-backed SSR session loading, logout, role
-enforcement, the fleet car list/detail slice, promotions, and the read-only
-payout list/summary are implemented.
+enforcement, the fleet car list/detail slice, promotions, the API-backed
+dashboard overview/earnings, and the read-only payout list/summary are
+implemented.
 The car list keeps filter, sort, column visibility, and pagination state in the
 URL while filtering the already-loaded owner inventory in the browser. Car
 create, edit, and upload remain separate until the exact onboarding/document
-workflow is verified. Dashboard parity, chauffeur management, onboarding,
-fleet booking lists, car
+workflow is verified. Legacy dashboard extras without API contracts, chauffeur
+management, onboarding, fleet booking lists, car
 deletion, and bank details remain gated by the API readiness matrix. Airport
 completion exists in the API but stays separate from these initial console
 slices.

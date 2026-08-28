@@ -69,7 +69,7 @@ test("completes fleet-owner OTP login, session loading, and logout", async ({ co
     await page.getByRole("button", { name: "Verify email" }).click();
 
     await expect(page).toHaveURL("/fleet-owner");
-    await expect(page.getByRole("heading", { name: "Welcome, Fleet Owner" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Welcome back, Fleet Owner" })).toBeVisible();
     await expect
       .poll(() => api.requests.verifyOtp?.body)
       .toEqual({

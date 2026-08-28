@@ -201,6 +201,10 @@ All roles use the API's Better Auth endpoints. Role-specific pages remain separa
   `POST /api/fleet-owner/promotions/:promotionId/deactivate`
 - `/fleet-owner/payout-transactions` using `GET /api/dashboard/payouts` and
   `GET /api/dashboard/payouts/summary`
+- `/fleet-owner` overview, range-filtered earnings, and payout snapshot using
+  `GET /api/dashboard/overview`, `GET /api/dashboard/earnings`, and
+  `GET /api/dashboard/payouts/summary`; its Available, Booked, and Maintenance
+  vehicle breakdown is derived from `GET /api/fleet-owner/cars`
 
 **Available or closely matched**
 
@@ -210,7 +214,8 @@ All roles use the API's Better Auth endpoints. Role-specific pages remain separa
 
 **Verify**
 
-- dashboard overview/earnings: the legacy dashboard also needs owner-driver state, utilization, chauffeur availability, unassigned/recent bookings, and next payout
+- legacy dashboard extras still need owner-driver state, utilization, chauffeur
+  availability, unassigned/recent bookings, and next payout contracts
 - fleet booking detail through the generic booking endpoint requires ownership/field parity verification
 - exact car onboarding/document workflow
 
@@ -459,6 +464,11 @@ duplicate year-make-model listings would collide.
   summary. The API does not return booking start/end dates, so the web table
   intentionally omits those legacy columns and does not link to the unverified
   fleet booking detail route.
+- `/fleet-owner` displays the API-owned fleet overview and 7-, 30-, or 90-day
+  earnings aggregates. The web groups those supported ranges by day, week, or
+  month respectively. It intentionally omits legacy dashboard widgets that
+  need unavailable chauffeur, booking-list, utilization, or next-payout
+  contracts.
 - `/robots.txt` and `/sitemap.xml` are web-owned. Production robots allow the
   public site and point at `https://tripdly.com/sitemap.xml`. Preview and
   local robots send `Disallow: /`. The sitemap lists existing static pages

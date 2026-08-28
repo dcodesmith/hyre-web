@@ -80,8 +80,8 @@ app/
         cars.server.ts            # GET fleet-owner car list/detail
         schema.ts                 # fleet-owner car response DTO
       dashboard/
-        dashboard.server.ts       # GET dashboard payout list/summary
-        schema.ts                 # payout list/summary response DTO
+        dashboard.server.ts       # GET dashboard overview, earnings, payouts
+        schema.ts                 # dashboard and payout response DTOs
     bookings/
       bookings.server.ts          # GET list/detail, PATCH cancel, POST preview + create
       schema.ts                   # list/detail DTOs; canCancel; preview + create responses
@@ -206,6 +206,10 @@ app/
 
   fleet/
     fleet-owner-sidebar.tsx       # responsive protected fleet navigation
+    dashboard/
+      dashboard.ts                # earnings bucket display
+      dashboard-url.ts            # range filter and API grouping contract
+      fleet-dashboard-page.tsx    # responsive overview and earnings activity
     cars/
       fleet-car.ts                # fleet car display labels
       fleet-car-status-badge.tsx  # shared fleet badge chrome; status and review tones
@@ -282,7 +286,8 @@ app/
     fleet-owner.verify.tsx        # fleetOwner OTP verify + resend
     fleet-owner.logout.ts         # role-scoped sign-out + local cookie cleanup
     fleet-owner.tsx               # protected fleet shell; API session role guard
-    fleet-owner._index.tsx        # minimal authenticated landing before cars
+    fleet-owner.dashboard.tsx     # static dashboard overview; skips range revalidation
+    fleet-owner._index.tsx        # range-filtered dashboard earnings
     fleet-owner.payout-transactions.tsx # payout list/summary; status filter + pagination
     bookings.tsx                  # signed-in list; guests → /auth?redirectTo=
     bookings.$bookingId.tsx       # signed-in detail + cancel; guests → /auth?redirectTo=
