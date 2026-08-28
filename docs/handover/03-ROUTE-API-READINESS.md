@@ -372,9 +372,8 @@ details remain actionable while 5xx details are hidden behind a retry message.
 Guests redirect to `/auth?redirectTo=/bookings`. Tabs use hireApp
 `?status=active|confirmed|completed|cancelled`. Rows show car image / make /
 model / year, reference, Lagos dates, amount, and a completed-review badge.
-List rows link to `/bookings/:id`. This slice does not ship cancel, modify,
-extend, create, pay, or guest email lookup (`/bookings/lookup` remains an
-API gap).
+List rows link to `/bookings/:id`, where customer mutations live. Guest email
+lookup at `/bookings/lookup` remains an API gap.
 
 ### Signed-in booking detail
 
@@ -382,9 +381,11 @@ API gap).
 (`SessionGuard`). Guests and 401s redirect to `/auth?redirectTo=`. Missing
 bookings 404. The page is hireApp detail (header, type note, timeline,
 locations, chauffeur, airport flight, payment summary) inside the public
-shell. Cancel uses API `canCancel` and `PATCH /api/bookings/:bookingId/cancel`
-through a same-page fetcher. This slice does not modify, extend, write reviews,
-download a receipt, or look up guest bookings.
+shell. Cancel uses API `canCancel` and `PATCH /api/bookings/:bookingId/cancel`.
+Modify uses API `canEdit` and `modificationCutoffAt`, then submits pickup time
+and location changes to `PATCH /api/bookings/:bookingId`. Both mutations use
+same-page fetchers. This slice does not extend, write reviews, download a
+receipt, or look up guest bookings.
 
 ### Public car slugs and SEO
 

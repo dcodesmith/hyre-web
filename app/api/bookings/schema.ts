@@ -143,10 +143,12 @@ export const bookingDetailSchema = z.object({
     .nullish(),
   flight: bookingDetailFlightSchema.nullish(),
   legs: z.array(bookingDetailLegSchema),
+  canEdit: z.boolean(),
   canCancel: z.boolean(),
+  modificationCutoffAt: isoDateSchema,
 });
 
-export const cancelBookingResponseSchema = z.object({
+export const bookingMutationResponseSchema = z.object({
   id: z.string(),
 });
 

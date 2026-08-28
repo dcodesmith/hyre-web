@@ -10,6 +10,7 @@ const visualRoutes =
         route("__visual/bookings", "routes/__visual.bookings.tsx"),
         route("__visual/booking", "routes/__visual.booking.tsx"),
         route("__visual/booking-cancel", "routes/__visual.booking-cancel.tsx"),
+        route("__visual/booking-modify", "routes/__visual.booking-modify.tsx"),
         route("__visual/profile", "routes/__visual.profile.tsx"),
         route("__visual/referrals", "routes/__visual.referrals.tsx"),
         route("__visual/user-nav", "routes/__visual.user-nav.tsx"),

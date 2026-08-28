@@ -24,6 +24,7 @@ interface BookingTimeSelectProps {
   readonly "aria-describedby"?: string;
   readonly required?: boolean;
   readonly containerClassName?: string;
+  readonly contentClassName?: string;
   readonly labelClassName?: string;
   readonly showLabel?: boolean;
   readonly placeholder?: string;
@@ -42,6 +43,7 @@ export function BookingTimeSelect({
   "aria-describedby": ariaDescribedBy,
   required,
   containerClassName,
+  contentClassName,
   labelClassName = "text-xs font-semibold leading-tight text-gray-700",
   showLabel = false,
   placeholder = "Select pickup time",
@@ -54,6 +56,12 @@ export function BookingTimeSelect({
   const [uncontrolledHiddenValue, setUncontrolledHiddenValue] = useState(
     normalizedDefaultValue ?? "",
   );
+  const pickupTimes = getPickupTimes(date, bookingType);
+  const selectedValue = normalizedValue ?? normalizedDefaultValue;
+  const additionalOption =
+    selectedValue && !pickupTimes.some((time) => time.value === selectedValue)
+      ? selectedValue
+      : undefined;
 
   const handleValueChange = (next: string) => {
     if (!isControlled) {
@@ -92,9 +100,16 @@ export function BookingTimeSelect({
           }
         />
       </SelectTrigger>
-      <SelectContent position={containerClassName ? "popper" : "item-aligned"} align="start">
+      <SelectContent
+        position={containerClassName ? "popper" : "item-aligned"}
+        align="start"
+        className={contentClassName}
+      >
         <SelectGroup>
-          {getPickupTimes(date, bookingType).map(({ label, value: itemValue }) => (
+          {additionalOption ? (
+            <SelectItem value={additionalOption}>{additionalOption}</SelectItem>
+          ) : null}
+          {pickupTimes.map(({ label, value: itemValue }) => (
             <SelectItem key={itemValue} value={itemValue}>
               {label}
             </SelectItem>

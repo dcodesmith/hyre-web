@@ -28,7 +28,9 @@ const fixtureBooking = {
   },
   chauffeur: { name: "Bola Adebayo" },
   flight: null,
+  canEdit: false,
   canCancel: false,
+  modificationCutoffAt: "2026-07-01T20:00:00.000Z",
   legs: [
     {
       id: "leg-1",

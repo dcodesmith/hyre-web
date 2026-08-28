@@ -14,6 +14,8 @@ interface AddressAutocompleteProps {
   readonly onValueChange?: (value: string) => void;
   readonly placeholder?: string;
   readonly readOnly?: boolean;
+  readonly "aria-invalid"?: boolean;
+  readonly "aria-describedby"?: string;
 }
 
 export function AddressAutocomplete({
@@ -23,6 +25,8 @@ export function AddressAutocomplete({
   onValueChange,
   placeholder = "Start typing to search for an address…",
   readOnly = false,
+  "aria-invalid": ariaInvalid,
+  "aria-describedby": ariaDescribedBy,
 }: AddressAutocompleteProps) {
   const listId = useId();
   const [query, setQuery] = useState(value);
@@ -58,6 +62,8 @@ export function AddressAutocomplete({
         readOnly
         autoComplete="off"
         spellCheck={false}
+        aria-invalid={ariaInvalid}
+        aria-describedby={ariaDescribedBy}
         className="flex h-10 w-full cursor-not-allowed rounded-md border border-input bg-gray-50 px-3 text-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
       />
     );
@@ -74,7 +80,8 @@ export function AddressAutocomplete({
             aria-autocomplete="list"
             aria-expanded={listOpen}
             aria-controls={listId}
-            aria-invalid={hasUnresolvedInput}
+            aria-invalid={ariaInvalid || hasUnresolvedInput}
+            aria-describedby={ariaDescribedBy}
             value={query}
             autoComplete="off"
             spellCheck={false}
