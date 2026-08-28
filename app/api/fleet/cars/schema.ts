@@ -77,6 +77,21 @@ export const fleetCarSchema = z.object({
 
 export const fleetCarsSchema = z.array(fleetCarSchema);
 
+const fleetCarReplacementRecordSchema = z.object({
+  id: z.string(),
+  status: z.literal("PENDING"),
+});
+
+export const replaceFleetCarImageResponseSchema = z.object({
+  success: z.literal(true),
+  image: fleetCarReplacementRecordSchema,
+});
+
+export const replaceFleetCarDocumentResponseSchema = z.object({
+  success: z.literal(true),
+  document: fleetCarReplacementRecordSchema,
+});
+
 export type FleetCar = z.output<typeof fleetCarSchema>;
 export type FleetCarApprovalStatus = z.output<typeof fleetCarApprovalStatusSchema>;
 export type FleetCarDocumentStatus = z.output<typeof fleetCarDocumentStatusSchema>;

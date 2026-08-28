@@ -116,6 +116,47 @@ describe("createApiClient", () => {
     expect(capturedInit?.body).toBe('{"value":1}');
   });
 
+  it("forwards multipart bodies without setting the content type boundary", async () => {
+    let capturedInit: RequestInit | undefined;
+    const fetchImpl: typeof fetch = async (_input, init) => {
+      capturedInit = init;
+      return jsonResponse({ ok: true });
+    };
+    const client = createApiClient({
+      apiOrigin: "https://api.example",
+      fetchImpl,
+    });
+    const formData = new FormData();
+    formData.set("file", new File(["replacement"], "car.jpg", { type: "image/jpeg" }));
+
+    await client.request({
+      path: "/api/fleet-owner/cars/car-1/images/image-1/file",
+      method: "PUT",
+      schema: okSchema,
+      formData,
+    });
+
+    const headers = new Headers(capturedInit?.headers);
+    expect(headers.get("content-type")).toBeNull();
+    expect(capturedInit?.body).toBe(formData);
+  });
+
+  it("rejects requests with both JSON and multipart bodies", async () => {
+    const client = createApiClient({
+      apiOrigin: "https://api.example",
+      fetchImpl: async () => jsonResponse({ ok: true }),
+    });
+
+    await expect(
+      client.request({
+        path: "/api/example",
+        schema: okSchema,
+        formData: new FormData(),
+        json: { value: 1 },
+      }),
+    ).rejects.toThrow("cannot include both JSON and multipart bodies");
+  });
+
   it("does not classify JSON serialization errors as network failures", async () => {
     let fetchCalled = false;
     const circular: Record<string, unknown> = {};

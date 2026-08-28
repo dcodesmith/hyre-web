@@ -1,6 +1,11 @@
 import { createServer, type IncomingMessage, type Server } from "node:http";
 
 export const MOCK_FLEET_CAR_ID = "cm12345678901234567890123";
+export const MOCK_FLEET_IMAGE_ID = "cm32345678901234567890123";
+export const MOCK_FLEET_DOCUMENT_ID = "cm42345678901234567890123";
+const FLEET_FILE_REPLACEMENT_PATH = new RegExp(
+  `^/api/fleet-owner/cars/${MOCK_FLEET_CAR_ID}/(images|documents)/([^/]+)/file$`,
+);
 
 const mockFleetCar = {
   id: MOCK_FLEET_CAR_ID,
@@ -33,7 +38,7 @@ const mockFleetCar = {
   },
   images: [
     {
-      id: "image-1",
+      id: MOCK_FLEET_IMAGE_ID,
       url: "https://images.unsplash.com/photo-1549399542-7e3f8b79c341",
       status: "APPROVED",
       isPrimary: true,
@@ -43,7 +48,7 @@ const mockFleetCar = {
   ],
   documents: [
     {
-      id: "document-1",
+      id: MOCK_FLEET_DOCUMENT_ID,
       documentType: "MOT_CERTIFICATE",
       status: "APPROVED",
       documentUrl: "https://cdn.example.com/mot.pdf",
@@ -181,6 +186,12 @@ export type MockFleetOwnerAuthApi = {
     deactivatedPromotionIds: string[];
     earningsQueries: Array<Record<string, string>>;
     fleetCarsRequests: number;
+    fileReplacements: Array<{
+      assetId: string;
+      body: string;
+      contentType?: string;
+      kind: "image" | "document";
+    }>;
     payoutQueries: Array<Record<string, string>>;
     payoutSummaryRequests: number;
     updateCars: Array<{ carId: string; body: unknown }>;
@@ -208,6 +219,15 @@ function readJson(request: IncomingMessage) {
   });
 }
 
+function readBody(request: IncomingMessage) {
+  return new Promise<Buffer>((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    request.on("data", (chunk: Buffer) => chunks.push(chunk));
+    request.on("end", () => resolve(Buffer.concat(chunks)));
+    request.on("error", reject);
+  });
+}
+
 function capturedRequest(request: IncomingMessage, body: unknown): CapturedAuthRequest {
   return {
     body,
@@ -221,6 +241,62 @@ function writeJson(response: import("node:http").ServerResponse, status: number,
   response.end(JSON.stringify(body));
 }
 
+async function handleFleetFileReplacement(
+  request: IncomingMessage,
+  response: import("node:http").ServerResponse,
+  replacementMatch: RegExpExecArray | null,
+  requests: MockFleetOwnerAuthApi["requests"],
+  fleetCar: typeof mockFleetCar,
+) {
+  if (request.method !== "PUT" || !replacementMatch) {
+    return false;
+  }
+
+  const kind = replacementMatch[1] === "images" ? "image" : "document";
+  const assetId = decodeURIComponent(replacementMatch[2]);
+  const body = await readBody(request);
+  requests.fileReplacements.push({
+    assetId,
+    body: body.toString("utf8"),
+    contentType: request.headers["content-type"],
+    kind,
+  });
+
+  if (kind === "image") {
+    const image = fleetCar.images.find((item) => item.id === assetId);
+    if (!image) {
+      writeJson(response, 404, { status: 404, detail: "Vehicle image not found" });
+      return true;
+    }
+    if (image.status !== "REJECTED") {
+      writeJson(response, 400, { status: 400, detail: "Only rejected images can be replaced" });
+      return true;
+    }
+    Object.assign(image, { status: "PENDING", updatedAt: "2026-08-28T13:00:00.000Z" });
+    Object.assign(fleetCar, { approvalStatus: "PENDING" });
+    writeJson(response, 200, { success: true, image });
+    return true;
+  }
+
+  const document = fleetCar.documents.find((item) => item.id === assetId);
+  if (!document) {
+    writeJson(response, 404, { status: 404, detail: "Car document not found" });
+    return true;
+  }
+  if (document.status !== "REJECTED") {
+    writeJson(response, 400, { status: 400, detail: "Only rejected documents can be replaced" });
+    return true;
+  }
+  Object.assign(document, {
+    status: "PENDING",
+    notes: null,
+    updatedAt: "2026-08-28T13:00:00.000Z",
+  });
+  Object.assign(fleetCar, { approvalStatus: "PENDING" });
+  writeJson(response, 200, { success: true, document });
+  return true;
+}
+
 async function handleFleetCarsRequest(
   request: IncomingMessage,
   response: import("node:http").ServerResponse,
@@ -230,12 +306,17 @@ async function handleFleetCarsRequest(
 ) {
   const isList = path === "/api/fleet-owner/cars";
   const isDetail = path === `/api/fleet-owner/cars/${MOCK_FLEET_CAR_ID}`;
-  if (!isList && !isDetail) {
+  const replacementMatch = FLEET_FILE_REPLACEMENT_PATH.exec(path);
+  if (!isList && !isDetail && !replacementMatch) {
     return false;
   }
 
   if (!request.headers.cookie?.includes("better-auth.session_token=e2e-session")) {
     writeJson(response, 401, { status: 401, detail: "Unauthorized" });
+    return true;
+  }
+
+  if (await handleFleetFileReplacement(request, response, replacementMatch, requests, fleetCar)) {
     return true;
   }
 
@@ -431,19 +512,37 @@ function handleDashboardRequest(
   return true;
 }
 
-export function startMockFleetOwnerAuthApi(port = 3100) {
+export function startMockFleetOwnerAuthApi({
+  port = 3100,
+  rejectedFiles = false,
+}: {
+  readonly port?: number;
+  readonly rejectedFiles?: boolean;
+} = {}) {
   const requests: MockFleetOwnerAuthApi["requests"] = {
     createPromotions: [],
     dashboardOverviewRequests: 0,
     deactivatedPromotionIds: [],
     earningsQueries: [],
     fleetCarsRequests: 0,
+    fileReplacements: [],
     payoutQueries: [],
     payoutSummaryRequests: 0,
     updateCars: [],
   };
   const promotions: MockPromotion[] = [];
   const fleetCar = structuredClone(mockFleetCar);
+  if (rejectedFiles) {
+    Object.assign(fleetCar, {
+      approvalStatus: "REJECTED",
+      approvalNotes: "Upload clearer files so this car can be reviewed again.",
+    });
+    Object.assign(fleetCar.images[0], { status: "REJECTED" });
+    Object.assign(fleetCar.documents[0], {
+      status: "REJECTED",
+      notes: "The certificate scan is blurry.",
+    });
+  }
   const server = createServer(async (request, response) => {
     const url = new URL(request.url ?? "/", "http://127.0.0.1");
     const path = url.pathname;

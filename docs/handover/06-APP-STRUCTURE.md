@@ -77,8 +77,8 @@ app/
       schema.ts                   # session + OTP DTOs
     fleet/
       cars/
-        cars.server.ts            # GET fleet-owner car list/detail; PATCH car
-        schema.ts                 # fleet-owner car response DTO
+        cars.server.ts            # GET list/detail; PATCH car; PUT rejected files
+        schema.ts                 # fleet-owner car + file replacement response DTOs
       dashboard/
         dashboard.server.ts       # GET dashboard overview, earnings, payouts
         schema.ts                 # dashboard and payout response DTOs
@@ -220,7 +220,8 @@ app/
       fleet-cars-table-columns.tsx
       fleet-cars-table.tsx        # sortable, filterable responsive owner inventory
       fleet-cars-list.tsx
-      fleet-car-detail.tsx
+      fleet-car-detail.tsx        # details + rejected image/document replacement
+      fleet-car-file-replacement-form-schema.ts
       fleet-car-edit-form-schema.ts
       fleet-car-edit-form.tsx     # responsive pricing and availability form
     promotions/
@@ -292,6 +293,7 @@ app/
     fleet-owner.tsx               # protected fleet shell; API session role guard
     fleet-owner.dashboard.tsx     # static dashboard overview; skips range revalidation
     fleet-owner._index.tsx        # range-filtered dashboard earnings
+    fleet-owner.cars.$carId.tsx   # owner car detail + rejected-file actions
     fleet-owner.cars.$carId.edit.tsx # owner-scoped car update
     fleet-owner.payout-transactions.tsx # payout list/summary; status filter + pagination
     bookings.tsx                  # signed-in list; guests → /auth?redirectTo=
