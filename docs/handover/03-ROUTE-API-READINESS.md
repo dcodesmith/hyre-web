@@ -199,19 +199,19 @@ All roles use the API's Better Auth endpoints. Role-specific pages remain separa
 - `/fleet-owner/cars/:carId` using `GET /api/fleet-owner/cars/:carId`
 - `/fleet-owner/promotions` using `GET|POST /api/fleet-owner/promotions` and
   `POST /api/fleet-owner/promotions/:promotionId/deactivate`
+- `/fleet-owner/payout-transactions` using `GET /api/dashboard/payouts` and
+  `GET /api/dashboard/payouts/summary`
 
 **Available or closely matched**
 
 - car create/update/upload
 - booking chauffeur assignment
-- payout list/summary
 - airport-trip completion
 
 **Verify**
 
 - dashboard overview/earnings: the legacy dashboard also needs owner-driver state, utilization, chauffeur availability, unassigned/recent bookings, and next payout
 - fleet booking detail through the generic booking endpoint requires ownership/field parity verification
-- `/fleet-owner/payout-transactions` may map to dashboard payout endpoints
 - exact car onboarding/document workflow
 
 **Gap unless another endpoint is discovered**
@@ -454,6 +454,11 @@ duplicate year-make-model listings would collide.
   PR preview hosts (`https://pr-*-hyre-web-preview.tripdly.workers.dev`)
   will fail OTP until the API trusts them. Local `APP_ORIGIN` is
   `http://localhost:5173`.
+- `/fleet-owner/payout-transactions` lists the API's most recent 30-day payout
+  window with status filtering and server pagination, plus the all-time payout
+  summary. The API does not return booking start/end dates, so the web table
+  intentionally omits those legacy columns and does not link to the unverified
+  fleet booking detail route.
 - `/robots.txt` and `/sitemap.xml` are web-owned. Production robots allow the
   public site and point at `https://tripdly.com/sitemap.xml`. Preview and
   local robots send `Disallow: /`. The sitemap lists existing static pages
