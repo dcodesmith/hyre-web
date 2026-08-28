@@ -1,4 +1,4 @@
-import { ArrowLeftIcon, ExternalLinkIcon, TriangleAlertIcon } from "lucide-react";
+import { ArrowLeftIcon, ExternalLinkIcon, PencilIcon, TriangleAlertIcon } from "lucide-react";
 import { Link } from "react-router";
 
 import type { FleetCar } from "~/api/fleet/cars/schema";
@@ -55,6 +55,12 @@ export function FleetCarDetail({ car }: { readonly car: FleetCar }) {
               label={getFleetCarApprovalLabel(car.approvalStatus)}
               status={car.approvalStatus}
             />
+            <Button asChild size="sm" variant="outline">
+              <Link to={`/fleet-owner/cars/${car.id}/edit`}>
+                <PencilIcon data-icon="inline-start" />
+                Edit car
+              </Link>
+            </Button>
           </div>
         </div>
       </div>

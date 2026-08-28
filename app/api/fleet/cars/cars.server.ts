@@ -1,7 +1,7 @@
 import { env } from "cloudflare:workers";
 
 import { createApiClient } from "~/api/api.server";
-import { fleetCarSchema, fleetCarsSchema } from "./schema";
+import { type FleetCar, fleetCarSchema, fleetCarsSchema } from "./schema";
 
 let apiClient: ReturnType<typeof createApiClient> | undefined;
 
@@ -31,6 +31,38 @@ export function getFleetCar({
     path: `/api/fleet-owner/cars/${encodeURIComponent(carId)}`,
     request,
     forwardCookie: true,
+    schema: fleetCarSchema,
+  });
+}
+
+export type UpdateFleetCarBody = Pick<
+  FleetCar,
+  | "airportPickupRate"
+  | "dayRate"
+  | "fullDayRate"
+  | "fuelUpgradeRate"
+  | "hourlyRate"
+  | "nightRate"
+  | "pricingIncludesFuel"
+> & {
+  readonly status?: "AVAILABLE" | "HOLD" | "IN_SERVICE";
+};
+
+export function updateFleetCar({
+  request,
+  carId,
+  body,
+}: {
+  readonly request: Request;
+  readonly carId: string;
+  readonly body: UpdateFleetCarBody;
+}) {
+  return getApiClient().request({
+    path: `/api/fleet-owner/cars/${encodeURIComponent(carId)}`,
+    method: "PATCH",
+    request,
+    forwardCookie: true,
+    json: body,
     schema: fleetCarSchema,
   });
 }

@@ -63,6 +63,10 @@ function getPageTitle(pathname: string) {
     return "Cars";
   }
 
+  if (pathname.endsWith("/edit") && pathname.startsWith("/fleet-owner/cars/")) {
+    return "Edit car";
+  }
+
   if (pathname.startsWith("/fleet-owner/cars/")) {
     return "Car details";
   }

@@ -82,7 +82,7 @@ test("completes fleet-owner OTP login, session loading, and logout", async ({ co
     await expect(page.getByRole("heading", { name: "Your fleet" })).toBeVisible();
     await expect(page.getByRole("cell", { name: "Lexus", exact: true })).toBeVisible();
     await expect(page.getByRole("cell", { name: "RX 350", exact: true })).toBeVisible();
-    await expect(page.getByRole("cell", { name: /ABC123XY/ })).toBeVisible();
+    await expect(page.getByRole("cell", { name: /^ABC123XY/ })).toBeVisible();
     await expect(page.getByRole("button", { name: "Toggle columns" })).toBeVisible();
 
     await page.getByRole("button", { name: "Toggle columns" }).click();
@@ -100,7 +100,12 @@ test("completes fleet-owner OTP login, session loading, and logout", async ({ co
     await expect(page.getByRole("cell", { name: "Lexus", exact: true })).toBeVisible();
     await expect(page.getByRole("cell", { name: "Toyota", exact: true })).toHaveCount(0);
 
-    await page.getByRole("link", { name: "View details for Lexus RX 350" }).click();
+    await page.getByRole("button", { name: "Open actions for Lexus RX 350, ABC123XY" }).click();
+    await expect(page.getByRole("menuitem", { name: "Edit", exact: true })).toHaveAttribute(
+      "href",
+      `/fleet-owner/cars/${MOCK_FLEET_CAR_ID}/edit`,
+    );
+    await page.getByRole("menuitem", { name: "View details" }).click();
     await expect(page).toHaveURL(`/fleet-owner/cars/${MOCK_FLEET_CAR_ID}`);
     await expect(page.getByRole("heading", { name: "Lexus RX 350" })).toBeVisible();
     await expect(page.getByText("Available", { exact: true })).toBeVisible();

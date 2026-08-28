@@ -183,6 +183,7 @@ export type MockFleetOwnerAuthApi = {
     fleetCarsRequests: number;
     payoutQueries: Array<Record<string, string>>;
     payoutSummaryRequests: number;
+    updateCars: Array<{ carId: string; body: unknown }>;
     sendOtp?: CapturedAuthRequest;
     verifyOtp?: CapturedAuthRequest;
     signOut?: CapturedAuthRequest;
@@ -220,16 +221,16 @@ function writeJson(response: import("node:http").ServerResponse, status: number,
   response.end(JSON.stringify(body));
 }
 
-function handleFleetCarsRequest(
+async function handleFleetCarsRequest(
   request: IncomingMessage,
   response: import("node:http").ServerResponse,
   path: string,
   requests: MockFleetOwnerAuthApi["requests"],
+  fleetCar: typeof mockFleetCar,
 ) {
-  if (
-    request.method !== "GET" ||
-    (path !== "/api/fleet-owner/cars" && path !== `/api/fleet-owner/cars/${MOCK_FLEET_CAR_ID}`)
-  ) {
+  const isList = path === "/api/fleet-owner/cars";
+  const isDetail = path === `/api/fleet-owner/cars/${MOCK_FLEET_CAR_ID}`;
+  if (!isList && !isDetail) {
     return false;
   }
 
@@ -238,11 +239,26 @@ function handleFleetCarsRequest(
     return true;
   }
 
-  if (path === "/api/fleet-owner/cars") {
+  if (request.method === "GET" && isList) {
     requests.fleetCarsRequests += 1;
+    writeJson(response, 200, [fleetCar, mockFleetCars[1]]);
+    return true;
   }
-  writeJson(response, 200, path === "/api/fleet-owner/cars" ? mockFleetCars : mockFleetCar);
-  return true;
+
+  if (request.method === "GET" && isDetail) {
+    writeJson(response, 200, fleetCar);
+    return true;
+  }
+
+  if (request.method === "PATCH" && isDetail) {
+    const body = (await readJson(request)) as Partial<typeof mockFleetCar>;
+    requests.updateCars.push({ carId: MOCK_FLEET_CAR_ID, body });
+    Object.assign(fleetCar, body, { updatedAt: "2026-08-28T13:00:00.000Z" });
+    writeJson(response, 200, fleetCar);
+    return true;
+  }
+
+  return false;
 }
 
 type MockPromotion = Record<string, unknown> & {
@@ -424,8 +440,10 @@ export function startMockFleetOwnerAuthApi(port = 3100) {
     fleetCarsRequests: 0,
     payoutQueries: [],
     payoutSummaryRequests: 0,
+    updateCars: [],
   };
   const promotions: MockPromotion[] = [];
+  const fleetCar = structuredClone(mockFleetCar);
   const server = createServer(async (request, response) => {
     const url = new URL(request.url ?? "/", "http://127.0.0.1");
     const path = url.pathname;
@@ -470,7 +488,7 @@ export function startMockFleetOwnerAuthApi(port = 3100) {
       return;
     }
 
-    if (handleFleetCarsRequest(request, response, path, requests)) {
+    if (await handleFleetCarsRequest(request, response, path, requests, fleetCar)) {
       return;
     }
 
