@@ -45,11 +45,11 @@ export default defineConfig({
   ],
   snapshotPathTemplate: "{testDir}/{testFileDir}/{testFileName}-snapshots/{arg}-{projectName}{ext}",
   webServer: {
-    command: "pnpm dev --port 5174",
+    command: "CLOUDFLARE_ENV=e2e pnpm dev --port 5174",
     env: {
       VISUAL_TESTING: "true",
     },
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: false,
     timeout: 120_000,
     url: `${baseURL}/__visual/public-shell`,
   },

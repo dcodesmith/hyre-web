@@ -2,8 +2,11 @@ import { type PendingOtp, pendingOtpSchema } from "./auth-form-schema";
 
 export const PENDING_OTP_MAX_AGE_SECONDS = 600;
 
-export function pendingOtpCookieName(secure: boolean) {
-  return secure ? "__Host-otp_pending" : "otp_pending";
+export type PendingOtpScope = "user" | "fleetOwner";
+
+export function pendingOtpCookieName(secure: boolean, scope: PendingOtpScope = "user") {
+  const name = scope === "fleetOwner" ? "fleet_owner_otp_pending" : "otp_pending";
+  return secure ? `__Host-${name}` : name;
 }
 
 export function serializePendingOtp(value: PendingOtp) {
@@ -42,9 +45,13 @@ export function readCookieValue(cookieHeader: string | null, name: string) {
   return undefined;
 }
 
-export function pendingOtpSetCookie(value: PendingOtp, secure: boolean) {
+export function pendingOtpSetCookie(
+  value: PendingOtp,
+  secure: boolean,
+  scope: PendingOtpScope = "user",
+) {
   const attributes = [
-    `${pendingOtpCookieName(secure)}=${serializePendingOtp(value)}`,
+    `${pendingOtpCookieName(secure, scope)}=${serializePendingOtp(value)}`,
     "Path=/",
     "HttpOnly",
     "SameSite=Lax",
@@ -58,9 +65,9 @@ export function pendingOtpSetCookie(value: PendingOtp, secure: boolean) {
   return attributes.join("; ");
 }
 
-export function pendingOtpClearCookie(secure: boolean) {
+export function pendingOtpClearCookie(secure: boolean, scope: PendingOtpScope = "user") {
   const attributes = [
-    `${pendingOtpCookieName(secure)}=`,
+    `${pendingOtpCookieName(secure, scope)}=`,
     "Path=/",
     "HttpOnly",
     "SameSite=Lax",

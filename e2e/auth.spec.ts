@@ -25,8 +25,8 @@ test("renders the customer login form", async ({ page }) => {
 
   await expect(page.getByRole("link", { name: "Tripdly" })).toBeVisible();
   await expect(page.getByLabel("Email")).toBeVisible();
-  await expect(page.getByPlaceholder("Referral code (optional)")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Continue" })).toBeVisible();
+  await expect(page.getByPlaceholder("Referral code (optional)…")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Send verification code" })).toBeVisible();
   await expect(page.getByRole("checkbox", { name: /Terms/ })).toBeVisible();
 });
 
@@ -38,7 +38,7 @@ test("logo returns to the home page", async ({ page }) => {
 
 test("shows inline field errors without native validation", async ({ page }) => {
   await page.goto("/auth");
-  await page.getByRole("button", { name: "Continue" }).click();
+  await page.getByRole("button", { name: "Send verification code" }).click();
 
   await expect(page.getByText("Email address is not valid.")).toBeVisible();
   await expect(
@@ -49,7 +49,7 @@ test("shows inline field errors without native validation", async ({ page }) => 
 test("clears only the terms error after the checkbox is checked", async ({ page }) => {
   await page.goto("/auth");
   await page.reload();
-  await page.getByRole("button", { name: "Continue" }).click();
+  await page.getByRole("button", { name: "Send verification code" }).click();
 
   const termsError = page.getByText("You must accept the Terms of Service and Privacy Policy");
   await expect(termsError).toBeVisible();
@@ -68,7 +68,7 @@ test("sends an unauthenticated verify visit back to login", async ({ page }) => 
 });
 
 test("prefills a valid referral from the URL and leaves an invalid one empty", async ({ page }) => {
-  const referral = page.getByPlaceholder("Referral code (optional)");
+  const referral = page.getByPlaceholder("Referral code (optional)…");
 
   await page.goto("/auth?ref=ABCD2345");
   await expect(referral).toHaveValue("ABCD2345");

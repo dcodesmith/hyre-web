@@ -40,6 +40,14 @@ describe("pending OTP cookie", () => {
     expect(pendingOtpClearCookie(false)).toContain("Max-Age=0");
   });
 
+  it("keeps fleet-owner verification separate from customer verification", () => {
+    expect(pendingOtpCookieName(false, "fleetOwner")).toBe("fleet_owner_otp_pending");
+    expect(pendingOtpCookieName(true, "fleetOwner")).toBe("__Host-fleet_owner_otp_pending");
+    expect(pendingOtpSetCookie({ email: "owner@tripdly.com" }, false, "fleetOwner")).toContain(
+      "fleet_owner_otp_pending=",
+    );
+  });
+
   it("reads a named cookie from a header", () => {
     expect(readCookieValue("otp_pending=abc; other=1", "otp_pending")).toBe("abc");
     expect(readCookieValue(null, "otp_pending")).toBeUndefined();

@@ -61,6 +61,12 @@ export function safeRedirectPath(value: string | null | undefined, fallback = "/
   return path;
 }
 
+export function safeFleetOwnerRedirectPath(value: string | null | undefined) {
+  const path = safeRedirectPath(value, "");
+
+  return path === "/fleet-owner" || path.startsWith("/fleet-owner/") ? path : "/fleet-owner";
+}
+
 export function authPath(
   path: "/auth" | "/verify",
   query: { redirectTo?: string | null; ref?: string | null } = {},
@@ -78,6 +84,21 @@ export function authPath(
     if (ref) {
       params.set("ref", ref);
     }
+  }
+
+  const serialized = params.toString();
+  return serialized ? `${path}?${serialized}` : path;
+}
+
+export function fleetOwnerAuthPath(
+  path: "/fleet-owner/login" | "/fleet-owner/verify",
+  redirectTo?: string | null,
+) {
+  const params = new URLSearchParams();
+  const target = safeFleetOwnerRedirectPath(redirectTo);
+
+  if (target !== "/fleet-owner") {
+    params.set("redirectTo", target);
   }
 
   const serialized = params.toString();

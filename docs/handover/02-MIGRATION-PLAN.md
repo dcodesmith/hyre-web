@@ -222,7 +222,12 @@ Each slice requires:
 
 Do not begin a screen until the API readiness matrix is green.
 
-Likely-ready areas include fleet cars, promotions, and booking assignment. Dashboard/earnings, airport completion, chauffeur management, onboarding, deletion, and some payout behavior need explicit API verification or new controllers. Airport completion remains provisional while its API changes are uncommitted.
+Fleet-owner OTP authentication, cookie-backed SSR session loading, logout, and
+role enforcement are implemented first. Next independently verifiable slices
+are fleet cars, promotions, and payouts. Dashboard parity, chauffeur
+management, onboarding, fleet booking lists, car deletion, and bank details
+remain gated by the API readiness matrix. Airport completion exists in the API
+but stays separate from these initial console slices.
 
 Port section layouts before individual screens so nested route guards and navigation are tested once.
 

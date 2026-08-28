@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { authPath, authReferer, safeRedirectPath } from "./referer";
+import {
+  authPath,
+  authReferer,
+  fleetOwnerAuthPath,
+  safeFleetOwnerRedirectPath,
+  safeRedirectPath,
+} from "./referer";
 
 describe("authReferer", () => {
   it("builds a role-scoped referer from the app origin", () => {
@@ -59,5 +65,15 @@ describe("authPath", () => {
     expect(authPath("/verify", { redirectTo: "/bookings", ref: "ABCD2345" })).toBe(
       "/verify?redirectTo=%2Fbookings",
     );
+  });
+});
+
+describe("fleetOwnerAuthPath", () => {
+  it("keeps redirects inside the fleet-owner route tree", () => {
+    expect(fleetOwnerAuthPath("/fleet-owner/login", "/fleet-owner/cars?status=AVAILABLE")).toBe(
+      "/fleet-owner/login?redirectTo=%2Ffleet-owner%2Fcars%3Fstatus%3DAVAILABLE",
+    );
+    expect(fleetOwnerAuthPath("/fleet-owner/verify", "/profile")).toBe("/fleet-owner/verify");
+    expect(safeFleetOwnerRedirectPath("//evil.example")).toBe("/fleet-owner");
   });
 });

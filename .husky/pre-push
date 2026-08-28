@@ -9,9 +9,9 @@ else
   range="origin/main...HEAD"
 fi
 
-changed=$(git diff --name-only "$range" -- app e2e playwright.config.ts package.json pnpm-lock.yaml || true)
+changed=$(git diff --name-only "$range" -- app e2e scripts/run-e2e.mjs playwright.config.ts package.json pnpm-lock.yaml wrangler.jsonc || true)
 if [ -z "$changed" ]; then
   exit 0
 fi
 
-pnpm exec playwright test --ignore-snapshots
+pnpm test:e2e -- --ignore-snapshots

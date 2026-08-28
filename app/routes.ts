@@ -46,5 +46,9 @@ export default [
   layout("routes/_auth.tsx", [
     route("auth", "routes/auth.tsx"),
     route("verify", "routes/verify.tsx"),
+    route("fleet-owner/login", "routes/fleet-owner.login.tsx"),
+    route("fleet-owner/verify", "routes/fleet-owner.verify.tsx"),
   ]),
+  route("fleet-owner/logout", "routes/fleet-owner.logout.ts"),
+  route("fleet-owner", "routes/fleet-owner.tsx", [index("routes/fleet-owner._index.tsx")]),
 ] satisfies RouteConfig;

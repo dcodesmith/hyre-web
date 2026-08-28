@@ -11,6 +11,14 @@
     "VALUE_FROM_CLOUDFLARE": "Hyre Web is running on Cloudflare"
   },
   "env": {
+    "e2e": {
+      "vars": {
+        "API_ORIGIN": "http://127.0.0.1:3100",
+        "APP_ENV": "local",
+        "APP_ORIGIN": "http://localhost:5173",
+        "VALUE_FROM_CLOUDFLARE": "Hyre Web is running on Cloudflare"
+      }
+    },
     "preview": {
       "vars": {
         "API_ORIGIN": "https://staging-api.invalid",

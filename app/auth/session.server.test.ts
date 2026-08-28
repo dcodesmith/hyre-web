@@ -10,7 +10,7 @@ vi.mock("~/api/auth/auth.server", () => ({
   getAuthSession,
 }));
 
-import { readAuthUser } from "./session.server";
+import { readAuthSessionUser, readAuthUser } from "./session.server";
 
 const SESSION_COOKIE = "better-auth.session_token=test-session";
 
@@ -41,6 +41,29 @@ describe("readAuthUser", () => {
     await expect(readAuthUser(requestWithCookie())).resolves.toEqual({
       email: "ada@example.com",
       name: "Ada Lovelace",
+    });
+  });
+
+  it("keeps API roles for protected route guards", async () => {
+    getAuthSession.mockResolvedValue({
+      data: {
+        user: {
+          id: "owner-1",
+          email: "owner@example.com",
+          name: "Fleet Owner",
+          roles: ["fleetOwner"],
+        },
+        session: {},
+      },
+      status: 200,
+      headers: new Headers(),
+    });
+
+    await expect(readAuthSessionUser(requestWithCookie())).resolves.toEqual({
+      id: "owner-1",
+      email: "owner@example.com",
+      name: "Fleet Owner",
+      roles: ["fleetOwner"],
     });
   });
 
