@@ -23,9 +23,10 @@ describe("admin route middleware", () => {
     const request = new Request("https://tripdly.com/admin");
     const context = new RouterContextProvider();
     requireAdminOrStaff.mockResolvedValue(session);
+    const routeArgs = { request, context, params: {} };
 
-    await middleware[0]({ request, context, params: {} } as never, async () => new Response());
-    const result = loader({ request, context, params: {} } as never);
+    await middleware[0](routeArgs, async () => new Response());
+    const result = loader(routeArgs);
 
     expect(requireAdminOrStaff).toHaveBeenCalledOnce();
     expect(result).toEqual(session);
