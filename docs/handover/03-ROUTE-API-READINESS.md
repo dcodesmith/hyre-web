@@ -241,11 +241,13 @@ All roles use the API's Better Auth endpoints. Role-specific pages remain separa
 - `/admin/login`, `/admin/verify`, and `/admin/logout` through the role-scoped
   Better Auth BFF flow for `admin` and `staff`
 - protected `/admin` responsive shell using `GET /auth/session` role data
+- `/admin/cars` using the server-paginated `GET /api/admin/cars` review queue
+- `/admin/cars/:carId` using `GET /api/admin/cars/:carId`, with API-owned car,
+  image, and document approval actions plus admin-only cover/final approval;
+  private document keys are viewed through the guarded API PDF proxy
 
 **Available or closely matched**
 
-- car list/detail/approval/cover/image approval
-- document approval/rejection actions
 - fees/VAT/add-on rates
 - refund and payout reconciliation actions
 

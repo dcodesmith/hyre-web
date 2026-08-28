@@ -33,7 +33,7 @@ describe("admin route middleware", () => {
     };
 
     await middleware[0](routeArgs, async () => new Response());
-    const result = loader(routeArgs);
+    const result = await loader(routeArgs);
 
     expect(requireAdminOrStaff).toHaveBeenCalledOnce();
     expect(result).toEqual(session);

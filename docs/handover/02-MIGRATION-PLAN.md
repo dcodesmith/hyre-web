@@ -242,19 +242,23 @@ Port section layouts before individual screens so nested route guards and naviga
 Admin API coverage is currently incomplete compared with the legacy UI. Treat missing controllers as backend backlog, not permission to copy Prisma into the Worker.
 
 Admin/staff OTP authentication, logout, role enforcement, and the responsive
-console shell are implemented. The shell exposes no unsupported business
-screens; add navigation only with each verified API-backed slice.
+console shell are implemented. The admin car review list/detail, image and
+document approve/reject actions, cover selection, and final car approval use
+the guarded API contracts. The shell exposes no unsupported business screens;
+add navigation only with each verified API-backed slice.
 
 Prioritize:
 
 1. dashboard;
-2. cars/images and documents, including a pending-document/image listing contract;
-3. rates/fees;
-4. financial reconciliation, including the legacy booking reconciliation aggregate;
-5. owners/chauffeurs;
-6. reviews;
-7. referrals;
-8. reports and staff.
+2. rates/fees;
+3. financial reconciliation, including the legacy booking reconciliation aggregate;
+4. owners/chauffeurs;
+5. reviews;
+6. referrals;
+7. reports and staff.
+
+The standalone pending-document/image queue remains an API gap. Per-car asset
+review is complete through `GET /api/admin/cars/:carId`.
 
 ## Phase 8: remove duplicate backend code
 

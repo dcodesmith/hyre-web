@@ -62,5 +62,10 @@ export default [
     route("payout-transactions", "routes/fleet-owner.payout-transactions.tsx"),
   ]),
   route("admin/logout", "routes/admin.logout.ts"),
-  route("admin", "routes/admin.tsx", [index("routes/admin._index.tsx")]),
+  route("admin", "routes/admin.tsx", [
+    index("routes/admin._index.tsx"),
+    route("cars", "routes/admin.cars.tsx"),
+    route("cars/:carId", "routes/admin.cars.$carId.tsx"),
+    route("documents/:documentId", "routes/admin.documents.$documentId.ts"),
+  ]),
 ] satisfies RouteConfig;

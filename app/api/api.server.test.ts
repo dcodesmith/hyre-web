@@ -58,6 +58,29 @@ describe("createApiClient", () => {
     expect(response.headers.get("cache-control")).toBe("public, max-age=300");
   });
 
+  it("returns successful binary responses without consuming the body", async () => {
+    let capturedInit: RequestInit | undefined;
+    const body = new Uint8Array([37, 80, 68, 70]);
+    const client = createApiClient({
+      apiOrigin: "https://api.example",
+      fetchImpl: async (_input, init) => {
+        capturedInit = init;
+        return new Response(body, {
+          headers: { "content-type": "application/pdf" },
+        });
+      },
+    });
+
+    const response = await client.requestRaw({
+      path: "/api/proxy-pdf/document-1",
+      headers: { Accept: "application/pdf" },
+    });
+
+    expect(new Headers(capturedInit?.headers).get("accept")).toBe("application/pdf");
+    expect(response.bodyUsed).toBe(false);
+    expect(new Uint8Array(await response.arrayBuffer())).toEqual(body);
+  });
+
   it("does not forward a spoofed x-forwarded-for without CF-Connecting-IP", async () => {
     let capturedInit: RequestInit | undefined;
     const fetchImpl: typeof fetch = async (_input, init) => {

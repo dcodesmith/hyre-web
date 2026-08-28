@@ -1,4 +1,4 @@
-import { LayoutDashboardIcon, LogOutIcon, ShieldCheckIcon } from "lucide-react";
+import { CarIcon, LayoutDashboardIcon, LogOutIcon, ShieldCheckIcon } from "lucide-react";
 import { Form, Link, useLocation } from "react-router";
 
 import type { AdminPortalRole } from "~/auth/auth-form-schema";
@@ -30,6 +30,7 @@ export function AdminSidebar({ isLoggingOut, role, user }: AdminSidebarProps) {
   const location = useLocation();
   const { isMobile, setOpenMobile } = useSidebar();
   const isOverviewActive = location.pathname === "/admin";
+  const isCarsActive = location.pathname.startsWith("/admin/cars");
 
   function closeMobileSidebar() {
     if (isMobile) {
@@ -73,6 +74,18 @@ export function AdminSidebar({ isLoggingOut, role, user }: AdminSidebarProps) {
                   >
                     <LayoutDashboardIcon />
                     <span>Overview</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={isCarsActive} tooltip="Car reviews">
+                  <Link
+                    to="/admin/cars"
+                    aria-current={isCarsActive ? "page" : undefined}
+                    onClick={closeMobileSidebar}
+                  >
+                    <CarIcon />
+                    <span>Car reviews</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
