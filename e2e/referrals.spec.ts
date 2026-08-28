@@ -12,19 +12,9 @@ async function setCookiePreference(page: Page) {
 
 async function stubClipboardWrite(page: Page) {
   await page.evaluate(() => {
-    const writeText = async () => undefined;
-
-    if (navigator.clipboard) {
-      Object.defineProperty(navigator.clipboard, "writeText", {
-        configurable: true,
-        value: writeText,
-      });
-      return;
-    }
-
     Object.defineProperty(navigator, "clipboard", {
       configurable: true,
-      value: { writeText },
+      value: { writeText: async () => undefined },
     });
   });
 }
