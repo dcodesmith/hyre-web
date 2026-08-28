@@ -8,6 +8,8 @@ export const MOCK_ADMIN_CAR_ID = "cm12345678901234567890123";
 export const MOCK_ADMIN_IMAGE_ID = "cm22345678901234567890123";
 export const MOCK_ADMIN_DOCUMENT_ID = "cm32345678901234567890123";
 export const MOCK_ADDON_RATE_ID = "cm42345678901234567890123";
+export const MOCK_ADMIN_REFUND_ID = "cm92345678901234567890123";
+export const MOCK_ADMIN_PAYOUT_ID = "cma2345678901234567890123";
 
 type CapturedRequest = {
   body: unknown;
@@ -26,6 +28,8 @@ export type MockAdminAuthApi = {
   requests: {
     carActions: CapturedCarAction[];
     carListQuery?: string;
+    financialActions: CapturedCarAction[];
+    financialListQueries: string[];
     rateActions: CapturedCarAction[];
     sendOtp?: CapturedRequest;
     signOut?: CapturedRequest;
@@ -144,7 +148,74 @@ const mockAdminRates = {
   ],
 };
 
+const mockAdminRefund = {
+  id: MOCK_ADMIN_REFUND_ID,
+  txRef: "HYRE-REFUND-001",
+  status: "REFUND_ERROR",
+  amountCharged: 125_000,
+  refundRequestedAmount: 120_000,
+  currency: "NGN",
+  refundProviderId: "refund-provider-001",
+  refundProviderStatus: "processing",
+  refundRequestedAt: "2026-08-25T09:30:00.000Z",
+  refundLastCheckedAt: "2026-08-25T10:30:00.000Z",
+  refundReconciliationAttempts: 2,
+  refundVerificationFailures: 1,
+  refundManualReviewNotifiedAt: "2026-08-25T11:00:00.000Z",
+  canReconcile: true,
+  booking: {
+    id: "booking-refund-1",
+    bookingReference: "HYR-REF-001",
+  },
+  extension: null,
+};
+
+const mockAdminPayout = {
+  id: MOCK_ADMIN_PAYOUT_ID,
+  status: "PROCESSING",
+  fleetOwner: {
+    id: "owner-payout-1",
+    name: "Ada Fleet",
+    email: "ada@example.com",
+  },
+  booking: {
+    id: "booking-payout-1",
+    bookingReference: "HYR-PAY-001",
+    overallPayoutStatus: "PROCESSING",
+  },
+  extensionId: null,
+  amountToPay: 92_500,
+  amountPaid: null,
+  currency: "NGN",
+  payoutProviderReference: "payout-provider-001",
+  payoutMethodDetails: "Bank transfer ending in 1234",
+  initiatedAt: "2026-08-26T08:00:00.000Z",
+  processedAt: "2026-08-26T08:05:00.000Z",
+  completedAt: null,
+  notes: null,
+};
+
+const mockFinancialAudit = {
+  id: "audit-financial-1",
+  actorUserId: "admin-1",
+  outcome: "UNRESOLVED",
+  providerReference: "provider-previous",
+  providerStatus: "processing",
+  error: null,
+  createdAt: "2026-08-26T09:00:00.000Z",
+  updatedAt: "2026-08-26T09:00:00.000Z",
+};
+
 type MockAdminRates = typeof mockAdminRates;
+type MockAdminRefund = Omit<typeof mockAdminRefund, "refundProviderId"> & {
+  refundProviderId: string | null;
+};
+type MockAdminFinancials = {
+  refund: MockAdminRefund;
+  payout: typeof mockAdminPayout;
+  refundAudits: (typeof mockFinancialAudit)[];
+  payoutAudits: (typeof mockFinancialAudit)[];
+};
 
 function isMockRateActive(effectiveSince: string, effectiveUntil: string | null, at = new Date()) {
   return (
@@ -391,9 +462,169 @@ async function handleAdminRateRequest(
   return false;
 }
 
-export function startMockAdminAuthApi(port = 3100) {
-  const requests: MockAdminAuthApi["requests"] = { carActions: [], rateActions: [] };
+async function reconcileAdminFinancialRequest(
+  request: IncomingMessage,
+  response: import("node:http").ServerResponse,
+  path: string,
+  requests: MockAdminAuthApi["requests"],
+  sessionRole: PortalRole,
+  financials: MockAdminFinancials,
+) {
+  const body = await readJson(request);
+  requests.financialActions.push({ body, method: request.method, path });
+  if (sessionRole !== "admin") {
+    writeJson(response, 403, { status: 403, detail: "Administrator access is required." });
+    return true;
+  }
+
+  const now = new Date().toISOString();
+  if (path.includes("/refunds/")) {
+    const record =
+      typeof body === "object" && body !== null ? (body as Record<string, unknown>) : {};
+    const providerReference =
+      financials.refund.refundProviderId ??
+      (typeof record.refundProviderId === "string" ? record.refundProviderId : null);
+    if (!providerReference) {
+      writeJson(response, 409, {
+        status: 409,
+        detail: "A refund provider ID is required for reconciliation.",
+      });
+      return true;
+    }
+    Object.assign(financials.refund, {
+      status: "REFUNDED",
+      refundProviderId: providerReference,
+      refundProviderStatus: "completed",
+      refundLastCheckedAt: now,
+      refundReconciliationAttempts: financials.refund.refundReconciliationAttempts + 1,
+      canReconcile: false,
+    });
+    financials.refundAudits.unshift({
+      id: "audit-refund-new",
+      actorUserId: "admin-1",
+      outcome: "RECONCILED",
+      providerReference,
+      providerStatus: "completed",
+      error: null,
+      createdAt: now,
+      updatedAt: now,
+    });
+    writeJson(response, 201, {
+      reconciled: true,
+      status: financials.refund.status,
+      providerStatus: financials.refund.refundProviderStatus,
+      refund: financials.refund,
+    });
+    return true;
+  }
+
+  Object.assign(financials.payout, {
+    status: "PAID_OUT",
+    amountPaid: financials.payout.amountToPay,
+    completedAt: now,
+  });
+  financials.payoutAudits.unshift({
+    id: "audit-payout-new",
+    actorUserId: "admin-1",
+    outcome: "RECONCILED",
+    providerReference: financials.payout.payoutProviderReference,
+    providerStatus: "SUCCESSFUL",
+    error: null,
+    createdAt: now,
+    updatedAt: now,
+  });
+  writeJson(response, 201, {
+    reconciled: true,
+    status: financials.payout.status,
+    providerStatus: "SUCCESSFUL",
+    mismatchReason: null,
+    payout: financials.payout,
+  });
+  return true;
+}
+
+async function handleAdminFinancialRequest(
+  request: IncomingMessage,
+  response: import("node:http").ServerResponse,
+  url: URL,
+  requests: MockAdminAuthApi["requests"],
+  sessionRole: PortalRole,
+  financials: MockAdminFinancials,
+) {
+  const path = url.pathname;
+  const basePath = "/api/admin/financial-operations";
+  if (!path.startsWith(basePath)) {
+    return false;
+  }
+
+  if (!hasAdminSession(request)) {
+    writeJson(response, 401, { status: 401, detail: "Unauthorized" });
+    return true;
+  }
+
+  if (request.method === "GET" && path === `${basePath}/refunds`) {
+    requests.financialListQueries.push(url.search);
+    writeJson(response, 200, {
+      refunds: [financials.refund],
+      meta: { page: 1, limit: 20, total: 1, totalPages: 1 },
+    });
+    return true;
+  }
+
+  if (request.method === "GET" && path === `${basePath}/payouts`) {
+    requests.financialListQueries.push(url.search);
+    writeJson(response, 200, {
+      payouts: [financials.payout],
+      meta: { page: 1, limit: 20, total: 1, totalPages: 1 },
+    });
+    return true;
+  }
+
+  if (request.method === "GET" && path === `${basePath}/refunds/${MOCK_ADMIN_REFUND_ID}`) {
+    writeJson(response, 200, { ...financials.refund, audits: financials.refundAudits });
+    return true;
+  }
+
+  if (request.method === "GET" && path === `${basePath}/payouts/${MOCK_ADMIN_PAYOUT_ID}`) {
+    writeJson(response, 200, { ...financials.payout, audits: financials.payoutAudits });
+    return true;
+  }
+
+  if (
+    request.method === "POST" &&
+    (path === `${basePath}/refunds/${MOCK_ADMIN_REFUND_ID}/reconcile` ||
+      path === `${basePath}/payouts/${MOCK_ADMIN_PAYOUT_ID}/reconcile`)
+  ) {
+    return reconcileAdminFinancialRequest(
+      request,
+      response,
+      path,
+      requests,
+      sessionRole,
+      financials,
+    );
+  }
+
+  return false;
+}
+
+export function startMockAdminAuthApi(
+  port = 3100,
+  refundProviderId: string | null = mockAdminRefund.refundProviderId,
+) {
+  const requests: MockAdminAuthApi["requests"] = {
+    carActions: [],
+    financialActions: [],
+    financialListQueries: [],
+    rateActions: [],
+  };
   const rates = structuredClone(mockAdminRates);
+  const financials: MockAdminFinancials = {
+    refund: { ...structuredClone(mockAdminRefund), refundProviderId },
+    payout: structuredClone(mockAdminPayout),
+    refundAudits: [structuredClone(mockFinancialAudit)],
+    payoutAudits: [structuredClone(mockFinancialAudit)],
+  };
   let sessionRole: PortalRole = "admin";
   const server = createServer(async (request, response) => {
     const url = new URL(request.url ?? "/", "http://127.0.0.1");
@@ -403,6 +634,11 @@ export function startMockAdminAuthApi(port = 3100) {
       return;
     }
     if (await handleAdminRateRequest(request, response, url, requests, sessionRole, rates)) {
+      return;
+    }
+    if (
+      await handleAdminFinancialRequest(request, response, url, requests, sessionRole, financials)
+    ) {
       return;
     }
 
