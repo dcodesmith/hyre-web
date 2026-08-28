@@ -1,8 +1,8 @@
 import {
   ArrowRightIcon,
   CalendarCheckIcon,
+  CalendarClockIcon,
   CarIcon,
-  ChartNoAxesCombinedIcon,
   CircleDollarSignIcon,
   TagIcon,
   WalletCardsIcon,
@@ -39,7 +39,10 @@ import { formatCurrency } from "~/money/currency";
 import { formatEarningsBucket } from "./dashboard";
 import type { FleetDashboardView } from "./dashboard-url";
 
-type DashboardOverview = Omit<FleetDashboardOverview, "pendingPayoutAmount"> & {
+type DashboardOverview = Omit<
+  FleetDashboardOverview,
+  "chauffeurTrips" | "ownerDriverTrips" | "pendingPayoutAmount"
+> & {
   readonly vehicleStatusCounts: {
     readonly available: number;
     readonly booked: number;
@@ -224,23 +227,16 @@ export function FleetDashboardPage({
             value={overview.totalBookings}
             description="All bookings received"
             details={[
-              `${overview.activeBookings} active`,
               `${overview.completedBookings} completed`,
               `${overview.cancelledBookings} cancelled`,
             ]}
             icon={<CalendarCheckIcon className="size-6 text-green-600 dark:text-green-400" />}
           />
           <OverviewCard
-            title="Completed trips"
-            value={overview.completedBookings}
-            description="How completed trips were fulfilled"
-            details={[
-              `${overview.ownerDriverTrips} owner-driven`,
-              `${overview.chauffeurTrips} chauffeur-driven`,
-            ]}
-            icon={
-              <ChartNoAxesCombinedIcon className="size-6 text-purple-600 dark:text-purple-400" />
-            }
+            title="Active bookings"
+            value={overview.activeBookings}
+            description="Bookings pending, confirmed, or in progress"
+            icon={<CalendarClockIcon className="size-6 text-purple-600 dark:text-purple-400" />}
           />
           <OverviewCard
             title="Total earnings"

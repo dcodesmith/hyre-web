@@ -71,8 +71,6 @@ export async function loader({ request }: Route.LoaderArgs) {
       activeBookings: dashboardOverview.activeBookings,
       cancelledBookings: dashboardOverview.cancelledBookings,
       carsCount: carsResponse?.data.length ?? dashboardOverview.carsCount,
-      ownerDriverTrips: dashboardOverview.ownerDriverTrips,
-      chauffeurTrips: dashboardOverview.chauffeurTrips,
       totalEarnings: dashboardOverview.totalEarnings,
       vehicleStatusCounts,
     },

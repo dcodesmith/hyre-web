@@ -34,8 +34,8 @@ test("shows and filters the fleet-owner dashboard across viewports", async ({ co
     await expect(page.getByText("₦41,000")).toBeVisible();
     await expect(page.getByRole("heading", { name: "Payout overview", level: 3 })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Quick actions", level: 3 })).toBeVisible();
-    await expect(page.getByText("4 active", { exact: true })).toBeVisible();
-    await expect(page.getByText("7 owner-driven", { exact: true })).toBeVisible();
+    await expect(page.getByText("Active bookings", { exact: true })).toBeVisible();
+    await expect(page.getByText("Bookings pending, confirmed, or in progress")).toBeVisible();
     await expect(page.getByText("Week of 24 Aug")).toBeVisible();
     await expect
       .poll(() => api.requests.earningsQueries.at(-1))
