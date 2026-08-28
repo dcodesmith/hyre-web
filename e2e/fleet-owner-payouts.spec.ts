@@ -20,7 +20,7 @@ test("lists and filters fleet-owner payouts", async ({ context, page }) => {
       page.getByRole("heading", { name: "Payout transactions", level: 2 }),
     ).toBeVisible();
     await expect(page.getByRole("heading", { name: "All-time summary", level: 3 })).toBeVisible();
-    await expect(page.getByText("₦1,000,000")).toBeVisible();
+    await expect(page.getByText("₦1,020,000")).toBeVisible();
     await expect(page.getByText("Page 1 of 2 · 21 transactions")).toBeVisible();
     await expect(
       page.getByText("payout-01", { exact: true }).filter({ visible: true }),

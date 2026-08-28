@@ -108,7 +108,7 @@ const mockPayouts = Array.from({ length: 21 }, (_, index) => {
 const emptyPayoutStatus = { count: 0, amountToPay: 0, amountPaid: 0 };
 
 const mockPayoutSummary = {
-  totalPaidOut: 1_000_000,
+  totalPaidOut: 1_020_000,
   pendingPayouts: 41_000,
   failedPayouts: 0,
   lastPayoutAt: "2026-08-21T12:00:00.000Z",
@@ -116,7 +116,7 @@ const mockPayoutSummary = {
     PENDING_APPROVAL: emptyPayoutStatus,
     PENDING_DISBURSEMENT: emptyPayoutStatus,
     PROCESSING: { count: 1, amountToPay: 41_000, amountPaid: 0 },
-    PAID_OUT: { count: 20, amountToPay: 1_020_000, amountPaid: 1_010_000 },
+    PAID_OUT: { count: 20, amountToPay: 1_030_000, amountPaid: 1_020_000 },
     FAILED: emptyPayoutStatus,
     REVERSED: emptyPayoutStatus,
   },
