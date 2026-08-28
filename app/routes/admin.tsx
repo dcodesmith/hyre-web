@@ -38,6 +38,9 @@ function getPageTitle(pathname: string) {
   if (pathname.startsWith("/admin/cars")) {
     return "Car reviews";
   }
+  if (pathname.startsWith("/admin/financials")) {
+    return "Financials";
+  }
   if (pathname === "/admin/fees") {
     return "Fees and VAT";
   }
