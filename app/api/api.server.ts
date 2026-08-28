@@ -33,9 +33,8 @@ export type ApiClientOptions = {
   fetchImpl?: typeof fetch;
 };
 
-export type ApiRequestOptions<TSchema extends z.ZodType> = {
+type ApiFetchOptions = {
   path: string;
-  schema: TSchema;
   method?: "DELETE" | "GET" | "PATCH" | "POST" | "PUT";
   request?: Request;
   headers?: HeadersInit;
@@ -46,6 +45,10 @@ export type ApiRequestOptions<TSchema extends z.ZodType> = {
   forwardOrigin?: boolean;
 };
 
+export type ApiRequestOptions<TSchema extends z.ZodType> = ApiFetchOptions & {
+  schema: TSchema;
+};
+
 export function createApiClient({
   apiOrigin,
   defaultTimeoutMs = DEFAULT_TIMEOUT_MS,
@@ -53,92 +56,104 @@ export function createApiClient({
 }: ApiClientOptions) {
   const origin = normalizeApiOrigin(apiOrigin);
 
+  async function send(options: ApiFetchOptions, readBody: boolean) {
+    const url = buildApiUrl(origin, options.path);
+    const hasFormDataBody = options.formData !== undefined;
+    const hasJsonBody = options.json !== undefined;
+    const hasRequestBody = hasFormDataBody || hasJsonBody;
+    const method = options.method ?? (hasRequestBody ? "POST" : "GET");
+
+    if (hasFormDataBody && hasJsonBody) {
+      throw new TypeError("API requests cannot include both JSON and multipart bodies");
+    }
+
+    if (hasRequestBody && (method === "GET" || method === "DELETE")) {
+      throw new TypeError(`${method} requests cannot include a body`);
+    }
+
+    const timeoutMs = options.timeoutMs ?? defaultTimeoutMs;
+    const headers = buildHeaders(options, hasJsonBody);
+    const requestBody = hasJsonBody ? JSON.stringify(options.json) : options.formData;
+    const abort = createAbortContext(options.request?.signal, timeoutMs);
+
+    let response: Response;
+    let responseBody: unknown;
+    let keepAbortAlive = false;
+
+    try {
+      response = await fetchImpl(url, {
+        method,
+        headers,
+        body: requestBody,
+        signal: abort.signal,
+        redirect: "manual",
+      });
+      if (readBody || !response.ok) {
+        responseBody = await readResponseBody(response);
+      } else {
+        keepAbortAlive = true;
+      }
+    } catch (cause) {
+      if (abort.didTimeout()) {
+        throw localApiError(
+          "timeout",
+          HTTP_STATUS.GATEWAY_TIMEOUT,
+          "UPSTREAM_TIMEOUT",
+          "Upstream API timeout",
+          "The upstream API response did not complete before the request timed out.",
+          options.path,
+          cause,
+        );
+      }
+
+      if (options.request?.signal.aborted) {
+        throw localApiError(
+          "aborted",
+          HTTP_STATUS.CLIENT_CLOSED_REQUEST,
+          "REQUEST_ABORTED",
+          "Request aborted",
+          "The request was cancelled before the upstream API responded.",
+          options.path,
+          cause,
+        );
+      }
+
+      throw localApiError(
+        "network",
+        HTTP_STATUS.SERVICE_UNAVAILABLE,
+        "UPSTREAM_UNAVAILABLE",
+        "Upstream API unavailable",
+        "The upstream API response could not be completed.",
+        options.path,
+        cause,
+      );
+    } finally {
+      if (!keepAbortAlive) {
+        abort.cleanup();
+      }
+    }
+
+    if (!response.ok) {
+      const title = response.statusText || "Upstream request failed";
+      const problem = normalizeProblemDetails(responseBody, {
+        status: response.status,
+        title,
+        detail: title,
+        instance: options.path,
+      });
+
+      throw new ApiRequestError("http", response.status, problem, new Headers(response.headers));
+    }
+
+    return { response, responseBody, cleanup: abort.cleanup };
+  }
+
   return {
     async request<TSchema extends z.ZodType>(
       options: ApiRequestOptions<TSchema>,
     ): Promise<ApiResponse<z.output<TSchema>>> {
-      const url = buildApiUrl(origin, options.path);
-      const hasFormDataBody = options.formData !== undefined;
-      const hasJsonBody = options.json !== undefined;
-      const hasRequestBody = hasFormDataBody || hasJsonBody;
-      const method = options.method ?? (hasRequestBody ? "POST" : "GET");
-
-      if (hasFormDataBody && hasJsonBody) {
-        throw new TypeError("API requests cannot include both JSON and multipart bodies");
-      }
-
-      if (hasRequestBody && (method === "GET" || method === "DELETE")) {
-        throw new TypeError(`${method} requests cannot include a body`);
-      }
-
-      const timeoutMs = options.timeoutMs ?? defaultTimeoutMs;
-      const headers = buildHeaders(options, hasJsonBody);
-      const requestBody = hasJsonBody ? JSON.stringify(options.json) : options.formData;
-      const abort = createAbortContext(options.request?.signal, timeoutMs);
-
-      let response: Response;
-      let responseBody: unknown;
-
-      try {
-        response = await fetchImpl(url, {
-          method,
-          headers,
-          body: requestBody,
-          signal: abort.signal,
-          redirect: "manual",
-        });
-        responseBody = await readResponseBody(response);
-      } catch (cause) {
-        if (abort.didTimeout()) {
-          throw localApiError(
-            "timeout",
-            HTTP_STATUS.GATEWAY_TIMEOUT,
-            "UPSTREAM_TIMEOUT",
-            "Upstream API timeout",
-            "The upstream API response did not complete before the request timed out.",
-            options.path,
-            cause,
-          );
-        }
-
-        if (options.request?.signal.aborted) {
-          throw localApiError(
-            "aborted",
-            HTTP_STATUS.CLIENT_CLOSED_REQUEST,
-            "REQUEST_ABORTED",
-            "Request aborted",
-            "The request was cancelled before the upstream API responded.",
-            options.path,
-            cause,
-          );
-        }
-
-        throw localApiError(
-          "network",
-          HTTP_STATUS.SERVICE_UNAVAILABLE,
-          "UPSTREAM_UNAVAILABLE",
-          "Upstream API unavailable",
-          "The upstream API response could not be completed.",
-          options.path,
-          cause,
-        );
-      } finally {
-        abort.cleanup();
-      }
-
+      const { response, responseBody } = await send(options, true);
       const responseHeaders = new Headers(response.headers);
-
-      if (!response.ok) {
-        const title = response.statusText || "Upstream request failed";
-        const problem = normalizeProblemDetails(responseBody, {
-          status: response.status,
-          title,
-          detail: title,
-          instance: options.path,
-        });
-
-        throw new ApiRequestError("http", response.status, problem, responseHeaders);
-      }
 
       const parsed = await options.schema.safeParseAsync(responseBody);
 
@@ -170,7 +185,57 @@ export function createApiClient({
         headers: responseHeaders,
       };
     },
+    async requestRaw(options: ApiFetchOptions) {
+      const { response, cleanup } = await send(options, false);
+      return manageResponseBody(response, cleanup);
+    },
   };
+}
+
+function manageResponseBody(response: Response, cleanup: () => void) {
+  if (!response.body) {
+    cleanup();
+    return response;
+  }
+
+  const reader = response.body.getReader();
+  let settled = false;
+  const settle = () => {
+    if (!settled) {
+      settled = true;
+      cleanup();
+    }
+  };
+
+  const body = new ReadableStream<Uint8Array>({
+    async pull(controller) {
+      try {
+        const { done, value } = await reader.read();
+        if (done) {
+          settle();
+          controller.close();
+          return;
+        }
+        controller.enqueue(value);
+      } catch (cause) {
+        settle();
+        controller.error(cause);
+      }
+    },
+    async cancel(reason) {
+      try {
+        await reader.cancel(reason);
+      } finally {
+        settle();
+      }
+    },
+  });
+
+  return new Response(body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers: response.headers,
+  });
 }
 
 function normalizeApiOrigin(value: string) {
@@ -211,12 +276,11 @@ function buildApiUrl(origin: string, path: string) {
   return url;
 }
 
-function buildHeaders<TSchema extends z.ZodType>(
-  options: ApiRequestOptions<TSchema>,
-  hasJsonBody: boolean,
-) {
+function buildHeaders(options: ApiFetchOptions, hasJsonBody: boolean) {
   const headers = new Headers(options.headers);
-  headers.set("Accept", "application/json");
+  if (!headers.has("Accept")) {
+    headers.set("Accept", "application/json");
+  }
 
   if (hasJsonBody) {
     headers.set("Content-Type", "application/json");

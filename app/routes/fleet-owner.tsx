@@ -95,11 +95,11 @@ export default function FleetOwnerLayout({ loaderData }: Route.ComponentProps) {
       <SidebarProvider>
         <FleetOwnerSidebar user={loaderData.user} isLoggingOut={isLoggingOut} />
         <SidebarInset>
-          <header className="sticky top-0 z-10 flex h-12 shrink-0 items-center border-b bg-background">
-            <div className="flex w-full items-center gap-2 px-4 lg:px-6">
+          <header className="sticky top-0 z-10 flex h-12 shrink-0 items-center gap-2 border-b bg-background transition-[width,height] ease-linear">
+            <div className="flex w-full items-center gap-1 px-4 lg:gap-2 lg:px-6">
               <SidebarTrigger className="-ml-1" />
-              <Separator orientation="vertical" className="h-4" />
-              <h1 className="text-sm font-medium">{getPageTitle(location.pathname)}</h1>
+              <Separator orientation="vertical" className="mx-2 data-[orientation=vertical]:h-4" />
+              <h1 className="text-base font-medium">{getPageTitle(location.pathname)}</h1>
             </div>
           </header>
           <div className="flex-1 p-4 sm:p-6">

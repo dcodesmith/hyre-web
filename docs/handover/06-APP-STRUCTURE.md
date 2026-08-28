@@ -82,6 +82,12 @@ app/
       dashboard/
         dashboard.server.ts       # GET dashboard overview, earnings, payouts
         schema.ts                 # dashboard and payout response DTOs
+    admin/
+      cars/
+        cars.server.ts            # admin car list/detail and review mutations
+        schema.ts                 # admin car review transport DTOs
+      documents/
+        documents.server.ts       # guarded GET /api/proxy-pdf/:documentId stream
     bookings/
       bookings.server.ts          # GET list/detail; PATCH modify/cancel; POST preview + create
       schema.ts                   # list/detail DTOs; canEdit/canCancel; preview + create responses
@@ -236,6 +242,14 @@ app/
 
   admin/
     admin-sidebar.tsx              # responsive protected admin/staff navigation
+    cars/
+      admin-cars-url.ts            # approval-status filter + API pagination URL
+      admin-cars-list.tsx          # responsive review queue
+      admin-car-detail.tsx         # vehicle, owner, image, and document review
+      admin-car-action-schema.ts   # review action form contract
+      admin-car-asset-actions.tsx  # image/document approve/reject fetchers
+      admin-car-review-badge.tsx
+      car-approval.ts              # admin review labels/counts
 
   seo/
     metadata.ts
@@ -305,6 +319,9 @@ app/
     admin.logout.ts               # admin-scope sign-out + local cookie cleanup
     admin.tsx                     # protected responsive console shell + middleware
     admin._index.tsx              # API-free signed-in shell landing
+    admin.cars.tsx                # server-paginated admin car review queue
+    admin.cars.$carId.tsx         # car/image/document review actions
+    admin.documents.$documentId.ts # same-origin private PDF stream
     bookings.tsx                  # signed-in list; guests → /auth?redirectTo=
     bookings.$bookingId.tsx       # signed-in detail + cancel; guests → /auth?redirectTo=
     payment-status.tsx            # /bookings/payment-status callback + polling UI
@@ -356,7 +373,7 @@ here.
   are implemented.
 - `app/api/fleet/{cars,dashboard,promotions,bookings}/` — dashboard calls
   `/api/dashboard/*`, not `/api/fleet-owner/dashboard`
-- `app/api/admin/{cars,documents,rates,financial}/`
+- `app/api/admin/{rates,financial}/`
 - grow `app/auth/` for admin login, `app/booking/`, `app/account/`
 - `app/fleet/` and `app/admin/` consoles
 - `app/components/console/`, `app/components/table/`
