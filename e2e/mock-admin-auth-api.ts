@@ -144,11 +144,66 @@ const mockAdminRates = {
   ],
 };
 
-const mockRateTypeFields: Record<string, Record<string, string | number>> = {
-  "/api/rates/platform-fee": { feeType: "PLATFORM_SERVICE_FEE", ratePercent: 12 },
-  "/api/rates/vat": { ratePercent: 8 },
-  "/api/rates/addon": { addonType: "SECURITY_DETAIL", rateAmount: 20_000 },
-};
+type MockAdminRates = typeof mockAdminRates;
+
+function isMockRateActive(effectiveSince: string, effectiveUntil: string | null, at = new Date()) {
+  return (
+    new Date(effectiveSince) <= at && (effectiveUntil === null || new Date(effectiveUntil) > at)
+  );
+}
+
+function createdRateWindow(body: Record<string, unknown>, id: string) {
+  const now = new Date().toISOString();
+  const effectiveSince = typeof body.effectiveSince === "string" ? body.effectiveSince : now;
+  const effectiveUntil = typeof body.effectiveUntil === "string" ? body.effectiveUntil : null;
+  return {
+    id,
+    effectiveSince,
+    effectiveUntil,
+    description: typeof body.description === "string" ? body.description : null,
+    createdAt: now,
+    updatedAt: now,
+    active: isMockRateActive(effectiveSince, effectiveUntil),
+  };
+}
+
+function persistCreatedRate(path: string, body: unknown, rates: MockAdminRates) {
+  const record = typeof body === "object" && body !== null ? (body as Record<string, unknown>) : {};
+  const id = `cm8${String(
+    rates.platformFeeRates.length + rates.taxRates.length + rates.addonRates.length,
+  ).padStart(23, "0")}`;
+  const window = createdRateWindow(record, id);
+
+  if (path === "/api/rates/platform-fee") {
+    const created = {
+      ...window,
+      feeType:
+        record.feeType === "FLEET_OWNER_COMMISSION"
+          ? "FLEET_OWNER_COMMISSION"
+          : "PLATFORM_SERVICE_FEE",
+      ratePercent: typeof record.ratePercent === "number" ? record.ratePercent : 0,
+    };
+    rates.platformFeeRates.unshift(created);
+    return created;
+  }
+
+  if (path === "/api/rates/vat") {
+    const created = {
+      ...window,
+      ratePercent: typeof record.ratePercent === "number" ? record.ratePercent : 0,
+    };
+    rates.taxRates.unshift(created);
+    return created;
+  }
+
+  const created = {
+    ...window,
+    addonType: "SECURITY_DETAIL" as const,
+    rateAmount: typeof record.rateAmount === "number" ? record.rateAmount : 0,
+  };
+  rates.addonRates.unshift(created);
+  return created;
+}
 
 function readJson(request: IncomingMessage) {
   return new Promise<unknown>((resolve, reject) => {
@@ -263,6 +318,7 @@ async function handleAdminRateRequest(
   url: URL,
   requests: MockAdminAuthApi["requests"],
   sessionRole: PortalRole,
+  rates: MockAdminRates,
 ) {
   const path = url.pathname;
   if (!path.startsWith("/api/rates")) {
@@ -279,7 +335,7 @@ async function handleAdminRateRequest(
   }
 
   if (request.method === "GET" && path === "/api/rates/admin") {
-    writeJson(response, 200, mockAdminRates);
+    writeJson(response, 200, rates);
     return true;
   }
 
@@ -306,24 +362,29 @@ async function handleAdminRateRequest(
       });
       return true;
     }
-    writeJson(response, 201, {
-      id: "cm82345678901234567890123",
-      effectiveSince: "2027-01-01T00:00:00.000Z",
-      effectiveUntil: "2027-02-01T00:00:00.000Z",
-      description: null,
-      createdAt: "2026-08-28T00:00:00.000Z",
-      updatedAt: "2026-08-28T00:00:00.000Z",
-      ...mockRateTypeFields[path],
-    });
+    const created = persistCreatedRate(path, body, rates);
+    const { active: _active, ...mutation } = created;
+    writeJson(response, 201, mutation);
     return true;
   }
 
-  if (request.method === "PATCH" && path === `/api/rates/addon/${MOCK_ADDON_RATE_ID}/end`) {
+  const endAddonMatch = /^\/api\/rates\/addon\/([^/]+)\/end$/.exec(path);
+  if (request.method === "PATCH" && endAddonMatch) {
+    const addonRate = rates.addonRates.find((rate) => rate.id === endAddonMatch[1]);
     requests.rateActions.push({ body: null, method: request.method, path });
-    writeJson(response, 200, {
-      ...mockAdminRates.addonRates[0],
-      effectiveUntil: "2026-08-28T20:00:00.000Z",
+    if (!addonRate) {
+      writeJson(response, 404, { status: 404, detail: "Rate not found" });
+      return true;
+    }
+
+    const endedAt = new Date().toISOString();
+    Object.assign(addonRate, {
+      active: false,
+      effectiveUntil: endedAt,
+      updatedAt: endedAt,
     });
+    const { active: _active, ...mutation } = addonRate;
+    writeJson(response, 200, mutation);
     return true;
   }
 
@@ -332,6 +393,7 @@ async function handleAdminRateRequest(
 
 export function startMockAdminAuthApi(port = 3100) {
   const requests: MockAdminAuthApi["requests"] = { carActions: [], rateActions: [] };
+  const rates = structuredClone(mockAdminRates);
   let sessionRole: PortalRole = "admin";
   const server = createServer(async (request, response) => {
     const url = new URL(request.url ?? "/", "http://127.0.0.1");
@@ -340,7 +402,7 @@ export function startMockAdminAuthApi(port = 3100) {
     if (await handleAdminCarRequest(request, response, url, requests)) {
       return;
     }
-    if (await handleAdminRateRequest(request, response, url, requests, sessionRole)) {
+    if (await handleAdminRateRequest(request, response, url, requests, sessionRole, rates)) {
       return;
     }
 

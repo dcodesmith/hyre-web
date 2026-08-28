@@ -39,13 +39,23 @@ function endFollowsStart({
   return !effectiveUntil || effectiveUntil > effectiveSince;
 }
 
+const requiredRatePercentSchema = z.preprocess(
+  (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
+  z.coerce
+    .number({ error: "Rate percentage is required" })
+    .min(0, "Rate cannot be negative")
+    .max(100, "Rate cannot exceed 100%"),
+);
+
+const requiredRateAmountSchema = z.preprocess(
+  (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
+  z.coerce.number({ error: "Rate amount is required" }).min(0, "Rate amount cannot be negative"),
+);
+
 export const platformFeeFormSchema = effectiveWindowSchema
   .extend({
     feeType: platformFeeTypeSchema,
-    ratePercent: z.coerce
-      .number({ error: "Rate percentage is required" })
-      .min(0, "Rate cannot be negative")
-      .max(100, "Rate cannot exceed 100%"),
+    ratePercent: requiredRatePercentSchema,
   })
   .refine(endFollowsStart, {
     message: "End date must be after the start date",
@@ -54,10 +64,7 @@ export const platformFeeFormSchema = effectiveWindowSchema
 
 export const vatRateFormSchema = effectiveWindowSchema
   .extend({
-    ratePercent: z.coerce
-      .number({ error: "Rate percentage is required" })
-      .min(0, "Rate cannot be negative")
-      .max(100, "Rate cannot exceed 100%"),
+    ratePercent: requiredRatePercentSchema,
   })
   .refine(endFollowsStart, {
     message: "End date must be after the start date",
@@ -66,9 +73,7 @@ export const vatRateFormSchema = effectiveWindowSchema
 
 export const addonRateFormSchema = effectiveWindowSchema
   .extend({
-    rateAmount: z.coerce
-      .number({ error: "Rate amount is required" })
-      .min(0, "Rate amount cannot be negative"),
+    rateAmount: requiredRateAmountSchema,
   })
   .refine(endFollowsStart, {
     message: "End date must be after the start date",

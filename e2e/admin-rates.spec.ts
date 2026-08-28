@@ -48,6 +48,9 @@ test("manages admin fee, VAT, and add-on rate windows", async ({ context, page }
         path: "/api/rates/vat",
       });
     await expect(page.getByText("VAT rate scheduled.")).toBeVisible();
+    const vatCard = page.locator("[data-slot=card]").filter({ hasText: "VAT rate" });
+    await vatCard.getByText("Existing rate windows (2)").click();
+    await expect(vatCard.getByRole("listitem").filter({ hasText: "8%" })).toBeVisible();
 
     const platformForm = page.getByRole("form", { name: "Schedule platform fee" });
     await platformForm.getByLabel("Fee type").click();
@@ -67,6 +70,8 @@ test("manages admin fee, VAT, and add-on rate windows", async ({ context, page }
         method: "POST",
         path: "/api/rates/platform-fee",
       });
+    const platformCard = page.locator("[data-slot=card]").filter({ hasText: "Platform fees" });
+    await expect(platformCard.getByText("Existing rate windows (3)")).toBeVisible();
 
     await page.goto("/admin/addon-rates");
     await expect(
@@ -90,6 +95,8 @@ test("manages admin fee, VAT, and add-on rate windows", async ({ context, page }
         method: "POST",
         path: "/api/rates/addon",
       });
+    await expect(page.getByText("₦20,000")).toBeVisible();
+    await expect(page.getByText("Scheduled")).toBeVisible();
 
     await page.getByRole("button", { name: "End now" }).click();
     await page.getByRole("button", { name: "End rate" }).click();
@@ -100,6 +107,8 @@ test("manages admin fee, VAT, and add-on rate windows", async ({ context, page }
         method: "PATCH",
         path: `/api/rates/addon/${MOCK_ADDON_RATE_ID}/end`,
       });
+    await expect(page.getByText("Ended")).toBeVisible();
+    await expect(page.getByRole("button", { name: "End now" })).toHaveCount(0);
   } finally {
     await stopMockAdminAuthApi(api);
   }

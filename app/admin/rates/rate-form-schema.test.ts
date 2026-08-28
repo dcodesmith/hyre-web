@@ -59,4 +59,48 @@ describe("admin rate form schemas", () => {
   it("serializes a validated local field as an explicit UTC instant", () => {
     expect(toUtcIso("2026-09-01T09:00")).toBe("2026-09-01T09:00:00.000Z");
   });
+
+  it("rejects blank numeric fields without coercing them to zero", () => {
+    const platform = platformFeeFormSchema.safeParse({
+      ...validWindow,
+      feeType: "PLATFORM_SERVICE_FEE",
+      ratePercent: "",
+    });
+    const vat = vatRateFormSchema.safeParse({ ...validWindow, ratePercent: "   " });
+    const addon = addonRateFormSchema.safeParse({ ...validWindow, rateAmount: "" });
+
+    expect(platform.success).toBe(false);
+    if (!platform.success) {
+      expect(platform.error.issues[0]).toMatchObject({
+        path: ["ratePercent"],
+        message: "Rate percentage is required",
+      });
+    }
+    expect(vat.success).toBe(false);
+    if (!vat.success) {
+      expect(vat.error.issues[0]).toMatchObject({
+        path: ["ratePercent"],
+        message: "Rate percentage is required",
+      });
+    }
+    expect(addon.success).toBe(false);
+    if (!addon.success) {
+      expect(addon.error.issues[0]).toMatchObject({
+        path: ["rateAmount"],
+        message: "Rate amount is required",
+      });
+    }
+  });
+
+  it("accepts an explicit zero rate", () => {
+    expect(
+      platformFeeFormSchema.safeParse({
+        ...validWindow,
+        feeType: "FLEET_OWNER_COMMISSION",
+        ratePercent: "0",
+      }).success,
+    ).toBe(true);
+    expect(vatRateFormSchema.safeParse({ ...validWindow, ratePercent: 0 }).success).toBe(true);
+    expect(addonRateFormSchema.safeParse({ ...validWindow, rateAmount: "0" }).success).toBe(true);
+  });
 });
