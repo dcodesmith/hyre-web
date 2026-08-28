@@ -244,21 +244,24 @@ Admin API coverage is currently incomplete compared with the legacy UI. Treat mi
 Admin/staff OTP authentication, logout, role enforcement, and the responsive
 console shell are implemented. The admin car review list/detail, image and
 document approve/reject actions, cover selection, and final car approval use
-the guarded API contracts. The shell exposes no unsupported business screens;
-add navigation only with each verified API-backed slice.
+the guarded API contracts. Admin-only fee, VAT, and security-detail rate
+windows use `GET /api/rates/admin` and the guarded create/end endpoints under
+`/api/rates`. The shell exposes no unsupported business screens; add navigation
+only with each verified API-backed slice.
 
-Prioritize:
+Prioritize remaining work:
 
-1. dashboard;
-2. rates/fees;
-3. financial reconciliation, including the legacy booking reconciliation aggregate;
-4. owners/chauffeurs;
-5. reviews;
-6. referrals;
-7. reports and staff.
+1. financial reconciliation, including the legacy booking reconciliation aggregate;
+2. owners/chauffeurs;
+3. reviews;
+4. referrals;
+5. reports and staff.
 
 The standalone pending-document/image queue remains an API gap. Per-car asset
-review is complete through `GET /api/admin/cars/:carId`.
+review is complete through `GET /api/admin/cars/:carId`. Dashboard aggregate
+parity remains an API gap. Platform fee and VAT windows can be created but
+cannot be ended or changed through the current API; the web does not invent
+those missing mutations.
 
 ## Phase 8: remove duplicate backend code
 

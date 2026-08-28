@@ -1,6 +1,7 @@
-import { createContext, Outlet, useLocation, useNavigation } from "react-router";
+import { Outlet, useLocation, useNavigation } from "react-router";
 
 import { AdminSidebar } from "~/admin/admin-sidebar";
+import { adminSessionContext } from "~/auth/admin-context.server";
 import { requireAdminOrStaff } from "~/auth/admin-session.server";
 import { Separator } from "~/components/ui/separator";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "~/components/ui/sidebar";
@@ -21,10 +22,6 @@ export function headers() {
   return { "Cache-Control": "private, no-store" };
 }
 
-type AdminSession = Awaited<ReturnType<typeof requireAdminOrStaff>>;
-
-const adminSessionContext = createContext<AdminSession>();
-
 export const middleware: Route.MiddlewareFunction[] = [
   async ({ request, context }) => {
     context.set(adminSessionContext, await requireAdminOrStaff(request));
@@ -37,6 +34,19 @@ export function loader({ context }: Route.LoaderArgs) {
 
 export type AdminOutletContext = ReturnType<typeof loader>;
 
+function getPageTitle(pathname: string) {
+  if (pathname.startsWith("/admin/cars")) {
+    return "Car reviews";
+  }
+  if (pathname === "/admin/fees") {
+    return "Fees and VAT";
+  }
+  if (pathname === "/admin/addon-rates") {
+    return "Add-on rates";
+  }
+  return "Overview";
+}
+
 export default function AdminLayout({ loaderData }: Route.ComponentProps) {
   const location = useLocation();
   const navigation = useNavigation();
@@ -45,7 +55,7 @@ export default function AdminLayout({ loaderData }: Route.ComponentProps) {
     navigation.formAction != null &&
     new URL(navigation.formAction, "https://tripdly.com").pathname === "/admin/logout";
   const isNavigating = navigation.location != null && !isLoggingOut;
-  const pageTitle = location.pathname.startsWith("/admin/cars") ? "Car reviews" : "Overview";
+  const pageTitle = getPageTitle(location.pathname);
 
   return (
     <TooltipProvider>

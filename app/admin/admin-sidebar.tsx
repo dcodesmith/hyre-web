@@ -1,4 +1,11 @@
-import { CarIcon, LayoutDashboardIcon, LogOutIcon, ShieldCheckIcon } from "lucide-react";
+import {
+  BanknoteIcon,
+  CarIcon,
+  LayoutDashboardIcon,
+  LogOutIcon,
+  ShieldCheckIcon,
+  SlidersHorizontalIcon,
+} from "lucide-react";
 import { Form, Link, useLocation } from "react-router";
 
 import type { AdminPortalRole } from "~/auth/auth-form-schema";
@@ -31,6 +38,8 @@ export function AdminSidebar({ isLoggingOut, role, user }: AdminSidebarProps) {
   const { isMobile, setOpenMobile } = useSidebar();
   const isOverviewActive = location.pathname === "/admin";
   const isCarsActive = location.pathname.startsWith("/admin/cars");
+  const isFeesActive = location.pathname === "/admin/fees";
+  const isAddonRatesActive = location.pathname === "/admin/addon-rates";
 
   function closeMobileSidebar() {
     if (isMobile) {
@@ -89,6 +98,34 @@ export function AdminSidebar({ isLoggingOut, role, user }: AdminSidebarProps) {
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+              {role === "admin" ? (
+                <>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton asChild isActive={isFeesActive} tooltip="Fees and VAT">
+                      <Link
+                        to="/admin/fees"
+                        aria-current={isFeesActive ? "page" : undefined}
+                        onClick={closeMobileSidebar}
+                      >
+                        <BanknoteIcon />
+                        <span>Fees and VAT</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton asChild isActive={isAddonRatesActive} tooltip="Add-on rates">
+                      <Link
+                        to="/admin/addon-rates"
+                        aria-current={isAddonRatesActive ? "page" : undefined}
+                        onClick={closeMobileSidebar}
+                      >
+                        <SlidersHorizontalIcon />
+                        <span>Add-on rates</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                </>
+              ) : null}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

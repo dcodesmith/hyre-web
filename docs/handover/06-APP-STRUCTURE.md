@@ -88,6 +88,9 @@ app/
         schema.ts                 # admin car review transport DTOs
       documents/
         documents.server.ts       # guarded GET /api/proxy-pdf/:documentId stream
+      rates/
+        rates.server.ts           # admin rate read/create + add-on end mutations
+        schema.ts                 # fee, VAT, and add-on rate transport DTOs
     bookings/
       bookings.server.ts          # GET list/detail; PATCH modify/cancel; POST preview + create
       schema.ts                   # list/detail DTOs; canEdit/canCancel; preview + create responses
@@ -202,6 +205,7 @@ app/
     pending-otp.ts                # HttpOnly pending OTP cookie
     guest-only.server.ts          # signed-in /auth and /verify redirect
     fleet-owner-session.server.ts # fleet role redirect/403 guard over API session
+    admin-context.server.ts       # request-scoped admin session + admin-only guard
     admin-session.server.ts       # admin/staff redirect/403 guard over API session
     session.server.ts             # API session user/roles; public header projection
     session.server.test.ts        # reads session.data.user from the API envelope
@@ -250,6 +254,11 @@ app/
       admin-car-asset-actions.tsx  # image/document approve/reject fetchers
       admin-car-review-badge.tsx
       car-approval.ts              # admin review labels/counts
+    rates/
+      rate-form-schema.ts          # fee, VAT, add-on, and end form contracts
+      rate-window-fields.tsx       # shared UTC effective-window fields
+      admin-fees-page.tsx          # responsive platform fee + VAT management
+      admin-addon-rates-page.tsx   # responsive add-on create/history/end UI
 
   seo/
     metadata.ts
@@ -322,6 +331,8 @@ app/
     admin.cars.tsx                # server-paginated admin car review queue
     admin.cars.$carId.tsx         # car/image/document review actions
     admin.documents.$documentId.ts # same-origin private PDF stream
+    admin.fees.tsx                # admin-only platform fee + VAT rate actions
+    admin.addon-rates.tsx         # admin-only add-on create/end actions
     bookings.tsx                  # signed-in list; guests → /auth?redirectTo=
     bookings.$bookingId.tsx       # signed-in detail + cancel; guests → /auth?redirectTo=
     payment-status.tsx            # /bookings/payment-status callback + polling UI

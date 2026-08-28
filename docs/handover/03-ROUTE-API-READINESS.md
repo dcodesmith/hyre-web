@@ -245,10 +245,12 @@ All roles use the API's Better Auth endpoints. Role-specific pages remain separa
 - `/admin/cars/:carId` using `GET /api/admin/cars/:carId`, with API-owned car,
   image, and document approval actions plus admin-only cover/final approval;
   private document keys are viewed through the guarded API PDF proxy
+- admin-only `/admin/fees` and `/admin/addon-rates` using
+  `GET /api/rates/admin`, platform fee/VAT/add-on create endpoints, and the
+  add-on end endpoint; overlapping windows remain API-owned conflicts
 
 **Available or closely matched**
 
-- fees/VAT/add-on rates
 - refund and payout reconciliation actions
 
 **Gap unless another endpoint is discovered**
@@ -266,6 +268,10 @@ All roles use the API's Better Auth endpoints. Role-specific pages remain separa
 - legacy booking reconciliation aggregate
 
 Do not port the legacy Prisma-based admin loaders to Cloudflare to fill these gaps. Add guarded API controllers and contract tests.
+
+The current API has no platform fee or VAT end/update mutation. The web can
+create only non-overlapping windows and must surface `RATE_DATE_OVERLAP`
+instead of copying the legacy database mutation behavior.
 
 ## Legacy resource/API route disposition
 
