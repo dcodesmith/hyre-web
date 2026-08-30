@@ -69,10 +69,10 @@ function addGuestIssues(
 function buildBookingFormSchema(isGuest: boolean) {
   return z
     .object({
-      carId: z.string().trim().min(1, "Car ID is required"),
+      carId: z.string({ error: "Car ID is required" }).trim().min(1, "Car ID is required"),
       idempotencyKey: z.uuid("Please retry this booking."),
       expectedTotalAmount: z
-        .string()
+        .string({ error: "Confirm the current price before paying." })
         .trim()
         .regex(/^\d+(?:\.\d{1,2})?$/, "Confirm the current price before paying."),
       bookingType: z.enum(BOOKING_TYPE_OPTIONS),

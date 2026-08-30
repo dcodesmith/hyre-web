@@ -1,6 +1,9 @@
 import { z } from "zod";
 
-const assetIdSchema = z.string().trim().min(1, "Asset ID is required");
+const assetIdSchema = z
+  .string({ error: "Asset ID is required" })
+  .trim()
+  .min(1, "Asset ID is required");
 
 export const adminCarActionSchema = z.discriminatedUnion("intent", [
   z.object({ intent: z.literal("approve-car") }),
@@ -12,7 +15,10 @@ export const adminCarActionSchema = z.discriminatedUnion("intent", [
   z.object({
     intent: z.enum(["reject-image", "reject-document"]),
     assetId: assetIdSchema,
-    notes: z.string().trim().min(1, "Enter a rejection reason"),
+    notes: z
+      .string({ error: "Enter a rejection reason" })
+      .trim()
+      .min(1, "Enter a rejection reason"),
   }),
 ]);
 

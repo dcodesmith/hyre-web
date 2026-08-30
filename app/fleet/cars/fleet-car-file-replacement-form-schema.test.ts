@@ -20,6 +20,15 @@ describe("fleetCarFileReplacementFormSchema", () => {
     ).toEqual({ intent, assetId: ASSET_ID, file });
   });
 
+  it("uses the asset copy when the id is omitted", () => {
+    const result = fleetCarFileReplacementFormSchema.safeParse({
+      intent: "replace-image",
+      file: new File(["replacement"], "photo.jpg", { type: "image/jpeg" }),
+    });
+
+    expect(result.error?.issues[0]?.message).toBe("Asset ID is required");
+  });
+
   it("requires a non-empty replacement file", () => {
     const result = fleetCarFileReplacementFormSchema.safeParse({
       intent: "replace-image",

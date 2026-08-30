@@ -416,8 +416,7 @@ here.
 
 Gaps stay in [03-ROUTE-API-READINESS.md](./03-ROUTE-API-READINESS.md). Do not
 scaffold partners, fleet chauffeurs, fleet booking list, admin owners, admin
-dashboard aggregate, guest booking lookup, or receipt PDF
-until the API is verified.
+dashboard aggregate, or receipt PDF until the API is verified.
 
 ## Current → target (homepage + search slices)
 

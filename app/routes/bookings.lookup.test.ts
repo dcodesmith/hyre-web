@@ -9,6 +9,7 @@ vi.mock("cloudflare:workers", () => ({
 }));
 vi.mock("~/api/bookings/bookings.server", () => ({ requestGuestBookingAccess }));
 
+import { ApiRequestError } from "~/api/api.server";
 import { HTTP_STATUS } from "~/api/http-status";
 import { action, loader } from "./bookings.lookup";
 
@@ -60,7 +61,45 @@ describe("guest booking lookup", () => {
     const result = await runAction({ bookingReference: "", email: "invalid" });
 
     expect(requestGuestBookingAccess).not.toHaveBeenCalled();
-    expect(result).toMatchObject({ init: { status: HTTP_STATUS.BAD_REQUEST } });
+    expect(result).toMatchObject({
+      data: {
+        result: {
+          error: {
+            bookingReference: ["Enter your booking reference."],
+            email: ["Enter a valid email address."],
+          },
+        },
+      },
+      init: { status: HTTP_STATUS.BAD_REQUEST },
+    });
+  });
+
+  it("returns a form-level error when the API rejects the request", async () => {
+    requestGuestBookingAccess.mockRejectedValue(
+      new ApiRequestError("http", HTTP_STATUS.TOO_MANY_REQUESTS, {
+        type: "TOO_MANY_REQUESTS",
+        title: "Too many requests",
+        status: HTTP_STATUS.TOO_MANY_REQUESTS,
+        detail: "Too many requests",
+        instance: "/api/bookings/guest-access",
+      }),
+    );
+
+    const result = await runAction({
+      bookingReference: "BK-123",
+      email: "guest@example.com",
+    });
+
+    expect(result).toMatchObject({
+      data: {
+        result: {
+          error: {
+            "": ["Too many access requests. Please wait before trying again."],
+          },
+        },
+      },
+      init: { status: HTTP_STATUS.TOO_MANY_REQUESTS },
+    });
   });
 
   it("only accepts known status messages from the URL", () => {
