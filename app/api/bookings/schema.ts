@@ -46,6 +46,62 @@ const isoDateSchema = z.union([z.string(), z.date()]).transform((value) => {
   return value instanceof Date ? value.toISOString() : value;
 });
 
+export const guestBookingAccessTokenSchema = z
+  .string()
+  .regex(/^[A-Za-z0-9_-]{43}$/, "Invalid guest booking access token");
+
+export const guestBookingAccessRequestResponseSchema = z.object({
+  message: z.string(),
+});
+
+const guestBookingExtensionSchema = z.object({
+  id: z.string(),
+  extensionStartTime: isoDateSchema,
+  extensionEndTime: isoDateSchema,
+  extendedDurationHours: z.number().int(),
+  status: z.string(),
+  paymentStatus: paymentStatusSchema,
+});
+
+export const guestBookingDetailSchema = z.object({
+  bookingId: z.string(),
+  bookingReference: z.string(),
+  status: bookingStatusSchema,
+  paymentStatus: paymentStatusSchema,
+  bookingType: z.enum(BOOKING_TYPE_OPTIONS),
+  startDate: isoDateSchema,
+  endDate: isoDateSchema,
+  pickupLocation: z.string(),
+  returnLocation: z.string(),
+  specialRequests: z.string().nullable(),
+  cancellationReason: z.string().nullable(),
+  flightNumber: z.string().nullable(),
+  totalAmount: moneySchema,
+  currency: z.literal("NGN"),
+  accessExpiresAt: isoDateSchema,
+  car: z.object({
+    make: z.string(),
+    model: z.string(),
+    year: z.number().int(),
+    images: z.array(z.string()),
+  }),
+  chauffeur: z
+    .object({
+      name: z.string().nullable(),
+      phoneNumber: z.string().nullable(),
+    })
+    .nullable(),
+  legs: z.array(
+    z.object({
+      id: z.string(),
+      legDate: isoDateSchema,
+      legStartTime: isoDateSchema,
+      legEndTime: isoDateSchema,
+      extensions: z.array(guestBookingExtensionSchema),
+    }),
+  ),
+});
+
 const bookingListItemSchema = z
   .object({
     id: z.string(),
@@ -222,6 +278,7 @@ export type BookingsByStatus = z.output<typeof bookingsByStatusSchema>;
 export type BookingDetail = z.output<typeof bookingDetailSchema>;
 export type BookingDetailLeg = z.output<typeof bookingDetailLegSchema>;
 export type BookingDetailFlight = z.output<typeof bookingDetailFlightSchema>;
+export type GuestBookingDetail = z.output<typeof guestBookingDetailSchema>;
 export type BookingPricingSegment = z.output<typeof bookingPricingSegmentSchema>;
 export type BookingPricingPreview = z.output<typeof bookingPricingPreviewSchema>;
 export type CreateBookingResponse = z.output<typeof createBookingResponseSchema>;

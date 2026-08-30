@@ -3,7 +3,12 @@ import { z } from "zod";
 
 import { ApiRequestError } from "~/api/api.server";
 import { hasSessionCookie } from "~/api/auth/cookie-relay.server";
-import { cancelBooking, getBookingById, updateBooking } from "~/api/bookings/bookings.server";
+import {
+  cancelBooking,
+  getBookingById,
+  getGuestBooking,
+  updateBooking,
+} from "~/api/bookings/bookings.server";
 import { HTTP_STATUS } from "~/api/http-status";
 import { AUTH_NO_STORE } from "~/auth/guest-only.server";
 import { authPath } from "~/auth/referer";
@@ -12,6 +17,11 @@ import { cancelBookingFormSchema } from "~/booking/booking-cancel-form-schema";
 import { BookingDetailPage } from "~/booking/booking-detail";
 import type { BookingModifyActionData } from "~/booking/booking-modify";
 import { bookingModifyFormSchema } from "~/booking/booking-modify-form-schema";
+import { guestBookingAsDetail } from "~/booking/guest-booking";
+import {
+  guestBookingClearCookie,
+  readGuestBookingSession,
+} from "~/booking/guest-booking-session.server";
 import { buildPageMetadata } from "~/seo/metadata";
 import type { Route } from "./+types/bookings.$bookingId";
 
@@ -53,25 +63,81 @@ export async function loader({ request, params }: Route.LoaderArgs) {
     throw data(null, { status: HTTP_STATUS.NOT_FOUND });
   }
 
-  if (!hasSessionCookie(request.headers.get("Cookie"))) {
-    throw loginRedirect(request);
+  let accountError: unknown;
+
+  if (hasSessionCookie(request.headers.get("Cookie"))) {
+    try {
+      const booking = await getBookingById({ request, bookingId: params.bookingId });
+
+      return {
+        accessMode: "account" as const,
+        booking: booking.data,
+        now: new Date().toISOString(),
+      };
+    } catch (error) {
+      accountError = error;
+
+      if (
+        !(error instanceof ApiRequestError) ||
+        (error.status !== HTTP_STATUS.UNAUTHORIZED && error.status !== HTTP_STATUS.NOT_FOUND)
+      ) {
+        throw error;
+      }
+    }
   }
 
-  try {
-    const booking = await getBookingById({ request, bookingId: params.bookingId });
+  const guestSession = await readGuestBookingSession(request, params.bookingId);
 
-    return { booking: booking.data, now: new Date().toISOString() };
-  } catch (error) {
-    if (error instanceof ApiRequestError && error.status === HTTP_STATUS.UNAUTHORIZED) {
+  if (guestSession) {
+    try {
+      const booking = await getGuestBooking({ request, token: guestSession.token });
+
+      if (booking.data.bookingId !== params.bookingId) {
+        throw await guestSessionRedirect(params.bookingId);
+      }
+
+      return {
+        accessMode: "guest" as const,
+        booking: guestBookingAsDetail(booking.data),
+        now: new Date().toISOString(),
+      };
+    } catch (error) {
+      if (
+        error instanceof Response ||
+        (error instanceof ApiRequestError && error.kind === "aborted")
+      ) {
+        throw error;
+      }
+
+      if (
+        error instanceof ApiRequestError &&
+        (error.status === HTTP_STATUS.BAD_REQUEST || error.status === HTTP_STATUS.NOT_FOUND)
+      ) {
+        throw await guestSessionRedirect(params.bookingId);
+      }
+
+      throw error;
+    }
+  }
+
+  if (accountError instanceof ApiRequestError) {
+    if (accountError.status === HTTP_STATUS.UNAUTHORIZED) {
       throw loginRedirect(request);
     }
 
-    if (error instanceof ApiRequestError && error.status === HTTP_STATUS.NOT_FOUND) {
+    if (accountError.status === HTTP_STATUS.NOT_FOUND) {
       throw data(null, { status: HTTP_STATUS.NOT_FOUND });
     }
-
-    throw error;
   }
+
+  throw loginRedirect(request);
+}
+
+async function guestSessionRedirect(bookingId: string) {
+  const headers = new Headers(AUTH_NO_STORE);
+  headers.append("Set-Cookie", await guestBookingClearCookie(bookingId));
+
+  return redirect("/bookings/lookup?status=invalid-link", { headers });
 }
 
 export async function action({ request, params }: Route.ActionArgs) {
@@ -197,5 +263,11 @@ export function shouldRevalidate({
 }
 
 export default function BookingDetailRoute({ loaderData }: Route.ComponentProps) {
-  return <BookingDetailPage booking={loaderData.booking} now={loaderData.now} />;
+  return (
+    <BookingDetailPage
+      accessMode={loaderData.accessMode}
+      booking={loaderData.booking}
+      now={loaderData.now}
+    />
+  );
 }

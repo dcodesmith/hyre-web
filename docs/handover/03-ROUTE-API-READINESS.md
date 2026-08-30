@@ -47,6 +47,8 @@ Better Auth response and error bodies bypass the API's normal Problem Details fi
 - `PATCH /api/bookings/:bookingId`
 - `PATCH /api/bookings/:bookingId/cancel`
 - `POST /api/bookings/pricing-preview`
+- `POST /api/bookings/guest-access`
+- `GET /api/bookings/guest-access?token=...`
 - `POST /api/bookings/:bookingId/extensions`
 - provisional `GET|POST /api/bookings/:bookingId/airport-completion` using `X-Booking-Completion-Token`
 - `POST /api/payments/initialize`
@@ -168,6 +170,8 @@ All roles use the API's Better Auth endpoints. Role-specific pages remain separa
 **Available**
 
 - `/bookings`
+- `/bookings/lookup`
+- `/bookings/guest` -> short-lived token exchange, then `/bookings/:id`
 - `/profile` -> `GET|PATCH /api/users/me`
 - `/bookings/:id`
 - `/bookings/:id/extend`
@@ -178,7 +182,6 @@ All roles use the API's Better Auth endpoints. Role-specific pages remain separa
 
 **Gap unless an endpoint is added**
 
-- `/bookings/lookup` -> no guest email/reference lookup endpoint was observed
 - booking receipt PDF -> no dedicated booking receipt endpoint was observed
 - review deletion -> observed DELETE is admin-only moderation
 
@@ -389,8 +392,7 @@ details remain actionable while 5xx details are hidden behind a retry message.
 Guests redirect to `/auth?redirectTo=/bookings`. Tabs use hireApp
 `?status=active|confirmed|completed|cancelled`. Rows show car image / make /
 model / year, reference, Lagos dates, amount, and a completed-review badge.
-List rows link to `/bookings/:id`, where customer mutations live. Guest email
-lookup at `/bookings/lookup` remains an API gap.
+List rows link to `/bookings/:id`, where customer mutations live.
 
 ### Signed-in booking detail
 
@@ -408,6 +410,22 @@ session. Payment confirmation delegates to
 `POST /api/payments/extension-confirmation`; the web does not duplicate
 extension pricing because the API has no preview contract. This slice does not
 write reviews, download a receipt, or look up guest bookings.
+
+### Guest booking lookup
+
+`POST /bookings/lookup` delegates to public API `POST /api/bookings/guest-access`
+with a normalized booking reference and email, then preserves the API's generic
+accepted response to avoid booking enumeration. The emailed
+`/bookings/guest?token=...` URL is a short-lived exchange route: the Worker
+validates the opaque token through `GET /api/bookings/guest-access`, stores it
+in an encrypted, booking-scoped HttpOnly cookie, and redirects immediately to
+the clean `/bookings/:id` URL.
+
+The canonical detail loader accepts either the signed-in session or the scoped
+guest cookie. Guest responses are projected into the existing booking detail
+visuals with a total-only payment summary and no modify, cancel, or extension
+actions. Guest and token routes are `no-store`, `noindex`; the exchange response
+also uses `Referrer-Policy: no-referrer`. Guest mutation remains an API gap.
 
 ### Public car slugs and SEO
 

@@ -6,6 +6,9 @@ import {
   bookingsByStatusSchema,
   createBookingResponseSchema,
   createExtensionResponseSchema,
+  guestBookingAccessRequestResponseSchema,
+  guestBookingAccessTokenSchema,
+  guestBookingDetailSchema,
 } from "./schema";
 
 const listItem = {
@@ -208,6 +211,61 @@ describe("bookingDetailSchema", () => {
     expect(
       bookingDetailSchema.safeParse({ ...payload, modificationCutoffAt: undefined }).success,
     ).toBe(false);
+  });
+});
+
+describe("guest booking access schemas", () => {
+  const detail = {
+    bookingId: "booking-1",
+    bookingReference: "BK-123",
+    status: "CONFIRMED",
+    paymentStatus: "PAID",
+    bookingType: "DAY",
+    startDate: "2026-09-21T08:00:00.000Z",
+    endDate: "2026-09-21T20:00:00.000Z",
+    pickupLocation: "Ikeja",
+    returnLocation: "Lekki",
+    specialRequests: null,
+    cancellationReason: null,
+    flightNumber: null,
+    totalAmount: 50_000,
+    currency: "NGN",
+    accessExpiresAt: "2026-09-21T12:15:00.000Z",
+    car: {
+      make: "Toyota",
+      model: "Camry",
+      year: 2025,
+      images: ["https://cdn.example.com/car.jpg"],
+    },
+    chauffeur: { name: "Bola", phoneNumber: "08000000000" },
+    legs: [
+      {
+        id: "leg-1",
+        legDate: "2026-09-21T00:00:00.000Z",
+        legStartTime: "2026-09-21T08:00:00.000Z",
+        legEndTime: "2026-09-21T20:00:00.000Z",
+        extensions: [],
+      },
+    ],
+  };
+
+  it("validates the explicit guest detail response", () => {
+    expect(
+      guestBookingDetailSchema.parse({ ...detail, user: { email: "hidden@example.com" } }),
+    ).toEqual(detail);
+    expect(
+      guestBookingAccessRequestResponseSchema.parse({
+        message: "If those booking details match, we sent an access link.",
+      }),
+    ).toEqual({
+      message: "If those booking details match, we sent an access link.",
+    });
+  });
+
+  it("requires the API's 32-byte base64url token shape", () => {
+    expect(guestBookingAccessTokenSchema.safeParse("a".repeat(43)).success).toBe(true);
+    expect(guestBookingAccessTokenSchema.safeParse("too-short").success).toBe(false);
+    expect(guestBookingAccessTokenSchema.safeParse(`${"a".repeat(42)}+`).success).toBe(false);
   });
 });
 

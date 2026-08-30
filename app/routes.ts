@@ -39,6 +39,8 @@ export default [
     route("privacy", "routes/privacy.tsx"),
     route("cookies", "routes/cookies.tsx"),
     route("bookings", "routes/bookings.tsx"),
+    route("bookings/lookup", "routes/bookings.lookup.tsx"),
+    route("bookings/guest", "routes/bookings.guest.ts"),
     route("bookings/:bookingId", "routes/bookings.$bookingId.tsx"),
     route("bookings/:bookingId/extend", "routes/bookings.$bookingId.extend.tsx"),
     route("profile", "routes/profile.tsx"),
