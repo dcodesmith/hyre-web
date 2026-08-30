@@ -5,6 +5,7 @@ import type { BookingDetail } from "~/api/bookings/schema";
 import { BookingCancelCard } from "~/booking/booking-cancel";
 import { BookingChauffeurCard } from "~/booking/booking-chauffeur-card";
 import { BookingDomain } from "~/booking/booking-domain";
+import { BookingExtendCard } from "~/booking/booking-extend-card";
 import { BookingFlightCard } from "~/booking/booking-flight-card";
 import { BookingHeader } from "~/booking/booking-header";
 import { BookingLocationCard } from "~/booking/booking-location-card";
@@ -61,6 +62,9 @@ export function BookingDetailPage({
             <BookingChauffeurCard booking={booking} />
             {booking.flight ? <BookingFlightCard flight={booking.flight} /> : null}
             <BookingPaymentCard payment={booking.payment} />
+            {detail.legs.some((leg) => leg.canExtend) ? (
+              <BookingExtendCard bookingId={detail.id} />
+            ) : null}
             {detail.canEdit ? <BookingModifyCard booking={detail} /> : null}
             {detail.canCancel ? <BookingCancelCard paymentStatus={detail.paymentStatus} /> : null}
           </div>

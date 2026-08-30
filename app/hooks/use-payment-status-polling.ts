@@ -1,18 +1,18 @@
 import { useEffect, useRef, useState } from "react";
 import { useFetcher } from "react-router";
 
-import type { BookingPaymentStatus } from "~/api/payments/schema";
+import type { PaymentStatusView } from "~/payment/payment-status-view";
 
 const POLLING_INTERVAL_MS = 3_000;
 const POLLING_BUDGET_MS = 90_000;
 
 interface PaymentStatusPollData {
   readonly txRef: string;
-  readonly status: BookingPaymentStatus | null;
+  readonly status: PaymentStatusView | null;
   readonly error: string | null;
 }
 
-function isPending(status: BookingPaymentStatus | null) {
+function isPending(status: PaymentStatusView | null) {
   return status?.lifecycleState === "PENDING" || status?.lifecycleState === "VERIFYING";
 }
 
@@ -22,7 +22,7 @@ export function usePaymentStatusPolling({
   initialStatus,
 }: {
   readonly txRef: string;
-  readonly initialStatus: BookingPaymentStatus | null;
+  readonly initialStatus: PaymentStatusView | null;
 }) {
   const fetcher = useFetcher<PaymentStatusPollData>();
   const fetcherRef = useRef(fetcher);

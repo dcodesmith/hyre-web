@@ -38,6 +38,17 @@ test("sends guests from a booking detail URL to login", async ({ page }) => {
   });
 });
 
+test("sends guests from a booking extension URL to login", async ({ page }) => {
+  await page.goto("/bookings/booking-detail-1/extend");
+
+  await expect(page).toHaveURL((url) => {
+    return (
+      url.pathname === "/auth" &&
+      url.searchParams.get("redirectTo") === "/bookings/booking-detail-1/extend"
+    );
+  });
+});
+
 test("renders the booking detail fixture", async ({ page }) => {
   await setCookiePreference(page);
   await page.goto("/__visual/booking");
@@ -129,6 +140,17 @@ test("modifies a booking", async ({ page }) => {
   await expect(dialog).toBeVisible();
   await dialog.locator("form").getByRole("button", { name: "Close" }).click();
   await expect(dialog).toHaveCount(0);
+});
+
+test("renders a responsive booking extension form", async ({ page }) => {
+  await setCookiePreference(page);
+  await page.goto("/__visual/booking-extend");
+
+  await expect(page.getByRole("heading", { name: "Extend Trip" })).toBeVisible();
+  await expect(page.getByText("Lexus UX F-Sport (2019)")).toBeVisible();
+  await expect(page.getByText("Up to 3 hours")).toBeVisible();
+  await expect(page.getByRole("combobox", { name: "Extension length" })).toContainText("1 hour");
+  await expect(page.getByRole("button", { name: "Continue to payment" })).toBeVisible();
 });
 
 test("sends an unauthenticated cancel POST to login", async ({ page, baseURL }) => {

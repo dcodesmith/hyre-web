@@ -43,9 +43,19 @@ const baseBooking = {
       legStartTime: "2026-07-02T08:00:00.000Z",
       legEndTime: "2026-07-02T20:00:00.000Z",
       extensions: [],
+      canExtend: false,
+      maxExtendableHours: 0,
     },
   ],
 } satisfies BookingDetail;
+
+const confirmedExtension = {
+  id: "extension-1",
+  status: "ACTIVE",
+  paymentStatus: "PAID" as const,
+  extendedDurationHours: 2,
+  netTotal: 20_000,
+};
 
 describe("booking detail dates", () => {
   it("matches hireApp timeline copy in Africa/Lagos", () => {
@@ -76,7 +86,7 @@ describe("createPaymentSummary", () => {
       legs: [
         {
           ...baseBooking.legs[0],
-          extensions: [{ extendedDurationHours: 2, netTotal: 20_000 }],
+          extensions: [confirmedExtension],
         },
       ],
     });
@@ -88,6 +98,28 @@ describe("createPaymentSummary", () => {
     expect(summary.totalAmount).toBe(173_005);
   });
 
+  it("does not display an unpaid pending extension as confirmed", () => {
+    const summary = createPaymentSummary({
+      ...baseBooking,
+      legs: [
+        {
+          ...baseBooking.legs[0],
+          extensions: [
+            {
+              ...confirmedExtension,
+              status: "PENDING",
+              paymentStatus: "UNPAID",
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(summary.extensionNetTotal).toBe(0);
+    expect(summary.totalExtendedHours).toBe(0);
+    expect(summary.totalAmount).toBe(baseBooking.totalAmount);
+  });
+
   it("folds security and credits into the rebuilt extension total", () => {
     const summary = createPaymentSummary({
       ...baseBooking,
@@ -96,7 +128,7 @@ describe("createPaymentSummary", () => {
       legs: [
         {
           ...baseBooking.legs[0],
-          extensions: [{ extendedDurationHours: 2, netTotal: 20_000 }],
+          extensions: [confirmedExtension],
         },
       ],
     });
@@ -152,7 +184,7 @@ describe("BookingDomain", () => {
         legs: [
           {
             ...baseBooking.legs[0],
-            extensions: [{ extendedDurationHours: 2, netTotal: 20_000 }],
+            extensions: [confirmedExtension],
           },
         ],
       },

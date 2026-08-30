@@ -41,6 +41,8 @@ const fixtureBooking = {
       legStartTime: "2026-09-21T08:30:00.000Z",
       legEndTime: "2026-09-21T20:30:00.000Z",
       extensions: [],
+      canExtend: false,
+      maxExtendableHours: 0,
     },
   ],
 } satisfies BookingDetail;

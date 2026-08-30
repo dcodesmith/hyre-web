@@ -92,11 +92,11 @@ app/
         rates.server.ts           # admin rate read/create + add-on end mutations
         schema.ts                 # fee, VAT, and add-on rate transport DTOs
     bookings/
-      bookings.server.ts          # GET list/detail; PATCH modify/cancel; POST preview + create
-      schema.ts                   # list/detail DTOs; canEdit/canCancel; preview + create responses
+      bookings.server.ts          # GET list/detail; PATCH modify/cancel; POST preview/create/extend
+      schema.ts                   # list/detail + leg eligibility; preview/create/extend responses
     payments/
-      payments.server.ts          # booking status, confirmation, expiration reconciliation
-      schema.ts                   # booking payment lifecycle DTO
+      payments.server.ts          # booking/extension status and confirmation; booking expiration
+      schema.ts                   # booking and extension payment lifecycle DTOs
     users/
       users.server.ts             # GET|PATCH /api/users/me
       schema.ts                   # name, phone, city, address, marketingConsent
@@ -153,6 +153,9 @@ app/
     booking-modify.tsx            # API-gated responsive modification dialog
     booking-cancel-form-schema.ts # POST intent=cancel
     booking-cancel.tsx            # hireApp cancel card + Dialog confirm
+    booking-extension-form-schema.ts # bookingLegId + hours + Idempotency-Key form contract
+    booking-extend-card.tsx       # booking-detail CTA + route pending state
+    booking-extension.tsx         # leg-aware responsive extension form/page
     booking-domain.ts             # BookingDomain + Lagos timeline + payment rollup
     booking-domain.test.ts
     booking-detail-card.tsx       # shared detail layout
@@ -162,7 +165,7 @@ app/
     booking-chauffeur-card.tsx
     booking-flight-card.tsx
     booking-payment-card.tsx
-    booking-detail.tsx            # page composer + modify/cancel; no extend
+    booking-detail.tsx            # page composer + modify/cancel/extend
 
   account/
     account-deletion.tsx          # confirmed destructive action + pending/error UI
@@ -282,7 +285,8 @@ app/
     currency.test.ts
 
   payment/
-    payment-status-session.server.ts # encrypted HttpOnly callback credential
+    payment-status-session.server.ts # encrypted HttpOnly booking/extension callback credential
+    payment-status-view.ts        # callback DTOs → shared payment-status UI lifecycle
 
   hooks/
     use-hero-scroll.ts            # 100/50 hysteresis + matchMedia
@@ -334,7 +338,8 @@ app/
     admin.fees.tsx                # admin-only platform fee + VAT rate actions
     admin.addon-rates.tsx         # admin-only add-on create/end actions
     bookings.tsx                  # signed-in list; guests → /auth?redirectTo=
-    bookings.$bookingId.tsx       # signed-in detail + cancel; guests → /auth?redirectTo=
+    bookings.$bookingId.tsx       # signed-in detail + modify/cancel; guests → /auth?redirectTo=
+    bookings.$bookingId.extend.tsx # leg-level extension create → provider checkout
     payment-status.tsx            # /bookings/payment-status callback + polling UI
     api.booking-pricing-preview.ts # same-origin pricing BFF
     api.account.delete.ts          # account deletion BFF + local auth-cookie cleanup
@@ -375,7 +380,6 @@ here.
 - Review paging resource: `app/routes/api.reviews.car.$carId.ts` +
   `app/review/review-url.ts` — web `GET /api/reviews/car/:carId?page=`
   over existing `GET /api/reviews/car/:carId`. Keep the car URL clean.
-- Booking modify / extend
 - Guest booking lookup (`/bookings/lookup`) — API gap
 
 ## Later (verified API only)

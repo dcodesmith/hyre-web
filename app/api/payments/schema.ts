@@ -12,4 +12,17 @@ export const bookingPaymentStatusSchema = z.object({
   lifecycleState: z.enum(["PENDING", "VERIFYING", "CONFIRMED", "FAILED", "EXPIRED"]),
 });
 
+export const extensionPaymentStatusSchema = z.object({
+  txRef: z.string(),
+  status: z.string(),
+  amountExpected: z.number(),
+  amountCharged: z.number().nullable(),
+  confirmedAt: z.string().nullable(),
+  extension: z.object({
+    id: z.string(),
+    status: z.string(),
+  }),
+});
+
 export type BookingPaymentStatus = z.output<typeof bookingPaymentStatusSchema>;
+export type ExtensionPaymentStatus = z.output<typeof extensionPaymentStatusSchema>;

@@ -9,12 +9,22 @@ const DEFAULT_MAX_AGE_SECONDS = 30 * 60;
 const MAX_AGE_SECONDS = 60 * 60;
 const EXPIRY_GRACE_MS = 10 * 60 * 1000;
 
-const paymentStatusSessionSchema = z.object({
+const paymentStatusSessionBaseSchema = z.object({
   bookingId: z.string().min(1),
   txRef: z.string().min(1),
-  paymentStatusToken: z.string().min(1).optional(),
   expiresAt: z.number().int().positive(),
 });
+
+const paymentStatusSessionSchema = z.union([
+  paymentStatusSessionBaseSchema.extend({
+    kind: z.literal("extension"),
+    extensionId: z.string().min(1),
+  }),
+  paymentStatusSessionBaseSchema.extend({
+    kind: z.literal("booking").default("booking"),
+    paymentStatusToken: z.string().min(1).optional(),
+  }),
+]);
 
 export type PaymentStatusSession = z.output<typeof paymentStatusSessionSchema>;
 
@@ -26,8 +36,14 @@ function isSecureCookie() {
   return env.APP_ORIGIN.startsWith("https://");
 }
 
-function cookieName() {
+function legacyCookieName() {
   return isSecureCookie() ? "__Host-payment_status" : "payment_status";
+}
+
+async function cookieName(txRef: string) {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(txRef));
+  const suffix = toBase64Url(new Uint8Array(digest).slice(0, 16));
+  return `${legacyCookieName()}-${suffix}`;
 }
 
 export function requirePaymentStatusCookieSecret() {
@@ -92,9 +108,12 @@ async function decryptSession(value: string) {
   }
 }
 
-export function createPaymentStatusSession(
-  value: Omit<PaymentStatusSession, "expiresAt"> & { readonly reservationExpiresAt: string },
-) {
+export function createPaymentStatusSession(value: {
+  readonly bookingId: string;
+  readonly txRef: string;
+  readonly paymentStatusToken?: string;
+  readonly reservationExpiresAt: string;
+}) {
   const now = Date.now();
   const reservationExpiry = Date.parse(value.reservationExpiresAt);
   const defaultExpiry = now + DEFAULT_MAX_AGE_SECONDS * 1000;
@@ -106,6 +125,7 @@ export function createPaymentStatusSession(
       );
 
   return paymentStatusSessionSchema.parse({
+    kind: "booking",
     bookingId: value.bookingId,
     txRef: value.txRef,
     paymentStatusToken: value.paymentStatusToken,
@@ -113,15 +133,30 @@ export function createPaymentStatusSession(
   });
 }
 
-export async function readPaymentStatusSession(request: Request) {
-  const value = readCookieValue(request.headers.get("Cookie"), cookieName());
+export function createExtensionPaymentStatusSession(value: {
+  readonly bookingId: string;
+  readonly extensionId: string;
+  readonly txRef: string;
+}) {
+  return paymentStatusSessionSchema.parse({
+    kind: "extension",
+    ...value,
+    expiresAt: Date.now() + DEFAULT_MAX_AGE_SECONDS * 1000,
+  });
+}
+
+export async function readPaymentStatusSession(request: Request, txRef: string) {
+  const cookieHeader = request.headers.get("Cookie");
+  const value =
+    readCookieValue(cookieHeader, await cookieName(txRef)) ??
+    readCookieValue(cookieHeader, legacyCookieName());
   return value ? decryptSession(value) : null;
 }
 
 export async function paymentStatusSetCookie(session: PaymentStatusSession) {
   const maxAge = Math.max(0, Math.floor((session.expiresAt - Date.now()) / 1000));
   const attributes = [
-    `${cookieName()}=${await encryptSession(session)}`,
+    `${await cookieName(session.txRef)}=${await encryptSession(session)}`,
     "Path=/",
     "HttpOnly",
     "SameSite=Lax",
@@ -135,12 +170,16 @@ export async function paymentStatusSetCookie(session: PaymentStatusSession) {
   return attributes.join("; ");
 }
 
-export function paymentStatusClearCookie() {
-  const attributes = [`${cookieName()}=`, "Path=/", "HttpOnly", "SameSite=Lax", "Max-Age=0"];
+export async function paymentStatusClearCookies(txRef: string) {
+  return Promise.all(
+    [await cookieName(txRef), legacyCookieName()].map((name) => {
+      const attributes = [`${name}=`, "Path=/", "HttpOnly", "SameSite=Lax", "Max-Age=0"];
 
-  if (isSecureCookie()) {
-    attributes.push("Secure");
-  }
+      if (isSecureCookie()) {
+        attributes.push("Secure");
+      }
 
-  return attributes.join("; ");
+      return attributes.join("; ");
+    }),
+  );
 }

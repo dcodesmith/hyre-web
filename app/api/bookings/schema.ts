@@ -78,6 +78,9 @@ export const bookingsByStatusSchema = z
   );
 
 const bookingDetailExtensionSchema = z.object({
+  id: z.string(),
+  status: z.string(),
+  paymentStatus: paymentStatusSchema,
   extendedDurationHours: z.number().int(),
   netTotal: optionalMoneySchema,
 });
@@ -88,6 +91,8 @@ const bookingDetailLegSchema = z.object({
   legStartTime: isoDateSchema,
   legEndTime: isoDateSchema,
   extensions: z.array(bookingDetailExtensionSchema).default([]),
+  canExtend: z.boolean(),
+  maxExtendableHours: z.number().int().min(0).max(24),
 });
 
 const bookingDetailFlightSchema = z.object({
@@ -206,6 +211,12 @@ export const createBookingResponseSchema = z.object({
   paymentStatusToken: z.string().min(1).optional(),
 });
 
+export const createExtensionResponseSchema = z.object({
+  extensionId: z.string().min(1),
+  paymentIntentId: z.string().min(1),
+  checkoutUrl: z.url().refine((url) => new URL(url).protocol === "https:"),
+});
+
 export type BookingListItem = z.output<typeof bookingListItemSchema>;
 export type BookingsByStatus = z.output<typeof bookingsByStatusSchema>;
 export type BookingDetail = z.output<typeof bookingDetailSchema>;
@@ -214,3 +225,4 @@ export type BookingDetailFlight = z.output<typeof bookingDetailFlightSchema>;
 export type BookingPricingSegment = z.output<typeof bookingPricingSegmentSchema>;
 export type BookingPricingPreview = z.output<typeof bookingPricingPreviewSchema>;
 export type CreateBookingResponse = z.output<typeof createBookingResponseSchema>;
+export type CreateExtensionResponse = z.output<typeof createExtensionResponseSchema>;

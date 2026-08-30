@@ -52,6 +52,7 @@ Better Auth response and error bodies bypass the API's normal Problem Details fi
 - `POST /api/payments/initialize`
 - `GET /api/payments/status/:txRef`
 - `POST /api/payments/booking-confirmation`
+- `POST /api/payments/extension-confirmation`
 - `POST /api/payments/booking-expiration`
 - `POST /api/payments/:txRef/refund`
 
@@ -399,9 +400,14 @@ bookings 404. The page is hireApp detail (header, type note, timeline,
 locations, chauffeur, airport flight, payment summary) inside the public
 shell. Cancel uses API `canCancel` and `PATCH /api/bookings/:bookingId/cancel`.
 Modify uses API `canEdit` and `modificationCutoffAt`, then submits pickup time
-and location changes to `PATCH /api/bookings/:bookingId`. Both mutations use
-same-page fetchers. This slice does not extend, write reviews, download a
-receipt, or look up guest bookings.
+and location changes to `PATCH /api/bookings/:bookingId`. Extension uses each
+leg's API-owned `canExtend` and `maxExtendableHours`, sends a stable
+`Idempotency-Key` to `POST /api/bookings/:bookingId/extensions`, and protects
+the signed-in payment callback identity in the encrypted HttpOnly payment
+session. Payment confirmation delegates to
+`POST /api/payments/extension-confirmation`; the web does not duplicate
+extension pricing because the API has no preview contract. This slice does not
+write reviews, download a receipt, or look up guest bookings.
 
 ### Public car slugs and SEO
 

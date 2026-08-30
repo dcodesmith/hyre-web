@@ -2,29 +2,35 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   confirmBookingPayment,
+  confirmExtensionPayment,
   getBookingPaymentStatus,
+  getExtensionPaymentStatus,
   reconcileBookingExpiration,
   readAuthUser,
   readPaymentStatusSession,
-  paymentStatusClearCookie,
+  paymentStatusClearCookies,
 } = vi.hoisted(() => ({
   confirmBookingPayment: vi.fn(),
+  confirmExtensionPayment: vi.fn(),
   getBookingPaymentStatus: vi.fn(),
+  getExtensionPaymentStatus: vi.fn(),
   reconcileBookingExpiration: vi.fn(),
   readAuthUser: vi.fn(),
   readPaymentStatusSession: vi.fn(),
-  paymentStatusClearCookie: vi.fn(() => "payment_status=; Max-Age=0"),
+  paymentStatusClearCookies: vi.fn(async () => ["payment_status=; Max-Age=0"]),
 }));
 
 vi.mock("~/api/payments/payments.server", () => ({
   confirmBookingPayment,
+  confirmExtensionPayment,
   getBookingPaymentStatus,
+  getExtensionPaymentStatus,
   reconcileBookingExpiration,
 }));
 vi.mock("~/auth/session.server", () => ({ readAuthUser }));
 vi.mock("~/payment/payment-status-session.server", () => ({
   readPaymentStatusSession,
-  paymentStatusClearCookie,
+  paymentStatusClearCookies,
 }));
 
 import { loader } from "./payment-status";
@@ -46,6 +52,7 @@ describe("payment status loader", () => {
     vi.clearAllMocks();
     readAuthUser.mockResolvedValue(null);
     readPaymentStatusSession.mockResolvedValue({
+      kind: "booking",
       bookingId: "booking-1",
       txRef: "tx-1",
       paymentStatusToken: "guest-token",
@@ -72,7 +79,7 @@ describe("payment status loader", () => {
       }),
     );
     expect(result).toMatchObject({
-      data: { status: confirmedStatus, error: null },
+      data: { status: { kind: "booking", ...confirmedStatus }, error: null },
     });
     const headers = new Headers(result.init?.headers);
     expect(headers.get("Set-Cookie")).toContain("Max-Age=0");
@@ -91,6 +98,98 @@ describe("payment status loader", () => {
     expect(result).toMatchObject({
       init: { status: 401 },
       data: { status: null },
+    });
+  });
+
+  it("confirms a signed-in extension callback against the stored extension", async () => {
+    readAuthUser.mockResolvedValue({ email: "customer@example.com", name: "Ada" });
+    readPaymentStatusSession.mockResolvedValue({
+      kind: "extension",
+      bookingId: "booking-1",
+      extensionId: "extension-1",
+      txRef: "ext-tx-1",
+    });
+    confirmExtensionPayment.mockResolvedValue({
+      data: {
+        txRef: "ext-tx-1",
+        status: "SUCCESSFUL",
+        amountExpected: 25_000,
+        amountCharged: 25_000,
+        confirmedAt: "2026-08-30T00:00:00.000Z",
+        extension: { id: "extension-1", status: "ACTIVE" },
+      },
+    });
+
+    const result = await loader({
+      request: new Request(
+        "https://tripdly.com/bookings/payment-status?tx_ref=ext-tx-1&transaction_id=456",
+        { headers: { Cookie: "better-auth.session_token=session" } },
+      ),
+      params: {},
+      context: {},
+    } as never);
+
+    expect(confirmExtensionPayment).toHaveBeenCalledWith(
+      expect.objectContaining({
+        extensionId: "extension-1",
+        txRef: "ext-tx-1",
+        transactionId: "456",
+      }),
+    );
+    expect(confirmBookingPayment).not.toHaveBeenCalled();
+    expect(result).toMatchObject({
+      data: {
+        status: {
+          kind: "extension",
+          bookingId: "booking-1",
+          lifecycleState: "CONFIRMED",
+        },
+        error: null,
+      },
+    });
+  });
+
+  it("falls back to status polling when extension confirmation fails transiently", async () => {
+    readAuthUser.mockResolvedValue({ email: "customer@example.com", name: "Ada" });
+    readPaymentStatusSession.mockResolvedValue({
+      kind: "extension",
+      bookingId: "booking-1",
+      extensionId: "extension-1",
+      txRef: "ext-tx-1",
+    });
+    confirmExtensionPayment.mockRejectedValue(new Error("temporary network failure"));
+    getExtensionPaymentStatus.mockResolvedValue({
+      data: {
+        txRef: "ext-tx-1",
+        status: "PENDING",
+        amountExpected: 25_000,
+        amountCharged: null,
+        confirmedAt: null,
+        extension: { id: "extension-1", status: "PENDING" },
+      },
+    });
+
+    const result = await loader({
+      request: new Request(
+        "https://tripdly.com/bookings/payment-status?tx_ref=ext-tx-1&transaction_id=456",
+        { headers: { Cookie: "better-auth.session_token=session" } },
+      ),
+      params: {},
+      context: {},
+    } as never);
+
+    expect(getExtensionPaymentStatus).toHaveBeenCalledWith(
+      expect.objectContaining({ txRef: "ext-tx-1" }),
+    );
+    expect(result).toMatchObject({
+      data: {
+        status: {
+          kind: "extension",
+          bookingId: "booking-1",
+          lifecycleState: "PENDING",
+        },
+        error: null,
+      },
     });
   });
 });
