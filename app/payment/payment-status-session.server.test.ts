@@ -8,8 +8,9 @@ vi.mock("cloudflare:workers", () => ({
 }));
 
 import {
+  createExtensionPaymentStatusSession,
   createPaymentStatusSession,
-  paymentStatusClearCookie,
+  paymentStatusClearCookies,
   paymentStatusSetCookie,
   readPaymentStatusSession,
 } from "./payment-status-session.server";
@@ -33,13 +34,58 @@ describe("payment status session", () => {
         new Request("http://localhost:5173/bookings/payment-status", {
           headers: { Cookie: cookie },
         }),
+        session.txRef,
       ),
     ).resolves.toEqual(session);
   });
 
-  it("clears the scoped credential after a terminal status", () => {
-    expect(paymentStatusClearCookie()).toContain("payment_status=;");
-    expect(paymentStatusClearCookie()).toContain("Max-Age=0");
+  it("clears the scoped credential after a terminal status", async () => {
+    const cookies = await paymentStatusClearCookies("tx-1");
+
+    expect(cookies).toHaveLength(2);
+    expect(cookies.every((cookie) => cookie.includes("Max-Age=0"))).toBe(true);
+  });
+
+  it("stores the extension identity without a guest payment token", async () => {
+    const session = createExtensionPaymentStatusSession({
+      bookingId: "booking-1",
+      extensionId: "extension-1",
+      txRef: "ext-tx-1",
+    });
+    const setCookie = await paymentStatusSetCookie(session);
+    const cookie = setCookie.split(";")[0];
+
+    await expect(
+      readPaymentStatusSession(
+        new Request("http://localhost:5173/bookings/payment-status", {
+          headers: { Cookie: cookie },
+        }),
+        session.txRef,
+      ),
+    ).resolves.toEqual(session);
+    expect(setCookie).not.toContain("extension-1");
+  });
+
+  it("keeps concurrent payment callbacks in separate cookies", async () => {
+    const first = createExtensionPaymentStatusSession({
+      bookingId: "booking-1",
+      extensionId: "extension-1",
+      txRef: "ext-tx-1",
+    });
+    const second = createExtensionPaymentStatusSession({
+      bookingId: "booking-2",
+      extensionId: "extension-2",
+      txRef: "ext-tx-2",
+    });
+    const firstCookie = (await paymentStatusSetCookie(first)).split(";")[0];
+    const secondCookie = (await paymentStatusSetCookie(second)).split(";")[0];
+    const request = new Request("http://localhost:5173/bookings/payment-status", {
+      headers: { Cookie: `${firstCookie}; ${secondCookie}` },
+    });
+
+    await expect(readPaymentStatusSession(request, first.txRef)).resolves.toEqual(first);
+    await expect(readPaymentStatusSession(request, second.txRef)).resolves.toEqual(second);
+    expect(firstCookie.split("=")[0]).not.toBe(secondCookie.split("=")[0]);
   });
 
   it("keeps a minimum polling lifetime when the reservation expiry is stale", () => {

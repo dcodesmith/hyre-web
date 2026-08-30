@@ -2,20 +2,28 @@ import { CheckCircle2, Clock3, Loader2, XCircle } from "lucide-react";
 import { data, Link } from "react-router";
 
 import { ApiRequestError } from "~/api/api.server";
+import { hasSessionCookie } from "~/api/auth/cookie-relay.server";
 import { HTTP_STATUS } from "~/api/http-status";
 import {
   confirmBookingPayment,
+  confirmExtensionPayment,
   getBookingPaymentStatus,
+  getExtensionPaymentStatus,
   reconcileBookingExpiration,
 } from "~/api/payments/payments.server";
-import type { BookingPaymentStatus } from "~/api/payments/schema";
 import { readAuthUser } from "~/auth/session.server";
 import { Button } from "~/components/ui/button";
 import { usePaymentStatusPolling } from "~/hooks/use-payment-status-polling";
 import {
-  paymentStatusClearCookie,
+  type PaymentStatusSession,
+  paymentStatusClearCookies,
   readPaymentStatusSession,
 } from "~/payment/payment-status-session.server";
+import {
+  bookingPaymentStatusView,
+  extensionPaymentStatusView,
+  type PaymentStatusView,
+} from "~/payment/payment-status-view";
 import type { Route } from "./+types/payment-status";
 
 const NO_STORE = { "Cache-Control": "private, no-store" };
@@ -26,12 +34,88 @@ export const meta: Route.MetaFunction = () => [
   { name: "robots", content: "noindex, nofollow" },
 ];
 
-function isTerminal(status: BookingPaymentStatus) {
+function isTerminal(status: PaymentStatusView) {
   return (
     status.lifecycleState === "CONFIRMED" ||
     status.lifecycleState === "FAILED" ||
     status.lifecycleState === "EXPIRED"
   );
+}
+
+async function loadExtensionStatus(
+  request: Request,
+  session: Extract<PaymentStatusSession, { kind: "extension" }>,
+  transactionId: string,
+  isPoll: boolean,
+) {
+  let response: Awaited<ReturnType<typeof getExtensionPaymentStatus>>;
+
+  if (transactionId && !isPoll) {
+    try {
+      response = await confirmExtensionPayment({
+        request,
+        extensionId: session.extensionId,
+        txRef: session.txRef,
+        transactionId,
+      });
+    } catch (error) {
+      if (
+        error instanceof ApiRequestError &&
+        (error.kind === "aborted" ||
+          (error.kind === "http" && error.status < HTTP_STATUS.INTERNAL_SERVER_ERROR))
+      ) {
+        throw error;
+      }
+      response = await getExtensionPaymentStatus({ request, txRef: session.txRef });
+    }
+  } else {
+    response = await getExtensionPaymentStatus({ request, txRef: session.txRef });
+  }
+
+  return response.data.extension.id === session.extensionId
+    ? extensionPaymentStatusView(response.data, session.bookingId)
+    : null;
+}
+
+async function loadBookingStatus(
+  request: Request,
+  session: Extract<PaymentStatusSession, { kind: "booking" }>,
+  transactionId: string,
+  isPoll: boolean,
+  paymentStatusToken: string | undefined,
+) {
+  let response =
+    transactionId && !isPoll
+      ? await confirmBookingPayment({
+          request,
+          txRef: session.txRef,
+          bookingId: session.bookingId,
+          transactionId,
+          paymentStatusToken,
+        })
+      : await getBookingPaymentStatus({
+          request,
+          txRef: session.txRef,
+          bookingId: session.bookingId,
+          paymentStatusToken,
+        });
+
+  if (isPoll && response.data.lifecycleState === "VERIFYING") {
+    try {
+      response = await reconcileBookingExpiration({
+        request,
+        txRef: session.txRef,
+        bookingId: session.bookingId,
+        paymentStatusToken,
+      });
+    } catch (error) {
+      if (error instanceof ApiRequestError && error.kind === "aborted") {
+        throw error;
+      }
+    }
+  }
+
+  return bookingPaymentStatusView(response.data);
 }
 
 export async function loader({ request }: Route.LoaderArgs) {
@@ -52,11 +136,8 @@ export async function loader({ request }: Route.LoaderArgs) {
     );
   }
 
-  const [user, paymentSession] = await Promise.all([
-    readAuthUser(request),
-    readPaymentStatusSession(request),
-  ]);
-  const isSignedIn = user != null;
+  const hasAuthSession = hasSessionCookie(request.headers.get("Cookie"));
+  const paymentSession = await readPaymentStatusSession(request, txRef);
 
   if (!paymentSession || paymentSession.txRef !== txRef) {
     return data(
@@ -64,15 +145,21 @@ export async function loader({ request }: Route.LoaderArgs) {
         txRef,
         status: null,
         error: "Payment verification credentials are missing. Contact support if you were charged.",
-        isSignedIn,
+        isSignedIn: hasAuthSession,
       },
       { status: HTTP_STATUS.UNAUTHORIZED, headers: NO_STORE },
     );
   }
 
-  const paymentStatusToken = isSignedIn ? undefined : paymentSession.paymentStatusToken;
+  let isSignedIn = hasAuthSession;
+  let paymentStatusToken: string | undefined;
 
-  if (!isSignedIn && !paymentStatusToken) {
+  if (paymentSession.kind === "booking") {
+    isSignedIn = (await readAuthUser(request)) != null;
+    paymentStatusToken = isSignedIn ? undefined : paymentSession.paymentStatusToken;
+  }
+
+  if (!isSignedIn && (paymentSession.kind === "extension" || !paymentStatusToken)) {
     return data(
       {
         txRef,
@@ -85,43 +172,37 @@ export async function loader({ request }: Route.LoaderArgs) {
   }
 
   try {
-    let response =
-      transactionId && !isPoll
-        ? await confirmBookingPayment({
+    const status =
+      paymentSession.kind === "extension"
+        ? await loadExtensionStatus(request, paymentSession, transactionId, isPoll)
+        : await loadBookingStatus(
             request,
-            txRef,
-            bookingId: paymentSession.bookingId,
+            paymentSession,
             transactionId,
+            isPoll,
             paymentStatusToken,
-          })
-        : await getBookingPaymentStatus({
-            request,
-            txRef,
-            bookingId: paymentSession.bookingId,
-            paymentStatusToken,
-          });
+          );
 
-    if (isPoll && response.data.lifecycleState === "VERIFYING") {
-      try {
-        response = await reconcileBookingExpiration({
-          request,
+    if (!status) {
+      return data(
+        {
           txRef,
-          bookingId: paymentSession.bookingId,
-          paymentStatusToken,
-        });
-      } catch (error) {
-        if (error instanceof ApiRequestError && error.kind === "aborted") {
-          throw error;
-        }
-      }
+          status: null,
+          error: "Payment verification credentials do not match this extension.",
+          isSignedIn,
+        },
+        { status: HTTP_STATUS.UNAUTHORIZED, headers: NO_STORE },
+      );
     }
 
     const headers = new Headers(NO_STORE);
-    if (isTerminal(response.data)) {
-      headers.append("Set-Cookie", paymentStatusClearCookie());
+    if (isTerminal(status)) {
+      for (const cookie of await paymentStatusClearCookies(txRef)) {
+        headers.append("Set-Cookie", cookie);
+      }
     }
 
-    return data({ txRef, status: response.data, error: null, isSignedIn }, { headers });
+    return data({ txRef, status, error: null, isSignedIn }, { headers });
   } catch (error) {
     if (error instanceof ApiRequestError && error.kind === "aborted") {
       throw error;
@@ -162,6 +243,142 @@ function PaymentStatusCard({ children }: { readonly children: React.ReactNode })
   );
 }
 
+function PaymentUnavailable({ error }: { readonly error: string | null }) {
+  return (
+    <PaymentStatusCard>
+      <XCircle className="mx-auto size-12 text-red-600" aria-hidden="true" />
+      <h1 className="mt-4 text-xl font-semibold">Payment verification unavailable</h1>
+      <p className="mt-2 text-sm text-gray-600">{error}</p>
+      <Button asChild className="mt-6">
+        <Link to="/search">Search for a car</Link>
+      </Button>
+    </PaymentStatusCard>
+  );
+}
+
+function ConfirmedPayment({
+  isSignedIn,
+  status,
+}: {
+  readonly isSignedIn: boolean;
+  readonly status: PaymentStatusView;
+}) {
+  const isExtension = status.kind === "extension";
+
+  return (
+    <PaymentStatusCard>
+      <CheckCircle2 className="mx-auto size-12 text-green-600" aria-hidden="true" />
+      <h1 className="mt-4 text-xl font-semibold">
+        {isExtension ? "Extension payment confirmed" : "Payment confirmed"}
+      </h1>
+      <p className="mt-2 text-sm text-gray-600">
+        {isExtension
+          ? "Your trip extension is confirmed."
+          : `Booking ${status.bookingReference} is confirmed.`}
+      </p>
+      <Button asChild className="mt-6">
+        <Link to={isSignedIn ? `/bookings/${status.bookingId}` : "/"}>
+          {isSignedIn ? "View booking" : "Return home"}
+        </Link>
+      </Button>
+    </PaymentStatusCard>
+  );
+}
+
+function failedPaymentCopy(status: PaymentStatusView) {
+  const expired = status.lifecycleState === "EXPIRED";
+
+  if (status.kind === "extension") {
+    return expired
+      ? {
+          title: "Extension reservation expired",
+          description: "The extension hold expired before payment was confirmed.",
+        }
+      : {
+          title: "Extension payment needs attention",
+          description: "The extension could not be confirmed. Contact support if you were charged.",
+        };
+  }
+
+  return expired
+    ? {
+        title: "Booking reservation expired",
+        description: "The reservation expired before payment was confirmed.",
+      }
+    : {
+        title: "Payment failed",
+        description: "The payment could not be completed. Contact support if you were charged.",
+      };
+}
+
+function FailedPayment({ status }: { readonly status: PaymentStatusView }) {
+  const expired = status.lifecycleState === "EXPIRED";
+  const isExtension = status.kind === "extension";
+  const copy = failedPaymentCopy(status);
+
+  return (
+    <PaymentStatusCard>
+      {expired ? (
+        <Clock3 className="mx-auto size-12 text-orange-600" aria-hidden="true" />
+      ) : (
+        <XCircle className="mx-auto size-12 text-red-600" aria-hidden="true" />
+      )}
+      <h1 className="mt-4 text-xl font-semibold">{copy.title}</h1>
+      <p className="mt-2 text-sm text-gray-600">{copy.description}</p>
+      <Button asChild className="mt-6">
+        <Link to={isExtension ? `/bookings/${status.bookingId}` : "/search"}>
+          {isExtension ? "View booking" : "Search again"}
+        </Link>
+      </Button>
+    </PaymentStatusCard>
+  );
+}
+
+function PendingPayment({
+  error,
+  isRefreshing,
+  isTimedOut,
+  retry,
+  status,
+}: {
+  readonly error: string | null;
+  readonly isRefreshing: boolean;
+  readonly isTimedOut: boolean;
+  readonly retry: () => void;
+  readonly status: PaymentStatusView;
+}) {
+  return (
+    <PaymentStatusCard>
+      <Loader2
+        className="mx-auto size-12 animate-spin text-blue-600 motion-reduce:animate-none"
+        aria-hidden="true"
+      />
+      <h1 className="mt-4 text-xl font-semibold">
+        {status.kind === "extension"
+          ? "Confirming your extension payment"
+          : "Confirming your payment"}
+      </h1>
+      <p className="mt-2 text-sm text-gray-600">
+        Keep this page open while we verify the transaction.
+      </p>
+      {error || isTimedOut ? (
+        <>
+          <p className="mt-4 text-sm text-red-700">{isTimedOut ? PAYMENT_ERROR : error}</p>
+          <Button
+            type="button"
+            variant="outline"
+            className="mt-4"
+            disabled={isRefreshing}
+            onClick={retry}
+          >
+            Retry verification
+          </Button>
+        </>
+      ) : null}
+    </PaymentStatusCard>
+  );
+}
+
 export default function PaymentStatus({ loaderData }: Route.ComponentProps) {
   const payment = usePaymentStatusPolling({
     txRef: loaderData.txRef,
@@ -171,83 +388,24 @@ export default function PaymentStatus({ loaderData }: Route.ComponentProps) {
   const error = payment.error ?? loaderData.error;
 
   if (!status) {
-    return (
-      <PaymentStatusCard>
-        <XCircle className="mx-auto size-12 text-red-600" aria-hidden="true" />
-        <h1 className="mt-4 text-xl font-semibold">Payment verification unavailable</h1>
-        <p className="mt-2 text-sm text-gray-600">{error}</p>
-        <Button asChild className="mt-6">
-          <Link to="/search">Search for a car</Link>
-        </Button>
-      </PaymentStatusCard>
-    );
+    return <PaymentUnavailable error={error} />;
   }
 
   if (status.lifecycleState === "CONFIRMED") {
-    return (
-      <PaymentStatusCard>
-        <CheckCircle2 className="mx-auto size-12 text-green-600" aria-hidden="true" />
-        <h1 className="mt-4 text-xl font-semibold">Payment confirmed</h1>
-        <p className="mt-2 text-sm text-gray-600">
-          Booking {status.bookingReference} is confirmed.
-        </p>
-        <Button asChild className="mt-6">
-          <Link to={loaderData.isSignedIn ? `/bookings/${status.bookingId}` : "/"}>
-            {loaderData.isSignedIn ? "View booking" : "Return home"}
-          </Link>
-        </Button>
-      </PaymentStatusCard>
-    );
+    return <ConfirmedPayment status={status} isSignedIn={loaderData.isSignedIn} />;
   }
 
   if (status.lifecycleState === "FAILED" || status.lifecycleState === "EXPIRED") {
-    const expired = status.lifecycleState === "EXPIRED";
-    return (
-      <PaymentStatusCard>
-        {expired ? (
-          <Clock3 className="mx-auto size-12 text-orange-600" aria-hidden="true" />
-        ) : (
-          <XCircle className="mx-auto size-12 text-red-600" aria-hidden="true" />
-        )}
-        <h1 className="mt-4 text-xl font-semibold">
-          {expired ? "Booking reservation expired" : "Payment failed"}
-        </h1>
-        <p className="mt-2 text-sm text-gray-600">
-          {expired
-            ? "The reservation expired before payment was confirmed."
-            : "The payment could not be completed. Contact support if you were charged."}
-        </p>
-        <Button asChild className="mt-6">
-          <Link to="/search">Search again</Link>
-        </Button>
-      </PaymentStatusCard>
-    );
+    return <FailedPayment status={status} />;
   }
 
   return (
-    <PaymentStatusCard>
-      <Loader2
-        className="mx-auto size-12 animate-spin text-blue-600 motion-reduce:animate-none"
-        aria-hidden="true"
-      />
-      <h1 className="mt-4 text-xl font-semibold">Confirming your payment</h1>
-      <p className="mt-2 text-sm text-gray-600">
-        Keep this page open while we verify the transaction.
-      </p>
-      {error || payment.timedOut ? (
-        <>
-          <p className="mt-4 text-sm text-red-700">{payment.timedOut ? PAYMENT_ERROR : error}</p>
-          <Button
-            type="button"
-            variant="outline"
-            className="mt-4"
-            disabled={payment.isRefreshing}
-            onClick={payment.retry}
-          >
-            Retry verification
-          </Button>
-        </>
-      ) : null}
-    </PaymentStatusCard>
+    <PendingPayment
+      error={error}
+      isRefreshing={payment.isRefreshing}
+      isTimedOut={payment.timedOut}
+      retry={payment.retry}
+      status={status}
+    />
   );
 }

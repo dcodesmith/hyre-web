@@ -7,6 +7,7 @@ import {
   bookingPricingPreviewSchema,
   bookingsByStatusSchema,
   createBookingResponseSchema,
+  createExtensionResponseSchema,
 } from "./schema";
 
 const USER_CANCEL_REASON = "User requested cancellation";
@@ -108,5 +109,23 @@ export function createBooking(options: CreateBookingOptions) {
     headers: { "Idempotency-Key": options.idempotencyKey },
     json: options.body,
     schema: createBookingResponseSchema,
+  });
+}
+
+export type CreateBookingExtensionOptions = {
+  request: Request;
+  bookingId: string;
+  body: unknown;
+  idempotencyKey: string;
+};
+
+export function createBookingExtension(options: CreateBookingExtensionOptions) {
+  return getApiClient().request({
+    path: `/api/bookings/${encodeURIComponent(options.bookingId)}/extensions`,
+    request: options.request,
+    forwardCookie: true,
+    headers: { "Idempotency-Key": options.idempotencyKey },
+    json: options.body,
+    schema: createExtensionResponseSchema,
   });
 }

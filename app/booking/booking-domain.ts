@@ -99,6 +99,12 @@ function money(value: number | null | undefined) {
   return value ?? 0;
 }
 
+function confirmedExtensions(leg: BookingDetailLeg) {
+  return leg.extensions.filter(
+    (extension) => extension.status === "ACTIVE" && extension.paymentStatus === "PAID",
+  );
+}
+
 export function createPaymentSummary(booking: BookingDetail) {
   const baseBookingNetTotal = money(booking.netTotal);
   const baseBookingServiceFee = money(booking.platformCustomerServiceFeeAmount);
@@ -107,16 +113,14 @@ export function createPaymentSummary(booking: BookingDetail) {
   const referralDiscountAmount = money(booking.referralDiscountAmount);
   const vatRatePercent = money(booking.vatRatePercent);
 
-  const extensionSummary = booking.legs
-    .flatMap((leg) => leg.extensions)
-    .reduce(
-      (acc, extension) => {
-        acc.netTotal += money(extension.netTotal);
-        acc.totalHours += extension.extendedDurationHours;
-        return acc;
-      },
-      { netTotal: 0, totalHours: 0 },
-    );
+  const extensionSummary = booking.legs.flatMap(confirmedExtensions).reduce(
+    (acc, extension) => {
+      acc.netTotal += money(extension.netTotal);
+      acc.totalHours += extension.extendedDurationHours;
+      return acc;
+    },
+    { netTotal: 0, totalHours: 0 },
+  );
 
   if (extensionSummary.totalHours === 0) {
     return {
@@ -285,7 +289,7 @@ function createLegView(booking: BookingDetail, leg: BookingDetailLeg, index: num
     new Date(leg.legEndTime),
     now,
   );
-  const extendedDuration = leg.extensions.reduce(
+  const extendedDuration = confirmedExtensions(leg).reduce(
     (total, extension) => total + extension.extendedDurationHours,
     0,
   );

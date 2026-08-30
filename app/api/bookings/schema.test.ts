@@ -5,6 +5,7 @@ import {
   bookingMutationResponseSchema,
   bookingsByStatusSchema,
   createBookingResponseSchema,
+  createExtensionResponseSchema,
 } from "./schema";
 
 const listItem = {
@@ -116,6 +117,8 @@ describe("bookingDetailSchema", () => {
           legStartTime: "2026-07-02T08:00:00.000Z",
           legEndTime: "2026-07-02T20:00:00.000Z",
           extensions: [],
+          canExtend: false,
+          maxExtendableHours: 0,
         },
       ],
       canEdit: false,
@@ -134,6 +137,10 @@ describe("bookingDetailSchema", () => {
     expect(parsed.data.currency).toBe("USD");
     expect(parsed.data.canEdit).toBe(false);
     expect(parsed.data.canCancel).toBe(true);
+    expect(parsed.data.legs[0]).toMatchObject({
+      canExtend: false,
+      maxExtendableHours: 0,
+    });
     expect(parsed.data.modificationCutoffAt).toBe("2026-07-01T20:00:00.000Z");
     expect(parsed.data).not.toHaveProperty("user");
   });
@@ -230,6 +237,28 @@ describe("createBookingResponseSchema", () => {
     expect(
       createBookingResponseSchema.safeParse({
         ...created,
+        checkoutUrl: "javascript:alert(1)",
+      }).success,
+    ).toBe(false);
+  });
+});
+
+describe("createExtensionResponseSchema", () => {
+  it("requires the extension identity and an https checkout URL", () => {
+    const response = {
+      extensionId: "extension-1",
+      paymentIntentId: "ext-tx-1",
+    };
+
+    expect(
+      createExtensionResponseSchema.safeParse({
+        ...response,
+        checkoutUrl: "https://checkout.flutterwave.com/pay/ext-tx-1",
+      }).success,
+    ).toBe(true);
+    expect(
+      createExtensionResponseSchema.safeParse({
+        ...response,
         checkoutUrl: "javascript:alert(1)",
       }).success,
     ).toBe(false);

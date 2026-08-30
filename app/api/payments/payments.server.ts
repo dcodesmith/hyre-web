@@ -1,7 +1,7 @@
 import { env } from "cloudflare:workers";
 
 import { createApiClient } from "../api.server";
-import { bookingPaymentStatusSchema } from "./schema";
+import { bookingPaymentStatusSchema, extensionPaymentStatusSchema } from "./schema";
 
 let apiClient: ReturnType<typeof createApiClient> | undefined;
 
@@ -72,5 +72,41 @@ export function reconcileBookingExpiration({
     headers: accessHeaders(paymentStatusToken),
     json: { txRef, bookingId },
     schema: bookingPaymentStatusSchema,
+  });
+}
+
+export function getExtensionPaymentStatus({
+  request,
+  txRef,
+}: {
+  readonly request: Request;
+  readonly txRef: string;
+}) {
+  return getApiClient().request({
+    path: `/api/payments/status/${encodeURIComponent(txRef)}`,
+    request,
+    forwardCookie: true,
+    schema: extensionPaymentStatusSchema,
+  });
+}
+
+export function confirmExtensionPayment({
+  request,
+  extensionId,
+  txRef,
+  transactionId,
+}: {
+  readonly request: Request;
+  readonly extensionId: string;
+  readonly txRef: string;
+  readonly transactionId: string;
+}) {
+  return getApiClient().request({
+    path: "/api/payments/extension-confirmation",
+    method: "POST",
+    request,
+    forwardCookie: true,
+    json: { extensionId, txRef, transactionId },
+    schema: extensionPaymentStatusSchema,
   });
 }
