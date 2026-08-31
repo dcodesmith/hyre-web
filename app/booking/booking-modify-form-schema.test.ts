@@ -56,4 +56,25 @@ describe("bookingModifyFormSchema", () => {
       ]),
     );
   });
+
+  it("uses the pickup address copy when the field is omitted", () => {
+    const result = bookingModifyFormSchema.safeParse({
+      intent: "modify",
+      sameLocation: "true",
+    });
+
+    expect(result.success).toBe(false);
+    if (result.success) {
+      return;
+    }
+
+    expect(result.error.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          path: ["pickupAddress"],
+          message: "Pickup address is required.",
+        }),
+      ]),
+    );
+  });
 });

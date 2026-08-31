@@ -145,6 +145,18 @@ export function LoginForm({ actionData, authRole, heading, id, referralCode }: L
           >
             Send verification code
           </AuthSubmitButton>
+
+          {showReferral ? (
+            <p className="text-center text-sm text-neutral-600">
+              Booked as a guest?{" "}
+              <Link
+                to="/bookings/lookup"
+                className="font-medium text-neutral-900 underline underline-offset-4"
+              >
+                Find your booking
+              </Link>
+            </p>
+          ) : null}
         </div>
       </Form>
     </>

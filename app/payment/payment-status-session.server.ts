@@ -1,6 +1,11 @@
 import { env } from "cloudflare:workers";
 import { z } from "zod";
 
+import {
+  decryptSession as decryptEncryptedSession,
+  encryptSession as encryptSessionValue,
+  toBase64Url,
+} from "~/auth/encrypted-session.server";
 import { readCookieValue } from "~/auth/pending-otp";
 
 const LOCAL_SECRET = "hyre-web-local-payment-status-cookie";
@@ -60,52 +65,17 @@ export function requirePaymentStatusCookieSecret() {
   throw new Error("WEB_SESSION_SECRET is required");
 }
 
-function toBase64Url(bytes: Uint8Array) {
-  const binary = Array.from(bytes, (byte) => String.fromCodePoint(byte)).join("");
-  return btoa(binary).replaceAll("+", "-").replaceAll("/", "_").replaceAll("=", "");
-}
-
-function fromBase64Url(value: string) {
-  const base64 = value.replaceAll("-", "+").replaceAll("_", "/");
-  const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, "=");
-  return Uint8Array.from(atob(padded), (character) => character.codePointAt(0) ?? 0);
-}
-
-async function encryptionKey(secret: string) {
-  const material = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(secret));
-  return crypto.subtle.importKey("raw", material, "AES-GCM", false, ["encrypt", "decrypt"]);
-}
-
 async function encryptSession(session: PaymentStatusSession) {
-  const iv = crypto.getRandomValues(new Uint8Array(12));
-  const encrypted = await crypto.subtle.encrypt(
-    { name: "AES-GCM", iv },
-    await encryptionKey(requirePaymentStatusCookieSecret()),
-    new TextEncoder().encode(JSON.stringify(session)),
-  );
-  return `${toBase64Url(iv)}.${toBase64Url(new Uint8Array(encrypted))}`;
+  return encryptSessionValue(session, requirePaymentStatusCookieSecret());
 }
 
 async function decryptSession(value: string) {
-  const [ivValue, encryptedValue] = value.split(".");
-
-  if (!ivValue || !encryptedValue) {
-    return null;
-  }
-
-  try {
-    const decrypted = await crypto.subtle.decrypt(
-      { name: "AES-GCM", iv: fromBase64Url(ivValue) },
-      await encryptionKey(requirePaymentStatusCookieSecret()),
-      fromBase64Url(encryptedValue),
-    );
-    const session = paymentStatusSessionSchema.parse(
-      JSON.parse(new TextDecoder().decode(decrypted)),
-    );
-    return session.expiresAt > Date.now() ? session : null;
-  } catch {
-    return null;
-  }
+  const session = await decryptEncryptedSession(
+    value,
+    requirePaymentStatusCookieSecret(),
+    paymentStatusSessionSchema,
+  );
+  return session && session.expiresAt > Date.now() ? session : null;
 }
 
 export function createPaymentStatusSession(value: {

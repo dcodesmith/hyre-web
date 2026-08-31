@@ -68,6 +68,7 @@ describe("booking detail dates", () => {
 describe("createPaymentSummary", () => {
   it("uses stored totals when there are no extensions", () => {
     expect(createPaymentSummary(baseBooking)).toEqual({
+      breakdownAvailable: true,
       netTotal: 130_435,
       platformCustomerServiceFeeAmount: 9_130,
       extensionNetTotal: 0,
@@ -78,6 +79,13 @@ describe("createPaymentSummary", () => {
       totalAmount: 150_000,
       vatRatePercent: 7.5,
     });
+  });
+
+  it("keeps the authoritative total when a redacted response has no fee breakdown", () => {
+    const summary = createPaymentSummary({ ...baseBooking, netTotal: null });
+
+    expect(summary.breakdownAvailable).toBe(false);
+    expect(summary.totalAmount).toBe(baseBooking.totalAmount);
   });
 
   it("adds extension fee and VAT onto the stored base totals", () => {

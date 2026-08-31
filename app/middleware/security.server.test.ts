@@ -219,4 +219,19 @@ describe("applyResponsePolicy", () => {
 
     expect(response.headers.get("strict-transport-security")).toBeNull();
   });
+
+  it("preserves a stricter route-level referrer policy", () => {
+    const response = applyResponsePolicy(
+      new Request("https://hyre.example/bookings/guest?token=secret"),
+      new Response(null, {
+        headers: { "referrer-policy": "no-referrer" },
+      }),
+      {
+        environment: "production",
+        requestId: "request-123",
+      },
+    );
+
+    expect(response.headers.get("referrer-policy")).toBe("no-referrer");
+  });
 });

@@ -1,7 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { cancelBooking, updateBooking } = vi.hoisted(() => ({
+const {
+  cancelBooking,
+  getBookingById,
+  getGuestBooking,
+  guestBookingClearCookie,
+  readGuestBookingSession,
+  updateBooking,
+} = vi.hoisted(() => ({
   cancelBooking: vi.fn(),
+  getBookingById: vi.fn(),
+  getGuestBooking: vi.fn(),
+  guestBookingClearCookie: vi.fn(async () => "guest_booking=; Max-Age=0"),
+  readGuestBookingSession: vi.fn(),
   updateBooking: vi.fn(),
 }));
 
@@ -11,13 +22,18 @@ vi.mock("cloudflare:workers", () => ({
 
 vi.mock("~/api/bookings/bookings.server", () => ({
   cancelBooking,
-  getBookingById: vi.fn(),
+  getBookingById,
+  getGuestBooking,
   updateBooking,
+}));
+vi.mock("~/booking/guest-booking-session.server", () => ({
+  guestBookingClearCookie,
+  readGuestBookingSession,
 }));
 
 import { ApiRequestError } from "~/api/api.server";
 import { HTTP_STATUS } from "~/api/http-status";
-import { action, shouldRevalidate } from "./bookings.$bookingId";
+import { action, loader, shouldRevalidate } from "./bookings.$bookingId";
 
 const SESSION_COOKIE = "better-auth.session_token=test-session";
 
@@ -54,6 +70,91 @@ async function runAction({
     params: { bookingId },
   } as Parameters<typeof action>[0]);
 }
+
+const guestBooking = {
+  bookingId: "booking-1",
+  bookingReference: "BK-123",
+  status: "CONFIRMED",
+  paymentStatus: "PAID",
+  bookingType: "DAY",
+  startDate: "2026-09-21T08:00:00.000Z",
+  endDate: "2026-09-21T20:00:00.000Z",
+  pickupLocation: "Ikeja",
+  returnLocation: "Lekki",
+  specialRequests: null,
+  cancellationReason: null,
+  flightNumber: null,
+  totalAmount: 50_000,
+  currency: "NGN",
+  accessExpiresAt: "2026-09-21T12:15:00.000Z",
+  car: { make: "Toyota", model: "Camry", year: 2025, images: [] },
+  chauffeur: { name: "Bola", phoneNumber: "08000000000" },
+  legs: [
+    {
+      id: "leg-1",
+      legDate: "2026-09-21T00:00:00.000Z",
+      legStartTime: "2026-09-21T08:00:00.000Z",
+      legEndTime: "2026-09-21T20:00:00.000Z",
+      extensions: [],
+    },
+  ],
+};
+
+async function runLoader(cookie = "") {
+  return loader({
+    request: new Request("https://hyre.example/bookings/booking-1", {
+      headers: cookie ? { cookie } : undefined,
+    }),
+    params: { bookingId: "booking-1" },
+  } as Parameters<typeof loader>[0]);
+}
+
+describe("booking detail loader", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("loads the redacted booking through a scoped guest session", async () => {
+    readGuestBookingSession.mockResolvedValue({ bookingId: "booking-1", token: "a".repeat(43) });
+    getGuestBooking.mockResolvedValue({ data: guestBooking });
+
+    await expect(runLoader()).resolves.toMatchObject({
+      accessMode: "guest",
+      booking: {
+        id: "booking-1",
+        canEdit: false,
+        canCancel: false,
+        legs: [{ canExtend: false }],
+      },
+    });
+    expect(getBookingById).not.toHaveBeenCalled();
+    expect(getGuestBooking).toHaveBeenCalledWith({
+      request: expect.any(Request),
+      token: "a".repeat(43),
+    });
+  });
+
+  it("falls back to valid guest access when a signed-in account does not own the booking", async () => {
+    getBookingById.mockRejectedValue(httpError(HTTP_STATUS.NOT_FOUND, "Not found"));
+    readGuestBookingSession.mockResolvedValue({ bookingId: "booking-1", token: "a".repeat(43) });
+    getGuestBooking.mockResolvedValue({ data: guestBooking });
+
+    await expect(runLoader(SESSION_COOKIE)).resolves.toMatchObject({ accessMode: "guest" });
+  });
+
+  it("clears guest access when the API no longer accepts the token", async () => {
+    readGuestBookingSession.mockResolvedValue({ bookingId: "booking-1", token: "a".repeat(43) });
+    getGuestBooking.mockRejectedValue(httpError(HTTP_STATUS.NOT_FOUND, "Not found"));
+
+    const response = await runLoader().catch((error: unknown) => error);
+
+    expect(response).toBeInstanceOf(Response);
+    expect((response as Response).headers.get("location")).toBe(
+      "/bookings/lookup?status=invalid-link",
+    );
+    expect((response as Response).headers.get("set-cookie")).toContain("Max-Age=0");
+  });
+});
 
 describe("booking detail action", () => {
   beforeEach(() => {

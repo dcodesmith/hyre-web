@@ -122,8 +122,24 @@ export function createPaymentSummary(booking: BookingDetail) {
     { netTotal: 0, totalHours: 0 },
   );
 
+  if (booking.netTotal == null) {
+    return {
+      breakdownAvailable: false,
+      netTotal: 0,
+      platformCustomerServiceFeeAmount: 0,
+      extensionNetTotal: 0,
+      totalExtendedHours: extensionSummary.totalHours,
+      vatAmount: 0,
+      fuelUpgradeCost: 0,
+      referralDiscountAmount: 0,
+      totalAmount: money(booking.totalAmount),
+      vatRatePercent: 0,
+    };
+  }
+
   if (extensionSummary.totalHours === 0) {
     return {
+      breakdownAvailable: true,
       netTotal: baseBookingNetTotal,
       platformCustomerServiceFeeAmount: baseBookingServiceFee,
       extensionNetTotal: 0,
@@ -142,6 +158,7 @@ export function createPaymentSummary(booking: BookingDetail) {
   const extensionVat = (extensionSummary.netTotal + extensionServiceFee) * vatRatePercentDecimal;
 
   return {
+    breakdownAvailable: true,
     netTotal: baseBookingNetTotal,
     platformCustomerServiceFeeAmount: baseBookingServiceFee + extensionServiceFee,
     extensionNetTotal: extensionSummary.netTotal,

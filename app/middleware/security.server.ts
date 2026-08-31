@@ -106,7 +106,9 @@ export function applyResponsePolicy(
   headers.set("Cross-Origin-Opener-Policy", "same-origin");
   headers.set("Cross-Origin-Resource-Policy", "same-origin");
   headers.set("Permissions-Policy", "camera=(), geolocation=(), microphone=()");
-  headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  if (!headers.has("Referrer-Policy")) {
+    headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  }
   headers.set("X-Content-Type-Options", "nosniff");
   headers.set("X-DNS-Prefetch-Control", "off");
   headers.set("X-Frame-Options", "SAMEORIGIN");

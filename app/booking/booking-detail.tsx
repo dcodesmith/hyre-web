@@ -2,6 +2,7 @@ import { ArrowLeft } from "lucide-react";
 import { Link } from "react-router";
 
 import type { BookingDetail } from "~/api/bookings/schema";
+import { authPath } from "~/auth/referer";
 import { BookingCancelCard } from "~/booking/booking-cancel";
 import { BookingChauffeurCard } from "~/booking/booking-chauffeur-card";
 import { BookingDomain } from "~/booking/booking-domain";
@@ -15,23 +16,29 @@ import { BookingTimelineCard } from "~/booking/booking-timeline";
 import { bookingListPath, parseBookingListStatus } from "~/booking/bookings-url";
 
 export function BookingDetailPage({
+  accessMode = "account",
   booking: detail,
   now,
 }: {
+  readonly accessMode?: "account" | "guest";
   readonly booking: BookingDetail;
   readonly now: string;
 }) {
   const booking = BookingDomain(detail, new Date(now));
-  const backTo = bookingListPath(
-    parseBookingListStatus(new URLSearchParams({ status: detail.status.toLowerCase() })),
-  );
+  const isGuest = accessMode === "guest";
+  const backTo = isGuest
+    ? "/bookings/lookup"
+    : bookingListPath(
+        parseBookingListStatus(new URLSearchParams({ status: detail.status.toLowerCase() })),
+      );
+  const backLabel = isGuest ? "Back to booking lookup" : "Back to Bookings";
 
   return (
     <div className="w-full text-base">
       <div className="mx-auto max-w-4xl space-y-4 px-4 py-4 md:py-6">
         <div className="hidden items-center gap-2 md:flex">
           <Link to={backTo} className="flex text-sm hover:underline">
-            &larr; Back to Bookings
+            &larr; {backLabel}
           </Link>
         </div>
 
@@ -40,13 +47,26 @@ export function BookingDetailPage({
             <Link
               to={backTo}
               className="rounded-full bg-muted/50 p-2 transition-opacity hover:bg-muted/75"
-              aria-label="Back to Bookings"
+              aria-label={backLabel}
             >
               <ArrowLeft className="h-5 w-5 text-black" aria-hidden="true" />
             </Link>
           </div>
           <BookingHeader booking={booking} />
         </div>
+
+        {isGuest ? (
+          <div className="rounded border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
+            Guest access is read-only.{" "}
+            <Link
+              to={authPath("/auth", { redirectTo: `/bookings/${encodeURIComponent(detail.id)}` })}
+              className="font-medium underline underline-offset-4"
+            >
+              Sign in with the booking email
+            </Link>{" "}
+            to manage this booking.
+          </div>
+        ) : null}
 
         <div className="relative w-full rounded border border-blue-200 bg-blue-50 p-4">
           <p className="text-sm text-blue-800">{booking.typeDescription}</p>
@@ -62,11 +82,13 @@ export function BookingDetailPage({
             <BookingChauffeurCard booking={booking} />
             {booking.flight ? <BookingFlightCard flight={booking.flight} /> : null}
             <BookingPaymentCard payment={booking.payment} />
-            {detail.legs.some((leg) => leg.canExtend) ? (
+            {!isGuest && detail.legs.some((leg) => leg.canExtend) ? (
               <BookingExtendCard bookingId={detail.id} />
             ) : null}
-            {detail.canEdit ? <BookingModifyCard booking={detail} /> : null}
-            {detail.canCancel ? <BookingCancelCard paymentStatus={detail.paymentStatus} /> : null}
+            {!isGuest && detail.canEdit ? <BookingModifyCard booking={detail} /> : null}
+            {!isGuest && detail.canCancel ? (
+              <BookingCancelCard paymentStatus={detail.paymentStatus} />
+            ) : null}
           </div>
         </div>
       </div>

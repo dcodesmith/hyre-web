@@ -6,7 +6,10 @@ export const bookingModifyFormSchema = z
   .object({
     intent: z.literal("modify"),
     pickupTime: z.string().trim().optional(),
-    pickupAddress: z.string().trim().min(1, "Pickup address is required."),
+    pickupAddress: z
+      .string({ error: "Pickup address is required." })
+      .trim()
+      .min(1, "Pickup address is required."),
     sameLocation: z.enum(["true", "false"]),
     dropOffAddress: z.string().trim().optional(),
   })

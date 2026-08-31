@@ -92,8 +92,8 @@ app/
         rates.server.ts           # admin rate read/create + add-on end mutations
         schema.ts                 # fee, VAT, and add-on rate transport DTOs
     bookings/
-      bookings.server.ts          # GET list/detail; PATCH modify/cancel; POST preview/create/extend
-      schema.ts                   # list/detail + leg eligibility; preview/create/extend responses
+      bookings.server.ts          # signed-in reads/mutations + public guest access request/read
+      schema.ts                   # booking, pricing, extension, and redacted guest DTOs
     payments/
       payments.server.ts          # booking/extension status and confirmation; booking expiration
       schema.ts                   # booking and extension payment lifecycle DTOs
@@ -156,6 +156,10 @@ app/
     booking-extension-form-schema.ts # bookingLegId + hours + Idempotency-Key form contract
     booking-extend-card.tsx       # booking-detail CTA + route pending state
     booking-extension.tsx         # leg-aware responsive extension form/page
+    guest-booking-form-schema.ts  # email + booking-reference lookup form contract
+    guest-booking-lookup.tsx      # responsive request-link form and generic accepted state
+    guest-booking-session.server.ts # encrypted, booking-scoped guest access cookie
+    guest-booking.ts              # redacted guest DTO → existing read-only detail view
     booking-domain.ts             # BookingDomain + Lagos timeline + payment rollup
     booking-domain.test.ts
     booking-detail-card.tsx       # shared detail layout
@@ -200,6 +204,7 @@ app/
     timezone.test.ts
 
   auth/
+    encrypted-session.server.ts   # shared AES-GCM envelope for protected web cookies
     auth-layout.tsx               # viewport-centered login layout; logo top-left to home
     auth-form-primitives.tsx      # Uber-like inputs, checkbox, submit, errors
     auth-form-schema.ts           # email / OTP / admin role / pending cookie
@@ -338,7 +343,9 @@ app/
     admin.fees.tsx                # admin-only platform fee + VAT rate actions
     admin.addon-rates.tsx         # admin-only add-on create/end actions
     bookings.tsx                  # signed-in list; guests → /auth?redirectTo=
-    bookings.$bookingId.tsx       # signed-in detail + modify/cancel; guests → /auth?redirectTo=
+    bookings.lookup.tsx           # guest email/reference request → generic accepted response
+    bookings.guest.ts             # token exchange → encrypted cookie → clean detail URL
+    bookings.$bookingId.tsx       # signed-in detail or scoped read-only guest detail
     bookings.$bookingId.extend.tsx # leg-level extension create → provider checkout
     payment-status.tsx            # /bookings/payment-status callback + polling UI
     api.booking-pricing-preview.ts # same-origin pricing BFF
@@ -380,8 +387,6 @@ here.
 - Review paging resource: `app/routes/api.reviews.car.$carId.ts` +
   `app/review/review-url.ts` — web `GET /api/reviews/car/:carId?page=`
   over existing `GET /api/reviews/car/:carId`. Keep the car URL clean.
-- Guest booking lookup (`/bookings/lookup`) — API gap
-
 ## Later (verified API only)
 
 - Extend `app/api/bookings/` and `app/api/payments/` only as new API endpoints
@@ -411,8 +416,7 @@ here.
 
 Gaps stay in [03-ROUTE-API-READINESS.md](./03-ROUTE-API-READINESS.md). Do not
 scaffold partners, fleet chauffeurs, fleet booking list, admin owners, admin
-dashboard aggregate, guest booking lookup, or receipt PDF
-until the API is verified.
+dashboard aggregate, or receipt PDF until the API is verified.
 
 ## Current → target (homepage + search slices)
 

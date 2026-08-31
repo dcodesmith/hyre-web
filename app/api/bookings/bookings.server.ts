@@ -8,6 +8,8 @@ import {
   bookingsByStatusSchema,
   createBookingResponseSchema,
   createExtensionResponseSchema,
+  guestBookingAccessRequestResponseSchema,
+  guestBookingDetailSchema,
 } from "./schema";
 
 const USER_CANCEL_REASON = "User requested cancellation";
@@ -44,6 +46,37 @@ export function getBookingById(options: GetBookingByIdOptions) {
     request: options.request,
     forwardCookie: true,
     schema: bookingDetailSchema,
+  });
+}
+
+export function requestGuestBookingAccess({
+  request,
+  body,
+}: {
+  readonly request: Request;
+  readonly body: unknown;
+}) {
+  return getApiClient().request({
+    path: "/api/bookings/guest-access",
+    request,
+    json: body,
+    schema: guestBookingAccessRequestResponseSchema,
+  });
+}
+
+export function getGuestBooking({
+  request,
+  token,
+}: {
+  readonly request: Request;
+  readonly token: string;
+}) {
+  const search = new URLSearchParams({ token });
+
+  return getApiClient().request({
+    path: `/api/bookings/guest-access?${search}`,
+    request,
+    schema: guestBookingDetailSchema,
   });
 }
 
