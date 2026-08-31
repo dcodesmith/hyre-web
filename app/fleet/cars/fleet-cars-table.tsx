@@ -1,16 +1,11 @@
 import {
   type ColumnFiltersState,
-  flexRender,
+  type ColumnVisibilityState,
   functionalUpdate,
-  getCoreRowModel,
-  getFilteredRowModel,
-  getPaginationRowModel,
-  getSortedRowModel,
   type PaginationState,
-  type Table as ReactTable,
+  type ReactTable,
   type SortingState,
-  useReactTable,
-  type VisibilityState,
+  useTable,
 } from "@tanstack/react-table";
 import {
   ChevronFirstIcon,
@@ -59,6 +54,7 @@ import {
 import { getFleetCarStatusLabel } from "./fleet-car";
 import { FleetCarsFilter, type FleetCarsFilterOption } from "./fleet-cars-filter";
 import { fleetCarsColumns } from "./fleet-cars-table-columns";
+import { type FleetCarsTableFeatures, fleetCarsTableFeatures } from "./fleet-cars-table-features";
 import { type FleetCarsView, parseFleetCarsView, serializeFleetCarsView } from "./fleet-cars-url";
 
 const PAGE_SIZES = [10, 20, 30, 40, 50] as const;
@@ -139,13 +135,17 @@ function toggleSelectedValue(values: readonly string[], value: string) {
     : [...values, value];
 }
 
-function TablePagination({ table }: { readonly table: ReactTable<FleetCar> }) {
+function TablePagination({
+  table,
+}: {
+  readonly table: ReactTable<FleetCarsTableFeatures, FleetCar>;
+}) {
   return (
     <div className="flex flex-col gap-3 px-2 py-2 sm:flex-row sm:items-center sm:justify-end sm:gap-6">
       <div className="flex items-center justify-between gap-2 sm:justify-start">
         <span className="text-sm text-muted-foreground">Rows per page</span>
         <Select
-          value={String(table.getState().pagination.pageSize)}
+          value={String(table.state.pagination.pageSize)}
           onValueChange={(value) => table.setPageSize(Number(value))}
         >
           <SelectTrigger className="h-8 w-18">
@@ -163,7 +163,7 @@ function TablePagination({ table }: { readonly table: ReactTable<FleetCar> }) {
 
       <div className="flex items-center justify-between gap-4">
         <span className="text-sm font-medium tabular-nums">
-          Page {table.getState().pagination.pageIndex + 1} of {Math.max(table.getPageCount(), 1)}
+          Page {table.state.pagination.pageIndex + 1} of {Math.max(table.getPageCount(), 1)}
         </span>
         <div className="flex items-center gap-1">
           <Button
@@ -217,7 +217,7 @@ function useFleetCarsTable(cars: FleetCar[]) {
   const [searchParams, setSearchParams] = useSearchParams();
   const view = parseFleetCarsView(searchParams);
   const columnFilters = columnFiltersFromView(view);
-  const columnVisibility: VisibilityState = Object.fromEntries(
+  const columnVisibility: ColumnVisibilityState = Object.fromEntries(
     view.hiddenColumns.map((columnId) => [columnId, false]),
   );
   const sorting: SortingState = view.sortBy
@@ -235,7 +235,8 @@ function useFleetCarsTable(cars: FleetCar[]) {
     });
   };
 
-  const table = useReactTable({
+  const table = useTable({
+    features: fleetCarsTableFeatures,
     data: cars,
     columns: fleetCarsColumns,
     autoResetPageIndex: false,
@@ -271,10 +272,6 @@ function useFleetCarsTable(cars: FleetCar[]) {
         sortDirection: next?.desc ? "desc" : "asc",
       });
     },
-    getCoreRowModel: getCoreRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    getSortedRowModel: getSortedRowModel(),
   });
 
   const setFilterValues = (field: "make" | "model" | "status", values: string[]) => {
@@ -305,7 +302,7 @@ export function FleetCarsTable({ cars }: { readonly cars: FleetCar[] }) {
   const makeOptions = textOptions(cars, "make");
   const modelOptions = textOptions(cars, "model");
   const carStatusOptions = statusOptions(cars);
-  const activeFilterCount = table.getState().columnFilters.length;
+  const activeFilterCount = table.state.columnFilters.length;
 
   const availableFilters: TableFilterProps[] = [
     {
@@ -444,9 +441,7 @@ export function FleetCarsTable({ cars }: { readonly cars: FleetCar[] }) {
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (
                   <TableHead key={header.id} className="h-11 whitespace-nowrap px-2">
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(header.column.columnDef.header, header.getContext())}
+                    {header.isPlaceholder ? null : <table.FlexRender header={header} />}
                   </TableHead>
                 ))}
               </TableRow>
@@ -458,7 +453,7 @@ export function FleetCarsTable({ cars }: { readonly cars: FleetCar[] }) {
                 <TableRow key={row.id}>
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id} className="whitespace-nowrap">
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      <table.FlexRender cell={cell} />
                     </TableCell>
                   ))}
                 </TableRow>
@@ -469,7 +464,7 @@ export function FleetCarsTable({ cars }: { readonly cars: FleetCar[] }) {
                   colSpan={table.getVisibleLeafColumns().length}
                   className="h-28 text-center"
                 >
-                  {table.getState().pagination.pageIndex > 0
+                  {table.state.pagination.pageIndex > 0
                     ? "No cars on this page."
                     : "No cars match the selected filters."}
                 </TableCell>
@@ -479,7 +474,7 @@ export function FleetCarsTable({ cars }: { readonly cars: FleetCar[] }) {
         </Table>
       </div>
 
-      {table.getPageCount() > 1 || table.getState().pagination.pageIndex > 0 ? (
+      {table.getPageCount() > 1 || table.state.pagination.pageIndex > 0 ? (
         <TablePagination table={table} />
       ) : null}
     </div>

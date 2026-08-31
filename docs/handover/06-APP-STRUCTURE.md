@@ -236,6 +236,7 @@ app/
       fleet-car-status-badge.tsx  # shared fleet badge chrome; status and review tones
       fleet-cars-url.ts           # filter, sort, and pagination URL contract
       fleet-cars-filter.tsx       # desktop popover / mobile sheet filter content
+      fleet-cars-table-features.ts
       fleet-cars-table-columns.tsx
       fleet-cars-table.tsx        # sortable, filterable responsive owner inventory
       fleet-cars-list.tsx
