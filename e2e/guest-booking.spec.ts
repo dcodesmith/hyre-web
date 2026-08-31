@@ -48,6 +48,20 @@ test("requests and opens a read-only guest booking", async ({ context, page }) =
     await expect(page.getByRole("button", { name: "Modify Booking" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Write a Review" })).toHaveCount(0);
     await expect(page.getByRole("link", { name: "Extend Trip" })).toHaveCount(0);
+    const receiptPath = `/bookings/${MOCK_GUEST_BOOKING_ID}/receipt`;
+    await expect(page.getByRole("link", { name: "Download Receipt" })).toHaveAttribute(
+      "href",
+      receiptPath,
+    );
+
+    const receipt = await page.request.get(receiptPath);
+    expect(receipt.status()).toBe(200);
+    expect(receipt.headers()["cache-control"]).toBe("private, no-store");
+    expect(receipt.headers()["content-disposition"]).toBe(
+      'attachment; filename="Tripdly-receipt-BK-GUEST-001.pdf"',
+    );
+    expect((await receipt.body()).subarray(0, 4).toString()).toBe("%PDF");
+    expect(api.requests.receiptToken).toBe(MOCK_GUEST_BOOKING_TOKEN);
     expect(api.requests.token).toBe(MOCK_GUEST_BOOKING_TOKEN);
 
     const guestCookie = (await context.cookies()).find((cookie) =>

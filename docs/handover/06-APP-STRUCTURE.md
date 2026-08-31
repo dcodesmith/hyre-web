@@ -92,7 +92,7 @@ app/
         rates.server.ts           # admin rate read/create + add-on end mutations
         schema.ts                 # fee, VAT, and add-on rate transport DTOs
     bookings/
-      bookings.server.ts          # signed-in reads/mutations + public guest access request/read
+      bookings.server.ts          # signed-in reads/mutations + guest access + receipt stream
       schema.ts                   # booking, pricing, extension, and redacted guest DTOs
     payments/
       payments.server.ts          # booking/extension status and confirmation; booking expiration
@@ -171,7 +171,7 @@ app/
     booking-chauffeur-card.tsx
     booking-flight-card.tsx
     booking-payment-card.tsx
-    booking-detail.tsx            # page composer + modify/cancel/extend/review
+    booking-detail.tsx            # page composer + modify/cancel/extend/review/receipt
 
   account/
     account-deletion.tsx          # confirmed destructive action + pending/error UI
@@ -351,6 +351,7 @@ app/
     bookings.guest.ts             # token exchange → encrypted cookie → clean detail URL
     bookings.$bookingId.tsx       # signed-in detail/actions/reviews or scoped read-only guest detail
     bookings.$bookingId.extend.tsx # leg-level extension create → provider checkout
+    bookings.$bookingId.receipt.ts # signed-in or scoped-guest API PDF stream
     payment-status.tsx            # /bookings/payment-status callback + polling UI
     api.booking-pricing-preview.ts # same-origin pricing BFF
     api.account.delete.ts          # account deletion BFF + local auth-cookie cleanup
@@ -420,7 +421,7 @@ here.
 
 Gaps stay in [03-ROUTE-API-READINESS.md](./03-ROUTE-API-READINESS.md). Do not
 scaffold partners, fleet chauffeurs, fleet booking list, admin owners, admin
-dashboard aggregate, or receipt PDF until the API is verified.
+dashboard aggregate until the API is verified.
 
 ## Current → target (homepage + search slices)
 

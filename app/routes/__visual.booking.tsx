@@ -48,6 +48,7 @@ export default function BookingDetailFixture() {
   return (
     <BookingDetailPage
       booking={fixtureBooking}
+      canDownloadReceipt
       reviewAvailability="available"
       now="2026-08-01T12:00:00.000Z"
     />
