@@ -93,8 +93,9 @@ describe("bookingsByStatusSchema", () => {
 
 describe("bookingDetailSchema", () => {
   it("keeps display fields and drops extras", () => {
-    const parsed = bookingDetailSchema.safeParse({
+    const payload = {
       id: "booking-1",
+      userId: "user-1",
       bookingReference: "TD-1001",
       status: "COMPLETED",
       paymentStatus: "PAID",
@@ -127,30 +128,63 @@ describe("bookingDetailSchema", () => {
       canEdit: false,
       canCancel: true,
       modificationCutoffAt: "2026-07-01T20:00:00.000Z",
+      review: {
+        id: "review-1",
+        overallRating: 5,
+        carRating: 4,
+        chauffeurRating: 5,
+        serviceRating: 5,
+        comment: "Excellent trip",
+        createdAt: "2026-07-03T10:00:00.000Z",
+        user: { id: "user-1", name: "Ada", image: null },
+        isVisible: true,
+        moderationNotes: "hidden",
+      },
       user: { email: "hidden@example.com" },
-    });
+    };
+    const parsed = bookingDetailSchema.safeParse(payload);
 
     expect(parsed.success).toBe(true);
     if (!parsed.success) {
       return;
     }
 
-    expect(parsed.data.car).toEqual({ make: "Lexus", model: "UX F-Sport", year: 2019 });
-    expect(parsed.data.chauffeur).toEqual({ name: "Bola Adebayo" });
-    expect(parsed.data.currency).toBe("USD");
-    expect(parsed.data.canEdit).toBe(false);
-    expect(parsed.data.canCancel).toBe(true);
-    expect(parsed.data.legs[0]).toMatchObject({
+    const booking = parsed.data.booking;
+    expect(booking.car).toEqual({ make: "Lexus", model: "UX F-Sport", year: 2019 });
+    expect(booking.chauffeur).toEqual({ name: "Bola Adebayo" });
+    expect(booking.currency).toBe("USD");
+    expect(booking.canEdit).toBe(false);
+    expect(booking.canCancel).toBe(true);
+    expect(booking.legs[0]).toMatchObject({
       canExtend: false,
       maxExtendableHours: 0,
     });
-    expect(parsed.data.modificationCutoffAt).toBe("2026-07-01T20:00:00.000Z");
-    expect(parsed.data).not.toHaveProperty("user");
+    expect(booking.modificationCutoffAt).toBe("2026-07-01T20:00:00.000Z");
+    expect(booking.review).toEqual({
+      id: "review-1",
+      overallRating: 5,
+      carRating: 4,
+      chauffeurRating: 5,
+      serviceRating: 5,
+      comment: "Excellent trip",
+      createdAt: "2026-07-03T10:00:00.000Z",
+      user: { id: "user-1", name: "Ada", image: null },
+    });
+    expect(booking).not.toHaveProperty("user");
+    expect(parsed.data.customerUserId).toBe("user-1");
+
+    const hidden = bookingDetailSchema.parse({
+      ...payload,
+      review: { ...payload.review, isVisible: false },
+    });
+    expect(hidden.booking.review).toBeNull();
+    expect(hidden.reviewVisibility).toBe(false);
   });
 
   it("drops an invalid currency instead of failing the booking", () => {
     const parsed = bookingDetailSchema.safeParse({
       id: "booking-1",
+      userId: "user-1",
       bookingReference: "TD-1001",
       status: "COMPLETED",
       paymentStatus: "PAID",
@@ -175,12 +209,13 @@ describe("bookingDetailSchema", () => {
       return;
     }
 
-    expect(parsed.data.currency).toBeUndefined();
+    expect(parsed.data.booking.currency).toBeUndefined();
   });
 
   it("coerces numeric strings and rejects values that Number() would turn into 0", () => {
     const payload = {
       id: "booking-1",
+      userId: "user-1",
       bookingReference: "TD-1001",
       status: "COMPLETED",
       paymentStatus: "PAID",
@@ -200,8 +235,8 @@ describe("bookingDetailSchema", () => {
       modificationCutoffAt: "2026-07-01T20:00:00.000Z",
     };
 
-    expect(bookingDetailSchema.parse(payload).totalAmount).toBe(150_000.5);
-    expect(bookingDetailSchema.parse(payload).netTotal).toBeNull();
+    expect(bookingDetailSchema.parse(payload).booking.totalAmount).toBe(150_000.5);
+    expect(bookingDetailSchema.parse(payload).booking.netTotal).toBeNull();
     expect(bookingDetailSchema.safeParse({ ...payload, totalAmount: "" }).success).toBe(false);
     expect(bookingDetailSchema.safeParse({ ...payload, totalAmount: null }).success).toBe(false);
     expect(bookingDetailSchema.safeParse({ ...payload, totalAmount: false }).success).toBe(false);

@@ -62,7 +62,7 @@ export async function loader({ request, params }: Route.LoaderArgs) {
 
   try {
     const booking = await getBookingById({ request, bookingId: params.bookingId });
-    return { booking: booking.data, idempotencyKey: crypto.randomUUID() };
+    return { booking: booking.data.booking, idempotencyKey: crypto.randomUUID() };
   } catch (error) {
     if (error instanceof ApiRequestError && error.status === HTTP_STATUS.UNAUTHORIZED) {
       throw loginRedirect(request);
@@ -98,6 +98,7 @@ export async function action({ request, params }: Route.ActionArgs) {
   }
 
   requirePaymentStatusCookieSecret();
+  let checkout: { url: string; setCookie: string };
 
   try {
     const created = await createBookingExtension({
@@ -115,13 +116,17 @@ export async function action({ request, params }: Route.ActionArgs) {
       extensionId: created.data.extensionId,
       txRef: created.data.paymentIntentId,
     });
-
-    throw redirect(created.data.checkoutUrl, {
-      headers: { "Set-Cookie": await paymentStatusSetCookie(paymentSession) },
-    });
+    checkout = {
+      url: created.data.checkoutUrl,
+      setCookie: await paymentStatusSetCookie(paymentSession),
+    };
   } catch (error) {
     return extensionActionFailure(error, request, params.bookingId);
   }
+
+  throw redirect(checkout.url, {
+    headers: { "Set-Cookie": checkout.setCookie },
+  });
 }
 
 function extensionActionFailure(error: unknown, request: Request, bookingId: string) {

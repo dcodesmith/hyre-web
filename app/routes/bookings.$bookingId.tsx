@@ -9,9 +9,12 @@ import {
   getGuestBooking,
   updateBooking,
 } from "~/api/bookings/bookings.server";
+import type { BookingDetail } from "~/api/bookings/schema";
 import { HTTP_STATUS } from "~/api/http-status";
+import { createReview, updateReview } from "~/api/reviews/reviews.server";
 import { AUTH_NO_STORE } from "~/auth/guest-only.server";
 import { authPath } from "~/auth/referer";
+import { readAuthSessionUser } from "~/auth/session.server";
 import type { BookingCancelActionData } from "~/booking/booking-cancel";
 import { cancelBookingFormSchema } from "~/booking/booking-cancel-form-schema";
 import { BookingDetailPage } from "~/booking/booking-detail";
@@ -22,6 +25,8 @@ import {
   guestBookingClearCookie,
   readGuestBookingSession,
 } from "~/booking/guest-booking-session.server";
+import type { BookingReviewActionData, BookingReviewAvailability } from "~/review/booking-review";
+import { reviewFormSchema } from "~/review/review-form-schema";
 import { buildPageMetadata } from "~/seo/metadata";
 import type { Route } from "./+types/bookings.$bookingId";
 
@@ -58,6 +63,41 @@ function loginRedirect(request: Request) {
   });
 }
 
+const REVIEW_CREATION_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
+
+function getCustomerReviewAvailability(
+  sessionUserId: string | undefined,
+  customerUserId: string | null,
+  reviewVisibility: boolean | null,
+  booking: Pick<BookingDetail, "chauffeur" | "endDate" | "review">,
+  now: string,
+): BookingReviewAvailability {
+  if (customerUserId === null || sessionUserId !== customerUserId) {
+    return "hidden";
+  }
+
+  if (reviewVisibility === false) {
+    return "moderated";
+  }
+
+  if (booking.review) {
+    return "available";
+  }
+
+  if (!booking.chauffeur) {
+    return "unavailable";
+  }
+
+  const endDate = Date.parse(booking.endDate);
+  const currentTime = Date.parse(now);
+
+  return Number.isFinite(endDate) &&
+    Number.isFinite(currentTime) &&
+    endDate < currentTime - REVIEW_CREATION_WINDOW_MS
+    ? "creation-expired"
+    : "available";
+}
+
 export async function loader({ request, params }: Route.LoaderArgs) {
   if (!params.bookingId) {
     throw data(null, { status: HTTP_STATUS.NOT_FOUND });
@@ -67,12 +107,23 @@ export async function loader({ request, params }: Route.LoaderArgs) {
 
   if (hasSessionCookie(request.headers.get("Cookie"))) {
     try {
-      const booking = await getBookingById({ request, bookingId: params.bookingId });
+      const [booking, sessionUser] = await Promise.all([
+        getBookingById({ request, bookingId: params.bookingId }),
+        readAuthSessionUser(request),
+      ]);
+      const now = new Date().toISOString();
 
       return {
         accessMode: "account" as const,
-        booking: booking.data,
-        now: new Date().toISOString(),
+        booking: booking.data.booking,
+        reviewAvailability: getCustomerReviewAvailability(
+          sessionUser?.id,
+          booking.data.customerUserId,
+          booking.data.reviewVisibility,
+          booking.data.booking,
+          now,
+        ),
+        now,
       };
     } catch (error) {
       accountError = error;
@@ -99,6 +150,7 @@ export async function loader({ request, params }: Route.LoaderArgs) {
       return {
         accessMode: "guest" as const,
         booking: guestBookingAsDetail(booking.data),
+        reviewAvailability: "hidden" as const,
         now: new Date().toISOString(),
       };
     } catch (error) {
@@ -158,6 +210,10 @@ export async function action({ request, params }: Route.ActionArgs) {
 
   if (form.intent === "modify") {
     return handleModify(request, params.bookingId, form);
+  }
+
+  if (form.intent === "create-review" || form.intent === "update-review") {
+    return handleReview(request, params.bookingId, form);
   }
 
   return data<BookingModifyActionData>(
@@ -233,6 +289,67 @@ async function handleModify(
   return data<BookingModifyActionData>({ ok: true }, { headers: AUTH_NO_STORE });
 }
 
+async function handleReview(
+  request: Request,
+  bookingId: string,
+  form: Record<string, FormDataEntryValue>,
+) {
+  const parsed = reviewFormSchema.safeParse(form);
+
+  if (!parsed.success) {
+    return data<BookingReviewActionData>(
+      {
+        fieldErrors: z.flattenError(parsed.error).fieldErrors,
+        revalidate: false,
+      },
+      { status: HTTP_STATUS.BAD_REQUEST, headers: AUTH_NO_STORE },
+    );
+  }
+
+  try {
+    const ratings = {
+      overallRating: parsed.data.overallRating,
+      carRating: parsed.data.carRating,
+      chauffeurRating: parsed.data.chauffeurRating,
+      serviceRating: parsed.data.serviceRating,
+    };
+
+    if (parsed.data.intent === "create-review") {
+      await createReview({
+        request,
+        body: { bookingId, ...ratings, comment: parsed.data.comment },
+      });
+    } else {
+      await updateReview({
+        request,
+        reviewId: parsed.data.reviewId,
+        body: { ...ratings, comment: parsed.data.comment },
+      });
+    }
+  } catch (error) {
+    const failure = getBookingActionFailure(
+      error,
+      request,
+      parsed.data.intent === "create-review"
+        ? "Failed to submit review. Please try again."
+        : "Failed to update review. Please try again.",
+    );
+
+    return data<BookingReviewActionData>(
+      { error: failure.message },
+      { status: failure.status, headers: AUTH_NO_STORE },
+    );
+  }
+
+  return data<BookingReviewActionData>(
+    {
+      ok: true,
+      operation: parsed.data.intent === "create-review" ? "created" : "updated",
+    },
+    { headers: AUTH_NO_STORE },
+  );
+}
+
 function getBookingActionFailure(error: unknown, request: Request, fallback: string) {
   if (error instanceof ApiRequestError && error.status === HTTP_STATUS.UNAUTHORIZED) {
     throw loginRedirect(request);
@@ -255,7 +372,10 @@ export function shouldRevalidate({
   actionResult,
   defaultShouldRevalidate,
 }: ShouldRevalidateFunctionArgs) {
-  if ((actionResult as BookingModifyActionData | undefined)?.revalidate === false) {
+  if (
+    (actionResult as BookingModifyActionData | BookingReviewActionData | undefined)?.revalidate ===
+    false
+  ) {
     return false;
   }
 
@@ -267,6 +387,7 @@ export default function BookingDetailRoute({ loaderData }: Route.ComponentProps)
     <BookingDetailPage
       accessMode={loaderData.accessMode}
       booking={loaderData.booking}
+      reviewAvailability={loaderData.reviewAvailability}
       now={loaderData.now}
     />
   );

@@ -52,5 +52,11 @@ export function action() {
 }
 
 export default function BookingCancelFixture() {
-  return <BookingDetailPage booking={fixtureBooking} now="2026-08-01T12:00:00.000Z" />;
+  return (
+    <BookingDetailPage
+      booking={fixtureBooking}
+      reviewAvailability="hidden"
+      now="2026-08-01T12:00:00.000Z"
+    />
+  );
 }

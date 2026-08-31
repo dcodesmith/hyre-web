@@ -55,8 +55,8 @@ app/
                                   # listPublicSitemapCars pages unfiltered search
       schema.ts                   # PublicCar, SearchCar, PublicCarDetail, categories, search
     reviews/
-      reviews.server.ts           # GET /api/reviews/car/:carId
-      schema.ts                   # public review list + optional ratings
+      reviews.server.ts           # public car reads + signed-in customer create/update
+      schema.ts                   # public lists, customer review, mutation responses
     referrals/
       referrals.server.ts         # GET /api/referrals/user
       schema.ts                   # signed-in summary, stats, referrals, rewards
@@ -120,6 +120,8 @@ app/
     car-booking-checkout.tsx      # cost breakdown + responsive Pay Now UI
 
   review/
+    review-form-schema.ts         # create/update form → API mutation DTOs
+    booking-review.tsx            # completed-booking prompt, form, existing review
     review-list.tsx
     review-sheet.tsx              # local-state dialog + same-page fetcher paging
 
@@ -169,7 +171,7 @@ app/
     booking-chauffeur-card.tsx
     booking-flight-card.tsx
     booking-payment-card.tsx
-    booking-detail.tsx            # page composer + modify/cancel/extend
+    booking-detail.tsx            # page composer + modify/cancel/extend/review
 
   account/
     account-deletion.tsx          # confirmed destructive action + pending/error UI
@@ -303,6 +305,7 @@ app/
     use-booking-pricing-preview.ts # API-owned payable pricing
     use-payment-status-polling.ts # bounded same-origin status polling
     use-element-height.ts         # ResizeObserver-backed fixed-bar clearance
+    use-review-edit-window.ts     # customer review edit-deadline timer
 
   components/
     ui/                       # shadcn primitives; do not hand-edit
@@ -346,7 +349,7 @@ app/
     bookings.tsx                  # signed-in list; guests → /auth?redirectTo=
     bookings.lookup.tsx           # guest email/reference request → generic accepted response
     bookings.guest.ts             # token exchange → encrypted cookie → clean detail URL
-    bookings.$bookingId.tsx       # signed-in detail or scoped read-only guest detail
+    bookings.$bookingId.tsx       # signed-in detail/actions/reviews or scoped read-only guest detail
     bookings.$bookingId.extend.tsx # leg-level extension create → provider checkout
     payment-status.tsx            # /bookings/payment-status callback + polling UI
     api.booking-pricing-preview.ts # same-origin pricing BFF

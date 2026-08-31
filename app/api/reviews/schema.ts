@@ -8,7 +8,7 @@ const reviewUserSchema = z.object({
   image: z.string().nullable(),
 });
 
-export const carReviewSchema = z.object({
+export const customerReviewSchema = z.object({
   id: z.string(),
   overallRating: ratingSchema,
   carRating: ratingSchema,
@@ -17,6 +17,12 @@ export const carReviewSchema = z.object({
   comment: z.string().nullable(),
   createdAt: z.iso.datetime({ offset: true }),
   user: reviewUserSchema,
+});
+
+export const carReviewSchema = customerReviewSchema;
+
+export const reviewMutationResponseSchema = z.object({
+  id: z.string(),
 });
 
 export const reviewPaginationSchema = z.object({
@@ -46,5 +52,6 @@ export const carReviewsResponseSchema = z.object({
   ratings: aggregatedRatingsSchema.optional(),
 });
 
-export type CarReview = z.infer<typeof carReviewSchema>;
+export type CustomerReview = z.infer<typeof customerReviewSchema>;
+export type CarReview = CustomerReview;
 export type CarReviewsResponse = z.infer<typeof carReviewsResponseSchema>;
