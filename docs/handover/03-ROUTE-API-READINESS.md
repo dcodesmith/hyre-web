@@ -409,7 +409,7 @@ the signed-in payment callback identity in the encrypted HttpOnly payment
 session. Payment confirmation delegates to
 `POST /api/payments/extension-confirmation`; the web does not duplicate
 extension pricing because the API has no preview contract. This slice does not
-write reviews, download a receipt, or look up guest bookings.
+download a receipt; review and guest access are described below.
 
 ### Guest booking lookup
 
@@ -426,6 +426,24 @@ guest cookie. Guest responses are projected into the existing booking detail
 visuals with a total-only payment summary and no modify, cancel, or extension
 actions. Guest and token routes are `no-store`, `noindex`; the exchange response
 also uses `Referrer-Policy: no-referrer`. Guest mutation remains an API gap.
+
+### Customer booking reviews
+
+Completed bookings owned by the signed-in customer render the review at
+`/bookings/:bookingId#review`, matching the URL in the API's completion email.
+The existing booking detail response supplies the current review, so the
+loader does not add a second review read. Create delegates to guarded
+`POST /api/reviews/create`; update delegates to guarded
+`PUT /api/reviews/:reviewId`. The API remains authoritative for booking
+completion, customer ownership, assigned chauffeur, the 30-day creation
+window, duplicate prevention, and the 7-day edit window.
+
+The UI collects required overall, car, chauffeur, and service ratings plus an
+optional 2,000-character comment. Completed booking rows retain the existing
+`Reviewed` / `Review Pending` badge. Guest access never renders or accepts
+review mutations, fleet-owner booking access does not expose customer review
+controls, moderated hidden reviews are not rendered, and customer deletion
+remains unavailable.
 
 ### Public car slugs and SEO
 

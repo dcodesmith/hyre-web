@@ -1,5 +1,5 @@
 import { z } from "zod";
-
+import { type CustomerReview, customerReviewSchema } from "~/api/reviews/schema";
 import { BOOKING_TYPE_OPTIONS } from "~/booking/types";
 
 const BOOKING_STATUSES = [
@@ -171,8 +171,17 @@ const bookingDetailFlightSchema = z.object({
   registration: z.string().nullish(),
 });
 
-export const bookingDetailSchema = z.object({
+const bookingReviewSchema = customerReviewSchema
+  .extend({
+    isVisible: z.boolean(),
+  })
+  .transform(({ isVisible, ...review }) =>
+    isVisible ? { isVisible: true as const, review } : { isVisible: false as const, review: null },
+  );
+
+const bookingDetailResponseSchema = z.object({
   id: z.string(),
+  userId: z.string().nullable(),
   bookingReference: z.string(),
   status: bookingStatusSchema,
   paymentStatus: paymentStatusSchema,
@@ -207,7 +216,16 @@ export const bookingDetailSchema = z.object({
   canEdit: z.boolean(),
   canCancel: z.boolean(),
   modificationCutoffAt: isoDateSchema,
+  review: bookingReviewSchema.nullish(),
 });
+
+export const bookingDetailSchema = bookingDetailResponseSchema.transform(
+  ({ userId, review, ...booking }) => ({
+    booking: { ...booking, review: review?.review ?? null },
+    customerUserId: userId,
+    reviewVisibility: review?.isVisible ?? null,
+  }),
+);
 
 export const bookingMutationResponseSchema = z.object({
   id: z.string(),
@@ -275,7 +293,10 @@ export const createExtensionResponseSchema = z.object({
 
 export type BookingListItem = z.output<typeof bookingListItemSchema>;
 export type BookingsByStatus = z.output<typeof bookingsByStatusSchema>;
-export type BookingDetail = z.output<typeof bookingDetailSchema>;
+type BookingDetailData = z.output<typeof bookingDetailSchema>["booking"];
+export type BookingDetail = Omit<BookingDetailData, "review"> & {
+  readonly review?: CustomerReview | null;
+};
 export type BookingDetailLeg = z.output<typeof bookingDetailLegSchema>;
 export type BookingDetailFlight = z.output<typeof bookingDetailFlightSchema>;
 export type GuestBookingDetail = z.output<typeof guestBookingDetailSchema>;

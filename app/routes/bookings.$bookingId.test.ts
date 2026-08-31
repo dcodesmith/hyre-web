@@ -2,18 +2,24 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   cancelBooking,
+  createReview,
   getBookingById,
   getGuestBooking,
   guestBookingClearCookie,
+  readAuthSessionUser,
   readGuestBookingSession,
   updateBooking,
+  updateReview,
 } = vi.hoisted(() => ({
   cancelBooking: vi.fn(),
+  createReview: vi.fn(),
   getBookingById: vi.fn(),
   getGuestBooking: vi.fn(),
   guestBookingClearCookie: vi.fn(async () => "guest_booking=; Max-Age=0"),
+  readAuthSessionUser: vi.fn(),
   readGuestBookingSession: vi.fn(),
   updateBooking: vi.fn(),
+  updateReview: vi.fn(),
 }));
 
 vi.mock("cloudflare:workers", () => ({
@@ -29,6 +35,13 @@ vi.mock("~/api/bookings/bookings.server", () => ({
 vi.mock("~/booking/guest-booking-session.server", () => ({
   guestBookingClearCookie,
   readGuestBookingSession,
+}));
+vi.mock("~/auth/session.server", () => ({
+  readAuthSessionUser,
+}));
+vi.mock("~/api/reviews/reviews.server", () => ({
+  createReview,
+  updateReview,
 }));
 
 import { ApiRequestError } from "~/api/api.server";
@@ -112,6 +125,54 @@ async function runLoader(cookie = "") {
 describe("booking detail loader", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    readAuthSessionUser.mockResolvedValue({
+      id: "user-1",
+      email: "customer@example.com",
+      name: "Customer",
+      roles: ["user"],
+    });
+  });
+
+  it("enables reviews only for the booking customer", async () => {
+    getBookingById.mockResolvedValue({
+      data: {
+        booking: { id: "booking-1", review: null },
+        customerUserId: "user-1",
+        reviewVisibility: null,
+      },
+    });
+
+    await expect(runLoader(SESSION_COOKIE)).resolves.toEqual({
+      accessMode: "account",
+      booking: { id: "booking-1", review: null },
+      canReview: true,
+      now: expect.any(String),
+    });
+
+    readAuthSessionUser.mockResolvedValueOnce({
+      id: "fleet-owner-1",
+      email: "owner@example.com",
+      name: "Owner",
+      roles: ["fleetOwner"],
+    });
+
+    await expect(runLoader(SESSION_COOKIE)).resolves.toMatchObject({
+      accessMode: "account",
+      canReview: false,
+    });
+
+    getBookingById.mockResolvedValueOnce({
+      data: {
+        booking: { id: "booking-1", review: null },
+        customerUserId: "user-1",
+        reviewVisibility: false,
+      },
+    });
+
+    await expect(runLoader(SESSION_COOKIE)).resolves.toMatchObject({
+      booking: { id: "booking-1", review: null },
+      canReview: false,
+    });
   });
 
   it("loads the redacted booking through a scoped guest session", async () => {
@@ -159,7 +220,9 @@ describe("booking detail loader", () => {
 describe("booking detail action", () => {
   beforeEach(() => {
     cancelBooking.mockReset();
+    createReview.mockReset();
     updateBooking.mockReset();
+    updateReview.mockReset();
   });
 
   it("rejects an unsupported intent", async () => {
@@ -329,6 +392,118 @@ describe("booking detail action", () => {
     ).resolves.toMatchObject({
       data: { error: "Failed to update booking. Please try again." },
       init: { status: HTTP_STATUS.INTERNAL_SERVER_ERROR },
+    });
+  });
+
+  it("creates a review with the route booking id", async () => {
+    createReview.mockResolvedValueOnce({
+      data: { id: "review-1" },
+      status: 201,
+      headers: new Headers(),
+    });
+
+    await expect(
+      runAction({
+        form: {
+          intent: "create-review",
+          overallRating: "5",
+          carRating: "4",
+          chauffeurRating: "5",
+          serviceRating: "4",
+          comment: " Great trip ",
+        },
+      }),
+    ).resolves.toMatchObject({ data: { ok: true, operation: "created" } });
+    expect(createReview).toHaveBeenCalledWith({
+      request: expect.any(Request),
+      body: {
+        bookingId: "booking-1",
+        overallRating: 5,
+        carRating: 4,
+        chauffeurRating: 5,
+        serviceRating: 4,
+        comment: "Great trip",
+      },
+    });
+  });
+
+  it("updates the review selected by the form", async () => {
+    updateReview.mockResolvedValueOnce({
+      data: { id: "review-1" },
+      status: HTTP_STATUS.OK,
+      headers: new Headers(),
+    });
+
+    await expect(
+      runAction({
+        form: {
+          intent: "update-review",
+          reviewId: "review-1",
+          overallRating: "4",
+          carRating: "4",
+          chauffeurRating: "5",
+          serviceRating: "3",
+          comment: "",
+        },
+      }),
+    ).resolves.toMatchObject({ data: { ok: true, operation: "updated" } });
+    expect(updateReview).toHaveBeenCalledWith({
+      request: expect.any(Request),
+      reviewId: "review-1",
+      body: {
+        overallRating: 4,
+        carRating: 4,
+        chauffeurRating: 5,
+        serviceRating: 3,
+        comment: null,
+      },
+    });
+  });
+
+  it("returns review field errors without calling the API", async () => {
+    const result = await runAction({
+      form: {
+        intent: "create-review",
+        overallRating: "",
+        carRating: "4",
+        chauffeurRating: "5",
+        serviceRating: "4",
+        comment: "",
+      },
+    });
+
+    expect(createReview).not.toHaveBeenCalled();
+    expect(updateReview).not.toHaveBeenCalled();
+    expect(result).toMatchObject({
+      data: {
+        fieldErrors: {
+          overallRating: ["Choose a rating from 1 to 5 stars."],
+        },
+        revalidate: false,
+      },
+      init: { status: HTTP_STATUS.BAD_REQUEST },
+    });
+  });
+
+  it("returns an actionable review API error", async () => {
+    createReview.mockRejectedValueOnce(
+      httpError(HTTP_STATUS.CONFLICT, "Review already exists for this booking"),
+    );
+
+    await expect(
+      runAction({
+        form: {
+          intent: "create-review",
+          overallRating: "5",
+          carRating: "5",
+          chauffeurRating: "5",
+          serviceRating: "5",
+          comment: "",
+        },
+      }),
+    ).resolves.toMatchObject({
+      data: { error: "Review already exists for this booking" },
+      init: { status: HTTP_STATUS.CONFLICT },
     });
   });
 });

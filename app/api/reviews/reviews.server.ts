@@ -2,7 +2,7 @@ import { env } from "cloudflare:workers";
 import { z } from "zod";
 
 import { createApiClient } from "../api.server";
-import { carReviewsResponseSchema } from "./schema";
+import { carReviewsResponseSchema, reviewMutationResponseSchema } from "./schema";
 
 const reviewPageSchema = z.number().int().min(1).default(1);
 const reviewLimitSchema = z.number().int().min(1).max(100).default(10);
@@ -33,5 +33,57 @@ export function getCarReviews(options: GetCarReviewsOptions) {
     path: `/api/reviews/car/${options.carId}?${search}`,
     request: options.request,
     schema: carReviewsResponseSchema,
+  });
+}
+
+type CreateReviewBody = {
+  readonly bookingId: string;
+  readonly overallRating: number;
+  readonly carRating: number;
+  readonly chauffeurRating: number;
+  readonly serviceRating: number;
+  readonly comment?: string;
+};
+
+type UpdateReviewBody = {
+  readonly overallRating: number;
+  readonly carRating: number;
+  readonly chauffeurRating: number;
+  readonly serviceRating: number;
+  readonly comment?: string | null;
+};
+
+export function createReview({
+  request,
+  body,
+}: {
+  readonly request: Request;
+  readonly body: CreateReviewBody;
+}) {
+  return getApiClient().request({
+    path: "/api/reviews/create",
+    request,
+    forwardCookie: true,
+    json: body,
+    schema: reviewMutationResponseSchema,
+  });
+}
+
+export function updateReview({
+  request,
+  reviewId,
+  body,
+}: {
+  readonly request: Request;
+  readonly reviewId: string;
+  readonly body: UpdateReviewBody;
+}) {
+  return getApiClient().request({
+    path: `/api/reviews/${encodeURIComponent(reviewId)}`,
+    method: "PUT",
+    request,
+    forwardCookie: true,
+    json: body,
+    schema: reviewMutationResponseSchema,
   });
 }

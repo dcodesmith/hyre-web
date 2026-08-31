@@ -46,6 +46,7 @@ test("requests and opens a read-only guest booking", async ({ context, page }) =
     await expect(page.getByRole("link", { name: "Back to booking lookup" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Cancel Booking" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Modify Booking" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Write a Review" })).toHaveCount(0);
     await expect(page.getByRole("link", { name: "Extend Trip" })).toHaveCount(0);
     expect(api.requests.token).toBe(MOCK_GUEST_BOOKING_TOKEN);
 

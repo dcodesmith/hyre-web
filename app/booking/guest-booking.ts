@@ -40,5 +40,6 @@ export function guestBookingAsDetail(booking: GuestBookingDetail): BookingDetail
     canEdit: false,
     canCancel: false,
     modificationCutoffAt: booking.startDate,
+    review: null,
   };
 }

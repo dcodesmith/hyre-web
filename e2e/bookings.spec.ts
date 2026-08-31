@@ -60,8 +60,38 @@ test("renders the booking detail fixture", async ({ page }) => {
   await expect(page.getByText("Bola Adebayo")).toBeVisible();
   await expect(page.getByText("Payment Summary")).toBeVisible();
   await expect(page.getByText("Total Amount")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Share Your Experience" })).toBeVisible();
+  await page.getByRole("button", { name: "Write a Review" }).click();
+  await expect(page.getByRole("radiogroup", { name: "Overall Experience rating" })).toBeVisible();
+  await expect(page.getByLabel("Additional Comments (optional)")).toBeVisible();
   await expect(page.getByRole("link", { name: /Back to Bookings/ }).first()).toBeVisible();
   await expect(page.getByRole("button", { name: "Cancel Booking" })).toHaveCount(0);
+});
+
+test("edits an existing review in place", async ({ page }) => {
+  await setCookiePreference(page);
+  await page.goto("/__visual/booking-review");
+
+  await expect(page.getByRole("heading", { name: "Your Review" })).toBeVisible();
+  await expect(
+    page.getByText("The car was spotless and the chauffeur was excellent."),
+  ).toBeVisible();
+  const overallRating = page.getByRole("radiogroup", { name: "Overall Experience rating" });
+  await expect(async () => {
+    if (await overallRating.isVisible()) {
+      return;
+    }
+
+    await page.getByRole("button", { name: "Edit Review" }).click();
+    await expect(overallRating).toBeVisible();
+  }).toPass();
+  await expect(overallRating.getByRole("radio", { name: "5 stars" })).toBeChecked();
+  await expect(page.getByLabel("Additional Comments (optional)")).toHaveValue(
+    "The car was spotless and the chauffeur was excellent.",
+  );
+  await page.getByRole("button", { name: "Update Review" }).click();
+
+  await expect(page.getByText("Review updated successfully.")).toBeVisible();
 });
 
 test("renders the cancellable booking fixture and confirm dialog", async ({ page }) => {
