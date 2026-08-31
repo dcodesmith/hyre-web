@@ -442,8 +442,11 @@ The UI collects required overall, car, chauffeur, and service ratings plus an
 optional 2,000-character comment. Completed booking rows retain the existing
 `Reviewed` / `Review Pending` badge. Guest access never renders or accepts
 review mutations, fleet-owner booking access does not expose customer review
-controls, moderated hidden reviews are not rendered, and customer deletion
-remains unavailable.
+controls, and moderated review content is not rendered. The customer instead
+sees a neutral unavailable status for a moderated review. The web also avoids
+offering creation after the API's 30-day window or without an assigned
+chauffeur, while the API remains authoritative on submission. Customer
+deletion remains unavailable.
 
 ### Public car slugs and SEO
 

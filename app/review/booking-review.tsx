@@ -7,12 +7,18 @@ import { DetailCard, DetailCardBody, DetailCardHeader } from "~/booking/booking-
 import { DetailStarRating } from "~/car/compact-star-rating";
 import { FormError } from "~/components/forms/form-primitives";
 import { Button } from "~/components/ui/button";
+import { useReviewEditWindow } from "~/hooks/use-review-edit-window";
 import type { ReviewFieldErrors } from "~/review/review-form-schema";
 
 const STAR_VALUES = [1, 2, 3, 4, 5] as const;
-const EDIT_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 
 type RatingName = "overallRating" | "carRating" | "chauffeurRating" | "serviceRating";
+export type BookingReviewAvailability =
+  | "available"
+  | "creation-expired"
+  | "hidden"
+  | "moderated"
+  | "unavailable";
 
 export type BookingReviewActionData = {
   readonly error?: string;
@@ -26,17 +32,6 @@ const reviewDateFormatter = new Intl.DateTimeFormat("en-GB", {
   dateStyle: "medium",
   timeZone: "Africa/Lagos",
 });
-
-function canEditReview(review: CustomerReview, now: string) {
-  const createdAt = Date.parse(review.createdAt);
-  const currentTime = Date.parse(now);
-
-  return (
-    Number.isFinite(createdAt) &&
-    Number.isFinite(currentTime) &&
-    createdAt >= currentTime - EDIT_WINDOW_MS
-  );
-}
 
 function RatingField({
   name,
@@ -218,14 +213,15 @@ function ReviewForm({
 function ExistingReview({
   review,
   operation,
-  canEdit,
+  now,
   onEdit,
 }: {
   readonly review: CustomerReview;
   readonly operation?: BookingReviewActionData["operation"];
-  readonly canEdit: boolean;
+  readonly now: string;
   readonly onEdit: () => void;
 }) {
+  const canEdit = useReviewEditWindow(review.createdAt, now);
   const createdAt = new Date(review.createdAt);
   const reviewedOn = Number.isNaN(createdAt.getTime()) ? "" : reviewDateFormatter.format(createdAt);
 
@@ -251,7 +247,9 @@ function ExistingReview({
           />
           <div className="grid grid-cols-1 gap-4 border-t pt-4 sm:grid-cols-3">
             <DetailedRating label="Car" rating={review.carRating} />
-            <DetailedRating label="Chauffeur" rating={review.chauffeurRating ?? 0} />
+            {review.chauffeurRating === null ? null : (
+              <DetailedRating label="Chauffeur" rating={review.chauffeurRating} />
+            )}
             <DetailedRating label="Service" rating={review.serviceRating} />
           </div>
           {review.comment ? (
@@ -270,11 +268,49 @@ function ExistingReview({
   );
 }
 
+function ReviewAvailabilityNotice({
+  availability,
+}: {
+  readonly availability: Exclude<BookingReviewAvailability, "available" | "hidden">;
+}) {
+  const message =
+    availability === "creation-expired"
+      ? {
+          heading: "Review window closed",
+          body: "Reviews can be submitted within 30 days after a trip.",
+        }
+      : availability === "moderated"
+        ? {
+            heading: "Review unavailable",
+            body: "Your review is no longer visible and can’t be edited. Contact support if you have questions.",
+          }
+        : {
+            heading: "Review unavailable",
+            body: "Reviews aren’t available for this booking.",
+          };
+
+  return (
+    <div id="review" className="scroll-mt-6">
+      <DetailCard>
+        <DetailCardHeader>
+          <Star className="h-5 w-5 text-blue-600" aria-hidden="true" />
+          <h2>{message.heading}</h2>
+        </DetailCardHeader>
+        <DetailCardBody>
+          <p className="text-sm text-slate-600">{message.body}</p>
+        </DetailCardBody>
+      </DetailCard>
+    </div>
+  );
+}
+
 export function BookingReview({
   review,
+  availability,
   now,
 }: {
   readonly review: CustomerReview | null;
+  readonly availability: Exclude<BookingReviewAvailability, "hidden">;
   readonly now: string;
 }) {
   const fetcher = useFetcher<BookingReviewActionData>();
@@ -285,6 +321,10 @@ export function BookingReview({
   function openForm() {
     fetcher.reset();
     setFormOpen(true);
+  }
+
+  if (availability !== "available") {
+    return <ReviewAvailabilityNotice availability={availability} />;
   }
 
   if (formOpen && !saved) {
@@ -298,12 +338,7 @@ export function BookingReview({
   if (review) {
     return (
       <div id="review" className="scroll-mt-6">
-        <ExistingReview
-          review={review}
-          operation={operation}
-          canEdit={canEditReview(review, now)}
-          onEdit={openForm}
-        />
+        <ExistingReview review={review} operation={operation} now={now} onEdit={openForm} />
       </div>
     );
   }

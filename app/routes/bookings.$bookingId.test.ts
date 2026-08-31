@@ -133,10 +133,15 @@ describe("booking detail loader", () => {
     });
   });
 
-  it("enables reviews only for the booking customer", async () => {
+  it("exposes review states only to the booking customer", async () => {
     getBookingById.mockResolvedValue({
       data: {
-        booking: { id: "booking-1", review: null },
+        booking: {
+          id: "booking-1",
+          endDate: new Date().toISOString(),
+          chauffeur: { name: "Chauffeur" },
+          review: null,
+        },
         customerUserId: "user-1",
         reviewVisibility: null,
       },
@@ -144,8 +149,13 @@ describe("booking detail loader", () => {
 
     await expect(runLoader(SESSION_COOKIE)).resolves.toEqual({
       accessMode: "account",
-      booking: { id: "booking-1", review: null },
-      canReview: true,
+      booking: {
+        id: "booking-1",
+        endDate: expect.any(String),
+        chauffeur: { name: "Chauffeur" },
+        review: null,
+      },
+      reviewAvailability: "available",
       now: expect.any(String),
     });
 
@@ -158,7 +168,7 @@ describe("booking detail loader", () => {
 
     await expect(runLoader(SESSION_COOKIE)).resolves.toMatchObject({
       accessMode: "account",
-      canReview: false,
+      reviewAvailability: "hidden",
     });
 
     getBookingById.mockResolvedValueOnce({
@@ -171,7 +181,43 @@ describe("booking detail loader", () => {
 
     await expect(runLoader(SESSION_COOKIE)).resolves.toMatchObject({
       booking: { id: "booking-1", review: null },
-      canReview: false,
+      reviewAvailability: "moderated",
+    });
+  });
+
+  it("explains when a new review cannot be created", async () => {
+    getBookingById.mockResolvedValueOnce({
+      data: {
+        booking: {
+          id: "booking-1",
+          endDate: new Date().toISOString(),
+          chauffeur: null,
+          review: null,
+        },
+        customerUserId: "user-1",
+        reviewVisibility: null,
+      },
+    });
+
+    await expect(runLoader(SESSION_COOKIE)).resolves.toMatchObject({
+      reviewAvailability: "unavailable",
+    });
+
+    getBookingById.mockResolvedValueOnce({
+      data: {
+        booking: {
+          id: "booking-1",
+          endDate: "2020-01-01T00:00:00.000Z",
+          chauffeur: { name: "Chauffeur" },
+          review: null,
+        },
+        customerUserId: "user-1",
+        reviewVisibility: null,
+      },
+    });
+
+    await expect(runLoader(SESSION_COOKIE)).resolves.toMatchObject({
+      reviewAvailability: "creation-expired",
     });
   });
 
@@ -181,6 +227,7 @@ describe("booking detail loader", () => {
 
     await expect(runLoader()).resolves.toMatchObject({
       accessMode: "guest",
+      reviewAvailability: "hidden",
       booking: {
         id: "booking-1",
         canEdit: false,

@@ -14,17 +14,17 @@ import { BookingModifyCard } from "~/booking/booking-modify";
 import { BookingPaymentCard } from "~/booking/booking-payment-card";
 import { BookingTimelineCard } from "~/booking/booking-timeline";
 import { bookingListPath, parseBookingListStatus } from "~/booking/bookings-url";
-import { BookingReview } from "~/review/booking-review";
+import { BookingReview, type BookingReviewAvailability } from "~/review/booking-review";
 
 export function BookingDetailPage({
   accessMode = "account",
   booking: detail,
-  canReview,
+  reviewAvailability,
   now,
 }: {
   readonly accessMode?: "account" | "guest";
   readonly booking: BookingDetail;
-  readonly canReview: boolean;
+  readonly reviewAvailability: BookingReviewAvailability;
   readonly now: string;
 }) {
   const booking = BookingDomain(detail, new Date(now));
@@ -79,8 +79,12 @@ export function BookingDetailPage({
           <div className="space-y-6 lg:col-span-2">
             <BookingTimelineCard legs={booking.legs} />
             <BookingLocationCard booking={booking} />
-            {!isGuest && canReview && detail.status === "COMPLETED" ? (
-              <BookingReview review={detail.review ?? null} now={now} />
+            {!isGuest && reviewAvailability !== "hidden" && detail.status === "COMPLETED" ? (
+              <BookingReview
+                review={detail.review ?? null}
+                availability={reviewAvailability}
+                now={now}
+              />
             ) : null}
           </div>
 

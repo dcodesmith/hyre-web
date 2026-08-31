@@ -46,6 +46,10 @@ const fixtureBooking = {
 
 export default function BookingDetailFixture() {
   return (
-    <BookingDetailPage booking={fixtureBooking} canReview={true} now="2026-08-01T12:00:00.000Z" />
+    <BookingDetailPage
+      booking={fixtureBooking}
+      reviewAvailability="available"
+      now="2026-08-01T12:00:00.000Z"
+    />
   );
 }

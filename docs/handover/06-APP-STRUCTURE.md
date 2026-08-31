@@ -304,6 +304,7 @@ app/
     use-booking-pricing-preview.ts # API-owned payable pricing
     use-payment-status-polling.ts # bounded same-origin status polling
     use-element-height.ts         # ResizeObserver-backed fixed-bar clearance
+    use-review-edit-window.ts     # customer review edit-deadline timer
 
   components/
     ui/                       # shadcn primitives; do not hand-edit

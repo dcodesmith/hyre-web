@@ -23,10 +23,36 @@ export function action() {
   return data<BookingReviewActionData>({ ok: true, operation: "updated" });
 }
 
-export default function BookingReviewFixture() {
+export function loader({ request }: { readonly request: Request }) {
+  const searchParams = new URL(request.url).searchParams;
+  const availability = searchParams.get("availability");
+
+  return {
+    availability: availability === "moderated" ? "moderated" : "available",
+    missingChauffeurRating: searchParams.get("chauffeurRating") === "missing",
+  } as const;
+}
+
+export default function BookingReviewFixture({
+  loaderData,
+}: {
+  readonly loaderData: ReturnType<typeof loader>;
+}) {
+  const review =
+    loaderData.availability === "available"
+      ? {
+          ...fixtureReview,
+          chauffeurRating: loaderData.missingChauffeurRating ? null : fixtureReview.chauffeurRating,
+        }
+      : null;
+
   return (
     <div className="mx-auto w-full max-w-2xl px-4 py-6">
-      <BookingReview review={fixtureReview} now="2026-08-01T12:00:00.000Z" />
+      <BookingReview
+        review={review}
+        availability={loaderData.availability}
+        now="2026-08-01T12:00:00.000Z"
+      />
     </div>
   );
 }

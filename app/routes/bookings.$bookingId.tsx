@@ -9,6 +9,7 @@ import {
   getGuestBooking,
   updateBooking,
 } from "~/api/bookings/bookings.server";
+import type { BookingDetail } from "~/api/bookings/schema";
 import { HTTP_STATUS } from "~/api/http-status";
 import { createReview, updateReview } from "~/api/reviews/reviews.server";
 import { AUTH_NO_STORE } from "~/auth/guest-only.server";
@@ -24,7 +25,7 @@ import {
   guestBookingClearCookie,
   readGuestBookingSession,
 } from "~/booking/guest-booking-session.server";
-import type { BookingReviewActionData } from "~/review/booking-review";
+import type { BookingReviewActionData, BookingReviewAvailability } from "~/review/booking-review";
 import { reviewFormSchema } from "~/review/review-form-schema";
 import { buildPageMetadata } from "~/seo/metadata";
 import type { Route } from "./+types/bookings.$bookingId";
@@ -62,12 +63,39 @@ function loginRedirect(request: Request) {
   });
 }
 
-function canCustomerReview(
+const REVIEW_CREATION_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
+
+function getCustomerReviewAvailability(
   sessionUserId: string | undefined,
   customerUserId: string | null,
   reviewVisibility: boolean | null,
-) {
-  return customerUserId !== null && sessionUserId === customerUserId && reviewVisibility !== false;
+  booking: Pick<BookingDetail, "chauffeur" | "endDate" | "review">,
+  now: string,
+): BookingReviewAvailability {
+  if (customerUserId === null || sessionUserId !== customerUserId) {
+    return "hidden";
+  }
+
+  if (reviewVisibility === false) {
+    return "moderated";
+  }
+
+  if (booking.review) {
+    return "available";
+  }
+
+  if (!booking.chauffeur) {
+    return "unavailable";
+  }
+
+  const endDate = Date.parse(booking.endDate);
+  const currentTime = Date.parse(now);
+
+  return Number.isFinite(endDate) &&
+    Number.isFinite(currentTime) &&
+    endDate < currentTime - REVIEW_CREATION_WINDOW_MS
+    ? "creation-expired"
+    : "available";
 }
 
 export async function loader({ request, params }: Route.LoaderArgs) {
@@ -83,16 +111,19 @@ export async function loader({ request, params }: Route.LoaderArgs) {
         getBookingById({ request, bookingId: params.bookingId }),
         readAuthSessionUser(request),
       ]);
+      const now = new Date().toISOString();
 
       return {
         accessMode: "account" as const,
         booking: booking.data.booking,
-        canReview: canCustomerReview(
+        reviewAvailability: getCustomerReviewAvailability(
           sessionUser?.id,
           booking.data.customerUserId,
           booking.data.reviewVisibility,
+          booking.data.booking,
+          now,
         ),
-        now: new Date().toISOString(),
+        now,
       };
     } catch (error) {
       accountError = error;
@@ -119,7 +150,7 @@ export async function loader({ request, params }: Route.LoaderArgs) {
       return {
         accessMode: "guest" as const,
         booking: guestBookingAsDetail(booking.data),
-        canReview: false,
+        reviewAvailability: "hidden" as const,
         now: new Date().toISOString(),
       };
     } catch (error) {
@@ -356,7 +387,7 @@ export default function BookingDetailRoute({ loaderData }: Route.ComponentProps)
     <BookingDetailPage
       accessMode={loaderData.accessMode}
       booking={loaderData.booking}
-      canReview={loaderData.canReview}
+      reviewAvailability={loaderData.reviewAvailability}
       now={loaderData.now}
     />
   );
