@@ -16,6 +16,7 @@ export type MockBookingExtensionApi = {
 
 const mockBooking = {
   id: MOCK_EXTENSION_BOOKING_ID,
+  userId: "customer-e2e",
   bookingReference: "TD-EXT-001",
   status: "CONFIRMED",
   paymentStatus: "PAID",
