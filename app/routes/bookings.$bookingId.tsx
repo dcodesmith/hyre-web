@@ -66,13 +66,12 @@ function loginRedirect(request: Request) {
 const REVIEW_CREATION_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
 
 function getCustomerReviewAvailability(
-  sessionUserId: string | undefined,
-  customerUserId: string | null,
+  isBookingCustomer: boolean,
   reviewVisibility: boolean | null,
   booking: Pick<BookingDetail, "chauffeur" | "endDate" | "review">,
   now: string,
 ): BookingReviewAvailability {
-  if (customerUserId === null || sessionUserId !== customerUserId) {
+  if (!isBookingCustomer) {
     return "hidden";
   }
 
@@ -112,13 +111,15 @@ export async function loader({ request, params }: Route.LoaderArgs) {
         readAuthSessionUser(request),
       ]);
       const now = new Date().toISOString();
+      const isBookingCustomer =
+        booking.data.customerUserId !== null && sessionUser?.id === booking.data.customerUserId;
 
       return {
         accessMode: "account" as const,
         booking: booking.data.booking,
+        canDownloadReceipt: isBookingCustomer,
         reviewAvailability: getCustomerReviewAvailability(
-          sessionUser?.id,
-          booking.data.customerUserId,
+          isBookingCustomer,
           booking.data.reviewVisibility,
           booking.data.booking,
           now,
@@ -150,6 +151,7 @@ export async function loader({ request, params }: Route.LoaderArgs) {
       return {
         accessMode: "guest" as const,
         booking: guestBookingAsDetail(booking.data),
+        canDownloadReceipt: true,
         reviewAvailability: "hidden" as const,
         now: new Date().toISOString(),
       };
@@ -387,6 +389,7 @@ export default function BookingDetailRoute({ loaderData }: Route.ComponentProps)
     <BookingDetailPage
       accessMode={loaderData.accessMode}
       booking={loaderData.booking}
+      canDownloadReceipt={loaderData.canDownloadReceipt}
       reviewAvailability={loaderData.reviewAvailability}
       now={loaderData.now}
     />

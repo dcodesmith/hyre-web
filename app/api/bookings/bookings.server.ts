@@ -49,6 +49,29 @@ export function getBookingById(options: GetBookingByIdOptions) {
   });
 }
 
+export function getBookingReceipt({
+  request,
+  bookingId,
+  guestToken,
+}: {
+  readonly request: Request;
+  readonly bookingId: string;
+  readonly guestToken?: string;
+}) {
+  const headers = new Headers({ Accept: "application/pdf" });
+
+  if (guestToken !== undefined) {
+    headers.set("X-Guest-Booking-Token", guestToken);
+  }
+
+  return getApiClient().requestRaw({
+    path: `/api/bookings/${encodeURIComponent(bookingId)}/receipt`,
+    request,
+    forwardCookie: guestToken === undefined,
+    headers,
+  });
+}
+
 export function requestGuestBookingAccess({
   request,
   body,

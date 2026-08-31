@@ -7,6 +7,7 @@ export type MockGuestBookingApi = {
   server: Server;
   requests: {
     accessBody?: unknown;
+    receiptToken?: string;
     token?: string;
   };
 };
@@ -32,7 +33,7 @@ function guestBooking() {
   return {
     bookingId: MOCK_GUEST_BOOKING_ID,
     bookingReference: "BK-GUEST-001",
-    status: "CONFIRMED",
+    status: "COMPLETED",
     paymentStatus: "PAID",
     bookingType: "DAY",
     startDate: "2026-09-21T08:00:00.000Z",
@@ -82,6 +83,26 @@ export function startMockGuestBookingApi(port = 3100) {
 
       if (requests.token === MOCK_GUEST_BOOKING_TOKEN) {
         writeJson(response, 200, guestBooking());
+      } else {
+        writeJson(response, 404, { status: 404, detail: "Booking not found" });
+      }
+      return;
+    }
+
+    if (
+      request.method === "GET" &&
+      url.pathname === `/api/bookings/${MOCK_GUEST_BOOKING_ID}/receipt`
+    ) {
+      const guestToken = request.headers["x-guest-booking-token"];
+      requests.receiptToken = typeof guestToken === "string" ? guestToken : undefined;
+
+      if (requests.receiptToken === MOCK_GUEST_BOOKING_TOKEN) {
+        response.writeHead(200, {
+          "cache-control": "private, no-store",
+          "content-disposition": 'attachment; filename="Tripdly-receipt-BK-GUEST-001.pdf"',
+          "content-type": "application/pdf",
+        });
+        response.end("%PDF-1.4 mock receipt");
       } else {
         writeJson(response, 404, { status: 404, detail: "Booking not found" });
       }

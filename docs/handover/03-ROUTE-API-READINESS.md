@@ -49,6 +49,7 @@ Better Auth response and error bodies bypass the API's normal Problem Details fi
 - `POST /api/bookings/pricing-preview`
 - `POST /api/bookings/guest-access`
 - `GET /api/bookings/guest-access?token=...`
+- `GET /api/bookings/:bookingId/receipt`
 - `POST /api/bookings/:bookingId/extensions`
 - provisional `GET|POST /api/bookings/:bookingId/airport-completion` using `X-Booking-Completion-Token`
 - `POST /api/payments/initialize`
@@ -178,11 +179,11 @@ All roles use the API's Better Auth endpoints. Role-specific pages remain separa
 - `/bookings/payment-status`
 - `/referrals`
 - review reads, create, and owner update
+- booking receipt PDF
 - account deletion
 
 **Gap unless an endpoint is added**
 
-- booking receipt PDF -> no dedicated booking receipt endpoint was observed
 - review deletion -> observed DELETE is admin-only moderation
 
 **Verify**
@@ -408,8 +409,8 @@ leg's API-owned `canExtend` and `maxExtendableHours`, sends a stable
 the signed-in payment callback identity in the encrypted HttpOnly payment
 session. Payment confirmation delegates to
 `POST /api/payments/extension-confirmation`; the web does not duplicate
-extension pricing because the API has no preview contract. This slice does not
-download a receipt; review and guest access are described below.
+extension pricing because the API has no preview contract. Review, guest
+access, and receipts are described below.
 
 ### Guest booking lookup
 
@@ -447,6 +448,21 @@ sees a neutral unavailable status for a moderated review. The web also avoids
 offering creation after the API's 30-day window or without an assigned
 chauffeur, while the API remains authoritative on submission. Customer
 deletion remains unavailable.
+
+### Customer booking receipts
+
+Completed bookings with a settled payment status link to the same-origin
+`GET /bookings/:bookingId/receipt` resource route. The Worker streams
+`GET /api/bookings/:bookingId/receipt` without buffering, validates the PDF
+content type, forwards safe attachment and length headers, and forces
+`Cache-Control: private, no-store`.
+
+Signed-in requests forward the Better Auth cookie. Scoped guest requests read
+the existing encrypted HttpOnly guest-booking session and send its token to
+the API as `X-Guest-Booking-Token` without forwarding account cookies. The UI
+uses booking status and payment status only as a display hint; the API remains
+authoritative for ownership, guest scope, financial integrity, and receipt
+eligibility.
 
 ### Public car slugs and SEO
 

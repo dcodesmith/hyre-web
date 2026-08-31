@@ -155,6 +155,7 @@ describe("booking detail loader", () => {
         chauffeur: { name: "Chauffeur" },
         review: null,
       },
+      canDownloadReceipt: true,
       reviewAvailability: "available",
       now: expect.any(String),
     });
@@ -168,6 +169,7 @@ describe("booking detail loader", () => {
 
     await expect(runLoader(SESSION_COOKIE)).resolves.toMatchObject({
       accessMode: "account",
+      canDownloadReceipt: false,
       reviewAvailability: "hidden",
     });
 
@@ -227,6 +229,7 @@ describe("booking detail loader", () => {
 
     await expect(runLoader()).resolves.toMatchObject({
       accessMode: "guest",
+      canDownloadReceipt: true,
       reviewAvailability: "hidden",
       booking: {
         id: "booking-1",

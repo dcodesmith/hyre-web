@@ -1,9 +1,16 @@
-import { CreditCard } from "lucide-react";
+import { CreditCard, Download } from "lucide-react";
 import { DetailCard, DetailCardBody, DetailCardHeader } from "~/booking/booking-detail-card";
 import type { BookingPaymentView } from "~/booking/booking-domain";
+import { Button } from "~/components/ui/button";
 import { formatCurrency } from "~/money/currency";
 
-export function BookingPaymentCard({ payment }: { readonly payment: BookingPaymentView }) {
+export function BookingPaymentCard({
+  payment,
+  receiptPath,
+}: {
+  readonly payment: BookingPaymentView;
+  readonly receiptPath?: string;
+}) {
   const moneyLabel = (value: number) => formatCurrency(value, payment.currency);
 
   return (
@@ -89,6 +96,14 @@ export function BookingPaymentCard({ payment }: { readonly payment: BookingPayme
             <span>Total Amount</span>
             <span className="tabular-nums">{moneyLabel(payment.totalAmount)}</span>
           </div>
+          {receiptPath ? (
+            <Button asChild variant="outline" className="w-full">
+              <a href={receiptPath}>
+                <Download aria-hidden="true" />
+                Download Receipt
+              </a>
+            </Button>
+          ) : null}
         </div>
       </DetailCardBody>
     </DetailCard>

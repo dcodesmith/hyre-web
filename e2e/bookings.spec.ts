@@ -60,6 +60,10 @@ test("renders the booking detail fixture", async ({ page }) => {
   await expect(page.getByText("Bola Adebayo")).toBeVisible();
   await expect(page.getByText("Payment Summary")).toBeVisible();
   await expect(page.getByText("Total Amount")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Download Receipt" })).toHaveAttribute(
+    "href",
+    "/bookings/booking-detail-1/receipt",
+  );
   await expect(page.getByRole("heading", { name: "Share Your Experience" })).toBeVisible();
   await page.getByRole("button", { name: "Write a Review" }).click();
   await expect(page.getByRole("radiogroup", { name: "Overall Experience rating" })).toBeVisible();
@@ -124,6 +128,7 @@ test("renders the cancellable booking fixture and confirm dialog", async ({ page
   const cancelTrigger = page.getByRole("button", { name: "Cancel Booking" });
   const confirmDialog = page.getByRole("dialog", { name: "Cancel Booking" });
   await expect(cancelTrigger).toBeVisible();
+  await expect(page.getByRole("link", { name: "Download Receipt" })).toHaveCount(0);
   await expect(async () => {
     if (await confirmDialog.isVisible()) {
       return;

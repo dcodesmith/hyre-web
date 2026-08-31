@@ -16,14 +16,22 @@ import { BookingTimelineCard } from "~/booking/booking-timeline";
 import { bookingListPath, parseBookingListStatus } from "~/booking/bookings-url";
 import { BookingReview, type BookingReviewAvailability } from "~/review/booking-review";
 
+const RECEIPT_PAYMENT_STATUSES: readonly BookingDetail["paymentStatus"][] = [
+  "PAID",
+  "PARTIALLY_REFUNDED",
+  "REFUNDED",
+];
+
 export function BookingDetailPage({
   accessMode = "account",
   booking: detail,
+  canDownloadReceipt,
   reviewAvailability,
   now,
 }: {
   readonly accessMode?: "account" | "guest";
   readonly booking: BookingDetail;
+  readonly canDownloadReceipt: boolean;
   readonly reviewAvailability: BookingReviewAvailability;
   readonly now: string;
 }) {
@@ -35,6 +43,12 @@ export function BookingDetailPage({
         parseBookingListStatus(new URLSearchParams({ status: detail.status.toLowerCase() })),
       );
   const backLabel = isGuest ? "Back to booking lookup" : "Back to Bookings";
+  const receiptPath =
+    canDownloadReceipt &&
+    detail.status === "COMPLETED" &&
+    RECEIPT_PAYMENT_STATUSES.includes(detail.paymentStatus)
+      ? `/bookings/${encodeURIComponent(detail.id)}/receipt`
+      : undefined;
 
   return (
     <div className="w-full text-base">
@@ -91,7 +105,7 @@ export function BookingDetailPage({
           <div className="space-y-6">
             <BookingChauffeurCard booking={booking} />
             {booking.flight ? <BookingFlightCard flight={booking.flight} /> : null}
-            <BookingPaymentCard payment={booking.payment} />
+            <BookingPaymentCard payment={booking.payment} receiptPath={receiptPath} />
             {!isGuest && detail.legs.some((leg) => leg.canExtend) ? (
               <BookingExtendCard bookingId={detail.id} />
             ) : null}

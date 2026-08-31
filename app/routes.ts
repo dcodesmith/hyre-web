@@ -44,6 +44,7 @@ export default [
     route("bookings/guest", "routes/bookings.guest.ts"),
     route("bookings/:bookingId", "routes/bookings.$bookingId.tsx"),
     route("bookings/:bookingId/extend", "routes/bookings.$bookingId.extend.tsx"),
+    route("bookings/:bookingId/receipt", "routes/bookings.$bookingId.receipt.ts"),
     route("profile", "routes/profile.tsx"),
     route("referrals", "routes/referrals.tsx"),
     route("logout", "routes/logout.ts"),
