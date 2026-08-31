@@ -24,12 +24,12 @@
   "dependencies": {
     "@conform-to/react": "^1.21.1",
     "@conform-to/zod": "^1.21.1",
-    "@tanstack/react-table": "^8.21.3",
+    "@tanstack/react-table": "^9.2.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.4.0",
     "isbot": "^5.1.36",
-    "lucide-react": "^1.32.0",
+    "lucide-react": "^1.38.0",
     "radix-ui": "^1.6.7",
     "react": "^19.2.7",
     "react-day-picker": "^10.0.1",
@@ -41,7 +41,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.5.9",
+    "@biomejs/biome": "2.5.11",
     "@cloudflare/vite-plugin": "^1.52.1",
     "@playwright/test": "1.62.1",
     "@react-router/dev": "^8",
@@ -53,8 +53,8 @@
     "tailwindcss": "^4.2.2",
     "typescript": "^7.0.2",
     "vite": "^8.2.2",
-    "vitest": "^4.1.10",
-    "wrangler": "^4.125.0"
+    "vitest": "^4.1.11",
+    "wrangler": "^4.127.1"
   },
   "engines": {
     "node": ">=22.22.0 <23"

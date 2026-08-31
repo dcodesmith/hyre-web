@@ -21,12 +21,16 @@ import {
 } from "~/components/ui/dropdown-menu";
 import { formatCurrency } from "~/money/currency";
 import { FleetCarStatusBadge } from "./fleet-car-status-badge";
+import type { FleetCarsTableFeatures } from "./fleet-cars-table-features";
 
-export const fleetCarArrayFilter: FilterFn<FleetCar> = (row, columnId, value: string[]) =>
-  value.includes(String(row.getValue(columnId)));
+export const fleetCarArrayFilter: FilterFn<FleetCarsTableFeatures, FleetCar> = (
+  row,
+  columnId,
+  value: string[],
+) => value.includes(String(row.getValue(columnId)));
 
 type SortableHeaderProps = {
-  readonly column: Column<FleetCar, unknown>;
+  readonly column: Column<FleetCarsTableFeatures, FleetCar>;
   readonly title: string;
 };
 
@@ -73,12 +77,12 @@ function SortableHeader({ column, title }: SortableHeaderProps) {
 }
 
 function header(title: string) {
-  return ({ column }: { column: Column<FleetCar, unknown> }) => (
+  return ({ column }: { column: Column<FleetCarsTableFeatures, FleetCar> }) => (
     <SortableHeader column={column} title={title} />
   );
 }
 
-export const fleetCarsColumns: ColumnDef<FleetCar>[] = [
+export const fleetCarsColumns: ColumnDef<FleetCarsTableFeatures, FleetCar>[] = [
   {
     accessorKey: "registrationNumber",
     header: header("Registration"),
