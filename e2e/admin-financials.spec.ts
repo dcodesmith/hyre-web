@@ -40,9 +40,19 @@ test("reviews and reconciles refund and payout operations", async ({ context, pa
     await expect(page.getByRole("heading", { name: "Refund HYRE-REFUND-001" })).toBeVisible();
     await expect(page.getByText("Unresolved", { exact: true })).toBeVisible();
 
-    await page.getByRole("button", { name: "Reconcile refund" }).click();
-    await page.getByLabel("Flutterwave refund ID").fill("refund-recovered");
-    await page.getByRole("button", { name: "Reconcile", exact: true }).click();
+    const reconcileRefund = page.getByRole("button", { name: "Reconcile refund" });
+    const refundDialog = page.getByRole("alertdialog");
+    await expect(async () => {
+      if (await refundDialog.isVisible()) {
+        return;
+      }
+
+      await reconcileRefund.scrollIntoViewIfNeeded();
+      await reconcileRefund.click();
+      await expect(refundDialog).toBeVisible({ timeout: 1500 });
+    }).toPass();
+    await refundDialog.getByLabel("Flutterwave refund ID").fill("refund-recovered");
+    await refundDialog.getByRole("button", { name: "Reconcile", exact: true }).click();
     await expect
       .poll(() => api.requests.financialActions[0])
       .toEqual({
@@ -68,8 +78,18 @@ test("reviews and reconciles refund and payout operations", async ({ context, pa
       .click();
     await expect(page).toHaveURL(`/admin/financials/payouts/${MOCK_ADMIN_PAYOUT_ID}?type=payouts`);
 
-    await page.getByRole("button", { name: "Reconcile payout" }).click();
-    await page.getByRole("button", { name: "Reconcile", exact: true }).click();
+    const reconcilePayout = page.getByRole("button", { name: "Reconcile payout" });
+    const payoutDialog = page.getByRole("alertdialog");
+    await expect(async () => {
+      if (await payoutDialog.isVisible()) {
+        return;
+      }
+
+      await reconcilePayout.scrollIntoViewIfNeeded();
+      await reconcilePayout.click();
+      await expect(payoutDialog).toBeVisible({ timeout: 1500 });
+    }).toPass();
+    await payoutDialog.getByRole("button", { name: "Reconcile", exact: true }).click();
     await expect
       .poll(() => api.requests.financialActions[1])
       .toEqual({
