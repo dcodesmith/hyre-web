@@ -36,9 +36,24 @@ describe("deployment configuration", () => {
     expect(production).toContain("type: string");
     expect(production).toContain("The first stable production release must be v1.0.0.");
     expect(production).toContain("gh release create");
+    expect(production).toContain("gh api --paginate --method GET");
+    expect(production).toContain("sort -V");
     expect(production).toContain("CLOUDFLARE_ENV: production");
+    expect(production).toContain(
+      `CLOUDFLARE_ACCOUNT_ID: ${githubExpression("secrets.CLOUDFLARE_PRODUCTION_ACCOUNT_ID")}`,
+    );
     expect(production).toContain(
       `CLOUDFLARE_API_TOKEN: ${githubExpression("secrets.CLOUDFLARE_PRODUCTION_API_TOKEN")}`,
     );
+    expect(production).toContain(
+      `PRODUCTION_WORKER_ORIGIN: ${githubExpression("vars.PRODUCTION_WORKER_ORIGIN")}`,
+    );
+  });
+
+  it("runs the dependency audit without consuming a duplicate Snyk test", () => {
+    const security = readRepositoryFile(".github/workflows/snyk.yml");
+
+    expect(security).toContain("run: pnpm audit --audit-level high");
+    expect(security).not.toContain("snyk/actions");
   });
 });

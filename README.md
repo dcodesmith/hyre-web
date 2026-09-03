@@ -37,8 +37,9 @@ pnpm preview
 Husky runs `biome check --staged` before each commit. It rejects the commit if
 staged files fail lint or format; it does not rewrite or restage files. Run
 `pnpm lint:fix` to apply fixes, then restage. CI also runs `pnpm lint`, a
-dedicated typecheck workflow, tests, and Snyk (high severity and above).
-Dependabot updates npm weekly and GitHub Actions monthly.
+dedicated typecheck workflow, tests, and `pnpm audit` at the high-severity
+threshold. The Snyk GitHub App reports separately. Dependabot updates npm
+weekly and GitHub Actions monthly.
 
 ## Deployment
 

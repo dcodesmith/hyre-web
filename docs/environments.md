@@ -7,7 +7,7 @@ updates development; it does not promote the web app to production.
 | --- | --- | --- |
 | Pull request | Cloudflare preview alias | Development API |
 | Development | `hyre-web-development.tripdly.workers.dev` | `hyre-worker-nestjs.fly.dev` |
-| Production | `hyre-web-production.tripdly.workers.dev` and, after cutover, `tripdly.com` | `hyre-worker-nestjs-production.fly.dev` |
+| Production | Dedicated production Cloudflare account; `tripdly.com` after cutover | `hyre-worker-nestjs-production.fly.dev` |
 
 PR previews intentionally share the development API. A web PR is not paired
 with an API PR database because PR numbers and lifecycles are independent
@@ -39,19 +39,24 @@ are healthy before web traffic moves.
 
 Repository secrets:
 
-- `CLOUDFLARE_ACCOUNT_ID`
-- `CLOUDFLARE_API_TOKEN`, scoped to the preview and development Workers only
+- `CLOUDFLARE_ACCOUNT_ID`, identifying the non-production Cloudflare account
+- `CLOUDFLARE_API_TOKEN`, with Workers Scripts Write access only in that account
 
 GitHub environments:
 
 - `development`
-- `production`, with required reviewers and an environment secret named
-  `CLOUDFLARE_PRODUCTION_API_TOKEN` that is scoped only to the production Worker
+- `production`, with required reviewers, the
+  `CLOUDFLARE_PRODUCTION_ACCOUNT_ID` and
+  `CLOUDFLARE_PRODUCTION_API_TOKEN` environment secrets, and a
+  `PRODUCTION_WORKER_ORIGIN` environment variable
 
-Do not use one Cloudflare deployment token for both trust levels. Rotate any
-existing account-wide token to the non-production scope before enabling the
-development workflow, and keep the production token available only through the
-protected GitHub environment.
+Development/preview and production must use separate Cloudflare accounts.
+Workers Scripts Write permission is account-scoped, not Worker-scoped, so
+separate API tokens in one account do not isolate production. The production
+account credentials must be available only through the protected GitHub
+environment. Set `PRODUCTION_WORKER_ORIGIN` to the production account's
+`workers.dev` URL before cutover, then to `https://tripdly.com` when its Worker
+route becomes active.
 
 Configure the web-owned session secret separately on each Cloudflare Worker:
 
