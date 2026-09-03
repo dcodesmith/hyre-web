@@ -32,7 +32,7 @@ const CONTENT_SECURITY_POLICY = [
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
 ].join("; ");
 
-export type DeploymentEnvironment = "local" | "preview" | "production";
+export type DeploymentEnvironment = "development" | "local" | "preview" | "production";
 
 export type PreparedRequest = {
   request: Request;
@@ -86,6 +86,8 @@ export function applyResponsePolicy(
   const url = new URL(request.url);
   const pathname = normalizeDataPathname(url.pathname);
   const isProduction = options.environment === "production";
+  const isDeployedNonProduction =
+    options.environment === "development" || options.environment === "preview";
   const isPrivatePath = PRIVATE_PATH_PREFIXES.some(
     (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
   );
@@ -126,8 +128,8 @@ export function applyResponsePolicy(
 
   if (hasSensitiveState) {
     headers.set("Cache-Control", "private, no-store");
-  } else if (options.environment === "preview") {
-    // Preview HTML must stay uncached so PR deploys are immediately visible.
+  } else if (isDeployedNonProduction) {
+    // Non-production HTML must stay uncached so deployments are immediately visible.
     headers.set("Cache-Control", "no-store");
   } else if (!headers.has("cache-control")) {
     // Public caching is opt-in per route once its complete cache key is known.

@@ -27,9 +27,17 @@
         "VALUE_FROM_CLOUDFLARE": "Hyre Web is running on Cloudflare"
       }
     },
-    "production": {
+    "development": {
       "vars": {
         "API_ORIGIN": "https://hyre-worker-nestjs.fly.dev",
+        "APP_ENV": "development",
+        "APP_ORIGIN": "https://hyre-web-development.tripdly.workers.dev",
+        "VALUE_FROM_CLOUDFLARE": "Hyre Web is running on Cloudflare"
+      }
+    },
+    "production": {
+      "vars": {
+        "API_ORIGIN": "https://hyre-worker-nestjs-production.fly.dev",
         "APP_ENV": "production",
         "APP_ORIGIN": "https://tripdly.com",
         "VALUE_FROM_CLOUDFLARE": "Hyre Web is running on Cloudflare"

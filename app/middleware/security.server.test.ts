@@ -116,6 +116,22 @@ describe("applyResponsePolicy", () => {
     expect(response.headers.get("x-robots-tag")).toBe("noindex, nofollow, noarchive");
   });
 
+  it("prevents caching and indexing the development deployment", () => {
+    const response = applyResponsePolicy(
+      new Request("https://development.example/"),
+      new Response("<html></html>", {
+        headers: { "cache-control": "public, max-age=300" },
+      }),
+      {
+        environment: "development",
+        requestId: "request-123",
+      },
+    );
+
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(response.headers.get("x-robots-tag")).toBe("noindex, nofollow, noarchive");
+  });
+
   it("keeps opt-in public cache headers in local", () => {
     const response = applyResponsePolicy(
       new Request("http://localhost:5173/about"),
