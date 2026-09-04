@@ -21,7 +21,7 @@ describe("deployment configuration", () => {
   it("identifies preview deployments by pull request and commit", () => {
     const preview = readRepositoryFile(".github/workflows/preview.yml");
 
-    expect(preview).toContain("github.event.pull_request.head.sha");
+    expect(preview).toContain(`DEPLOYMENT_COMMIT: ${githubExpression("github.sha")}`);
     expect(preview).toContain(`deployment_version="pr-\${PR_NUMBER}-\${DEPLOYMENT_COMMIT:0:7}"`);
     expect(preview).toContain(
       `DEPLOYMENT_COMMIT:${githubExpression("steps.preview.outputs.commit")}`,

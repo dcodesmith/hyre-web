@@ -44,7 +44,7 @@ jobs:
       - name: Prepare preview configuration
         id: preview
         env:
-          DEPLOYMENT_COMMIT: ${{ github.event.pull_request.head.sha }}
+          DEPLOYMENT_COMMIT: ${{ github.sha }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           test -n "$CLOUDFLARE_WORKERS_SUBDOMAIN"
