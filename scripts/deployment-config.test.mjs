@@ -29,6 +29,11 @@ describe("deployment configuration", () => {
     expect(preview).toContain(
       `DEPLOYMENT_VERSION:${githubExpression("steps.preview.outputs.version")}`,
     );
+    expect(preview).toContain("actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7");
+    expect(preview).toContain(
+      "pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10",
+    );
+    expect(preview).toContain("actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7");
     expect(preview).toContain("EXPECTED_DEPLOYMENT_COMMIT");
     expect(preview).toContain("EXPECTED_DEPLOYMENT_VERSION");
   });
