@@ -40,8 +40,9 @@ describe("deployment configuration", () => {
     expect(production).toContain("sort -V");
     expect(production).toContain("CLOUDFLARE_ENV: production");
     expect(production).toContain(
-      `CLOUDFLARE_ACCOUNT_ID: ${githubExpression("secrets.CLOUDFLARE_PRODUCTION_ACCOUNT_ID")}`,
+      `CLOUDFLARE_ACCOUNT_ID: ${githubExpression("secrets.CLOUDFLARE_ACCOUNT_ID")}`,
     );
+    expect(production).not.toContain("CLOUDFLARE_PRODUCTION_ACCOUNT_ID");
     expect(production).toContain(
       `CLOUDFLARE_API_TOKEN: ${githubExpression("secrets.CLOUDFLARE_PRODUCTION_API_TOKEN")}`,
     );
