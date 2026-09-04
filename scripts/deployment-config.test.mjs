@@ -41,6 +41,9 @@ describe("deployment configuration", () => {
     expect(smokeTest).toContain(
       'response.headers.get("x-app-version") === expectedDeploymentVersion',
     );
+    expect(smokeTest).toContain(
+      'response.headers.get("x-commit-sha") === expectedDeploymentCommit',
+    );
   });
 
   it("deploys main automatically only to development", () => {
