@@ -20,6 +20,7 @@ describe("deployment configuration", () => {
 
   it("identifies preview deployments by pull request and commit", () => {
     const preview = readRepositoryFile(".github/workflows/preview.yml");
+    const smokeTest = readRepositoryFile("scripts/smoke-preview.mjs");
 
     expect(preview).toContain(`DEPLOYMENT_COMMIT: ${githubExpression("github.sha")}`);
     expect(preview).toContain(`deployment_version="pr-\${PR_NUMBER}-\${DEPLOYMENT_COMMIT:0:7}"`);
@@ -36,6 +37,10 @@ describe("deployment configuration", () => {
     expect(preview).toContain("actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7");
     expect(preview).toContain("EXPECTED_DEPLOYMENT_COMMIT");
     expect(preview).toContain("EXPECTED_DEPLOYMENT_VERSION");
+    expect(smokeTest).toContain("hasExpectedDeploymentMetadata");
+    expect(smokeTest).toContain(
+      'response.headers.get("x-app-version") === expectedDeploymentVersion',
+    );
   });
 
   it("deploys main automatically only to development", () => {

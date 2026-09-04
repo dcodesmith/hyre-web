@@ -41,9 +41,13 @@ const requestId = `smoke-${Date.now()}`;
 const healthRequestId = `${requestId}-health`;
 const rejectedMutationRequestId = `${requestId}-cross-origin`;
 const [response, healthResponse, rejectedMutationResponse] = await Promise.all([
-  fetchWithRetry(origin, {
-    headers: { "x-request-id": requestId },
-  }),
+  fetchWithRetry(
+    origin,
+    {
+      headers: { "x-request-id": requestId },
+    },
+    hasExpectedDeploymentMetadata,
+  ),
   fetchWithRetry(new URL("/health", apiOrigin), {
     headers: { "x-request-id": healthRequestId },
   }),
@@ -160,6 +164,14 @@ function hasImmutableAssetHeaders(response) {
     cacheControl.includes("public") &&
     cacheControl.includes("max-age=31536000") &&
     cacheControl.includes("immutable")
+  );
+}
+
+function hasExpectedDeploymentMetadata(response) {
+  return (
+    response.status === 200 &&
+    response.headers.get("x-app-version") === expectedDeploymentVersion &&
+    response.headers.get("x-commit-sha") === expectedDeploymentCommit
   );
 }
 
