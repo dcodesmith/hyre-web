@@ -14,6 +14,23 @@ describe("deployment configuration", () => {
     expect(wrangler).toContain('"APP_ENV": "development"');
     expect(wrangler).toContain('"API_ORIGIN": "https://hyre-worker-nestjs-production.fly.dev"');
     expect(wrangler).toContain('"APP_ENV": "production"');
+    expect(wrangler).toContain('"DEPLOYMENT_COMMIT": "local"');
+    expect(wrangler).toContain('"DEPLOYMENT_VERSION": "local"');
+  });
+
+  it("identifies preview deployments by pull request and commit", () => {
+    const preview = readRepositoryFile(".github/workflows/preview.yml");
+
+    expect(preview).toContain("github.event.pull_request.head.sha");
+    expect(preview).toContain(`deployment_version="pr-\${PR_NUMBER}-\${DEPLOYMENT_COMMIT:0:7}"`);
+    expect(preview).toContain(
+      `DEPLOYMENT_COMMIT:${githubExpression("steps.preview.outputs.commit")}`,
+    );
+    expect(preview).toContain(
+      `DEPLOYMENT_VERSION:${githubExpression("steps.preview.outputs.version")}`,
+    );
+    expect(preview).toContain("EXPECTED_DEPLOYMENT_COMMIT");
+    expect(preview).toContain("EXPECTED_DEPLOYMENT_VERSION");
   });
 
   it("deploys main automatically only to development", () => {
@@ -22,6 +39,9 @@ describe("deployment configuration", () => {
     expect(development).toContain("branches: [main]");
     expect(development).toContain("name: development");
     expect(development).toContain("CLOUDFLARE_ENV: development");
+    expect(development).toContain(`version=dev-\${DEPLOYMENT_COMMIT:0:7}`);
+    expect(development).toContain("EXPECTED_DEPLOYMENT_COMMIT");
+    expect(development).toContain("EXPECTED_DEPLOYMENT_VERSION");
     expect(development).toContain(
       "if: github.event_name != 'workflow_dispatch' || github.ref == 'refs/heads/main'",
     );
@@ -39,6 +59,14 @@ describe("deployment configuration", () => {
     expect(production).toContain("gh api --paginate --method GET");
     expect(production).toContain("sort -V");
     expect(production).toContain("CLOUDFLARE_ENV: production");
+    expect(production).toContain(
+      `DEPLOYMENT_COMMIT: ${githubExpression("needs.verify.outputs.deploy_sha")}`,
+    );
+    expect(production).toContain(
+      `DEPLOYMENT_VERSION: ${githubExpression("needs.verify.outputs.release_version")}`,
+    );
+    expect(production).toContain("EXPECTED_DEPLOYMENT_COMMIT");
+    expect(production).toContain("EXPECTED_DEPLOYMENT_VERSION");
     expect(production).toContain(
       `CLOUDFLARE_ACCOUNT_ID: ${githubExpression("secrets.CLOUDFLARE_ACCOUNT_ID")}`,
     );

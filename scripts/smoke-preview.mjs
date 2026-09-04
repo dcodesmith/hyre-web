@@ -2,11 +2,21 @@ const assetPathPattern = /(?:href|src)="(\/assets\/[A-Za-z0-9._-]+-[A-Za-z0-9_-]
 const previewUrl = process.argv[2];
 const apiUrl = process.argv[3];
 const environment = process.argv[4] ?? "preview";
+const expectedDeploymentCommit = process.env.EXPECTED_DEPLOYMENT_COMMIT;
+const expectedDeploymentVersion = process.env.EXPECTED_DEPLOYMENT_VERSION;
 
 if (!previewUrl || !apiUrl || !["development", "preview", "production"].includes(environment)) {
   throw new Error(
     "Usage: node scripts/smoke-preview.mjs <deployment-url> <api-origin> [development|preview|production]",
   );
+}
+
+if (!expectedDeploymentVersion || !/^[A-Za-z0-9._:-]{1,128}$/.test(expectedDeploymentVersion)) {
+  throw new Error("EXPECTED_DEPLOYMENT_VERSION must be a safe, non-empty version");
+}
+
+if (!expectedDeploymentCommit || !/^[0-9a-f]{40}$/i.test(expectedDeploymentCommit)) {
+  throw new Error("EXPECTED_DEPLOYMENT_COMMIT must be a full git SHA");
 }
 
 const origin = new URL(previewUrl);
@@ -61,6 +71,14 @@ assert(
   "Home response does not contain the expected API category data",
 );
 assert(response.headers.get("x-request-id") === requestId, "Request ID was not propagated");
+assert(
+  response.headers.get("x-app-version") === expectedDeploymentVersion,
+  `Expected X-App-Version ${expectedDeploymentVersion}, received ${response.headers.get("x-app-version")}`,
+);
+assert(
+  response.headers.get("x-commit-sha") === expectedDeploymentCommit,
+  `Expected X-Commit-SHA ${expectedDeploymentCommit}, received ${response.headers.get("x-commit-sha")}`,
+);
 assert(
   response.headers.get("content-security-policy")?.includes("default-src 'self'"),
   "Content-Security-Policy header is missing",

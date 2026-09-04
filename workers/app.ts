@@ -19,6 +19,8 @@ export default {
     const response = originError ?? (await requestHandler(preparedRequest));
 
     const hardenedResponse = applyResponsePolicy(preparedRequest, response, {
+      deploymentCommit: env.DEPLOYMENT_COMMIT,
+      deploymentVersion: env.DEPLOYMENT_VERSION,
       environment: env.APP_ENV,
       requestId,
       durationMs: performance.now() - startedAt,

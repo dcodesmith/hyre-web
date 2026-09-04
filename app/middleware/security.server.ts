@@ -2,6 +2,8 @@ import { HTTP_STATUS } from "~/api/http-status";
 
 const REQUEST_ID_HEADER = "x-request-id";
 const SAFE_REQUEST_ID = /^[A-Za-z0-9._:-]{8,128}$/;
+const SAFE_DEPLOYMENT_VERSION = /^[A-Za-z0-9._:-]{1,128}$/;
+const SAFE_DEPLOYMENT_COMMIT = /^(?:local|[0-9a-f]{40})$/i;
 
 const MUTATION_METHODS = new Set(["DELETE", "PATCH", "POST", "PUT"]);
 export const PRIVATE_PATH_PREFIXES = [
@@ -77,6 +79,8 @@ export function applyResponsePolicy(
   request: Request,
   response: Response,
   options: {
+    deploymentCommit?: string;
+    deploymentVersion?: string;
     environment: DeploymentEnvironment;
     requestId: string;
     durationMs?: number;
@@ -104,6 +108,12 @@ export function applyResponsePolicy(
     isDataRequest;
 
   headers.set(REQUEST_ID_HEADER, options.requestId);
+  if (options.deploymentVersion && SAFE_DEPLOYMENT_VERSION.test(options.deploymentVersion)) {
+    headers.set("X-App-Version", options.deploymentVersion);
+  }
+  if (options.deploymentCommit && SAFE_DEPLOYMENT_COMMIT.test(options.deploymentCommit)) {
+    headers.set("X-Commit-SHA", options.deploymentCommit);
+  }
   headers.set("Content-Security-Policy", CONTENT_SECURITY_POLICY);
   headers.set("Cross-Origin-Opener-Policy", "same-origin");
   headers.set("Cross-Origin-Resource-Policy", "same-origin");

@@ -35,6 +35,21 @@ does not create a version tag. The first production release is `v1.0.0`.
 Promote the production API before the web app so the target API and database
 are healthy before web traffic moves.
 
+## Deployment metadata
+
+Worker-handled responses identify the exact web revision through
+`X-App-Version` and `X-Commit-SHA` headers:
+
+- pull request previews use `pr-<number>-<short-sha>`;
+- development uses `dev-<short-sha>`;
+- production uses the validated release version, such as `v1.0.0`.
+
+Web and API versions remain independent. These headers identify the running
+web deployment; they do not pin it to a specific API release. Deployment smoke
+tests verify both headers against the commit and version selected by the
+workflow. Static assets may bypass the Worker and therefore do not carry these
+headers.
+
 ## One-time configuration
 
 Repository secrets:
