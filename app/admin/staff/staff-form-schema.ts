@@ -13,7 +13,11 @@ export const staffFormSchema = z.object({
     .trim()
     .toLowerCase()
     .pipe(z.email(EMAIL_INVALID_ERROR)),
-  phoneNumber: z.string({ error: STAFF_PHONE_ERROR }).trim().min(10, STAFF_PHONE_ERROR).max(32),
+  phoneNumber: z
+    .string({ error: STAFF_PHONE_ERROR })
+    .trim()
+    .max(32, STAFF_PHONE_ERROR)
+    .refine((value) => value.replace(/\D/g, "").length >= 10, STAFF_PHONE_ERROR),
 });
 
 export type StaffActionData = {

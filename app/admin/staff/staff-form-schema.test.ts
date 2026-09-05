@@ -46,4 +46,22 @@ describe("staff form schema", () => {
       false,
     );
   });
+
+  it("rejects a phone that meets the length but does not contain 10 digits", () => {
+    expect(staffFormSchema.safeParse({ ...validStaff, phoneNumber: "abcdefghij" }).success).toBe(
+      false,
+    );
+  });
+
+  it("accepts a formatted phone with at least 10 digits", () => {
+    const parsed = staffFormSchema.safeParse({
+      ...validStaff,
+      phoneNumber: "+234 801 234 5678",
+    });
+
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.phoneNumber).toBe("+234 801 234 5678");
+    }
+  });
 });
