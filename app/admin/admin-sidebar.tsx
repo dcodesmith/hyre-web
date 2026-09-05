@@ -5,6 +5,7 @@ import {
   LogOutIcon,
   ShieldCheckIcon,
   SlidersHorizontalIcon,
+  UsersIcon,
   WalletCardsIcon,
 } from "lucide-react";
 import { Form, Link, useLocation } from "react-router";
@@ -42,6 +43,7 @@ export function AdminSidebar({ isLoggingOut, role, user }: AdminSidebarProps) {
   const isFinancialsActive = location.pathname.startsWith("/admin/financials");
   const isFeesActive = location.pathname === "/admin/fees";
   const isAddonRatesActive = location.pathname === "/admin/addon-rates";
+  const isStaffActive = location.pathname === "/admin/staff";
 
   function closeMobileSidebar() {
     if (isMobile) {
@@ -135,6 +137,18 @@ export function AdminSidebar({ isLoggingOut, role, user }: AdminSidebarProps) {
                       >
                         <SlidersHorizontalIcon />
                         <span>Add-on rates</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton asChild isActive={isStaffActive} tooltip="Staff">
+                      <Link
+                        to="/admin/staff"
+                        aria-current={isStaffActive ? "page" : undefined}
+                        onClick={closeMobileSidebar}
+                      >
+                        <UsersIcon />
+                        <span>Staff</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
