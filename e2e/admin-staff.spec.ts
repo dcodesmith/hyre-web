@@ -32,12 +32,13 @@ test("lists staff from the API and adds a staff member", async ({ context, page 
     await expect(page).toHaveURL(/status=active/);
     await expect.poll(() => api.requests.staffListQuery).toBe("?page=1&limit=20&status=active");
 
-    await page.getByRole("button", { name: "Add Staff" }).click();
+    await page.getByRole("link", { name: "Add Staff" }).click();
     const form = page.getByRole("form", { name: "Add staff member" });
+    await expect(page).toHaveURL(/add=1/);
     await form.getByLabel("Full Name").fill("Ada Lovelace");
     await form.getByLabel("Email").fill("Ada@Example.com");
     await form.getByLabel("Phone Number").fill("08012345678");
-    await form.getByRole("button", { name: "Add Staff" }).click();
+    await form.getByRole("button", { name: "Add another" }).click();
 
     await expect
       .poll(() => api.requests.staffActions[0])
@@ -51,6 +52,28 @@ test("lists staff from the API and adds a staff member", async ({ context, page 
         path: "/api/admin/staff",
       });
     await expect(form.getByText("Staff member added.")).toBeVisible();
+    await expect(form.getByLabel("Full Name")).toHaveValue("");
+    await expect(page.getByText("Ada Lovelace")).toBeVisible();
+
+    await form.getByLabel("Full Name").fill("Charles Babbage");
+    await form.getByLabel("Email").fill("charles@example.com");
+    await form.getByLabel("Phone Number").fill("08087654321");
+    await form.getByRole("button", { name: "Add", exact: true }).click();
+
+    await expect
+      .poll(() => api.requests.staffActions[1])
+      .toEqual({
+        body: {
+          name: "Charles Babbage",
+          email: "charles@example.com",
+          phoneNumber: "08087654321",
+        },
+        method: "POST",
+        path: "/api/admin/staff",
+      });
+    await expect(form).toBeHidden();
+    await expect(page).not.toHaveURL(/add=1/);
+    await expect(page.getByText("Charles Babbage")).toBeVisible();
   } finally {
     await stopMockAdminAuthApi(api);
   }

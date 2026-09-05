@@ -30,3 +30,16 @@ export function serializeStaffQuery(query: StaffQuery) {
   }
   return searchParams;
 }
+
+export function isAddStaffOpen(searchParams: URLSearchParams) {
+  return searchParams.get("add") === "1";
+}
+
+export function staffHref(query: StaffQuery, options?: { readonly add?: boolean }) {
+  const searchParams = serializeStaffQuery(query);
+  if (options?.add) {
+    searchParams.set("add", "1");
+  }
+  const search = searchParams.toString();
+  return search ? `/admin/staff?${search}` : "/admin/staff";
+}

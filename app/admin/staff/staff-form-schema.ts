@@ -17,7 +17,7 @@ export const staffFormSchema = z.object({
 });
 
 export type StaffActionData = {
-  intent: "create" | "revoke" | "reinstate";
+  intent: "create" | "create-more" | "revoke" | "reinstate";
   error?: string;
   revalidate?: boolean;
   success?: string;

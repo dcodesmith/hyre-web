@@ -4,7 +4,7 @@ import { z } from "zod";
 
 import { AdminStaffPage } from "~/admin/staff/admin-staff-page";
 import { type StaffActionData, staffFormSchema } from "~/admin/staff/staff-form-schema";
-import { parseStaffQuery, serializeStaffQuery } from "~/admin/staff/staff-url";
+import { parseStaffQuery, staffHref } from "~/admin/staff/staff-url";
 import {
   createAdminStaff,
   getAdminStaff,
@@ -41,11 +41,7 @@ export async function loader({ request }: Route.LoaderArgs) {
   const query = parseStaffQuery(new URL(request.url).searchParams);
   const { data: response } = await getAdminStaff({ request, ...query });
   if (response.meta.totalPages > 0 && query.page > response.meta.totalPages) {
-    const search = serializeStaffQuery({
-      ...query,
-      page: response.meta.totalPages,
-    }).toString();
-    throw redirect(search ? `/admin/staff?${search}` : "/admin/staff");
+    throw redirect(staffHref({ ...query, page: response.meta.totalPages }));
   }
 
   return { ...response, query };
@@ -65,12 +61,16 @@ function actionError(error: unknown, fallback: string) {
   };
 }
 
-async function createStaffAction(request: Request, formData: FormData) {
+async function createStaffAction(
+  request: Request,
+  formData: FormData,
+  intent: "create" | "create-more",
+) {
   const submission = parseWithZod(formData, { schema: staffFormSchema });
 
   if (submission.status !== "success") {
     return data<StaffActionData>(
-      { intent: "create", revalidate: false, submission: submission.reply() },
+      { intent, revalidate: false, submission: submission.reply() },
       { status: HTTP_STATUS.BAD_REQUEST, headers: NO_STORE },
     );
   }
@@ -80,24 +80,31 @@ async function createStaffAction(request: Request, formData: FormData) {
       request,
       body: submission.value,
     });
-    return data<StaffActionData>(
-      {
-        intent: "create",
-        success: "Staff member added.",
-        submission: submission.reply({ resetForm: true }),
-      },
-      { headers: NO_STORE },
-    );
   } catch (error) {
     const { message, status } = actionError(
       error,
       "Unable to add this staff member. Please try again.",
     );
     return data<StaffActionData>(
-      { intent: "create", error: message, submission: submission.reply() },
+      { intent, error: message, submission: submission.reply() },
       { status, headers: NO_STORE },
     );
   }
+
+  if (intent === "create") {
+    return redirect(staffHref(parseStaffQuery(new URL(request.url).searchParams)), {
+      headers: NO_STORE,
+    });
+  }
+
+  return data<StaffActionData>(
+    {
+      intent,
+      success: "Staff member added.",
+      submission: submission.reply({ resetForm: true }),
+    },
+    { headers: NO_STORE },
+  );
 }
 
 async function updateStaffAccessAction(
@@ -119,13 +126,7 @@ async function updateStaffAccessAction(
     } else {
       await reinstateAdminStaff(request, staffId.data);
     }
-    return data<StaffActionData>(
-      {
-        intent,
-        success: intent === "revoke" ? "Staff access revoked." : "Staff access reinstated.",
-      },
-      { headers: NO_STORE },
-    );
+    return data<StaffActionData>({ intent }, { headers: NO_STORE });
   } catch (error) {
     const { message, status } = actionError(
       error,
@@ -140,8 +141,8 @@ async function updateStaffAccessAction(
 export async function action({ request }: Route.ActionArgs) {
   const formData = await request.formData();
   const intent = formData.get("intent");
-  if (intent === "create") {
-    return createStaffAction(request, formData);
+  if (intent === "create" || intent === "create-more") {
+    return createStaffAction(request, formData, intent);
   }
   if (intent === "revoke" || intent === "reinstate") {
     return updateStaffAccessAction(request, formData, intent);
@@ -155,17 +156,36 @@ export async function action({ request }: Route.ActionArgs) {
 
 export function shouldRevalidate({
   actionResult,
+  currentUrl,
   defaultShouldRevalidate,
+  formMethod,
+  nextUrl,
 }: ShouldRevalidateFunctionArgs) {
   if ((actionResult as StaffActionData | undefined)?.revalidate === false) {
     return false;
   }
+
+  if (!formMethod && currentUrl.pathname === nextUrl.pathname) {
+    const current = new URLSearchParams(currentUrl.search);
+    const next = new URLSearchParams(nextUrl.search);
+    current.delete("add");
+    next.delete("add");
+    if (current.toString() === next.toString()) {
+      return false;
+    }
+  }
+
   return defaultShouldRevalidate;
 }
 
-export default function AdminStaffRoute({ loaderData }: Route.ComponentProps) {
+export default function AdminStaffRoute({ actionData, loaderData }: Route.ComponentProps) {
   return (
-    <AdminStaffPage staff={loaderData.staff} meta={loaderData.meta} query={loaderData.query} />
+    <AdminStaffPage
+      actionData={actionData}
+      staff={loaderData.staff}
+      meta={loaderData.meta}
+      query={loaderData.query}
+    />
   );
 }
 

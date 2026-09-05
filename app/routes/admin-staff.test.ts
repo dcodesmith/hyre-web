@@ -37,15 +37,18 @@ function loaderArgs(request: Request): Route.LoaderArgs {
   };
 }
 
-function actionArgs(form: Record<string, string>): Route.ActionArgs {
+function actionArgs(
+  form: Record<string, string>,
+  url = "https://tripdly.com/admin/staff",
+): Route.ActionArgs {
   const body = new FormData();
   for (const [name, value] of Object.entries(form)) {
     body.set(name, value);
   }
 
   return {
-    request: new Request("https://tripdly.com/admin/staff", { method: "POST", body }),
-    url: new URL("https://tripdly.com/admin/staff"),
+    request: new Request(url, { method: "POST", body }),
+    url: new URL(url),
     pattern: "/admin/staff",
     params: {},
     context: new RouterContextProvider(),
@@ -141,12 +144,15 @@ describe("admin staff route", () => {
     });
 
     const result = await action(
-      actionArgs({
-        intent: "create",
-        name: "  Ada Lovelace  ",
-        email: " Ada@Example.com ",
-        phoneNumber: "  08012345678  ",
-      }),
+      actionArgs(
+        {
+          intent: "create",
+          name: "  Ada Lovelace  ",
+          email: " Ada@Example.com ",
+          phoneNumber: "  08012345678  ",
+        },
+        "https://tripdly.com/admin/staff?status=active&add=1",
+      ),
     );
 
     expect(createAdminStaff).toHaveBeenCalledWith({
@@ -157,8 +163,36 @@ describe("admin staff route", () => {
         phoneNumber: "08012345678",
       },
     });
+    expect(result).toBeInstanceOf(Response);
+    if (!(result instanceof Response)) {
+      throw new Error("Expected a redirect response");
+    }
+    expect(result.status).toBe(302);
+    expect(result.headers.get("location")).toBe("/admin/staff?status=active");
+  });
+
+  it("keeps the add dialog open after create-more", async () => {
+    createAdminStaff.mockResolvedValue({
+      data: {
+        id: "staff-1",
+        name: "Ada Lovelace",
+        email: "ada@example.com",
+        phoneNumber: "08012345678",
+        createdAt: "2026-08-31T10:00:00.000Z",
+      },
+    });
+
+    const result = await action(
+      actionArgs({
+        intent: "create-more",
+        name: "Ada Lovelace",
+        email: "ada@example.com",
+        phoneNumber: "08012345678",
+      }),
+    );
+
     expect(result).toMatchObject({
-      data: { success: "Staff member added." },
+      data: { intent: "create-more", success: "Staff member added." },
     });
   });
 
@@ -204,7 +238,10 @@ describe("admin staff route", () => {
 
     expect(revokeAdminStaff).toHaveBeenCalledWith(expect.any(Request), STAFF_ID);
     expect(result).toMatchObject({
-      data: { intent: "revoke", success: "Staff access revoked." },
+      data: { intent: "revoke" },
+    });
+    expect(result).not.toMatchObject({
+      data: { success: expect.any(String) },
     });
   });
 
@@ -225,7 +262,10 @@ describe("admin staff route", () => {
 
     expect(reinstateAdminStaff).toHaveBeenCalledWith(expect.any(Request), STAFF_ID);
     expect(result).toMatchObject({
-      data: { intent: "reinstate", success: "Staff access reinstated." },
+      data: { intent: "reinstate" },
+    });
+    expect(result).not.toMatchObject({
+      data: { success: expect.any(String) },
     });
   });
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { parseStaffQuery, serializeStaffQuery } from "./staff-url";
+import { isAddStaffOpen, parseStaffQuery, serializeStaffQuery, staffHref } from "./staff-url";
 
 describe("staff URL", () => {
   it("parses the API-supported filter and pagination values", () => {
@@ -22,5 +22,18 @@ describe("staff URL", () => {
     expect(serializeStaffQuery({ status: "active", page: 1, limit: 20 }).toString()).toBe(
       "status=active",
     );
+  });
+
+  it("builds staff list and add-dialog hrefs without sending add to the API query", () => {
+    expect(staffHref({ page: 1, limit: 20 })).toBe("/admin/staff");
+    expect(staffHref({ status: "active", page: 1, limit: 20 }, { add: true })).toBe(
+      "/admin/staff?status=active&add=1",
+    );
+    expect(isAddStaffOpen(new URLSearchParams("status=active&add=1"))).toBe(true);
+    expect(parseStaffQuery(new URLSearchParams("status=active&add=1"))).toEqual({
+      status: "active",
+      page: 1,
+      limit: 20,
+    });
   });
 });

@@ -1,13 +1,13 @@
 import { getFormProps, getInputProps, useForm } from "@conform-to/react";
 import { getZodConstraint, parseWithZod } from "@conform-to/zod/v4";
 import { ChevronLeftIcon, ChevronRightIcon, UserPlusIcon } from "lucide-react";
-import { useState } from "react";
-import { Link, useFetcher } from "react-router";
+import { Form, Link, useFetcher, useLocation, useNavigate, useNavigation } from "react-router";
 import type {
   AdminStaffListItem,
   AdminStaffListResponse,
   AdminStaffStatus,
 } from "~/api/admin/staff/schema";
+import { StatusBadge, type StatusBadgeTone } from "~/components/status-badge";
 import { Alert, AlertDescription, AlertTitle } from "~/components/ui/alert";
 import {
   AlertDialog,
@@ -20,7 +20,6 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "~/components/ui/alert-dialog";
-import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import {
   Dialog,
@@ -42,7 +41,7 @@ import {
   TableRow,
 } from "~/components/ui/table";
 import { type StaffActionData, staffFormSchema } from "./staff-form-schema";
-import { type StaffQuery, serializeStaffQuery } from "./staff-url";
+import { isAddStaffOpen, type StaffQuery, staffHref } from "./staff-url";
 
 const dateFormatter = new Intl.DateTimeFormat("en-GB", {
   dateStyle: "medium",
@@ -55,22 +54,21 @@ const filters: readonly { label: string; value?: AdminStaffStatus }[] = [
   { label: "Revoked", value: "revoked" },
 ];
 
-function staffHref(query: StaffQuery) {
-  const search = serializeStaffQuery(query).toString();
-  return search ? `/admin/staff?${search}` : "/admin/staff";
-}
+const staffStatusBadge: Readonly<
+  Record<AdminStaffStatus, { label: string; tone: StatusBadgeTone }>
+> = {
+  active: { label: "Active", tone: "success" },
+  revoked: { label: "Revoked", tone: "danger" },
+};
 
 function StaffActionFeedback({ data }: { readonly data?: StaffActionData }) {
-  if (!data?.error && !data?.success) {
+  if (!data?.error) {
     return null;
   }
 
   return (
-    <p
-      className={`max-w-56 text-right text-xs ${data.error ? "text-destructive" : "text-muted-foreground"}`}
-      role={data.error ? "alert" : "status"}
-    >
-      {data.error ?? data.success}
+    <p className="max-w-56 text-right text-xs text-destructive" role="alert">
+      {data.error}
     </p>
   );
 }
@@ -135,16 +133,27 @@ function StaffActionButton({ staff }: { readonly staff: AdminStaffListItem }) {
 }
 
 function AddStaffDialog({
+  actionData,
   open,
-  onOpenChange,
+  query,
 }: {
+  readonly actionData?: StaffActionData;
   readonly open: boolean;
-  readonly onOpenChange: (open: boolean) => void;
+  readonly query: StaffQuery;
 }) {
-  const fetcher = useFetcher<StaffActionData>();
+  const navigate = useNavigate();
+  const navigation = useNavigation();
+  const lastResult =
+    actionData?.intent === "create" || actionData?.intent === "create-more"
+      ? actionData
+      : undefined;
+  const pendingIntent = navigation.formData?.get("intent");
+  const isAdding = navigation.state !== "idle" && pendingIntent === "create";
+  const isAddingAnother = navigation.state !== "idle" && pendingIntent === "create-more";
+  const isPending = isAdding || isAddingAnother;
   const [form, fields] = useForm({
     id: "add-staff-form",
-    lastResult: fetcher.data?.submission,
+    lastResult: lastResult?.submission,
     constraint: getZodConstraint(staffFormSchema),
     shouldValidate: "onSubmit",
     shouldRevalidate: "onInput",
@@ -154,7 +163,14 @@ function AddStaffDialog({
   });
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) {
+          void navigate(staffHref(query), { preventScrollReset: true });
+        }
+      }}
+    >
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Add Staff Member</DialogTitle>
@@ -162,8 +178,12 @@ function AddStaffDialog({
             Staff sign in with an email code. This does not send an invite.
           </DialogDescription>
         </DialogHeader>
-        <fetcher.Form method="post" aria-label="Add staff member" {...getFormProps(form)}>
-          <input type="hidden" name="intent" value="create" />
+        <Form
+          method="post"
+          action={staffHref(query, { add: true })}
+          aria-label="Add staff member"
+          {...getFormProps(form)}
+        >
           <div className="flex flex-col gap-5">
             <Field data-invalid={Boolean(fields.name.errors)}>
               <FieldLabel htmlFor={fields.name.id}>Full Name</FieldLabel>
@@ -194,13 +214,13 @@ function AddStaffDialog({
                 {fields.phoneNumber.errors?.join(", ")}
               </FieldError>
             </Field>
-            {fetcher.data?.error || fetcher.data?.success ? (
+            {lastResult?.error || lastResult?.success ? (
               <Alert
-                variant={fetcher.data.error ? "destructive" : "default"}
-                role={fetcher.data.error ? "alert" : "status"}
+                variant={lastResult.error ? "destructive" : "default"}
+                role={lastResult.error ? "alert" : "status"}
               >
-                <AlertTitle>{fetcher.data.error ? "Staff not added" : "Staff added"}</AlertTitle>
-                <AlertDescription>{fetcher.data.error ?? fetcher.data.success}</AlertDescription>
+                <AlertTitle>{lastResult.error ? "Staff not added" : "Staff added"}</AlertTitle>
+                <AlertDescription>{lastResult.error ?? lastResult.success}</AlertDescription>
               </Alert>
             ) : null}
             <DialogFooter>
@@ -209,12 +229,21 @@ function AddStaffDialog({
                   Cancel
                 </Button>
               </DialogClose>
-              <Button type="submit" disabled={fetcher.state !== "idle"}>
-                {fetcher.state === "idle" ? "Add Staff" : "Adding…"}
+              <Button
+                type="submit"
+                name="intent"
+                value="create-more"
+                variant="outline"
+                disabled={isPending}
+              >
+                {isAddingAnother ? "Adding…" : "Add another"}
+              </Button>
+              <Button type="submit" name="intent" value="create" disabled={isPending}>
+                {isAdding ? "Adding…" : "Add"}
               </Button>
             </DialogFooter>
           </div>
-        </fetcher.Form>
+        </Form>
       </DialogContent>
     </Dialog>
   );
@@ -277,15 +306,18 @@ function Pagination({
 }
 
 export function AdminStaffPage({
+  actionData,
   staff,
   meta,
   query,
 }: {
+  readonly actionData?: StaffActionData;
   readonly staff: readonly AdminStaffListItem[];
   readonly meta: AdminStaffListResponse["meta"];
   readonly query: StaffQuery;
 }) {
-  const [isAddStaffOpen, setIsAddStaffOpen] = useState(false);
+  const location = useLocation();
+  const addStaffOpen = isAddStaffOpen(new URLSearchParams(location.search));
 
   return (
     <section aria-labelledby="staff-heading" className="space-y-5">
@@ -298,9 +330,11 @@ export function AdminStaffPage({
             Manage staff access to approval tools.
           </p>
         </div>
-        <Button type="button" onClick={() => setIsAddStaffOpen(true)}>
-          <UserPlusIcon data-icon="inline-start" aria-hidden="true" />
-          Add Staff
+        <Button asChild>
+          <Link to={staffHref(query, { add: true })} preventScrollReset>
+            <UserPlusIcon data-icon="inline-start" aria-hidden="true" />
+            Add Staff
+          </Link>
         </Button>
       </div>
 
@@ -353,9 +387,9 @@ export function AdminStaffPage({
                     <TableCell>{member.email}</TableCell>
                     <TableCell>{member.phoneNumber ?? "—"}</TableCell>
                     <TableCell>
-                      <Badge variant={member.status === "active" ? "default" : "secondary"}>
-                        {member.status === "active" ? "Active" : "Revoked"}
-                      </Badge>
+                      <StatusBadge tone={staffStatusBadge[member.status].tone}>
+                        {staffStatusBadge[member.status].label}
+                      </StatusBadge>
                     </TableCell>
                     <TableCell>{dateFormatter.format(new Date(member.createdAt))}</TableCell>
                     <TableCell className="text-right">
@@ -370,9 +404,7 @@ export function AdminStaffPage({
         </>
       )}
 
-      {isAddStaffOpen ? (
-        <AddStaffDialog open={isAddStaffOpen} onOpenChange={setIsAddStaffOpen} />
-      ) : null}
+      <AddStaffDialog actionData={actionData} open={addStaffOpen} query={query} />
     </section>
   );
 }

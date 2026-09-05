@@ -678,7 +678,7 @@ function writeCreatedAdminStaff(
 ) {
   const record = typeof body === "object" && body !== null ? (body as Record<string, unknown>) : {};
   const created = {
-    id: "cm52345678901234567890123",
+    id: `cm5${String(staff.length + 1).padStart(22, "0")}`,
     name: typeof record.name === "string" ? record.name : "Ada Lovelace",
     email: typeof record.email === "string" ? record.email : "ada@example.com",
     phoneNumber: typeof record.phoneNumber === "string" ? record.phoneNumber : "08012345678",

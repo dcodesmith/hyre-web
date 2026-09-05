@@ -238,7 +238,7 @@ app/
       fleet-dashboard-page.tsx    # responsive overview and earnings activity
     cars/
       fleet-car.ts                # fleet car display labels
-      fleet-car-status-badge.tsx  # shared fleet badge chrome; status and review tones
+      fleet-car-status-badge.tsx  # fleet status/review labels on shared StatusBadge
       fleet-cars-url.ts           # filter, sort, and pagination URL contract
       fleet-cars-filter.tsx       # desktop popover / mobile sheet filter content
       fleet-cars-table-features.ts
@@ -275,7 +275,7 @@ app/
       admin-addon-rates-page.tsx   # responsive add-on create/history/end UI
     staff/
       staff-form-schema.ts         # add-staff web form contract
-      staff-url.ts                 # status and pagination query contract
+      staff-url.ts                 # status, pagination, and add-dialog query contract
       admin-staff-page.tsx         # admin-only staff lifecycle management
 
   seo/
@@ -315,6 +315,7 @@ app/
     use-review-edit-window.ts     # customer review edit-deadline timer
 
   components/
+    status-badge.tsx          # shared outline/ring status chrome + tones
     ui/                       # shadcn primitives; do not hand-edit
     forms/
       form-primitives.tsx     # neutral field errors and invalid state
