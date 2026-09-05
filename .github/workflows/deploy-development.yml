@@ -1,0 +1,83 @@
+name: Deploy Development
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-development
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy development Worker
+    if: github.event_name != 'workflow_dispatch' || github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: development
+      url: https://hyre-web-development.tripdly.workers.dev
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+        with:
+          version: 10.20.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify
+        run: |
+          pnpm lint
+          pnpm typecheck
+          pnpm test
+
+      - name: Build
+        env:
+          CLOUDFLARE_ENV: development
+        run: |
+          pnpm build
+          pnpm check:bundle
+
+      - name: Prepare deployment metadata
+        id: metadata
+        env:
+          DEPLOYMENT_COMMIT: ${{ github.sha }}
+        run: |
+          echo "commit=${DEPLOYMENT_COMMIT}" >> "$GITHUB_OUTPUT"
+          echo "version=dev-${DEPLOYMENT_COMMIT:0:7}" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ENV: development
+        run: |
+          pnpm exec wrangler deploy \
+            --var "DEPLOYMENT_COMMIT:${{ steps.metadata.outputs.commit }}" \
+            --var "DEPLOYMENT_VERSION:${{ steps.metadata.outputs.version }}"
+
+      - name: Verify deployment
+        env:
+          EXPECTED_DEPLOYMENT_COMMIT: ${{ steps.metadata.outputs.commit }}
+          EXPECTED_DEPLOYMENT_VERSION: ${{ steps.metadata.outputs.version }}
+        run: |
+          node scripts/smoke-preview.mjs \
+            https://hyre-web-development.tripdly.workers.dev \
+            https://hyre-worker-nestjs.fly.dev \
+            development

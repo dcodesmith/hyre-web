@@ -2,6 +2,8 @@ import { HTTP_STATUS } from "~/api/http-status";
 
 const REQUEST_ID_HEADER = "x-request-id";
 const SAFE_REQUEST_ID = /^[A-Za-z0-9._:-]{8,128}$/;
+const SAFE_DEPLOYMENT_VERSION = /^[A-Za-z0-9._:-]{1,128}$/;
+const SAFE_DEPLOYMENT_COMMIT = /^(?:local|[0-9a-f]{40})$/i;
 
 const MUTATION_METHODS = new Set(["DELETE", "PATCH", "POST", "PUT"]);
 export const PRIVATE_PATH_PREFIXES = [
@@ -32,7 +34,7 @@ const CONTENT_SECURITY_POLICY = [
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
 ].join("; ");
 
-export type DeploymentEnvironment = "local" | "preview" | "production";
+export type DeploymentEnvironment = "development" | "local" | "preview" | "production";
 
 export type PreparedRequest = {
   request: Request;
@@ -77,6 +79,8 @@ export function applyResponsePolicy(
   request: Request,
   response: Response,
   options: {
+    deploymentCommit?: string;
+    deploymentVersion?: string;
     environment: DeploymentEnvironment;
     requestId: string;
     durationMs?: number;
@@ -86,6 +90,8 @@ export function applyResponsePolicy(
   const url = new URL(request.url);
   const pathname = normalizeDataPathname(url.pathname);
   const isProduction = options.environment === "production";
+  const isDeployedNonProduction =
+    options.environment === "development" || options.environment === "preview";
   const isPrivatePath = PRIVATE_PATH_PREFIXES.some(
     (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
   );
@@ -102,6 +108,12 @@ export function applyResponsePolicy(
     isDataRequest;
 
   headers.set(REQUEST_ID_HEADER, options.requestId);
+  if (options.deploymentVersion && SAFE_DEPLOYMENT_VERSION.test(options.deploymentVersion)) {
+    headers.set("X-App-Version", options.deploymentVersion);
+  }
+  if (options.deploymentCommit && SAFE_DEPLOYMENT_COMMIT.test(options.deploymentCommit)) {
+    headers.set("X-Commit-SHA", options.deploymentCommit);
+  }
   headers.set("Content-Security-Policy", CONTENT_SECURITY_POLICY);
   headers.set("Cross-Origin-Opener-Policy", "same-origin");
   headers.set("Cross-Origin-Resource-Policy", "same-origin");
@@ -126,8 +138,8 @@ export function applyResponsePolicy(
 
   if (hasSensitiveState) {
     headers.set("Cache-Control", "private, no-store");
-  } else if (options.environment === "preview") {
-    // Preview HTML must stay uncached so PR deploys are immediately visible.
+  } else if (isDeployedNonProduction) {
+    // Non-production HTML must stay uncached so deployments are immediately visible.
     headers.set("Cache-Control", "no-store");
   } else if (!headers.has("cache-control")) {
     // Public caching is opt-in per route once its complete cache key is known.

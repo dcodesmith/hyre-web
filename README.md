@@ -37,18 +37,16 @@ pnpm preview
 Husky runs `biome check --staged` before each commit. It rejects the commit if
 staged files fail lint or format; it does not rewrite or restage files. Run
 `pnpm lint:fix` to apply fixes, then restage. CI also runs `pnpm lint`, a
-dedicated typecheck workflow, tests, and Snyk (high severity and above).
-Dependabot updates npm weekly and GitHub Actions monthly.
+dedicated typecheck workflow, tests, and `pnpm audit` at the high-severity
+threshold. The Snyk GitHub App reports separately. Dependabot updates npm
+weekly and GitHub Actions monthly.
 
 ## Deployment
 
-Deployments use Wrangler. Preview and production bindings must be configured
-separately and must never point an untrusted preview at production mutation
-endpoints.
-
-```sh
-pnpm deploy
-```
+Deployments use Wrangler environments. Pull requests upload preview versions,
+`main` deploys the long-lived development Worker, and production is promoted
+manually through an approval-gated GitHub workflow. Merging to `main` does not
+deploy production.
 
 Pull requests from this repository upload a non-production Worker version and
 run smoke checks against its aliased preview URL. Configure a protected GitHub
@@ -59,3 +57,6 @@ run smoke checks against its aliased preview URL. Configure a protected GitHub
 
 The staging API origin must be isolated from production mutation data. The
 Worker must be deployed once before Wrangler can upload preview versions.
+
+See [docs/environments.md](docs/environments.md) for environment mappings,
+one-time setup, and the production release procedure.

@@ -7,7 +7,7 @@
     "build": "react-router build",
     "check:bundle": "node scripts/check-worker-bundle.mjs",
     "dev": "react-router dev",
-    "deploy": "CLOUDFLARE_ENV=production pnpm run build && pnpm run check:bundle && wrangler deploy",
+    "deploy": "CLOUDFLARE_ENV=development pnpm run build && pnpm run check:bundle && CLOUDFLARE_ENV=development wrangler deploy",
     "preview": "pnpm run build && vite preview",
     "smoke:preview": "node scripts/smoke-preview.mjs",
     "cf-typegen": "wrangler types --env production",
@@ -61,7 +61,9 @@
   },
   "pnpm": {
     "overrides": {
-      "fast-uri": "3.1.6"
+      "fast-uri": "3.1.7",
+      "hono": "4.13.5",
+      "js-yaml": "4.3.2"
     }
   }
 }

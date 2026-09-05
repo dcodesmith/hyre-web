@@ -1,9 +1,22 @@
 const assetPathPattern = /(?:href|src)="(\/assets\/[A-Za-z0-9._-]+-[A-Za-z0-9_-]{8}\.(?:css|js))"/;
 const previewUrl = process.argv[2];
 const apiUrl = process.argv[3];
+const environment = process.argv[4] ?? "preview";
+const expectedDeploymentCommit = process.env.EXPECTED_DEPLOYMENT_COMMIT;
+const expectedDeploymentVersion = process.env.EXPECTED_DEPLOYMENT_VERSION;
 
-if (!previewUrl || !apiUrl) {
-  throw new Error("Usage: node scripts/smoke-preview.mjs <preview-url> <api-origin>");
+if (!previewUrl || !apiUrl || !["development", "preview", "production"].includes(environment)) {
+  throw new Error(
+    "Usage: node scripts/smoke-preview.mjs <deployment-url> <api-origin> [development|preview|production]",
+  );
+}
+
+if (!expectedDeploymentVersion || !/^[A-Za-z0-9._:-]{1,128}$/.test(expectedDeploymentVersion)) {
+  throw new Error("EXPECTED_DEPLOYMENT_VERSION must be a safe, non-empty version");
+}
+
+if (!expectedDeploymentCommit || !/^[0-9a-f]{40}$/i.test(expectedDeploymentCommit)) {
+  throw new Error("EXPECTED_DEPLOYMENT_COMMIT must be a full git SHA");
 }
 
 const origin = new URL(previewUrl);
@@ -28,9 +41,13 @@ const requestId = `smoke-${Date.now()}`;
 const healthRequestId = `${requestId}-health`;
 const rejectedMutationRequestId = `${requestId}-cross-origin`;
 const [response, healthResponse, rejectedMutationResponse] = await Promise.all([
-  fetchWithRetry(origin, {
-    headers: { "x-request-id": requestId },
-  }),
+  fetchWithRetry(
+    origin,
+    {
+      headers: { "x-request-id": requestId },
+    },
+    hasExpectedDeploymentMetadata,
+  ),
   fetchWithRetry(new URL("/health", apiOrigin), {
     headers: { "x-request-id": healthRequestId },
   }),
@@ -55,9 +72,17 @@ assert(
 assert(
   !html.includes("Vehicles are temporarily unavailable") &&
     (html.includes("All vehicles") || html.includes("No vehicles available right now")),
-  "Home response does not contain the expected Nest category data",
+  "Home response does not contain the expected API category data",
 );
 assert(response.headers.get("x-request-id") === requestId, "Request ID was not propagated");
+assert(
+  response.headers.get("x-app-version") === expectedDeploymentVersion,
+  `Expected X-App-Version ${expectedDeploymentVersion}, received ${response.headers.get("x-app-version")}`,
+);
+assert(
+  response.headers.get("x-commit-sha") === expectedDeploymentCommit,
+  `Expected X-Commit-SHA ${expectedDeploymentCommit}, received ${response.headers.get("x-commit-sha")}`,
+);
 assert(
   response.headers.get("content-security-policy")?.includes("default-src 'self'"),
   "Content-Security-Policy header is missing",
@@ -70,22 +95,29 @@ assert(
   response.headers.get("strict-transport-security")?.includes("max-age=31536000"),
   "Strict-Transport-Security header is missing",
 );
-assert(
-  response.headers.get("x-robots-tag")?.includes("noindex"),
-  "Preview response is not marked noindex",
-);
-assert(response.headers.get("cache-control") === "no-store", "Preview home must not be cached");
+if (environment === "production") {
+  assert(!response.headers.has("x-robots-tag"), "Production home must remain indexable");
+} else {
+  assert(
+    response.headers.get("x-robots-tag")?.includes("noindex"),
+    "Non-production response is not marked noindex",
+  );
+  assert(
+    response.headers.get("cache-control") === "no-store",
+    "Non-production home must not be cached",
+  );
+}
 assert(response.headers.has("server-timing"), "Server timing header is missing");
 
 assert(
   healthResponse.status === 200,
-  `Expected Nest health status 200, received ${healthResponse.status}`,
+  `Expected API health status 200, received ${healthResponse.status}`,
 );
 const health = await healthResponse.json();
-assert(health?.status === "ok", "Nest health response is not healthy");
+assert(health?.status === "ok", "API health response is not healthy");
 assert(
   healthResponse.headers.get("x-request-id") === healthRequestId,
-  "Nest health request ID was not propagated",
+  "API health request ID was not propagated",
 );
 
 assert(
@@ -122,7 +154,7 @@ assert(
   "Static asset security headers are missing",
 );
 
-console.log(`Preview smoke checks passed: ${origin.origin}`);
+console.log(`${environment} smoke checks passed: ${origin.origin}`);
 
 function hasImmutableAssetHeaders(response) {
   const cacheControl = response.headers.get("cache-control") ?? "";
@@ -132,6 +164,14 @@ function hasImmutableAssetHeaders(response) {
     cacheControl.includes("public") &&
     cacheControl.includes("max-age=31536000") &&
     cacheControl.includes("immutable")
+  );
+}
+
+function hasExpectedDeploymentMetadata(response) {
+  return (
+    response.status === 200 &&
+    response.headers.get("x-app-version") === expectedDeploymentVersion &&
+    response.headers.get("x-commit-sha") === expectedDeploymentCommit
   );
 }
 

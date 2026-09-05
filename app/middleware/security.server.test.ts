@@ -82,6 +82,8 @@ describe("applyResponsePolicy", () => {
         headers: { "content-type": "text/html" },
       }),
       {
+        deploymentCommit: "a".repeat(40),
+        deploymentVersion: "pr-57-aaaaaaa",
         environment: "preview",
         requestId: "request-123",
         durationMs: 12.34,
@@ -89,6 +91,8 @@ describe("applyResponsePolicy", () => {
     );
 
     expect(response.headers.get("x-request-id")).toBe("request-123");
+    expect(response.headers.get("x-app-version")).toBe("pr-57-aaaaaaa");
+    expect(response.headers.get("x-commit-sha")).toBe("a".repeat(40));
     expect(response.headers.get("content-security-policy")).toContain("default-src 'self'");
     expect(response.headers.get("content-security-policy")).toContain(
       "img-src 'self' data: blob: https://*.s3.eu-west-1.amazonaws.com https://*.s3.eu-west-2.amazonaws.com",
@@ -100,6 +104,22 @@ describe("applyResponsePolicy", () => {
     expect(response.headers.get("server-timing")).toBe("app;dur=12.3");
   });
 
+  it("omits unsafe deployment metadata headers", () => {
+    const response = applyResponsePolicy(
+      new Request("https://preview.example/"),
+      new Response("<html></html>"),
+      {
+        deploymentCommit: "not-a-commit",
+        deploymentVersion: "unsafe\nversion",
+        environment: "preview",
+        requestId: "request-123",
+      },
+    );
+
+    expect(response.headers.get("x-app-version")).toBeNull();
+    expect(response.headers.get("x-commit-sha")).toBeNull();
+  });
+
   it("overrides public cache headers on preview", () => {
     const response = applyResponsePolicy(
       new Request("https://preview.example/"),
@@ -108,6 +128,22 @@ describe("applyResponsePolicy", () => {
       }),
       {
         environment: "preview",
+        requestId: "request-123",
+      },
+    );
+
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(response.headers.get("x-robots-tag")).toBe("noindex, nofollow, noarchive");
+  });
+
+  it("prevents caching and indexing the development deployment", () => {
+    const response = applyResponsePolicy(
+      new Request("https://development.example/"),
+      new Response("<html></html>", {
+        headers: { "cache-control": "public, max-age=300" },
+      }),
+      {
+        environment: "development",
         requestId: "request-123",
       },
     );
