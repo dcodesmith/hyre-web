@@ -91,6 +91,9 @@ app/
       rates/
         rates.server.ts           # admin rate read/create + add-on end mutations
         schema.ts                 # fee, VAT, and add-on rate transport DTOs
+      staff/
+        staff.server.ts           # admin staff list/create/revoke/reinstate
+        schema.ts                 # staff transport DTOs
     bookings/
       bookings.server.ts          # signed-in reads/mutations + guest access + receipt stream
       schema.ts                   # booking, pricing, extension, and redacted guest DTOs
@@ -270,6 +273,10 @@ app/
       rate-window-fields.tsx       # shared UTC effective-window fields
       admin-fees-page.tsx          # responsive platform fee + VAT management
       admin-addon-rates-page.tsx   # responsive add-on create/history/end UI
+    staff/
+      staff-form-schema.ts         # add-staff web form contract
+      staff-url.ts                 # status and pagination query contract
+      admin-staff-page.tsx         # admin-only staff lifecycle management
 
   seo/
     metadata.ts
@@ -346,6 +353,7 @@ app/
     admin.documents.$documentId.ts # same-origin private PDF stream
     admin.fees.tsx                # admin-only platform fee + VAT rate actions
     admin.addon-rates.tsx         # admin-only add-on create/end actions
+    admin.staff.tsx               # admin-only add staff action
     bookings.tsx                  # signed-in list; guests → /auth?redirectTo=
     bookings.lookup.tsx           # guest email/reference request → generic accepted response
     bookings.guest.ts             # token exchange → encrypted cookie → clean detail URL

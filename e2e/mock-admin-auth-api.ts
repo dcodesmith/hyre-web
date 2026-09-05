@@ -10,6 +10,8 @@ export const MOCK_ADMIN_DOCUMENT_ID = "cm32345678901234567890123";
 export const MOCK_ADDON_RATE_ID = "cm42345678901234567890123";
 export const MOCK_ADMIN_REFUND_ID = "cm92345678901234567890123";
 export const MOCK_ADMIN_PAYOUT_ID = "cma2345678901234567890123";
+export const MOCK_ADMIN_STAFF_ID = "cmb2345678901234567890123";
+export const MOCK_REVOKED_STAFF_ID = "cmc2345678901234567890123";
 
 type CapturedRequest = {
   body: unknown;
@@ -31,6 +33,8 @@ export type MockAdminAuthApi = {
     financialActions: CapturedCarAction[];
     financialListQueries: string[];
     rateActions: CapturedCarAction[];
+    staffActions: CapturedCarAction[];
+    staffListQuery?: string;
     sendOtp?: CapturedRequest;
     signOut?: CapturedRequest;
     verifyOtp?: CapturedRequest;
@@ -608,6 +612,127 @@ async function handleAdminFinancialRequest(
   return false;
 }
 
+const mockAdminStaff = {
+  id: MOCK_ADMIN_STAFF_ID,
+  name: "Grace Hopper",
+  email: "grace@example.com",
+  phoneNumber: "08012345678",
+  createdAt: "2026-08-31T10:00:00.000Z",
+  status: "active" as const,
+  revokedAt: null,
+};
+
+const mockRevokedStaff = {
+  id: MOCK_REVOKED_STAFF_ID,
+  name: "Alan Turing",
+  email: "alan@example.com",
+  phoneNumber: "08087654321",
+  createdAt: "2026-07-01T10:00:00.000Z",
+  status: "revoked" as const,
+  revokedAt: "2026-08-15T10:00:00.000Z",
+};
+
+type MockAdminStaff = Omit<typeof mockAdminStaff, "status" | "revokedAt"> & {
+  status: "active" | "revoked";
+  revokedAt: string | null;
+};
+
+const STAFF_ACCESS_PATH = /^\/api\/admin\/staff\/([^/]+)\/(revoke|reinstate)$/;
+
+function writeAdminStaffList(
+  response: import("node:http").ServerResponse,
+  url: URL,
+  staff: MockAdminStaff[],
+) {
+  const status = url.searchParams.get("status");
+  const page = Number(url.searchParams.get("page") ?? 1);
+  const limit = Number(url.searchParams.get("limit") ?? 20);
+  const filtered = status ? staff.filter((member) => member.status === status) : staff;
+  writeJson(response, 200, {
+    staff: filtered.slice((page - 1) * limit, page * limit),
+    meta: { page, limit, total: filtered.length, totalPages: Math.ceil(filtered.length / limit) },
+  });
+}
+
+function writeAdminStaffAccess(
+  response: import("node:http").ServerResponse,
+  accessPath: RegExpExecArray,
+  staff: MockAdminStaff[],
+) {
+  const [, staffId, action] = accessPath;
+  const member = staff.find(({ id }) => id === staffId);
+  if (!member) {
+    writeJson(response, 404, { status: 404, detail: "Staff member not found" });
+    return;
+  }
+
+  member.status = action === "revoke" ? "revoked" : "active";
+  member.revokedAt = action === "revoke" ? "2026-09-01T10:00:00.000Z" : null;
+  writeJson(response, 201, member);
+}
+
+function writeCreatedAdminStaff(
+  response: import("node:http").ServerResponse,
+  staff: MockAdminStaff[],
+  body: unknown,
+) {
+  const record = typeof body === "object" && body !== null ? (body as Record<string, unknown>) : {};
+  const created = {
+    id: "cm52345678901234567890123",
+    name: typeof record.name === "string" ? record.name : "Ada Lovelace",
+    email: typeof record.email === "string" ? record.email : "ada@example.com",
+    phoneNumber: typeof record.phoneNumber === "string" ? record.phoneNumber : "08012345678",
+    createdAt: "2026-08-31T10:00:00.000Z",
+  };
+  staff.unshift({ ...created, status: "active", revokedAt: null });
+  writeJson(response, 201, created);
+}
+
+async function handleAdminStaffRequest(
+  request: IncomingMessage,
+  response: import("node:http").ServerResponse,
+  url: URL,
+  requests: MockAdminAuthApi["requests"],
+  sessionRole: PortalRole,
+  staff: MockAdminStaff[],
+) {
+  const path = url.pathname;
+  const accessPath = STAFF_ACCESS_PATH.exec(path);
+  if (path !== "/api/admin/staff" && !accessPath) {
+    return false;
+  }
+
+  if (!hasAdminSession(request)) {
+    writeJson(response, 401, { status: 401, detail: "Unauthorized" });
+    return true;
+  }
+  if (sessionRole !== "admin") {
+    writeJson(response, 403, { status: 403, detail: "Forbidden" });
+    return true;
+  }
+
+  if (request.method === "GET" && path === "/api/admin/staff") {
+    requests.staffListQuery = url.search;
+    writeAdminStaffList(response, url, staff);
+    return true;
+  }
+
+  if (request.method === "POST" && accessPath) {
+    requests.staffActions.push({ body: null, method: request.method, path });
+    writeAdminStaffAccess(response, accessPath, staff);
+    return true;
+  }
+
+  if (request.method !== "POST" || path !== "/api/admin/staff") {
+    return false;
+  }
+
+  const body = await readJson(request);
+  requests.staffActions.push({ body, method: request.method, path });
+  writeCreatedAdminStaff(response, staff, body);
+  return true;
+}
+
 export function startMockAdminAuthApi(
   port = 3100,
   refundProviderId: string | null = mockAdminRefund.refundProviderId,
@@ -617,8 +742,10 @@ export function startMockAdminAuthApi(
     financialActions: [],
     financialListQueries: [],
     rateActions: [],
+    staffActions: [],
   };
   const rates = structuredClone(mockAdminRates);
+  const staff = structuredClone<MockAdminStaff[]>([mockAdminStaff, mockRevokedStaff]);
   const financials: MockAdminFinancials = {
     refund: { ...structuredClone(mockAdminRefund), refundProviderId },
     payout: structuredClone(mockAdminPayout),
@@ -630,15 +757,19 @@ export function startMockAdminAuthApi(
     const url = new URL(request.url ?? "/", "http://127.0.0.1");
     const path = url.pathname;
 
-    if (await handleAdminCarRequest(request, response, url, requests)) {
-      return;
-    }
-    if (await handleAdminRateRequest(request, response, url, requests, sessionRole, rates)) {
-      return;
-    }
-    if (
-      await handleAdminFinancialRequest(request, response, url, requests, sessionRole, financials)
-    ) {
+    const handledAdminRequest =
+      (await handleAdminCarRequest(request, response, url, requests)) ||
+      (await handleAdminRateRequest(request, response, url, requests, sessionRole, rates)) ||
+      (await handleAdminFinancialRequest(
+        request,
+        response,
+        url,
+        requests,
+        sessionRole,
+        financials,
+      )) ||
+      (await handleAdminStaffRequest(request, response, url, requests, sessionRole, staff));
+    if (handledAdminRequest) {
       return;
     }
 
