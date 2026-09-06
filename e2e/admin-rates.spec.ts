@@ -120,14 +120,31 @@ test("shows API overlap conflicts without replacing the message", async ({ conte
   try {
     await addAdminSession(context);
     await page.goto("/admin/fees");
+    await expect(
+      page.getByRole("heading", { name: "Fees and VAT", exact: true }).last(),
+    ).toBeVisible();
 
     const vatForm = page.getByRole("form", { name: "Schedule VAT rate" });
     await vatForm.getByLabel("Rate percentage").fill("8");
     await vatForm.getByLabel("Effective from").fill("2026-09-01T09:00");
     await vatForm.getByLabel("Effective until (optional)").fill("2026-10-01T09:00");
     await vatForm.getByLabel("Description (optional)").fill("Trigger overlap");
-    await vatForm.getByRole("button", { name: "Save VAT rate" }).click();
+    const saveButton = vatForm.getByRole("button", { name: "Save VAT rate" });
+    await saveButton.scrollIntoViewIfNeeded();
+    await saveButton.click();
 
+    await expect
+      .poll(() => api.requests.rateActions[0])
+      .toEqual({
+        body: {
+          ratePercent: 8,
+          effectiveSince: "2026-09-01T09:00:00.000Z",
+          effectiveUntil: "2026-10-01T09:00:00.000Z",
+          description: "Trigger overlap",
+        },
+        method: "POST",
+        path: "/api/rates/vat",
+      });
     await expect(
       page.getByText("The VAT rate overlaps an existing effective window."),
     ).toBeVisible();

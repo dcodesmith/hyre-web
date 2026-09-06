@@ -113,11 +113,12 @@ function ActionFeedback({
   );
 }
 
-function VatRateForm() {
+function VatRateForm({ actionData }: { readonly actionData?: RateActionData }) {
   const fetcher = useFetcher<RateActionData>();
+  const result = fetcher.data ?? (actionData?.intent === "vat" ? actionData : undefined);
   const [form, fields] = useForm({
     id: "vat-rate-form",
-    lastResult: fetcher.data?.intent === "vat" ? fetcher.data.submission : undefined,
+    lastResult: result?.submission,
     constraint: getZodConstraint(vatRateFormSchema),
     shouldValidate: "onSubmit",
     shouldRevalidate: "onInput",
@@ -146,7 +147,7 @@ function VatRateForm() {
           </FieldError>
         </Field>
         <RateWindowFields fields={fields} />
-        <ActionFeedback data={fetcher.data} intent="vat" />
+        <ActionFeedback data={result} intent="vat" />
         <Button type="submit" disabled={fetcher.state !== "idle"}>
           {fetcher.state === "idle" ? "Save VAT rate" : "Saving…"}
         </Button>
@@ -155,11 +156,12 @@ function VatRateForm() {
   );
 }
 
-function PlatformFeeForm() {
+function PlatformFeeForm({ actionData }: { readonly actionData?: RateActionData }) {
   const fetcher = useFetcher<RateActionData>();
+  const result = fetcher.data ?? (actionData?.intent === "platform-fee" ? actionData : undefined);
   const [form, fields] = useForm({
     id: "platform-fee-form",
-    lastResult: fetcher.data?.intent === "platform-fee" ? fetcher.data.submission : undefined,
+    lastResult: result?.submission,
     constraint: getZodConstraint(platformFeeFormSchema),
     shouldValidate: "onSubmit",
     shouldRevalidate: "onInput",
@@ -213,7 +215,7 @@ function PlatformFeeForm() {
           </FieldError>
         </Field>
         <RateWindowFields fields={fields} />
-        <ActionFeedback data={fetcher.data} intent="platform-fee" />
+        <ActionFeedback data={result} intent="platform-fee" />
         <Button type="submit" disabled={fetcher.state !== "idle"}>
           {fetcher.state === "idle" ? "Save platform fee" : "Saving…"}
         </Button>
@@ -223,9 +225,11 @@ function PlatformFeeForm() {
 }
 
 export function AdminFeesPage({
+  actionData,
   platformFeeRates,
   taxRates,
 }: {
+  readonly actionData?: RateActionData;
   readonly platformFeeRates: PlatformFeeRate[];
   readonly taxRates: VatRate[];
 }) {
@@ -262,7 +266,7 @@ export function AdminFeesPage({
               <CurrentRate label="Current VAT rate" rate={currentVat} />
             </dl>
             <RateHistory rates={taxRates} />
-            <VatRateForm />
+            <VatRateForm actionData={actionData} />
           </CardContent>
           <CardFooter className="text-xs text-muted-foreground">
             Percentage values must be between 0 and 100.
@@ -282,7 +286,7 @@ export function AdminFeesPage({
               <CurrentRate label="Fleet owner commission" rate={currentCommission} />
             </dl>
             <RateHistory rates={platformFeeRates} />
-            <PlatformFeeForm />
+            <PlatformFeeForm actionData={actionData} />
           </CardContent>
           <CardFooter className="text-xs text-muted-foreground">
             New windows cannot overlap an existing rate of the same type.
