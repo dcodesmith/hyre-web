@@ -1,7 +1,14 @@
+import { useSearchParams } from "react-router";
+
 import type { BookingPricingPreview } from "~/api/bookings/schema";
 import type { PublicCarDetail } from "~/api/cars/schema";
+import type { PublicRates } from "~/api/rates/schema";
 import type { CarReviewsResponse } from "~/api/reviews/schema";
+import { bookingPricingSelectionKey } from "~/booking/booking-estimate";
+import { hasCompleteBookingDates } from "~/booking/dates";
 import { CarDetailPage } from "~/car/car-detail-page";
+import { parseCarDetailUrl } from "~/car/car-url";
+import { parseZonedCalendarDate } from "~/time/timezone";
 
 const recentListingCreatedAt = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString();
 
@@ -106,8 +113,35 @@ const fixturePricing = {
   savingsAmount: 0,
 } satisfies BookingPricingPreview;
 
+const fixtureRates = {
+  platformCustomerServiceFeeRatePercent: 5,
+  vatRatePercent: 7.5,
+  securityDetailRate: 15_000,
+} satisfies PublicRates;
+
 export default function CarFixture() {
+  const [searchParams] = useSearchParams();
+  const query = parseCarDetailUrl(searchParams);
+  const from = query.search.from ? parseZonedCalendarDate(query.search.from) : undefined;
+  const to = query.search.to ? parseZonedCalendarDate(query.search.to) : undefined;
+  const hasCompleteDates = hasCompleteBookingDates(query.bookingType, from, to);
+
   return (
-    <CarDetailPage car={fixtureCar} reviews={fixtureReviews} currentPricing={fixturePricing} />
+    <CarDetailPage
+      car={fixtureCar}
+      reviews={fixtureReviews}
+      rates={fixtureRates}
+      currentPricing={hasCompleteDates ? fixturePricing : undefined}
+      currentPricingSelectionKey={
+        hasCompleteDates
+          ? bookingPricingSelectionKey({
+              bookingType: query.bookingType,
+              from: query.search.from ?? "",
+              to: query.search.to ?? "",
+              pickupTime: query.search.pickupTime ?? "",
+            })
+          : undefined
+      }
+    />
   );
 }

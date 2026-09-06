@@ -40,6 +40,14 @@ interface SearchFormFieldsProps extends SearchFormProps {
   readonly initialFlightNumber: string;
 }
 
+type SearchFormState = {
+  readonly bookingType: BookingType;
+  readonly fromDate: Date | undefined;
+  readonly toDate: Date | undefined;
+  readonly pickupTime: string | undefined;
+  readonly flightNumber: string;
+};
+
 function SearchFormFields({
   isCompact = false,
   context = "hero",
@@ -54,13 +62,16 @@ function SearchFormFields({
   const [searchParams] = useSearchParams();
   const { pathname } = useLocation();
   const navigate = useNavigate();
-  const [bookingType, setBookingType] = useState<BookingType>(initialBookingType);
-  const [fromDate, setFromDate] = useState<Date | undefined>(initialFromDate);
-  const [toDate, setToDate] = useState<Date | undefined>(initialToDate);
-  const [pickupTime, setPickupTime] = useState<string | undefined>(initialPickupTime);
-  const [flightNumber, setFlightNumber] = useState(initialFlightNumber);
+  const [state, setState] = useState<SearchFormState>(() => ({
+    bookingType: initialBookingType,
+    fromDate: initialFromDate,
+    toDate: initialToDate,
+    pickupTime: initialPickupTime,
+    flightNumber: initialFlightNumber,
+  }));
   const [fallbackDate] = useState(() => new Date());
   const airportPickup = useAirportPickup();
+  const { bookingType, flightNumber, fromDate, pickupTime, toDate } = state;
   const isAirportPickup = bookingType === AIRPORT_PICKUP_BOOKING_TYPE;
   const isNight = bookingType === NIGHT_BOOKING_TYPE;
 
@@ -74,11 +85,13 @@ function SearchFormFields({
   };
 
   const handleBookingTypeChange = (nextBookingType: BookingType) => {
-    setBookingType(nextBookingType);
-    setFromDate(undefined);
-    setToDate(undefined);
-    setPickupTime(undefined);
-    setFlightNumber("");
+    setState({
+      bookingType: nextBookingType,
+      fromDate: undefined,
+      toDate: undefined,
+      pickupTime: undefined,
+      flightNumber: "",
+    });
     airportPickup.resetFlight();
 
     if (pathname === "/search") {
@@ -90,26 +103,27 @@ function SearchFormFields({
   };
 
   const handleFromDateChange = (date: Date | undefined) => {
-    setFromDate(date);
-    setToDate(nextToDateOnFromChange(bookingType, date, toDate));
-    setPickupTime(
-      nextPickupTimeOnFromChange({
-        bookingType,
+    setState((current) => ({
+      ...current,
+      fromDate: date,
+      toDate: nextToDateOnFromChange(current.bookingType, date, current.toDate),
+      pickupTime: nextPickupTimeOnFromChange({
+        bookingType: current.bookingType,
         fromDate: date,
-        currentPickupTime: pickupTime,
+        currentPickupTime: current.pickupTime,
         fallbackDate,
       }),
-    );
+    }));
     lookupFlight(flightNumber, date);
   };
 
   const handleFlightNumberChange = (value: string) => {
-    setFlightNumber(value);
+    setState((current) => ({ ...current, flightNumber: value }));
     airportPickup.resetFlight();
   };
 
   const handleFlightNumberBlur = (value: string) => {
-    setFlightNumber(value);
+    setState((current) => ({ ...current, flightNumber: value }));
     lookupFlight(value, fromDate);
   };
 
@@ -118,7 +132,7 @@ function SearchFormFields({
       return;
     }
 
-    setToDate(date);
+    setState((current) => ({ ...current, toDate: date }));
   };
 
   return (
@@ -193,7 +207,9 @@ function SearchFormFields({
                 fallbackDate={fallbackDate}
                 onFromDateChange={handleFromDateChange}
                 onToDateChange={handleToDateChange}
-                onPickupTimeChange={setPickupTime}
+                onPickupTimeChange={(value) =>
+                  setState((current) => ({ ...current, pickupTime: value }))
+                }
               />
             )}
             <div

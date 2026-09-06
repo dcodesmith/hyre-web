@@ -31,6 +31,14 @@ export type BookingModifyActionData = {
   revalidate?: false;
 };
 
+type BookingModifyState = {
+  readonly dialogOpen: boolean;
+  readonly pickupTime: string;
+  readonly pickupAddress: string;
+  readonly sameLocation: boolean;
+  readonly dropOffAddress: string;
+};
+
 const pickupTimeFormatter = new Intl.DateTimeFormat("en-US", {
   timeZone: SERVICE_TIMEZONE,
   hour: "numeric",
@@ -188,25 +196,22 @@ export function BookingModifyCard({
   >;
 }) {
   const fetcher = useFetcher<BookingModifyActionData>();
-  const [dialogOpen, setDialogOpen] = useState(false);
   const initialPickupTime =
     normalizePickupTime(formatDate(pickupTimeFormatter, booking.startDate)) ?? "";
-  const [pickupTime, setPickupTime] = useState(
-    () => normalizePickupTime(formatDate(pickupTimeFormatter, booking.startDate)) ?? "",
-  );
-  const [pickupAddress, setPickupAddress] = useState(booking.pickupLocation);
-  const [sameLocation, setSameLocation] = useState(
-    booking.pickupLocation === booking.returnLocation,
-  );
-  const [dropOffAddress, setDropOffAddress] = useState(
-    booking.pickupLocation === booking.returnLocation ? "" : booking.returnLocation,
-  );
+  const locationsMatch = booking.pickupLocation === booking.returnLocation;
+  const [state, setState] = useState<BookingModifyState>(() => ({
+    dialogOpen: false,
+    pickupTime: initialPickupTime,
+    pickupAddress: booking.pickupLocation,
+    sameLocation: locationsMatch,
+    dropOffAddress: locationsMatch ? "" : booking.returnLocation,
+  }));
   const isSaving = fetcher.state !== "idle";
   const actionData = fetcher.state === "idle" ? fetcher.data : undefined;
   const hasEditablePickupTime =
     booking.type === DAY_BOOKING_TYPE || booking.type === FULL_DAY_BOOKING_TYPE;
   const cutoff = formatDate(cutoffFormatter, booking.modificationCutoffAt);
-  const showDialog = dialogOpen && actionData?.ok !== true;
+  const showDialog = state.dialogOpen && actionData?.ok !== true;
   const errors = actionData?.fieldErrors;
 
   function openDialog() {
@@ -214,13 +219,14 @@ export function BookingModifyCard({
       return;
     }
 
-    const locationsMatch = booking.pickupLocation === booking.returnLocation;
     fetcher.reset();
-    setPickupTime(initialPickupTime);
-    setPickupAddress(booking.pickupLocation);
-    setSameLocation(locationsMatch);
-    setDropOffAddress(locationsMatch ? "" : booking.returnLocation);
-    setDialogOpen(true);
+    setState({
+      dialogOpen: true,
+      pickupTime: initialPickupTime,
+      pickupAddress: booking.pickupLocation,
+      sameLocation: locationsMatch,
+      dropOffAddress: locationsMatch ? "" : booking.returnLocation,
+    });
   }
 
   return (
@@ -250,7 +256,7 @@ export function BookingModifyCard({
         open={showDialog}
         onOpenChange={(nextOpen) => {
           if (!isSaving) {
-            setDialogOpen(nextOpen);
+            setState((current) => ({ ...current, dialogOpen: nextOpen }));
           }
         }}
       >
@@ -281,14 +287,20 @@ export function BookingModifyCard({
               booking={booking}
               hasEditablePickupTime={hasEditablePickupTime}
               initialPickupTime={initialPickupTime}
-              pickupTime={pickupTime}
-              setPickupTime={setPickupTime}
-              pickupAddress={pickupAddress}
-              setPickupAddress={setPickupAddress}
-              sameLocation={sameLocation}
-              setSameLocation={setSameLocation}
-              dropOffAddress={dropOffAddress}
-              setDropOffAddress={setDropOffAddress}
+              pickupTime={state.pickupTime}
+              setPickupTime={(pickupTime) => setState((current) => ({ ...current, pickupTime }))}
+              pickupAddress={state.pickupAddress}
+              setPickupAddress={(pickupAddress) =>
+                setState((current) => ({ ...current, pickupAddress }))
+              }
+              sameLocation={state.sameLocation}
+              setSameLocation={(sameLocation) =>
+                setState((current) => ({ ...current, sameLocation }))
+              }
+              dropOffAddress={state.dropOffAddress}
+              setDropOffAddress={(dropOffAddress) =>
+                setState((current) => ({ ...current, dropOffAddress }))
+              }
               errors={errors}
             />
 
@@ -297,7 +309,7 @@ export function BookingModifyCard({
                 type="button"
                 variant="outline"
                 disabled={isSaving}
-                onClick={() => setDialogOpen(false)}
+                onClick={() => setState((current) => ({ ...current, dialogOpen: false }))}
               >
                 Close
               </Button>

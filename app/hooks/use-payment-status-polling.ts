@@ -26,8 +26,9 @@ export function usePaymentStatusPolling({
 }) {
   const fetcher = useFetcher<PaymentStatusPollData>();
   const fetcherRef = useRef(fetcher);
-  const startedAtRef = useRef(Date.now());
-  const [timedOut, setTimedOut] = useState(false);
+  const startedAtRef = useRef<{ txRef: string; at: number } | null>(null);
+  const [timedOutTxRef, setTimedOutTxRef] = useState<string | null>(null);
+  const timedOut = timedOutTxRef === txRef;
 
   const fetchedStatus = fetcher.data?.txRef === txRef ? fetcher.data.status : null;
   const status = fetchedStatus ?? initialStatus;
@@ -41,9 +42,14 @@ export function usePaymentStatusPolling({
       return;
     }
 
+    if (startedAtRef.current?.txRef !== txRef) {
+      startedAtRef.current = { txRef, at: Date.now() };
+    }
+    const startedAt = startedAtRef.current.at;
+
     const poll = () => {
-      if (Date.now() - startedAtRef.current >= POLLING_BUDGET_MS) {
-        setTimedOut(true);
+      if (Date.now() - startedAt >= POLLING_BUDGET_MS) {
+        setTimedOutTxRef(txRef);
         return;
       }
 
@@ -63,8 +69,8 @@ export function usePaymentStatusPolling({
     isRefreshing: fetcher.state !== "idle",
     timedOut,
     retry() {
-      startedAtRef.current = Date.now();
-      setTimedOut(false);
+      startedAtRef.current = { txRef, at: Date.now() };
+      setTimedOutTxRef(null);
       void fetcherRef.current.load(
         `/bookings/payment-status?${new URLSearchParams({ tx_ref: txRef, poll: "1" })}`,
       );

@@ -4,26 +4,32 @@ import { useLocation, useNavigate, useSearchParams } from "react-router";
 
 import type { BookingPricingPreview } from "~/api/bookings/schema";
 import type { PublicCarDetail } from "~/api/cars/schema";
+import type { PublicRates } from "~/api/rates/schema";
 import { composeAirportPickupAddress } from "~/booking/airport-pickup";
+import {
+  estimateBookingCost,
+  overlayBookingCostPreview,
+  pricingPreviewForSelection,
+  resolvePlatformFeeRate,
+  resolveVatRate,
+} from "~/booking/booking-estimate";
 import { nextToDateOnFromChange } from "~/booking/dates";
 import { AIRPORT_PICKUP_BOOKING_TYPE } from "~/booking/types";
 import { CarBookingPayForm } from "~/car/car-booking-pay-form";
 import { CarBookingScheduleFields } from "~/car/car-booking-schedule-fields";
 import { buildCurrentCarDetailSearchPath, parseCarDetailUrl } from "~/car/car-url";
 import { useCarBookingCard } from "~/car/use-car-booking-card";
-import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
+import { CardHeader, CardTitle } from "~/components/ui/card";
 import { useAirportPickup } from "~/hooks/use-airport-pickup";
 import { useBookingPricingPreview } from "~/hooks/use-booking-pricing-preview";
 import { formatZonedDate, parseZonedCalendarDate } from "~/time/timezone";
 
-const bookingCardClassName =
-  "gap-0 overflow-visible rounded border py-0 shadow-xl inset-shadow-sm ring-0 transform-gpu";
-const bookingCardContentClassName = "space-y-4 px-4 pb-6 [&>div:first-of-type]:mt-0 lg:px-6";
-
 interface CarBookingCardProps {
   readonly car: PublicCarDetail;
+  readonly rates: PublicRates;
   readonly lastResult?: SubmissionResult<string[]>;
   readonly currentPricing?: BookingPricingPreview;
+  readonly currentPricingSelectionKey?: string;
 }
 
 function parseOptionalCalendarDate(value: string | null | undefined) {
@@ -37,9 +43,9 @@ function formatOptionalCalendarDate(value: Date | undefined) {
 function pricingPreviewInput(
   carId: string,
   card: ReturnType<typeof useCarBookingCard>,
-  currentPricing: BookingPricingPreview | undefined,
+  actionPreview: BookingPricingPreview | undefined,
 ) {
-  if (!card.hasCompleteDates || currentPricing) {
+  if (!card.hasCompleteDates || actionPreview) {
     return null;
   }
 
@@ -93,7 +99,13 @@ function CarBookingCardPrice({
   );
 }
 
-export function CarBookingCard({ car, lastResult, currentPricing }: CarBookingCardProps) {
+export function CarBookingCard({
+  car,
+  rates,
+  lastResult,
+  currentPricing,
+  currentPricingSelectionKey,
+}: CarBookingCardProps) {
   const [searchParams] = useSearchParams();
   const location = useLocation();
   const navigate = useNavigate();
@@ -139,8 +151,27 @@ export function CarBookingCard({ car, lastResult, currentPricing }: CarBookingCa
     calculateDuration: airportPickup.calculateDuration,
     resetDuration: airportPickup.resetDuration,
   });
-  const pricing = useBookingPricingPreview(pricingPreviewInput(car.id, card, currentPricing));
-  const preview = currentPricing ?? pricing.preview;
+  const actionPreview = pricingPreviewForSelection(currentPricing, currentPricingSelectionKey, {
+    bookingType: card.bookingType,
+    from: formatOptionalCalendarDate(card.fromDate),
+    to: formatOptionalCalendarDate(card.toDate),
+    pickupTime: card.pickupTime ?? "",
+  });
+  const pricing = useBookingPricingPreview(pricingPreviewInput(car.id, card, actionPreview));
+  const preview = actionPreview ?? pricing.preview;
+  const estimate = estimateBookingCost({
+    dayRate: car.dayRate,
+    nightRate: car.nightRate,
+    fullDayRate: car.fullDayRate,
+    airportPickupRate: car.airportPickupRate,
+    bookingType: card.bookingType,
+    units: card.totalUnits,
+    platformFeeRate: resolvePlatformFeeRate(rates.platformCustomerServiceFeeRatePercent),
+    vatRate: resolveVatRate(rates.vatRatePercent),
+    fuelUpgradeRate: car.fuelUpgradeRate ?? 0,
+    pricingIncludesFuel: car.pricingIncludesFuel,
+    promotion: car.promotion,
+  });
   const price = (
     <CarBookingCardPrice
       showPromoPrice={card.view.showPromoPrice}
@@ -160,18 +191,6 @@ export function CarBookingCard({ car, lastResult, currentPricing }: CarBookingCa
       isValidatingFlight={airportPickup.isValidatingFlight}
     />
   );
-  const tripArrivalTime =
-    card.isAirportPickup && airportPickup.flight ? airportPickup.flight.arrivalTime : null;
-  const tripDuration = card.isAirportPickup ? airportPickup.tripDuration : null;
-
-  if (!card.hasCompleteDates) {
-    return (
-      <Card className={bookingCardClassName}>
-        {price}
-        <CardContent className={bookingCardContentClassName}>{schedule}</CardContent>
-      </Card>
-    );
-  }
 
   return (
     <CarBookingPayForm
@@ -184,14 +203,17 @@ export function CarBookingCard({ car, lastResult, currentPricing }: CarBookingCa
       pickupAddress={card.pickupAddress}
       dropOffAddress={card.dropOffAddress}
       sameLocation={card.sameLocation}
+      cost={overlayBookingCostPreview(estimate, preview)}
       preview={preview}
-      pricingError={currentPricing ? null : pricing.error}
-      isPricingLoading={currentPricing ? false : pricing.isLoading}
+      pricingError={actionPreview ? null : pricing.error}
+      isPricingLoading={actionPreview ? false : pricing.isLoading}
       lastResult={lastResult}
       price={price}
       schedule={schedule}
-      tripArrivalTime={tripArrivalTime}
-      tripDuration={tripDuration}
+      tripArrivalTime={
+        card.isAirportPickup && airportPickup.flight ? airportPickup.flight.arrivalTime : null
+      }
+      tripDuration={card.isAirportPickup ? airportPickup.tripDuration : null}
     />
   );
 }

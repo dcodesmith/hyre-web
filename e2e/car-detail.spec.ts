@@ -26,10 +26,32 @@ test("renders crawlable car metadata and booking controls from the fixture", asy
     "aria-pressed",
     "true",
   );
-  await expect(page.getByRole("button", { name: /Pay Now/ })).toHaveCount(0);
+  await expect(page.getByLabel("Pickup Time")).toBeVisible();
+  await expect(page.getByLabel("Pickup Address")).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "Cost Breakdown" }).filter({ visible: true }),
-  ).toHaveCount(0);
+  ).toBeVisible();
+  await expect(page.getByText("₦90,000 × 1 day").filter({ visible: true })).toBeVisible();
+  await expect(page.getByText("Platform Fee (5.0%)").filter({ visible: true })).toBeVisible();
+  await expect(page.getByText("VAT (7.5%)").filter({ visible: true })).toBeVisible();
+  await expect(page.getByLabel("Name")).toBeVisible();
+  await expect(page.getByLabel("Email")).toBeVisible();
+  await expect(page.getByLabel("Phone Number")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Pay Now as Guest" }).filter({ visible: true }),
+  ).toBeDisabled();
+
+  await page
+    .getByRole("group", { name: "Booking type" })
+    .getByRole("button", { name: "Full Day" })
+    .click();
+  await expect(page).toHaveURL(/bookingType=FULL_DAY/);
+  await expect(page.getByLabel("Pickup Time")).toBeVisible();
+  await expect(page.getByLabel("Pickup Address")).toBeVisible();
+  await expect(page.getByText("₦144,000 × 1 full day").filter({ visible: true })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Pay Now as Guest" }).filter({ visible: true }),
+  ).toBeDisabled();
 
   if ((viewport?.width ?? 0) >= 1024) {
     await expect(page.getByRole("link", { name: /Back to search results/ })).toBeVisible();

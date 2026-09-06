@@ -7,10 +7,12 @@ import { createBooking } from "~/api/bookings/bookings.server";
 import { bookingPricingPreviewSchema } from "~/api/bookings/schema";
 import { getPublicCar } from "~/api/cars/cars.server";
 import { HTTP_STATUS } from "~/api/http-status";
+import { loadPublicRates } from "~/api/rates/rates.server";
 import { getCarReviews } from "~/api/reviews/reviews.server";
 import { AUTH_NO_STORE } from "~/auth/guest-only.server";
 import { readAuthUser } from "~/auth/session.server";
 import { createBookingFormSchema, toCreateBookingBody } from "~/booking/booking-create-form-schema";
+import { bookingPricingSelectionKey } from "~/booking/booking-estimate";
 import { CarDetailPage } from "~/car/car-detail-page";
 import {
   CAR_REVIEWS_LIMIT,
@@ -95,6 +97,7 @@ export async function loader({ request, params }: Route.LoaderArgs) {
 
       return null;
     });
+  const ratesPromise = loadPublicRates({ request });
   let carResponse: Awaited<typeof carPromise>;
 
   try {
@@ -118,12 +121,13 @@ export async function loader({ request, params }: Route.LoaderArgs) {
     throw redirect(`/cars/${canonicalSlug}${url.search}`, HTTP_STATUS.MOVED_PERMANENTLY);
   }
 
-  const reviews = await reviewsPromise;
+  const [reviews, rates] = await Promise.all([reviewsPromise, ratesPromise]);
 
   return data(
     {
       car,
       reviews,
+      rates,
     },
     {
       headers: {
@@ -150,7 +154,11 @@ export async function action({ request, params }: Route.ActionArgs) {
 
   if (submission.status !== "success") {
     return data(
-      { lastResult: submission.reply(), currentPricing: undefined },
+      {
+        lastResult: submission.reply(),
+        currentPricing: undefined,
+        currentPricingSelectionKey: undefined,
+      },
       { status: HTTP_STATUS.BAD_REQUEST, headers: AUTH_NO_STORE },
     );
   }
@@ -160,6 +168,7 @@ export async function action({ request, params }: Route.ActionArgs) {
       {
         lastResult: submission.reply({ formErrors: ["This car is no longer available."] }),
         currentPricing: undefined,
+        currentPricingSelectionKey: undefined,
       },
       { status: HTTP_STATUS.BAD_REQUEST, headers: AUTH_NO_STORE },
     );
@@ -172,6 +181,7 @@ export async function action({ request, params }: Route.ActionArgs) {
       {
         lastResult: submission.reply({ formErrors: [BOOKING_CREATE_ERROR] }),
         currentPricing: undefined,
+        currentPricingSelectionKey: undefined,
       },
       { status: HTTP_STATUS.BAD_REQUEST, headers: AUTH_NO_STORE },
     );
@@ -190,7 +200,11 @@ export async function action({ request, params }: Route.ActionArgs) {
       idempotencyKey: submission.value.idempotencyKey,
     });
   } catch (error) {
-    return bookingCreateFailure(error, (message) => submission.reply({ formErrors: [message] }));
+    return bookingCreateFailure(
+      error,
+      (message) => submission.reply({ formErrors: [message] }),
+      bookingPricingSelectionKey(submission.value),
+    );
   }
 
   if (!isSignedIn && !created.data.paymentStatusToken) {
@@ -198,6 +212,7 @@ export async function action({ request, params }: Route.ActionArgs) {
       {
         lastResult: submission.reply({ formErrors: [BOOKING_CREATE_ERROR] }),
         currentPricing: undefined,
+        currentPricingSelectionKey: undefined,
       },
       { status: HTTP_STATUS.BAD_GATEWAY, headers: AUTH_NO_STORE },
     );
@@ -215,7 +230,11 @@ export async function action({ request, params }: Route.ActionArgs) {
   });
 }
 
-function bookingCreateFailure(error: unknown, reply: (message: string) => unknown) {
+function bookingCreateFailure(
+  error: unknown,
+  reply: (message: string) => unknown,
+  submittedSelectionKey: string,
+) {
   if (error instanceof Response) {
     throw error;
   }
@@ -225,6 +244,7 @@ function bookingCreateFailure(error: unknown, reply: (message: string) => unknow
       {
         lastResult: reply(BOOKING_CREATE_ERROR),
         currentPricing: undefined,
+        currentPricingSelectionKey: undefined,
         errorCode: undefined,
         retryAfterSeconds: undefined,
       },
@@ -242,6 +262,7 @@ function bookingCreateFailure(error: unknown, reply: (message: string) => unknow
     error.problem.errorCode === "BOOKING_PRICE_CHANGED"
       ? bookingPricingPreviewSchema.safeParse(error.problem.details?.currentPricing).data
       : undefined;
+  const currentPricingSelectionKey = currentPricing ? submittedSelectionKey : undefined;
   const errorCode = error.problem.errorCode;
   const retryAfterSeconds =
     typeof error.problem.details?.retryAfterSeconds === "number"
@@ -257,7 +278,13 @@ function bookingCreateFailure(error: unknown, reply: (message: string) => unknow
   }
 
   return data(
-    { lastResult: reply(message), currentPricing, errorCode, retryAfterSeconds },
+    {
+      lastResult: reply(message),
+      currentPricing,
+      currentPricingSelectionKey,
+      errorCode,
+      retryAfterSeconds,
+    },
     {
       status: error.status,
       headers,
@@ -270,8 +297,10 @@ export default function CarDetail({ loaderData, actionData }: Route.ComponentPro
     <CarDetailPage
       car={loaderData.car}
       reviews={loaderData.reviews}
+      rates={loaderData.rates}
       lastResult={actionData?.lastResult}
       currentPricing={actionData?.currentPricing}
+      currentPricingSelectionKey={actionData?.currentPricingSelectionKey}
     />
   );
 }

@@ -80,6 +80,32 @@ function FilterSection({ title, children }: FilterSectionProps) {
   );
 }
 
+function FilterApplyLabel({
+  countIsCurrent,
+  resultCount,
+}: {
+  readonly countIsCurrent: boolean;
+  readonly resultCount: number | undefined;
+}) {
+  if (!countIsCurrent) {
+    return (
+      <>
+        Show <Skeleton className="h-4 w-6 bg-primary-foreground/30" /> vehicles
+      </>
+    );
+  }
+
+  if (resultCount === undefined) {
+    return <>Show results</>;
+  }
+
+  return (
+    <>
+      Show {resultCount} {resultCount === 1 ? "vehicle" : "vehicles"}
+    </>
+  );
+}
+
 export function SearchFilters({ facets, bookingType, activeFilterCount }: SearchFiltersProps) {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -115,27 +141,15 @@ export function SearchFilters({ facets, bookingType, activeFilterCount }: Search
   const draftFilterCount = countActiveSearchFilters(draft);
   const priceUnitLabel = PRICE_UNIT_LABELS[bookingType] ?? PRICE_UNIT_LABELS[DAY_BOOKING_TYPE];
 
-  let applyLabel: React.ReactNode = "Show results";
-
-  if (!countIsCurrent) {
-    applyLabel = (
-      <>
-        Show <Skeleton className="h-4 w-6 bg-primary-foreground/30" /> vehicles
-      </>
-    );
-  } else if (resultCount !== undefined) {
-    applyLabel = `Show ${resultCount} ${resultCount === 1 ? "vehicle" : "vehicles"}`;
-  }
-
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <Button
           variant="outline"
-          className="relative h-10 gap-2 rounded-full px-4 max-md:size-10 max-md:p-0"
+          className="relative h-10 gap-2 rounded-full px-4 max-md:size-10 max-md:gap-0 max-md:p-0"
           aria-label="Filters"
         >
-          <SlidersHorizontal data-icon="inline-start" />
+          <SlidersHorizontal />
           <span className="hidden md:inline">Filters</span>
           {activeFilterCount > 0 ? (
             <Badge className="size-5 justify-center rounded-full p-0 text-xs max-md:absolute max-md:-top-1 max-md:-right-1">
@@ -331,7 +345,7 @@ export function SearchFilters({ facets, bookingType, activeFilterCount }: Search
             Clear all
           </Button>
           <Button className="h-10 rounded-md px-4" onClick={handleApply} aria-live="polite">
-            {applyLabel}
+            <FilterApplyLabel countIsCurrent={countIsCurrent} resultCount={resultCount} />
           </Button>
         </div>
       </DialogContent>

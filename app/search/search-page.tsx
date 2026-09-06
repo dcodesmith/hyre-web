@@ -106,19 +106,74 @@ function SearchEmptyState({
   );
 }
 
+function SearchResultsContent({
+  display,
+  cars,
+  bookingType,
+  searchParams,
+  hasDateFilters,
+  totalUnits,
+  hasMore,
+  sentinelRef,
+  hasActiveFilters,
+}: {
+  readonly display: "updating" | "empty" | "ready";
+  readonly cars: SearchCar[];
+  readonly bookingType: BookingType;
+  readonly searchParams: URLSearchParams;
+  readonly hasDateFilters: boolean;
+  readonly totalUnits: number;
+  readonly hasMore: boolean;
+  readonly sentinelRef: RefObject<HTMLDivElement | null>;
+  readonly hasActiveFilters: boolean;
+}) {
+  if (display === "updating") {
+    return <CarSkeleton count={6} />;
+  }
+
+  if (display === "empty") {
+    return <SearchEmptyState hasActiveFilters={hasActiveFilters} searchParams={searchParams} />;
+  }
+
+  return (
+    <SearchCarGrid
+      cars={cars}
+      bookingType={bookingType}
+      searchParams={searchParams}
+      hasDateFilters={hasDateFilters}
+      totalUnits={totalUnits}
+      hasMore={hasMore}
+      sentinelRef={sentinelRef}
+    />
+  );
+}
+
+function getResultsDisplay(isUpdating: boolean, carCount: number): "updating" | "empty" | "ready" {
+  if (isUpdating) {
+    return "updating";
+  }
+
+  return carCount === 0 ? "empty" : "ready";
+}
+
+function isSearchResultsUpdate(
+  navigation: ReturnType<typeof useNavigation>,
+  searchParams: URLSearchParams,
+) {
+  if (navigation.state !== "loading" || navigation.location?.pathname !== "/search") {
+    return false;
+  }
+
+  const nextSearchParams = new URLSearchParams(navigation.location.search);
+  return searchResultsIdentity(searchParams) !== searchResultsIdentity(nextSearchParams);
+}
+
 function SearchResults({ result }: { readonly result: CarSearchResponse }) {
   const [searchParams] = useSearchParams();
   const navigation = useNavigation();
   const query = parseSearchUrl(searchParams);
   const bookingType: BookingType = query.bookingType ?? DAY_BOOKING_TYPE;
-  const nextSearchParams = navigation.location
-    ? new URLSearchParams(navigation.location.search)
-    : null;
-  const isUpdatingResults =
-    navigation.state === "loading" &&
-    navigation.location?.pathname === "/search" &&
-    nextSearchParams !== null &&
-    searchResultsIdentity(searchParams) !== searchResultsIdentity(nextSearchParams);
+  const isUpdatingResults = isSearchResultsUpdate(navigation, searchParams);
   const {
     allItems: allCars,
     hasMore,
@@ -140,7 +195,7 @@ function SearchResults({ result }: { readonly result: CarSearchResponse }) {
 
   return (
     <>
-      <div className="flex items-center justify-between gap-4 py-4">
+      <div className="flex items-center justify-between gap-4 pb-2 py-0 sm:py-4">
         <h1 className="font-semibold">
           {isUpdatingResults ? <Skeleton className="h-5 w-32" /> : resultsHeading}
         </h1>
@@ -159,23 +214,17 @@ function SearchResults({ result }: { readonly result: CarSearchResponse }) {
         searchParams={searchParams}
       />
 
-      {isUpdatingResults ? <CarSkeleton count={6} /> : null}
-
-      {!isUpdatingResults && allCars.length > 0 ? (
-        <SearchCarGrid
-          cars={allCars}
-          bookingType={bookingType}
-          searchParams={searchParams}
-          hasDateFilters={hasDateFilters}
-          totalUnits={totalUnits}
-          hasMore={hasMore}
-          sentinelRef={sentinelRef}
-        />
-      ) : null}
-
-      {!isUpdatingResults && allCars.length === 0 ? (
-        <SearchEmptyState hasActiveFilters={hasActiveFilters} searchParams={searchParams} />
-      ) : null}
+      <SearchResultsContent
+        display={getResultsDisplay(isUpdatingResults, allCars.length)}
+        cars={allCars}
+        bookingType={bookingType}
+        searchParams={searchParams}
+        hasDateFilters={hasDateFilters}
+        totalUnits={totalUnits}
+        hasMore={hasMore}
+        sentinelRef={sentinelRef}
+        hasActiveFilters={hasActiveFilters}
+      />
 
       {!isUpdatingResults && hasMore && isLoading ? (
         <div className="mt-6">

@@ -57,6 +57,9 @@ app/
     reviews/
       reviews.server.ts           # public car reads + signed-in customer create/update
       schema.ts                   # public lists, customer review, mutation responses
+    rates/
+      rates.server.ts             # GET /api/rates public fee/VAT/security rates
+      schema.ts                   # flat public rates DTO
     referrals/
       referrals.server.ts         # GET /api/referrals/user
       schema.ts                   # signed-in summary, stats, referrals, rewards
@@ -152,7 +155,8 @@ app/
     bookings-url.test.ts
     bookings-list.tsx             # signed-in list rows link to /bookings/:id
     booking-create-form-schema.ts # car-card Conform/Zod; guest + booking fields
-    booking-cost-breakdown.tsx    # API-owned segments, fees, discounts, VAT, total
+    booking-estimate.ts           # rates-based display estimate + preview overlay
+    booking-cost-breakdown.tsx    # estimate or preview cost display
     booking-guest-fields.tsx      # name / email / phone when unsigned-in
     booking-modify-form-schema.ts # pickup time/location update form → API PATCH DTO
     booking-modify.tsx            # API-gated responsive modification dialog

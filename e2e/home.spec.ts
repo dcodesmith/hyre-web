@@ -63,6 +63,32 @@ test("renders crawlable homepage metadata and booking controls", async ({ page }
   await expect(nightSearchForm.locator('input[name="pickupTime"]')).toHaveValue("11 PM");
 });
 
+test("hides the mobile nav after scrolling, then shows it again", async ({ page, viewport }) => {
+  await setCookiePreference(page);
+  await page.goto("/");
+
+  const nav = page.locator("[data-public-mobile-nav]");
+
+  if ((viewport?.width ?? 0) >= 768) {
+    await expect(page.getByRole("navigation", { name: "Primary" })).toBeHidden();
+    return;
+  }
+
+  await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible();
+  await expect(nav).toBeInViewport();
+
+  await page.evaluate(() => window.scrollTo(0, 200));
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(100);
+  await expect(nav).toHaveJSProperty("inert", true);
+  await expect(nav).not.toBeInViewport();
+
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
+  await expect(nav).toHaveJSProperty("inert", false);
+  await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible();
+  await expect(nav).toBeInViewport();
+});
+
 test("opens the AI search dialog from the homepage", async ({ page }) => {
   await setCookiePreference(page);
   await page.goto("/");

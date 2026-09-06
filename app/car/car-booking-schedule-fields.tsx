@@ -26,7 +26,6 @@ type CardState = Pick<
   | "handlePickupTimeChange"
   | "handleSameLocationChange"
   | "handleToDateChange"
-  | "hasCompleteDates"
   | "ids"
   | "isAirportPickup"
   | "nightHelper"
@@ -87,10 +86,6 @@ function BookingTripFields({
   readonly flightWarning: string | null;
   readonly isValidatingFlight: boolean;
 }) {
-  if (!card.hasCompleteDates) {
-    return null;
-  }
-
   if (card.isAirportPickup) {
     return (
       <BookingFlightField
@@ -166,25 +161,23 @@ export function CarBookingScheduleFields({
         isValidatingFlight={isValidatingFlight}
       />
 
-      {card.hasCompleteDates ? (
-        <BookingLocationFields
-          pickupAddressId={card.ids.pickupAddressId}
-          dropOffAddressId={card.ids.dropOffAddressId}
-          sameLocationId={card.ids.sameLocationId}
-          pickupAddress={card.pickupAddress}
-          dropOffAddress={card.dropOffAddress}
-          sameLocation={card.sameLocation}
-          isAirportPickup={card.isAirportPickup}
-          pickupIsReadOnly={card.pickupIsReadOnly}
-          showDropOff={card.showDropOff}
-          nightHelper={card.nightHelper}
-          onPickupAddressSelect={card.handlePickupAddressSelect}
-          onPickupAddressInput={card.handlePickupAddressInput}
-          onDropOffAddressSelect={card.handleDropOffAddressSelect}
-          onDropOffAddressInput={card.handleDropOffAddressInput}
-          onSameLocationChange={card.handleSameLocationChange}
-        />
-      ) : null}
+      <BookingLocationFields
+        pickupAddressId={card.ids.pickupAddressId}
+        dropOffAddressId={card.ids.dropOffAddressId}
+        sameLocationId={card.ids.sameLocationId}
+        pickupAddress={card.pickupAddress}
+        dropOffAddress={card.dropOffAddress}
+        sameLocation={card.sameLocation}
+        isAirportPickup={card.isAirportPickup}
+        pickupIsReadOnly={card.pickupIsReadOnly}
+        showDropOff={card.showDropOff}
+        nightHelper={card.nightHelper}
+        onPickupAddressSelect={card.handlePickupAddressSelect}
+        onPickupAddressInput={card.handlePickupAddressInput}
+        onDropOffAddressSelect={card.handleDropOffAddressSelect}
+        onDropOffAddressInput={card.handleDropOffAddressInput}
+        onSameLocationChange={card.handleSameLocationChange}
+      />
     </>
   );
 }

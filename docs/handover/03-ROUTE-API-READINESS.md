@@ -576,4 +576,5 @@ duplicate year-make-model listings would collide.
   flight window yet — that stays with booking create (Phase 5).
 - `POST /api/ai-search` is wired from the home/search modal. The BFF
   redirects to `/search` with the extracted params. It does not re-check
-  airport flights in the modal. `GET /api/rates` is still unused.
+  airport flights in the modal. Car detail loads `GET /api/rates` for the
+  rates-first estimate and keeps payment on the pricing-preview total.
