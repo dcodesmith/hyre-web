@@ -5,6 +5,7 @@ import { Link, useSearchParams } from "react-router";
 
 import type { BookingPricingPreview } from "~/api/bookings/schema";
 import type { PublicCarDetail } from "~/api/cars/schema";
+import type { PublicRates } from "~/api/rates/schema";
 import type { CarReviewsResponse } from "~/api/reviews/schema";
 import { CarBookingCard } from "~/car/car-booking-card";
 import { CarGallery } from "~/car/car-gallery";
@@ -20,8 +21,10 @@ import { BreadcrumbStructuredData, VehicleStructuredData } from "~/seo/structure
 interface CarDetailPageProps {
   readonly car: PublicCarDetail;
   readonly reviews: CarReviewsResponse | null;
+  readonly rates: PublicRates;
   readonly lastResult?: SubmissionResult<string[]>;
   readonly currentPricing?: BookingPricingPreview;
+  readonly currentPricingSelectionKey?: string;
 }
 
 function MobileReviewSummary({
@@ -60,7 +63,14 @@ function MobileReviewSummary({
   );
 }
 
-export function CarDetailPage({ car, reviews, lastResult, currentPricing }: CarDetailPageProps) {
+export function CarDetailPage({
+  car,
+  reviews,
+  rates,
+  lastResult,
+  currentPricing,
+  currentPricingSelectionKey,
+}: CarDetailPageProps) {
   const [searchParams] = useSearchParams();
   const [reviewsOpen, setReviewsOpen] = useState(false);
   const images = car.images.map((image) => image.url);
@@ -156,7 +166,13 @@ export function CarDetailPage({ car, reviews, lastResult, currentPricing }: CarD
           </div>
 
           <div className="px-4 lg:px-0 lg:sticky lg:top-4">
-            <CarBookingCard car={car} lastResult={lastResult} currentPricing={currentPricing} />
+            <CarBookingCard
+              car={car}
+              rates={rates}
+              lastResult={lastResult}
+              currentPricing={currentPricing}
+              currentPricingSelectionKey={currentPricingSelectionKey}
+            />
           </div>
         </div>
 

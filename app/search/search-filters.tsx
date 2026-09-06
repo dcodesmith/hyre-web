@@ -132,10 +132,10 @@ export function SearchFilters({ facets, bookingType, activeFilterCount }: Search
       <DialogTrigger asChild>
         <Button
           variant="outline"
-          className="relative h-10 gap-2 rounded-full px-4 max-md:size-10 max-md:p-0"
+          className="relative h-10 gap-2 rounded-full px-4 max-md:size-10 max-md:gap-0 max-md:p-0"
           aria-label="Filters"
         >
-          <SlidersHorizontal data-icon="inline-start" />
+          <SlidersHorizontal />
           <span className="hidden md:inline">Filters</span>
           {activeFilterCount > 0 ? (
             <Badge className="size-5 justify-center rounded-full p-0 text-xs max-md:absolute max-md:-top-1 max-md:-right-1">

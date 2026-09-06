@@ -9,6 +9,11 @@ import { authPath } from "~/auth/referer";
 import { usePublicUser } from "~/auth/use-public-user";
 import { type BookingAttempt, resolveBookingAttempt } from "~/booking/booking-attempt";
 import { createBookingFormSchema } from "~/booking/booking-create-form-schema";
+import {
+  type BookingCostDisplay,
+  canAuthorizeBookingPayment,
+  expectedBookingTotalAmount,
+} from "~/booking/booking-estimate";
 import { BookingGuestFields } from "~/booking/booking-guest-fields";
 import { type BookingType, NIGHT_BOOKING_TYPE } from "~/booking/types";
 import { CarBookingCheckout } from "~/car/car-booking-checkout";
@@ -32,6 +37,7 @@ export function CarBookingPayForm({
   pickupAddress,
   dropOffAddress,
   sameLocation,
+  cost,
   preview,
   pricingError,
   isPricingLoading,
@@ -50,6 +56,7 @@ export function CarBookingPayForm({
   readonly pickupAddress: string;
   readonly dropOffAddress: string;
   readonly sameLocation: boolean;
+  readonly cost: BookingCostDisplay;
   readonly preview: BookingPricingPreview | null;
   readonly pricingError: string | null;
   readonly isPricingLoading: boolean;
@@ -76,23 +83,10 @@ export function CarBookingPayForm({
   const isPaying = navigation.formMethod === "POST" && isCarBookingSubmit(navigation.formAction);
   const hasResolvedAddresses =
     pickupAddress.trim().length > 0 && (sameLocation || dropOffAddress.trim().length > 0);
-  const isPricingReady = preview != null && !isPricingLoading && pricingError == null;
-  const canPay = isPricingReady && hasResolvedAddresses;
+  const canPay =
+    canAuthorizeBookingPayment(preview, isPricingLoading, pricingError) && hasResolvedAddresses;
   const bookingErrors = [
-    ...(fields.carId.errors ?? []),
-    ...(fields.idempotencyKey.errors ?? []),
-    ...(fields.expectedTotalAmount.errors ?? []),
-    ...(fields.bookingType.errors ?? []),
-    ...(fields.from.errors ?? []),
-    ...(fields.to.errors ?? []),
-    ...(fields.pickupTime.errors ?? []),
-    ...(fields.flightNumber.errors ?? []),
-    ...(fields.pickupAddress.errors ?? []),
-    ...(fields.dropOffAddress?.errors ?? []),
-    ...(fields.sameLocation.errors ?? []),
-    ...(fields.name?.errors ?? []),
-    ...(fields.email?.errors ?? []),
-    ...(fields.phoneNumber?.errors ?? []),
+    ...Object.values(fields).flatMap((field) => field.errors ?? []),
     ...(form.errors ?? []),
   ];
 
@@ -119,11 +113,7 @@ export function CarBookingPayForm({
     >
       <input type="hidden" name="carId" value={carId} />
       <input ref={idempotencyKeyRef} type="hidden" name="idempotencyKey" />
-      <input
-        type="hidden"
-        name="expectedTotalAmount"
-        value={preview ? String(preview.totalAmount) : ""}
-      />
+      <input type="hidden" name="expectedTotalAmount" value={expectedBookingTotalAmount(preview)} />
       <input type="hidden" name="bookingType" value={bookingType} />
       <input type="hidden" name="from" value={from} />
       <input type="hidden" name="to" value={to} />
@@ -158,9 +148,8 @@ export function CarBookingPayForm({
               }}
             />
           ),
-          preview,
+          cost,
           pricingError,
-          isPricingLoading,
           canPay,
           errorId: form.errorId,
           bookingErrors,

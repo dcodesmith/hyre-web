@@ -45,6 +45,7 @@ function nextCarBookingQuery(
 ): CarDetailUrlQuery {
   return {
     ...query,
+    bookingType,
     sameLocation: overrides.sameLocation ?? sameLocation,
     pickupAddress: pickOverride(overrides.pickupAddress, query.pickupAddress),
     dropOffAddress: pickOverride(overrides.dropOffAddress, query.dropOffAddress),
@@ -129,7 +130,7 @@ export function useCarBookingCard({
     bookingType,
   );
   const nightHelper = nightBookingHelperText(bookingType, totalUnits);
-  const showDropOff = hasCompleteDates && (isAirportPickup || !sameLocation);
+  const showDropOff = isAirportPickup || !sameLocation;
   const pickupIsReadOnly = isAirportPickup && pickupAddress.length > 0;
 
   const commitBookingFields = (overrides: QueryOverrides) => {

@@ -4,6 +4,7 @@ const {
   createBooking,
   getPublicCar,
   getCarReviews,
+  loadPublicRates,
   readAuthUser,
   createPaymentStatusSession,
   paymentStatusSetCookie,
@@ -12,6 +13,7 @@ const {
   createBooking: vi.fn(),
   getPublicCar: vi.fn(),
   getCarReviews: vi.fn(),
+  loadPublicRates: vi.fn(),
   readAuthUser: vi.fn(),
   createPaymentStatusSession: vi.fn((value) => ({ ...value, expiresAt: Date.now() + 60_000 })),
   paymentStatusSetCookie: vi.fn(async () => "payment_status=encrypted; HttpOnly"),
@@ -21,6 +23,7 @@ const {
 vi.mock("~/api/bookings/bookings.server", () => ({ createBooking }));
 vi.mock("~/api/cars/cars.server", () => ({ getPublicCar }));
 vi.mock("~/api/reviews/reviews.server", () => ({ getCarReviews }));
+vi.mock("~/api/rates/rates.server", () => ({ loadPublicRates }));
 vi.mock("cloudflare:workers", () => ({
   env: { APP_ORIGIN: "https://tripdly.com" },
 }));
@@ -35,7 +38,8 @@ vi.mock("~/payment/payment-status-session.server", () => ({
 }));
 
 import { ApiRequestError } from "~/api/api.server";
-import { action } from "./cars.$carSlug";
+import { generateCarSlug } from "~/car/paths";
+import { action, loader } from "./cars.$carSlug";
 
 const CAR_ID = "cmmz4f7x00000l804jj2d6ikn";
 const IDEMPOTENCY_KEY = "18aa029c-4bb1-4ca7-b25e-cfc802c4bf8c";
@@ -172,6 +176,7 @@ describe("car booking action", () => {
     expect(result).toMatchObject({
       data: {
         currentPricing: { totalAmount: 115000 },
+        currentPricingSelectionKey: "DAY|2026-09-01|2026-09-01|9 AM",
         errorCode: "BOOKING_PRICE_CHANGED",
       },
       init: { status: 409 },
@@ -202,5 +207,87 @@ describe("car booking action", () => {
       data: { currentPricing: undefined },
     });
     expect(createPaymentStatusSession).not.toHaveBeenCalled();
+  });
+});
+
+const publicCar = {
+  id: CAR_ID,
+  make: "Lexus",
+  model: "UX F-Sport",
+  year: 2019,
+  color: "Black",
+  dayRate: 100_000,
+  nightRate: 80_000,
+  fullDayRate: 160_000,
+  airportPickupRate: 70_000,
+  hourlyRate: 12_000,
+  fuelUpgradeRate: 15_000,
+  passengerCapacity: 5,
+  pricingIncludesFuel: true,
+  vehicleType: "SUV",
+  serviceTier: "LUXURY",
+  images: [{ url: "https://example.com/lexus.jpg" }],
+  owner: { username: "fleet-one", name: "Fleet One" },
+  promotion: null,
+  averageRating: 4.8,
+  totalReviews: 12,
+};
+
+const publicRates = {
+  platformCustomerServiceFeeRatePercent: 10,
+  vatRatePercent: 7.5,
+  securityDetailRate: 15_000,
+};
+
+function runLoader(slug = generateCarSlug(publicCar)) {
+  return loader({
+    request: new Request(`https://tripdly.com/cars/${slug}`),
+    params: { carSlug: slug },
+    context: {},
+  } as never);
+}
+
+describe("car detail loader", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getPublicCar.mockResolvedValue({ data: publicCar, headers: new Headers() });
+    getCarReviews.mockResolvedValue({ data: null });
+    loadPublicRates.mockResolvedValue(publicRates);
+  });
+
+  it("returns public rates with the car", async () => {
+    const result = await runLoader();
+
+    expect(result).toMatchObject({
+      data: { car: publicCar, reviews: null, rates: publicRates },
+    });
+  });
+
+  it("keeps the car page when public rates fall back", async () => {
+    const fallbackRates = {
+      platformCustomerServiceFeeRatePercent: 0,
+      vatRatePercent: 7.5,
+      securityDetailRate: 0,
+    };
+    loadPublicRates.mockResolvedValue(fallbackRates);
+
+    const result = await runLoader();
+
+    expect(result).toMatchObject({
+      data: { car: publicCar, rates: fallbackRates },
+    });
+  });
+
+  it("rethrows an aborted public rates request", async () => {
+    loadPublicRates.mockRejectedValue(
+      new ApiRequestError("aborted", 499, {
+        type: "REQUEST_ABORTED",
+        title: "Request aborted",
+        status: 499,
+        detail: "The request was cancelled before the upstream API responded.",
+      }),
+    );
+
+    await expect(runLoader()).rejects.toMatchObject({ kind: "aborted" });
   });
 });

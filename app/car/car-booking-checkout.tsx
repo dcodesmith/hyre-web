@@ -2,18 +2,14 @@ import { Loader2 } from "lucide-react";
 import type { ReactNode, Ref } from "react";
 import { Link } from "react-router";
 
-import type { BookingPricingPreview } from "~/api/bookings/schema";
 import type { TripDurationResponse } from "~/api/flights/schema";
-import {
-  BookingCostBreakdown,
-  BookingCostBreakdownSkeleton,
-} from "~/booking/booking-cost-breakdown";
+import { BookingCostBreakdown } from "~/booking/booking-cost-breakdown";
+import type { BookingCostDisplay } from "~/booking/booking-estimate";
 import { TripDetails } from "~/booking/trip-details";
 import type { BookingType } from "~/booking/types";
 import { FormError } from "~/components/forms/form-primitives";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardFooter } from "~/components/ui/card";
-import { Skeleton } from "~/components/ui/skeleton";
 import { useElementHeight } from "~/hooks/use-element-height";
 import { formatCurrency } from "~/money/currency";
 
@@ -26,9 +22,8 @@ const bookingCardContentClassName = "space-y-4 px-4 pb-6 [&>div:first-of-type]:m
 
 interface CheckoutState {
   readonly guest: ReactNode;
-  readonly preview: BookingPricingPreview | null;
+  readonly cost: BookingCostDisplay;
   readonly pricingError: string | null;
-  readonly isPricingLoading: boolean;
   readonly canPay: boolean;
   readonly errorId: string;
   readonly bookingErrors: readonly string[];
@@ -79,31 +74,8 @@ function CarBookingPayActions({
   );
 }
 
-function MobilePayTotal({
-  preview,
-  isPricingLoading,
-}: {
-  readonly preview: BookingPricingPreview | null;
-  readonly isPricingLoading: boolean;
-}) {
-  if (preview) {
-    return (
-      <span className="text-right text-base font-semibold tabular-nums">
-        {formatCurrency(preview.totalAmount, preview.currency)}
-      </span>
-    );
-  }
-
-  if (isPricingLoading) {
-    return <Skeleton className="h-5 w-20" aria-hidden="true" />;
-  }
-
-  return <span className="text-right text-base font-semibold tabular-nums">—</span>;
-}
-
 function CarBookingMobilePayBar({
-  preview,
-  isPricingLoading,
+  cost,
   isPaying,
   isSignedIn,
   signInHref,
@@ -127,7 +99,9 @@ function CarBookingMobilePayBar({
       <div className="space-y-3 p-4">
         <div className="flex items-center justify-between gap-2">
           <span className="text-sm font-medium text-gray-600">Total</span>
-          <MobilePayTotal preview={preview} isPricingLoading={isPricingLoading} />
+          <span className="text-right text-base font-semibold tabular-nums">
+            {formatCurrency(cost.totalAmount, cost.currency)}
+          </span>
         </div>
         <CarBookingPayActions
           isPaying={isPaying}
@@ -140,28 +114,11 @@ function CarBookingMobilePayBar({
   );
 }
 
-function PricingBreakdown({
-  preview,
-  isPricingLoading,
-  bookingType,
-}: {
-  readonly preview: BookingPricingPreview | null;
-  readonly isPricingLoading: boolean;
-  readonly bookingType: BookingType;
-}) {
-  if (preview) {
-    return <BookingCostBreakdown preview={preview} bookingType={bookingType} />;
-  }
-
-  return isPricingLoading ? <BookingCostBreakdownSkeleton /> : null;
-}
-
 function CarBookingCheckoutSummary({
   tripArrivalTime,
   tripDuration,
-  preview,
+  cost,
   pricingError,
-  isPricingLoading,
   bookingType,
   errorId,
   bookingErrors,
@@ -172,18 +129,14 @@ function CarBookingCheckoutSummary({
   readonly errorId?: string;
   readonly showErrors?: boolean;
   readonly bookingType: BookingType;
-} & Pick<CheckoutState, "preview" | "pricingError" | "isPricingLoading" | "bookingErrors">) {
+} & Pick<CheckoutState, "cost" | "pricingError" | "bookingErrors">) {
   return (
     <>
       {tripArrivalTime && tripDuration ? (
         <TripDetails arrivalTime={tripArrivalTime} duration={tripDuration} />
       ) : null}
-      <PricingBreakdown
-        preview={preview}
-        isPricingLoading={isPricingLoading}
-        bookingType={bookingType}
-      />
-      {!preview && pricingError ? <FormError errors={[pricingError]} /> : null}
+      <BookingCostBreakdown cost={cost} bookingType={bookingType} />
+      {pricingError ? <FormError errors={[pricingError]} /> : null}
       {showErrors ? <FormError id={errorId} errors={bookingErrors} /> : null}
     </>
   );
@@ -207,9 +160,8 @@ export function CarBookingCheckout({
   const checkoutProps = {
     tripArrivalTime,
     tripDuration,
-    preview: checkout.preview,
+    cost: checkout.cost,
     pricingError: checkout.pricingError,
-    isPricingLoading: checkout.isPricingLoading,
     bookingType,
     bookingErrors: checkout.bookingErrors,
   };
@@ -250,8 +202,7 @@ export function CarBookingCheckout({
         <CarBookingCheckoutSummary {...checkoutProps} />
       </div>
       <CarBookingMobilePayBar
-        preview={checkout.preview}
-        isPricingLoading={checkout.isPricingLoading}
+        cost={checkout.cost}
         isPaying={checkout.isPaying}
         isSignedIn={checkout.isSignedIn}
         signInHref={checkout.signInHref}
