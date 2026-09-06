@@ -37,8 +37,7 @@ test("updates a fleet car across responsive viewports", async ({ context, page }
     ).toBeVisible();
     await expect(pricingIncludesFuel).not.toBeChecked();
 
-    await pricingIncludesFuel.click();
-    await expect(pricingIncludesFuel).toBeChecked();
+    await pricingIncludesFuel.check();
     await expect(page.getByLabel("Fuel upgrade rate")).toHaveCount(0);
     await page.getByLabel("Daily rate (12 hours)").fill("90000");
     await page.getByRole("combobox", { name: "Current status" }).click();
