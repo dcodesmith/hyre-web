@@ -98,6 +98,7 @@ Better Auth response and error bodies bypass the API's normal Problem Details fi
 - admin rates under `/api/rates/admin`
 - platform fee, VAT, add-on create/end under `/api/rates`
 - refund/payout list, detail, and reconcile under `/api/admin/financial-operations`
+- staff list/create/revoke/reinstate under `/api/admin/staff`
 
 ### Backend-only integrations
 
@@ -253,6 +254,8 @@ All roles use the API's Better Auth endpoints. Role-specific pages remain separa
 - admin-only `/admin/fees` and `/admin/addon-rates` using
   `GET /api/rates/admin`, platform fee/VAT/add-on create endpoints, and the
   add-on end endpoint; overlapping windows remain API-owned conflicts
+- admin-only `/admin/staff` using the paginated staff lifecycle endpoints;
+  incompatible roles surface `USERS_STAFF_ROLE_CONFLICT`
 
 **Available or closely matched**
 
@@ -263,7 +266,6 @@ All roles use the API's Better Auth endpoints. Role-specific pages remain separa
 - admin dashboard aggregate parity
 - owner list/detail/update
 - owner car/chauffeur management pages
-- staff management
 - reports
 - admin review moderation/listing
 - referral configuration

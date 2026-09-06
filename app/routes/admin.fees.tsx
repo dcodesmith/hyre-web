@@ -154,9 +154,13 @@ export function shouldRevalidate({
   return defaultShouldRevalidate;
 }
 
-export default function AdminFeesRoute({ loaderData }: Route.ComponentProps) {
+export default function AdminFeesRoute({ actionData, loaderData }: Route.ComponentProps) {
   return (
-    <AdminFeesPage platformFeeRates={loaderData.platformFeeRates} taxRates={loaderData.taxRates} />
+    <AdminFeesPage
+      actionData={actionData}
+      platformFeeRates={loaderData.platformFeeRates}
+      taxRates={loaderData.taxRates}
+    />
   );
 }
 

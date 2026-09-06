@@ -81,5 +81,6 @@ export default [
     ),
     route("fees", "routes/admin.fees.tsx"),
     route("addon-rates", "routes/admin.addon-rates.tsx"),
+    route("staff", "routes/admin.staff.tsx"),
   ]),
 ] satisfies RouteConfig;

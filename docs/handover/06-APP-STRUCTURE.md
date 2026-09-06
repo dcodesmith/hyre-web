@@ -91,6 +91,9 @@ app/
       rates/
         rates.server.ts           # admin rate read/create + add-on end mutations
         schema.ts                 # fee, VAT, and add-on rate transport DTOs
+      staff/
+        staff.server.ts           # admin staff list/create/revoke/reinstate
+        schema.ts                 # staff transport DTOs
     bookings/
       bookings.server.ts          # signed-in reads/mutations + guest access + receipt stream
       schema.ts                   # booking, pricing, extension, and redacted guest DTOs
@@ -235,7 +238,7 @@ app/
       fleet-dashboard-page.tsx    # responsive overview and earnings activity
     cars/
       fleet-car.ts                # fleet car display labels
-      fleet-car-status-badge.tsx  # shared fleet badge chrome; status and review tones
+      fleet-car-status-badge.tsx  # fleet status/review labels on shared StatusBadge
       fleet-cars-url.ts           # filter, sort, and pagination URL contract
       fleet-cars-filter.tsx       # desktop popover / mobile sheet filter content
       fleet-cars-table-features.ts
@@ -270,6 +273,10 @@ app/
       rate-window-fields.tsx       # shared UTC effective-window fields
       admin-fees-page.tsx          # responsive platform fee + VAT management
       admin-addon-rates-page.tsx   # responsive add-on create/history/end UI
+    staff/
+      staff-form-schema.ts         # add-staff web form contract
+      staff-url.ts                 # status, pagination, and add-dialog query contract
+      admin-staff-page.tsx         # admin-only staff lifecycle management
 
   seo/
     metadata.ts
@@ -308,6 +315,7 @@ app/
     use-review-edit-window.ts     # customer review edit-deadline timer
 
   components/
+    status-badge.tsx          # shared outline/ring status chrome + tones
     ui/                       # shadcn primitives; do not hand-edit
     forms/
       form-primitives.tsx     # neutral field errors and invalid state
@@ -346,6 +354,7 @@ app/
     admin.documents.$documentId.ts # same-origin private PDF stream
     admin.fees.tsx                # admin-only platform fee + VAT rate actions
     admin.addon-rates.tsx         # admin-only add-on create/end actions
+    admin.staff.tsx               # admin-only add staff action
     bookings.tsx                  # signed-in list; guests → /auth?redirectTo=
     bookings.lookup.tsx           # guest email/reference request → generic accepted response
     bookings.guest.ts             # token exchange → encrypted cookie → clean detail URL
