@@ -173,7 +173,6 @@ export function FleetCarEditForm({ actionData, car }: FleetCarEditFormProps) {
                     value={pricingIncludesFuel.value ?? ""}
                   />
                   <Checkbox
-                    key={fields.pricingIncludesFuel.key}
                     id={fields.pricingIncludesFuel.id}
                     checked={pricingIncludesFuel.value === "on"}
                     onBlur={pricingIncludesFuel.blur}

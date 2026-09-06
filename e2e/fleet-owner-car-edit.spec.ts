@@ -27,7 +27,7 @@ test("updates a fleet car across responsive viewports", async ({ context, page }
     await page.goto(`/fleet-owner/cars/${MOCK_FLEET_CAR_ID}/edit`);
     await expect(page.getByRole("heading", { name: "Edit Lexus RX 350" })).toBeVisible();
     await expect(page.getByLabel("Daily rate (12 hours)")).toHaveValue("80000");
-    const pricingIncludesFuel = page.getByLabel("Pricing includes fuel");
+    const pricingIncludesFuel = page.getByRole("checkbox", { name: "Pricing includes fuel" });
     await expect(pricingIncludesFuel).not.toBeChecked();
 
     await page.getByLabel("Fuel upgrade rate").fill("");
@@ -35,9 +35,17 @@ test("updates a fleet car across responsive viewports", async ({ context, page }
     await expect(
       page.getByText("Fuel upgrade rate is required when pricing does not include fuel"),
     ).toBeVisible();
+    await expect(page.getByRole("button", { name: "Save changes" })).toBeEnabled();
     await expect(pricingIncludesFuel).not.toBeChecked();
 
-    await pricingIncludesFuel.check();
+    await expect(async () => {
+      if (await pricingIncludesFuel.isChecked()) {
+        return;
+      }
+
+      await page.getByText("Pricing includes fuel", { exact: true }).click();
+      await expect(pricingIncludesFuel).toBeChecked({ timeout: 1000 });
+    }).toPass();
     await expect(page.getByLabel("Fuel upgrade rate")).toHaveCount(0);
     await page.getByLabel("Daily rate (12 hours)").fill("90000");
     await page.getByRole("combobox", { name: "Current status" }).click();
