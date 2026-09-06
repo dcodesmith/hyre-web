@@ -29,6 +29,24 @@ type QueryOverrides = {
   readonly sameLocation?: boolean;
 };
 
+export function bookingTypeChangeOverrides(
+  currentType: BookingType,
+  nextType: BookingType,
+): QueryOverrides {
+  const resetAirportLocations =
+    currentType === AIRPORT_PICKUP_BOOKING_TYPE || nextType === AIRPORT_PICKUP_BOOKING_TYPE;
+
+  return {
+    from: null,
+    to: null,
+    pickupTime: null,
+    flightNumber: null,
+    pickupAddress: resetAirportLocations ? null : undefined,
+    dropOffAddress: resetAirportLocations ? null : undefined,
+    sameLocation: nextType !== AIRPORT_PICKUP_BOOKING_TYPE,
+  };
+}
+
 function pickOverride<T>(override: T | undefined, current: T) {
   if (override === undefined) {
     return current;
@@ -150,15 +168,12 @@ export function useCarBookingCard({
     navigate(
       buildCurrentCarDetailSearchPath(
         pathname,
-        nextCarBookingQuery(query, nextBookingType, sameLocation, {
-          from: null,
-          to: null,
-          pickupTime: null,
-          flightNumber: null,
-          pickupAddress: null,
-          dropOffAddress: null,
-          sameLocation: nextBookingType !== AIRPORT_PICKUP_BOOKING_TYPE,
-        }),
+        nextCarBookingQuery(
+          query,
+          nextBookingType,
+          sameLocation,
+          bookingTypeChangeOverrides(bookingType, nextBookingType),
+        ),
       ),
       {
         replace: true,

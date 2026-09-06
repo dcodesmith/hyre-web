@@ -53,6 +53,17 @@ describe("loadPublicRates", () => {
     await expect(loadPublicRates()).resolves.toEqual(FALLBACK_PUBLIC_RATES);
   });
 
+  it("uses documented fallbacks when a public rate is negative", async () => {
+    fetchMock.mockResolvedValueOnce(
+      Response.json({
+        ...publicRates,
+        securityDetailRate: -15_000,
+      }),
+    );
+
+    await expect(loadPublicRates()).resolves.toEqual(FALLBACK_PUBLIC_RATES);
+  });
+
   it("uses documented fallbacks when the response is not the public contract", async () => {
     fetchMock.mockResolvedValueOnce(
       Response.json({
