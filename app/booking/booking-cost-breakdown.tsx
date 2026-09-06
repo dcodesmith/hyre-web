@@ -57,7 +57,7 @@ export function BookingCostBreakdown({
     <section aria-label="Cost breakdown" className="mb-8 w-full lg:mb-0">
       <h3 className="mb-2 text-sm font-semibold">Cost Breakdown</h3>
       <div className="transform-gpu rounded border border-neutral-200 bg-white p-4 shadow-xl inset-shadow-sm lg:rounded-none lg:border-none lg:bg-transparent lg:px-0 lg:py-0 lg:shadow-none lg:inset-shadow-none">
-        <dl className="text-sm text-gray-950 transition-all duration-200">
+        <dl className="text-sm text-gray-950">
           {cost.rentalRows.map((row) => (
             <MoneyRow
               key={row.key}

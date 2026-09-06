@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { useFetcher } from "react-router";
 
 import type { PlaceSuggestion } from "~/api/places/schema";
@@ -32,15 +32,12 @@ export function usePlaceAutocomplete({
 }) {
   const autocompleteFetcher = useFetcher<AutocompleteLoaderData>();
   const resolveFetcher = useFetcher<ResolveActionData>();
-  const autocompleteFetcherRef = useRef(autocompleteFetcher);
-  const onResolvedRef = useRef(onResolved);
+  const loadSuggestions = useEffectEvent((path: string) => autocompleteFetcher.load(path));
+  const notifyResolved = useEffectEvent(onResolved);
   const sessionTokenRef = useRef<string | null>(null);
   const resolveFallbackRef = useRef("");
   const lastResolvedRef = useRef<string | null>(null);
   const [requestedInput, setRequestedInput] = useState<string | null>(null);
-
-  autocompleteFetcherRef.current = autocompleteFetcher;
-  onResolvedRef.current = onResolved;
 
   useEffect(() => {
     const trimmed = input.trim();
@@ -56,7 +53,7 @@ export function usePlaceAutocomplete({
         sessionToken: sessionTokenRef.current,
       });
       setRequestedInput(trimmed);
-      autocompleteFetcherRef.current.load(`/api/places/autocomplete?${params}`);
+      loadSuggestions(`/api/places/autocomplete?${params}`);
     }, 250);
 
     return () => clearTimeout(timeout);
@@ -74,7 +71,7 @@ export function usePlaceAutocomplete({
     }
 
     lastResolvedRef.current = address;
-    onResolvedRef.current(address);
+    notifyResolved(address);
   }, [resolveFetcher.data, resolveFetcher.state]);
 
   const resolve = (placeId: string, fallbackAddress: string) => {

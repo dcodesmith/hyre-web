@@ -26,7 +26,7 @@ export function usePaymentStatusPolling({
 }) {
   const fetcher = useFetcher<PaymentStatusPollData>();
   const fetcherRef = useRef(fetcher);
-  const startedAtRef = useRef(Date.now());
+  const startedAtRef = useRef<number | null>(null);
   const [timedOut, setTimedOut] = useState(false);
 
   const fetchedStatus = fetcher.data?.txRef === txRef ? fetcher.data.status : null;
@@ -41,8 +41,13 @@ export function usePaymentStatusPolling({
       return;
     }
 
+    if (startedAtRef.current === null) {
+      startedAtRef.current = Date.now();
+    }
+    const startedAt = startedAtRef.current;
+
     const poll = () => {
-      if (Date.now() - startedAtRef.current >= POLLING_BUDGET_MS) {
+      if (Date.now() - startedAt >= POLLING_BUDGET_MS) {
         setTimedOut(true);
         return;
       }
