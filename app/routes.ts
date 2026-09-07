@@ -61,7 +61,10 @@ export default [
   route("fleet-owner/logout", "routes/fleet-owner.logout.ts"),
   route("fleet-owner", "routes/fleet-owner.tsx", [
     layout("routes/fleet-owner.dashboard.tsx", [index("routes/fleet-owner._index.tsx")]),
+    route("onboarding", "routes/fleet-owner.onboarding.tsx"),
     route("cars", "routes/fleet-owner.cars.tsx"),
+    route("cars/new", "routes/fleet-owner.cars.new.tsx"),
+    route("cars/:carId/onboarding", "routes/fleet-owner.cars.$carId.onboarding.tsx"),
     route("cars/:carId", "routes/fleet-owner.cars.$carId.tsx"),
     route("cars/:carId/edit", "routes/fleet-owner.cars.$carId.edit.tsx"),
     route("promotions", "routes/fleet-owner.promotions.tsx"),

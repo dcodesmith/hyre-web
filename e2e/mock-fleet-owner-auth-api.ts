@@ -7,6 +7,36 @@ const FLEET_FILE_REPLACEMENT_PATH = new RegExp(
   `^/api/fleet-owner/cars/${MOCK_FLEET_CAR_ID}/(images|documents)/([^/]+)/file$`,
 );
 
+const mockVerifiedOnboarding = {
+  status: "VERIFIED",
+  accountType: "INDIVIDUAL",
+  isOwnerDriver: true,
+  emailVerified: true,
+  phone: { number: "**********5678", verified: true },
+  identity: {
+    status: "SUCCEEDED",
+    legalName: "JOHN MIDDLE DOE",
+    businessName: null,
+  },
+  bank: {
+    bankName: "GTBank",
+    accountName: "JOHN DOE",
+    accountNumber: "******6789",
+    verified: true,
+  },
+  documents: { driversLicense: "APPROVED", lasdri: "PENDING" },
+  requiredActions: [],
+};
+
+const mockLatestInsuranceVerification = {
+  id: "cm52345678901234567890123",
+  status: "SUCCEEDED",
+  policyNumber: "POL-12345",
+  policyStatus: "Active",
+  policyExpiresAt: "2027-01-01T00:00:00.000Z",
+  createdAt: "2026-09-07T12:00:00.000Z",
+};
+
 const mockFleetCar = {
   id: MOCK_FLEET_CAR_ID,
   make: "Lexus",
@@ -20,6 +50,7 @@ const mockFleetCar = {
   status: "AVAILABLE",
   approvalStatus: "APPROVED",
   approvalNotes: null,
+  submittedAt: "2026-09-07T12:00:00.000Z",
   hourlyRate: 10_000,
   dayRate: 80_000,
   nightRate: 60_000,
@@ -61,6 +92,7 @@ const mockFleetCar = {
       userId: null,
     },
   ],
+  insuranceVerifications: [mockLatestInsuranceVerification],
   promotion: null,
 };
 
@@ -431,6 +463,24 @@ async function handlePromotionsRequest(
   return false;
 }
 
+function handleOnboardingRequest(
+  request: IncomingMessage,
+  response: import("node:http").ServerResponse,
+  path: string,
+) {
+  if (path !== "/api/fleet-owner/onboarding" || request.method !== "GET") {
+    return false;
+  }
+
+  if (!request.headers.cookie?.includes("better-auth.session_token=e2e-session")) {
+    writeJson(response, 401, { status: 401, detail: "Unauthorized" });
+    return true;
+  }
+
+  writeJson(response, 200, mockVerifiedOnboarding);
+  return true;
+}
+
 function handleDashboardPayoutsRequest(
   request: IncomingMessage,
   response: import("node:http").ServerResponse,
@@ -584,6 +634,10 @@ export function startMockFleetOwnerAuthApi({
         },
         session: {},
       });
+      return;
+    }
+
+    if (handleOnboardingRequest(request, response, path)) {
       return;
     }
 

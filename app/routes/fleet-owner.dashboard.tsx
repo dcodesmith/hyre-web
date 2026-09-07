@@ -82,11 +82,11 @@ export async function loader({ request }: Route.LoaderArgs) {
 }
 
 export type FleetDashboardOutletContext = Awaited<ReturnType<typeof loader>> & {
-  readonly user: FleetOwnerOutletContext;
+  readonly user: FleetOwnerOutletContext["user"];
 };
 
 export default function FleetOwnerDashboardLayout({ loaderData }: Route.ComponentProps) {
-  const user = useOutletContext<FleetOwnerOutletContext>();
+  const { user } = useOutletContext<FleetOwnerOutletContext>();
 
   return <Outlet context={{ ...loaderData, user }} />;
 }

@@ -17,11 +17,13 @@ import { Separator } from "~/components/ui/separator";
 import { cn } from "~/lib/utils";
 import { formatCurrency } from "~/money/currency";
 import {
+  formatFleetCarRate,
   getFleetCarApprovalLabel,
   getFleetCarDocumentStatusLabel,
   getFleetCarDocumentTypeLabel,
   getFleetCarServiceTierLabel,
   getFleetCarVehicleTypeLabel,
+  needsFleetCarOnboarding,
 } from "./fleet-car";
 import type { FleetCarFileReplacementActionData } from "./fleet-car-file-replacement-form-schema";
 import { FleetCarReviewBadge, FleetCarStatusBadge } from "./fleet-car-status-badge";
@@ -96,6 +98,7 @@ function FileReplacementForm({
 }
 
 export function FleetCarDetail({ car }: { readonly car: FleetCar }) {
+  const needsOnboarding = needsFleetCarOnboarding(car);
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-6">
       <div>
@@ -123,9 +126,15 @@ export function FleetCarDetail({ car }: { readonly car: FleetCar }) {
               />
             </span>
             <Button asChild size="sm" variant="outline">
-              <Link to={`/fleet-owner/cars/${car.id}/edit`}>
+              <Link
+                to={
+                  needsOnboarding
+                    ? `/fleet-owner/cars/${car.id}/onboarding`
+                    : `/fleet-owner/cars/${car.id}/edit`
+                }
+              >
                 <PencilIcon data-icon="inline-start" />
-                Edit car
+                {needsOnboarding ? "Resume Car Setup" : "Edit Car"}
               </Link>
             </Button>
           </div>
@@ -153,6 +162,8 @@ export function FleetCarDetail({ car }: { readonly car: FleetCar }) {
                     src={image.url}
                     alt={`${car.year} ${car.make} ${car.model}, view ${index + 1}`}
                     className="size-full object-cover"
+                    width={960}
+                    height={540}
                     loading={index === 0 ? "eager" : "lazy"}
                   />
                   <span className="absolute right-3 bottom-3" aria-live="polite">
@@ -214,13 +225,19 @@ export function FleetCarDetail({ car }: { readonly car: FleetCar }) {
           </CardHeader>
           <CardContent>
             <DetailList>
-              <DetailRow label="Hourly rate" value={formatCurrency(car.hourlyRate)} />
-              <DetailRow label="Daily rate (12 hours)" value={formatCurrency(car.dayRate)} />
-              <DetailRow label="Nightly rate (11pm to 5am)" value={formatCurrency(car.nightRate)} />
-              <DetailRow label="Full day rate (24 hours)" value={formatCurrency(car.fullDayRate)} />
+              <DetailRow label="Hourly rate" value={formatFleetCarRate(car.hourlyRate)} />
+              <DetailRow label="Daily rate (12 hours)" value={formatFleetCarRate(car.dayRate)} />
+              <DetailRow
+                label="Nightly rate (11pm to 5am)"
+                value={formatFleetCarRate(car.nightRate)}
+              />
+              <DetailRow
+                label="Full day rate (24 hours)"
+                value={formatFleetCarRate(car.fullDayRate)}
+              />
               <DetailRow
                 label="Airport pickup rate"
-                value={formatCurrency(car.airportPickupRate)}
+                value={formatFleetCarRate(car.airportPickupRate)}
               />
               <DetailRow label="Fuel included" value={car.pricingIncludesFuel ? "Yes" : "No"} />
               {!car.pricingIncludesFuel && car.fuelUpgradeRate != null ? (

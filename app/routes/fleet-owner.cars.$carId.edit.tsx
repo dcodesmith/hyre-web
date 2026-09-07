@@ -12,6 +12,7 @@ import { ApiRequestError } from "~/api/api.server";
 import { getFleetCar, updateFleetCar } from "~/api/fleet/cars/cars.server";
 import { HTTP_STATUS } from "~/api/http-status";
 import { Button } from "~/components/ui/button";
+import { hasFleetCarPricing, needsFleetCarOnboarding } from "~/fleet/cars/fleet-car";
 import { FleetCarEditForm } from "~/fleet/cars/fleet-car-edit-form";
 import {
   type FleetCarEditActionData,
@@ -43,6 +44,10 @@ function isCarNotFound(error: unknown) {
 export async function loader({ request, params }: Route.LoaderArgs) {
   try {
     const { data: car } = await getFleetCar({ request, carId: params.carId });
+    if (needsFleetCarOnboarding(car)) {
+      throw redirect(`/fleet-owner/cars/${car.id}/onboarding`);
+    }
+    if (!hasFleetCarPricing(car)) throw redirect(`/fleet-owner/cars/${car.id}`);
     return {
       car: {
         id: car.id,
