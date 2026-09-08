@@ -96,7 +96,9 @@ export function CarImageStep({ car }: { readonly car: FleetCar }) {
         <CardTitle>
           <h3>Vehicle Photos</h3>
         </CardTitle>
-        <CardDescription>Upload up to five clear exterior and interior photos.</CardDescription>
+        <CardDescription>
+          Upload 1–5 clear exterior and interior photos together in one step.
+        </CardDescription>
       </CardHeader>
       <CardContent>
         {complete ? (

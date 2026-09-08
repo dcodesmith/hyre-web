@@ -172,6 +172,9 @@ export function OnboardingPhoneCodeForm({
             </Button>
           </Form>
         ) : null}
+        {actionData?.intent === "send-phone" && actionData.error ? (
+          <FormError id="resend-phone-error" errors={[actionData.error]} />
+        ) : null}
       </CardContent>
     </Card>
   );

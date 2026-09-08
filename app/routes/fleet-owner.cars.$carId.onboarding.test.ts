@@ -286,6 +286,16 @@ describe("fleet-owner car onboarding route", () => {
     expectRedirect(result, ONBOARDING_PATH);
   });
 
+  it("returns a 400 for an unsupported intent instead of a gateway error", async () => {
+    const { result } = await runAction({ intent: "not-a-step" });
+
+    expect(result).toMatchObject({
+      data: { error: "Unsupported car onboarding step.", revalidate: false },
+      init: { status: HTTP_STATUS.BAD_REQUEST },
+    });
+    expect(JSON.stringify(result)).not.toContain(CAR_ONBOARDING_RETRY);
+  });
+
   it("submits the car and redirects to car detail", async () => {
     const { request, result } = await runAction({ intent: "submit-car" });
 

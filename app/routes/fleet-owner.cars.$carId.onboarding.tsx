@@ -147,7 +147,7 @@ async function executeAction(
       await submitFleetCar({ request, carId });
       return redirect(`/fleet-owner/cars/${carId}`, { headers: NO_STORE });
     default:
-      throw data(null, { status: HTTP_STATUS.BAD_REQUEST, headers: NO_STORE });
+      return invalid("Unsupported car onboarding step.");
   }
 }
 
