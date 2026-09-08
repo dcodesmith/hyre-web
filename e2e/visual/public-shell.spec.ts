@@ -17,7 +17,7 @@ function isAppConsoleError(text: string) {
   return (
     !text.includes("Outdated Optimize Dep") &&
     !text.includes("Failed to fetch manifest patches") &&
-    !text.includes("504")
+    !text.includes("504 (Outdated Optimize Dep)")
   );
 }
 
