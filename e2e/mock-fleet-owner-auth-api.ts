@@ -1,5 +1,7 @@
 import { createServer, type IncomingMessage, type Server } from "node:http";
 
+import { closeMockApiServer, listenOnMockApiPort } from "./mock-http-server";
+
 export const MOCK_FLEET_CAR_ID = "cm12345678901234567890123";
 export const MOCK_FLEET_IMAGE_ID = "cm32345678901234567890123";
 export const MOCK_FLEET_DOCUMENT_ID = "cm42345678901234567890123";
@@ -562,7 +564,7 @@ function handleDashboardRequest(
   return true;
 }
 
-export function startMockFleetOwnerAuthApi({
+export async function startMockFleetOwnerAuthApi({
   port = 3100,
   rejectedFiles = false,
 }: {
@@ -666,21 +668,10 @@ export function startMockFleetOwnerAuthApi({
     writeJson(response, 401, { status: 401, detail: "Unauthorized" });
   });
 
-  return new Promise<MockFleetOwnerAuthApi>((resolve, reject) => {
-    server.once("error", reject);
-    server.listen(port, "127.0.0.1", () => resolve({ server, requests }));
-  });
+  await listenOnMockApiPort(server, port);
+  return { server, requests };
 }
 
 export function stopMockFleetOwnerAuthApi(api: MockFleetOwnerAuthApi) {
-  return new Promise<void>((resolve, reject) => {
-    api.server.close((error) => {
-      if (error) {
-        reject(error);
-        return;
-      }
-
-      resolve();
-    });
-  });
+  return closeMockApiServer(api.server);
 }

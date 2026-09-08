@@ -1,5 +1,7 @@
 import { createServer, type IncomingMessage, type Server } from "node:http";
 
+import { closeMockApiServer, listenOnMockApiPort } from "./mock-http-server";
+
 type PortalRole = "admin" | "staff";
 
 const ADMIN_SESSION_COOKIE = "better-auth.session_token=admin-e2e-session";
@@ -733,7 +735,7 @@ async function handleAdminStaffRequest(
   return true;
 }
 
-export function startMockAdminAuthApi(
+export async function startMockAdminAuthApi(
   port = 3100,
   refundProviderId: string | null = mockAdminRefund.refundProviderId,
 ) {
@@ -824,20 +826,10 @@ export function startMockAdminAuthApi(
     writeJson(response, 401, { status: 401, detail: "Unauthorized" });
   });
 
-  return new Promise<MockAdminAuthApi>((resolve, reject) => {
-    server.once("error", reject);
-    server.listen(port, "127.0.0.1", () => resolve({ server, requests }));
-  });
+  await listenOnMockApiPort(server, port);
+  return { server, requests };
 }
 
 export function stopMockAdminAuthApi(api: MockAdminAuthApi) {
-  return new Promise<void>((resolve, reject) => {
-    api.server.close((error) => {
-      if (error) {
-        reject(error);
-        return;
-      }
-      resolve();
-    });
-  });
+  return closeMockApiServer(api.server);
 }

@@ -1,6 +1,7 @@
 import { expect, type Page, test } from "@playwright/test";
 
 import { HTTP_STATUS } from "../app/api/http-status";
+import { clickUntilAttribute, clickUntilVisible } from "./click-until";
 import { expectVisualScreenshot } from "./expect-visual-screenshot";
 
 const consentKey = "tripdly-cookie-consent:v1";
@@ -30,17 +31,13 @@ test("renders crawlable homepage metadata and booking controls", async ({ page }
   );
 
   const searchForm = page.locator('form[action="/search"]');
-  const airportTab = searchForm.getByRole("button", { name: "Airport" });
+  const airportTab = searchForm.getByRole("button", { name: "Airport Pickup" });
   await expect(searchForm).toBeVisible();
   await expect(searchForm.getByRole("button", { name: "Same Day" })).toHaveAttribute(
     "aria-pressed",
     "true",
   );
-  await expect(async () => {
-    await airportTab.scrollIntoViewIfNeeded();
-    await airportTab.click();
-    await expect(airportTab).toHaveAttribute("aria-pressed", "true");
-  }).toPass();
+  await clickUntilAttribute(airportTab, "aria-pressed", "true");
   await expect(page.getByLabel("Flight Number")).toBeVisible();
   const flightNumber = page.getByLabel("Flight Number");
   await expect(async () => {
@@ -93,13 +90,7 @@ test("opens the AI search dialog from the homepage", async ({ page }) => {
   await setCookiePreference(page);
   await page.goto("/");
   const trigger = page.getByRole("button", { name: "Search by AI" });
-  await expect(async () => {
-    await trigger.scrollIntoViewIfNeeded();
-    await trigger.click();
-    await expect(page.getByRole("dialog", { name: "Search by AI" })).toBeVisible({
-      timeout: 1500,
-    });
-  }).toPass();
+  await clickUntilVisible(trigger, page.getByRole("dialog", { name: "Search by AI" }));
   await expect(page.getByLabel("Describe your search")).toBeVisible();
 });
 

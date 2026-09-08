@@ -29,11 +29,13 @@ test("renders crawlable car metadata and booking controls from the fixture", asy
   await expect(page.getByLabel("Pickup Time")).toBeVisible();
   await expect(page.getByLabel("Pickup Address")).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: "Cost Breakdown" }).filter({ visible: true }),
+    page.getByRole("heading", { name: "Cost Breakdown" }).filter({ visible: true }).first(),
   ).toBeVisible();
-  await expect(page.getByText("₦90,000 × 1 day").filter({ visible: true })).toBeVisible();
-  await expect(page.getByText("Platform Fee (5.0%)").filter({ visible: true })).toBeVisible();
-  await expect(page.getByText("VAT (7.5%)").filter({ visible: true })).toBeVisible();
+  await expect(page.getByText("₦90,000 × 1 day").filter({ visible: true }).first()).toBeVisible();
+  await expect(
+    page.getByText("Platform Fee (5.0%)").filter({ visible: true }).first(),
+  ).toBeVisible();
+  await expect(page.getByText("VAT (7.5%)").filter({ visible: true }).first()).toBeVisible();
   await expect(page.getByLabel("Name")).toBeVisible();
   await expect(page.getByLabel("Email")).toBeVisible();
   await expect(page.getByLabel("Phone Number")).toBeVisible();

@@ -1,5 +1,7 @@
 import { expect, type Page, test } from "@playwright/test";
 
+import { clickUntilVisible } from "./click-until";
+
 const consentKey = "tripdly-cookie-consent:v1";
 
 async function setCookiePreference(page: Page) {
@@ -30,11 +32,11 @@ test("renders the profile form fixture", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Danger Zone" })).toBeVisible();
 
   const deleteAccount = page.getByRole("button", { name: "Delete Account" });
-  await deleteAccount.scrollIntoViewIfNeeded();
-  await deleteAccount.click();
-
   const dialog = page.getByRole("dialog");
-  await expect(dialog.getByRole("heading", { name: "Are you absolutely sure?" })).toBeVisible();
+  await clickUntilVisible(
+    deleteAccount,
+    dialog.getByRole("heading", { name: "Are you absolutely sure?" }),
+  );
   await expect(dialog).toContainText("This action cannot be undone.");
 
   await dialog.getByRole("button", { name: "Cancel" }).click();
@@ -47,8 +49,9 @@ test("renders the profile form fixture", async ({ page }) => {
     await route.fulfill({ status: 204 });
   });
 
-  await page.getByRole("button", { name: "Delete Account" }).click();
-  await page.getByRole("dialog").getByRole("button", { name: "Delete Account" }).click();
+  const confirmDelete = page.getByRole("dialog").getByRole("button", { name: "Delete Account" });
+  await clickUntilVisible(deleteAccount, confirmDelete);
+  await confirmDelete.click();
 
   await expect.poll(() => deletionRequests).toBe(1);
 });
