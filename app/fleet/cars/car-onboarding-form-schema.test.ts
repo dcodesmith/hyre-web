@@ -27,24 +27,63 @@ const validPricing = {
   serviceTier: "LUXURY",
 };
 
+const validPolicyNumber = "POL-12345";
+const validPlateFields = { plateNumber: "ABC123XY", policyNumber: validPolicyNumber };
+
 describe("car onboarding form schemas", () => {
   it.each([
     ["ABC-123XY", "ABC123XY"],
     ["abc123xy", "ABC123XY"],
     ["ABC 123 XY", "ABC123XY"],
     ["ab123xy", "AB123XY"],
-  ] as const)("accepts and normalizes Nigerian plate %s", (input, normalized) => {
-    expect(carOnboardingPlateFormSchema.parse({ plateNumber: input })).toEqual({
+  ] as const)("accepts and normalizes Nigerian plate %s with a policy", (input, normalized) => {
+    expect(
+      carOnboardingPlateFormSchema.parse({ plateNumber: input, policyNumber: validPolicyNumber }),
+    ).toEqual({
       plateNumber: normalized,
+      policyNumber: validPolicyNumber,
+    });
+  });
+
+  it("trims the initial-form policy number", () => {
+    expect(
+      carOnboardingPlateFormSchema.parse({
+        plateNumber: "ABC-123XY",
+        policyNumber: "  POL-12345  ",
+      }),
+    ).toEqual({
+      plateNumber: "ABC123XY",
+      policyNumber: "POL-12345",
     });
   });
 
   it.each(["ABC123", "AB-123XY", "ABC-12XY", "ABCD123XY", ""] as const)(
-    "rejects malformed plate %s",
+    "rejects malformed plate %s even with a valid policy",
     (plateNumber) => {
-      expect(carOnboardingPlateFormSchema.safeParse({ plateNumber }).success).toBe(false);
+      expect(
+        carOnboardingPlateFormSchema.safeParse({ plateNumber, policyNumber: validPolicyNumber })
+          .success,
+      ).toBe(false);
     },
   );
+
+  it.each([
+    ["empty", ""],
+    ["too short", "AB"],
+    ["too long", "A".repeat(101)],
+    ["whitespace only", "   "],
+  ] as const)("rejects a %s policy even with a valid plate", (_label, policyNumber) => {
+    expect(
+      carOnboardingPlateFormSchema.safeParse({
+        plateNumber: validPlateFields.plateNumber,
+        policyNumber,
+      }).success,
+    ).toBe(false);
+  });
+
+  it("rejects a missing policy number on the initial form", () => {
+    expect(carOnboardingPlateFormSchema.safeParse({ plateNumber: "ABC123XY" }).success).toBe(false);
+  });
 
   it("accepts PDF documents at or under 5MB", () => {
     const motCertificate = documentFile();

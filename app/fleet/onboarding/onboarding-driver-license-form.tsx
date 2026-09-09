@@ -19,7 +19,7 @@ export function OnboardingDriverLicenseForm({
     navigation.formData?.get("intent") === "replace-driver-license";
 
   return (
-    <Card>
+    <Card className="rounded-sm">
       <CardHeader>
         <CardTitle>
           <h2>Replace Driver&apos;s Licence</h2>
@@ -37,6 +37,7 @@ export function OnboardingDriverLicenseForm({
               id="replacement-driver-license"
               name="file"
               type="file"
+              className="h-10 rounded-sm"
               accept="image/jpeg,image/png,image/webp,application/pdf"
               required
             />

@@ -62,6 +62,7 @@ function failure(error: unknown) {
 async function verifyPlate(request: Request, formData: FormData) {
   const plate = carOnboardingPlateFormSchema.safeParse({
     plateNumber: formData.get("plateNumber"),
+    policyNumber: formData.get("policyNumber"),
   });
   const idempotencyKey = idempotencyKeySchema.safeParse(formData.get("idempotencyKey"));
   if (!plate.success) {

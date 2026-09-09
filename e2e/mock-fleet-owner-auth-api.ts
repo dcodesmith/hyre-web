@@ -3,8 +3,11 @@ import { createServer, type IncomingMessage, type Server } from "node:http";
 import { closeMockApiServer, listenOnMockApiPort } from "./mock-http-server";
 
 export const MOCK_FLEET_CAR_ID = "cm12345678901234567890123";
+export const MOCK_FLEET_DRAFT_CAR_ID = "cm62345678901234567890123";
 export const MOCK_FLEET_IMAGE_ID = "cm32345678901234567890123";
 export const MOCK_FLEET_DOCUMENT_ID = "cm42345678901234567890123";
+export const MOCK_VEHICLE_VERIFICATION_ID = "cm72345678901234567890123";
+const VEHICLE_VERIFICATION_DELAY_MS = 700;
 const FLEET_FILE_REPLACEMENT_PATH = new RegExp(
   `^/api/fleet-owner/cars/${MOCK_FLEET_CAR_ID}/(images|documents)/([^/]+)/file$`,
 );
@@ -28,6 +31,14 @@ const mockVerifiedOnboarding = {
   },
   documents: { driversLicense: "APPROVED", lasdri: "PENDING" },
   requiredActions: [],
+  steps: {
+    contact: "VERIFIED",
+    identity: "VERIFIED",
+    payout: "VERIFIED",
+    driving: "COMPLETED",
+    submission: "VERIFIED",
+  },
+  nextAction: "COMPLETE",
 };
 
 const mockLatestInsuranceVerification = {
@@ -35,8 +46,25 @@ const mockLatestInsuranceVerification = {
   status: "SUCCEEDED",
   policyNumber: "POL-12345",
   policyStatus: "Active",
-  policyExpiresAt: "2027-01-01T00:00:00.000Z",
+  policyExpiresAt: "2099-12-31T00:00:00.000Z",
   createdAt: "2026-09-07T12:00:00.000Z",
+};
+
+const mockVehicleVerification = {
+  id: MOCK_VEHICLE_VERIFICATION_ID,
+  status: "SUCCEEDED",
+  vehicle: {
+    plateNumber: "KJA123AB",
+    chassisNumber: "1HGCM82633A004352",
+    make: "Toyota",
+    model: "Camry",
+    year: 2020,
+    color: "Black",
+    passengerCapacity: 5,
+  },
+  eligibility: { isEligible: true, reasons: [] },
+  expiresAt: "2026-09-08T12:00:00.000Z",
+  carId: null as string | null,
 };
 
 const mockFleetCar = {
@@ -97,6 +125,132 @@ const mockFleetCar = {
   insuranceVerifications: [mockLatestInsuranceVerification],
   promotion: null,
 };
+
+function hasCurrentInsurance(car: {
+  insuranceVerifications: Array<{
+    status: string;
+    policyExpiresAt: string | null;
+  }>;
+}) {
+  const verification = car.insuranceVerifications[0];
+  return (
+    verification?.status === "SUCCEEDED" &&
+    verification.policyExpiresAt != null &&
+    Date.parse(verification.policyExpiresAt) > Date.now()
+  );
+}
+
+function hasDraftPricing(car: {
+  airportPickupRate: number | null;
+  dayRate: number | null;
+  fuelUpgradeRate: number | null;
+  fullDayRate: number | null;
+  hourlyRate: number | null;
+  nightRate: number | null;
+  pricingIncludesFuel: boolean;
+}) {
+  return (
+    car.hourlyRate != null &&
+    car.dayRate != null &&
+    car.nightRate != null &&
+    car.fullDayRate != null &&
+    car.airportPickupRate != null &&
+    (car.pricingIncludesFuel || car.fuelUpgradeRate != null)
+  );
+}
+
+function canSubmitDraftCar(car: ReturnType<typeof createMockDraftCar>) {
+  return (
+    car.documents.length >= 2 &&
+    car.images.length > 0 &&
+    hasDraftPricing(car) &&
+    hasCurrentInsurance(car)
+  );
+}
+
+function draftDocument(id: string, documentType: "MOT_CERTIFICATE" | "INSURANCE_CERTIFICATE") {
+  return {
+    id,
+    documentType,
+    status: "PENDING" as const,
+    documentUrl: `https://cdn.example.com/${id}.pdf`,
+    notes: null,
+    approvedById: null,
+    approvedAt: null,
+    carId: MOCK_FLEET_DRAFT_CAR_ID,
+    createdAt: "2026-09-07T12:00:00.000Z",
+    updatedAt: "2026-09-07T12:00:00.000Z",
+    userId: null,
+  };
+}
+
+function createMockDraftCar(plateNumber: string, policyNumber: string) {
+  return {
+    ...mockFleetCar,
+    id: MOCK_FLEET_DRAFT_CAR_ID,
+    make: "Toyota",
+    model: "Camry",
+    year: 2020,
+    color: "Black",
+    registrationNumber: plateNumber,
+    status: "HOLD",
+    approvalStatus: "PENDING",
+    approvalNotes: null,
+    submittedAt: null,
+    hourlyRate: null,
+    dayRate: null,
+    nightRate: null,
+    fuelUpgradeRate: null,
+    fullDayRate: null,
+    airportPickupRate: null,
+    vehicleType: "SEDAN",
+    serviceTier: "STANDARD",
+    passengerCapacity: 5,
+    images: [],
+    documents: [],
+    insuranceVerifications: [
+      {
+        ...mockLatestInsuranceVerification,
+        policyNumber,
+      },
+    ],
+    promotion: null,
+  };
+}
+
+function createExpiredInsuranceDraft() {
+  return {
+    ...createMockDraftCar("KJA123AB", "POL-EXPIRED"),
+    hourlyRate: 10_000,
+    dayRate: 80_000,
+    nightRate: 60_000,
+    fuelUpgradeRate: 20_000,
+    fullDayRate: 150_000,
+    airportPickupRate: 50_000,
+    documents: [
+      draftDocument("cm82345678901234567890123", "MOT_CERTIFICATE"),
+      draftDocument("cm92345678901234567890123", "INSURANCE_CERTIFICATE"),
+    ],
+    images: [
+      {
+        id: "cm02345678901234567890123",
+        url: "https://images.unsplash.com/photo-1549399542-7e3f8b79c341",
+        status: "PENDING" as const,
+        isPrimary: true,
+        createdAt: "2026-09-07T12:00:00.000Z",
+        updatedAt: "2026-09-07T12:00:00.000Z",
+      },
+    ],
+    insuranceVerifications: [
+      {
+        ...mockLatestInsuranceVerification,
+        policyNumber: "POL-EXPIRED",
+        policyStatus: "Expired",
+        policyExpiresAt: "2026-01-01T00:00:00.000Z",
+      },
+    ],
+  };
+}
 
 const mockFleetCars = [
   mockFleetCar,
@@ -218,6 +372,7 @@ export type MockFleetOwnerAuthApi = {
     createPromotions: unknown[];
     dashboardOverviewRequests: number;
     deactivatedPromotionIds: string[];
+    draftCars: Array<{ verificationId: string }>;
     earningsQueries: Array<Record<string, string>>;
     fleetCarsRequests: number;
     fileReplacements: Array<{
@@ -229,6 +384,10 @@ export type MockFleetOwnerAuthApi = {
     payoutQueries: Array<Record<string, string>>;
     payoutSummaryRequests: number;
     updateCars: Array<{ carId: string; body: unknown }>;
+    vehicleVerifications: Array<{
+      body: unknown;
+      idempotencyKey?: string;
+    }>;
     sendOtp?: CapturedAuthRequest;
     verifyOtp?: CapturedAuthRequest;
     signOut?: CapturedAuthRequest;
@@ -465,12 +624,127 @@ async function handlePromotionsRequest(
   return false;
 }
 
-function handleOnboardingRequest(
+function wait(ms: number) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+const DRAFT_CAR_PATH = `/api/fleet-owner/cars/${MOCK_FLEET_DRAFT_CAR_ID}`;
+
+async function handleDraftCarOnboardingMutation(
   request: IncomingMessage,
   response: import("node:http").ServerResponse,
   path: string,
+  state: {
+    draftCar: ReturnType<typeof createMockDraftCar> | null;
+    lastPolicyNumber: string;
+    verification: typeof mockVehicleVerification;
+  },
 ) {
-  if (path !== "/api/fleet-owner/onboarding" || request.method !== "GET") {
+  if (!state.draftCar) {
+    writeJson(response, 404, { status: 404, detail: "Car not found" });
+    return true;
+  }
+
+  if (request.method === "POST" && path === `${DRAFT_CAR_PATH}/documents`) {
+    await readBody(request);
+    state.draftCar.documents = [
+      draftDocument("cm82345678901234567890123", "MOT_CERTIFICATE"),
+      draftDocument("cm92345678901234567890123", "INSURANCE_CERTIFICATE"),
+    ];
+    writeJson(response, 200, state.draftCar);
+    return true;
+  }
+
+  if (request.method === "POST" && path === `${DRAFT_CAR_PATH}/images`) {
+    await readBody(request);
+    state.draftCar.images = [
+      {
+        id: "cm02345678901234567890123",
+        url: "https://images.unsplash.com/photo-1549399542-7e3f8b79c341",
+        status: "PENDING",
+        isPrimary: true,
+        createdAt: "2026-09-07T12:00:00.000Z",
+        updatedAt: "2026-09-07T12:00:00.000Z",
+      },
+    ];
+    writeJson(response, 200, state.draftCar);
+    return true;
+  }
+
+  if (request.method === "PATCH" && path === `${DRAFT_CAR_PATH}/pricing`) {
+    const body = (await readJson(request)) as Partial<ReturnType<typeof createMockDraftCar>>;
+    Object.assign(state.draftCar, body, { updatedAt: "2026-09-07T13:00:00.000Z" });
+    writeJson(response, 200, state.draftCar);
+    return true;
+  }
+
+  if (request.method === "POST" && path === `${DRAFT_CAR_PATH}/insurance-verifications`) {
+    const body = (await readJson(request)) as { policyNumber?: string };
+    const verification = {
+      id: "cm10345678901234567890123",
+      status: "SUCCEEDED" as const,
+      policyNumber: body.policyNumber ?? state.lastPolicyNumber,
+      policyStatus: "Active",
+      policyExpiresAt: "2099-12-31T00:00:00.000Z",
+      createdAt: "2026-09-09T12:00:00.000Z",
+    };
+    state.lastPolicyNumber = verification.policyNumber;
+    state.draftCar.insuranceVerifications = [verification];
+    writeJson(response, 200, {
+      ...verification,
+      carId: MOCK_FLEET_DRAFT_CAR_ID,
+      providerRef: "provider-1",
+    });
+    return true;
+  }
+
+  if (request.method === "POST" && path === `${DRAFT_CAR_PATH}/submissions`) {
+    const hasDocuments = state.draftCar.documents.length >= 2;
+    const hasImages = state.draftCar.images.length > 0;
+    const hasPricing = hasDraftPricing(state.draftCar);
+    const hasInsuranceVerification = hasCurrentInsurance(state.draftCar);
+    if (!canSubmitDraftCar(state.draftCar)) {
+      writeJson(response, 400, {
+        type: "FLEET_CAR_ONBOARDING_ERROR",
+        title: "Car onboarding error",
+        status: 400,
+        detail: "Car is missing required documents, images, pricing, or insurance verification.",
+        requirements: { hasDocuments, hasImages, hasPricing, hasInsuranceVerification },
+      });
+      return true;
+    }
+    state.draftCar.submittedAt = "2026-09-07T14:00:00.000Z";
+    writeJson(response, 200, {
+      success: true,
+      requirements: {
+        hasDocuments: true,
+        hasImages: true,
+        hasPricing: true,
+        hasInsuranceVerification: true,
+      },
+    });
+    return true;
+  }
+
+  return false;
+}
+
+async function handleCarOnboardingRequest(
+  request: IncomingMessage,
+  response: import("node:http").ServerResponse,
+  path: string,
+  requests: MockFleetOwnerAuthApi["requests"],
+  state: {
+    draftCar: ReturnType<typeof createMockDraftCar> | null;
+    lastPolicyNumber: string;
+    verification: typeof mockVehicleVerification;
+  },
+) {
+  const isDraftCarApi = path === DRAFT_CAR_PATH || path.startsWith(`${DRAFT_CAR_PATH}/`);
+  const isVehicleVerificationApi = path.startsWith("/api/fleet-owner/vehicle-verifications");
+  if (!isDraftCarApi && !isVehicleVerificationApi) {
     return false;
   }
 
@@ -479,8 +753,264 @@ function handleOnboardingRequest(
     return true;
   }
 
-  writeJson(response, 200, mockVerifiedOnboarding);
-  return true;
+  if (request.method === "GET" && path === DRAFT_CAR_PATH) {
+    if (!state.draftCar) {
+      writeJson(response, 404, { status: 404, detail: "Car not found" });
+      return true;
+    }
+    writeJson(response, 200, state.draftCar);
+    return true;
+  }
+
+  if (isDraftCarApi && (await handleDraftCarOnboardingMutation(request, response, path, state))) {
+    return true;
+  }
+
+  if (request.method === "POST" && path === "/api/fleet-owner/vehicle-verifications") {
+    const body = (await readJson(request)) as {
+      plateNumber?: string;
+      policyNumber?: string;
+    };
+    requests.vehicleVerifications.push({
+      body,
+      idempotencyKey:
+        typeof request.headers["idempotency-key"] === "string"
+          ? request.headers["idempotency-key"]
+          : undefined,
+    });
+    if (typeof body?.plateNumber === "string") {
+      state.verification.vehicle.plateNumber = body.plateNumber;
+    }
+    if (typeof body?.policyNumber === "string") {
+      state.lastPolicyNumber = body.policyNumber;
+    }
+    await wait(VEHICLE_VERIFICATION_DELAY_MS);
+    writeJson(response, 200, state.verification);
+    return true;
+  }
+
+  const verificationMatch = /^\/api\/fleet-owner\/vehicle-verifications\/([^/]+)$/.exec(path);
+  if (request.method === "GET" && verificationMatch) {
+    writeJson(response, 200, state.verification);
+    return true;
+  }
+
+  const draftMatch = /^\/api\/fleet-owner\/vehicle-verifications\/([^/]+)\/car$/.exec(path);
+  if (request.method === "POST" && draftMatch) {
+    const verificationId = decodeURIComponent(draftMatch[1]);
+    requests.draftCars.push({ verificationId });
+    state.verification.carId = MOCK_FLEET_DRAFT_CAR_ID;
+    state.draftCar = createMockDraftCar(
+      state.verification.vehicle.plateNumber,
+      state.lastPolicyNumber,
+    );
+    writeJson(response, 201, state.draftCar);
+    return true;
+  }
+
+  return false;
+}
+
+const mockBanks = [
+  { code: "058", name: "GTBank" },
+  { code: "044", name: "Access Bank" },
+];
+
+const pendingOnboardingSteps = {
+  contact: "PENDING",
+  identity: "PENDING",
+  payout: "PENDING",
+  driving: "PENDING",
+  submission: "PENDING",
+} as const;
+
+function createStagedOnboarding() {
+  return {
+    status: "ACTION_REQUIRED" as const,
+    accountType: null as "INDIVIDUAL" | "BUSINESS" | null,
+    isOwnerDriver: null as boolean | null,
+    emailVerified: true,
+    phone: { number: null as string | null, verified: false },
+    identity: null as {
+      status: "SUCCEEDED" | "REVIEW_REQUIRED";
+      legalName: string | null;
+      businessName: string | null;
+    } | null,
+    bank: null as {
+      bankName: string;
+      accountName: string;
+      accountNumber: string;
+      verified: boolean;
+    } | null,
+    documents: { driversLicense: null, lasdri: null },
+    requiredActions: ["VERIFY_PHONE"] as Array<
+      "VERIFY_EMAIL" | "VERIFY_PHONE" | "VERIFY_ACCOUNT" | "UPLOAD_DRIVERS_LICENSE"
+    >,
+    steps: { ...pendingOnboardingSteps },
+    nextAction: "VERIFY_PHONE" as
+      | "VERIFY_EMAIL"
+      | "VERIFY_PHONE"
+      | "VERIFY_IDENTITY"
+      | "VERIFY_PAYOUT"
+      | "PROVIDE_DRIVING_CREDENTIALS"
+      | "SUBMIT_ACCOUNT"
+      | "WAIT_FOR_REVIEW"
+      | "COMPLETE",
+  };
+}
+
+type StagedOnboarding = ReturnType<typeof createStagedOnboarding>;
+
+function requireFleetOwnerSession(
+  request: IncomingMessage,
+  response: import("node:http").ServerResponse,
+) {
+  if (request.headers.cookie?.includes("better-auth.session_token=e2e-session")) {
+    return true;
+  }
+  writeJson(response, 401, { status: 401, detail: "Unauthorized" });
+  return false;
+}
+
+async function handleStagedOnboardingRequest(
+  request: IncomingMessage,
+  response: import("node:http").ServerResponse,
+  path: string,
+  staged: StagedOnboarding,
+) {
+  if (path === "/api/fleet-owner/banks" && request.method === "GET") {
+    writeJson(response, 200, mockBanks);
+    return true;
+  }
+
+  if (path === "/api/fleet-owner/phone-verifications" && request.method === "POST") {
+    const body = (await readJson(request)) as { phoneNumber?: string };
+    staged.phone = { number: body.phoneNumber ?? "+2348012345678", verified: false };
+    writeJson(response, 200, { status: "PENDING", phoneNumber: staged.phone.number });
+    return true;
+  }
+
+  if (path === "/api/fleet-owner/phone-verification-checks" && request.method === "POST") {
+    staged.phone = { number: staged.phone.number ?? "+2348012345678", verified: true };
+    staged.requiredActions = [];
+    staged.steps.contact = "VERIFIED";
+    staged.nextAction = "VERIFY_IDENTITY";
+    writeJson(response, 200, { status: "VERIFIED", phoneNumber: staged.phone.number });
+    return true;
+  }
+
+  if (path === "/api/fleet-owner/onboarding/identity-verifications" && request.method === "POST") {
+    const body = (await readJson(request)) as { accountType?: "INDIVIDUAL" | "BUSINESS" };
+    staged.accountType = body.accountType ?? "INDIVIDUAL";
+    staged.identity = {
+      status: "SUCCEEDED",
+      legalName: "JOHN MIDDLE DOE",
+      businessName: staged.accountType === "BUSINESS" ? "HYRE MOBILITY LTD" : null,
+    };
+    staged.steps.identity = "VERIFIED";
+    staged.nextAction = "VERIFY_PAYOUT";
+    writeJson(response, 200, {
+      id: "id-1",
+      status: "VERIFIED",
+      accountType: staged.accountType,
+      legalName: staged.identity.legalName,
+      businessName: staged.identity.businessName,
+    });
+    return true;
+  }
+
+  if (path === "/api/fleet-owner/onboarding/payout-verifications" && request.method === "POST") {
+    const body = (await readJson(request)) as { bankName?: string; accountNumber?: string };
+    staged.bank = {
+      bankName: body.bankName ?? "GTBank",
+      accountName: "JOHN DOE",
+      accountNumber: "******6789",
+      verified: false,
+    };
+    staged.steps.payout = "VERIFIED";
+    staged.nextAction = "PROVIDE_DRIVING_CREDENTIALS";
+    writeJson(response, 200, {
+      status: "VERIFIED",
+      bank: {
+        bankName: staged.bank.bankName,
+        accountName: staged.bank.accountName,
+        accountNumber: staged.bank.accountNumber,
+        nameMatch: "MATCHED",
+      },
+    });
+    return true;
+  }
+
+  if (path === "/api/fleet-owner/onboarding/driving-credentials" && request.method === "PUT") {
+    await readBody(request);
+    staged.isOwnerDriver = false;
+    staged.steps.driving = "SKIPPED";
+    staged.nextAction = "SUBMIT_ACCOUNT";
+    writeJson(response, 200, {
+      status: "COMPLETED",
+      isOwnerDriver: false,
+      documents: staged.documents,
+    });
+    return true;
+  }
+
+  if (path === "/api/fleet-owner/onboarding/submissions" && request.method === "POST") {
+    staged.status = "UNDER_REVIEW";
+    staged.steps.submission = "REVIEW_REQUIRED";
+    staged.nextAction = "WAIT_FOR_REVIEW";
+    writeJson(response, 200, {
+      id: "ver-1",
+      status: "REVIEW_REQUIRED",
+      accountType: staged.accountType ?? "INDIVIDUAL",
+      isOwnerDriver: staged.isOwnerDriver,
+      legalName: staged.identity?.legalName ?? null,
+      businessName: staged.identity?.businessName ?? null,
+      bank: staged.bank
+        ? {
+            bankName: staged.bank.bankName,
+            accountName: staged.bank.accountName,
+            accountNumber: staged.bank.accountNumber,
+            nameMatch: "MATCHED",
+          }
+        : null,
+    });
+    return true;
+  }
+
+  return false;
+}
+
+async function handleOnboardingRequest(
+  request: IncomingMessage,
+  response: import("node:http").ServerResponse,
+  path: string,
+  staged: StagedOnboarding | null,
+) {
+  const isOnboardingGet = path === "/api/fleet-owner/onboarding" && request.method === "GET";
+  const isStagedPath =
+    path === "/api/fleet-owner/banks" ||
+    path === "/api/fleet-owner/phone-verifications" ||
+    path === "/api/fleet-owner/phone-verification-checks" ||
+    path.startsWith("/api/fleet-owner/onboarding/");
+
+  if (!isOnboardingGet && !isStagedPath) {
+    return false;
+  }
+
+  if (!requireFleetOwnerSession(request, response)) {
+    return true;
+  }
+
+  if (isOnboardingGet) {
+    writeJson(response, 200, staged ?? mockVerifiedOnboarding);
+    return true;
+  }
+
+  if (!staged) {
+    return false;
+  }
+
+  return handleStagedOnboardingRequest(request, response, path, staged);
 }
 
 function handleDashboardPayoutsRequest(
@@ -567,23 +1097,46 @@ function handleDashboardRequest(
 export async function startMockFleetOwnerAuthApi({
   port = 3100,
   rejectedFiles = false,
+  stagedOnboarding = false,
+  ineligibleVehicle = false,
+  expiredInsuranceDraft = false,
 }: {
   readonly port?: number;
   readonly rejectedFiles?: boolean;
+  readonly stagedOnboarding?: boolean;
+  readonly ineligibleVehicle?: boolean;
+  readonly expiredInsuranceDraft?: boolean;
 } = {}) {
   const requests: MockFleetOwnerAuthApi["requests"] = {
     createPromotions: [],
     dashboardOverviewRequests: 0,
     deactivatedPromotionIds: [],
+    draftCars: [],
     earningsQueries: [],
     fleetCarsRequests: 0,
     fileReplacements: [],
     payoutQueries: [],
     payoutSummaryRequests: 0,
     updateCars: [],
+    vehicleVerifications: [],
   };
   const promotions: MockPromotion[] = [];
   const fleetCar = structuredClone(mockFleetCar);
+  const onboardingState = {
+    draftCar: expiredInsuranceDraft ? createExpiredInsuranceDraft() : null,
+    lastPolicyNumber: expiredInsuranceDraft
+      ? "POL-EXPIRED"
+      : mockLatestInsuranceVerification.policyNumber,
+    verification: structuredClone(mockVehicleVerification),
+  };
+  if (ineligibleVehicle) {
+    Object.assign(onboardingState.verification.vehicle, { year: 2014 });
+    Object.assign(onboardingState.verification.eligibility, {
+      isEligible: false,
+      reasons: ["VEHICLE_YEAR_BELOW_MINIMUM"],
+    });
+  }
+  const stagedOwnerOnboarding = stagedOnboarding ? createStagedOnboarding() : null;
   if (rejectedFiles) {
     Object.assign(fleetCar, {
       approvalStatus: "REJECTED",
@@ -639,7 +1192,11 @@ export async function startMockFleetOwnerAuthApi({
       return;
     }
 
-    if (handleOnboardingRequest(request, response, path)) {
+    if (await handleOnboardingRequest(request, response, path, stagedOwnerOnboarding)) {
+      return;
+    }
+
+    if (await handleCarOnboardingRequest(request, response, path, requests, onboardingState)) {
       return;
     }
 

@@ -5,7 +5,10 @@ import {
   fleetOwnerAccountVerificationSchema,
   fleetOwnerBanksSchema,
   fleetOwnerDriverLicenseReplacementSchema,
+  fleetOwnerDrivingCredentialsSchema,
+  fleetOwnerIdentityVerificationSchema,
   fleetOwnerOnboardingSchema,
+  fleetOwnerPayoutVerificationSchema,
   fleetOwnerPhoneVerificationSchema,
 } from "./schema";
 
@@ -68,7 +71,59 @@ export function checkFleetOwnerPhoneVerification({
   });
 }
 
-export function createFleetOwnerAccountVerification({
+export function verifyFleetOwnerIdentity({
+  request,
+  idempotencyKey,
+  body,
+}: {
+  readonly request: Request;
+  readonly idempotencyKey: string;
+  readonly body:
+    | { readonly accountType: "INDIVIDUAL"; readonly nin: string }
+    | {
+        readonly accountType: "BUSINESS";
+        readonly nin: string;
+        readonly businessName: string;
+        readonly registrationNumber: string;
+        readonly registrationType: "RC" | "BN" | "IT" | "LP" | "LLP";
+      };
+}) {
+  return getApiClient().request({
+    path: "/api/fleet-owner/onboarding/identity-verifications",
+    method: "POST",
+    request,
+    forwardCookie: true,
+    headers: { "Idempotency-Key": idempotencyKey },
+    json: body,
+    schema: fleetOwnerIdentityVerificationSchema,
+  });
+}
+
+export function verifyFleetOwnerPayout({
+  request,
+  idempotencyKey,
+  body,
+}: {
+  readonly request: Request;
+  readonly idempotencyKey: string;
+  readonly body: {
+    readonly bankName: string;
+    readonly bankCode: string;
+    readonly accountNumber: string;
+  };
+}) {
+  return getApiClient().request({
+    path: "/api/fleet-owner/onboarding/payout-verifications",
+    method: "POST",
+    request,
+    forwardCookie: true,
+    headers: { "Idempotency-Key": idempotencyKey },
+    json: body,
+    schema: fleetOwnerPayoutVerificationSchema,
+  });
+}
+
+export function saveFleetOwnerDrivingCredentials({
   request,
   idempotencyKey,
   formData,
@@ -78,12 +133,29 @@ export function createFleetOwnerAccountVerification({
   readonly formData: FormData;
 }) {
   return getApiClient().request({
-    path: "/api/fleet-owner/account-verifications",
-    method: "POST",
+    path: "/api/fleet-owner/onboarding/driving-credentials",
+    method: "PUT",
     request,
     forwardCookie: true,
     headers: { "Idempotency-Key": idempotencyKey },
     formData,
+    schema: fleetOwnerDrivingCredentialsSchema,
+  });
+}
+
+export function submitFleetOwnerOnboarding({
+  request,
+  idempotencyKey,
+}: {
+  readonly request: Request;
+  readonly idempotencyKey: string;
+}) {
+  return getApiClient().request({
+    path: "/api/fleet-owner/onboarding/submissions",
+    method: "POST",
+    request,
+    forwardCookie: true,
+    headers: { "Idempotency-Key": idempotencyKey },
     schema: fleetOwnerAccountVerificationSchema,
   });
 }

@@ -4,7 +4,10 @@ import {
   fleetOwnerAccountVerificationSchema,
   fleetOwnerBanksSchema,
   fleetOwnerDriverLicenseReplacementSchema,
+  fleetOwnerDrivingCredentialsSchema,
+  fleetOwnerIdentityVerificationSchema,
   fleetOwnerOnboardingSchema,
+  fleetOwnerPayoutVerificationSchema,
   fleetOwnerPhoneVerificationSchema,
 } from "./schema";
 
@@ -13,16 +16,26 @@ const banks = [
   { code: "058", name: "GTBank" },
 ] as const;
 
+const pendingSteps = {
+  contact: "PENDING",
+  identity: "PENDING",
+  payout: "PENDING",
+  driving: "PENDING",
+  submission: "PENDING",
+} as const;
+
 const actionRequiredOnboarding = {
   status: "ACTION_REQUIRED",
   accountType: null,
-  isOwnerDriver: false,
+  isOwnerDriver: null,
   emailVerified: false,
   phone: { number: "**********5678", verified: false },
   identity: null,
   bank: null,
   documents: { driversLicense: null, lasdri: null },
   requiredActions: ["VERIFY_EMAIL", "VERIFY_PHONE", "VERIFY_ACCOUNT"],
+  steps: pendingSteps,
+  nextAction: "VERIFY_EMAIL",
 } as const;
 
 const underReviewOnboarding = {
@@ -44,6 +57,14 @@ const underReviewOnboarding = {
   },
   documents: { driversLicense: null, lasdri: null },
   requiredActions: [],
+  steps: {
+    contact: "VERIFIED",
+    identity: "REVIEW_REQUIRED",
+    payout: "VERIFIED",
+    driving: "SKIPPED",
+    submission: "REVIEW_REQUIRED",
+  },
+  nextAction: "WAIT_FOR_REVIEW",
 } as const;
 
 const verifiedOnboarding = {
@@ -65,6 +86,14 @@ const verifiedOnboarding = {
   },
   documents: { driversLicense: "APPROVED", lasdri: "PENDING" },
   requiredActions: [],
+  steps: {
+    contact: "VERIFIED",
+    identity: "VERIFIED",
+    payout: "VERIFIED",
+    driving: "COMPLETED",
+    submission: "VERIFIED",
+  },
+  nextAction: "COMPLETE",
 } as const;
 
 describe("fleet-owner onboarding API schemas", () => {
@@ -73,23 +102,45 @@ describe("fleet-owner onboarding API schemas", () => {
     expect(fleetOwnerBanksSchema.safeParse([{ name: "GTBank" }]).success).toBe(false);
   });
 
-  it("parses ACTION_REQUIRED, UNDER_REVIEW, and VERIFIED onboarding statuses", () => {
+  it("parses ACTION_REQUIRED, UNDER_REVIEW, and VERIFIED onboarding with steps and nextAction", () => {
     expect(fleetOwnerOnboardingSchema.parse(actionRequiredOnboarding)).toEqual(
       actionRequiredOnboarding,
     );
     expect(fleetOwnerOnboardingSchema.parse(underReviewOnboarding)).toMatchObject({
       status: "UNDER_REVIEW",
+      isOwnerDriver: false,
       phone: { number: "**********5678", verified: true },
       identity: { status: "REVIEW_REQUIRED", legalName: "JOHN MIDDLE DOE", businessName: null },
       bank: { accountNumber: "******6789", verified: false },
       documents: { driversLicense: null, lasdri: null },
       requiredActions: [],
+      steps: {
+        contact: "VERIFIED",
+        identity: "REVIEW_REQUIRED",
+        payout: "VERIFIED",
+        driving: "SKIPPED",
+        submission: "REVIEW_REQUIRED",
+      },
+      nextAction: "WAIT_FOR_REVIEW",
     });
     expect(fleetOwnerOnboardingSchema.parse(verifiedOnboarding)).toMatchObject({
       status: "VERIFIED",
       documents: { driversLicense: "APPROVED", lasdri: "PENDING" },
       requiredActions: [],
+      steps: {
+        contact: "VERIFIED",
+        identity: "VERIFIED",
+        payout: "VERIFIED",
+        driving: "COMPLETED",
+        submission: "VERIFIED",
+      },
+      nextAction: "COMPLETE",
     });
+  });
+
+  it("rejects onboarding without nextAction", () => {
+    const { nextAction: _nextAction, ...withoutNextAction } = actionRequiredOnboarding;
+    expect(fleetOwnerOnboardingSchema.safeParse(withoutNextAction).success).toBe(false);
   });
 
   it("rejects an unknown onboarding status", () => {
@@ -120,6 +171,43 @@ describe("fleet-owner onboarding API schemas", () => {
         phoneNumber: "**********1111",
       }).success,
     ).toBe(false);
+  });
+
+  it("parses identity, payout, and driving stage responses", () => {
+    expect(
+      fleetOwnerIdentityVerificationSchema.parse({
+        id: "id-1",
+        status: "VERIFIED",
+        accountType: "INDIVIDUAL",
+        legalName: "JOHN MIDDLE DOE",
+        businessName: null,
+      }),
+    ).toMatchObject({ status: "VERIFIED", accountType: "INDIVIDUAL", businessName: null });
+    expect(
+      fleetOwnerPayoutVerificationSchema.parse({
+        status: "REVIEW_REQUIRED",
+        bank: {
+          bankName: "GTBank",
+          accountName: "JOHN DOE",
+          accountNumber: "******6789",
+          nameMatch: "REVIEW_REQUIRED",
+        },
+      }),
+    ).toMatchObject({
+      status: "REVIEW_REQUIRED",
+      bank: { accountNumber: "******6789", nameMatch: "REVIEW_REQUIRED" },
+    });
+    expect(
+      fleetOwnerDrivingCredentialsSchema.parse({
+        status: "COMPLETED",
+        isOwnerDriver: false,
+        documents: { driversLicense: null, lasdri: null },
+      }),
+    ).toEqual({
+      status: "COMPLETED",
+      isOwnerDriver: false,
+      documents: { driversLicense: null, lasdri: null },
+    });
   });
 
   it("parses SUCCEEDED and REVIEW_REQUIRED account verification responses", () => {

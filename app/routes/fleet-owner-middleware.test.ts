@@ -33,21 +33,25 @@ function onboarding(status: "ACTION_REQUIRED" | "UNDER_REVIEW" | "VERIFIED") {
 }
 
 async function runParentLoader(
-  url: string,
+  requestUrl: string,
   status: "ACTION_REQUIRED" | "UNDER_REVIEW" | "VERIFIED",
+  normalizedUrl = requestUrl,
 ) {
-  const request = new Request(url);
+  const request = new Request(requestUrl);
   const context = new RouterContextProvider();
   const data = onboarding(status);
   requireFleetOwner.mockResolvedValue(user);
   getFleetOwnerOnboarding.mockResolvedValue({ data });
 
   for (const fn of middleware) {
-    await fn({ request, context, params: {} } as never, async () => new Response());
+    await fn(
+      { request, url: new URL(normalizedUrl), context, params: {} } as never,
+      async () => new Response(),
+    );
   }
 
   const result = await Promise.resolve()
-    .then(() => loader({ request, context, params: {} } as never))
+    .then(() => loader({ request, url: new URL(normalizedUrl), context, params: {} } as never))
     .catch((error: unknown) => error);
 
   return { request, result, onboarding: data };
@@ -93,6 +97,16 @@ describe("fleet-owner route middleware", () => {
     const { result, onboarding: data } = await runParentLoader(
       "https://tripdly.com/fleet-owner/onboarding",
       "ACTION_REQUIRED",
+    );
+
+    expect(result).toEqual({ user, onboarding: data });
+  });
+
+  it("uses the normalized route URL for onboarding data requests", async () => {
+    const { result, onboarding: data } = await runParentLoader(
+      "https://tripdly.com/fleet-owner/onboarding.data?_routes=routes%2Ffleet-owner",
+      "ACTION_REQUIRED",
+      "https://tripdly.com/fleet-owner/onboarding",
     );
 
     expect(result).toEqual({ user, onboarding: data });

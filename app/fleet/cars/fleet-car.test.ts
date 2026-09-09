@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import type { FleetCar } from "~/api/fleet/cars/schema";
-import { getFleetCarStatusLabel, hasFleetCarPricing, needsFleetCarOnboarding } from "./fleet-car";
+import {
+  getFleetCarOnboardingStep,
+  getFleetCarStatusLabel,
+  hasFleetCarPricing,
+  needsFleetCarOnboarding,
+} from "./fleet-car";
 
 const fleetCar = {
   id: "car-1",
@@ -37,6 +42,57 @@ const fleetCar = {
   documents: [],
   insuranceVerifications: [],
   promotion: null,
+} satisfies FleetCar;
+
+const onboardingDocuments = [
+  {
+    id: "document-1",
+    documentType: "MOT_CERTIFICATE" as const,
+    status: "PENDING" as const,
+    documentUrl: "https://cdn.example.com/mot.pdf",
+    notes: null,
+    approvedById: null,
+    approvedAt: null,
+    carId: "car-1",
+    createdAt: "2026-08-01T10:00:00.000Z",
+    updatedAt: "2026-08-01T10:00:00.000Z",
+    userId: null,
+  },
+  {
+    id: "document-2",
+    documentType: "INSURANCE_CERTIFICATE" as const,
+    status: "PENDING" as const,
+    documentUrl: "https://cdn.example.com/insurance.pdf",
+    notes: null,
+    approvedById: null,
+    approvedAt: null,
+    carId: "car-1",
+    createdAt: "2026-08-01T10:00:00.000Z",
+    updatedAt: "2026-08-01T10:00:00.000Z",
+    userId: null,
+  },
+] satisfies FleetCar["documents"];
+
+const onboardingImages = [
+  {
+    id: "image-1",
+    url: "https://cdn.example.com/car.jpg",
+    status: "PENDING" as const,
+    isPrimary: true,
+    createdAt: "2026-08-01T10:00:00.000Z",
+    updatedAt: "2026-08-01T10:00:00.000Z",
+  },
+] satisfies FleetCar["images"];
+
+const draftCar = {
+  ...fleetCar,
+  submittedAt: null,
+  hourlyRate: null,
+  dayRate: null,
+  nightRate: null,
+  fuelUpgradeRate: null,
+  fullDayRate: null,
+  airportPickupRate: null,
 } satisfies FleetCar;
 
 describe("fleet car display labels", () => {
@@ -90,5 +146,101 @@ describe("fleet car setup status", () => {
         fuelUpgradeRate: null,
       }),
     ).toBe(true);
+  });
+});
+
+describe("fleet car onboarding step", () => {
+  it("starts at documents until both certificates are present", () => {
+    expect(getFleetCarOnboardingStep(draftCar)).toBe("documents");
+    expect(
+      getFleetCarOnboardingStep({
+        ...draftCar,
+        documents: [onboardingDocuments[0]],
+      }),
+    ).toBe("documents");
+  });
+
+  it("progresses documents -> photos -> pricing -> submit", () => {
+    expect(
+      getFleetCarOnboardingStep({
+        ...draftCar,
+        documents: onboardingDocuments,
+      }),
+    ).toBe("photos");
+    expect(
+      getFleetCarOnboardingStep({
+        ...draftCar,
+        documents: onboardingDocuments,
+        images: onboardingImages,
+      }),
+    ).toBe("pricing");
+    expect(
+      getFleetCarOnboardingStep({
+        ...fleetCar,
+        submittedAt: null,
+        documents: onboardingDocuments,
+        images: onboardingImages,
+      }),
+    ).toBe("submit");
+  });
+
+  it("stays on pricing until every required rate is set", () => {
+    const readyForPricing = {
+      ...fleetCar,
+      submittedAt: null,
+      documents: onboardingDocuments,
+      images: onboardingImages,
+    } satisfies FleetCar;
+
+    expect(getFleetCarOnboardingStep({ ...readyForPricing, hourlyRate: null })).toBe("pricing");
+    expect(getFleetCarOnboardingStep({ ...readyForPricing, fuelUpgradeRate: null })).toBe(
+      "pricing",
+    );
+    expect(
+      getFleetCarOnboardingStep({
+        ...readyForPricing,
+        pricingIncludesFuel: true,
+        fuelUpgradeRate: null,
+      }),
+    ).toBe("submit");
+  });
+
+  it("keeps insurance recovery inside submit rather than adding a sixth step", () => {
+    const readyForSubmit = {
+      ...fleetCar,
+      submittedAt: null,
+      documents: onboardingDocuments,
+      images: onboardingImages,
+    } satisfies FleetCar;
+    const expiredInsurance = {
+      id: "ins-1",
+      status: "SUCCEEDED" as const,
+      policyNumber: "POL-12345",
+      policyStatus: "Expired",
+      policyExpiresAt: "2026-01-01T00:00:00.000Z",
+      createdAt: "2026-01-01T00:00:00.000Z",
+    };
+    const failedInsurance = {
+      ...expiredInsurance,
+      status: "FAILED" as const,
+      policyStatus: "Failed",
+      policyExpiresAt: "2027-01-01T00:00:00.000Z",
+    };
+
+    expect(getFleetCarOnboardingStep({ ...readyForSubmit, insuranceVerifications: [] })).toBe(
+      "submit",
+    );
+    expect(
+      getFleetCarOnboardingStep({
+        ...readyForSubmit,
+        insuranceVerifications: [failedInsurance],
+      }),
+    ).toBe("submit");
+    expect(
+      getFleetCarOnboardingStep({
+        ...readyForSubmit,
+        insuranceVerifications: [expiredInsurance],
+      }),
+    ).toBe("submit");
   });
 });

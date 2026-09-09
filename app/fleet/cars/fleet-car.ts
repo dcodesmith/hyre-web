@@ -94,3 +94,12 @@ export function hasFleetCarPricing(car: FleetCar): car is FleetCarWithPricing {
 export function needsFleetCarOnboarding(car: FleetCar) {
   return car.submittedAt === null;
 }
+
+export type FleetCarOnboardingStep = "documents" | "photos" | "pricing" | "submit";
+
+export function getFleetCarOnboardingStep(car: FleetCar): FleetCarOnboardingStep {
+  if (car.documents.length < 2) return "documents";
+  if (car.images.length === 0) return "photos";
+  if (!hasFleetCarPricing(car)) return "pricing";
+  return "submit";
+}

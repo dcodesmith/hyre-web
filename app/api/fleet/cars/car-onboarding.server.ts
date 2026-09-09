@@ -26,7 +26,7 @@ export function createFleetVehicleVerification({
 }: {
   readonly request: Request;
   readonly idempotencyKey: string;
-  readonly body: { readonly plateNumber: string };
+  readonly body: { readonly plateNumber: string; readonly policyNumber: string };
 }) {
   return getApiClient().request({
     path: "/api/fleet-owner/vehicle-verifications",

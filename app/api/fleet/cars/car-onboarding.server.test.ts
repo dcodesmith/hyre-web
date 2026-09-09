@@ -127,7 +127,7 @@ describe("fleet car onboarding BFF", () => {
     await createFleetVehicleVerification({
       request,
       idempotencyKey: "vehicle-1",
-      body: { plateNumber: "KJA-123AB" },
+      body: { plateNumber: "KJA-123AB", policyNumber: "POL-12345" },
     });
 
     const { url, init, headers } = capturedRequest();
@@ -136,7 +136,10 @@ describe("fleet car onboarding BFF", () => {
     expect(headers.get("cookie")).toBe("better-auth.session_token=session-1");
     expect(headers.get("Idempotency-Key")).toBe("vehicle-1");
     expect(headers.get("content-type")).toBe("application/json");
-    expect(JSON.parse(String(init?.body))).toEqual({ plateNumber: "KJA-123AB" });
+    expect(JSON.parse(String(init?.body))).toEqual({
+      plateNumber: "KJA-123AB",
+      policyNumber: "POL-12345",
+    });
   });
 
   it("GETs vehicle verification and forwards the session cookie", async () => {

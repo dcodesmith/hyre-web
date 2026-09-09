@@ -5,7 +5,7 @@ const MAX_DOCUMENT_SIZE_BYTES = 5 * 1024 * 1024;
 const DOCUMENT_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "application/pdf"]);
 
 const phoneNumberSchema = z
-  .string()
+  .string({ error: "Phone number is required" })
   .trim()
   .regex(/^\+[1-9]\d{7,14}$/, "Enter a phone number in international format");
 
@@ -17,49 +17,82 @@ export const onboardingPhoneFormSchema = z.object({
 
 export const onboardingPhoneCheckFormSchema = onboardingPhoneFormSchema.extend({
   code: z
-    .string()
+    .string({ error: "Verification code is required" })
     .trim()
     .regex(/^\d{4,10}$/, "Enter the verification code"),
 });
 
-const commonAccountFields = {
-  nin: z
-    .string()
-    .trim()
-    .regex(/^\d{11}$/, "NIN must contain exactly 11 digits"),
-  isOwnerDriver: z
-    .union([z.boolean(), z.enum(["true", "false"])])
-    .transform((value) => value === true || value === "true"),
-  bankName: z.string().trim().min(2, "Select a bank"),
+const ninSchema = z
+  .string({ error: "NIN is required" })
+  .trim()
+  .regex(/^\d{11}$/, "NIN must contain exactly 11 digits");
+
+export const onboardingIdentityFormSchema = z.discriminatedUnion("accountType", [
+  z.object({
+    accountType: z.literal("INDIVIDUAL"),
+    nin: ninSchema,
+  }),
+  z.object({
+    accountType: z.literal("BUSINESS"),
+    nin: ninSchema,
+    businessName: z
+      .string({ error: "Business name is required" })
+      .trim()
+      .min(2, "Business name is required")
+      .max(200),
+    registrationNumber: z
+      .string({ error: "Registration number is required" })
+      .trim()
+      .regex(/^[A-Za-z0-9-]{2,30}$/, "Enter a valid registration number"),
+    registrationType: z.enum(["RC", "BN", "IT", "LP", "LLP"], {
+      error: "Select a registration type",
+    }),
+  }),
+]);
+
+export const onboardingPayoutFormSchema = z.object({
   bankCode: z
-    .string()
+    .string({ error: "Select a bank" })
     .trim()
     .regex(/^\d{2,6}$/, "Select a bank"),
   accountNumber: z
-    .string()
+    .string({ error: "Account number is required" })
     .trim()
     .regex(/^\d{10}$/, "Account number must contain exactly 10 digits"),
-  driversLicense: optionalDocumentSchema,
-  lasdri: optionalDocumentSchema,
-};
+});
 
-export const onboardingAccountFormSchema = z
-  .discriminatedUnion("accountType", [
-    z.object({
-      ...commonAccountFields,
-      accountType: z.literal("INDIVIDUAL"),
-    }),
-    z.object({
-      ...commonAccountFields,
-      accountType: z.literal("BUSINESS"),
-      businessName: z.string().trim().min(2, "Business name is required").max(200),
-      registrationNumber: z
-        .string()
-        .trim()
-        .regex(/^[A-Za-z0-9-]{2,30}$/, "Enter a valid registration number"),
-      registrationType: z.enum(["RC", "BN", "IT", "LP", "LLP"]),
-    }),
-  ])
+function addDocumentIssues(
+  context: z.RefinementCtx,
+  field: "driversLicense" | "lasdri" | "file",
+  file: File | undefined,
+) {
+  if (!file) return;
+  if (!DOCUMENT_TYPES.has(file.type)) {
+    context.addIssue({
+      code: "custom",
+      message: "Use a JPEG, PNG, WebP, or PDF file",
+      path: [field],
+    });
+  }
+  if (file.size <= 0 || file.size > MAX_DOCUMENT_SIZE_BYTES) {
+    context.addIssue({
+      code: "custom",
+      message: "File must not exceed 5 MB",
+      path: [field],
+    });
+  }
+}
+
+export const onboardingDrivingFormSchema = z
+  .object({
+    isOwnerDriver: z
+      .union([z.boolean(), z.enum(["true", "false"])], {
+        error: "Choose whether you will drive",
+      })
+      .transform((value) => value === true || value === "true"),
+    driversLicense: optionalDocumentSchema,
+    lasdri: optionalDocumentSchema,
+  })
   .superRefine(({ driversLicense, isOwnerDriver, lasdri }, context) => {
     if (isOwnerDriver && !driversLicense) {
       context.addIssue({
@@ -77,53 +110,35 @@ export const onboardingAccountFormSchema = z
       });
     }
 
-    for (const [field, file] of [
-      ["driversLicense", driversLicense],
-      ["lasdri", lasdri],
-    ] as const) {
-      if (!file) continue;
-      if (!DOCUMENT_TYPES.has(file.type)) {
-        context.addIssue({
-          code: "custom",
-          message: "Use a JPEG, PNG, WebP, or PDF file",
-          path: [field],
-        });
-      }
-      if (file.size <= 0 || file.size > MAX_DOCUMENT_SIZE_BYTES) {
-        context.addIssue({
-          code: "custom",
-          message: "File must not exceed 5 MB",
-          path: [field],
-        });
-      }
-    }
+    addDocumentIssues(context, "driversLicense", driversLicense);
+    addDocumentIssues(context, "lasdri", lasdri);
   });
 
 export const onboardingDriverLicenseReplacementFormSchema = z
   .object({ file: z.file() })
   .superRefine(({ file }, context) => {
-    if (!DOCUMENT_TYPES.has(file.type)) {
-      context.addIssue({
-        code: "custom",
-        message: "Use a JPEG, PNG, WebP, or PDF file",
-        path: ["file"],
-      });
-    }
-    if (file.size <= 0 || file.size > MAX_DOCUMENT_SIZE_BYTES) {
-      context.addIssue({
-        code: "custom",
-        message: "File must not exceed 5 MB",
-        path: ["file"],
-      });
-    }
+    addDocumentIssues(context, "file", file);
   });
 
-export type OnboardingAccountFormInput = z.input<typeof onboardingAccountFormSchema>;
-export type OnboardingAccountFormValue = z.output<typeof onboardingAccountFormSchema>;
+export type OnboardingIdentityFormInput = z.input<typeof onboardingIdentityFormSchema>;
+export type OnboardingIdentityFormValue = z.output<typeof onboardingIdentityFormSchema>;
+export type OnboardingPayoutFormInput = z.input<typeof onboardingPayoutFormSchema>;
+export type OnboardingDrivingFormInput = z.input<typeof onboardingDrivingFormSchema>;
+export type OnboardingDrivingFormValue = z.output<typeof onboardingDrivingFormSchema>;
+
+export type OnboardingActionIntent =
+  | "send-phone"
+  | "check-phone"
+  | "verify-identity"
+  | "verify-payout"
+  | "save-driving"
+  | "submit-account"
+  | "replace-driver-license";
 
 export type OnboardingActionData = {
-  readonly intent: "send-phone" | "check-phone" | "verify-account" | "replace-driver-license";
+  readonly intent: OnboardingActionIntent;
   readonly error?: string;
+  readonly idempotencyKey?: string;
   readonly notice?: string;
   readonly phoneNumber?: string;
   readonly revalidate?: false;

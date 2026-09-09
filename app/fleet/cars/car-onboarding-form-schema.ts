@@ -14,6 +14,8 @@ const imageSchema = z
   .refine((file) => file.size > 0 && file.size <= MAX_FILE_SIZE_BYTES, "Image must not exceed 5 MB")
   .refine((file) => IMAGE_TYPES.has(file.type), "Images must be JPEG, PNG, or WebP");
 
+const policyNumberSchema = z.string().trim().min(3).max(100);
+
 export const carOnboardingPlateFormSchema = z.object({
   plateNumber: z
     .string()
@@ -24,6 +26,7 @@ export const carOnboardingPlateFormSchema = z.object({
       "Enter a valid Nigerian number plate",
     )
     .transform((value) => value.replace("-", "")),
+  policyNumber: policyNumberSchema,
 });
 
 export const carOnboardingDocumentsFormSchema = z.object({
@@ -67,7 +70,7 @@ export const carOnboardingPricingFormSchema = z
   });
 
 export const carOnboardingInsuranceFormSchema = z.object({
-  policyNumber: z.string().trim().min(3).max(100),
+  policyNumber: policyNumberSchema,
 });
 
 export type CarOnboardingPricing = z.output<typeof carOnboardingPricingFormSchema>;

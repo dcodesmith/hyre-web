@@ -73,7 +73,7 @@ describe("fleet car onboarding API schemas", () => {
     ).toEqual({ isEligible: false, reasons: ["VEHICLE_YEAR_BELOW_MINIMUM"] });
   });
 
-  it("allows nullable vehicle verification fields", () => {
+  it("allows nullable vehicle verification fields except required color", () => {
     expect(
       fleetVehicleVerificationSchema.parse({
         ...succeededVehicleVerification,
@@ -83,7 +83,7 @@ describe("fleet car onboarding API schemas", () => {
           make: null,
           model: null,
           year: null,
-          color: null,
+          color: "Black",
           passengerCapacity: null,
         },
         eligibility: { isEligible: false, reasons: [] },
@@ -94,9 +94,22 @@ describe("fleet car onboarding API schemas", () => {
       make: null,
       model: null,
       year: null,
-      color: null,
+      color: "Black",
       passengerCapacity: null,
     });
+    expect(
+      fleetVehicleVerificationSchema.safeParse({
+        ...succeededVehicleVerification,
+        vehicle: {
+          plateNumber: "KJA123AB",
+          chassisNumber: null,
+          make: null,
+          model: null,
+          year: null,
+          passengerCapacity: null,
+        },
+      }).success,
+    ).toBe(false);
   });
 
   it("parses insurance verification including nullable policy fields", () => {

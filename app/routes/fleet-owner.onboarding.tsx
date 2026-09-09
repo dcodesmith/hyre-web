@@ -1,26 +1,40 @@
-import { data, redirect, type ShouldRevalidateFunctionArgs } from "react-router";
+import type { SubmissionResult } from "@conform-to/react";
+import { parseWithZod } from "@conform-to/zod/v4";
+import { data, redirect, type ShouldRevalidateFunctionArgs, useOutletContext } from "react-router";
 import { z } from "zod";
 
 import { ApiRequestError } from "~/api/api.server";
 import {
   checkFleetOwnerPhoneVerification,
-  createFleetOwnerAccountVerification,
   getFleetOwnerBanks,
   replaceFleetOwnerDriverLicense,
+  saveFleetOwnerDrivingCredentials,
   sendFleetOwnerPhoneVerification,
+  submitFleetOwnerOnboarding,
+  verifyFleetOwnerIdentity,
+  verifyFleetOwnerPayout,
 } from "~/api/fleet/onboarding/onboarding.server";
+import {
+  accountErrorMessage,
+  accountErrorReply,
+  accountRetryKey,
+} from "~/api/fleet/onboarding/onboarding-errors.server";
 import { HTTP_STATUS } from "~/api/http-status";
 import { fleetOwnerContext } from "~/fleet/fleet-owner-context";
 import { FleetOwnerOnboardingPage } from "~/fleet/onboarding/fleet-owner-onboarding-page";
 import {
   type OnboardingActionData,
-  onboardingAccountFormSchema,
+  type OnboardingActionIntent,
   onboardingDriverLicenseReplacementFormSchema,
+  onboardingDrivingFormSchema,
+  onboardingIdentityFormSchema,
+  onboardingPayoutFormSchema,
   onboardingPhoneCheckFormSchema,
   onboardingPhoneFormSchema,
 } from "~/fleet/onboarding/onboarding-form-schema";
 import { buildPageMetadata } from "~/seo/metadata";
 import type { Route } from "./+types/fleet-owner.onboarding";
+import type { FleetOwnerOutletContext } from "./fleet-owner";
 
 const NO_STORE = { "Cache-Control": "private, no-store" };
 const RETRY_MESSAGE = "Unable to complete this onboarding step. Please try again.";
@@ -40,22 +54,19 @@ export function headers() {
 
 export async function loader({ context, request }: Route.LoaderArgs) {
   const { onboarding } = context.get(fleetOwnerContext);
-  const needsBanks =
-    onboarding.status === "ACTION_REQUIRED" &&
-    onboarding.emailVerified &&
-    onboarding.phone.verified;
-  const banks = needsBanks ? (await getFleetOwnerBanks({ request })).data : [];
+  const banks =
+    onboarding.nextAction === "VERIFY_PAYOUT" ? (await getFleetOwnerBanks({ request })).data : [];
   return { banks, idempotencyKey: crypto.randomUUID() };
 }
 
-function invalid(intent: OnboardingActionData["intent"], error: string, phoneNumber?: string) {
+function invalid(intent: OnboardingActionIntent, error: string, phoneNumber?: string) {
   return data<OnboardingActionData>(
     { intent, error, phoneNumber, revalidate: false },
     { status: HTTP_STATUS.BAD_REQUEST, headers: NO_STORE },
   );
 }
 
-function failure(intent: OnboardingActionData["intent"], error: unknown, phoneNumber?: string) {
+function failure(intent: OnboardingActionIntent, error: unknown, phoneNumber?: string) {
   if (error instanceof ApiRequestError && error.kind === "aborted") {
     throw error;
   }
@@ -74,6 +85,58 @@ function failure(intent: OnboardingActionData["intent"], error: unknown, phoneNu
     status: error instanceof ApiRequestError ? error.status : HTTP_STATUS.BAD_GATEWAY,
     headers: NO_STORE,
   });
+}
+
+function readIdempotencyKey(formData: FormData, intent: OnboardingActionIntent) {
+  const parsed = idempotencyKeySchema.safeParse(formData.get("idempotencyKey"));
+  if (!parsed.success) {
+    return invalid(intent, parsed.error.issues[0]?.message ?? "Invalid idempotency key");
+  }
+  return parsed.data;
+}
+
+function invalidSubmission(
+  intent: OnboardingActionIntent,
+  idempotencyKey: string,
+  submission: { reply: () => SubmissionResult<string[]> },
+) {
+  return data<OnboardingActionData>(
+    {
+      intent,
+      idempotencyKey,
+      revalidate: false,
+      submission: submission.reply(),
+    },
+    { status: HTTP_STATUS.BAD_REQUEST, headers: NO_STORE },
+  );
+}
+
+function stageReply(
+  intent: OnboardingActionIntent,
+  idempotencyKey: string,
+  error: unknown,
+  submission: {
+    reply: (options?: {
+      fieldErrors?: Record<string, string[]>;
+      formErrors?: string[];
+    }) => SubmissionResult<string[]>;
+  },
+  accountType: "INDIVIDUAL" | "BUSINESS" = "INDIVIDUAL",
+) {
+  if (error instanceof ApiRequestError && error.kind === "aborted") {
+    throw error;
+  }
+
+  const status = error instanceof ApiRequestError ? error.status : HTTP_STATUS.BAD_GATEWAY;
+  return data<OnboardingActionData>(
+    {
+      intent,
+      idempotencyKey: accountRetryKey(error, idempotencyKey),
+      revalidate: false,
+      submission: submission.reply(accountErrorReply(error, accountType)),
+    },
+    { status, headers: NO_STORE },
+  );
 }
 
 async function sendPhone(request: Request, formData: FormData) {
@@ -123,64 +186,125 @@ async function checkPhone(request: Request, formData: FormData) {
   }
 }
 
-function optionalFile(value: FormDataEntryValue | null) {
-  return value instanceof File && value.size > 0 ? value : undefined;
+async function verifyIdentity(request: Request, formData: FormData) {
+  const idempotencyKey = readIdempotencyKey(formData, "verify-identity");
+  if (typeof idempotencyKey !== "string") return idempotencyKey;
+
+  const submission = parseWithZod(formData, { schema: onboardingIdentityFormSchema });
+  if (submission.status !== "success") {
+    return invalidSubmission("verify-identity", idempotencyKey, submission);
+  }
+
+  try {
+    await verifyFleetOwnerIdentity({
+      request,
+      idempotencyKey,
+      body: submission.value,
+    });
+    return redirect("/fleet-owner/onboarding", { headers: NO_STORE });
+  } catch (error) {
+    return stageReply(
+      "verify-identity",
+      idempotencyKey,
+      error,
+      submission,
+      submission.value.accountType,
+    );
+  }
 }
 
-async function verifyAccount(request: Request, formData: FormData) {
-  const idempotencyKey = idempotencyKeySchema.safeParse(formData.get("idempotencyKey"));
-  const bankCodeEntry = formData.get("bankCode");
-  const bankCode = typeof bankCodeEntry === "string" ? bankCodeEntry : "";
-  if (!idempotencyKey.success) {
-    return invalid(
-      "verify-account",
-      idempotencyKey.error.issues[0]?.message ?? "Invalid idempotency key",
-    );
+async function verifyPayout(request: Request, formData: FormData) {
+  const idempotencyKey = readIdempotencyKey(formData, "verify-payout");
+  if (typeof idempotencyKey !== "string") return idempotencyKey;
+
+  const submission = parseWithZod(formData, { schema: onboardingPayoutFormSchema });
+  if (submission.status !== "success") {
+    return invalidSubmission("verify-payout", idempotencyKey, submission);
   }
 
   try {
     const { data: banks } = await getFleetOwnerBanks({ request });
-    const bank = banks.find(({ code }) => code === bankCode);
+    const bank = banks.find(({ code }) => code === submission.value.bankCode);
     if (!bank) {
-      return invalid("verify-account", "Select a bank");
-    }
-
-    const sanitized = new FormData();
-    for (const name of [
-      "accountType",
-      "nin",
-      "isOwnerDriver",
-      "accountNumber",
-      "businessName",
-      "registrationNumber",
-      "registrationType",
-    ]) {
-      const value = formData.get(name);
-      if (typeof value === "string" && value !== "") sanitized.set(name, value);
-    }
-    sanitized.set("bankCode", bank.code);
-    sanitized.set("bankName", bank.name);
-    for (const name of ["driversLicense", "lasdri"] as const) {
-      const file = optionalFile(formData.get(name));
-      if (file) sanitized.set(name, file);
-    }
-
-    const parsed = onboardingAccountFormSchema.safeParse(Object.fromEntries(sanitized));
-    if (!parsed.success) {
-      return invalid(
-        "verify-account",
-        parsed.error.issues[0]?.message ?? "Check your account details",
+      return data<OnboardingActionData>(
+        {
+          intent: "verify-payout",
+          idempotencyKey,
+          revalidate: false,
+          submission: submission.reply({ fieldErrors: { bankCode: ["Select a bank"] } }),
+        },
+        { status: HTTP_STATUS.BAD_REQUEST, headers: NO_STORE },
       );
     }
 
-    await createFleetOwnerAccountVerification({
+    await verifyFleetOwnerPayout({
       request,
-      idempotencyKey: idempotencyKey.data,
+      idempotencyKey,
+      body: {
+        bankName: bank.name,
+        bankCode: bank.code,
+        accountNumber: submission.value.accountNumber,
+      },
+    });
+    return redirect("/fleet-owner/onboarding", { headers: NO_STORE });
+  } catch (error) {
+    return stageReply("verify-payout", idempotencyKey, error, submission);
+  }
+}
+
+function optionalFile(value: FormDataEntryValue | null) {
+  return value instanceof File && value.size > 0 ? value : undefined;
+}
+
+async function saveDriving(request: Request, formData: FormData) {
+  const idempotencyKey = readIdempotencyKey(formData, "save-driving");
+  if (typeof idempotencyKey !== "string") return idempotencyKey;
+
+  const submission = parseWithZod(formData, { schema: onboardingDrivingFormSchema });
+  if (submission.status !== "success") {
+    return invalidSubmission("save-driving", idempotencyKey, submission);
+  }
+
+  const sanitized = new FormData();
+  sanitized.set("isOwnerDriver", String(submission.value.isOwnerDriver));
+  for (const name of ["driversLicense", "lasdri"] as const) {
+    const file = optionalFile(formData.get(name));
+    if (file) sanitized.set(name, file);
+  }
+
+  try {
+    await saveFleetOwnerDrivingCredentials({
+      request,
+      idempotencyKey,
       formData: sanitized,
     });
     return redirect("/fleet-owner/onboarding", { headers: NO_STORE });
   } catch (error) {
-    return failure("verify-account", error);
+    return stageReply("save-driving", idempotencyKey, error, submission);
+  }
+}
+
+async function submitAccount(request: Request, formData: FormData) {
+  const idempotencyKey = readIdempotencyKey(formData, "submit-account");
+  if (typeof idempotencyKey !== "string") return idempotencyKey;
+
+  try {
+    await submitFleetOwnerOnboarding({ request, idempotencyKey });
+    return redirect("/fleet-owner/onboarding", { headers: NO_STORE });
+  } catch (error) {
+    if (error instanceof ApiRequestError && error.kind === "aborted") {
+      throw error;
+    }
+    const status = error instanceof ApiRequestError ? error.status : HTTP_STATUS.BAD_GATEWAY;
+    return data<OnboardingActionData>(
+      {
+        intent: "submit-account",
+        idempotencyKey: accountRetryKey(error, idempotencyKey),
+        revalidate: false,
+        error: accountErrorMessage(error),
+      },
+      { status, headers: NO_STORE },
+    );
   }
 }
 
@@ -209,8 +333,14 @@ export async function action({ request }: Route.ActionArgs) {
       return sendPhone(request, formData);
     case "check-phone":
       return checkPhone(request, formData);
-    case "verify-account":
-      return verifyAccount(request, formData);
+    case "verify-identity":
+      return verifyIdentity(request, formData);
+    case "verify-payout":
+      return verifyPayout(request, formData);
+    case "save-driving":
+      return saveDriving(request, formData);
+    case "submit-account":
+      return submitAccount(request, formData);
     case "replace-driver-license":
       return replaceDriverLicense(request, formData);
     default:
@@ -232,11 +362,14 @@ export default function FleetOwnerOnboardingRoute({
   actionData,
   loaderData,
 }: Route.ComponentProps) {
+  const { onboarding } = useOutletContext<FleetOwnerOutletContext>();
+
   return (
     <FleetOwnerOnboardingPage
       actionData={actionData}
       banks={loaderData.banks}
       idempotencyKey={loaderData.idempotencyKey}
+      onboarding={onboarding}
     />
   );
 }

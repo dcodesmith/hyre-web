@@ -21,9 +21,10 @@ vi.mock("~/api/fleet/cars/car-onboarding.server", () => ({
 import { ApiRequestError } from "~/api/api.server";
 import { HTTP_STATUS } from "~/api/http-status";
 import { carOnboardingPlateFormSchema } from "~/fleet/cars/car-onboarding-form-schema";
-import { action, loader } from "./fleet-owner.cars.new";
+import { action, loader, shouldRevalidate } from "./fleet-owner.cars.new";
 
 const IDEMPOTENCY_KEY = "18aa029c-4bb1-4ca7-b25e-cfc802c4bf8c";
+const NEXT_IDEMPOTENCY_KEY = "2b0f4d6a-8c11-4e22-9f33-a1b2c3d4e5f6";
 const CAR_ONBOARDING_RETRY = "Unable to complete this car onboarding step. Please try again.";
 const UNPROCESSABLE_ENTITY = 422;
 
@@ -55,6 +56,7 @@ const fleetCar = { id: "car-1" };
 const validPlateFields = {
   intent: "verify-plate",
   plateNumber: "kja-123ab",
+  policyNumber: "  POL-12345  ",
   idempotencyKey: IDEMPOTENCY_KEY,
 } as const;
 
@@ -71,7 +73,18 @@ function firstIssue(schema: z.ZodType, value: unknown) {
   return parsed.error.issues[0]?.message ?? "";
 }
 
-const INVALID_PLATE_MESSAGE = firstIssue(carOnboardingPlateFormSchema, { plateNumber: "ABC123" });
+const INVALID_PLATE_MESSAGE = firstIssue(carOnboardingPlateFormSchema, {
+  plateNumber: "ABC123",
+  policyNumber: "POL-12345",
+});
+const INVALID_POLICY_MESSAGE = firstIssue(carOnboardingPlateFormSchema, {
+  plateNumber: "KJA123AB",
+  policyNumber: "AB",
+});
+const MISSING_POLICY_MESSAGE = firstIssue(carOnboardingPlateFormSchema, {
+  plateNumber: "KJA123AB",
+  policyNumber: null,
+});
 const INVALID_UUID_MESSAGE = firstIssue(z.uuid(), "not-a-uuid");
 const INVALID_VERIFICATION_ID_MESSAGE = firstIssue(z.string().trim().min(1), "");
 
@@ -121,14 +134,36 @@ describe("fleet-owner cars new route", () => {
     getFleetVehicleVerification.mockResolvedValue({ data: eligibleVerification });
   });
 
-  it("loads a fresh idempotency key", async () => {
-    const uuid = vi.spyOn(crypto, "randomUUID").mockReturnValue(IDEMPOTENCY_KEY);
+  it("loads a fresh idempotency key on each GET", async () => {
+    const uuid = vi
+      .spyOn(crypto, "randomUUID")
+      .mockReturnValueOnce(IDEMPOTENCY_KEY)
+      .mockReturnValueOnce(NEXT_IDEMPOTENCY_KEY);
     const request = new Request("https://tripdly.com/fleet-owner/cars/new");
 
-    const result = await loader({ request, params: {}, context: {} } as never);
-
-    expect(result).toEqual({ idempotencyKey: IDEMPOTENCY_KEY });
+    expect(await loader({ request, params: {}, context: {} } as never)).toEqual({
+      idempotencyKey: IDEMPOTENCY_KEY,
+    });
+    expect(await loader({ request, params: {}, context: {} } as never)).toEqual({
+      idempotencyKey: NEXT_IDEMPOTENCY_KEY,
+    });
+    expect(createFleetDraftCar).not.toHaveBeenCalled();
+    expect(createFleetVehicleVerification).not.toHaveBeenCalled();
     uuid.mockRestore();
+  });
+
+  it("revalidates GET navigations so No can remount the form with a new key", () => {
+    expect(
+      shouldRevalidate({
+        defaultShouldRevalidate: true,
+      } as Parameters<typeof shouldRevalidate>[0]),
+    ).toBe(true);
+    expect(
+      shouldRevalidate({
+        actionResult: { revalidate: false },
+        defaultShouldRevalidate: true,
+      } as Parameters<typeof shouldRevalidate>[0]),
+    ).toBe(false);
   });
 
   it("verifies and normalizes the plate, then returns an eligible verification for review", async () => {
@@ -137,10 +172,13 @@ describe("fleet-owner cars new route", () => {
     expect(createFleetVehicleVerification).toHaveBeenCalledWith({
       request,
       idempotencyKey: IDEMPOTENCY_KEY,
-      body: { plateNumber: "KJA123AB" },
+      body: { plateNumber: "KJA123AB", policyNumber: "POL-12345" },
     });
     expect(createFleetDraftCar).not.toHaveBeenCalled();
     expect(result).toMatchObject({ data: { verification: eligibleVerification } });
+    expect(actionData(result).verification).toMatchObject({
+      vehicle: { color: "Black", passengerCapacity: 5 },
+    });
     expect(result).not.toBeInstanceOf(Response);
   });
 
@@ -151,7 +189,15 @@ describe("fleet-owner cars new route", () => {
 
     expect(createFleetVehicleVerification).toHaveBeenCalledOnce();
     expect(createFleetDraftCar).not.toHaveBeenCalled();
-    expect(result).toMatchObject({ init: { status: UNPROCESSABLE_ENTITY } });
+    expect(result).toMatchObject({
+      data: {
+        error:
+          "This vehicle is not eligible. Use a vehicle from 2015 or newer, or check the plate and try again.",
+        revalidate: false,
+        verification: ineligibleVerification,
+      },
+      init: { status: UNPROCESSABLE_ENTITY },
+    });
   });
 
   it("creates a draft from the verification and redirects to onboarding", async () => {
@@ -170,6 +216,22 @@ describe("fleet-owner cars new route", () => {
       { ...validPlateFields, plateNumber: "ABC123" },
       createFleetVehicleVerification,
       INVALID_PLATE_MESSAGE,
+    ],
+    [
+      "verify-plate policy",
+      { ...validPlateFields, policyNumber: "AB" },
+      createFleetVehicleVerification,
+      INVALID_POLICY_MESSAGE,
+    ],
+    [
+      "verify-plate missing policy",
+      {
+        intent: "verify-plate",
+        plateNumber: "kja-123ab",
+        idempotencyKey: IDEMPOTENCY_KEY,
+      },
+      createFleetVehicleVerification,
+      MISSING_POLICY_MESSAGE,
     ],
     [
       "verify-plate idempotency",

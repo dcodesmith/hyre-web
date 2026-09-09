@@ -70,6 +70,7 @@ const fleetCar = {
   serviceTier: "STANDARD",
   passengerCapacity: 5,
   pricingIncludesFuel: false,
+  submittedAt: null,
   owner: {
     id: "owner-1",
     name: "Fleet Owner",
@@ -210,7 +211,7 @@ describe("fleet-owner car onboarding route", () => {
     });
   });
 
-  it("loads the existing fleet car and a fresh insurance idempotency key", async () => {
+  it("loads the existing fleet car and a fresh insurance recovery idempotency key", async () => {
     const uuid = vi.spyOn(crypto, "randomUUID").mockReturnValue(IDEMPOTENCY_KEY);
     const request = new Request(`https://tripdly.com${ONBOARDING_PATH}`);
 
@@ -223,6 +224,21 @@ describe("fleet-owner car onboarding route", () => {
     expect(getFleetCar).toHaveBeenCalledWith({ request, carId: CAR_ID });
     expect(result).toEqual({ car: fleetCar, idempotencyKey: IDEMPOTENCY_KEY });
     uuid.mockRestore();
+  });
+
+  it("redirects already-submitted cars to car detail", async () => {
+    getFleetCar.mockResolvedValueOnce({
+      data: { ...fleetCar, submittedAt: "2026-09-07T12:00:00.000Z" },
+    });
+    const request = new Request(`https://tripdly.com${ONBOARDING_PATH}`);
+
+    const result = await loader({
+      request,
+      params: { carId: CAR_ID },
+      context: {},
+    } as never);
+
+    expectRedirect(result, CAR_DETAIL_PATH);
   });
 
   it("uploads MOT and insurance PDFs, then redirects back to onboarding", async () => {
@@ -274,7 +290,7 @@ describe("fleet-owner car onboarding route", () => {
     expectRedirect(result, ONBOARDING_PATH);
   });
 
-  it("verifies a trimmed insurance policy, then redirects back to onboarding", async () => {
+  it("verifies a trimmed insurance policy for step 5 recovery, then redirects back to onboarding", async () => {
     const { request, result } = await runAction(validInsuranceFields);
 
     expect(createFleetInsuranceVerification).toHaveBeenCalledWith({

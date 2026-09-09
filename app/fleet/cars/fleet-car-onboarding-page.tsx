@@ -6,9 +6,10 @@ import { Alert, AlertDescription, AlertTitle } from "~/components/ui/alert";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import type { FleetCarOnboardingActionData } from "./car-onboarding-form-schema";
+import { type FleetCarOnboardingStep, getFleetCarOnboardingStep } from "./fleet-car";
 import { CarDocumentStep, CarImageStep } from "./fleet-car-onboarding-assets";
-import { CarInsuranceStep, CarSubmissionStep } from "./fleet-car-onboarding-insurance";
 import { CarPricingStep } from "./fleet-car-onboarding-pricing";
+import { CarSubmissionStep } from "./fleet-car-onboarding-submission";
 
 type PageProps = {
   readonly actionData?: FleetCarOnboardingActionData;
@@ -16,21 +17,34 @@ type PageProps = {
   readonly idempotencyKey: string;
 };
 
+const stepDetails = {
+  documents: { number: 2, label: "Documents" },
+  photos: { number: 3, label: "Photos" },
+  pricing: { number: 4, label: "Pricing" },
+  submit: { number: 5, label: "Submit" },
+} satisfies Record<FleetCarOnboardingStep, { number: number; label: string }>;
+
 export function FleetCarOnboardingPage({ actionData, car, idempotencyKey }: PageProps) {
+  const step = getFleetCarOnboardingStep(car);
+  const currentStep = stepDetails[step];
+
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
+    <div className="mx-auto max-w-3xl space-y-6">
       <div>
         <Button asChild variant="ghost" size="sm" className="-ml-2 mb-3">
           <Link to="/fleet-owner/cars">
-            <ArrowLeftIcon data-icon="inline-start" />
+            <ArrowLeftIcon data-icon="inline-start" aria-hidden="true" />
             Back to cars
           </Link>
         </Button>
-        <h2 className="text-balance text-2xl font-semibold tracking-tight sm:text-3xl">
+        <p className="mb-1 text-sm font-medium text-primary" role="status" aria-live="polite">
+          Step {currentStep.number} of 5 · {currentStep.label}
+        </p>
+        <h2 className="wrap-break-word text-balance text-2xl font-semibold tracking-tight sm:text-3xl">
           Set Up {car.make} {car.model}
         </h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Complete each section, then submit the car for review.
+          Complete this step to continue setting up your car.
         </p>
       </div>
 
@@ -42,7 +56,7 @@ export function FleetCarOnboardingPage({ actionData, car, idempotencyKey }: Page
         </Alert>
       ) : null}
 
-      <Card>
+      <Card className="rounded-sm">
         <CardHeader>
           <div className="flex items-center gap-2">
             <CarIcon className="size-5 text-muted-foreground" aria-hidden="true" />
@@ -52,7 +66,7 @@ export function FleetCarOnboardingPage({ actionData, car, idempotencyKey }: Page
           </div>
         </CardHeader>
         <CardContent>
-          <dl className="grid gap-4 text-sm sm:grid-cols-4">
+          <dl className="grid grid-cols-2 gap-4 text-sm sm:grid-cols-4">
             <div>
               <dt className="text-muted-foreground">Plate</dt>
               <dd className="mt-1 font-medium">{car.registrationNumber}</dd>
@@ -73,13 +87,10 @@ export function FleetCarOnboardingPage({ actionData, car, idempotencyKey }: Page
         </CardContent>
       </Card>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <CarDocumentStep car={car} />
-        <CarImageStep car={car} />
-      </div>
-      <CarPricingStep car={car} />
-      <CarInsuranceStep car={car} idempotencyKey={idempotencyKey} />
-      <CarSubmissionStep />
+      {step === "documents" ? <CarDocumentStep /> : null}
+      {step === "photos" ? <CarImageStep /> : null}
+      {step === "pricing" ? <CarPricingStep car={car} /> : null}
+      {step === "submit" ? <CarSubmissionStep car={car} idempotencyKey={idempotencyKey} /> : null}
     </div>
   );
 }

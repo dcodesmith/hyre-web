@@ -36,9 +36,9 @@ export const middleware: Route.MiddlewareFunction[] = [
   },
 ];
 
-export function loader({ context, request }: Route.LoaderArgs) {
+export function loader({ context, url }: Route.LoaderArgs) {
   const value = context.get(fleetOwnerContext);
-  const isOnboarding = new URL(request.url).pathname === "/fleet-owner/onboarding";
+  const isOnboarding = url.pathname === "/fleet-owner/onboarding";
 
   if (value.onboarding.status !== "VERIFIED" && !isOnboarding) {
     throw redirect("/fleet-owner/onboarding");

@@ -35,7 +35,7 @@ export function OnboardingPhoneForm({
   });
 
   return (
-    <Card>
+    <Card className="rounded-sm">
       <CardHeader>
         <CardTitle>
           <h2>Verify Your Phone</h2>
@@ -49,6 +49,7 @@ export function OnboardingPhoneForm({
             <FieldLabel htmlFor={fields.phoneNumber.id}>Phone number</FieldLabel>
             <Input
               {...getInputProps(fields.phoneNumber, { type: "tel" })}
+              className="h-10 rounded-sm"
               placeholder="+234 801 234 5678…"
               inputMode="tel"
               autoComplete="tel"
@@ -66,14 +67,16 @@ export function OnboardingPhoneForm({
           {actionData?.intent === "send-phone" && actionData.error ? (
             <FormError id="send-phone-error" errors={[actionData.error]} />
           ) : null}
-          <Button type="submit" disabled={pending} aria-live="polite">
-            {pending ? "Sending code…" : "Send Verification Code"}
-          </Button>
-          {onHaveCode ? (
-            <Button type="button" variant="ghost" onClick={onHaveCode}>
-              I Already Have a Code
+          <div className="flex flex-wrap items-center gap-2">
+            <Button type="submit" disabled={pending} aria-live="polite">
+              {pending ? "Sending code…" : "Send Verification Code"}
             </Button>
-          ) : null}
+            {onHaveCode ? (
+              <Button type="button" variant="ghost" onClick={onHaveCode}>
+                I Already Have a Code
+              </Button>
+            ) : null}
+          </div>
         </Form>
       </CardContent>
     </Card>
@@ -104,7 +107,7 @@ export function OnboardingPhoneCodeForm({
   });
 
   return (
-    <Card>
+    <Card className="rounded-sm">
       <CardHeader>
         <CardTitle>
           <h2>Enter the SMS Code</h2>
@@ -123,6 +126,7 @@ export function OnboardingPhoneCodeForm({
               <FieldLabel htmlFor={fields.phoneNumber.id}>Phone number</FieldLabel>
               <Input
                 {...getInputProps(fields.phoneNumber, { type: "tel" })}
+                className="h-10 rounded-sm"
                 inputMode="tel"
                 autoComplete="tel"
                 placeholder="+234 801 234 5678…"
@@ -138,6 +142,7 @@ export function OnboardingPhoneCodeForm({
             <FieldLabel htmlFor={fields.code.id}>Verification code</FieldLabel>
             <Input
               {...getInputProps(fields.code, { type: "text" })}
+              className="h-10 rounded-sm"
               inputMode="numeric"
               autoComplete="one-time-code"
               maxLength={10}
@@ -153,23 +158,27 @@ export function OnboardingPhoneCodeForm({
           {actionData?.intent === "check-phone" && actionData.error ? (
             <FormError id="check-phone-error" errors={[actionData.error]} />
           ) : null}
-          <Button type="submit" disabled={pending || resending} aria-live="polite">
-            {pending ? "Verifying…" : "Verify Phone"}
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button type="submit" disabled={pending || resending} aria-live="polite">
+              {pending ? "Verifying…" : "Verify Phone"}
+            </Button>
+            {phoneNumber ? (
+              <Button
+                type="submit"
+                form="fleet-owner-phone-resend"
+                variant="ghost"
+                disabled={pending || resending}
+                aria-live="polite"
+              >
+                {resending ? "Resending…" : "Resend Code"}
+              </Button>
+            ) : null}
+          </div>
         </Form>
         {phoneNumber ? (
-          <Form method="post" className="mt-3">
+          <Form id="fleet-owner-phone-resend" method="post" hidden>
             <input type="hidden" name="intent" value="send-phone" />
             <input type="hidden" name="phoneNumber" value={phoneNumber} />
-            <Button
-              type="submit"
-              variant="ghost"
-              size="sm"
-              disabled={pending || resending}
-              aria-live="polite"
-            >
-              {resending ? "Resending…" : "Resend code"}
-            </Button>
           </Form>
         ) : null}
         {actionData?.intent === "send-phone" && actionData.error ? (

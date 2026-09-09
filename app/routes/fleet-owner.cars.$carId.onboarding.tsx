@@ -31,7 +31,7 @@ export const meta = ({ loaderData }: Route.MetaArgs) =>
     title: loaderData?.car
       ? `Set Up ${loaderData.car.make} ${loaderData.car.model} | Tripdly Fleet`
       : "Set Up Car | Tripdly Fleet",
-    description: "Add documents, images, insurance, and pricing for your car.",
+    description: "Add documents and photos, set pricing, and submit your car for review.",
     path: loaderData?.car
       ? `/fleet-owner/cars/${loaderData.car.id}/onboarding`
       : "/fleet-owner/cars",
@@ -44,6 +44,9 @@ export function headers() {
 
 export async function loader({ request, params }: Route.LoaderArgs) {
   const { data: car } = await getFleetCar({ request, carId: params.carId });
+  if (car.submittedAt) {
+    return redirect(`/fleet-owner/cars/${car.id}`, { headers: NO_STORE });
+  }
   return { car, idempotencyKey: crypto.randomUUID() };
 }
 
