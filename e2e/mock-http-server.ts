@@ -1,7 +1,7 @@
 import type { Server } from "node:http";
 
-const LISTEN_ATTEMPTS = 15;
-const LISTEN_RETRY_MS = 150;
+const LISTEN_ATTEMPTS = 30;
+const LISTEN_RETRY_MS = 200;
 
 function isAddressInUse(error: unknown): error is NodeJS.ErrnoException {
   return error instanceof Error && "code" in error && error.code === "EADDRINUSE";

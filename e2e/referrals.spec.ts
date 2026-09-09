@@ -1,5 +1,6 @@
 import { expect, type Page, test } from "@playwright/test";
 
+import { clickUntilVisible } from "./click-until";
 import { MOCK_REFERRAL_CODE, startMockReferralApi, stopMockReferralApi } from "./mock-referral-api";
 
 const consentKey = "tripdly-cookie-consent:v1";
@@ -72,11 +73,15 @@ test("renders referral details and copies the referral code", async ({ page }) =
   await expect(page.getByRole("heading", { name: "Your Referrals" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "How it works" })).toBeVisible();
 
-  await page.getByRole("button", { name: "Copy", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Copied!" })).toBeVisible();
+  await clickUntilVisible(
+    page.getByRole("button", { name: "Copy", exact: true }),
+    page.getByRole("button", { name: "Copied!" }),
+  );
 
-  await page.getByRole("button", { name: "Copy referral link" }).click();
-  await expect(page.getByText("Referral link copied to clipboard.")).toBeVisible();
+  await clickUntilVisible(
+    page.getByRole("button", { name: "Copy referral link" }),
+    page.getByText("Referral link copied to clipboard."),
+  );
 });
 
 test("shows when the referral program is disabled", async ({ page }) => {
