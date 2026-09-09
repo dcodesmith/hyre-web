@@ -267,5 +267,6 @@ describe("onboarding driver-licence replacement form schema", () => {
     expect(firstIssue({ file: empty })).toBe(drivingDocumentIssue(empty));
     expect(firstIssue({ file: gif })).toBe("Use a JPEG, PNG, WebP, or PDF file");
     expect(firstIssue({ file: oversized })).toBe("File must not exceed 5 MB");
+    expect(firstIssue({ file: empty })).toBe("The selected file is empty");
   });
 });

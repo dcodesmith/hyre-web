@@ -108,6 +108,7 @@ export function BusinessFields({
           }
           className={selectClassName}
           aria-invalid={registrationType.errors ? true : undefined}
+          aria-describedby={registrationType.errors ? registrationType.errorId : undefined}
         >
           <option value="" disabled>
             Select type
@@ -164,6 +165,7 @@ export function BankFields({
           defaultValue={typeof bankCode.initialValue === "string" ? bankCode.initialValue : ""}
           className={selectClassName}
           aria-invalid={bankCode.errors ? true : undefined}
+          aria-describedby={bankCode.errors ? bankCode.errorId : undefined}
         >
           <option value="" disabled>
             Select your bank

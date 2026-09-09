@@ -74,7 +74,14 @@ function addDocumentIssues(
       path: [field],
     });
   }
-  if (file.size <= 0 || file.size > MAX_DOCUMENT_SIZE_BYTES) {
+  if (file.size <= 0) {
+    context.addIssue({
+      code: "custom",
+      message: "The selected file is empty",
+      path: [field],
+    });
+  }
+  if (file.size > MAX_DOCUMENT_SIZE_BYTES) {
     context.addIssue({
       code: "custom",
       message: "File must not exceed 5 MB",

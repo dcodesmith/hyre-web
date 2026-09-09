@@ -111,7 +111,7 @@ export function FleetCarPlateVerificationPage({ actionData, idempotencyKey }: Pa
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-5">
-            <dl className="grid gap-4 rounded-sm border p-4 text-sm sm:grid-cols-2">
+            <dl className="grid grid-cols-2 gap-4 rounded-sm border p-4 text-sm">
               <div>
                 <dt className="text-muted-foreground">Vehicle</dt>
                 <dd className="mt-1 font-medium">
