@@ -46,15 +46,19 @@ function UnderReview({ onboarding }: { readonly onboarding: FleetOwnerOnboarding
   return (
     <Card className="rounded-sm">
       <CardHeader>
-        <div className="mb-2 flex size-10 items-center justify-center rounded-full bg-amber-100 text-amber-700">
-          <Clock3Icon className="size-5" aria-hidden="true" />
+        <div className="flex items-center gap-3">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-700">
+            <Clock3Icon className="size-5" aria-hidden="true" />
+          </div>
+          <div className="min-w-0 space-y-1">
+            <CardTitle>
+              <h2>Verification Under Review</h2>
+            </CardTitle>
+            <CardDescription>
+              Your details were received. You can return here to see the latest status.
+            </CardDescription>
+          </div>
         </div>
-        <CardTitle>
-          <h2>Verification Under Review</h2>
-        </CardTitle>
-        <CardDescription>
-          Your details were received. You can return here to see the latest status.
-        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid gap-3 rounded-lg border p-4 text-sm sm:grid-cols-2">

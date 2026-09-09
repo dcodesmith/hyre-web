@@ -100,15 +100,19 @@ export function FleetCarPlateVerificationPage({ actionData, idempotencyKey }: Pa
       {verification && vehicle && verification.eligibility.isEligible ? (
         <Card className="rounded-sm" role="status" aria-live="polite">
           <CardHeader>
-            <div className="mb-2 flex size-10 items-center justify-center rounded-full bg-green-100 text-green-700">
-              <CheckCircle2Icon className="size-5" aria-hidden="true" />
+            <div className="flex items-center gap-3">
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-green-100 text-green-700">
+                <CheckCircle2Icon className="size-5" aria-hidden="true" />
+              </div>
+              <div className="min-w-0 space-y-1">
+                <CardTitle>
+                  <h3>Vehicle and Insurance Verified</h3>
+                </CardTitle>
+                <CardDescription>
+                  Confirm these registry details before creating the draft.
+                </CardDescription>
+              </div>
             </div>
-            <CardTitle>
-              <h3>Vehicle and Insurance Verified</h3>
-            </CardTitle>
-            <CardDescription>
-              Confirm these registry details before creating the draft.
-            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-5">
             <dl className="grid grid-cols-2 gap-4 rounded-sm border p-4 text-sm">
