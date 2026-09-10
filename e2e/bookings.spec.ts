@@ -1,5 +1,7 @@
 import { expect, type Page, test } from "@playwright/test";
 
+import { clickUntilVisible } from "./click-until";
+
 const consentKey = "tripdly-cookie-consent:v1";
 
 async function setCookiePreference(page: Page) {
@@ -82,14 +84,7 @@ test("edits an existing review in place", async ({ page }) => {
   ).toBeVisible();
   await expect(page.getByRole("img", { name: "Chauffeur: 5 out of 5 stars" })).toBeVisible();
   const overallRating = page.getByRole("radiogroup", { name: "Overall Experience rating" });
-  await expect(async () => {
-    if (await overallRating.isVisible()) {
-      return;
-    }
-
-    await page.getByRole("button", { name: "Edit Review" }).click();
-    await expect(overallRating).toBeVisible();
-  }).toPass();
+  await clickUntilVisible(page.getByRole("button", { name: "Edit Review" }), overallRating);
   await expect(overallRating.getByRole("radio", { name: "5 stars" })).toBeChecked();
   await expect(page.getByLabel("Additional Comments (optional)")).toHaveValue(
     "The car was spotless and the chauffeur was excellent.",

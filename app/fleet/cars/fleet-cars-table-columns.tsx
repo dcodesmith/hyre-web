@@ -20,6 +20,7 @@ import {
   DropdownMenuTrigger,
 } from "~/components/ui/dropdown-menu";
 import { formatCurrency } from "~/money/currency";
+import { formatFleetCarRate, needsFleetCarOnboarding } from "./fleet-car";
 import { FleetCarStatusBadge } from "./fleet-car-status-badge";
 import type { FleetCarsTableFeatures } from "./fleet-cars-table-features";
 
@@ -116,22 +117,22 @@ export const fleetCarsColumns: ColumnDef<FleetCarsTableFeatures, FleetCar>[] = [
   {
     accessorKey: "dayRate",
     header: header("Day rate"),
-    cell: ({ row }) => formatCurrency(row.original.dayRate),
+    cell: ({ row }) => formatFleetCarRate(row.original.dayRate),
   },
   {
     accessorKey: "hourlyRate",
     header: header("Hourly rate"),
-    cell: ({ row }) => formatCurrency(row.original.hourlyRate),
+    cell: ({ row }) => formatFleetCarRate(row.original.hourlyRate),
   },
   {
     accessorKey: "nightRate",
     header: header("Night rate"),
-    cell: ({ row }) => formatCurrency(row.original.nightRate),
+    cell: ({ row }) => formatFleetCarRate(row.original.nightRate),
   },
   {
     accessorKey: "fullDayRate",
     header: header("Full day rate"),
-    cell: ({ row }) => formatCurrency(row.original.fullDayRate),
+    cell: ({ row }) => formatFleetCarRate(row.original.fullDayRate),
   },
   {
     accessorKey: "fuelUpgradeRate",
@@ -174,9 +175,15 @@ export const fleetCarsColumns: ColumnDef<FleetCarsTableFeatures, FleetCar>[] = [
             </Link>
           </DropdownMenuItem>
           <DropdownMenuItem asChild>
-            <Link to={`/fleet-owner/cars/${row.original.id}/edit`}>
+            <Link
+              to={
+                needsFleetCarOnboarding(row.original)
+                  ? `/fleet-owner/cars/${row.original.id}/onboarding`
+                  : `/fleet-owner/cars/${row.original.id}/edit`
+              }
+            >
               <PencilIcon aria-hidden="true" />
-              Edit
+              {needsFleetCarOnboarding(row.original) ? "Resume Car Setup" : "Edit"}
             </Link>
           </DropdownMenuItem>
         </DropdownMenuContent>

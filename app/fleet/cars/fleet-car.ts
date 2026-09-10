@@ -4,6 +4,7 @@ import type {
   FleetCarDocumentStatus,
   FleetCarStatus,
 } from "~/api/fleet/cars/schema";
+import { formatCurrency } from "~/money/currency";
 
 const statusLabels: Record<FleetCarStatus, string> = {
   AVAILABLE: "Available",
@@ -65,4 +66,40 @@ export function getFleetCarVehicleTypeLabel(type: FleetCar["vehicleType"]) {
 
 export function getFleetCarServiceTierLabel(tier: FleetCar["serviceTier"]) {
   return serviceTierLabels[tier];
+}
+
+export function formatFleetCarRate(rate: number | null) {
+  return rate === null ? "Not set" : formatCurrency(rate);
+}
+
+type FleetCarWithPricing = FleetCar & {
+  airportPickupRate: number;
+  dayRate: number;
+  fullDayRate: number;
+  hourlyRate: number;
+  nightRate: number;
+};
+
+export function hasFleetCarPricing(car: FleetCar): car is FleetCarWithPricing {
+  return (
+    car.hourlyRate !== null &&
+    car.dayRate !== null &&
+    car.nightRate !== null &&
+    car.fullDayRate !== null &&
+    car.airportPickupRate !== null &&
+    (car.pricingIncludesFuel || car.fuelUpgradeRate !== null)
+  );
+}
+
+export function needsFleetCarOnboarding(car: FleetCar) {
+  return car.submittedAt === null;
+}
+
+export type FleetCarOnboardingStep = "documents" | "photos" | "pricing" | "submit";
+
+export function getFleetCarOnboardingStep(car: FleetCar): FleetCarOnboardingStep {
+  if (car.documents.length < 2) return "documents";
+  if (car.images.length === 0) return "photos";
+  if (!hasFleetCarPricing(car)) return "pricing";
+  return "submit";
 }

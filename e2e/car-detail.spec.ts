@@ -1,6 +1,7 @@
 import { expect, type Page, test } from "@playwright/test";
 
 import { HTTP_STATUS } from "../app/api/http-status";
+import { clickUntilVisible } from "./click-until";
 import { expectVisualScreenshot } from "./expect-visual-screenshot";
 
 const consentKey = "tripdly-cookie-consent:v1";
@@ -29,11 +30,13 @@ test("renders crawlable car metadata and booking controls from the fixture", asy
   await expect(page.getByLabel("Pickup Time")).toBeVisible();
   await expect(page.getByLabel("Pickup Address")).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: "Cost Breakdown" }).filter({ visible: true }),
+    page.getByRole("heading", { name: "Cost Breakdown" }).filter({ visible: true }).first(),
   ).toBeVisible();
-  await expect(page.getByText("₦90,000 × 1 day").filter({ visible: true })).toBeVisible();
-  await expect(page.getByText("Platform Fee (5.0%)").filter({ visible: true })).toBeVisible();
-  await expect(page.getByText("VAT (7.5%)").filter({ visible: true })).toBeVisible();
+  await expect(page.getByText("₦90,000 × 1 day").filter({ visible: true }).first()).toBeVisible();
+  await expect(
+    page.getByText("Platform Fee (5.0%)").filter({ visible: true }).first(),
+  ).toBeVisible();
+  await expect(page.getByText("VAT (7.5%)").filter({ visible: true }).first()).toBeVisible();
   await expect(page.getByLabel("Name")).toBeVisible();
   await expect(page.getByLabel("Email")).toBeVisible();
   await expect(page.getByLabel("Phone Number")).toBeVisible();
@@ -66,14 +69,9 @@ test("opens the review sheet without changing the car URL", async ({ page }) => 
   const reviewTrigger = page
     .getByRole("button", { name: "12 reviews", exact: true })
     .filter({ visible: true });
-  await expect(reviewTrigger).toBeVisible();
-  await reviewTrigger.evaluate((node) => {
-    node.scrollIntoView({ block: "center", inline: "nearest" });
-  });
-  await reviewTrigger.click();
+  await clickUntilVisible(reviewTrigger, page.getByRole("dialog"));
 
   await expect(page).toHaveURL(/\/__visual\/car\?bookingType=DAY$/);
-  await expect(page.getByRole("dialog")).toBeVisible();
   await expect(page.getByText("12 reviews for Lexus UX F-Sport")).toBeVisible();
   await expect(page.getByText("Smooth airport pickup and a spotless cabin.")).toBeVisible();
 

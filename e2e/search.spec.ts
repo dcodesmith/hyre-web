@@ -1,6 +1,7 @@
 import { expect, type Page, test } from "@playwright/test";
 
 import { HTTP_STATUS } from "../app/api/http-status";
+import { clickUntilAttribute, clickUntilVisible } from "./click-until";
 import { expectVisualScreenshot } from "./expect-visual-screenshot";
 
 const consentKey = "tripdly-cookie-consent:v1";
@@ -49,16 +50,12 @@ test("carries homepage booking params onto /search", async ({ page, viewport }) 
   await page.goto("/");
 
   const searchForm = page.locator('form[action="/search"]').first();
-  const airportTab = searchForm.getByRole("button", { name: "Airport" });
+  const airportTab = searchForm.getByRole("button", { name: "Airport Pickup" });
   await expect(searchForm.getByRole("button", { name: "Same Day" })).toHaveAttribute(
     "aria-pressed",
     "true",
   );
-  await expect(async () => {
-    await airportTab.scrollIntoViewIfNeeded();
-    await airportTab.click();
-    await expect(airportTab).toHaveAttribute("aria-pressed", "true");
-  }).toPass();
+  await clickUntilAttribute(airportTab, "aria-pressed", "true");
   await expect(searchForm.getByLabel("Flight Number")).toBeVisible();
   await expect(page).toHaveURL("/");
   await searchForm.getByLabel("Flight Number").fill("BA123");
@@ -92,10 +89,10 @@ test("keeps filters and drops booking fields when booking type changes", async (
     : page.locator('form[action="/search"]').first().getByRole("button", { name: "Night" });
 
   if (isMobile) {
-    await expect(async () => {
-      await page.getByRole("button", { name: /Same Day|When do you need a ride/ }).click();
-      await expect(page.getByRole("dialog")).toBeVisible({ timeout: 1500 });
-    }).toPass();
+    await clickUntilVisible(
+      page.getByRole("button", { name: /Same Day|When do you need a ride/ }),
+      page.getByRole("dialog"),
+    );
   }
 
   await expect(async () => {

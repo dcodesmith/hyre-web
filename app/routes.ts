@@ -19,6 +19,17 @@ const visualRoutes =
       ]
     : [];
 
+const visualFleetRoutes =
+  process.env.VISUAL_TESTING === "true"
+    ? [
+        route("__visual/fleet-onboarding", "routes/__visual.fleet-onboarding.tsx"),
+        layout("routes/__visual.fleet-layout.tsx", [
+          route("__visual/car-plate", "routes/__visual.car-plate.tsx"),
+          route("__visual/car-onboarding", "routes/__visual.car-onboarding.tsx"),
+        ]),
+      ]
+    : [];
+
 export default [
   route("api/places/autocomplete", "routes/api.places.autocomplete.ts"),
   route("api/places/resolve", "routes/api.places.resolve.ts"),
@@ -61,7 +72,10 @@ export default [
   route("fleet-owner/logout", "routes/fleet-owner.logout.ts"),
   route("fleet-owner", "routes/fleet-owner.tsx", [
     layout("routes/fleet-owner.dashboard.tsx", [index("routes/fleet-owner._index.tsx")]),
+    route("onboarding", "routes/fleet-owner.onboarding.tsx"),
     route("cars", "routes/fleet-owner.cars.tsx"),
+    route("cars/new", "routes/fleet-owner.cars.new.tsx"),
+    route("cars/:carId/onboarding", "routes/fleet-owner.cars.$carId.onboarding.tsx"),
     route("cars/:carId", "routes/fleet-owner.cars.$carId.tsx"),
     route("cars/:carId/edit", "routes/fleet-owner.cars.$carId.edit.tsx"),
     route("promotions", "routes/fleet-owner.promotions.tsx"),
@@ -83,4 +97,5 @@ export default [
     route("addon-rates", "routes/admin.addon-rates.tsx"),
     route("staff", "routes/admin.staff.tsx"),
   ]),
+  ...visualFleetRoutes,
 ] satisfies RouteConfig;

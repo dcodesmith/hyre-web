@@ -1,5 +1,7 @@
 import { createServer, type IncomingMessage, type Server } from "node:http";
 
+import { closeMockApiServer, listenOnMockApiPort } from "./mock-http-server";
+
 export const MOCK_REFERRAL_CODE = "ABCD2345";
 
 export const mockReferralSummary = {
@@ -48,7 +50,7 @@ function hasSessionCookie(request: IncomingMessage) {
   return request.headers.cookie?.includes("better-auth.session_token=") === true;
 }
 
-export function startMockReferralApi(port = 3100) {
+export async function startMockReferralApi(port = 3100) {
   const server = createServer((request, response) => {
     if (request.method === "GET" && requestPath(request) === "/api/referrals/user") {
       if (!hasSessionCookie(request)) {
@@ -66,21 +68,10 @@ export function startMockReferralApi(port = 3100) {
     response.end(JSON.stringify({ status: 401, detail: "Unauthorized" }));
   });
 
-  return new Promise<Server>((resolve, reject) => {
-    server.once("error", reject);
-    server.listen(port, "127.0.0.1", () => resolve(server));
-  });
+  await listenOnMockApiPort(server, port);
+  return server;
 }
 
 export function stopMockReferralApi(server: Server) {
-  return new Promise<void>((resolve, reject) => {
-    server.close((error) => {
-      if (error) {
-        reject(error);
-        return;
-      }
-
-      resolve();
-    });
-  });
+  return closeMockApiServer(server);
 }

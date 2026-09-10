@@ -1,5 +1,7 @@
 import { createServer, type IncomingMessage, type Server } from "node:http";
 
+import { closeMockApiServer, listenOnMockApiPort } from "./mock-http-server";
+
 export const MOCK_GUEST_BOOKING_ID = "guest-booking-e2e";
 export const MOCK_GUEST_BOOKING_TOKEN = "a".repeat(43);
 
@@ -65,7 +67,7 @@ function guestBooking() {
   };
 }
 
-export function startMockGuestBookingApi(port = 3100) {
+export async function startMockGuestBookingApi(port = 3100) {
   const requests: MockGuestBookingApi["requests"] = {};
   const server = createServer(async (request, response) => {
     const url = requestUrl(request);
@@ -112,14 +114,10 @@ export function startMockGuestBookingApi(port = 3100) {
     writeJson(response, 404, { status: 404, detail: "Not found" });
   });
 
-  return new Promise<MockGuestBookingApi>((resolve, reject) => {
-    server.once("error", reject);
-    server.listen(port, "127.0.0.1", () => resolve({ server, requests }));
-  });
+  await listenOnMockApiPort(server, port);
+  return { server, requests };
 }
 
 export function stopMockGuestBookingApi(api: MockGuestBookingApi) {
-  return new Promise<void>((resolve, reject) => {
-    api.server.close((error) => (error ? reject(error) : resolve()));
-  });
+  return closeMockApiServer(api.server);
 }

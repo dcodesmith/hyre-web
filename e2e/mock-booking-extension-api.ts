@@ -1,5 +1,7 @@
 import { createServer, type IncomingMessage, type Server } from "node:http";
 
+import { closeMockApiServer, listenOnMockApiPort } from "./mock-http-server";
+
 export const MOCK_EXTENSION_BOOKING_ID = "booking-extension-e2e";
 export const MOCK_EXTENSION_LEG_ID = "leg-extension-e2e";
 export const MOCK_EXTENSION_ID = "extension-e2e";
@@ -90,7 +92,7 @@ function writePaymentStatus(response: import("node:http").ServerResponse, confir
   });
 }
 
-export function startMockBookingExtensionApi(port = 3100) {
+export async function startMockBookingExtensionApi(port = 3100) {
   const requests: MockBookingExtensionApi["requests"] = {};
   let confirmed = false;
   const server = createServer(async (request, response) => {
@@ -151,14 +153,10 @@ export function startMockBookingExtensionApi(port = 3100) {
     writeJson(response, 404, { status: 404, detail: "Not found" });
   });
 
-  return new Promise<MockBookingExtensionApi>((resolve, reject) => {
-    server.once("error", reject);
-    server.listen(port, "127.0.0.1", () => resolve({ server, requests }));
-  });
+  await listenOnMockApiPort(server, port);
+  return { server, requests };
 }
 
 export function stopMockBookingExtensionApi(api: MockBookingExtensionApi) {
-  return new Promise<void>((resolve, reject) => {
-    api.server.close((error) => (error ? reject(error) : resolve()));
-  });
+  return closeMockApiServer(api.server);
 }

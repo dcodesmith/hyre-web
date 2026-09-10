@@ -1,6 +1,7 @@
 import { expect, type Page, test } from "@playwright/test";
 
 import { HTTP_STATUS } from "../app/api/http-status";
+import { clickUntilAttribute } from "./click-until";
 import { expectVisualScreenshot } from "./expect-visual-screenshot";
 
 const consentKey = "tripdly-cookie-consent:v1";
@@ -69,11 +70,7 @@ test("filters FAQ questions and exposes an empty state", async ({ page }) => {
   const bookingTab = page.getByRole("tab", { name: /Booking & Reservations/ });
   const airportTab = page.getByRole("tab", { name: /Airport Transfers/ });
   await expect(bookingTab).toHaveAttribute("aria-selected", "true");
-  await expect(async () => {
-    await airportTab.scrollIntoViewIfNeeded();
-    await airportTab.click();
-    await expect(airportTab).toHaveAttribute("aria-selected", "true");
-  }).toPass();
+  await clickUntilAttribute(airportTab, "aria-selected", "true");
 
   const search = page.getByRole("searchbox", { name: "Search frequently asked questions" });
   await search.fill("flight tracking");
@@ -109,7 +106,11 @@ test("updates analytics consent from the cookie policy", async ({ page }) => {
 
   await expect(page.getByText(/does not currently set analytics cookies/i)).toBeVisible();
   await expect(page.getByText("You have declined analytics cookies.")).toBeVisible();
-  await page.getByRole("button", { name: "Accept", exact: true }).click();
+  const accept = page.getByRole("button", { name: "Accept", exact: true });
+  await accept.evaluate((node) => {
+    node.scrollIntoView({ block: "center", inline: "nearest" });
+  });
+  await accept.click();
   await expect(page.getByText("You have accepted analytics cookies.")).toBeVisible();
 });
 

@@ -1,5 +1,6 @@
 import { expect, type Page, test } from "@playwright/test";
 
+import { clickUntilVisible } from "./click-until";
 import { MOCK_REFERRAL_CODE, startMockReferralApi, stopMockReferralApi } from "./mock-referral-api";
 
 const consentKey = "tripdly-cookie-consent:v1";
@@ -11,9 +12,10 @@ async function setCookiePreference(page: Page) {
 }
 
 async function stubClipboardWrite(page: Page) {
-  await page.evaluate(() => {
+  await page.addInitScript(() => {
     Object.defineProperty(navigator, "clipboard", {
       configurable: true,
+      writable: true,
       value: { writeText: async () => undefined },
     });
   });
@@ -61,6 +63,7 @@ test("loads the signed-in referral summary from the API", async ({ context, page
 
 test("renders referral details and copies the referral code", async ({ page }) => {
   await setCookiePreference(page);
+  await stubClipboardWrite(page);
   await page.goto("/__visual/referrals");
 
   await expect(page.getByRole("heading", { name: "Referral Program" })).toBeVisible();
@@ -70,16 +73,15 @@ test("renders referral details and copies the referral code", async ({ page }) =
   await expect(page.getByRole("heading", { name: "Your Referrals" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "How it works" })).toBeVisible();
 
-  await stubClipboardWrite(page);
-  await Promise.all([
-    expect(page.getByRole("button", { name: "Copied!" })).toBeVisible(),
-    page.getByRole("button", { name: "Copy", exact: true }).click(),
-  ]);
+  await clickUntilVisible(
+    page.getByRole("button", { name: "Copy", exact: true }),
+    page.getByRole("button", { name: "Copied!" }),
+  );
 
-  await Promise.all([
-    expect(page.getByText("Referral link copied to clipboard.")).toBeVisible(),
-    page.getByRole("button", { name: "Copy referral link" }).click(),
-  ]);
+  await clickUntilVisible(
+    page.getByRole("button", { name: "Copy referral link" }),
+    page.getByText("Referral link copied to clipboard."),
+  );
 });
 
 test("shows when the referral program is disabled", async ({ page }) => {

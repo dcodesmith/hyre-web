@@ -13,10 +13,18 @@ async function visitShellWithConsent(page: Page) {
   await page.evaluate(() => document.fonts.ready);
 }
 
+function isAppConsoleError(text: string) {
+  return (
+    !text.includes("Outdated Optimize Dep") &&
+    !text.includes("Failed to fetch manifest patches") &&
+    !text.includes("504 (Outdated Optimize Dep)")
+  );
+}
+
 test("renders the public shell at its responsive breakpoint", async ({ page, viewport }) => {
   const consoleErrors: string[] = [];
   page.on("console", (message) => {
-    if (message.type() === "error") {
+    if (message.type() === "error" && isAppConsoleError(message.text())) {
       consoleErrors.push(message.text());
     }
   });
@@ -71,7 +79,11 @@ test("persists a cookie preference", async ({ page }, testInfo) => {
   await expect(banner).toBeVisible();
   await expectVisualScreenshot(banner, "cookie-consent.png");
 
-  await page.getByRole("button", { name: "Essential Only" }).click();
+  const essentialOnly = page.getByRole("button", { name: "Essential Only" });
+  await essentialOnly.evaluate((node) => {
+    node.scrollIntoView({ block: "center", inline: "nearest" });
+  });
+  await essentialOnly.click();
   await expect(banner).toBeHidden();
   await page.reload();
   await expect(banner).toBeHidden();

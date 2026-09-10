@@ -33,10 +33,14 @@ export function ReviewSheet({ car, reviews, open, onOpenChange }: ReviewSheetPro
   const fetcher = useFetcher<CarReviewsLoaderData>();
   const location = useLocation();
   const lastGoodRef = useRef(reviews);
-  const displayed = fetcher.data?.reviews ?? lastGoodRef.current;
-  const pageLoadFailed =
-    fetcher.state === "idle" && fetcher.data !== undefined && fetcher.data.reviews == null;
+  const fetchedReviews = fetcher.data?.reviews;
+  const displayed = fetchedReviews ?? lastGoodRef.current ?? reviews;
+
+  const pageLoadFailed = fetcher.state === "idle" && fetcher.data != null && fetchedReviews == null;
   const isPaging = fetcher.state !== "idle";
+  if (!displayed) {
+    return null;
+  }
   const ratings = displayed.ratings;
   const totalReviews = ratings?.totalReviews ?? (displayed.pagination.total || car.totalReviews);
   const averageRating = ratings?.averageRating ?? car.averageRating;

@@ -11,6 +11,12 @@ export const fleetCarServiceTierSchema = z.enum([
   "LUXURY",
   "ULTRA_LUXURY",
 ]);
+const providerVerificationStatusSchema = z.enum([
+  "PROCESSING",
+  "SUCCEEDED",
+  "REVIEW_REQUIRED",
+  "FAILED",
+]);
 
 const fleetCarImageSchema = z.object({
   id: z.string(),
@@ -48,12 +54,13 @@ export const fleetCarSchema = z.object({
   status: fleetCarStatusSchema,
   approvalStatus: fleetCarApprovalStatusSchema,
   approvalNotes: z.string().nullable(),
-  hourlyRate: z.number().int(),
-  dayRate: z.number().int(),
-  nightRate: z.number().int(),
+  submittedAt: z.iso.datetime().nullable(),
+  hourlyRate: z.number().int().nullable(),
+  dayRate: z.number().int().nullable(),
+  nightRate: z.number().int().nullable(),
   fuelUpgradeRate: z.number().int().nullable(),
-  fullDayRate: z.number().int(),
-  airportPickupRate: z.number().int(),
+  fullDayRate: z.number().int().nullable(),
+  airportPickupRate: z.number().int().nullable(),
   vehicleType: fleetCarVehicleTypeSchema,
   serviceTier: fleetCarServiceTierSchema,
   passengerCapacity: z.number().int(),
@@ -66,6 +73,18 @@ export const fleetCarSchema = z.object({
   }),
   images: z.array(fleetCarImageSchema),
   documents: z.array(fleetCarDocumentSchema),
+  insuranceVerifications: z
+    .array(
+      z.object({
+        id: z.string(),
+        status: providerVerificationStatusSchema,
+        policyNumber: z.string(),
+        policyStatus: z.string().nullable(),
+        policyExpiresAt: z.iso.datetime().nullable(),
+        createdAt: z.iso.datetime(),
+      }),
+    )
+    .max(1),
   promotion: z
     .object({
       id: z.string(),

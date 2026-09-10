@@ -2,6 +2,16 @@ import { expect, type Page, test } from "@playwright/test";
 
 import { startMockFleetOwnerAuthApi, stopMockFleetOwnerAuthApi } from "./mock-fleet-owner-auth-api";
 
+const PAYOUT_TABLE_MIN_WIDTH = 768;
+
+function payoutId(page: Page, id: string) {
+  if ((page.viewportSize()?.width ?? 0) >= PAYOUT_TABLE_MIN_WIDTH) {
+    return page.getByRole("cell", { name: id, exact: true });
+  }
+
+  return page.locator("span").filter({ hasText: new RegExp(`^${id}$`) });
+}
+
 async function choosePayoutStatus(page: Page, name: string) {
   const trigger = page.getByRole("combobox", { name: "Status" });
   const option = page.getByRole("option", { name, exact: true });
@@ -39,15 +49,11 @@ test("lists and filters fleet-owner payouts", async ({ context, page }) => {
     await expect(page.getByRole("heading", { name: "All-time summary", level: 3 })).toBeVisible();
     await expect(page.getByText("₦1,020,000")).toBeVisible();
     await expect(page.getByText("Page 1 of 2 · 21 transactions")).toBeVisible();
-    await expect(
-      page.getByText("payout-01", { exact: true }).filter({ visible: true }),
-    ).toBeVisible();
+    await expect(payoutId(page, "payout-01")).toBeVisible();
 
     await page.getByRole("link", { name: "Next" }).click();
     await expect(page).toHaveURL("/fleet-owner/payout-transactions?page=2");
-    await expect(
-      page.getByText("payout-21", { exact: true }).filter({ visible: true }),
-    ).toBeVisible();
+    await expect(payoutId(page, "payout-21")).toBeVisible();
 
     await choosePayoutStatus(page, "Paid Out");
     await page.getByRole("button", { name: "Apply" }).click();

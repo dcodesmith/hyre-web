@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { fleetCarsSchema } from "./schema";
+import { fleetCarSchema, fleetCarsSchema } from "./schema";
 
 const fleetCar = {
   id: "cm12345678901234567890123",
@@ -15,6 +15,7 @@ const fleetCar = {
   status: "AVAILABLE",
   approvalStatus: "APPROVED",
   approvalNotes: null,
+  submittedAt: "2026-09-07T12:00:00.000Z",
   hourlyRate: 10_000,
   dayRate: 80_000,
   nightRate: 60_000,
@@ -56,6 +57,16 @@ const fleetCar = {
       userId: null,
     },
   ],
+  insuranceVerifications: [
+    {
+      id: "ins-1",
+      status: "SUCCEEDED",
+      policyNumber: "POL-12345",
+      policyStatus: "Active",
+      policyExpiresAt: "2027-01-01T00:00:00.000Z",
+      createdAt: "2026-09-07T12:00:00.000Z",
+    },
+  ],
   promotion: null,
 } as const;
 
@@ -67,5 +78,81 @@ describe("fleet car API schema", () => {
   it("rejects an incomplete car response", () => {
     const { registrationNumber: _, ...incompleteCar } = fleetCar;
     expect(fleetCarsSchema.safeParse([incompleteCar]).success).toBe(false);
+  });
+
+  it("accepts API draft cars whose required rates are null before pricing", () => {
+    const draftCar = {
+      ...fleetCar,
+      status: "HOLD",
+      approvalStatus: "PENDING",
+      submittedAt: null,
+      hourlyRate: null,
+      dayRate: null,
+      nightRate: null,
+      fullDayRate: null,
+      airportPickupRate: null,
+      fuelUpgradeRate: null,
+      images: [],
+      documents: [],
+      insuranceVerifications: [],
+    };
+
+    expect(fleetCarSchema.parse(draftCar)).toEqual(draftCar);
+    expect(fleetCarsSchema.parse([draftCar])).toEqual([draftCar]);
+  });
+
+  it("parses nullable submittedAt and the latest insurance verification", () => {
+    const pendingCar = {
+      ...fleetCar,
+      submittedAt: null,
+      insuranceVerifications: [
+        {
+          id: "ins-1",
+          status: "SUCCEEDED",
+          policyNumber: "POL-12345",
+          policyStatus: null,
+          policyExpiresAt: null,
+          createdAt: "2026-09-07T12:00:00.000Z",
+        },
+      ],
+    };
+
+    expect(fleetCarSchema.parse(pendingCar)).toEqual(pendingCar);
+    expect(fleetCarSchema.parse({ ...fleetCar, insuranceVerifications: [] })).toEqual({
+      ...fleetCar,
+      insuranceVerifications: [],
+    });
+  });
+
+  it("rejects cars that omit setup status fields or use invalid timestamps", () => {
+    const { submittedAt: _, ...withoutSubmittedAt } = fleetCar;
+    const { insuranceVerifications: __, ...withoutInsurance } = fleetCar;
+
+    expect(fleetCarSchema.safeParse(withoutSubmittedAt).success).toBe(false);
+    expect(fleetCarSchema.safeParse(withoutInsurance).success).toBe(false);
+    expect(fleetCarSchema.safeParse({ ...fleetCar, submittedAt: "not-a-date" }).success).toBe(
+      false,
+    );
+    expect(
+      fleetCarSchema.safeParse({
+        ...fleetCar,
+        insuranceVerifications: [
+          {
+            id: "ins-1",
+            status: "SUCCEEDED",
+            policyNumber: "POL-12345",
+            policyStatus: null,
+            policyExpiresAt: "not-a-date",
+            createdAt: "2026-09-07T12:00:00.000Z",
+          },
+        ],
+      }).success,
+    ).toBe(false);
+    expect(
+      fleetCarSchema.safeParse({
+        ...fleetCar,
+        insuranceVerifications: [{ id: "ins-1", status: "SUCCEEDED" }],
+      }).success,
+    ).toBe(false);
   });
 });
