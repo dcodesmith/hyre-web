@@ -90,11 +90,20 @@ function nullableInteger(value: unknown) {
   return value;
 }
 
+function blankToUndefined(value: unknown) {
+  if (value == null) return undefined;
+  if (typeof value === "string" && value.trim() === "") return undefined;
+  return value;
+}
+
 function requiredPositiveInt(label: string) {
-  return z.coerce
-    .number({ error: `${label} is required` })
-    .int(`${label} must be a whole number`)
-    .positive(`${label} must be greater than 0`);
+  return z.preprocess(
+    blankToUndefined,
+    z.coerce
+      .number({ error: `${label} is required` })
+      .int(`${label} must be a whole number`)
+      .positive(`${label} must be greater than 0`),
+  );
 }
 
 export const carOnboardingPricingFormSchema = z

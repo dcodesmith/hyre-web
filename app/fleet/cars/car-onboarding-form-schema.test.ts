@@ -234,6 +234,41 @@ describe("car onboarding form schemas", () => {
     ).toBe(false);
   });
 
+  it.each([
+    ["hourlyRate", "Hourly rate"],
+    ["dayRate", "Daily rate"],
+    ["nightRate", "Nightly rate"],
+    ["fullDayRate", "Full day rate"],
+    ["airportPickupRate", "Airport pickup rate"],
+  ] as const)("keeps the required message when %s is blank", (field, label) => {
+    for (const blank of ["", "   ", null] as const) {
+      const parsed = carOnboardingPricingFormSchema.safeParse({ ...validPricing, [field]: blank });
+      expect(parsed.success).toBe(false);
+      if (parsed.success) return;
+      expect(parsed.error.issues.find((issue) => issue.path[0] === field)?.message).toBe(
+        `${label} is required`,
+      );
+    }
+
+    const formData = new FormData();
+    for (const [name, value] of Object.entries(validPricing)) {
+      formData.set(name, name === field ? "" : value);
+    }
+    const submission = parseWithZod(formData, { schema: carOnboardingPricingFormSchema });
+    expect(submission.status).toBe("error");
+    if (submission.status !== "error") return;
+    expect(submission.error?.[field]).toEqual([`${label} is required`]);
+  });
+
+  it("rejects an explicit zero with the greater-than-zero message", () => {
+    const parsed = carOnboardingPricingFormSchema.safeParse({ ...validPricing, hourlyRate: "0" });
+    expect(parsed.success).toBe(false);
+    if (parsed.success) return;
+    expect(parsed.error.issues.find((issue) => issue.path[0] === "hourlyRate")?.message).toBe(
+      "Hourly rate must be greater than 0",
+    );
+  });
+
   it("requires fuelUpgradeRate only when pricing does not include fuel", () => {
     expect(
       carOnboardingPricingFormSchema.safeParse({ ...validPricing, fuelUpgradeRate: "" }).success,
