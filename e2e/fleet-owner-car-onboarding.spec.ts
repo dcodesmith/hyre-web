@@ -225,6 +225,17 @@ test("completes the five-step car onboarding flow and redirects to car detail", 
       { name: "camry-front.jpg", mimeType: "image/jpeg", buffer: Buffer.from("car-front") },
       { name: "camry-side.jpg", mimeType: "image/jpeg", buffer: Buffer.from("car-side") },
     ]);
+    await expect(page.getByRole("img", { name: "camry-front.jpg" })).toBeVisible();
+    await expect(page.getByRole("img", { name: "camry-side.jpg" })).toBeVisible();
+    await page.getByRole("button", { name: "Remove camry-side.jpg" }).click();
+    await expect(page.getByRole("img", { name: "camry-side.jpg" })).toHaveCount(0);
+    await expect
+      .poll(() =>
+        page
+          .getByLabel("Car images")
+          .evaluate((input: HTMLInputElement) => input.files?.length ?? 0),
+      )
+      .toBe(1);
     await page.getByRole("button", { name: "Upload Images" }).click();
     await expect(page.getByText("Upload at least 3 images")).toBeVisible();
     await expectActiveOnboardingStep(page, "photos");
