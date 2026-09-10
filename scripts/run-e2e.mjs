@@ -1,11 +1,16 @@
 import { spawn } from "node:child_process";
+import { randomBytes } from "node:crypto";
 import { readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const e2eDevVarsPath = path.join(repositoryRoot, ".dev.vars.e2e");
-const e2eDevVars = "API_ORIGIN=http://127.0.0.1:3100\n";
+const e2eDevVars = [
+  "API_ORIGIN=http://127.0.0.1:3100",
+  `WEB_SESSION_SECRET=${randomBytes(32).toString("hex")}`,
+  "",
+].join("\n");
 const playwrightExecutable = path.join(repositoryRoot, "node_modules", ".bin", "playwright");
 
 let previousDevVars;

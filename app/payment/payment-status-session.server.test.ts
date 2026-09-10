@@ -4,6 +4,7 @@ vi.mock("cloudflare:workers", () => ({
   env: {
     APP_ENV: "local",
     APP_ORIGIN: "http://localhost:5173",
+    WEB_SESSION_SECRET: crypto.randomUUID(),
   },
 }));
 
