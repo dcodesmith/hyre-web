@@ -8,7 +8,6 @@ import {
 } from "~/auth/encrypted-session.server";
 import { readCookieValue } from "~/auth/pending-otp";
 
-const LOCAL_SECRET = "hyre-web-local-payment-status-cookie";
 const MIN_MAX_AGE_SECONDS = 5 * 60;
 const DEFAULT_MAX_AGE_SECONDS = 30 * 60;
 const MAX_AGE_SECONDS = 60 * 60;
@@ -56,10 +55,6 @@ export function requirePaymentStatusCookieSecret() {
 
   if (configured) {
     return configured;
-  }
-
-  if (String(env.APP_ENV) === "local") {
-    return LOCAL_SECRET;
   }
 
   throw new Error("WEB_SESSION_SECRET is required");

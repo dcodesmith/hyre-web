@@ -5,7 +5,6 @@ import { guestBookingAccessTokenSchema } from "~/api/bookings/schema";
 import { decryptSession, encryptSession } from "~/auth/encrypted-session.server";
 import { readCookieValue } from "~/auth/pending-otp";
 
-const LOCAL_SECRET = "hyre-web-local-guest-booking-cookie";
 const guestBookingSessionSchema = z.object({
   bookingId: z.string().min(1),
   token: guestBookingAccessTokenSchema,
@@ -27,10 +26,6 @@ function requireGuestBookingCookieSecret() {
 
   if (configured) {
     return configured;
-  }
-
-  if (String(env.APP_ENV) === "local") {
-    return LOCAL_SECRET;
   }
 
   throw new Error("WEB_SESSION_SECRET is required");

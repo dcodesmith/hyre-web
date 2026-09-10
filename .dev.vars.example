@@ -1,3 +1,5 @@
 API_ORIGIN=http://127.0.0.1:3000
 APP_ENV=local
 APP_ORIGIN=http://localhost:5173
+# Generate a unique local value, for example with: openssl rand -hex 32
+WEB_SESSION_SECRET=
