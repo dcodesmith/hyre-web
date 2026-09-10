@@ -632,15 +632,17 @@ function wait(ms: number) {
 
 const DRAFT_CAR_PATH = `/api/fleet-owner/cars/${MOCK_FLEET_DRAFT_CAR_ID}`;
 
+type CarOnboardingState = {
+  draftCar: ReturnType<typeof createMockDraftCar> | null;
+  lastPolicyNumber: string;
+  verification: typeof mockVehicleVerification;
+};
+
 async function handleDraftCarOnboardingMutation(
   request: IncomingMessage,
   response: import("node:http").ServerResponse,
   path: string,
-  state: {
-    draftCar: ReturnType<typeof createMockDraftCar> | null;
-    lastPolicyNumber: string;
-    verification: typeof mockVehicleVerification;
-  },
+  state: CarOnboardingState,
 ) {
   if (!state.draftCar) {
     writeJson(response, 404, { status: 404, detail: "Car not found" });
@@ -731,41 +733,13 @@ async function handleDraftCarOnboardingMutation(
   return false;
 }
 
-async function handleCarOnboardingRequest(
+async function handleVehicleVerificationRequest(
   request: IncomingMessage,
   response: import("node:http").ServerResponse,
   path: string,
   requests: MockFleetOwnerAuthApi["requests"],
-  state: {
-    draftCar: ReturnType<typeof createMockDraftCar> | null;
-    lastPolicyNumber: string;
-    verification: typeof mockVehicleVerification;
-  },
+  state: CarOnboardingState,
 ) {
-  const isDraftCarApi = path === DRAFT_CAR_PATH || path.startsWith(`${DRAFT_CAR_PATH}/`);
-  const isVehicleVerificationApi = path.startsWith("/api/fleet-owner/vehicle-verifications");
-  if (!isDraftCarApi && !isVehicleVerificationApi) {
-    return false;
-  }
-
-  if (!request.headers.cookie?.includes("better-auth.session_token=e2e-session")) {
-    writeJson(response, 401, { status: 401, detail: "Unauthorized" });
-    return true;
-  }
-
-  if (request.method === "GET" && path === DRAFT_CAR_PATH) {
-    if (!state.draftCar) {
-      writeJson(response, 404, { status: 404, detail: "Car not found" });
-      return true;
-    }
-    writeJson(response, 200, state.draftCar);
-    return true;
-  }
-
-  if (isDraftCarApi && (await handleDraftCarOnboardingMutation(request, response, path, state))) {
-    return true;
-  }
-
   if (request.method === "POST" && path === "/api/fleet-owner/vehicle-verifications") {
     const body = (await readJson(request)) as {
       plateNumber?: string;
@@ -795,16 +769,68 @@ async function handleCarOnboardingRequest(
     return true;
   }
 
+  return false;
+}
+
+function handleDraftCarCreation(
+  request: IncomingMessage,
+  response: import("node:http").ServerResponse,
+  path: string,
+  requests: MockFleetOwnerAuthApi["requests"],
+  state: CarOnboardingState,
+) {
   const draftMatch = /^\/api\/fleet-owner\/vehicle-verifications\/([^/]+)\/car$/.exec(path);
-  if (request.method === "POST" && draftMatch) {
-    const verificationId = decodeURIComponent(draftMatch[1]);
-    requests.draftCars.push({ verificationId });
-    state.verification.carId = MOCK_FLEET_DRAFT_CAR_ID;
-    state.draftCar = createMockDraftCar(
-      state.verification.vehicle.plateNumber,
-      state.lastPolicyNumber,
-    );
-    writeJson(response, 201, state.draftCar);
+  if (request.method !== "POST" || !draftMatch) {
+    return false;
+  }
+
+  const verificationId = decodeURIComponent(draftMatch[1]);
+  requests.draftCars.push({ verificationId });
+  state.verification.carId = MOCK_FLEET_DRAFT_CAR_ID;
+  state.draftCar = createMockDraftCar(
+    state.verification.vehicle.plateNumber,
+    state.lastPolicyNumber,
+  );
+  writeJson(response, 201, state.draftCar);
+  return true;
+}
+
+async function handleCarOnboardingRequest(
+  request: IncomingMessage,
+  response: import("node:http").ServerResponse,
+  path: string,
+  requests: MockFleetOwnerAuthApi["requests"],
+  state: CarOnboardingState,
+) {
+  const isDraftCarApi = path === DRAFT_CAR_PATH || path.startsWith(`${DRAFT_CAR_PATH}/`);
+  const isVehicleVerificationApi = path.startsWith("/api/fleet-owner/vehicle-verifications");
+  if (!isDraftCarApi && !isVehicleVerificationApi) {
+    return false;
+  }
+
+  if (!request.headers.cookie?.includes("better-auth.session_token=e2e-session")) {
+    writeJson(response, 401, { status: 401, detail: "Unauthorized" });
+    return true;
+  }
+
+  if (request.method === "GET" && path === DRAFT_CAR_PATH) {
+    if (!state.draftCar) {
+      writeJson(response, 404, { status: 404, detail: "Car not found" });
+      return true;
+    }
+    writeJson(response, 200, state.draftCar);
+    return true;
+  }
+
+  if (isDraftCarApi && (await handleDraftCarOnboardingMutation(request, response, path, state))) {
+    return true;
+  }
+
+  if (await handleVehicleVerificationRequest(request, response, path, requests, state)) {
+    return true;
+  }
+
+  if (handleDraftCarCreation(request, response, path, requests, state)) {
     return true;
   }
 
@@ -878,106 +904,98 @@ async function handleStagedOnboardingRequest(
   path: string,
   staged: StagedOnboarding,
 ) {
-  if (path === "/api/fleet-owner/banks" && request.method === "GET") {
-    writeJson(response, 200, mockBanks);
-    return true;
+  switch (`${request.method} ${path}`) {
+    case "GET /api/fleet-owner/banks":
+      writeJson(response, 200, mockBanks);
+      return true;
+    case "POST /api/fleet-owner/phone-verifications": {
+      const body = (await readJson(request)) as { phoneNumber?: string };
+      staged.phone = { number: body.phoneNumber ?? "+2348012345678", verified: false };
+      writeJson(response, 200, { status: "PENDING", phoneNumber: staged.phone.number });
+      return true;
+    }
+    case "POST /api/fleet-owner/phone-verification-checks":
+      staged.phone = { number: staged.phone.number ?? "+2348012345678", verified: true };
+      staged.requiredActions = [];
+      staged.steps.contact = "VERIFIED";
+      staged.nextAction = "VERIFY_IDENTITY";
+      writeJson(response, 200, { status: "VERIFIED", phoneNumber: staged.phone.number });
+      return true;
+    case "POST /api/fleet-owner/onboarding/identity-verifications": {
+      const body = (await readJson(request)) as { accountType?: "INDIVIDUAL" | "BUSINESS" };
+      staged.accountType = body.accountType ?? "INDIVIDUAL";
+      staged.identity = {
+        status: "SUCCEEDED",
+        legalName: "JOHN MIDDLE DOE",
+        businessName: staged.accountType === "BUSINESS" ? "HYRE MOBILITY LTD" : null,
+      };
+      staged.steps.identity = "VERIFIED";
+      staged.nextAction = "VERIFY_PAYOUT";
+      writeJson(response, 200, {
+        id: "id-1",
+        status: "VERIFIED",
+        accountType: staged.accountType,
+        legalName: staged.identity.legalName,
+        businessName: staged.identity.businessName,
+      });
+      return true;
+    }
+    case "POST /api/fleet-owner/onboarding/payout-verifications": {
+      const body = (await readJson(request)) as { bankName?: string; accountNumber?: string };
+      staged.bank = {
+        bankName: body.bankName ?? "GTBank",
+        accountName: "JOHN DOE",
+        accountNumber: "******6789",
+        verified: false,
+      };
+      staged.steps.payout = "VERIFIED";
+      staged.nextAction = "PROVIDE_DRIVING_CREDENTIALS";
+      writeJson(response, 200, {
+        status: "VERIFIED",
+        bank: {
+          bankName: staged.bank.bankName,
+          accountName: staged.bank.accountName,
+          accountNumber: staged.bank.accountNumber,
+          nameMatch: "MATCHED",
+        },
+      });
+      return true;
+    }
+    case "PUT /api/fleet-owner/onboarding/driving-credentials":
+      await readBody(request);
+      staged.isOwnerDriver = false;
+      staged.steps.driving = "SKIPPED";
+      staged.nextAction = "SUBMIT_ACCOUNT";
+      writeJson(response, 200, {
+        status: "COMPLETED",
+        isOwnerDriver: false,
+        documents: staged.documents,
+      });
+      return true;
+    case "POST /api/fleet-owner/onboarding/submissions":
+      staged.status = "UNDER_REVIEW";
+      staged.steps.submission = "REVIEW_REQUIRED";
+      staged.nextAction = "WAIT_FOR_REVIEW";
+      writeJson(response, 200, {
+        id: "ver-1",
+        status: "REVIEW_REQUIRED",
+        accountType: staged.accountType ?? "INDIVIDUAL",
+        isOwnerDriver: staged.isOwnerDriver,
+        legalName: staged.identity?.legalName ?? null,
+        businessName: staged.identity?.businessName ?? null,
+        bank: staged.bank
+          ? {
+              bankName: staged.bank.bankName,
+              accountName: staged.bank.accountName,
+              accountNumber: staged.bank.accountNumber,
+              nameMatch: "MATCHED",
+            }
+          : null,
+      });
+      return true;
+    default:
+      return false;
   }
-
-  if (path === "/api/fleet-owner/phone-verifications" && request.method === "POST") {
-    const body = (await readJson(request)) as { phoneNumber?: string };
-    staged.phone = { number: body.phoneNumber ?? "+2348012345678", verified: false };
-    writeJson(response, 200, { status: "PENDING", phoneNumber: staged.phone.number });
-    return true;
-  }
-
-  if (path === "/api/fleet-owner/phone-verification-checks" && request.method === "POST") {
-    staged.phone = { number: staged.phone.number ?? "+2348012345678", verified: true };
-    staged.requiredActions = [];
-    staged.steps.contact = "VERIFIED";
-    staged.nextAction = "VERIFY_IDENTITY";
-    writeJson(response, 200, { status: "VERIFIED", phoneNumber: staged.phone.number });
-    return true;
-  }
-
-  if (path === "/api/fleet-owner/onboarding/identity-verifications" && request.method === "POST") {
-    const body = (await readJson(request)) as { accountType?: "INDIVIDUAL" | "BUSINESS" };
-    staged.accountType = body.accountType ?? "INDIVIDUAL";
-    staged.identity = {
-      status: "SUCCEEDED",
-      legalName: "JOHN MIDDLE DOE",
-      businessName: staged.accountType === "BUSINESS" ? "HYRE MOBILITY LTD" : null,
-    };
-    staged.steps.identity = "VERIFIED";
-    staged.nextAction = "VERIFY_PAYOUT";
-    writeJson(response, 200, {
-      id: "id-1",
-      status: "VERIFIED",
-      accountType: staged.accountType,
-      legalName: staged.identity.legalName,
-      businessName: staged.identity.businessName,
-    });
-    return true;
-  }
-
-  if (path === "/api/fleet-owner/onboarding/payout-verifications" && request.method === "POST") {
-    const body = (await readJson(request)) as { bankName?: string; accountNumber?: string };
-    staged.bank = {
-      bankName: body.bankName ?? "GTBank",
-      accountName: "JOHN DOE",
-      accountNumber: "******6789",
-      verified: false,
-    };
-    staged.steps.payout = "VERIFIED";
-    staged.nextAction = "PROVIDE_DRIVING_CREDENTIALS";
-    writeJson(response, 200, {
-      status: "VERIFIED",
-      bank: {
-        bankName: staged.bank.bankName,
-        accountName: staged.bank.accountName,
-        accountNumber: staged.bank.accountNumber,
-        nameMatch: "MATCHED",
-      },
-    });
-    return true;
-  }
-
-  if (path === "/api/fleet-owner/onboarding/driving-credentials" && request.method === "PUT") {
-    await readBody(request);
-    staged.isOwnerDriver = false;
-    staged.steps.driving = "SKIPPED";
-    staged.nextAction = "SUBMIT_ACCOUNT";
-    writeJson(response, 200, {
-      status: "COMPLETED",
-      isOwnerDriver: false,
-      documents: staged.documents,
-    });
-    return true;
-  }
-
-  if (path === "/api/fleet-owner/onboarding/submissions" && request.method === "POST") {
-    staged.status = "UNDER_REVIEW";
-    staged.steps.submission = "REVIEW_REQUIRED";
-    staged.nextAction = "WAIT_FOR_REVIEW";
-    writeJson(response, 200, {
-      id: "ver-1",
-      status: "REVIEW_REQUIRED",
-      accountType: staged.accountType ?? "INDIVIDUAL",
-      isOwnerDriver: staged.isOwnerDriver,
-      legalName: staged.identity?.legalName ?? null,
-      businessName: staged.identity?.businessName ?? null,
-      bank: staged.bank
-        ? {
-            bankName: staged.bank.bankName,
-            accountName: staged.bank.accountName,
-            accountNumber: staged.bank.accountNumber,
-            nameMatch: "MATCHED",
-          }
-        : null,
-    });
-    return true;
-  }
-
-  return false;
 }
 
 async function handleOnboardingRequest(
@@ -1094,6 +1112,61 @@ function handleDashboardRequest(
   return true;
 }
 
+async function handleFleetOwnerAuthRequest(
+  request: IncomingMessage,
+  response: import("node:http").ServerResponse,
+  path: string,
+  requests: MockFleetOwnerAuthApi["requests"],
+) {
+  if (request.method === "POST" && path === "/api/auth/email-otp/send-verification-otp") {
+    requests.sendOtp = capturedRequest(request, await readJson(request));
+    writeJson(response, 200, { success: true });
+    return true;
+  }
+
+  if (request.method === "POST" && path === "/api/auth/sign-in/email-otp") {
+    requests.verifyOtp = capturedRequest(request, await readJson(request));
+    response.setHeader(
+      "Set-Cookie",
+      "better-auth.session_token=e2e-session; Path=/; HttpOnly; SameSite=Lax",
+    );
+    writeJson(response, 200, {
+      user: {
+        id: "owner-1",
+        email: "owner@example.com",
+        roles: ["fleetOwner"],
+      },
+    });
+    return true;
+  }
+
+  if (request.method === "GET" && path === "/auth/session") {
+    if (!request.headers.cookie?.includes("better-auth.session_token=e2e-session")) {
+      writeJson(response, 401, { status: 401, detail: "Unauthorized" });
+      return true;
+    }
+
+    writeJson(response, 200, {
+      user: {
+        id: "owner-1",
+        email: "owner@example.com",
+        name: "Fleet Owner",
+        roles: ["fleetOwner"],
+      },
+      session: {},
+    });
+    return true;
+  }
+
+  if (request.method === "POST" && path === "/api/auth/sign-out") {
+    requests.signOut = capturedRequest(request, await readJson(request));
+    writeJson(response, 200, null);
+    return true;
+  }
+
+  return false;
+}
+
 export async function startMockFleetOwnerAuthApi({
   port = 3100,
   rejectedFiles = false,
@@ -1152,43 +1225,7 @@ export async function startMockFleetOwnerAuthApi({
     const url = new URL(request.url ?? "/", "http://127.0.0.1");
     const path = url.pathname;
 
-    if (request.method === "POST" && path === "/api/auth/email-otp/send-verification-otp") {
-      requests.sendOtp = capturedRequest(request, await readJson(request));
-      writeJson(response, 200, { success: true });
-      return;
-    }
-
-    if (request.method === "POST" && path === "/api/auth/sign-in/email-otp") {
-      requests.verifyOtp = capturedRequest(request, await readJson(request));
-      response.setHeader(
-        "Set-Cookie",
-        "better-auth.session_token=e2e-session; Path=/; HttpOnly; SameSite=Lax",
-      );
-      writeJson(response, 200, {
-        user: {
-          id: "owner-1",
-          email: "owner@example.com",
-          roles: ["fleetOwner"],
-        },
-      });
-      return;
-    }
-
-    if (request.method === "GET" && path === "/auth/session") {
-      if (!request.headers.cookie?.includes("better-auth.session_token=e2e-session")) {
-        writeJson(response, 401, { status: 401, detail: "Unauthorized" });
-        return;
-      }
-
-      writeJson(response, 200, {
-        user: {
-          id: "owner-1",
-          email: "owner@example.com",
-          name: "Fleet Owner",
-          roles: ["fleetOwner"],
-        },
-        session: {},
-      });
+    if (await handleFleetOwnerAuthRequest(request, response, path, requests)) {
       return;
     }
 
@@ -1213,12 +1250,6 @@ export async function startMockFleetOwnerAuthApi({
     }
 
     if (handleDashboardRequest(request, response, url, requests)) {
-      return;
-    }
-
-    if (request.method === "POST" && path === "/api/auth/sign-out") {
-      requests.signOut = capturedRequest(request, await readJson(request));
-      writeJson(response, 200, null);
       return;
     }
 

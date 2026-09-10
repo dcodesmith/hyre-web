@@ -1,4 +1,4 @@
-import { getFormProps, getInputProps, useForm } from "@conform-to/react";
+import { type FieldMetadata, getFormProps, getInputProps, useForm } from "@conform-to/react";
 import { getZodConstraint, parseWithZod } from "@conform-to/zod/v4";
 import { Form, useNavigation } from "react-router";
 
@@ -12,6 +12,33 @@ import {
   onboardingPhoneCheckFormSchema,
   onboardingPhoneFormSchema,
 } from "./onboarding-form-schema";
+
+function PhoneNumberControl({
+  field,
+  phoneNumber,
+}: {
+  readonly field: FieldMetadata<string>;
+  readonly phoneNumber?: string;
+}) {
+  if (phoneNumber) {
+    return <input type="hidden" name="phoneNumber" value={phoneNumber} />;
+  }
+
+  return (
+    <Field data-invalid={Boolean(field.errors)}>
+      <FieldLabel htmlFor={field.id}>Phone number</FieldLabel>
+      <Input
+        {...getInputProps(field, { type: "tel" })}
+        className="h-10 rounded-sm"
+        inputMode="tel"
+        autoComplete="tel"
+        placeholder="+234 801 234 5678…"
+        aria-invalid={field.errors ? true : undefined}
+      />
+      <FieldError id={field.errorId} errors={field.errors?.map((message) => ({ message }))} />
+    </Field>
+  );
+}
 
 export function OnboardingPhoneForm({
   actionData,
@@ -119,25 +146,7 @@ export function OnboardingPhoneCodeForm({
       <CardContent>
         <Form method="post" {...getFormProps(form)} className="space-y-5">
           <input type="hidden" name="intent" value="check-phone" />
-          {phoneNumber ? (
-            <input type="hidden" name="phoneNumber" value={phoneNumber} />
-          ) : (
-            <Field data-invalid={Boolean(fields.phoneNumber.errors)}>
-              <FieldLabel htmlFor={fields.phoneNumber.id}>Phone number</FieldLabel>
-              <Input
-                {...getInputProps(fields.phoneNumber, { type: "tel" })}
-                className="h-10 rounded-sm"
-                inputMode="tel"
-                autoComplete="tel"
-                placeholder="+234 801 234 5678…"
-                aria-invalid={fields.phoneNumber.errors ? true : undefined}
-              />
-              <FieldError
-                id={fields.phoneNumber.errorId}
-                errors={fields.phoneNumber.errors?.map((message) => ({ message }))}
-              />
-            </Field>
-          )}
+          <PhoneNumberControl field={fields.phoneNumber} phoneNumber={phoneNumber} />
           <Field data-invalid={Boolean(fields.code.errors)}>
             <FieldLabel htmlFor={fields.code.id}>Verification code</FieldLabel>
             <Input

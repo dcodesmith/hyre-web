@@ -38,6 +38,14 @@ function retryKey(actionData: OnboardingActionData | undefined, intent: string, 
     : fallback;
 }
 
+function drivingSummary(onboarding: FleetOwnerOnboarding) {
+  if (onboarding.steps.driving === "SKIPPED") {
+    return "Not required";
+  }
+
+  return onboarding.isOwnerDriver ? "Owner-driver" : "Will add a chauffeur later";
+}
+
 function StageCard({
   title,
   description,
@@ -248,31 +256,27 @@ export function OnboardingSubmitForm({
       <dl className="mb-6 grid gap-3 rounded-sm border p-4 text-sm sm:grid-cols-2">
         <div>
           <dt className="text-muted-foreground">Identity</dt>
-          <dd className="mt-1 break-words font-medium">
+          <dd className="mt-1 wrap-break-words font-medium">
             {onboarding.identity?.legalName ?? "Verified"}
           </dd>
         </div>
         {onboarding.identity?.businessName ? (
           <div>
             <dt className="text-muted-foreground">Business</dt>
-            <dd className="mt-1 break-words font-medium">{onboarding.identity.businessName}</dd>
+            <dd className="mt-1 wrap-break-words font-medium">
+              {onboarding.identity.businessName}
+            </dd>
           </div>
         ) : null}
         <div>
           <dt className="text-muted-foreground">Bank account</dt>
-          <dd className="mt-1 break-words font-medium">
+          <dd className="mt-1 wrap-break-words font-medium">
             {onboarding.bank?.accountName ?? "Verified"}
           </dd>
         </div>
         <div>
           <dt className="text-muted-foreground">Driving</dt>
-          <dd className="mt-1 font-medium">
-            {onboarding.steps.driving === "SKIPPED"
-              ? "Not required"
-              : onboarding.isOwnerDriver
-                ? "Owner-driver"
-                : "Will add a chauffeur later"}
-          </dd>
+          <dd className="mt-1 font-medium">{drivingSummary(onboarding)}</dd>
         </div>
       </dl>
       <Form method="post" className="space-y-4">
