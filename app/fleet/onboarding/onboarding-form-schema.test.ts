@@ -249,6 +249,7 @@ describe("onboarding driver-licence replacement form schema", () => {
   });
 
   it("requires a replacement file", () => {
+    expect(firstIssue({})).toBe("Upload a replacement driver's licence");
     expect(onboardingDriverLicenseReplacementFormSchema.safeParse({}).success).toBe(false);
     expect(
       onboardingDriverLicenseReplacementFormSchema.safeParse({

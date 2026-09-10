@@ -100,10 +100,12 @@ test("verifies a new fleet car with plate and policy, then opens the documents s
       page.getByText("Use the plate and policy number shown on your documents."),
     ).toBeVisible();
 
+    const plateForm = page.locator("#fleet-car-plate-verification");
     const plateInput = page.getByLabel("Number plate");
     const policyInput = page.getByLabel("Insurance policy number");
     await expect(plateInput).toBeVisible();
     await expect(policyInput).toBeVisible();
+    await expect(plateForm).toHaveAttribute("novalidate");
     await expect(plateInput).toHaveAttribute("required", "");
     await expect(policyInput).toHaveAttribute("required", "");
     await expect(policyInput).toHaveAttribute("minlength", "3");
@@ -219,11 +221,19 @@ test("completes the five-step car onboarding flow and redirects to car detail", 
     await page.getByRole("button", { name: "Upload Documents" }).click();
     await expectActiveOnboardingStep(page, "photos");
 
-    await page.getByLabel("Car images").setInputFiles({
-      name: "camry.jpg",
-      mimeType: "image/jpeg",
-      buffer: Buffer.from("car-image"),
-    });
+    await page.getByLabel("Car images").setInputFiles([
+      { name: "camry-front.jpg", mimeType: "image/jpeg", buffer: Buffer.from("car-front") },
+      { name: "camry-side.jpg", mimeType: "image/jpeg", buffer: Buffer.from("car-side") },
+    ]);
+    await page.getByRole("button", { name: "Upload Images" }).click();
+    await expect(page.getByText("Upload at least 3 images")).toBeVisible();
+    await expectActiveOnboardingStep(page, "photos");
+
+    await page.getByLabel("Car images").setInputFiles([
+      { name: "camry-front.jpg", mimeType: "image/jpeg", buffer: Buffer.from("car-front") },
+      { name: "camry-side.jpg", mimeType: "image/jpeg", buffer: Buffer.from("car-side") },
+      { name: "camry-rear.jpg", mimeType: "image/jpeg", buffer: Buffer.from("car-rear") },
+    ]);
     await page.getByRole("button", { name: "Upload Images" }).click();
     await expectActiveOnboardingStep(page, "pricing");
 

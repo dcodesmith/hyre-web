@@ -162,7 +162,7 @@ function hasDraftPricing(car: {
 function canSubmitDraftCar(car: ReturnType<typeof createMockDraftCar>) {
   return (
     car.documents.length >= 2 &&
-    car.images.length > 0 &&
+    car.images.length >= 3 &&
     hasDraftPricing(car) &&
     hasCurrentInsurance(car)
   );
@@ -181,6 +181,17 @@ function draftDocument(id: string, documentType: "MOT_CERTIFICATE" | "INSURANCE_
     createdAt: "2026-09-07T12:00:00.000Z",
     updatedAt: "2026-09-07T12:00:00.000Z",
     userId: null,
+  };
+}
+
+function draftImage(index: number) {
+  return {
+    id: `cm0${index}345678901234567890123`,
+    url: "https://images.unsplash.com/photo-1549399542-7e3f8b79c341",
+    status: "PENDING" as const,
+    isPrimary: index === 0,
+    createdAt: "2026-09-07T12:00:00.000Z",
+    updatedAt: "2026-09-07T12:00:00.000Z",
   };
 }
 
@@ -231,16 +242,7 @@ function createExpiredInsuranceDraft() {
       draftDocument("cm82345678901234567890123", "MOT_CERTIFICATE"),
       draftDocument("cm92345678901234567890123", "INSURANCE_CERTIFICATE"),
     ],
-    images: [
-      {
-        id: "cm02345678901234567890123",
-        url: "https://images.unsplash.com/photo-1549399542-7e3f8b79c341",
-        status: "PENDING" as const,
-        isPrimary: true,
-        createdAt: "2026-09-07T12:00:00.000Z",
-        updatedAt: "2026-09-07T12:00:00.000Z",
-      },
-    ],
+    images: Array.from({ length: 3 }, (_, index) => draftImage(index)),
     insuranceVerifications: [
       {
         ...mockLatestInsuranceVerification,
@@ -661,16 +663,7 @@ async function handleDraftCarOnboardingMutation(
 
   if (request.method === "POST" && path === `${DRAFT_CAR_PATH}/images`) {
     await readBody(request);
-    state.draftCar.images = [
-      {
-        id: "cm02345678901234567890123",
-        url: "https://images.unsplash.com/photo-1549399542-7e3f8b79c341",
-        status: "PENDING",
-        isPrimary: true,
-        createdAt: "2026-09-07T12:00:00.000Z",
-        updatedAt: "2026-09-07T12:00:00.000Z",
-      },
-    ];
+    state.draftCar.images = Array.from({ length: 3 }, (_, index) => draftImage(index));
     writeJson(response, 200, state.draftCar);
     return true;
   }
@@ -704,7 +697,7 @@ async function handleDraftCarOnboardingMutation(
 
   if (request.method === "POST" && path === `${DRAFT_CAR_PATH}/submissions`) {
     const hasDocuments = state.draftCar.documents.length >= 2;
-    const hasImages = state.draftCar.images.length > 0;
+    const hasImages = state.draftCar.images.length >= 3;
     const hasPricing = hasDraftPricing(state.draftCar);
     const hasInsuranceVerification = hasCurrentInsurance(state.draftCar);
     if (!canSubmitDraftCar(state.draftCar)) {

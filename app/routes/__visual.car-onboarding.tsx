@@ -70,16 +70,14 @@ const fixtureDocuments = [
   },
 ] satisfies FleetCar["documents"];
 
-const fixtureImages = [
-  {
-    id: "img-1",
-    url: "https://cdn.example.com/car.jpg",
-    status: "PENDING",
-    isPrimary: true,
-    createdAt: "2026-08-01T10:00:00.000Z",
-    updatedAt: "2026-08-01T10:00:00.000Z",
-  },
-] satisfies FleetCar["images"];
+const fixtureImages = Array.from({ length: 3 }, (_, index) => ({
+  id: `img-${index + 1}`,
+  url: `https://cdn.example.com/car-${index + 1}.jpg`,
+  status: "PENDING" as const,
+  isPrimary: index === 0,
+  createdAt: "2026-08-01T10:00:00.000Z",
+  updatedAt: "2026-08-01T10:00:00.000Z",
+})) satisfies FleetCar["images"];
 
 const fixturePricing = {
   hourlyRate: 10_000,

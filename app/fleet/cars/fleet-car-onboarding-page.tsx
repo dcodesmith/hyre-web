@@ -87,10 +87,12 @@ export function FleetCarOnboardingPage({ actionData, car, idempotencyKey }: Page
         </CardContent>
       </Card>
 
-      {step === "documents" ? <CarDocumentStep /> : null}
-      {step === "photos" ? <CarImageStep /> : null}
-      {step === "pricing" ? <CarPricingStep car={car} /> : null}
-      {step === "submit" ? <CarSubmissionStep car={car} idempotencyKey={idempotencyKey} /> : null}
+      {step === "documents" ? <CarDocumentStep actionData={actionData} /> : null}
+      {step === "photos" ? <CarImageStep actionData={actionData} /> : null}
+      {step === "pricing" ? <CarPricingStep actionData={actionData} car={car} /> : null}
+      {step === "submit" ? (
+        <CarSubmissionStep actionData={actionData} car={car} idempotencyKey={idempotencyKey} />
+      ) : null}
     </div>
   );
 }

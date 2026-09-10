@@ -1,3 +1,4 @@
+import { parseWithZod } from "@conform-to/zod/v4";
 import { data, redirect, type ShouldRevalidateFunctionArgs } from "react-router";
 import { z } from "zod";
 
@@ -60,14 +61,14 @@ function failure(error: unknown) {
 }
 
 async function verifyPlate(request: Request, formData: FormData) {
-  const plate = carOnboardingPlateFormSchema.safeParse({
-    plateNumber: formData.get("plateNumber"),
-    policyNumber: formData.get("policyNumber"),
-  });
-  const idempotencyKey = idempotencyKeySchema.safeParse(formData.get("idempotencyKey"));
-  if (!plate.success) {
-    return invalid(plate.error.issues[0]?.message ?? "Enter a valid Nigerian number plate");
+  const submission = parseWithZod(formData, { schema: carOnboardingPlateFormSchema });
+  if (submission.status !== "success") {
+    return data<NewFleetCarActionData>(
+      { revalidate: false, submission: submission.reply() },
+      { status: HTTP_STATUS.BAD_REQUEST, headers: NO_STORE },
+    );
   }
+  const idempotencyKey = idempotencyKeySchema.safeParse(formData.get("idempotencyKey"));
   if (!idempotencyKey.success) {
     return invalid(idempotencyKey.error.issues[0]?.message ?? "Invalid idempotency key");
   }
@@ -76,7 +77,7 @@ async function verifyPlate(request: Request, formData: FormData) {
     const { data: verification } = await createFleetVehicleVerification({
       request,
       idempotencyKey: idempotencyKey.data,
-      body: plate.data,
+      body: submission.value,
     });
     if (!verification.eligibility.isEligible) {
       return data<NewFleetCarActionData>(

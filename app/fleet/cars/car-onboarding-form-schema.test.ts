@@ -1,3 +1,4 @@
+import { parseWithZod } from "@conform-to/zod/v4";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -100,6 +101,33 @@ describe("car onboarding form schemas", () => {
     ).toBe(5 * 1024 * 1024);
   });
 
+  it("reports the required-file messages through Conform for empty document inputs", () => {
+    const formData = new FormData();
+    formData.set("motCertificate", new File([], ""));
+    formData.set("insuranceCertificate", new File([], ""));
+    const submission = parseWithZod(formData, { schema: carOnboardingDocumentsFormSchema });
+
+    expect(submission.status).toBe("error");
+    if (submission.status !== "error") return;
+    expect(submission.error).toEqual({
+      motCertificate: ["MOT certificate is required"],
+      insuranceCertificate: ["Insurance certificate is required"],
+    });
+  });
+
+  it("uses field-specific messages when documents are missing", () => {
+    const parsed = carOnboardingDocumentsFormSchema.safeParse({});
+    expect(parsed.success).toBe(false);
+    if (parsed.success) return;
+
+    expect(parsed.error.issues.find((issue) => issue.path[0] === "motCertificate")?.message).toBe(
+      "MOT certificate is required",
+    );
+    expect(
+      parsed.error.issues.find((issue) => issue.path[0] === "insuranceCertificate")?.message,
+    ).toBe("Insurance certificate is required");
+  });
+
   it("rejects document MIME types other than PDF or files larger than 5MB", () => {
     const insuranceCertificate = documentFile("insurance.pdf");
 
@@ -117,18 +145,33 @@ describe("car onboarding form schemas", () => {
     ).toBe(false);
   });
 
-  it("accepts 1-5 images that are JPEG, PNG, or WebP at or under 5MB", () => {
-    const one = [imageFile()];
-    const five = [
+  it("accepts 3-5 images that are JPEG, PNG, or WebP at or under 5MB", () => {
+    const three = [
       imageFile("a.jpg", "image/jpeg"),
       imageFile("b.png", "image/png"),
       imageFile("c.webp", "image/webp"),
-      imageFile("d.jpg"),
-      imageFile("e.png", "image/png"),
     ];
+    const five = [...three, imageFile("d.jpg"), imageFile("e.png", "image/png")];
 
-    expect(carOnboardingImagesFormSchema.parse({ images: one }).images).toEqual(one);
+    expect(carOnboardingImagesFormSchema.parse({ images: three }).images).toEqual(three);
     expect(carOnboardingImagesFormSchema.parse({ images: five }).images).toHaveLength(5);
+  });
+
+  it("reports a useful message when fewer than 3 images are selected", () => {
+    const parsed = carOnboardingImagesFormSchema.safeParse({});
+    expect(parsed.success).toBe(false);
+    if (parsed.success) return;
+    expect(parsed.error.issues[0]?.message).toBe("Upload at least 3 images");
+    expect(carOnboardingImagesFormSchema.safeParse({ images: [imageFile()] }).success).toBe(false);
+    expect(
+      carOnboardingImagesFormSchema.safeParse({ images: [imageFile(), imageFile("b.jpg")] })
+        .success,
+    ).toBe(false);
+
+    const submission = parseWithZod(new FormData(), { schema: carOnboardingImagesFormSchema });
+    expect(submission.status).toBe("error");
+    if (submission.status !== "error") return;
+    expect(submission.error?.images).toEqual(["Upload at least 3 images"]);
   });
 
   it("rejects image count, MIME, and files larger than 5MB", () => {
@@ -140,14 +183,32 @@ describe("car onboarding form schemas", () => {
     ).toBe(false);
     expect(
       carOnboardingImagesFormSchema.safeParse({
-        images: [imageFile("car.gif", "image/gif")],
+        images: [
+          imageFile("a.gif", "image/gif"),
+          imageFile("b.gif", "image/gif"),
+          imageFile("c.gif", "image/gif"),
+        ],
       }).success,
     ).toBe(false);
     expect(
       carOnboardingImagesFormSchema.safeParse({
-        images: [imageFile("car.jpg", "image/jpeg", 5 * 1024 * 1024 + 1)],
+        images: [
+          imageFile("a.jpg", "image/jpeg", 5 * 1024 * 1024 + 1),
+          imageFile("b.jpg"),
+          imageFile("c.jpg"),
+        ],
       }).success,
     ).toBe(false);
+  });
+
+  it("reports an empty named image separately from an oversized image", () => {
+    const parsed = carOnboardingImagesFormSchema.safeParse({
+      images: [imageFile("empty.jpg", "image/jpeg", 0), imageFile("b.jpg"), imageFile("c.jpg")],
+    });
+    expect(parsed.success).toBe(false);
+    if (parsed.success) return;
+
+    expect(parsed.error.issues[0]?.message).toBe("The selected image is empty");
   });
 
   it("coerces positive integer pricing and vehicle/service enums", () => {
@@ -171,6 +232,41 @@ describe("car onboarding form schemas", () => {
     expect(
       carOnboardingPricingFormSchema.safeParse({ ...validPricing, serviceTier: "PREMIUM" }).success,
     ).toBe(false);
+  });
+
+  it.each([
+    ["hourlyRate", "Hourly rate"],
+    ["dayRate", "Daily rate"],
+    ["nightRate", "Nightly rate"],
+    ["fullDayRate", "Full day rate"],
+    ["airportPickupRate", "Airport pickup rate"],
+  ] as const)("keeps the required message when %s is blank", (field, label) => {
+    for (const blank of ["", "   ", null] as const) {
+      const parsed = carOnboardingPricingFormSchema.safeParse({ ...validPricing, [field]: blank });
+      expect(parsed.success).toBe(false);
+      if (parsed.success) return;
+      expect(parsed.error.issues.find((issue) => issue.path[0] === field)?.message).toBe(
+        `${label} is required`,
+      );
+    }
+
+    const formData = new FormData();
+    for (const [name, value] of Object.entries(validPricing)) {
+      formData.set(name, name === field ? "" : value);
+    }
+    const submission = parseWithZod(formData, { schema: carOnboardingPricingFormSchema });
+    expect(submission.status).toBe("error");
+    if (submission.status !== "error") return;
+    expect(submission.error?.[field]).toEqual([`${label} is required`]);
+  });
+
+  it("rejects an explicit zero with the greater-than-zero message", () => {
+    const parsed = carOnboardingPricingFormSchema.safeParse({ ...validPricing, hourlyRate: "0" });
+    expect(parsed.success).toBe(false);
+    if (parsed.success) return;
+    expect(parsed.error.issues.find((issue) => issue.path[0] === "hourlyRate")?.message).toBe(
+      "Hourly rate must be greater than 0",
+    );
   });
 
   it("requires fuelUpgradeRate only when pricing does not include fuel", () => {
