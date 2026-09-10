@@ -1,23 +1,112 @@
+import { getFormProps, getInputProps, useForm } from "@conform-to/react";
+import { getZodConstraint, parseWithZod } from "@conform-to/zod/v4";
 import { ArrowLeftIcon, CheckCircle2Icon, SearchIcon, TriangleAlertIcon } from "lucide-react";
 import { Form, Link, useNavigation } from "react-router";
 
+import type { FleetVehicleVerification } from "~/api/fleet/cars/onboarding-schema";
+import { FormError } from "~/components/forms/form-primitives";
 import { Alert, AlertDescription, AlertTitle } from "~/components/ui/alert";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
-import { Field, FieldDescription, FieldLabel } from "~/components/ui/field";
+import { Field, FieldDescription, FieldError, FieldLabel } from "~/components/ui/field";
 import { Input } from "~/components/ui/input";
-import type { NewFleetCarActionData } from "./car-onboarding-form-schema";
+import {
+  carOnboardingPlateFormSchema,
+  type NewFleetCarActionData,
+} from "./car-onboarding-form-schema";
 
 type PageProps = {
   readonly actionData?: NewFleetCarActionData;
   readonly idempotencyKey: string;
 };
 
+function VerifiedVehicleCard({
+  creatingDraft,
+  verification,
+}: {
+  readonly creatingDraft: boolean;
+  readonly verification: FleetVehicleVerification;
+}) {
+  const vehicle = verification.vehicle;
+
+  return (
+    <Card className="rounded-sm" role="status" aria-live="polite">
+      <CardHeader>
+        <div className="flex items-center gap-3">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-green-100 text-green-700">
+            <CheckCircle2Icon className="size-5" aria-hidden="true" />
+          </div>
+          <div className="min-w-0 space-y-1">
+            <CardTitle>
+              <h3>Vehicle and Insurance Verified</h3>
+            </CardTitle>
+            <CardDescription>
+              Confirm these registry details before creating the draft.
+            </CardDescription>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-5">
+        <dl className="grid grid-cols-2 gap-4 rounded-sm border p-4 text-sm">
+          <div>
+            <dt className="text-muted-foreground">Vehicle</dt>
+            <dd className="mt-1 font-medium">
+              {vehicle.make ?? "Unknown"} {vehicle.model ?? ""}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-muted-foreground">Year</dt>
+            <dd className="mt-1 font-medium">{vehicle.year ?? "Unknown"}</dd>
+          </div>
+          <div>
+            <dt className="text-muted-foreground">Plate</dt>
+            <dd className="mt-1 font-medium">{vehicle.plateNumber}</dd>
+          </div>
+          <div>
+            <dt className="text-muted-foreground">Color</dt>
+            <dd className="mt-1 font-medium">{vehicle.color ?? "Unknown"}</dd>
+          </div>
+          <div>
+            <dt className="text-muted-foreground">Seats</dt>
+            <dd className="mt-1 font-medium">{vehicle.passengerCapacity ?? "Unknown"}</dd>
+          </div>
+        </dl>
+        <div className="space-y-3">
+          <p className="font-medium">Are these the correct vehicle details?</p>
+          <div className="flex flex-wrap gap-3">
+            <Form method="post">
+              <input type="hidden" name="intent" value="create-draft" />
+              <input type="hidden" name="verificationId" value={verification.id} />
+              <Button type="submit" disabled={creatingDraft}>
+                {creatingDraft ? "Creating Draft…" : "Yes, Add This Car"}
+              </Button>
+            </Form>
+            <Form method="get">
+              <Button type="submit" variant="outline">
+                No, Check Another Car
+              </Button>
+            </Form>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export function FleetCarPlateVerificationPage({ actionData, idempotencyKey }: PageProps) {
   const navigation = useNavigation();
   const intent = navigation.formData?.get("intent");
   const verification = actionData?.verification;
-  const vehicle = verification?.vehicle;
+  const [form, fields] = useForm({
+    id: "fleet-car-plate-verification",
+    lastResult: actionData?.submission,
+    constraint: getZodConstraint(carOnboardingPlateFormSchema),
+    shouldValidate: "onSubmit",
+    shouldRevalidate: "onInput",
+    onValidate({ formData }) {
+      return parseWithZod(formData, { schema: carOnboardingPlateFormSchema });
+    },
+  });
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -47,41 +136,40 @@ export function FleetCarPlateVerificationPage({ actionData, idempotencyKey }: Pa
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Form key={idempotencyKey} method="post" className="space-y-5">
+          <Form key={idempotencyKey} method="post" {...getFormProps(form)} className="space-y-5">
             <input type="hidden" name="intent" value="verify-plate" />
             <input type="hidden" name="idempotencyKey" value={idempotencyKey} />
             <div className="grid gap-5 sm:grid-cols-2">
-              <Field>
-                <FieldLabel htmlFor="plate-number">Number plate</FieldLabel>
+              <Field data-invalid={Boolean(fields.plateNumber.errors)}>
+                <FieldLabel htmlFor={fields.plateNumber.id}>Number plate</FieldLabel>
                 <Input
-                  id="plate-number"
-                  name="plateNumber"
+                  {...getInputProps(fields.plateNumber, { type: "text" })}
                   className="h-10 rounded-sm"
                   placeholder="ABC 123 XY…"
                   autoCapitalize="characters"
                   autoComplete="off"
                   spellCheck={false}
-                  required
+                  aria-invalid={fields.plateNumber.errors ? true : undefined}
                 />
                 <FieldDescription>Examples: ABC-123XY, ABC123XY, or AB123XY.</FieldDescription>
+                <FieldError id={fields.plateNumber.errorId} errors={fields.plateNumber.errors} />
               </Field>
-              <Field>
-                <FieldLabel htmlFor="policy-number">Insurance policy number</FieldLabel>
+              <Field data-invalid={Boolean(fields.policyNumber.errors)}>
+                <FieldLabel htmlFor={fields.policyNumber.id}>Insurance policy number</FieldLabel>
                 <Input
-                  id="policy-number"
-                  name="policyNumber"
+                  {...getInputProps(fields.policyNumber, { type: "text" })}
                   className="h-10 rounded-sm"
-                  minLength={3}
-                  maxLength={100}
                   autoComplete="off"
                   spellCheck={false}
-                  required
+                  aria-invalid={fields.policyNumber.errors ? true : undefined}
                 />
                 <FieldDescription>
                   Enter the policy number from the insurance certificate.
                 </FieldDescription>
+                <FieldError id={fields.policyNumber.errorId} errors={fields.policyNumber.errors} />
               </Field>
             </div>
+            <FormError id={form.errorId} errors={form.errors} />
             {actionData?.error ? (
               <Alert variant="destructive">
                 <TriangleAlertIcon aria-hidden="true" />
@@ -97,69 +185,11 @@ export function FleetCarPlateVerificationPage({ actionData, idempotencyKey }: Pa
         </CardContent>
       </Card>
 
-      {verification && vehicle && verification.eligibility.isEligible ? (
-        <Card className="rounded-sm" role="status" aria-live="polite">
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-green-100 text-green-700">
-                <CheckCircle2Icon className="size-5" aria-hidden="true" />
-              </div>
-              <div className="min-w-0 space-y-1">
-                <CardTitle>
-                  <h3>Vehicle and Insurance Verified</h3>
-                </CardTitle>
-                <CardDescription>
-                  Confirm these registry details before creating the draft.
-                </CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-5">
-            <dl className="grid grid-cols-2 gap-4 rounded-sm border p-4 text-sm">
-              <div>
-                <dt className="text-muted-foreground">Vehicle</dt>
-                <dd className="mt-1 font-medium">
-                  {vehicle.make ?? "Unknown"} {vehicle.model ?? ""}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-muted-foreground">Year</dt>
-                <dd className="mt-1 font-medium">{vehicle.year ?? "Unknown"}</dd>
-              </div>
-              <div>
-                <dt className="text-muted-foreground">Plate</dt>
-                <dd className="mt-1 font-medium">{vehicle.plateNumber}</dd>
-              </div>
-              <div>
-                <dt className="text-muted-foreground">Color</dt>
-                <dd className="mt-1 font-medium">{vehicle.color ?? "Unknown"}</dd>
-              </div>
-              <div>
-                <dt className="text-muted-foreground">Seats</dt>
-                <dd className="mt-1 font-medium">{vehicle.passengerCapacity ?? "Unknown"}</dd>
-              </div>
-            </dl>
-            {verification.eligibility.isEligible ? (
-              <div className="space-y-3">
-                <p className="font-medium">Are these the correct vehicle details?</p>
-                <div className="flex flex-wrap gap-3">
-                  <Form method="post">
-                    <input type="hidden" name="intent" value="create-draft" />
-                    <input type="hidden" name="verificationId" value={verification.id} />
-                    <Button type="submit" disabled={intent === "create-draft"}>
-                      {intent === "create-draft" ? "Creating Draft…" : "Yes, Add This Car"}
-                    </Button>
-                  </Form>
-                  <Form method="get">
-                    <Button type="submit" variant="outline">
-                      No, Check Another Car
-                    </Button>
-                  </Form>
-                </div>
-              </div>
-            ) : null}
-          </CardContent>
-        </Card>
+      {verification?.eligibility.isEligible ? (
+        <VerifiedVehicleCard
+          creatingDraft={intent === "create-draft"}
+          verification={verification}
+        />
       ) : null}
     </div>
   );

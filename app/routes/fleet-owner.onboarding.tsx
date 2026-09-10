@@ -309,17 +309,21 @@ async function submitAccount(request: Request, formData: FormData) {
 }
 
 async function replaceDriverLicense(request: Request, formData: FormData) {
-  const parsed = onboardingDriverLicenseReplacementFormSchema.safeParse({
-    file: formData.get("file"),
+  const submission = parseWithZod(formData, {
+    schema: onboardingDriverLicenseReplacementFormSchema,
   });
-  if (!parsed.success) {
-    return invalid(
-      "replace-driver-license",
-      parsed.error.issues[0]?.message ?? "Choose a valid driver's licence file",
+  if (submission.status !== "success") {
+    return data<OnboardingActionData>(
+      {
+        intent: "replace-driver-license",
+        revalidate: false,
+        submission: submission.reply(),
+      },
+      { status: HTTP_STATUS.BAD_REQUEST, headers: NO_STORE },
     );
   }
   try {
-    await replaceFleetOwnerDriverLicense({ request, file: parsed.data.file });
+    await replaceFleetOwnerDriverLicense({ request, file: submission.value.file });
     return redirect("/fleet-owner/onboarding", { headers: NO_STORE });
   } catch (error) {
     return failure("replace-driver-license", error);

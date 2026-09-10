@@ -1,3 +1,4 @@
+import { parseWithZod } from "@conform-to/zod/v4";
 import { data, redirect, type ShouldRevalidateFunctionArgs } from "react-router";
 import { z } from "zod";
 
@@ -17,6 +18,7 @@ import {
   carOnboardingInsuranceFormSchema,
   carOnboardingPricingFormSchema,
   type FleetCarOnboardingActionData,
+  type FleetCarOnboardingIntent,
 } from "~/fleet/cars/car-onboarding-form-schema";
 import { FleetCarOnboardingPage } from "~/fleet/cars/fleet-car-onboarding-page";
 import { buildPageMetadata } from "~/seo/metadata";
@@ -57,6 +59,16 @@ function invalid(error: string, status: number = HTTP_STATUS.BAD_REQUEST) {
   );
 }
 
+function invalidSubmission(
+  intent: FleetCarOnboardingIntent,
+  submission: { reply: () => FleetCarOnboardingActionData["submission"] },
+) {
+  return data<FleetCarOnboardingActionData>(
+    { intent, revalidate: false, submission: submission.reply() },
+    { status: HTTP_STATUS.BAD_REQUEST, headers: NO_STORE },
+  );
+}
+
 function failure(error: unknown) {
   if (error instanceof ApiRequestError && error.kind === "aborted") throw error;
   const expected =
@@ -80,45 +92,38 @@ function onboardingPath(carId: string) {
 }
 
 async function uploadDocuments(request: Request, carId: string, formData: FormData) {
-  const parsed = carOnboardingDocumentsFormSchema.safeParse({
-    motCertificate: formData.get("motCertificate"),
-    insuranceCertificate: formData.get("insuranceCertificate"),
-  });
-  if (!parsed.success) {
-    return invalid(parsed.error.issues[0]?.message ?? "Choose valid PDF documents");
+  const submission = parseWithZod(formData, { schema: carOnboardingDocumentsFormSchema });
+  if (submission.status !== "success") {
+    return invalidSubmission("upload-documents", submission);
   }
-  await uploadFleetDraftCarDocuments({ request, carId, ...parsed.data });
+  await uploadFleetDraftCarDocuments({ request, carId, ...submission.value });
   return redirect(onboardingPath(carId), { headers: NO_STORE });
 }
 
 async function uploadImages(request: Request, carId: string, formData: FormData) {
-  const parsed = carOnboardingImagesFormSchema.safeParse({
-    images: formData.getAll("images"),
-  });
-  if (!parsed.success) {
-    return invalid(parsed.error.issues[0]?.message ?? "Choose valid car images");
+  const submission = parseWithZod(formData, { schema: carOnboardingImagesFormSchema });
+  if (submission.status !== "success") {
+    return invalidSubmission("upload-images", submission);
   }
-  await uploadFleetDraftCarImages({ request, carId, images: parsed.data.images });
+  await uploadFleetDraftCarImages({ request, carId, images: submission.value.images });
   return redirect(onboardingPath(carId), { headers: NO_STORE });
 }
 
 async function savePricing(request: Request, carId: string, formData: FormData) {
-  const parsed = carOnboardingPricingFormSchema.safeParse(Object.fromEntries(formData));
-  if (!parsed.success) {
-    return invalid(parsed.error.issues[0]?.message ?? "Check your pricing");
+  const submission = parseWithZod(formData, { schema: carOnboardingPricingFormSchema });
+  if (submission.status !== "success") {
+    return invalidSubmission("save-pricing", submission);
   }
-  await updateFleetDraftCarPricing({ request, carId, body: parsed.data });
+  await updateFleetDraftCarPricing({ request, carId, body: submission.value });
   return redirect(onboardingPath(carId), { headers: NO_STORE });
 }
 
 async function verifyInsurance(request: Request, carId: string, formData: FormData) {
-  const parsed = carOnboardingInsuranceFormSchema.safeParse({
-    policyNumber: formData.get("policyNumber"),
-  });
-  const idempotencyKey = idempotencyKeySchema.safeParse(formData.get("idempotencyKey"));
-  if (!parsed.success) {
-    return invalid(parsed.error.issues[0]?.message ?? "Enter a valid policy number");
+  const submission = parseWithZod(formData, { schema: carOnboardingInsuranceFormSchema });
+  if (submission.status !== "success") {
+    return invalidSubmission("verify-insurance", submission);
   }
+  const idempotencyKey = idempotencyKeySchema.safeParse(formData.get("idempotencyKey"));
   if (!idempotencyKey.success) {
     return invalid(idempotencyKey.error.issues[0]?.message ?? "Invalid idempotency key");
   }
@@ -126,7 +131,7 @@ async function verifyInsurance(request: Request, carId: string, formData: FormDa
     request,
     carId,
     idempotencyKey: idempotencyKey.data,
-    body: parsed.data,
+    body: submission.value,
   });
   return redirect(onboardingPath(carId), { headers: NO_STORE });
 }

@@ -667,7 +667,13 @@ describe("fleet-owner onboarding route", () => {
 
     expect(replaceFleetOwnerDriverLicense).not.toHaveBeenCalled();
     expect(result).toMatchObject({
-      data: { error: INVALID_LICENSE_MESSAGE, revalidate: false },
+      data: {
+        intent: "replace-driver-license",
+        revalidate: false,
+        submission: expect.objectContaining({
+          error: { file: [INVALID_LICENSE_MESSAGE] },
+        }),
+      },
       init: { status: HTTP_STATUS.BAD_REQUEST },
     });
   });

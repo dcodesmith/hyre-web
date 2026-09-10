@@ -125,7 +125,11 @@ const INVALID_DOCUMENT_MESSAGE = firstIssue(carOnboardingDocumentsFormSchema, {
   insuranceCertificate: pdf("insurance.pdf"),
 });
 const INVALID_IMAGE_MESSAGE = firstIssue(carOnboardingImagesFormSchema, {
-  images: [image("car.gif", "image/gif")],
+  images: [
+    image("car.gif", "image/gif"),
+    image("car-2.gif", "image/gif"),
+    image("car-3.gif", "image/gif"),
+  ],
 });
 const INVALID_PRICING_MESSAGE = firstIssue(carOnboardingPricingFormSchema, {
   ...validPricingFields,
@@ -265,18 +269,37 @@ describe("fleet-owner car onboarding route", () => {
   it("uploads images, then redirects back to onboarding", async () => {
     const { request, result } = await runAction({
       intent: "upload-images",
-      images: [image("one.jpg"), image("two.png", "image/png")],
+      images: [image("one.jpg"), image("two.png", "image/png"), image("three.webp", "image/webp")],
     });
 
     expect(uploadFleetDraftCarImages).toHaveBeenCalledWith({
       request,
       carId: CAR_ID,
-      images: [expect.any(File), expect.any(File)],
+      images: [expect.any(File), expect.any(File), expect.any(File)],
     });
     const sent = uploadFleetDraftCarImages.mock.calls[0][0].images as File[];
-    expect(sent.map((file) => file.name)).toEqual(["one.jpg", "two.png"]);
-    expect(sent.map((file) => file.type)).toEqual(["image/jpeg", "image/png"]);
+    expect(sent.map((file) => file.name)).toEqual(["one.jpg", "two.png", "three.webp"]);
+    expect(sent.map((file) => file.type)).toEqual(["image/jpeg", "image/png", "image/webp"]);
     expectRedirect(result, ONBOARDING_PATH);
+  });
+
+  it.each([
+    [1, [image("one.jpg")]],
+    [2, [image("one.jpg"), image("two.jpg")]],
+  ] as const)("rejects an upload containing only %i image(s)", async (_count, images) => {
+    const { result } = await runAction({ intent: "upload-images", images });
+
+    expect(uploadFleetDraftCarImages).not.toHaveBeenCalled();
+    expect(result).toMatchObject({
+      data: {
+        intent: "upload-images",
+        revalidate: false,
+        submission: expect.objectContaining({
+          error: { images: ["Upload at least 3 images"] },
+        }),
+      },
+      init: { status: HTTP_STATUS.BAD_REQUEST },
+    });
   });
 
   it("saves coerced pricing, then redirects back to onboarding", async () => {
@@ -328,44 +351,66 @@ describe("fleet-owner car onboarding route", () => {
         insuranceCertificate: pdf("insurance.pdf"),
       },
       uploadFleetDraftCarDocuments,
-      INVALID_DOCUMENT_MESSAGE,
+      "upload-documents",
+      { motCertificate: [INVALID_DOCUMENT_MESSAGE] },
     ],
     [
       "upload-images files",
-      { intent: "upload-images", images: [image("car.gif", "image/gif")] },
+      {
+        intent: "upload-images",
+        images: [
+          image("car.gif", "image/gif"),
+          image("car-2.gif", "image/gif"),
+          image("car-3.gif", "image/gif"),
+        ],
+      },
       uploadFleetDraftCarImages,
-      INVALID_IMAGE_MESSAGE,
+      "upload-images",
+      { images: [INVALID_IMAGE_MESSAGE, INVALID_IMAGE_MESSAGE, INVALID_IMAGE_MESSAGE] },
     ],
     [
       "save-pricing fields",
       { ...validPricingFields, hourlyRate: "0" },
       updateFleetDraftCarPricing,
-      INVALID_PRICING_MESSAGE,
+      "save-pricing",
+      { hourlyRate: [INVALID_PRICING_MESSAGE] },
     ],
     [
       "verify-insurance policy",
       { ...validInsuranceFields, policyNumber: "AB" },
       createFleetInsuranceVerification,
-      INVALID_POLICY_MESSAGE,
-    ],
-    [
-      "verify-insurance idempotency",
-      { ...validInsuranceFields, idempotencyKey: "not-a-uuid" },
-      createFleetInsuranceVerification,
-      INVALID_UUID_MESSAGE,
+      "verify-insurance",
+      { policyNumber: [INVALID_POLICY_MESSAGE] },
     ],
   ] as const)(
-    "rejects invalid %s without calling the mutation API",
-    async (_label, fields, mutation, error) => {
+    "returns Conform field errors for invalid %s",
+    async (_label, fields, mutation, intent, fieldErrors) => {
       const { result } = await runAction({ ...fields });
 
       expect(mutation).not.toHaveBeenCalled();
       expect(result).toMatchObject({
-        data: { error, revalidate: false },
+        data: {
+          intent,
+          revalidate: false,
+          submission: expect.objectContaining({ error: fieldErrors }),
+        },
         init: { status: HTTP_STATUS.BAD_REQUEST },
       });
     },
   );
+
+  it("rejects invalid verify-insurance idempotency without calling the mutation API", async () => {
+    const { result } = await runAction({
+      ...validInsuranceFields,
+      idempotencyKey: "not-a-uuid",
+    });
+
+    expect(createFleetInsuranceVerification).not.toHaveBeenCalled();
+    expect(result).toMatchObject({
+      data: { error: INVALID_UUID_MESSAGE, revalidate: false },
+      init: { status: HTTP_STATUS.BAD_REQUEST },
+    });
+  });
 
   it.each([
     [
@@ -379,7 +424,10 @@ describe("fleet-owner car onboarding route", () => {
     ],
     [
       "upload-images",
-      () => ({ intent: "upload-images", images: [image("one.jpg")] }),
+      () => ({
+        intent: "upload-images",
+        images: [image("one.jpg"), image("two.jpg"), image("three.jpg")],
+      }),
       uploadFleetDraftCarImages,
     ],
     ["save-pricing", () => validPricingFields, updateFleetDraftCarPricing],

@@ -73,15 +73,21 @@ const onboardingDocuments = [
   },
 ] satisfies FleetCar["documents"];
 
-const onboardingImages = [
-  {
-    id: "image-1",
-    url: "https://cdn.example.com/car.jpg",
-    status: "PENDING" as const,
-    isPrimary: true,
+function onboardingImage(id: string, isPrimary = false): FleetCar["images"][number] {
+  return {
+    id,
+    url: `https://cdn.example.com/${id}.jpg`,
+    status: "PENDING",
+    isPrimary,
     createdAt: "2026-08-01T10:00:00.000Z",
     updatedAt: "2026-08-01T10:00:00.000Z",
-  },
+  };
+}
+
+const onboardingImages = [
+  onboardingImage("image-1", true),
+  onboardingImage("image-2"),
+  onboardingImage("image-3"),
 ] satisfies FleetCar["images"];
 
 const draftCar = {
@@ -165,6 +171,13 @@ describe("fleet car onboarding step", () => {
       getFleetCarOnboardingStep({
         ...draftCar,
         documents: onboardingDocuments,
+      }),
+    ).toBe("photos");
+    expect(
+      getFleetCarOnboardingStep({
+        ...draftCar,
+        documents: onboardingDocuments,
+        images: onboardingImages.slice(0, 2),
       }),
     ).toBe("photos");
     expect(

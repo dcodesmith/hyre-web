@@ -83,7 +83,6 @@ const INVALID_POLICY_MESSAGE = firstIssue(carOnboardingPlateFormSchema, {
 });
 const MISSING_POLICY_MESSAGE = firstIssue(carOnboardingPlateFormSchema, {
   plateNumber: "KJA123AB",
-  policyNumber: null,
 });
 const INVALID_UUID_MESSAGE = firstIssue(z.uuid(), "not-a-uuid");
 const INVALID_VERIFICATION_ID_MESSAGE = firstIssue(z.string().trim().min(1), "");
@@ -212,27 +211,41 @@ describe("fleet-owner cars new route", () => {
 
   it.each([
     [
-      "verify-plate plate",
+      "plate",
       { ...validPlateFields, plateNumber: "ABC123" },
-      createFleetVehicleVerification,
-      INVALID_PLATE_MESSAGE,
+      { plateNumber: [INVALID_PLATE_MESSAGE] },
     ],
     [
-      "verify-plate policy",
+      "policy",
       { ...validPlateFields, policyNumber: "AB" },
-      createFleetVehicleVerification,
-      INVALID_POLICY_MESSAGE,
+      { policyNumber: [INVALID_POLICY_MESSAGE] },
     ],
     [
-      "verify-plate missing policy",
+      "missing policy",
       {
         intent: "verify-plate",
         plateNumber: "kja-123ab",
         idempotencyKey: IDEMPOTENCY_KEY,
       },
-      createFleetVehicleVerification,
-      MISSING_POLICY_MESSAGE,
+      { policyNumber: [MISSING_POLICY_MESSAGE] },
     ],
+  ] as const)(
+    "returns Conform field errors for an invalid verify-plate %s",
+    async (_label, fields, fieldErrors) => {
+      const { result } = await runAction({ ...fields });
+
+      expect(createFleetVehicleVerification).not.toHaveBeenCalled();
+      expect(result).toMatchObject({
+        data: {
+          revalidate: false,
+          submission: expect.objectContaining({ error: fieldErrors }),
+        },
+        init: { status: HTTP_STATUS.BAD_REQUEST },
+      });
+    },
+  );
+
+  it.each([
     [
       "verify-plate idempotency",
       { ...validPlateFields, idempotencyKey: "not-a-uuid" },

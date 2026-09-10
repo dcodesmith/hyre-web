@@ -97,9 +97,11 @@ export function needsFleetCarOnboarding(car: FleetCar) {
 
 export type FleetCarOnboardingStep = "documents" | "photos" | "pricing" | "submit";
 
+export const MIN_FLEET_CAR_IMAGES = 3;
+
 export function getFleetCarOnboardingStep(car: FleetCar): FleetCarOnboardingStep {
   if (car.documents.length < 2) return "documents";
-  if (car.images.length === 0) return "photos";
+  if (car.images.length < MIN_FLEET_CAR_IMAGES) return "photos";
   if (!hasFleetCarPricing(car)) return "pricing";
   return "submit";
 }

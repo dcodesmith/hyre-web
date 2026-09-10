@@ -1,7 +1,7 @@
 import type { SubmissionResult } from "@conform-to/react";
 import { z } from "zod";
+import { addFileValidationIssues } from "~/components/forms/file-validation";
 
-const MAX_DOCUMENT_SIZE_BYTES = 5 * 1024 * 1024;
 const DOCUMENT_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "application/pdf"]);
 
 const phoneNumberSchema = z
@@ -66,28 +66,15 @@ function addDocumentIssues(
   field: "driversLicense" | "lasdri" | "file",
   file: File | undefined,
 ) {
-  if (!file) return;
-  if (!DOCUMENT_TYPES.has(file.type)) {
-    context.addIssue({
-      code: "custom",
-      message: "Use a JPEG, PNG, WebP, or PDF file",
-      path: [field],
-    });
-  }
-  if (file.size <= 0) {
-    context.addIssue({
-      code: "custom",
-      message: "The selected file is empty",
-      path: [field],
-    });
-  }
-  if (file.size > MAX_DOCUMENT_SIZE_BYTES) {
-    context.addIssue({
-      code: "custom",
-      message: "File must not exceed 5 MB",
-      path: [field],
-    });
-  }
+  addFileValidationIssues({
+    allowedTypes: DOCUMENT_TYPES,
+    context,
+    emptyMessage: "The selected file is empty",
+    file,
+    invalidTypeMessage: "Use a JPEG, PNG, WebP, or PDF file",
+    oversizedMessage: "File must not exceed 5 MB",
+    path: [field],
+  });
 }
 
 export const onboardingDrivingFormSchema = z
@@ -122,7 +109,7 @@ export const onboardingDrivingFormSchema = z
   });
 
 export const onboardingDriverLicenseReplacementFormSchema = z
-  .object({ file: z.file() })
+  .object({ file: z.file({ error: "Upload a replacement driver's licence" }) })
   .superRefine(({ file }, context) => {
     addDocumentIssues(context, "file", file);
   });
