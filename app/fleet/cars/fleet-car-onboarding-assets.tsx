@@ -1,6 +1,7 @@
 import { getFormProps, getInputProps, useForm } from "@conform-to/react";
 import { getZodConstraint, parseWithZod } from "@conform-to/zod/v4";
-import { FileTextIcon, ImagesIcon, UploadIcon } from "lucide-react";
+import { FileTextIcon, ImagesIcon, UploadIcon, XIcon } from "lucide-react";
+import { useRef, useState } from "react";
 import { Form, useNavigation } from "react-router";
 
 import { FormError } from "~/components/forms/form-primitives";
@@ -8,6 +9,7 @@ import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
 import { Field, FieldDescription, FieldError, FieldLabel } from "~/components/ui/field";
 import { Input } from "~/components/ui/input";
+import { useImageFilePreviews } from "~/hooks/use-image-file-previews";
 import {
   carOnboardingDocumentsFormSchema,
   carOnboardingImagesFormSchema,
@@ -89,6 +91,9 @@ export function CarDocumentStep({ actionData }: StepProps) {
 
 export function CarImageStep({ actionData }: StepProps) {
   const navigation = useNavigation();
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const [selectedImages, setSelectedImages] = useState<readonly File[]>([]);
+  const imagePreviews = useImageFilePreviews(selectedImages);
   const pending =
     navigation.formMethod != null && navigation.formData?.get("intent") === "upload-images";
   const [form, fields] = useForm({
@@ -101,6 +106,20 @@ export function CarImageStep({ actionData }: StepProps) {
       return parseWithZod(formData, { schema: carOnboardingImagesFormSchema });
     },
   });
+
+  function removeImage(index: number) {
+    const input = imageInputRef.current;
+    if (!input) return;
+
+    const remainingImages = selectedImages.filter((_, imageIndex) => imageIndex !== index);
+    const transfer = new DataTransfer();
+    for (const image of remainingImages) {
+      transfer.items.add(image);
+    }
+    input.files = transfer.files;
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  }
 
   return (
     <Card className="rounded-sm">
@@ -127,11 +146,41 @@ export function CarImageStep({ actionData }: StepProps) {
             <FieldLabel htmlFor={fields.images.id}>Car images</FieldLabel>
             <Input
               {...getInputProps(fields.images, { type: "file" })}
+              ref={imageInputRef}
               className="h-10 rounded-sm"
               accept="image/jpeg,image/png,image/webp"
               multiple
               aria-invalid={fields.images.errors ? true : undefined}
+              onChange={(event) => setSelectedImages(Array.from(event.currentTarget.files ?? []))}
             />
+            {imagePreviews.length > 0 ? (
+              <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                {imagePreviews.map(({ file, url }, index) => (
+                  <li
+                    key={url}
+                    className="relative aspect-square overflow-hidden rounded-sm border bg-muted"
+                  >
+                    <img
+                      src={url}
+                      alt={file.name}
+                      className="size-full object-cover"
+                      width={240}
+                      height={240}
+                    />
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="icon-sm"
+                      className="absolute top-2 right-2 shadow-sm"
+                      aria-label={`Remove ${file.name}`}
+                      onClick={() => removeImage(index)}
+                    >
+                      <XIcon aria-hidden="true" />
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
             <FieldDescription>
               Choose 3–5 JPEG, PNG, or WebP images, each under 5&nbsp;MB.
             </FieldDescription>
