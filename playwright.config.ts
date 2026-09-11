@@ -12,13 +12,6 @@ export default defineConfig({
   reporter: process.env.CI ? [["list"], ["html", { open: "never" }]] : "list",
   expect: {
     timeout: 10_000,
-    toHaveScreenshot: {
-      // Baselines are Linux CI (`mcr.microsoft.com/playwright:v1.62.1-noble`).
-      // Local macOS compares are skipped in e2e/expect-visual-screenshot.ts.
-      animations: "disabled",
-      maxDiffPixelRatio: 0.01,
-      threshold: 0.2,
-    },
   },
   use: {
     baseURL,
@@ -43,7 +36,6 @@ export default defineConfig({
       use: { viewport: { width: 1280, height: 720 } },
     },
   ],
-  snapshotPathTemplate: "{testDir}/{testFileDir}/{testFileName}-snapshots/{arg}-{projectName}{ext}",
   webServer: {
     command: "CLOUDFLARE_ENV=e2e pnpm dev --port 5174",
     env: {

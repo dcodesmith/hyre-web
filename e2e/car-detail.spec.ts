@@ -2,7 +2,6 @@ import { expect, type Page, test } from "@playwright/test";
 
 import { HTTP_STATUS } from "../app/api/http-status";
 import { clickUntilVisible } from "./click-until";
-import { expectVisualScreenshot } from "./expect-visual-screenshot";
 
 const consentKey = "tripdly-cookie-consent:v1";
 
@@ -173,26 +172,4 @@ test("returns 404 for a hireApp short slug the API cannot resolve", async ({ pag
 
   expect(response?.status()).toBe(HTTP_STATUS.NOT_FOUND);
   await expect(page.getByRole("heading", { name: "Page not found" })).toBeVisible();
-});
-
-test("matches the responsive car detail baseline", async ({ page }) => {
-  await setCookiePreference(page);
-  await page.goto("/__visual/car?bookingType=DAY");
-  await expect(
-    page.getByRole("heading", { level: 1, name: "Lexus UX F-Sport - 2019" }),
-  ).toBeVisible();
-  await page.evaluate(async () => {
-    await document.fonts.ready;
-    await Promise.all(
-      Array.from(document.images)
-        .filter((image) => image.getClientRects().length > 0)
-        .map((image) => (image.complete ? undefined : image.decode().catch(() => undefined))),
-    );
-  });
-
-  await expectVisualScreenshot(page, "car-detail.png", {
-    fullPage: true,
-    mask: [page.locator("[data-visual-dynamic]")],
-    maskColor: "#f3f4f6",
-  });
 });

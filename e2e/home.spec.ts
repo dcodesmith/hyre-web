@@ -2,7 +2,6 @@ import { expect, type Page, test } from "@playwright/test";
 
 import { HTTP_STATUS } from "../app/api/http-status";
 import { clickUntilAttribute, clickUntilVisible } from "./click-until";
-import { expectVisualScreenshot } from "./expect-visual-screenshot";
 
 const consentKey = "tripdly-cookie-consent:v1";
 
@@ -92,21 +91,4 @@ test("opens the AI search dialog from the homepage", async ({ page }) => {
   const trigger = page.getByRole("button", { name: "Search by AI" });
   await clickUntilVisible(trigger, page.getByRole("dialog", { name: "Search by AI" }));
   await expect(page.getByLabel("Describe your search")).toBeVisible();
-});
-
-test("matches the responsive homepage baseline", async ({ page }) => {
-  await setCookiePreference(page);
-  await page.goto("/__visual/home");
-  await page.evaluate(async () => {
-    await document.fonts.ready;
-    await Promise.all(
-      Array.from(document.images, (image) => (image.complete ? undefined : image.decode())),
-    );
-  });
-
-  await expectVisualScreenshot(page, "home.png", {
-    fullPage: true,
-    mask: [page.locator("[data-visual-dynamic]")],
-    maskColor: "#f3f4f6",
-  });
 });

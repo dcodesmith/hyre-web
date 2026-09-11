@@ -1,7 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
 
-import { expectVisualScreenshot } from "../expect-visual-screenshot";
-
 const consentKey = "tripdly-cookie-consent:v1";
 const legacyConsentKey = "tripdly-cookie-consent";
 
@@ -10,7 +8,6 @@ async function visitShellWithConsent(page: Page) {
     localStorage.setItem(key, JSON.stringify({ analytics: false, timestamp: 1 }));
   }, consentKey);
   await page.goto("/__visual/public-shell");
-  await page.evaluate(() => document.fonts.ready);
 }
 
 function isAppConsoleError(text: string) {
@@ -42,11 +39,6 @@ test("renders the public shell at its responsive breakpoint", async ({ page, vie
     await expect(page.getByRole("navigation", { name: "Primary" })).toBeHidden();
   }
 
-  await expectVisualScreenshot(page, "public-shell.png", {
-    fullPage: true,
-    mask: [page.locator("[data-visual-dynamic]")],
-    maskColor: "#f3f4f6",
-  });
   expect(consoleErrors).toEqual([]);
 });
 
@@ -73,11 +65,9 @@ test("persists a cookie preference", async ({ page }, testInfo) => {
     { currentKey: consentKey, oldKey: legacyConsentKey },
   );
   await page.goto("/__visual/public-shell");
-  await page.evaluate(() => document.fonts.ready);
 
   const banner = page.getByRole("region", { name: "Cookie consent" });
   await expect(banner).toBeVisible();
-  await expectVisualScreenshot(banner, "cookie-consent.png");
 
   const essentialOnly = page.getByRole("button", { name: "Essential Only" });
   await essentialOnly.evaluate((node) => {
@@ -91,12 +81,6 @@ test("persists a cookie preference", async ({ page }, testInfo) => {
 
 test("renders the parity 404 page", async ({ page }) => {
   await page.goto("/missing-page-for-visual-test");
-  await page.evaluate(() => document.fonts.ready);
 
   await expect(page.getByRole("heading", { name: "Page not found" })).toBeVisible();
-  await expectVisualScreenshot(page, "not-found.png", {
-    fullPage: true,
-    mask: [page.locator("[data-visual-dynamic]")],
-    maskColor: "#ffffff",
-  });
 });

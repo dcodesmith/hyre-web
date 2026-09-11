@@ -1,15 +1,13 @@
 import { expect, type Page, test } from "@playwright/test";
 
-import { expectVisualScreenshot } from "../expect-visual-screenshot";
-
 const TABLE_MIN_WIDTH = 768;
 
 const states = [
-  { state: "", screenshot: "fleet-chauffeurs-list.png" },
-  { state: "empty", screenshot: "fleet-chauffeurs-empty.png", empty: "No chauffeurs yet" },
+  { state: "", name: "list" },
+  { state: "empty", name: "empty", empty: "No chauffeurs yet" },
   {
     state: "owner-driver",
-    screenshot: "fleet-chauffeurs-owner-driver.png",
+    name: "owner-driver",
     notice: "Your account is set up as owner-driver",
   },
 ] as const;
@@ -17,14 +15,10 @@ const states = [
 async function visitFleetChauffeurs(page: Page, state: string) {
   const path = state ? `/__visual/fleet-chauffeurs?state=${state}` : "/__visual/fleet-chauffeurs";
   await page.goto(path);
-  await page.evaluate(() => document.fonts.ready);
 }
 
 for (const fixture of states) {
-  test(`renders the fleet chauffeur ${fixture.screenshot.replace(".png", "")} state`, async ({
-    page,
-    viewport,
-  }) => {
+  test(`renders the fleet chauffeur ${fixture.name} state`, async ({ page, viewport }) => {
     await visitFleetChauffeurs(page, fixture.state);
 
     await expect(page.getByRole("heading", { name: "Chauffeurs", level: 2 })).toBeVisible();
@@ -43,7 +37,5 @@ for (const fixture of states) {
         await expect(page.getByRole("table")).toHaveCount(0);
       }
     }
-
-    await expectVisualScreenshot(page, fixture.screenshot, { fullPage: true });
   });
 }

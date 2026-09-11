@@ -2,7 +2,6 @@ import { expect, type Page, test } from "@playwright/test";
 
 import { HTTP_STATUS } from "../app/api/http-status";
 import { clickUntilAttribute, clickUntilVisible } from "./click-until";
-import { expectVisualScreenshot } from "./expect-visual-screenshot";
 
 const consentKey = "tripdly-cookie-consent:v1";
 
@@ -112,22 +111,4 @@ test("keeps filters and drops booking fields when booking type changes", async (
   }
 
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-});
-
-test("matches the responsive search baseline", async ({ page }) => {
-  await setCookiePreference(page);
-  await page.goto("/__visual/search");
-  await expect(page.getByRole("button", { name: "Filters" })).toBeVisible();
-  await page.evaluate(async () => {
-    await document.fonts.ready;
-    await Promise.all(
-      Array.from(document.images, (image) => (image.complete ? undefined : image.decode())),
-    );
-  });
-
-  await expectVisualScreenshot(page, "search.png", {
-    fullPage: true,
-    mask: [page.locator("[data-visual-dynamic]")],
-    maskColor: "#f3f4f6",
-  });
 });

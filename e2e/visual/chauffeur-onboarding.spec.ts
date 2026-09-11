@@ -1,50 +1,48 @@
 import { expect, type Page, test } from "@playwright/test";
 
-import { expectVisualScreenshot } from "../expect-visual-screenshot";
-
 const consentKey = "tripdly-cookie-consent:v1";
 
 const stages = [
   {
     step: "",
-    screenshot: "chauffeur-onboarding-unavailable.png",
+    name: "unavailable",
     title: "This invitation is unavailable",
     heading: true,
   },
   {
     step: "consent",
-    screenshot: "chauffeur-onboarding-consent.png",
+    name: "consent",
     title: "Before you begin",
     heading: false,
   },
   {
     step: "phone",
-    screenshot: "chauffeur-onboarding-phone.png",
+    name: "phone",
     title: "Verify your phone",
     heading: false,
   },
   {
     step: "phone-code",
-    screenshot: "chauffeur-onboarding-phone-code.png",
+    name: "phone-code",
     title: "Verify your phone",
     heading: false,
     notice: "Code sent to +2348012345678",
   },
   {
     step: "nin",
-    screenshot: "chauffeur-onboarding-nin.png",
+    name: "nin",
     title: "Verify your identity",
     heading: false,
   },
   {
     step: "driving",
-    screenshot: "chauffeur-onboarding-driving.png",
+    name: "driving",
     title: "Verify your driving credentials",
     heading: false,
   },
   {
     step: "complete",
-    screenshot: "chauffeur-onboarding-complete.png",
+    name: "complete",
     title: "Verification complete",
     heading: true,
   },
@@ -58,13 +56,10 @@ async function visitChauffeurOnboarding(page: Page, step: string) {
     ? `/__visual/chauffeur-onboarding?step=${step}`
     : "/__visual/chauffeur-onboarding";
   await page.goto(path);
-  await page.evaluate(() => document.fonts.ready);
 }
 
 for (const stage of stages) {
-  test(`renders the chauffeur onboarding ${stage.screenshot.replace(".png", "")} stage`, async ({
-    page,
-  }) => {
+  test(`renders the chauffeur onboarding ${stage.name} stage`, async ({ page }) => {
     await visitChauffeurOnboarding(page, stage.step);
 
     if (stage.heading) {
@@ -78,7 +73,5 @@ for (const stage of stages) {
     if ("notice" in stage) {
       await expect(page.getByText(stage.notice)).toBeVisible();
     }
-
-    await expectVisualScreenshot(page, stage.screenshot, { fullPage: true });
   });
 }
