@@ -21,6 +21,17 @@ export class ApiRequestError extends Error {
   }
 }
 
+export function idempotencyKeyForRetry(error: unknown, currentKey: string) {
+  if (
+    error instanceof ApiRequestError &&
+    (error.kind === "network" || error.kind === "timeout" || error.headers.has("Retry-After"))
+  ) {
+    return currentKey;
+  }
+
+  return crypto.randomUUID();
+}
+
 export type ApiResponse<T> = {
   data: T;
   status: number;

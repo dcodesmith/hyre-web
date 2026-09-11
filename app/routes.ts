@@ -19,6 +19,11 @@ const visualRoutes =
       ]
     : [];
 
+const visualChauffeurRoutes =
+  process.env.VISUAL_TESTING === "true"
+    ? [route("__visual/chauffeur-onboarding", "routes/__visual.chauffeur-onboarding.tsx")]
+    : [];
+
 const visualFleetRoutes =
   process.env.VISUAL_TESTING === "true"
     ? [
@@ -26,6 +31,7 @@ const visualFleetRoutes =
         layout("routes/__visual.fleet-layout.tsx", [
           route("__visual/car-plate", "routes/__visual.car-plate.tsx"),
           route("__visual/car-onboarding", "routes/__visual.car-onboarding.tsx"),
+          route("__visual/fleet-chauffeurs", "routes/__visual.fleet-chauffeurs.tsx"),
         ]),
       ]
     : [];
@@ -40,6 +46,8 @@ export default [
   route("api/account/delete", "routes/api.account.delete.ts"),
   route("robots.txt", "routes/robots.txt.ts"),
   route("sitemap.xml", "routes/sitemap.xml.ts"),
+  route("chauffeur/onboarding", "routes/chauffeur.onboarding.tsx"),
+  ...visualChauffeurRoutes,
   layout("routes/_public.tsx", [
     index("routes/home.tsx"),
     route("search", "routes/search.tsx"),
@@ -78,6 +86,7 @@ export default [
     route("cars/:carId/onboarding", "routes/fleet-owner.cars.$carId.onboarding.tsx"),
     route("cars/:carId", "routes/fleet-owner.cars.$carId.tsx"),
     route("cars/:carId/edit", "routes/fleet-owner.cars.$carId.edit.tsx"),
+    route("chauffeurs", "routes/fleet-owner.chauffeurs.tsx"),
     route("promotions", "routes/fleet-owner.promotions.tsx"),
     route("payout-transactions", "routes/fleet-owner.payout-transactions.tsx"),
   ]),

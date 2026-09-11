@@ -368,9 +368,43 @@ export type CapturedAuthRequest = {
   referer?: string;
 };
 
+export const MOCK_APPROVED_CHAUFFEUR_ID = "chauffeur-01";
+
+type MockFleetChauffeur = {
+  id: string;
+  chauffeurId: string | null;
+  name: string;
+  email: string;
+  phoneNumber: string;
+  status: "INVITED" | "CONSENTED" | "PHONE_VERIFIED" | "IDENTITY_VERIFIED" | "APPROVED";
+  isActive: boolean;
+  image: string | null;
+  invitedAt: string;
+};
+
+const mockFleetChauffeurs = Array.from({ length: 21 }, (_, index) => {
+  const number = index + 1;
+  const approved = number === 1;
+
+  return {
+    id: `invite-${String(number).padStart(2, "0")}`,
+    chauffeurId: approved ? MOCK_APPROVED_CHAUFFEUR_ID : null,
+    name: approved ? "Bola Adebayo" : `Chauffeur ${String(number).padStart(2, "0")}`,
+    email: `chauffeur${number}@example.com`,
+    phoneNumber: `+23480${String(10000000 + number).slice(-8)}`,
+    status: approved ? "APPROVED" : "INVITED",
+    isActive: approved,
+    image: null,
+    invitedAt: `2026-08-${String(Math.min(number, 28)).padStart(2, "0")}T12:00:00.000Z`,
+  } satisfies MockFleetChauffeur;
+});
+
 export type MockFleetOwnerAuthApi = {
   server: Server;
   requests: {
+    chauffeurInvitations: unknown[];
+    chauffeurListQueries: Array<Record<string, string>>;
+    chauffeurUpdates: Array<{ chauffeurId: string; body: unknown }>;
     createPromotions: unknown[];
     dashboardOverviewRequests: number;
     deactivatedPromotionIds: string[];
@@ -996,6 +1030,7 @@ async function handleOnboardingRequest(
   response: import("node:http").ServerResponse,
   path: string,
   staged: StagedOnboarding | null,
+  verifiedOnboarding: typeof mockVerifiedOnboarding,
 ) {
   const isOnboardingGet = path === "/api/fleet-owner/onboarding" && request.method === "GET";
   const isStagedPath =
@@ -1013,7 +1048,7 @@ async function handleOnboardingRequest(
   }
 
   if (isOnboardingGet) {
-    writeJson(response, 200, staged ?? mockVerifiedOnboarding);
+    writeJson(response, 200, staged ?? verifiedOnboarding);
     return true;
   }
 
@@ -1160,20 +1195,106 @@ async function handleFleetOwnerAuthRequest(
   return false;
 }
 
+async function handleFleetChauffeursRequest(
+  request: IncomingMessage,
+  response: import("node:http").ServerResponse,
+  url: URL,
+  requests: MockFleetOwnerAuthApi["requests"],
+  chauffeurs: MockFleetChauffeur[],
+) {
+  const path = url.pathname;
+  const isList = path === "/api/fleet-owner/chauffeurs";
+  const isInvite = path === "/api/fleet-owner/chauffeur-invitations";
+  const updateMatch = /^\/api\/fleet-owner\/chauffeurs\/([^/]+)$/.exec(path);
+  if (!isList && !isInvite && !updateMatch) {
+    return false;
+  }
+
+  if (!requireFleetOwnerSession(request, response)) {
+    return true;
+  }
+
+  if (request.method === "GET" && isList) {
+    requests.chauffeurListQueries.push(Object.fromEntries(url.searchParams));
+    const page = Number(url.searchParams.get("page") ?? 1);
+    const limit = Number(url.searchParams.get("limit") ?? 20);
+    const start = (page - 1) * limit;
+    writeJson(response, 200, {
+      items: chauffeurs.slice(start, start + limit),
+      meta: {
+        page,
+        limit,
+        total: chauffeurs.length,
+        totalPages: Math.ceil(chauffeurs.length / limit),
+      },
+      complianceRequirements: [
+        { type: "LASDRI", label: "LASDRI card", required: false },
+        { type: "LASRRA", label: "LASRRA card", required: false },
+        { type: "DRIVER_BADGE", label: "Lagos driver badge", required: false },
+      ],
+    });
+    return true;
+  }
+
+  if (request.method === "POST" && isInvite) {
+    const body = (await readJson(request)) as {
+      name?: string;
+      email?: string;
+      phoneNumber?: string;
+    };
+    requests.chauffeurInvitations.push(body);
+    const invited: MockFleetChauffeur = {
+      id: `invite-${String(chauffeurs.length + 1).padStart(2, "0")}`,
+      chauffeurId: null,
+      name: body.name ?? "Invited chauffeur",
+      email: body.email ?? "invited@example.com",
+      phoneNumber: body.phoneNumber ?? "+2348099999999",
+      status: "INVITED",
+      isActive: false,
+      image: null,
+      invitedAt: "2026-09-11T12:00:00.000Z",
+    };
+    chauffeurs.unshift(invited);
+    writeJson(response, 201, invited);
+    return true;
+  }
+
+  if (request.method === "PATCH" && updateMatch) {
+    const chauffeurId = decodeURIComponent(updateMatch[1]);
+    const body = (await readJson(request)) as { isActive?: boolean };
+    requests.chauffeurUpdates.push({ chauffeurId, body });
+    const chauffeur = chauffeurs.find((item) => item.chauffeurId === chauffeurId);
+    if (!chauffeur) {
+      writeJson(response, 404, { status: 404, detail: "Chauffeur not found" });
+      return true;
+    }
+    chauffeur.isActive = body.isActive === true;
+    writeJson(response, 200, chauffeur);
+    return true;
+  }
+
+  return false;
+}
+
 export async function startMockFleetOwnerAuthApi({
   port = 3100,
   rejectedFiles = false,
   stagedOnboarding = false,
   ineligibleVehicle = false,
   expiredInsuranceDraft = false,
+  ownerDriver = true,
 }: {
   readonly port?: number;
   readonly rejectedFiles?: boolean;
   readonly stagedOnboarding?: boolean;
   readonly ineligibleVehicle?: boolean;
   readonly expiredInsuranceDraft?: boolean;
+  readonly ownerDriver?: boolean;
 } = {}) {
   const requests: MockFleetOwnerAuthApi["requests"] = {
+    chauffeurInvitations: [],
+    chauffeurListQueries: [],
+    chauffeurUpdates: [],
     createPromotions: [],
     dashboardOverviewRequests: 0,
     deactivatedPromotionIds: [],
@@ -1203,6 +1324,8 @@ export async function startMockFleetOwnerAuthApi({
     });
   }
   const stagedOwnerOnboarding = stagedOnboarding ? createStagedOnboarding() : null;
+  const verifiedOnboarding = { ...mockVerifiedOnboarding, isOwnerDriver: ownerDriver };
+  const chauffeurs = ownerDriver ? [] : mockFleetChauffeurs.map((item) => ({ ...item }));
   if (rejectedFiles) {
     Object.assign(fleetCar, {
       approvalStatus: "REJECTED",
@@ -1222,7 +1345,19 @@ export async function startMockFleetOwnerAuthApi({
       return;
     }
 
-    if (await handleOnboardingRequest(request, response, path, stagedOwnerOnboarding)) {
+    if (
+      await handleOnboardingRequest(
+        request,
+        response,
+        path,
+        stagedOwnerOnboarding,
+        verifiedOnboarding,
+      )
+    ) {
+      return;
+    }
+
+    if (await handleFleetChauffeursRequest(request, response, url, requests, chauffeurs)) {
       return;
     }
 
