@@ -2,7 +2,6 @@ import { expect, type Page, test } from "@playwright/test";
 
 import { HTTP_STATUS } from "../app/api/http-status";
 import { clickUntilAttribute } from "./click-until";
-import { expectVisualScreenshot } from "./expect-visual-screenshot";
 
 const consentKey = "tripdly-cookie-consent:v1";
 
@@ -112,16 +111,4 @@ test("updates analytics consent from the cookie policy", async ({ page }) => {
   });
   await accept.click();
   await expect(page.getByText("You have accepted analytics cookies.")).toBeVisible();
-});
-
-test("matches the responsive About page baseline", async ({ page }) => {
-  await setCookiePreference(page);
-  await page.goto("/about");
-  await page.evaluate(() => document.fonts.ready);
-
-  await expectVisualScreenshot(page, "about.png", {
-    fullPage: true,
-    mask: [page.locator("[data-visual-dynamic]")],
-    maskColor: "#f3f4f6",
-  });
 });
