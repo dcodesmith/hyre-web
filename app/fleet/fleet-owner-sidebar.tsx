@@ -1,4 +1,11 @@
-import { CarIcon, LayoutDashboardIcon, LogOutIcon, TagIcon, WalletCardsIcon } from "lucide-react";
+import {
+  CarIcon,
+  LayoutDashboardIcon,
+  LogOutIcon,
+  TagIcon,
+  UsersIcon,
+  WalletCardsIcon,
+} from "lucide-react";
 import { Form, Link, useLocation } from "react-router";
 
 import type { User } from "~/auth/user";
@@ -22,6 +29,7 @@ import {
 const navigation = [
   { label: "Dashboard", to: "/fleet-owner", icon: LayoutDashboardIcon, exact: true },
   { label: "Cars", to: "/fleet-owner/cars", icon: CarIcon, exact: false },
+  { label: "Chauffeurs", to: "/fleet-owner/chauffeurs", icon: UsersIcon, exact: false },
   { label: "Promotions", to: "/fleet-owner/promotions", icon: TagIcon, exact: false },
   {
     label: "Payout Transactions",

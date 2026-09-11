@@ -50,7 +50,7 @@ export default defineConfig({
       VISUAL_TESTING: "true",
     },
     reuseExistingServer: false,
-    timeout: 120_000,
+    timeout: 180_000,
     url: `${baseURL}/__visual/public-shell`,
   },
 });

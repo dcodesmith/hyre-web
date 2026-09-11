@@ -77,6 +77,11 @@ Better Auth response and error bodies bypass the API's normal Problem Details fi
 - `GET|PATCH /api/fleet-owner/cars/:carId`
 - `PUT /api/fleet-owner/cars/:carId/images/:imageId/file`
 - `PUT /api/fleet-owner/cars/:carId/documents/:documentId/file`
+- `POST /api/fleet-owner/chauffeur-invitations`
+- `GET /api/fleet-owner/chauffeurs`
+- `PATCH /api/fleet-owner/chauffeurs/:chauffeurId`
+- chauffeur invitation exchange, consent, phone, NIN, and driving verification under
+  `/api/chauffeur-onboarding`
 - `PATCH /api/fleet-owner/bookings/:bookingId/chauffeur`
 - `GET|POST /api/fleet-owner/promotions`
 - `POST /api/fleet-owner/promotions/:promotionId/deactivate`
@@ -211,6 +216,10 @@ All roles use the API's Better Auth endpoints. Role-specific pages remain separa
   `POST /api/fleet-owner/promotions/:promotionId/deactivate`
 - `/fleet-owner/payout-transactions` using `GET /api/dashboard/payouts` and
   `GET /api/dashboard/payouts/summary`
+- `/fleet-owner/chauffeurs` using the owner-scoped list, invitation, and
+  activate/deactivate endpoints; owner-drivers cannot invite another chauffeur
+- public `/chauffeur/onboarding` using the short-lived invitation exchange and
+  bearer-scoped consent, phone, NIN, licence, and selfie verification endpoints
 - `/fleet-owner` overview, range-filtered earnings, and payout snapshot using
   `GET /api/dashboard/overview`, `GET /api/dashboard/earnings`, and
   `GET /api/dashboard/payouts/summary`; its Available, Booked, and Maintenance
@@ -235,7 +244,7 @@ All roles use the API's Better Auth endpoints. Role-specific pages remain separa
 - session/profile fields for `hasOnboarded` and `isOwnerDriver`
 - bank-account resolution and payout-details update
 - `GET /api/fleet-owner/bookings` list/filter endpoint
-- chauffeur list/create/detail/update
+- chauffeur detail/edit beyond activate/deactivate
 - fleet car deletion
 - booking start/end dates on fleet-owner payout-list items
 - any fleet-specific report not covered by dashboard endpoints

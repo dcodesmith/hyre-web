@@ -106,6 +106,16 @@ app/
     users/
       users.server.ts             # GET|PATCH /api/users/me
       schema.ts                   # name, phone, city, address, marketingConsent
+    chauffeurs/
+      schema.ts                   # onboarding and owner-list transport DTOs
+      chauffeur-onboarding.server.ts # public invitation exchange + bearer-scoped checks
+      fleet-owner-chauffeurs.server.ts # owner list/invite/activate/deactivate
+
+  chauffeur/
+    chauffeur-onboarding-session.server.ts # encrypted, path-scoped invite session
+    chauffeur-onboarding-form-schema.ts
+    chauffeur-onboarding-forms.tsx
+    chauffeur-onboarding-page.tsx
 
   car/
     car-domain.ts                 # public car display facts
@@ -261,6 +271,11 @@ app/
       payout.ts                    # status labels and Lagos date display
       payouts-url.ts               # status filter and server pagination URL contract
       fleet-payouts-page.tsx       # responsive summary, cards/table, pagination
+    chauffeurs/
+      chauffeur-form-schema.ts      # invitation and active-state form contracts
+      chauffeurs-url.ts             # server pagination URL contract
+      chauffeur-list.tsx            # responsive owner chauffeur list
+      fleet-chauffeurs-page.tsx     # invite sheet and owner-driver guidance
 
   admin/
     admin-sidebar.tsx              # responsive protected admin/staff navigation
@@ -370,6 +385,8 @@ app/
     api.account.delete.ts          # account deletion BFF + local auth-cookie cleanup
     profile.tsx                   # signed-in edit; guests → /auth?redirectTo=
     referrals.tsx                 # signed-in GET /api/referrals/user summary
+    chauffeur.onboarding.tsx      # public invite exchange + verification workflow
+    fleet-owner.chauffeurs.tsx    # owner list/invite/activate/deactivate
 ```
 
 ## Next (do not create empty)

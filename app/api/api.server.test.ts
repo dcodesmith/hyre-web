@@ -1,7 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 
-import { ApiRequestError, createApiClient } from "./api.server";
+import { ApiRequestError, createApiClient, idempotencyKeyForRetry } from "./api.server";
 import { carCategoriesResponseSchema } from "./cars/schema";
 import { HTTP_STATUS, type HttpStatus } from "./http-status";
 import { toPublicProblemDetails } from "./problem-details";
@@ -610,6 +610,58 @@ describe("createApiClient", () => {
       status: HTTP_STATUS.SERVICE_UNAVAILABLE,
     });
     expect((error as ApiRequestError).cause).toBe(failure);
+  });
+});
+
+const CURRENT_IDEMPOTENCY_KEY = "18aa029c-4bb1-4ca7-b25e-cfc802c4bf8c";
+const FRESH_IDEMPOTENCY_KEY = "9c4e2a71-6d3f-4b18-a5e2-7f1c0d8e4b92";
+
+function requestError(kind: ApiRequestError["kind"], status: number, headers?: Headers) {
+  return new ApiRequestError(
+    kind,
+    status,
+    {
+      type: "TEST_ERROR",
+      title: "Test error",
+      status,
+      detail: "test",
+    },
+    headers,
+  );
+}
+
+describe("idempotencyKeyForRetry", () => {
+  it.each([
+    ["network", requestError("network", HTTP_STATUS.SERVICE_UNAVAILABLE)],
+    ["timeout", requestError("timeout", HTTP_STATUS.GATEWAY_TIMEOUT)],
+    [
+      "Retry-After",
+      requestError("http", HTTP_STATUS.TOO_MANY_REQUESTS, new Headers({ "Retry-After": "30" })),
+    ],
+  ] as const)("preserves the current key for %s errors", (_label, error) => {
+    const uuid = vi.spyOn(crypto, "randomUUID").mockReturnValue(FRESH_IDEMPOTENCY_KEY);
+
+    try {
+      expect(idempotencyKeyForRetry(error, CURRENT_IDEMPOTENCY_KEY)).toBe(CURRENT_IDEMPOTENCY_KEY);
+      expect(uuid).not.toHaveBeenCalled();
+    } finally {
+      uuid.mockRestore();
+    }
+  });
+
+  it.each([
+    ["http", requestError("http", HTTP_STATUS.CONFLICT)],
+    ["contract", requestError("contract", HTTP_STATUS.BAD_GATEWAY)],
+    ["unknown", new Error("boom")],
+  ] as const)("mints a fresh key for %s errors", (_label, error) => {
+    const uuid = vi.spyOn(crypto, "randomUUID").mockReturnValue(FRESH_IDEMPOTENCY_KEY);
+
+    try {
+      expect(idempotencyKeyForRetry(error, CURRENT_IDEMPOTENCY_KEY)).toBe(FRESH_IDEMPOTENCY_KEY);
+      expect(uuid).toHaveBeenCalledOnce();
+    } finally {
+      uuid.mockRestore();
+    }
   });
 });
 
