@@ -17,7 +17,16 @@ const fixtureBooking = {
   platformCustomerServiceFeeRatePercent: 7,
   vatAmount: 10_435,
   vatRatePercent: 7.5,
-  securityDetailCost: 0,
+  addons: [
+    {
+      code: "PROTOCOL_SERVICE",
+      name: "Protocol service",
+      pricingUnit: "PER_BOOKING",
+      unitPrice: 15_000,
+      quantity: 1,
+      totalPrice: 15_000,
+    },
+  ],
   fuelUpgradeCost: 0,
   referralDiscountAmount: 0,
   referralCreditsUsed: 0,

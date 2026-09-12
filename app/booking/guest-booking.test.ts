@@ -20,6 +20,16 @@ const guestBooking = {
   totalAmount: 50_000,
   currency: "NGN",
   accessExpiresAt: "2026-09-21T12:15:00.000Z",
+  addons: [
+    {
+      code: "PROTOCOL_SERVICE",
+      name: "Protocol service",
+      pricingUnit: "PER_BOOKING",
+      unitPrice: 15_000,
+      quantity: 1,
+      totalPrice: 15_000,
+    },
+  ],
   car: { make: "Toyota", model: "Camry", year: 2025, images: [] },
   chauffeur: { name: "Bola", phoneNumber: "08000000000" },
   legs: [
@@ -46,5 +56,6 @@ describe("guestBookingAsDetail", () => {
     });
     expect(view.payment.breakdownAvailable).toBe(false);
     expect(view.payment.totalAmount).toBe(50_000);
+    expect(view.payment.addons).toEqual(guestBooking.addons);
   });
 });

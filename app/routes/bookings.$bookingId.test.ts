@@ -100,6 +100,7 @@ const guestBooking = {
   totalAmount: 50_000,
   currency: "NGN",
   accessExpiresAt: "2026-09-21T12:15:00.000Z",
+  addons: [],
   car: { make: "Toyota", model: "Camry", year: 2025, images: [] },
   chauffeur: { name: "Bola", phoneNumber: "08000000000" },
   legs: [

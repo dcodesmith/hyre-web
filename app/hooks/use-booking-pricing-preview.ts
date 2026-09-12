@@ -20,16 +20,21 @@ export function bookingPricingPreviewSearchParams(input: BookingPricingInput) {
     return null;
   }
 
-  return new URLSearchParams({
+  const params = new URLSearchParams({
     carId: body.carId,
     bookingType: body.bookingType,
     startDate: body.startDate,
     endDate: body.endDate,
     pickupTime: body.pickupTime,
-    includeSecurityDetail: String(body.includeSecurityDetail),
     requiresFullTank: String(body.requiresFullTank),
     useCredits: String(body.useCredits),
   });
+
+  for (const addonId of body.addonIds) {
+    params.append("addonIds", addonId);
+  }
+
+  return params;
 }
 
 /** Synchronizes complete booking inputs with the API-owned pricing preview. */

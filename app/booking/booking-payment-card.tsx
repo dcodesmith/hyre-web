@@ -4,6 +4,26 @@ import type { BookingPaymentView } from "~/booking/booking-domain";
 import { Button } from "~/components/ui/button";
 import { formatCurrency } from "~/money/currency";
 
+function PaymentAddonRows({
+  addons,
+  moneyLabel,
+}: {
+  readonly addons: BookingPaymentView["addons"];
+  readonly moneyLabel: (value: number) => string;
+}) {
+  return addons.map((addon) => (
+    <div key={addon.code} className="flex justify-between gap-3">
+      <span className="min-w-0 break-words text-sm text-slate-600">
+        {addon.name}
+        {addon.quantity > 1 ? ` (${addon.quantity})` : ""}
+      </span>
+      <span className="shrink-0 text-sm font-medium tabular-nums">
+        {moneyLabel(addon.totalPrice)}
+      </span>
+    </div>
+  ));
+}
+
 export function BookingPaymentCard({
   payment,
   receiptPath,
@@ -39,16 +59,7 @@ export function BookingPaymentCard({
                   </span>
                 </div>
               ) : null}
-              {payment.securityDetailCost > 0 ? (
-                <div className="flex justify-between">
-                  <span className="text-sm text-slate-600">
-                    Security Detail ({payment.dayCount} {payment.dayLabel})
-                  </span>
-                  <span className="text-sm font-medium tabular-nums">
-                    {moneyLabel(payment.securityDetailCost)}
-                  </span>
-                </div>
-              ) : null}
+              <PaymentAddonRows addons={payment.addons} moneyLabel={moneyLabel} />
               {payment.fuelUpgradeCost > 0 ? (
                 <div className="flex justify-between">
                   <span className="text-sm text-slate-600">Fuel Upgrade</span>
@@ -92,6 +103,9 @@ export function BookingPaymentCard({
               <hr className="h-px w-full border-0 bg-border" />
             </>
           ) : null}
+          {payment.breakdownAvailable ? null : (
+            <PaymentAddonRows addons={payment.addons} moneyLabel={moneyLabel} />
+          )}
           <div className="flex justify-between font-bold">
             <span>Total Amount</span>
             <span className="tabular-nums">{moneyLabel(payment.totalAmount)}</span>

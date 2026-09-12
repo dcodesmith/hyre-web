@@ -1,7 +1,9 @@
 import type { SubmissionResult } from "@conform-to/react";
 import { Tag } from "lucide-react";
+import { useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router";
 
+import type { PublicAddon } from "~/api/addons/schema";
 import type { BookingPricingPreview } from "~/api/bookings/schema";
 import type { PublicCarDetail } from "~/api/cars/schema";
 import type { PublicRates } from "~/api/rates/schema";
@@ -27,6 +29,7 @@ import { formatZonedDate, parseZonedCalendarDate } from "~/time/timezone";
 interface CarBookingCardProps {
   readonly car: PublicCarDetail;
   readonly rates: PublicRates;
+  readonly addons: PublicAddon[];
   readonly lastResult?: SubmissionResult<string[]>;
   readonly currentPricing?: BookingPricingPreview;
   readonly currentPricingSelectionKey?: string;
@@ -44,6 +47,7 @@ function pricingPreviewInput(
   carId: string,
   card: ReturnType<typeof useCarBookingCard>,
   actionPreview: BookingPricingPreview | undefined,
+  addonIds: readonly string[],
 ) {
   if (!card.hasCompleteDates || actionPreview) {
     return null;
@@ -55,6 +59,7 @@ function pricingPreviewInput(
     from: formatOptionalCalendarDate(card.fromDate),
     to: formatOptionalCalendarDate(card.toDate),
     pickupTime: card.pickupTime ?? "",
+    addonIds,
   };
 }
 
@@ -102,6 +107,7 @@ function CarBookingCardPrice({
 export function CarBookingCard({
   car,
   rates,
+  addons,
   lastResult,
   currentPricing,
   currentPricingSelectionKey,
@@ -110,6 +116,12 @@ export function CarBookingCard({
   const location = useLocation();
   const navigate = useNavigate();
   const query = parseCarDetailUrl(searchParams);
+  const addonCatalogKey = addons.map((addon) => addon.id).join("|");
+  const [addonSelection, setAddonSelection] = useState({
+    catalogKey: addonCatalogKey,
+    ids: [] as string[],
+  });
+  const selectedAddonIds = addonSelection.catalogKey === addonCatalogKey ? addonSelection.ids : [];
   const initialFromDate = parseOptionalCalendarDate(query.search.from);
   const parsedToDate = parseOptionalCalendarDate(query.search.to);
   const initialToDate = nextToDateOnFromChange(query.bookingType, initialFromDate, parsedToDate);
@@ -156,8 +168,11 @@ export function CarBookingCard({
     from: formatOptionalCalendarDate(card.fromDate),
     to: formatOptionalCalendarDate(card.toDate),
     pickupTime: card.pickupTime ?? "",
+    addonIds: selectedAddonIds,
   });
-  const pricing = useBookingPricingPreview(pricingPreviewInput(car.id, card, actionPreview));
+  const pricing = useBookingPricingPreview(
+    pricingPreviewInput(car.id, card, actionPreview, selectedAddonIds),
+  );
   const preview = actionPreview ?? pricing.preview;
   const estimate = estimateBookingCost({
     dayRate: car.dayRate,
@@ -203,6 +218,18 @@ export function CarBookingCard({
       pickupAddress={card.pickupAddress}
       dropOffAddress={card.dropOffAddress}
       sameLocation={card.sameLocation}
+      addons={addons}
+      selectedAddonIds={selectedAddonIds}
+      onAddonSelectionChange={(addonId, selected) => {
+        setAddonSelection((current) => {
+          const ids = current.catalogKey === addonCatalogKey ? current.ids : [];
+
+          return {
+            catalogKey: addonCatalogKey,
+            ids: selected ? [...ids, addonId] : ids.filter((id) => id !== addonId),
+          };
+        });
+      }}
       cost={overlayBookingCostPreview(estimate, preview)}
       preview={preview}
       pricingError={actionPreview ? null : pricing.error}

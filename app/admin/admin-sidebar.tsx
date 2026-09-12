@@ -114,6 +114,18 @@ export function AdminSidebar({ isLoggingOut, role, user }: AdminSidebarProps) {
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={isAddonRatesActive} tooltip="Add-ons">
+                  <Link
+                    to="/admin/addon-rates"
+                    aria-current={isAddonRatesActive ? "page" : undefined}
+                    onClick={closeMobileSidebar}
+                  >
+                    <SlidersHorizontalIcon />
+                    <span>Add-ons</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
               {role === "admin" ? (
                 <>
                   <SidebarMenuItem>
@@ -125,18 +137,6 @@ export function AdminSidebar({ isLoggingOut, role, user }: AdminSidebarProps) {
                       >
                         <BanknoteIcon />
                         <span>Fees and VAT</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton asChild isActive={isAddonRatesActive} tooltip="Add-on rates">
-                      <Link
-                        to="/admin/addon-rates"
-                        aria-current={isAddonRatesActive ? "page" : undefined}
-                        onClick={closeMobileSidebar}
-                      >
-                        <SlidersHorizontalIcon />
-                        <span>Add-on rates</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>

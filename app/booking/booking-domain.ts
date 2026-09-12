@@ -110,6 +110,7 @@ export function createPaymentSummary(booking: BookingDetail) {
   const baseBookingServiceFee = money(booking.platformCustomerServiceFeeAmount);
   const baseBookingVat = money(booking.vatAmount);
   const fuelUpgradeCost = money(booking.fuelUpgradeCost);
+  const addonTotal = booking.addons.reduce((total, addon) => total + addon.totalPrice, 0);
   const referralDiscountAmount = money(booking.referralDiscountAmount);
   const vatRatePercent = money(booking.vatRatePercent);
 
@@ -130,6 +131,7 @@ export function createPaymentSummary(booking: BookingDetail) {
       extensionNetTotal: 0,
       totalExtendedHours: extensionSummary.totalHours,
       vatAmount: 0,
+      addons: booking.addons,
       fuelUpgradeCost: 0,
       referralDiscountAmount: 0,
       totalAmount: money(booking.totalAmount),
@@ -145,6 +147,7 @@ export function createPaymentSummary(booking: BookingDetail) {
       extensionNetTotal: 0,
       totalExtendedHours: 0,
       vatAmount: baseBookingVat,
+      addons: booking.addons,
       fuelUpgradeCost,
       referralDiscountAmount,
       totalAmount: money(booking.totalAmount),
@@ -164,6 +167,7 @@ export function createPaymentSummary(booking: BookingDetail) {
     extensionNetTotal: extensionSummary.netTotal,
     totalExtendedHours: extensionSummary.totalHours,
     vatAmount: baseBookingVat + extensionVat,
+    addons: booking.addons,
     fuelUpgradeCost,
     referralDiscountAmount,
     totalAmount:
@@ -173,8 +177,8 @@ export function createPaymentSummary(booking: BookingDetail) {
       extensionServiceFee +
       baseBookingVat +
       extensionVat +
-      fuelUpgradeCost +
-      money(booking.securityDetailCost) -
+      addonTotal +
+      fuelUpgradeCost -
       referralDiscountAmount -
       money(booking.referralCreditsUsed),
     vatRatePercent,
@@ -356,7 +360,6 @@ export function BookingDomain(booking: BookingDetail, now = new Date()) {
       currency: booking.currency ?? undefined,
       dayCount,
       dayLabel: dayCount === 1 ? "day" : "days",
-      securityDetailCost: money(booking.securityDetailCost),
       referralCreditsUsed: money(booking.referralCreditsUsed),
       platformFeePercent: money(booking.platformCustomerServiceFeeRatePercent),
     },

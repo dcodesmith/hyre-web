@@ -42,6 +42,7 @@ test("requests and opens a read-only guest booking", async ({ context, page }) =
     await expect(page.getByText("Guest access is read-only.")).toBeVisible();
     await expect(page.getByText("Murtala Muhammed Airport, Ikeja")).toBeVisible();
     await expect(page.getByText("Payment Summary")).toBeVisible();
+    await expect(page.getByText("Protocol service")).toBeVisible();
     await expect(page.getByText("Total Amount")).toBeVisible();
     await expect(page.getByRole("link", { name: "Back to booking lookup" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Cancel Booking" })).toHaveCount(0);

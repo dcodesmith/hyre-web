@@ -9,7 +9,8 @@ const ADMIN_SESSION_COOKIE = "better-auth.session_token=admin-e2e-session";
 export const MOCK_ADMIN_CAR_ID = "cm12345678901234567890123";
 export const MOCK_ADMIN_IMAGE_ID = "cm22345678901234567890123";
 export const MOCK_ADMIN_DOCUMENT_ID = "cm32345678901234567890123";
-export const MOCK_ADDON_RATE_ID = "cm42345678901234567890123";
+export const MOCK_ADDON_ID = "cmaddonprotocol0000000001";
+export const MOCK_ADDON_PRICE_ID = "cmaddonprice0000000000001";
 export const MOCK_ADMIN_REFUND_ID = "cm92345678901234567890123";
 export const MOCK_ADMIN_PAYOUT_ID = "cma2345678901234567890123";
 export const MOCK_ADMIN_STAFF_ID = "cmb2345678901234567890123";
@@ -35,6 +36,7 @@ export type MockAdminAuthApi = {
     financialActions: CapturedCarAction[];
     financialListQueries: string[];
     rateActions: CapturedCarAction[];
+    addonActions: CapturedCarAction[];
     staffActions: CapturedCarAction[];
     staffListQuery?: string;
     sendOtp?: CapturedRequest;
@@ -139,17 +141,36 @@ const mockAdminRates = {
       active: true,
     },
   ],
-  addonRates: [
+};
+
+const mockAdminAddons = {
+  addons: [
     {
-      id: MOCK_ADDON_RATE_ID,
-      addonType: "SECURITY_DETAIL",
-      rateAmount: 15_000,
-      effectiveSince: "2026-01-01T00:00:00.000Z",
-      effectiveUntil: "2026-12-31T23:59:59.000Z",
-      description: "Security detail per booking leg",
+      id: MOCK_ADDON_ID,
+      code: "PROTOCOL_SERVICE",
+      name: "Protocol service",
+      description: "Dedicated protocol officer",
+      bookingTypes: ["DAY", "FULL_DAY", "NIGHT", "AIRPORT_PICKUP"],
+      pricingUnit: "PER_BOOKING",
+      financialTreatment: "PLATFORM",
+      isActive: true,
+      createdById: "admin-1",
+      updatedById: "admin-1",
       createdAt: "2026-01-01T00:00:00.000Z",
       updatedAt: "2026-01-01T00:00:00.000Z",
-      active: true,
+      prices: [
+        {
+          id: MOCK_ADDON_PRICE_ID,
+          addonId: MOCK_ADDON_ID,
+          amount: 15_000,
+          effectiveSince: "2026-01-01T00:00:00.000Z",
+          effectiveUntil: null,
+          createdById: "admin-1",
+          updatedById: "admin-1",
+          createdAt: "2026-01-01T00:00:00.000Z",
+          updatedAt: "2026-01-01T00:00:00.000Z",
+        },
+      ],
     },
   ],
 };
@@ -213,6 +234,7 @@ const mockFinancialAudit = {
 };
 
 type MockAdminRates = typeof mockAdminRates;
+type MockAdminAddons = typeof mockAdminAddons;
 type MockAdminRefund = Omit<typeof mockAdminRefund, "refundProviderId"> & {
   refundProviderId: string | null;
 };
@@ -246,9 +268,7 @@ function createdRateWindow(body: Record<string, unknown>, id: string) {
 
 function persistCreatedRate(path: string, body: unknown, rates: MockAdminRates) {
   const record = typeof body === "object" && body !== null ? (body as Record<string, unknown>) : {};
-  const id = `cm8${String(
-    rates.platformFeeRates.length + rates.taxRates.length + rates.addonRates.length,
-  ).padStart(23, "0")}`;
+  const id = `cm8${String(rates.platformFeeRates.length + rates.taxRates.length).padStart(23, "0")}`;
   const window = createdRateWindow(record, id);
 
   if (path === "/api/rates/platform-fee") {
@@ -273,13 +293,7 @@ function persistCreatedRate(path: string, body: unknown, rates: MockAdminRates) 
     return created;
   }
 
-  const created = {
-    ...window,
-    addonType: "SECURITY_DETAIL" as const,
-    rateAmount: typeof record.rateAmount === "number" ? record.rateAmount : 0,
-  };
-  rates.addonRates.unshift(created);
-  return created;
+  return window;
 }
 
 function readJson(request: IncomingMessage) {
@@ -416,10 +430,7 @@ async function handleAdminRateRequest(
     return true;
   }
 
-  if (
-    request.method === "POST" &&
-    ["/api/rates/platform-fee", "/api/rates/vat", "/api/rates/addon"].includes(path)
-  ) {
+  if (request.method === "POST" && ["/api/rates/platform-fee", "/api/rates/vat"].includes(path)) {
     const body = await readJson(request);
     requests.rateActions.push({ body, method: request.method, path });
     if (
@@ -445,23 +456,167 @@ async function handleAdminRateRequest(
     return true;
   }
 
-  const endAddonMatch = /^\/api\/rates\/addon\/([^/]+)\/end$/.exec(path);
-  if (request.method === "PATCH" && endAddonMatch) {
-    const addonRate = rates.addonRates.find((rate) => rate.id === endAddonMatch[1]);
-    requests.rateActions.push({ body: null, method: request.method, path });
-    if (!addonRate) {
-      writeJson(response, 404, { status: 404, detail: "Rate not found" });
-      return true;
-    }
+  return false;
+}
 
-    const endedAt = new Date().toISOString();
-    Object.assign(addonRate, {
-      active: false,
-      effectiveUntil: endedAt,
-      updatedAt: endedAt,
-    });
-    const { active: _active, ...mutation } = addonRate;
-    writeJson(response, 200, mutation);
+type MockAdminAddon = MockAdminAddons["addons"][number];
+
+function jsonRecord(body: unknown) {
+  return typeof body === "object" && body !== null ? (body as Record<string, unknown>) : {};
+}
+
+function writeCreatedAdminAddon(
+  response: import("node:http").ServerResponse,
+  catalog: MockAdminAddons,
+  body: unknown,
+) {
+  const record = jsonRecord(body);
+  const now = new Date().toISOString();
+  const created = {
+    id: `cmcreatedadd${String(catalog.addons.length).padStart(13, "0")}`,
+    code: typeof record.code === "string" ? record.code : "NEW_ADDON",
+    name: typeof record.name === "string" ? record.name : "New add-on",
+    description: typeof record.description === "string" ? record.description : null,
+    bookingTypes: Array.isArray(record.bookingTypes) ? record.bookingTypes : ["DAY"],
+    pricingUnit: record.pricingUnit === "PER_LEG" ? "PER_LEG" : "PER_BOOKING",
+    financialTreatment: record.financialTreatment === "FLEET_OWNER" ? "FLEET_OWNER" : "PLATFORM",
+    isActive: record.isActive !== false,
+    createdById: "admin-1",
+    updatedById: "admin-1",
+    createdAt: now,
+    updatedAt: now,
+  };
+  catalog.addons.unshift({ ...created, prices: [] });
+  writeJson(response, 201, created);
+}
+
+function writeUpdatedAdminAddon(
+  response: import("node:http").ServerResponse,
+  addon: MockAdminAddon | undefined,
+  body: unknown,
+) {
+  if (!addon) {
+    writeJson(response, 404, { status: 404, detail: "Add-on not found" });
+    return;
+  }
+
+  const record = jsonRecord(body);
+  Object.assign(addon, {
+    name: typeof record.name === "string" ? record.name : addon.name,
+    description: "description" in record ? record.description : addon.description,
+    bookingTypes: Array.isArray(record.bookingTypes) ? record.bookingTypes : addon.bookingTypes,
+    isActive: typeof record.isActive === "boolean" ? record.isActive : addon.isActive,
+    updatedAt: new Date().toISOString(),
+  });
+  const { prices: _prices, ...mutation } = addon;
+  writeJson(response, 200, mutation);
+}
+
+function writeCreatedAdminAddonPrice(
+  response: import("node:http").ServerResponse,
+  addon: MockAdminAddon | undefined,
+  body: unknown,
+) {
+  if (!addon) {
+    writeJson(response, 404, { status: 404, detail: "Add-on not found" });
+    return;
+  }
+
+  const record = jsonRecord(body);
+  const now = new Date().toISOString();
+  const created = {
+    id: `cmaddonprice${String(addon.prices.length + 2).padStart(13, "0")}`,
+    addonId: addon.id,
+    amount: typeof record.amount === "number" ? record.amount : 0,
+    effectiveSince: typeof record.effectiveSince === "string" ? record.effectiveSince : now,
+    effectiveUntil: typeof record.effectiveUntil === "string" ? record.effectiveUntil : null,
+    createdById: "admin-1",
+    updatedById: "admin-1",
+    createdAt: now,
+    updatedAt: now,
+  };
+  addon.prices.unshift(created);
+  writeJson(response, 201, created);
+}
+
+function writeEndedAdminAddonPrice(
+  response: import("node:http").ServerResponse,
+  addon: MockAdminAddon | undefined,
+  priceId: string,
+) {
+  const price = addon?.prices.find((item) => item.id === priceId);
+  if (!addon || !price) {
+    writeJson(response, 404, { status: 404, detail: "Price not found" });
+    return;
+  }
+
+  const endedAt = new Date().toISOString();
+  Object.assign(price, { effectiveUntil: endedAt, updatedAt: endedAt });
+  writeJson(response, 200, price);
+}
+
+async function handleAdminAddonRequest(
+  request: IncomingMessage,
+  response: import("node:http").ServerResponse,
+  url: URL,
+  requests: MockAdminAuthApi["requests"],
+  catalog: MockAdminAddons,
+) {
+  const path = url.pathname;
+  const updateMatch = /^\/api\/admin\/addons\/([^/]+)$/.exec(path);
+  const createPriceMatch = /^\/api\/admin\/addons\/([^/]+)\/prices$/.exec(path);
+  const endPriceMatch = /^\/api\/admin\/addons\/([^/]+)\/prices\/([^/]+)\/end$/.exec(path);
+
+  if (!path.startsWith("/api/admin/addons")) {
+    return false;
+  }
+
+  if (!hasAdminSession(request)) {
+    writeJson(response, 401, { status: 401, detail: "Unauthorized" });
+    return true;
+  }
+
+  if (request.method === "GET" && path === "/api/admin/addons") {
+    writeJson(response, 200, catalog);
+    return true;
+  }
+
+  if (request.method === "POST" && path === "/api/admin/addons") {
+    const body = await readJson(request);
+    requests.addonActions.push({ body, method: request.method, path });
+    writeCreatedAdminAddon(response, catalog, body);
+    return true;
+  }
+
+  if (request.method === "PATCH" && updateMatch) {
+    const body = await readJson(request);
+    requests.addonActions.push({ body, method: request.method, path });
+    writeUpdatedAdminAddon(
+      response,
+      catalog.addons.find((item) => item.id === updateMatch[1]),
+      body,
+    );
+    return true;
+  }
+
+  if (request.method === "POST" && createPriceMatch) {
+    const body = await readJson(request);
+    requests.addonActions.push({ body, method: request.method, path });
+    writeCreatedAdminAddonPrice(
+      response,
+      catalog.addons.find((item) => item.id === createPriceMatch[1]),
+      body,
+    );
+    return true;
+  }
+
+  if (request.method === "PATCH" && endPriceMatch) {
+    requests.addonActions.push({ body: null, method: request.method, path });
+    writeEndedAdminAddonPrice(
+      response,
+      catalog.addons.find((item) => item.id === endPriceMatch[1]),
+      endPriceMatch[2],
+    );
     return true;
   }
 
@@ -744,9 +899,11 @@ export async function startMockAdminAuthApi(
     financialActions: [],
     financialListQueries: [],
     rateActions: [],
+    addonActions: [],
     staffActions: [],
   };
   const rates = structuredClone(mockAdminRates);
+  const addons = structuredClone(mockAdminAddons);
   const staff = structuredClone<MockAdminStaff[]>([mockAdminStaff, mockRevokedStaff]);
   const financials: MockAdminFinancials = {
     refund: { ...structuredClone(mockAdminRefund), refundProviderId },
@@ -770,7 +927,8 @@ export async function startMockAdminAuthApi(
         sessionRole,
         financials,
       )) ||
-      (await handleAdminStaffRequest(request, response, url, requests, sessionRole, staff));
+      (await handleAdminStaffRequest(request, response, url, requests, sessionRole, staff)) ||
+      (await handleAdminAddonRequest(request, response, url, requests, addons));
     if (handledAdminRequest) {
       return;
     }

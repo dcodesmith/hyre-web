@@ -42,8 +42,8 @@ export type BookingCostRentalRow = {
 export type BookingCostDisplay = {
   readonly currency: string;
   readonly rentalRows: readonly BookingCostRentalRow[];
+  readonly addons: BookingPricingPreview["addons"];
   readonly fuelUpgradeCost: number;
-  readonly securityDetailCost: number;
   readonly platformFeeRatePercent: number;
   readonly platformFeeAmount: number;
   readonly vatRatePercent: number;
@@ -239,8 +239,8 @@ export function bookingCostDisplayFromEstimate(estimate: BookingEstimate): Booki
         total: estimate.baseTotal,
       },
     ],
+    addons: [],
     fuelUpgradeCost: estimate.fuelUpgradeCost,
-    securityDetailCost: 0,
     platformFeeRatePercent: estimate.platformFeeRate,
     platformFeeAmount: estimate.platformFee,
     vatRatePercent: estimate.vatRate,
@@ -290,8 +290,8 @@ export function overlayBookingCostPreview(
               total: preview.baseTotal,
             },
           ],
+    addons: preview.addons,
     fuelUpgradeCost: preview.fuelUpgradeCost,
-    securityDetailCost: preview.securityDetailCost,
     platformFeeRatePercent: preview.platformFeeRatePercent,
     platformFeeAmount: preview.platformFeeAmount,
     vatRatePercent: preview.vatRatePercent,
@@ -320,13 +320,20 @@ type BookingPricingSelection = {
   readonly from: string;
   readonly to: string;
   readonly pickupTime?: string;
+  readonly addonIds?: readonly string[];
 };
 
 export function bookingPricingSelectionKey(selection: BookingPricingSelection) {
   const pickupTime = selection.bookingType === NIGHT_BOOKING_TYPE ? "11 PM" : selection.pickupTime;
   const to = selection.bookingType === AIRPORT_PICKUP_BOOKING_TYPE ? selection.from : selection.to;
 
-  return [selection.bookingType, selection.from, to, pickupTime ?? ""].join("|");
+  return [
+    selection.bookingType,
+    selection.from,
+    to,
+    pickupTime ?? "",
+    [...(selection.addonIds ?? [])].sort().join(","),
+  ].join("|");
 }
 
 export function pricingPreviewForSelection(

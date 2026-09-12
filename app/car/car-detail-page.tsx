@@ -3,6 +3,7 @@ import { ArrowLeft } from "lucide-react";
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router";
 
+import type { PublicAddon } from "~/api/addons/schema";
 import type { BookingPricingPreview } from "~/api/bookings/schema";
 import type { PublicCarDetail } from "~/api/cars/schema";
 import type { PublicRates } from "~/api/rates/schema";
@@ -22,6 +23,7 @@ interface CarDetailPageProps {
   readonly car: PublicCarDetail;
   readonly reviews: CarReviewsResponse | null;
   readonly rates: PublicRates;
+  readonly addons: PublicAddon[];
   readonly lastResult?: SubmissionResult<string[]>;
   readonly currentPricing?: BookingPricingPreview;
   readonly currentPricingSelectionKey?: string;
@@ -67,6 +69,7 @@ export function CarDetailPage({
   car,
   reviews,
   rates,
+  addons,
   lastResult,
   currentPricing,
   currentPricingSelectionKey,
@@ -169,6 +172,7 @@ export function CarDetailPage({
             <CarBookingCard
               car={car}
               rates={rates}
+              addons={addons}
               lastResult={lastResult}
               currentPricing={currentPricing}
               currentPricingSelectionKey={currentPricingSelectionKey}

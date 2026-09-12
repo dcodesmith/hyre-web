@@ -41,6 +41,12 @@ const guestInfoSchema = z.object({
   phoneNumber: z.string({ error: GUEST_PHONE_ERROR }).trim().min(10, GUEST_PHONE_ERROR).max(32),
 });
 
+const bookingAddonIdsSchema = z
+  .array(z.string().cuid())
+  .max(10, "Select no more than 10 add-ons")
+  .refine((ids) => new Set(ids).size === ids.length, "Add-ons must be unique")
+  .default([]);
+
 function addGuestIssues(
   ctx: z.RefinementCtx,
   data: { name?: string; email?: string; phoneNumber?: string },
@@ -86,6 +92,7 @@ function buildBookingFormSchema(isGuest: boolean) {
       name: z.string().optional(),
       email: z.string().optional(),
       phoneNumber: z.string().optional(),
+      addonIds: bookingAddonIdsSchema,
     })
     .superRefine((data, ctx) => {
       if (!data.pickupAddress?.trim()) {
@@ -268,6 +275,7 @@ export function toBookingApiWindow(value: BookingWindowInput) {
 
 export type BookingPricingInput = BookingWindowInput & {
   readonly carId: string;
+  readonly addonIds?: readonly string[];
 };
 
 export function toPricingPreviewBody(value: BookingPricingInput) {
@@ -283,7 +291,7 @@ export function toPricingPreviewBody(value: BookingPricingInput) {
     startDate: window.startDate,
     endDate: window.endDate,
     pickupTime: resolveCreatePickupTime(value.bookingType, value.pickupTime),
-    includeSecurityDetail: false,
+    addonIds: [...(value.addonIds ?? [])],
     requiresFullTank: false,
     useCredits: 0,
   };

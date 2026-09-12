@@ -39,7 +39,18 @@ const preview = {
   ],
   baseTotal: 190_000,
   compareAtBaseTotal: 200_000,
-  securityDetailCost: 0,
+  addons: [
+    {
+      id: "cmaddonprotocol0000000001",
+      code: "PROTOCOL_SERVICE",
+      name: "Protocol service",
+      pricingUnit: "PER_BOOKING",
+      unitPrice: 15_000,
+      quantity: 1,
+      totalPrice: 15_000,
+    },
+  ],
+  addonTotal: 15_000,
   fuelUpgradeCost: 15_000,
   platformFeeRatePercent: 10,
   platformFeeAmount: 19_000,
@@ -183,6 +194,7 @@ describe("overlayBookingCostPreview", () => {
     const display = overlayBookingCostPreview(estimate, null);
 
     expect(display.totalAmount).toBe(118_250);
+    expect(display.addons).toEqual([]);
     expect(display.referralDiscountAmount).toBe(0);
     expect(display.creditsUsed).toBe(0);
     expect(display.rentalRows[0]?.unitPrice).toBe(100_000);
@@ -207,6 +219,7 @@ describe("overlayBookingCostPreview", () => {
         total: 190_000,
       },
     ]);
+    expect(display.addons).toEqual(preview.addons);
     expect(display.fuelUpgradeCost).toBe(15_000);
     expect(display.platformFeeAmount).toBe(19_000);
     expect(display.vatAmount).toBe(14_250);
@@ -257,7 +270,7 @@ describe("authoritative preview payment", () => {
         to: "2026-09-02",
         pickupTime: "",
       }),
-    ).toBe("NIGHT|2026-09-01|2026-09-02|11 PM");
+    ).toBe("NIGHT|2026-09-01|2026-09-02|11 PM|");
   });
 
   it("normalizes airport pickup to the selected date", () => {
@@ -268,6 +281,18 @@ describe("authoritative preview payment", () => {
         to: "",
         pickupTime: "",
       }),
-    ).toBe("AIRPORT_PICKUP|2026-09-01|2026-09-01|");
+    ).toBe("AIRPORT_PICKUP|2026-09-01|2026-09-01||");
+  });
+
+  it("includes sorted addon ids in the selection key", () => {
+    expect(
+      bookingPricingSelectionKey({
+        bookingType: "DAY",
+        from: "2026-09-01",
+        to: "2026-09-01",
+        pickupTime: "9 AM",
+        addonIds: ["cmaddonb00000000000000002", "cmaddona00000000000000001"],
+      }),
+    ).toBe("DAY|2026-09-01|2026-09-01|9 AM|cmaddona00000000000000001,cmaddonb00000000000000002");
   });
 });

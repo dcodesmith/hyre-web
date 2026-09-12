@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   bookingDetailSchema,
   bookingMutationResponseSchema,
+  bookingPricingPreviewSchema,
   bookingsByStatusSchema,
   createBookingResponseSchema,
   createExtensionResponseSchema,
@@ -111,6 +112,18 @@ describe("bookingDetailSchema", () => {
       platformCustomerServiceFeeRatePercent: 7,
       vatAmount: 10_435,
       vatRatePercent: 7.5,
+      addons: [
+        {
+          code: "PROTOCOL_SERVICE",
+          name: "Protocol service",
+          pricingUnit: "PER_BOOKING",
+          unitPrice: 15_000,
+          quantity: 1,
+          totalPrice: 15_000,
+          secret: "hidden",
+        },
+      ],
+      securityDetailCost: 15_000,
       car: { make: "Lexus", model: "UX F-Sport", year: 2019, owner: { id: "owner-1" } },
       chauffeur: { name: "Bola Adebayo", phoneNumber: "0801" },
       flight: null,
@@ -153,6 +166,17 @@ describe("bookingDetailSchema", () => {
     expect(booking.car).toEqual({ make: "Lexus", model: "UX F-Sport", year: 2019 });
     expect(booking.chauffeur).toEqual({ name: "Bola Adebayo" });
     expect(booking.currency).toBe("USD");
+    expect(booking.addons).toEqual([
+      {
+        code: "PROTOCOL_SERVICE",
+        name: "Protocol service",
+        pricingUnit: "PER_BOOKING",
+        unitPrice: 15_000,
+        quantity: 1,
+        totalPrice: 15_000,
+      },
+    ]);
+    expect(booking).not.toHaveProperty("securityDetailCost");
     expect(booking.canEdit).toBe(false);
     expect(booking.canCancel).toBe(true);
     expect(booking.legs[0]).toMatchObject({
@@ -195,6 +219,7 @@ describe("bookingDetailSchema", () => {
       returnLocation: "Marina",
       totalAmount: 150_000,
       currency: "naira",
+      addons: [],
       car: { make: "Lexus", model: "UX F-Sport", year: 2019 },
       chauffeur: null,
       flight: null,
@@ -226,6 +251,7 @@ describe("bookingDetailSchema", () => {
       returnLocation: "Marina",
       totalAmount: "150000.50",
       netTotal: null,
+      addons: [],
       car: { make: "Lexus", model: "UX F-Sport", year: 2019 },
       chauffeur: null,
       flight: null,
@@ -266,6 +292,7 @@ describe("guest booking access schemas", () => {
     totalAmount: 50_000,
     currency: "NGN",
     accessExpiresAt: "2026-09-21T12:15:00.000Z",
+    addons: [],
     car: {
       make: "Toyota",
       model: "Camry",
@@ -301,6 +328,58 @@ describe("guest booking access schemas", () => {
     expect(guestBookingAccessTokenSchema.safeParse("a".repeat(43)).success).toBe(true);
     expect(guestBookingAccessTokenSchema.safeParse("too-short").success).toBe(false);
     expect(guestBookingAccessTokenSchema.safeParse(`${"a".repeat(42)}+`).success).toBe(false);
+  });
+});
+
+describe("bookingPricingPreviewSchema", () => {
+  const preview = {
+    currency: "NGN",
+    numberOfLegs: 1,
+    discountCoverage: "NONE",
+    segments: [],
+    baseTotal: 100_000,
+    compareAtBaseTotal: 100_000,
+    addons: [
+      {
+        id: "cmaddonprotocol0000000001",
+        code: "PROTOCOL_SERVICE",
+        name: "Protocol service",
+        pricingUnit: "PER_BOOKING",
+        unitPrice: 15_000,
+        quantity: 1,
+        totalPrice: 15_000,
+      },
+    ],
+    addonTotal: 15_000,
+    fuelUpgradeCost: 0,
+    platformFeeRatePercent: 5,
+    platformFeeAmount: 5_000,
+    compareAtPlatformFeeAmount: 5_000,
+    subtotalBeforeDiscounts: 120_000,
+    compareAtSubtotalBeforeDiscounts: 120_000,
+    referralDiscountAmount: 0,
+    creditsUsed: 0,
+    subtotalAfterDiscounts: 120_000,
+    vatRatePercent: 7.5,
+    vatAmount: 9_000,
+    compareAtVatAmount: 9_000,
+    totalAmount: 129_000,
+    compareAtTotalAmount: 129_000,
+    savingsAmount: 0,
+  };
+
+  it("keeps add-on snapshot rows and drops securityDetailCost", () => {
+    expect(
+      bookingPricingPreviewSchema.parse({
+        ...preview,
+        securityDetailCost: 15_000,
+      }),
+    ).toEqual(preview);
+  });
+
+  it("rejects a preview without addons or addonTotal", () => {
+    const { addons: _addons, addonTotal: _addonTotal, ...withoutAddons } = preview;
+    expect(bookingPricingPreviewSchema.safeParse(withoutAddons).success).toBe(false);
   });
 });
 

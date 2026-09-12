@@ -15,7 +15,6 @@ import { FALLBACK_PUBLIC_RATES, getPublicRates, loadPublicRates } from "./rates.
 const publicRates = {
   platformCustomerServiceFeeRatePercent: 10,
   vatRatePercent: 7.5,
-  securityDetailRate: 15_000,
 };
 
 describe("getPublicRates", () => {
@@ -57,7 +56,7 @@ describe("loadPublicRates", () => {
     fetchMock.mockResolvedValueOnce(
       Response.json({
         ...publicRates,
-        securityDetailRate: -15_000,
+        vatRatePercent: -7.5,
       }),
     );
 

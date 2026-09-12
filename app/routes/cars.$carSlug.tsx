@@ -2,6 +2,7 @@ import { env } from "cloudflare:workers";
 import { parseWithZod } from "@conform-to/zod/v4";
 import { data, redirect, type ShouldRevalidateFunctionArgs } from "react-router";
 
+import { getPublicAddons } from "~/api/addons/addons.server";
 import { ApiRequestError } from "~/api/api.server";
 import { createBooking } from "~/api/bookings/bookings.server";
 import { bookingPricingPreviewSchema } from "~/api/bookings/schema";
@@ -97,6 +98,15 @@ export async function loader({ request, params }: Route.LoaderArgs) {
 
       return null;
     });
+  const addonsPromise = getPublicAddons({ request, bookingType: query.bookingType })
+    .then((response) => response.data.addons)
+    .catch((error: unknown) => {
+      if (error instanceof ApiRequestError && error.kind === "aborted") {
+        throw error;
+      }
+
+      return [];
+    });
   const ratesPromise = loadPublicRates({ request });
   let carResponse: Awaited<typeof carPromise>;
 
@@ -121,13 +131,14 @@ export async function loader({ request, params }: Route.LoaderArgs) {
     throw redirect(`/cars/${canonicalSlug}${url.search}`, HTTP_STATUS.MOVED_PERMANENTLY);
   }
 
-  const [reviews, rates] = await Promise.all([reviewsPromise, ratesPromise]);
+  const [reviews, rates, addons] = await Promise.all([reviewsPromise, ratesPromise, addonsPromise]);
 
   return data(
     {
       car,
       reviews,
       rates,
+      addons,
     },
     {
       headers: {
@@ -298,6 +309,7 @@ export default function CarDetail({ loaderData, actionData }: Route.ComponentPro
       car={loaderData.car}
       reviews={loaderData.reviews}
       rates={loaderData.rates}
+      addons={loaderData.addons}
       lastResult={actionData?.lastResult}
       currentPricing={actionData?.currentPricing}
       currentPricingSelectionKey={actionData?.currentPricingSelectionKey}

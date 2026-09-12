@@ -1,5 +1,6 @@
 import { useSearchParams } from "react-router";
 
+import type { PublicAddon } from "~/api/addons/schema";
 import type { BookingPricingPreview } from "~/api/bookings/schema";
 import type { PublicCarDetail } from "~/api/cars/schema";
 import type { PublicRates } from "~/api/rates/schema";
@@ -95,7 +96,8 @@ const fixturePricing = {
   ],
   baseTotal: 70_000,
   compareAtBaseTotal: 70_000,
-  securityDetailCost: 0,
+  addons: [],
+  addonTotal: 0,
   fuelUpgradeCost: 0,
   platformFeeRatePercent: 5,
   platformFeeAmount: 3_500,
@@ -116,8 +118,19 @@ const fixturePricing = {
 const fixtureRates = {
   platformCustomerServiceFeeRatePercent: 5,
   vatRatePercent: 7.5,
-  securityDetailRate: 15_000,
 } satisfies PublicRates;
+
+const fixtureAddons = [
+  {
+    id: "cmaddonprotocol0000000001",
+    code: "PROTOCOL_SERVICE",
+    name: "Protocol service",
+    description: "Dedicated protocol officer",
+    pricingUnit: "PER_BOOKING",
+    unitPrice: 15_000,
+    currency: "NGN",
+  },
+] satisfies PublicAddon[];
 
 export default function CarFixture() {
   const [searchParams] = useSearchParams();
@@ -131,6 +144,7 @@ export default function CarFixture() {
       car={fixtureCar}
       reviews={fixtureReviews}
       rates={fixtureRates}
+      addons={fixtureAddons}
       currentPricing={hasCompleteDates ? fixturePricing : undefined}
       currentPricingSelectionKey={
         hasCompleteDates

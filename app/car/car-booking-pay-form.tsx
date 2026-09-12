@@ -2,7 +2,7 @@ import { getFormProps, type SubmissionResult, useForm } from "@conform-to/react"
 import { parseWithZod } from "@conform-to/zod/v4";
 import { type ReactNode, useRef } from "react";
 import { Form, useLocation, useNavigation } from "react-router";
-
+import type { PublicAddon } from "~/api/addons/schema";
 import type { BookingPricingPreview } from "~/api/bookings/schema";
 import type { TripDurationResponse } from "~/api/flights/schema";
 import { authPath } from "~/auth/referer";
@@ -16,6 +16,7 @@ import {
 } from "~/booking/booking-estimate";
 import { BookingGuestFields } from "~/booking/booking-guest-fields";
 import { type BookingType, NIGHT_BOOKING_TYPE } from "~/booking/types";
+import { CarBookingAddons } from "~/car/car-booking-addons";
 import { CarBookingCheckout } from "~/car/car-booking-checkout";
 
 function isCarBookingSubmit(formAction: string | undefined) {
@@ -37,6 +38,9 @@ export function CarBookingPayForm({
   pickupAddress,
   dropOffAddress,
   sameLocation,
+  addons,
+  selectedAddonIds,
+  onAddonSelectionChange,
   cost,
   preview,
   pricingError,
@@ -56,6 +60,9 @@ export function CarBookingPayForm({
   readonly pickupAddress: string;
   readonly dropOffAddress: string;
   readonly sameLocation: boolean;
+  readonly addons: PublicAddon[];
+  readonly selectedAddonIds: readonly string[];
+  readonly onAddonSelectionChange: (addonId: string, selected: boolean) => void;
   readonly cost: BookingCostDisplay;
   readonly preview: BookingPricingPreview | null;
   readonly pricingError: string | null;
@@ -148,6 +155,14 @@ export function CarBookingPayForm({
               }}
             />
           ),
+          addons:
+            addons.length > 0 ? (
+              <CarBookingAddons
+                addons={addons}
+                selectedIds={selectedAddonIds}
+                onSelectionChange={onAddonSelectionChange}
+              />
+            ) : null,
           cost,
           pricingError,
           canPay,

@@ -14,8 +14,8 @@ describe("publicRatesSchema", () => {
     expect(parsed.data).toEqual({
       platformCustomerServiceFeeRatePercent: 10,
       vatRatePercent: 7.5,
-      securityDetailRate: 15_000,
     });
+    expect(parsed.data).not.toHaveProperty("securityDetailRate");
   });
 
   it("strips admin rate-history fields", () => {
@@ -33,31 +33,28 @@ describe("publicRatesSchema", () => {
     expect(parsed.data).toEqual({
       platformCustomerServiceFeeRatePercent: 10,
       vatRatePercent: 7.5,
-      securityDetailRate: 15_000,
     });
+    expect(parsed.data).not.toHaveProperty("addonRates");
   });
 
   it("rejects a missing public rate field", () => {
     expect(
       publicRatesSchema.safeParse({
         platformCustomerServiceFeeRatePercent: 10,
-        vatRatePercent: 7.5,
       }).success,
     ).toBe(false);
   });
 
-  it.each([
-    "platformCustomerServiceFeeRatePercent",
-    "vatRatePercent",
-    "securityDetailRate",
-  ] as const)("rejects a negative %s", (field) => {
-    expect(
-      publicRatesSchema.safeParse({
-        platformCustomerServiceFeeRatePercent: 10,
-        vatRatePercent: 7.5,
-        securityDetailRate: 15_000,
-        [field]: -1,
-      }).success,
-    ).toBe(false);
-  });
+  it.each(["platformCustomerServiceFeeRatePercent", "vatRatePercent"] as const)(
+    "rejects a negative %s",
+    (field) => {
+      expect(
+        publicRatesSchema.safeParse({
+          platformCustomerServiceFeeRatePercent: 10,
+          vatRatePercent: 7.5,
+          [field]: -1,
+        }).success,
+      ).toBe(false);
+    },
+  );
 });
