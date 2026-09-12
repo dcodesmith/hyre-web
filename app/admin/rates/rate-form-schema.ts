@@ -47,11 +47,6 @@ const requiredRatePercentSchema = z.preprocess(
     .max(100, "Rate cannot exceed 100%"),
 );
 
-const requiredRateAmountSchema = z.preprocess(
-  (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
-  z.coerce.number({ error: "Rate amount is required" }).min(0, "Rate amount cannot be negative"),
-);
-
 export const platformFeeFormSchema = effectiveWindowSchema
   .extend({
     feeType: platformFeeTypeSchema,
@@ -71,25 +66,12 @@ export const vatRateFormSchema = effectiveWindowSchema
     path: ["effectiveUntil"],
   });
 
-export const addonRateFormSchema = effectiveWindowSchema
-  .extend({
-    rateAmount: requiredRateAmountSchema,
-  })
-  .refine(endFollowsStart, {
-    message: "End date must be after the start date",
-    path: ["effectiveUntil"],
-  });
-
-export const endAddonRateFormSchema = z.object({
-  addonRateId: z.cuid(),
-});
-
 export function toUtcIso(localDateTime: string) {
   return `${localDateTime}:00.000Z`;
 }
 
 export type RateActionData = {
-  readonly intent: "platform-fee" | "vat" | "create-addon" | "end-addon";
+  readonly intent: "platform-fee" | "vat";
   readonly error?: string;
   readonly revalidate?: boolean;
   readonly success?: string;

@@ -34,7 +34,7 @@ const mockBooking = {
   platformCustomerServiceFeeRatePercent: 7,
   vatAmount: 10_435,
   vatRatePercent: 7.5,
-  securityDetailCost: 0,
+  addons: [],
   fuelUpgradeCost: 0,
   referralDiscountAmount: 0,
   referralCreditsUsed: 0,

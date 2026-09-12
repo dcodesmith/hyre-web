@@ -15,7 +15,8 @@ const preview = {
   segments: [],
   baseTotal: 100000,
   compareAtBaseTotal: 100000,
-  securityDetailCost: 0,
+  addons: [],
+  addonTotal: 0,
   fuelUpgradeCost: 0,
   platformFeeRatePercent: 5,
   platformFeeAmount: 5000,
@@ -46,7 +47,6 @@ describe("booking pricing preview resource", () => {
       startDate: "2026-09-01T08:00:00.000Z",
       endDate: "2026-09-01T20:00:00.000Z",
       pickupTime: "9 AM",
-      includeSecurityDetail: "false",
       requiresFullTank: "false",
       useCredits: "0",
     });
@@ -58,7 +58,8 @@ describe("booking pricing preview resource", () => {
       request,
       body: expect.objectContaining({
         bookingType: "DAY",
-        includeSecurityDetail: false,
+        addonIds: [],
+        requiresFullTank: false,
         useCredits: 0,
       }),
     });
@@ -75,7 +76,6 @@ describe("booking pricing preview resource", () => {
       startDate: "2026-09-01T08:00:00.000Z",
       endDate: "2026-09-01T20:00:00.000Z",
       pickupTime: "9 AM",
-      includeSecurityDetail: "false",
       requiresFullTank: "false",
       useCredits: "0",
     });
@@ -87,7 +87,7 @@ describe("booking pricing preview resource", () => {
     expect(result).toMatchObject({
       data: {
         requestKey:
-          "carId=car-1&bookingType=DAY&startDate=2026-09-01T08%3A00%3A00.000Z&endDate=2026-09-01T20%3A00%3A00.000Z&pickupTime=9+AM&includeSecurityDetail=false&requiresFullTank=false&useCredits=0",
+          "carId=car-1&bookingType=DAY&startDate=2026-09-01T08%3A00%3A00.000Z&endDate=2026-09-01T20%3A00%3A00.000Z&pickupTime=9+AM&requiresFullTank=false&useCredits=0",
         preview,
         error: null,
       },
@@ -101,7 +101,6 @@ describe("booking pricing preview resource", () => {
       startDate: "not-a-date",
       endDate: "2026-09-01T20:00:00.000Z",
       pickupTime: "9 AM",
-      includeSecurityDetail: "false",
       requiresFullTank: "false",
       useCredits: "0",
     });
@@ -114,5 +113,38 @@ describe("booking pricing preview resource", () => {
       init: { status: 400 },
       data: { preview: null },
     });
+  });
+
+  it("forwards unique addonIds and rejects invalid ones", async () => {
+    previewBookingPricing.mockResolvedValue({ data: preview });
+    const addonId = "cmaddonprotocol0000000001";
+    const params = new URLSearchParams({
+      carId: "car-1",
+      bookingType: "DAY",
+      startDate: "2026-09-01T08:00:00.000Z",
+      endDate: "2026-09-01T20:00:00.000Z",
+      pickupTime: "9 AM",
+      requiresFullTank: "false",
+      useCredits: "0",
+    });
+    params.append("addonIds", addonId);
+    const request = new Request(`https://tripdly.com/api/booking-pricing-preview?${params}`);
+
+    await loader({ request, params: {}, context: {} } as never);
+
+    expect(previewBookingPricing).toHaveBeenCalledWith({
+      request,
+      body: expect.objectContaining({ addonIds: [addonId], requiresFullTank: false }),
+    });
+
+    const duplicate = new URLSearchParams(params);
+    duplicate.append("addonIds", addonId);
+    const rejected = await loader({
+      request: new Request(`https://tripdly.com/api/booking-pricing-preview?${duplicate}`),
+      params: {},
+      context: {},
+    } as never);
+
+    expect(rejected).toMatchObject({ init: { status: 400 }, data: { preview: null } });
   });
 });

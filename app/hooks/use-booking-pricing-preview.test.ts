@@ -21,7 +21,22 @@ describe("pricing preview request key", () => {
     })?.toString();
 
     expect(clientKey).toBe(
-      "carId=cmmz1wtb80000bwb5nz3j2r2p&bookingType=DAY&startDate=2026-08-28T08%3A00%3A00.000Z&endDate=2026-08-28T20%3A00%3A00.000Z&pickupTime=9+AM&includeSecurityDetail=false&requiresFullTank=false&useCredits=0",
+      "carId=cmmz1wtb80000bwb5nz3j2r2p&bookingType=DAY&startDate=2026-08-28T08%3A00%3A00.000Z&endDate=2026-08-28T20%3A00%3A00.000Z&pickupTime=9+AM&requiresFullTank=false&useCredits=0",
     );
+  });
+
+  it("appends selected addonIds as repeated query params", () => {
+    const addonId = "cmaddonprotocol0000000001";
+    const params = bookingPricingPreviewSearchParams({
+      carId: "cmmz1wtb80000bwb5nz3j2r2p",
+      bookingType: "DAY",
+      from: "2026-08-28",
+      to: "2026-08-28",
+      pickupTime: "9 AM",
+      addonIds: [addonId],
+    });
+
+    expect(params?.getAll("addonIds")).toEqual([addonId]);
+    expect(params?.toString()).toContain(`addonIds=${addonId}`);
   });
 });

@@ -48,6 +48,16 @@ function guestBooking() {
     totalAmount: 150_000,
     currency: "NGN",
     accessExpiresAt: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+    addons: [
+      {
+        code: "PROTOCOL_SERVICE",
+        name: "Protocol service",
+        pricingUnit: "PER_BOOKING",
+        unitPrice: 15_000,
+        quantity: 1,
+        totalPrice: 15_000,
+      },
+    ],
     car: {
       make: "Lexus",
       model: "UX F-Sport",

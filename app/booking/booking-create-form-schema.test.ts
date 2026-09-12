@@ -212,6 +212,8 @@ describe("create booking payload", () => {
       pickupTime: "9 AM",
       startDate: "2026-09-01T08:00:00.000Z",
       endDate: "2026-09-01T20:00:00.000Z",
+      addonIds: [],
+      requiresFullTank: false,
       useCredits: 0,
     });
     expect(create).toMatchObject({
@@ -220,8 +222,38 @@ describe("create booking payload", () => {
       guestName: "Ada Lovelace",
       guestEmail: "ada@tripdly.com",
       guestPhone: "08012345678",
+      addonIds: [],
     });
     expect(create).not.toHaveProperty("dropOffAddress");
+  });
+
+  it("forwards unique selected add-on ids and rejects invalid selections", () => {
+    const addonId = "cmaddonprotocol0000000001";
+    const secondId = "cmaddonsecurity0000000001";
+    const value = signedIn.parse({ ...signedInDay(), addonIds: [addonId, secondId] });
+    const formData = new FormData();
+    for (const [name, field] of Object.entries(signedInDay())) {
+      formData.set(name, String(field));
+    }
+    formData.append("addonIds", addonId);
+    formData.append("addonIds", secondId);
+
+    expect(toPricingPreviewBody(value)?.addonIds).toEqual([addonId, secondId]);
+    expect(toCreateBookingBody(value)?.addonIds).toEqual([addonId, secondId]);
+    expect(parseWithZod(formData, { schema: signedIn }).status).toBe("success");
+    expect(signedIn.safeParse({ ...signedInDay(), addonIds: [addonId, addonId] }).success).toBe(
+      false,
+    );
+    expect(signedIn.safeParse({ ...signedInDay(), addonIds: ["addon-1"] }).success).toBe(false);
+    expect(
+      signedIn.safeParse({
+        ...signedInDay(),
+        addonIds: Array.from(
+          { length: 11 },
+          (_, index) => `cmaddonlimit${String(index).padStart(13, "0")}`,
+        ),
+      }).success,
+    ).toBe(false);
   });
 
   it("omits submitted guest identity fields from signed-in booking bodies", () => {

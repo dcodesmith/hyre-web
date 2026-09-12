@@ -26,7 +26,7 @@ const baseBooking = {
   platformCustomerServiceFeeRatePercent: 7,
   vatAmount: 10_435,
   vatRatePercent: 7.5,
-  securityDetailCost: 0,
+  addons: [],
   fuelUpgradeCost: 0,
   referralDiscountAmount: 0,
   referralCreditsUsed: 0,
@@ -74,6 +74,7 @@ describe("createPaymentSummary", () => {
       extensionNetTotal: 0,
       totalExtendedHours: 0,
       vatAmount: 10_435,
+      addons: [],
       fuelUpgradeCost: 0,
       referralDiscountAmount: 0,
       totalAmount: 150_000,
@@ -86,6 +87,24 @@ describe("createPaymentSummary", () => {
 
     expect(summary.breakdownAvailable).toBe(false);
     expect(summary.totalAmount).toBe(baseBooking.totalAmount);
+    expect(summary.addons).toEqual([]);
+  });
+
+  it("keeps add-on rows when the fee breakdown is redacted", () => {
+    const addons = [
+      {
+        code: "PROTOCOL_SERVICE",
+        name: "Protocol service",
+        pricingUnit: "PER_BOOKING" as const,
+        unitPrice: 15_000,
+        quantity: 1,
+        totalPrice: 15_000,
+      },
+    ];
+    const summary = createPaymentSummary({ ...baseBooking, netTotal: null, addons });
+
+    expect(summary.breakdownAvailable).toBe(false);
+    expect(summary.addons).toEqual(addons);
   });
 
   it("adds extension fee and VAT onto the stored base totals", () => {
@@ -128,10 +147,19 @@ describe("createPaymentSummary", () => {
     expect(summary.totalAmount).toBe(baseBooking.totalAmount);
   });
 
-  it("folds security and credits into the rebuilt extension total", () => {
+  it("folds add-ons and credits into the rebuilt extension total", () => {
     const summary = createPaymentSummary({
       ...baseBooking,
-      securityDetailCost: 15_000,
+      addons: [
+        {
+          code: "PROTOCOL_SERVICE",
+          name: "Protocol service",
+          pricingUnit: "PER_BOOKING",
+          unitPrice: 15_000,
+          quantity: 1,
+          totalPrice: 15_000,
+        },
+      ],
       referralCreditsUsed: 5_000,
       legs: [
         {

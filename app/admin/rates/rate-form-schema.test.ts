@@ -1,11 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  addonRateFormSchema,
-  platformFeeFormSchema,
-  toUtcIso,
-  vatRateFormSchema,
-} from "./rate-form-schema";
+import { platformFeeFormSchema, toUtcIso, vatRateFormSchema } from "./rate-form-schema";
 
 const validWindow = {
   effectiveSince: "2026-09-01T09:00",
@@ -14,7 +9,7 @@ const validWindow = {
 };
 
 describe("admin rate form schemas", () => {
-  it("parses the API-supported platform, VAT, and add-on values", () => {
+  it("parses the API-supported platform and VAT values", () => {
     expect(
       platformFeeFormSchema.safeParse({
         ...validWindow,
@@ -23,12 +18,6 @@ describe("admin rate form schemas", () => {
       }).success,
     ).toBe(true);
     expect(vatRateFormSchema.safeParse({ ...validWindow, ratePercent: "7.5" }).success).toBe(true);
-    expect(
-      addonRateFormSchema.safeParse({
-        ...validWindow,
-        rateAmount: "15000",
-      }).success,
-    ).toBe(true);
   });
 
   it("rejects zero-length and reversed effective windows", () => {
@@ -47,10 +36,10 @@ describe("admin rate form schemas", () => {
   });
 
   it("rejects impossible local dates before converting them to UTC", () => {
-    const result = addonRateFormSchema.safeParse({
+    const result = vatRateFormSchema.safeParse({
       ...validWindow,
       effectiveSince: "2026-02-31T09:00",
-      rateAmount: "15000",
+      ratePercent: "7.5",
     });
 
     expect(result.success).toBe(false);
@@ -67,7 +56,6 @@ describe("admin rate form schemas", () => {
       ratePercent: "",
     });
     const vat = vatRateFormSchema.safeParse({ ...validWindow, ratePercent: "   " });
-    const addon = addonRateFormSchema.safeParse({ ...validWindow, rateAmount: "" });
 
     expect(platform.success).toBe(false);
     if (!platform.success) {
@@ -83,13 +71,6 @@ describe("admin rate form schemas", () => {
         message: "Rate percentage is required",
       });
     }
-    expect(addon.success).toBe(false);
-    if (!addon.success) {
-      expect(addon.error.issues[0]).toMatchObject({
-        path: ["rateAmount"],
-        message: "Rate amount is required",
-      });
-    }
   });
 
   it("accepts an explicit zero rate", () => {
@@ -101,6 +82,5 @@ describe("admin rate form schemas", () => {
       }).success,
     ).toBe(true);
     expect(vatRateFormSchema.safeParse({ ...validWindow, ratePercent: 0 }).success).toBe(true);
-    expect(addonRateFormSchema.safeParse({ ...validWindow, rateAmount: "0" }).success).toBe(true);
   });
 });

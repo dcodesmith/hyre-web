@@ -17,7 +17,7 @@ const fixtureBooking = {
   platformCustomerServiceFeeRatePercent: 7,
   vatAmount: 20_870,
   vatRatePercent: 7.5,
-  securityDetailCost: 0,
+  addons: [],
   fuelUpgradeCost: 0,
   referralDiscountAmount: 0,
   referralCreditsUsed: 0,

@@ -46,6 +46,15 @@ const isoDateSchema = z.union([z.string(), z.date()]).transform((value) => {
   return value instanceof Date ? value.toISOString() : value;
 });
 
+const bookingAddonSchema = z.object({
+  code: z.string(),
+  name: z.string(),
+  pricingUnit: z.enum(["PER_BOOKING", "PER_LEG"]),
+  unitPrice: moneySchema,
+  quantity: z.number().int().positive(),
+  totalPrice: moneySchema,
+});
+
 export const guestBookingAccessTokenSchema = z
   .string()
   .regex(/^[A-Za-z0-9_-]{43}$/, "Invalid guest booking access token");
@@ -79,6 +88,7 @@ export const guestBookingDetailSchema = z.object({
   totalAmount: moneySchema,
   currency: z.literal("NGN"),
   accessExpiresAt: isoDateSchema,
+  addons: z.array(bookingAddonSchema),
   car: z.object({
     make: z.string(),
     model: z.string(),
@@ -197,7 +207,7 @@ const bookingDetailResponseSchema = z.object({
   platformCustomerServiceFeeRatePercent: optionalMoneySchema,
   vatAmount: optionalMoneySchema,
   vatRatePercent: optionalMoneySchema,
-  securityDetailCost: optionalMoneySchema,
+  addons: z.array(bookingAddonSchema),
   fuelUpgradeCost: optionalMoneySchema,
   referralDiscountAmount: optionalMoneySchema,
   referralCreditsUsed: optionalMoneySchema,
@@ -249,6 +259,10 @@ const bookingPricingSegmentSchema = z.object({
   promotion: bookingPricingPromotionSchema.nullable(),
 });
 
+const bookingPricingAddonSchema = bookingAddonSchema.extend({
+  id: z.string().cuid(),
+});
+
 export const bookingPricingPreviewSchema = z.object({
   currency: z.literal("NGN"),
   numberOfLegs: z.number().int(),
@@ -256,7 +270,8 @@ export const bookingPricingPreviewSchema = z.object({
   segments: z.array(bookingPricingSegmentSchema),
   baseTotal: moneySchema,
   compareAtBaseTotal: moneySchema,
-  securityDetailCost: moneySchema,
+  addons: z.array(bookingPricingAddonSchema),
+  addonTotal: moneySchema,
   fuelUpgradeCost: moneySchema,
   platformFeeRatePercent: moneySchema,
   platformFeeAmount: moneySchema,

@@ -1,7 +1,9 @@
-import { type BrowserContext, expect, test } from "@playwright/test";
+import { type BrowserContext, expect, type Locator, type Page, test } from "@playwright/test";
 
+import { clickUntilVisible } from "./click-until";
 import {
-  MOCK_ADDON_RATE_ID,
+  MOCK_ADDON_ID,
+  MOCK_ADDON_PRICE_ID,
   startMockAdminAuthApi,
   stopMockAdminAuthApi,
 } from "./mock-admin-auth-api";
@@ -14,6 +16,19 @@ function addAdminSession(context: BrowserContext) {
       url: "http://localhost:5174",
     },
   ]);
+}
+
+function utcDateTimeLocalDaysFromNow(days: number) {
+  const date = new Date();
+  date.setUTCDate(date.getUTCDate() + days);
+  date.setUTCHours(9, 0, 0, 0);
+  return date.toISOString().slice(0, 16);
+}
+
+async function confirmEndAddonPrice(page: Page, card: Locator) {
+  const dialog = page.getByRole("alertdialog");
+  await clickUntilVisible(card.getByRole("button", { name: "End now" }), dialog);
+  await dialog.getByRole("button", { name: "End price" }).click();
 }
 
 test("manages admin fee, VAT, and add-on rate windows", async ({ context, page }) => {
@@ -74,41 +89,109 @@ test("manages admin fee, VAT, and add-on rate windows", async ({ context, page }
     await expect(platformCard.getByText("Existing rate windows (3)")).toBeVisible();
 
     await page.goto("/admin/addon-rates");
-    await expect(
-      page.getByRole("heading", { name: "Add-on rates", exact: true }).last(),
-    ).toBeVisible();
-    await expect(page.getByText("₦15,000", { exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Add-ons", exact: true }).last()).toBeVisible();
+    await expect(page.getByText("Protocol service")).toBeVisible();
+    const protocolCard = page.locator("[data-slot=card]").filter({ hasText: "Protocol service" });
+    await expect(protocolCard.locator("[data-slot=badge]", { hasText: "Enabled" })).toBeVisible();
 
-    const addonForm = page.getByRole("form", { name: "Create add-on rate" });
-    await addonForm.getByLabel("Rate amount (NGN)").fill("20000");
-    await addonForm.getByLabel("Effective from").fill("2027-04-01T09:00");
-    await addonForm.getByRole("button", { name: "Create add-on rate" }).click();
+    const createForm = page.locator("#create-addon-form");
+    await createForm.getByLabel("Name").fill("Meet and greet");
+    await createForm.getByLabel("Code").fill("MEET_AND_GREET");
+    await createForm.getByRole("checkbox", { name: "day", exact: true }).check();
+    await createForm.getByRole("button", { name: "Create add-on" }).click();
 
     await expect
-      .poll(() => api.requests.rateActions[2])
+      .poll(() => api.requests.addonActions[0])
       .toEqual({
         body: {
-          addonType: "SECURITY_DETAIL",
-          rateAmount: 20_000,
-          effectiveSince: "2027-04-01T09:00:00.000Z",
+          code: "MEET_AND_GREET",
+          name: "Meet and greet",
+          bookingTypes: ["DAY"],
+          pricingUnit: "PER_BOOKING",
+          financialTreatment: "PLATFORM",
+          isActive: true,
         },
         method: "POST",
-        path: "/api/rates/addon",
+        path: "/api/admin/addons",
       });
-    await expect(page.getByText("₦20,000")).toBeVisible();
-    await expect(page.getByText("Scheduled")).toBeVisible();
+    await expect(page.getByText("Add-on created.")).toBeVisible();
 
-    await page.getByRole("button", { name: "End now" }).click();
-    await page.getByRole("button", { name: "End rate" }).click();
+    const createdCard = page.locator("[data-slot=card]").filter({ hasText: "Meet and greet" });
+    await createdCard.getByText("Prices (0)").click();
+    await createdCard.getByLabel("Amount (NGN)").fill("20000");
+    const scheduledFrom = utcDateTimeLocalDaysFromNow(30);
+    await createdCard.getByLabel("Effective from (UTC)").fill(scheduledFrom);
+    await createdCard.getByRole("button", { name: "Add price" }).click();
+
     await expect
-      .poll(() => api.requests.rateActions[3])
+      .poll(() => api.requests.addonActions[1])
+      .toMatchObject({
+        body: {
+          amount: 20_000,
+          effectiveSince: `${scheduledFrom}:00.000Z`,
+        },
+        method: "POST",
+      });
+    expect(api.requests.addonActions[1]?.path).toMatch(
+      /^\/api\/admin\/addons\/cmcreatedadd.+\/prices$/,
+    );
+    await expect(createdCard.locator("[data-slot=badge]", { hasText: "Enabled" })).toBeVisible();
+    await expect(createdCard.getByText("₦20,000")).toBeVisible();
+    const scheduledPrice = createdCard.getByRole("listitem").filter({ hasText: "₦20,000" });
+    await expect(scheduledPrice.getByText("Scheduled", { exact: true })).toBeVisible();
+    await expect(scheduledPrice.getByText("Active", { exact: true })).toHaveCount(0);
+    await expect(createdCard.getByRole("button", { name: "End now" })).toHaveCount(0);
+
+    await protocolCard.getByText("Prices (1)").click();
+    await expect(
+      protocolCard.getByText("Customers can select this add-on only while a price is active."),
+    ).toBeVisible();
+    const currentPrice = protocolCard.getByRole("listitem").filter({ hasText: "₦15,000" });
+    await expect(currentPrice.getByText("Active", { exact: true })).toBeVisible();
+    await confirmEndAddonPrice(page, protocolCard);
+    await expect
+      .poll(() => api.requests.addonActions[2])
       .toEqual({
         body: null,
         method: "PATCH",
-        path: `/api/rates/addon/${MOCK_ADDON_RATE_ID}/end`,
+        path: `/api/admin/addons/${MOCK_ADDON_ID}/prices/${MOCK_ADDON_PRICE_ID}/end`,
       });
-    await expect(page.getByText("Ended")).toBeVisible();
-    await expect(page.getByRole("button", { name: "End now" })).toHaveCount(0);
+    await expect(protocolCard.getByRole("button", { name: "End now" })).toHaveCount(0);
+    await expect(currentPrice.getByText("Ended", { exact: true })).toBeVisible();
+  } finally {
+    await stopMockAdminAuthApi(api);
+  }
+});
+
+test("shows an error when ending an add-on price fails", async ({ context, page }) => {
+  const api = await startMockAdminAuthApi();
+
+  try {
+    api.failEndPrice.current = true;
+    await addAdminSession(context);
+    await page.goto("/admin/addon-rates");
+    await expect(page.getByRole("heading", { name: "Add-ons", exact: true }).last()).toBeVisible();
+
+    const protocolCard = page.locator("[data-slot=card]").filter({ hasText: "Protocol service" });
+    await protocolCard.getByText("Prices (1)").click();
+    await expect(protocolCard.getByRole("button", { name: "End now" })).toBeVisible();
+    await confirmEndAddonPrice(page, protocolCard);
+
+    await expect
+      .poll(() => api.requests.addonActions[0])
+      .toEqual({
+        body: null,
+        method: "PATCH",
+        path: `/api/admin/addons/${MOCK_ADDON_ID}/prices/${MOCK_ADDON_PRICE_ID}/end`,
+      });
+    await expect(protocolCard.getByText("Price not ended")).toBeVisible();
+    await expect(protocolCard.getByText("This add-on price has already ended")).toBeVisible();
+    await expect(protocolCard.getByRole("button", { name: "End now" })).toBeVisible();
+    await expect(
+      protocolCard.getByRole("listitem").filter({ hasText: "₦15,000" }).getByText("Active", {
+        exact: true,
+      }),
+    ).toBeVisible();
   } finally {
     await stopMockAdminAuthApi(api);
   }
@@ -174,6 +257,10 @@ test("blocks staff from admin-only rate routes", async ({ context, page, request
     await page.goto("/admin/fees");
     await expect(page.getByRole("heading", { name: "Access denied" })).toBeVisible();
     expect(api.requests.rateActions).toEqual([]);
+
+    await page.goto("/admin/addon-rates");
+    await expect(page.getByRole("heading", { name: "Add-ons", exact: true }).last()).toBeVisible();
+    await expect(page.getByText("Protocol service")).toBeVisible();
   } finally {
     await stopMockAdminAuthApi(api);
   }

@@ -66,9 +66,14 @@ export function BookingCostBreakdown({
               currency={currency}
             />
           ))}
-          {cost.securityDetailCost > 0 ? (
-            <MoneyRow label="Security detail" value={cost.securityDetailCost} currency={currency} />
-          ) : null}
+          {cost.addons.map((addon) => (
+            <MoneyRow
+              key={addon.id}
+              label={addon.quantity > 1 ? `${addon.name} × ${addon.quantity}` : addon.name}
+              value={addon.totalPrice}
+              currency={currency}
+            />
+          ))}
           {cost.fuelUpgradeCost > 0 ? (
             <MoneyRow
               label="Fuel upgrade to full tank"

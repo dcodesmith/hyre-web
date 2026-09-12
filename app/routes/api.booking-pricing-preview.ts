@@ -28,7 +28,10 @@ const pricingPreviewSearchSchema = z.object({
   startDate: z.iso.datetime({ offset: true }),
   endDate: z.iso.datetime({ offset: true }),
   pickupTime: z.string().trim().min(1),
-  includeSecurityDetail: booleanParamSchema,
+  addonIds: z
+    .array(z.string().cuid())
+    .max(10)
+    .refine((ids) => new Set(ids).size === ids.length),
   requiresFullTank: booleanParamSchema,
   useCredits: z.coerce.number().min(0).max(99_999_999.99).multipleOf(0.01),
 });
@@ -36,7 +39,10 @@ const pricingPreviewSearchSchema = z.object({
 export async function loader({ request }: Route.LoaderArgs) {
   const url = new URL(request.url);
   const requestKey = pricingPreviewRequestKey(url.searchParams);
-  const parsed = pricingPreviewSearchSchema.safeParse(Object.fromEntries(url.searchParams));
+  const parsed = pricingPreviewSearchSchema.safeParse({
+    ...Object.fromEntries(url.searchParams),
+    addonIds: url.searchParams.getAll("addonIds"),
+  });
 
   if (!parsed.success) {
     return data(

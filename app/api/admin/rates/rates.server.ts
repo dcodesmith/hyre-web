@@ -2,7 +2,6 @@ import { env } from "cloudflare:workers";
 import type { z } from "zod";
 import { createApiClient } from "~/api/api.server";
 import {
-  addonRateMutationSchema,
   adminRatesSchema,
   platformFeeRateMutationSchema,
   type platformFeeTypeSchema,
@@ -29,11 +28,6 @@ type CreatePlatformFeeBody = RateWindowBody & {
 
 type CreateVatRateBody = RateWindowBody & {
   readonly ratePercent: number;
-};
-
-type CreateAddonRateBody = RateWindowBody & {
-  readonly addonType: "SECURITY_DETAIL";
-  readonly rateAmount: number;
 };
 
 export function getAdminRates({ request }: { readonly request: Request }) {
@@ -76,38 +70,5 @@ export function createAdminVatRate({
     forwardCookie: true,
     json: body,
     schema: vatRateMutationSchema,
-  });
-}
-
-export function createAdminAddonRate({
-  request,
-  body,
-}: {
-  readonly request: Request;
-  readonly body: CreateAddonRateBody;
-}) {
-  return getApiClient().request({
-    path: "/api/rates/addon",
-    method: "POST",
-    request,
-    forwardCookie: true,
-    json: body,
-    schema: addonRateMutationSchema,
-  });
-}
-
-export function endAdminAddonRate({
-  request,
-  addonRateId,
-}: {
-  readonly request: Request;
-  readonly addonRateId: string;
-}) {
-  return getApiClient().request({
-    path: `/api/rates/addon/${encodeURIComponent(addonRateId)}/end`,
-    method: "PATCH",
-    request,
-    forwardCookie: true,
-    schema: addonRateMutationSchema,
   });
 }

@@ -45,7 +45,7 @@ function getPageTitle(pathname: string) {
     return "Fees and VAT";
   }
   if (pathname === "/admin/addon-rates") {
-    return "Add-on rates";
+    return "Add-ons";
   }
   if (pathname === "/admin/staff") {
     return "Staff";

@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   createBooking,
+  getPublicAddons,
   getPublicCar,
   getCarReviews,
   loadPublicRates,
@@ -11,6 +12,7 @@ const {
   requirePaymentStatusCookieSecret,
 } = vi.hoisted(() => ({
   createBooking: vi.fn(),
+  getPublicAddons: vi.fn(),
   getPublicCar: vi.fn(),
   getCarReviews: vi.fn(),
   loadPublicRates: vi.fn(),
@@ -21,6 +23,7 @@ const {
 }));
 
 vi.mock("~/api/bookings/bookings.server", () => ({ createBooking }));
+vi.mock("~/api/addons/addons.server", () => ({ getPublicAddons }));
 vi.mock("~/api/cars/cars.server", () => ({ getPublicCar }));
 vi.mock("~/api/reviews/reviews.server", () => ({ getCarReviews }));
 vi.mock("~/api/rates/rates.server", () => ({ loadPublicRates }));
@@ -51,7 +54,8 @@ const pricing = {
   segments: [],
   baseTotal: 100000,
   compareAtBaseTotal: 100000,
-  securityDetailCost: 0,
+  addons: [],
+  addonTotal: 0,
   fuelUpgradeCost: 0,
   platformFeeRatePercent: 5,
   platformFeeAmount: 5000,
@@ -128,6 +132,8 @@ describe("car booking action", () => {
           expectedTotalAmount: "112875",
           guestName: "Ada Lovelace",
           callbackUrl: "https://tripdly.com/bookings/payment-status",
+          addonIds: [],
+          requiresFullTank: false,
         }),
       }),
     );
@@ -151,6 +157,17 @@ describe("car booking action", () => {
     expect(body).not.toHaveProperty("guestEmail");
     expect(body).not.toHaveProperty("guestName");
     expect(body).not.toHaveProperty("guestPhone");
+    expect(body.addonIds).toEqual([]);
+  });
+
+  it("forwards selected add-on ids on create", async () => {
+    readAuthUser.mockResolvedValue({ email: "ada@example.com", name: "Ada" });
+    const form = bookingForm();
+    form.append("addonIds", "cmaddonprotocol0000000001");
+
+    await runAction(form).catch(() => undefined);
+
+    expect(createBooking.mock.calls[0][0].body.addonIds).toEqual(["cmaddonprotocol0000000001"]);
   });
 
   it("returns revised pricing and retry metadata instead of silently accepting a change", async () => {
@@ -176,7 +193,7 @@ describe("car booking action", () => {
     expect(result).toMatchObject({
       data: {
         currentPricing: { totalAmount: 115000 },
-        currentPricingSelectionKey: "DAY|2026-09-01|2026-09-01|9 AM",
+        currentPricingSelectionKey: "DAY|2026-09-01|2026-09-01|9 AM|",
         errorCode: "BOOKING_PRICE_CHANGED",
       },
       init: { status: 409 },
@@ -236,7 +253,6 @@ const publicCar = {
 const publicRates = {
   platformCustomerServiceFeeRatePercent: 10,
   vatRatePercent: 7.5,
-  securityDetailRate: 15_000,
 };
 
 function runLoader(slug = generateCarSlug(publicCar)) {
@@ -252,14 +268,36 @@ describe("car detail loader", () => {
     vi.clearAllMocks();
     getPublicCar.mockResolvedValue({ data: publicCar, headers: new Headers() });
     getCarReviews.mockResolvedValue({ data: null });
+    getPublicAddons.mockResolvedValue({ data: { addons: [] } });
     loadPublicRates.mockResolvedValue(publicRates);
   });
 
   it("returns public rates with the car", async () => {
     const result = await runLoader();
 
+    expect(getPublicAddons).toHaveBeenCalledWith({
+      request: expect.any(Request),
+      bookingType: "DAY",
+    });
     expect(result).toMatchObject({
-      data: { car: publicCar, reviews: null, rates: publicRates },
+      data: { car: publicCar, reviews: null, rates: publicRates, addons: [] },
+    });
+  });
+
+  it("keeps the car page when public add-ons fail", async () => {
+    getPublicAddons.mockRejectedValue(
+      new ApiRequestError("http", 500, {
+        type: "UPSTREAM_HTTP_ERROR",
+        title: "Error",
+        status: 500,
+        detail: "Unavailable",
+      }),
+    );
+
+    const result = await runLoader();
+
+    expect(result).toMatchObject({
+      data: { car: publicCar, addons: [] },
     });
   });
 
@@ -267,7 +305,6 @@ describe("car detail loader", () => {
     const fallbackRates = {
       platformCustomerServiceFeeRatePercent: 0,
       vatRatePercent: 7.5,
-      securityDetailRate: 0,
     };
     loadPublicRates.mockResolvedValue(fallbackRates);
 
@@ -276,6 +313,19 @@ describe("car detail loader", () => {
     expect(result).toMatchObject({
       data: { car: publicCar, rates: fallbackRates },
     });
+  });
+
+  it("rethrows an aborted public add-ons request", async () => {
+    getPublicAddons.mockRejectedValue(
+      new ApiRequestError("aborted", 499, {
+        type: "REQUEST_ABORTED",
+        title: "Request aborted",
+        status: 499,
+        detail: "The request was cancelled before the upstream API responded.",
+      }),
+    );
+
+    await expect(runLoader()).rejects.toMatchObject({ kind: "aborted" });
   });
 
   it("rethrows an aborted public rates request", async () => {

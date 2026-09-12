@@ -14,7 +14,6 @@ function getApiClient() {
 export const FALLBACK_PUBLIC_RATES: PublicRates = {
   platformCustomerServiceFeeRatePercent: 0,
   vatRatePercent: 7.5,
-  securityDetailRate: 0,
 };
 
 export type GetPublicRatesOptions = {
