@@ -1,5 +1,6 @@
-import { type BrowserContext, expect, test } from "@playwright/test";
+import { type BrowserContext, expect, type Locator, type Page, test } from "@playwright/test";
 
+import { clickUntilVisible } from "./click-until";
 import {
   MOCK_ADDON_ID,
   MOCK_ADDON_PRICE_ID,
@@ -22,6 +23,12 @@ function utcDateTimeLocalDaysFromNow(days: number) {
   date.setUTCDate(date.getUTCDate() + days);
   date.setUTCHours(9, 0, 0, 0);
   return date.toISOString().slice(0, 16);
+}
+
+async function confirmEndAddonPrice(page: Page, card: Locator) {
+  const dialog = page.getByRole("alertdialog");
+  await clickUntilVisible(card.getByRole("button", { name: "End now" }), dialog);
+  await dialog.getByRole("button", { name: "End price" }).click();
 }
 
 test("manages admin fee, VAT, and add-on rate windows", async ({ context, page }) => {
@@ -141,8 +148,7 @@ test("manages admin fee, VAT, and add-on rate windows", async ({ context, page }
     ).toBeVisible();
     const currentPrice = protocolCard.getByRole("listitem").filter({ hasText: "₦15,000" });
     await expect(currentPrice.getByText("Active", { exact: true })).toBeVisible();
-    await protocolCard.getByRole("button", { name: "End now" }).click();
-    await page.getByRole("button", { name: "End price" }).click();
+    await confirmEndAddonPrice(page, protocolCard);
     await expect
       .poll(() => api.requests.addonActions[2])
       .toEqual({
@@ -168,8 +174,8 @@ test("shows an error when ending an add-on price fails", async ({ context, page 
 
     const protocolCard = page.locator("[data-slot=card]").filter({ hasText: "Protocol service" });
     await protocolCard.getByText("Prices (1)").click();
-    await protocolCard.getByRole("button", { name: "End now" }).click();
-    await page.getByRole("button", { name: "End price" }).click();
+    await expect(protocolCard.getByRole("button", { name: "End now" })).toBeVisible();
+    await confirmEndAddonPrice(page, protocolCard);
 
     await expect
       .poll(() => api.requests.addonActions[0])
