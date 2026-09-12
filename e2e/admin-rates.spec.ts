@@ -78,7 +78,7 @@ test("manages admin fee, VAT, and add-on rate windows", async ({ context, page }
     await expect(page.getByRole("heading", { name: "Add-ons", exact: true }).last()).toBeVisible();
     await expect(page.getByText("Protocol service")).toBeVisible();
     const protocolCard = page.locator("[data-slot=card]").filter({ hasText: "Protocol service" });
-    await expect(protocolCard.getByText("Enabled", { exact: true })).toBeVisible();
+    await expect(protocolCard.locator("[data-slot=badge]", { hasText: "Enabled" })).toBeVisible();
 
     const createForm = page.locator("#create-addon-form");
     await createForm.getByLabel("Name").fill("Meet and greet");
@@ -120,7 +120,7 @@ test("manages admin fee, VAT, and add-on rate windows", async ({ context, page }
     expect(api.requests.addonActions[1]?.path).toMatch(
       /^\/api\/admin\/addons\/cmcreatedadd.+\/prices$/,
     );
-    await expect(createdCard.getByText("Enabled", { exact: true })).toBeVisible();
+    await expect(createdCard.locator("[data-slot=badge]", { hasText: "Enabled" })).toBeVisible();
     await expect(createdCard.getByText("₦20,000")).toBeVisible();
     const scheduledPrice = createdCard.getByRole("listitem").filter({ hasText: "₦20,000" });
     await expect(scheduledPrice.getByText("Scheduled", { exact: true })).toBeVisible();
