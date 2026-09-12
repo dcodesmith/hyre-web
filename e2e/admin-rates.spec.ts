@@ -17,6 +17,13 @@ function addAdminSession(context: BrowserContext) {
   ]);
 }
 
+function utcDateTimeLocalDaysFromNow(days: number) {
+  const date = new Date();
+  date.setUTCDate(date.getUTCDate() + days);
+  date.setUTCHours(9, 0, 0, 0);
+  return date.toISOString().slice(0, 16);
+}
+
 test("manages admin fee, VAT, and add-on rate windows", async ({ context, page }) => {
   const api = await startMockAdminAuthApi();
 
@@ -105,7 +112,8 @@ test("manages admin fee, VAT, and add-on rate windows", async ({ context, page }
     const createdCard = page.locator("[data-slot=card]").filter({ hasText: "Meet and greet" });
     await createdCard.getByText("Prices (0)").click();
     await createdCard.getByLabel("Amount (NGN)").fill("20000");
-    await createdCard.getByLabel("Effective from (UTC)").fill("2027-04-01T09:00");
+    const scheduledFrom = utcDateTimeLocalDaysFromNow(30);
+    await createdCard.getByLabel("Effective from (UTC)").fill(scheduledFrom);
     await createdCard.getByRole("button", { name: "Add price" }).click();
 
     await expect
@@ -113,7 +121,7 @@ test("manages admin fee, VAT, and add-on rate windows", async ({ context, page }
       .toMatchObject({
         body: {
           amount: 20_000,
-          effectiveSince: "2027-04-01T09:00:00.000Z",
+          effectiveSince: `${scheduledFrom}:00.000Z`,
         },
         method: "POST",
       });
@@ -144,6 +152,40 @@ test("manages admin fee, VAT, and add-on rate windows", async ({ context, page }
       });
     await expect(protocolCard.getByRole("button", { name: "End now" })).toHaveCount(0);
     await expect(currentPrice.getByText("Ended", { exact: true })).toBeVisible();
+  } finally {
+    await stopMockAdminAuthApi(api);
+  }
+});
+
+test("shows an error when ending an add-on price fails", async ({ context, page }) => {
+  const api = await startMockAdminAuthApi();
+
+  try {
+    api.failEndPrice.current = true;
+    await addAdminSession(context);
+    await page.goto("/admin/addon-rates");
+    await expect(page.getByRole("heading", { name: "Add-ons", exact: true }).last()).toBeVisible();
+
+    const protocolCard = page.locator("[data-slot=card]").filter({ hasText: "Protocol service" });
+    await protocolCard.getByText("Prices (1)").click();
+    await protocolCard.getByRole("button", { name: "End now" }).click();
+    await page.getByRole("button", { name: "End price" }).click();
+
+    await expect
+      .poll(() => api.requests.addonActions[0])
+      .toEqual({
+        body: null,
+        method: "PATCH",
+        path: `/api/admin/addons/${MOCK_ADDON_ID}/prices/${MOCK_ADDON_PRICE_ID}/end`,
+      });
+    await expect(protocolCard.getByText("Price not ended")).toBeVisible();
+    await expect(protocolCard.getByText("This add-on price has already ended")).toBeVisible();
+    await expect(protocolCard.getByRole("button", { name: "End now" })).toBeVisible();
+    await expect(
+      protocolCard.getByRole("listitem").filter({ hasText: "₦15,000" }).getByText("Active", {
+        exact: true,
+      }),
+    ).toBeVisible();
   } finally {
     await stopMockAdminAuthApi(api);
   }

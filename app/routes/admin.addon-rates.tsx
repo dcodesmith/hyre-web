@@ -162,7 +162,7 @@ async function endPriceAction(request: Request, formData: FormData) {
   } catch (error) {
     const { message, status } = actionError(error, "Unable to end the price.");
     return data<AddonActionData>(
-      { intent: "end-price", error: message },
+      { intent: "end-price", error: message, revalidate: false },
       { status, headers: NO_STORE },
     );
   }

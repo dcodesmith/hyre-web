@@ -108,30 +108,36 @@ function EndPriceButton({
   const fetcher = useFetcher<AddonActionData>();
 
   return (
-    <AlertDialog>
-      <AlertDialogTrigger asChild>
-        <Button type="button" size="sm" variant="outline" disabled={fetcher.state !== "idle"}>
-          End now
-        </Button>
-      </AlertDialogTrigger>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>End this price now?</AlertDialogTitle>
-          <AlertDialogDescription>
-            New bookings will stop using this price immediately.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>Keep price</AlertDialogCancel>
-          <fetcher.Form method="post">
-            <input type="hidden" name="intent" value="end-price" />
-            <input type="hidden" name="addonId" value={addonId} />
-            <input type="hidden" name="priceId" value={priceId} />
-            <AlertDialogAction type="submit">End price</AlertDialogAction>
-          </fetcher.Form>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+    <div className="max-w-xs space-y-2">
+      <AlertDialog>
+        <AlertDialogTrigger asChild>
+          <Button type="button" size="sm" variant="outline" disabled={fetcher.state !== "idle"}>
+            End now
+          </Button>
+        </AlertDialogTrigger>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>End this price now?</AlertDialogTitle>
+            <AlertDialogDescription>
+              New bookings will stop using this price immediately.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep price</AlertDialogCancel>
+            <fetcher.Form method="post">
+              <input type="hidden" name="intent" value="end-price" />
+              <input type="hidden" name="addonId" value={addonId} />
+              <input type="hidden" name="priceId" value={priceId} />
+              <AlertDialogAction type="submit">End price</AlertDialogAction>
+            </fetcher.Form>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <AddonActionFeedback
+        data={fetcher.data}
+        title={fetcher.data?.error ? "Price not ended" : "Price ended"}
+      />
+    </div>
   );
 }
 

@@ -30,6 +30,7 @@ type CapturedCarAction = {
 
 export type MockAdminAuthApi = {
   server: Server;
+  failEndPrice: { current: boolean };
   requests: {
     carActions: CapturedCarAction[];
     carListQuery?: string;
@@ -561,6 +562,7 @@ async function handleAdminAddonRequest(
   url: URL,
   requests: MockAdminAuthApi["requests"],
   catalog: MockAdminAddons,
+  failEndPrice: MockAdminAuthApi["failEndPrice"],
 ) {
   const path = url.pathname;
   const updateMatch = /^\/api\/admin\/addons\/([^/]+)$/.exec(path);
@@ -612,6 +614,17 @@ async function handleAdminAddonRequest(
 
   if (request.method === "PATCH" && endPriceMatch) {
     requests.addonActions.push({ body: null, method: request.method, path });
+    if (failEndPrice.current) {
+      writeJson(response, 409, {
+        type: "https://api.tripdly.com/problems/addon-price-cannot-end",
+        title: "Add-on Price Cannot End",
+        status: 409,
+        detail: "This add-on price has already ended",
+        instance: path,
+        errorCode: "ADDON_PRICE_CANNOT_END",
+      });
+      return true;
+    }
     writeEndedAdminAddonPrice(
       response,
       catalog.addons.find((item) => item.id === endPriceMatch[1]),
@@ -904,6 +917,7 @@ export async function startMockAdminAuthApi(
   };
   const rates = structuredClone(mockAdminRates);
   const addons = structuredClone(mockAdminAddons);
+  const failEndPrice = { current: false };
   const staff = structuredClone<MockAdminStaff[]>([mockAdminStaff, mockRevokedStaff]);
   const financials: MockAdminFinancials = {
     refund: { ...structuredClone(mockAdminRefund), refundProviderId },
@@ -928,7 +942,7 @@ export async function startMockAdminAuthApi(
         financials,
       )) ||
       (await handleAdminStaffRequest(request, response, url, requests, sessionRole, staff)) ||
-      (await handleAdminAddonRequest(request, response, url, requests, addons));
+      (await handleAdminAddonRequest(request, response, url, requests, addons, failEndPrice));
     if (handledAdminRequest) {
       return;
     }
@@ -985,7 +999,7 @@ export async function startMockAdminAuthApi(
   });
 
   await listenOnMockApiPort(server, port);
-  return { server, requests };
+  return { server, requests, failEndPrice };
 }
 
 export function stopMockAdminAuthApi(api: MockAdminAuthApi) {
