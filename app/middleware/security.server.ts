@@ -21,20 +21,38 @@ export const PRIVATE_PATH_PREFIXES = [
   "/verify",
 ] as const;
 
-const CONTENT_SECURITY_POLICY = [
-  "default-src 'self'",
-  "base-uri 'self'",
-  "connect-src 'self' ws: wss:",
-  "font-src 'self' https://fonts.gstatic.com",
-  "form-action 'self'",
-  "frame-ancestors 'self'",
-  "img-src 'self' data: blob: https://*.s3.eu-west-1.amazonaws.com https://*.s3.eu-west-2.amazonaws.com",
-  "object-src 'none'",
-  "script-src 'self' 'unsafe-inline'",
-  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-].join("; ");
-
 export type DeploymentEnvironment = "development" | "local" | "preview" | "production";
+
+const DEVELOPMENT_R2_IMAGE_SOURCE = "https://pub-7f459f6039f54e9b896f12bc832985f5.r2.dev";
+const ENVIRONMENTS_WITH_DEVELOPMENT_R2_IMAGES = new Set<DeploymentEnvironment>([
+  "development",
+  "local",
+  "preview",
+]);
+
+function contentSecurityPolicy(environment: DeploymentEnvironment) {
+  const imageSources = [
+    "'self'",
+    "data:",
+    "blob:",
+    ...(ENVIRONMENTS_WITH_DEVELOPMENT_R2_IMAGES.has(environment)
+      ? [DEVELOPMENT_R2_IMAGE_SOURCE]
+      : []),
+  ];
+
+  return [
+    "default-src 'self'",
+    "base-uri 'self'",
+    "connect-src 'self' ws: wss:",
+    "font-src 'self' https://fonts.gstatic.com",
+    "form-action 'self'",
+    "frame-ancestors 'self'",
+    `img-src ${imageSources.join(" ")}`,
+    "object-src 'none'",
+    "script-src 'self' 'unsafe-inline'",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  ].join("; ");
+}
 
 export type PreparedRequest = {
   request: Request;
@@ -114,7 +132,7 @@ export function applyResponsePolicy(
   if (options.deploymentCommit && SAFE_DEPLOYMENT_COMMIT.test(options.deploymentCommit)) {
     headers.set("X-Commit-SHA", options.deploymentCommit);
   }
-  headers.set("Content-Security-Policy", CONTENT_SECURITY_POLICY);
+  headers.set("Content-Security-Policy", contentSecurityPolicy(options.environment));
   headers.set("Cross-Origin-Opener-Policy", "same-origin");
   headers.set("Cross-Origin-Resource-Policy", "same-origin");
   headers.set("Permissions-Policy", "camera=(), geolocation=(), microphone=()");

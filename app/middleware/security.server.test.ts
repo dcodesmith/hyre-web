@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import { HTTP_STATUS } from "~/api/http-status";
-import { applyResponsePolicy, prepareRequest, validateMutationOrigin } from "./security.server";
+import {
+  applyResponsePolicy,
+  type DeploymentEnvironment,
+  prepareRequest,
+  validateMutationOrigin,
+} from "./security.server";
 
 describe("prepareRequest", () => {
   it("preserves a safe incoming request ID", () => {
@@ -95,13 +100,56 @@ describe("applyResponsePolicy", () => {
     expect(response.headers.get("x-commit-sha")).toBe("a".repeat(40));
     expect(response.headers.get("content-security-policy")).toContain("default-src 'self'");
     expect(response.headers.get("content-security-policy")).toContain(
-      "img-src 'self' data: blob: https://*.s3.eu-west-1.amazonaws.com https://*.s3.eu-west-2.amazonaws.com",
+      "img-src 'self' data: blob: https://pub-7f459f6039f54e9b896f12bc832985f5.r2.dev",
     );
+    expect(response.headers.get("content-security-policy")).not.toContain("amazonaws.com");
     expect(response.headers.get("strict-transport-security")).toContain("max-age=31536000");
     expect(response.headers.get("x-content-type-options")).toBe("nosniff");
     expect(response.headers.get("x-robots-tag")).toBe("noindex, nofollow, noarchive");
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect(response.headers.get("server-timing")).toBe("app;dur=12.3");
+  });
+
+  it("allows the development R2 image host only for documented non-production APP_ENV values", () => {
+    const developmentR2Host = "https://pub-7f459f6039f54e9b896f12bc832985f5.r2.dev";
+    const developmentImgSrc = `img-src 'self' data: blob: ${developmentR2Host}`;
+    const policyCsp = (environment: DeploymentEnvironment) =>
+      applyResponsePolicy(new Request("https://hyre.example/"), new Response(null), {
+        environment,
+        requestId: "request-123",
+      }).headers.get("content-security-policy") ?? "";
+    const imgSrcSources = (csp: string) => {
+      const imgSrc = csp.split("; ").find((directive) => directive.startsWith("img-src "));
+
+      expect(imgSrc).toEqual(expect.stringMatching(/^img-src /));
+      return imgSrc ? imgSrc.slice("img-src ".length).split(" ") : [];
+    };
+
+    for (const environment of ["local", "development", "preview"] as const) {
+      const csp = policyCsp(environment);
+      const sources = imgSrcSources(csp);
+
+      expect(csp).toContain(developmentImgSrc);
+      expect(csp).not.toContain("amazonaws.com");
+      expect(sources).toContain(developmentR2Host);
+      expect(sources).not.toContain("https:");
+      expect(sources).not.toContain("*.r2.dev");
+      expect(csp).not.toContain("*.r2.dev");
+    }
+
+    const productionCsp = policyCsp("production");
+    const productionSources = imgSrcSources(productionCsp);
+
+    expect(productionSources).toEqual(["'self'", "data:", "blob:"]);
+    expect(productionCsp).not.toContain("amazonaws.com");
+    expect(productionCsp).not.toContain(developmentR2Host);
+    expect(productionCsp).not.toContain("*.r2.dev");
+
+    const unknownEnvironmentCsp = policyCsp("staging" as DeploymentEnvironment);
+
+    expect(unknownEnvironmentCsp).not.toContain("amazonaws.com");
+    expect(unknownEnvironmentCsp).not.toContain(developmentR2Host);
+    expect(imgSrcSources(unknownEnvironmentCsp)).toEqual(["'self'", "data:", "blob:"]);
   });
 
   it("omits unsafe deployment metadata headers", () => {
