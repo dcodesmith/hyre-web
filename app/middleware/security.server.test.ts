@@ -100,8 +100,9 @@ describe("applyResponsePolicy", () => {
     expect(response.headers.get("x-commit-sha")).toBe("a".repeat(40));
     expect(response.headers.get("content-security-policy")).toContain("default-src 'self'");
     expect(response.headers.get("content-security-policy")).toContain(
-      "img-src 'self' data: blob: https://*.s3.eu-west-1.amazonaws.com https://*.s3.eu-west-2.amazonaws.com https://pub-7f459f6039f54e9b896f12bc832985f5.r2.dev",
+      "img-src 'self' data: blob: https://pub-7f459f6039f54e9b896f12bc832985f5.r2.dev",
     );
+    expect(response.headers.get("content-security-policy")).not.toContain("amazonaws.com");
     expect(response.headers.get("strict-transport-security")).toContain("max-age=31536000");
     expect(response.headers.get("x-content-type-options")).toBe("nosniff");
     expect(response.headers.get("x-robots-tag")).toBe("noindex, nofollow, noarchive");
@@ -111,7 +112,8 @@ describe("applyResponsePolicy", () => {
 
   it("allows the development R2 image host only for documented non-production APP_ENV values", () => {
     const developmentR2Host = "https://pub-7f459f6039f54e9b896f12bc832985f5.r2.dev";
-    const s3ImgSrc =
+    const developmentImgSrc = `img-src 'self' data: blob: ${developmentR2Host}`;
+    const productionImgSrc =
       "img-src 'self' data: blob: https://*.s3.eu-west-1.amazonaws.com https://*.s3.eu-west-2.amazonaws.com";
     const policyCsp = (environment: DeploymentEnvironment) =>
       applyResponsePolicy(new Request("https://hyre.example/"), new Response(null), {
@@ -129,7 +131,8 @@ describe("applyResponsePolicy", () => {
       const csp = policyCsp(environment);
       const sources = imgSrcSources(csp);
 
-      expect(csp).toContain(`${s3ImgSrc} ${developmentR2Host}`);
+      expect(csp).toContain(developmentImgSrc);
+      expect(csp).not.toContain("amazonaws.com");
       expect(sources).toContain(developmentR2Host);
       expect(sources).not.toContain("https:");
       expect(sources).not.toContain("*.r2.dev");
@@ -139,7 +142,7 @@ describe("applyResponsePolicy", () => {
     const productionCsp = policyCsp("production");
     const productionSources = imgSrcSources(productionCsp);
 
-    expect(productionCsp).toContain(s3ImgSrc);
+    expect(productionCsp).toContain(productionImgSrc);
     expect(productionCsp).not.toContain(developmentR2Host);
     expect(productionSources).not.toContain(developmentR2Host);
     expect(productionSources).not.toContain("https:");
@@ -147,9 +150,9 @@ describe("applyResponsePolicy", () => {
 
     const unknownEnvironmentCsp = policyCsp("staging" as DeploymentEnvironment);
 
-    expect(unknownEnvironmentCsp).toContain(s3ImgSrc);
+    expect(unknownEnvironmentCsp).not.toContain("amazonaws.com");
     expect(unknownEnvironmentCsp).not.toContain(developmentR2Host);
-    expect(imgSrcSources(unknownEnvironmentCsp)).not.toContain("https:");
+    expect(imgSrcSources(unknownEnvironmentCsp)).toEqual(["'self'", "data:", "blob:"]);
   });
 
   it("omits unsafe deployment metadata headers", () => {

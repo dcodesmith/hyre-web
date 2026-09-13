@@ -24,6 +24,10 @@ export const PRIVATE_PATH_PREFIXES = [
 export type DeploymentEnvironment = "development" | "local" | "preview" | "production";
 
 const DEVELOPMENT_R2_IMAGE_SOURCE = "https://pub-7f459f6039f54e9b896f12bc832985f5.r2.dev";
+const PRODUCTION_S3_IMAGE_SOURCES = [
+  "https://*.s3.eu-west-1.amazonaws.com",
+  "https://*.s3.eu-west-2.amazonaws.com",
+] as const;
 const ENVIRONMENTS_WITH_DEVELOPMENT_R2_IMAGES = new Set<DeploymentEnvironment>([
   "development",
   "local",
@@ -35,8 +39,7 @@ function contentSecurityPolicy(environment: DeploymentEnvironment) {
     "'self'",
     "data:",
     "blob:",
-    "https://*.s3.eu-west-1.amazonaws.com",
-    "https://*.s3.eu-west-2.amazonaws.com",
+    ...(environment === "production" ? PRODUCTION_S3_IMAGE_SOURCES : []),
     ...(ENVIRONMENTS_WITH_DEVELOPMENT_R2_IMAGES.has(environment)
       ? [DEVELOPMENT_R2_IMAGE_SOURCE]
       : []),
