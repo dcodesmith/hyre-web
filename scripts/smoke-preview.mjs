@@ -40,17 +40,17 @@ if (
 const requestId = `smoke-${Date.now()}`;
 const healthRequestId = `${requestId}-health`;
 const rejectedMutationRequestId = `${requestId}-cross-origin`;
-const [response, healthResponse, rejectedMutationResponse] = await Promise.all([
+const [home, apiHealth, rejectedMutationResponse] = await Promise.all([
   fetchWithRetry(
     origin,
     {
       headers: { "x-request-id": requestId },
     },
     hasExpectedDeploymentMetadata,
-  ),
+  ).then(async (response) => ({ response, html: await response.text() })),
   fetchWithRetry(new URL("/health", apiOrigin), {
     headers: { "x-request-id": healthRequestId },
-  }),
+  }).then(async (response) => ({ response, health: await response.json() })),
   fetchWithRetry(origin, {
     method: "POST",
     headers: {
@@ -60,7 +60,8 @@ const [response, healthResponse, rejectedMutationResponse] = await Promise.all([
     },
   }),
 ]);
-const html = await response.text();
+const { response, html } = home;
+const { response: healthResponse, health } = apiHealth;
 
 assert(response.status === 200, `Expected home status 200, received ${response.status}`);
 assert(response.headers.get("content-type")?.includes("text/html"), "Home response is not HTML");
@@ -113,7 +114,6 @@ assert(
   healthResponse.status === 200,
   `Expected API health status 200, received ${healthResponse.status}`,
 );
-const health = await healthResponse.json();
 assert(health?.status === "ok", "API health response is not healthy");
 assert(
   healthResponse.headers.get("x-request-id") === healthRequestId,

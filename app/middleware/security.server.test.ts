@@ -113,8 +113,6 @@ describe("applyResponsePolicy", () => {
   it("allows the development R2 image host only for documented non-production APP_ENV values", () => {
     const developmentR2Host = "https://pub-7f459f6039f54e9b896f12bc832985f5.r2.dev";
     const developmentImgSrc = `img-src 'self' data: blob: ${developmentR2Host}`;
-    const productionImgSrc =
-      "img-src 'self' data: blob: https://*.s3.eu-west-1.amazonaws.com https://*.s3.eu-west-2.amazonaws.com";
     const policyCsp = (environment: DeploymentEnvironment) =>
       applyResponsePolicy(new Request("https://hyre.example/"), new Response(null), {
         environment,
@@ -142,10 +140,9 @@ describe("applyResponsePolicy", () => {
     const productionCsp = policyCsp("production");
     const productionSources = imgSrcSources(productionCsp);
 
-    expect(productionCsp).toContain(productionImgSrc);
+    expect(productionSources).toEqual(["'self'", "data:", "blob:"]);
+    expect(productionCsp).not.toContain("amazonaws.com");
     expect(productionCsp).not.toContain(developmentR2Host);
-    expect(productionSources).not.toContain(developmentR2Host);
-    expect(productionSources).not.toContain("https:");
     expect(productionCsp).not.toContain("*.r2.dev");
 
     const unknownEnvironmentCsp = policyCsp("staging" as DeploymentEnvironment);
