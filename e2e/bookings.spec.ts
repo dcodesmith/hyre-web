@@ -3,6 +3,8 @@ import { expect, type Page, test } from "@playwright/test";
 import { clickUntilVisible } from "./click-until";
 
 const consentKey = "tripdly-cookie-consent:v1";
+const VISUAL_BOOKING_ID = "018f47a2-7b3c-7d4e-8f90-123456789406";
+const VISUAL_COMPLETED_BOOKING_ID = "018f47a2-7b3c-7d4e-8f90-123456789404";
 
 async function setCookiePreference(page: Page) {
   await page.addInitScript((key) => {
@@ -65,7 +67,7 @@ test("renders the booking detail fixture", async ({ page }) => {
   await expect(page.getByText("Total Amount")).toBeVisible();
   await expect(page.getByRole("link", { name: "Download Receipt" })).toHaveAttribute(
     "href",
-    "/bookings/booking-detail-1/receipt",
+    `/bookings/${VISUAL_BOOKING_ID}/receipt`,
   );
   await expect(page.getByRole("heading", { name: "Share Your Experience" })).toBeVisible();
   await page.getByRole("button", { name: "Write a Review" }).click();
@@ -227,7 +229,7 @@ test("sends a list fixture row to login for its booking", async ({ page }) => {
   await expect(page).toHaveURL((url) => {
     return (
       url.pathname === "/auth" &&
-      url.searchParams.get("redirectTo") === "/bookings/booking-completed-1"
+      url.searchParams.get("redirectTo") === `/bookings/${VISUAL_COMPLETED_BOOKING_ID}`
     );
   });
 });

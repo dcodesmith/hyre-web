@@ -2,7 +2,7 @@ import { createServer, type IncomingMessage, type Server } from "node:http";
 
 import { closeMockApiServer, listenOnMockApiPort } from "./mock-http-server";
 
-export const MOCK_GUEST_BOOKING_ID = "guest-booking-e2e";
+export const MOCK_GUEST_BOOKING_ID = "018f47a2-7b3c-7d4e-8f90-123456789901";
 export const MOCK_GUEST_BOOKING_TOKEN = "a".repeat(43);
 
 export type MockGuestBookingApi = {

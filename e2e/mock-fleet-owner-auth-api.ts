@@ -374,7 +374,10 @@ export type CapturedAuthRequest = {
   referer?: string;
 };
 
-export const MOCK_APPROVED_CHAUFFEUR_ID = "chauffeur-01";
+export const MOCK_APPROVED_CHAUFFEUR_ID = "018f47a2-7b3c-7d4e-8f90-123456789a01";
+export const MOCK_FIRST_PAYOUT_ID = fixtureUuid(3_001);
+export const MOCK_LAST_PAYOUT_ID = fixtureUuid(3_021);
+export const MOCK_FIRST_PROMOTION_ID = fixtureUuid(6_000);
 
 type MockFleetChauffeur = {
   id: string;
