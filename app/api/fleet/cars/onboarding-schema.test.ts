@@ -7,7 +7,7 @@ import {
 import { fleetCarSchema } from "./schema";
 
 const succeededVehicleVerification = {
-  id: "ver-1",
+  id: "018f47a2-7b3c-7d4e-8f90-1234567894f5",
   status: "SUCCEEDED",
   vehicle: {
     plateNumber: "KJA123AB",
@@ -24,14 +24,15 @@ const succeededVehicleVerification = {
 };
 
 const fleetCar = {
-  id: "cm12345678901234567890123",
+  id: "018f47a2-7b3c-7d4e-8f90-123456789101",
+  publicRef: "0123456789abc101",
   make: "Toyota",
   model: "Camry",
   year: 2020,
   createdAt: "2026-08-01T10:00:00.000Z",
   updatedAt: "2026-08-20T10:00:00.000Z",
   color: "Black",
-  ownerId: "owner-1",
+  ownerId: "018f47a2-7b3c-7d4e-8f90-123456789461",
   registrationNumber: "KJA123AB",
   status: "HOLD",
   approvalStatus: "PENDING",
@@ -48,7 +49,7 @@ const fleetCar = {
   passengerCapacity: 5,
   pricingIncludesFuel: false,
   owner: {
-    id: "owner-1",
+    id: "018f47a2-7b3c-7d4e-8f90-123456789461",
     name: "Fleet Owner",
     username: null,
     email: "owner@example.com",
@@ -114,8 +115,8 @@ describe("fleet car onboarding API schemas", () => {
 
   it("parses insurance verification including nullable policy fields", () => {
     const succeeded = {
-      id: "ins-1",
-      carId: "car-1",
+      id: "018f47a2-7b3c-7d4e-8f90-1234567894f1",
+      carId: "018f47a2-7b3c-7d4e-8f90-123456789471",
       status: "SUCCEEDED",
       policyNumber: "POL-12345",
       policyStatus: "Active",

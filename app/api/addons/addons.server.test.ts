@@ -15,7 +15,7 @@ import { getPublicAddons } from "./addons.server";
 const addons = {
   addons: [
     {
-      id: "cmaddonprotocol0000000001",
+      id: "018f47a2-7b3c-7d4e-8f90-1234567890b1",
       code: "PROTOCOL_SERVICE",
       name: "Protocol service",
       description: "Dedicated protocol officer",

@@ -21,8 +21,8 @@ import { HTTP_STATUS } from "~/api/http-status";
 import type { Route } from "./+types/admin.addon-rates";
 import { action, shouldRevalidate } from "./admin.addon-rates";
 
-const ADDON_ID = "cmaddonprotocol0000000001";
-const PRICE_ID = "cmaddonprice0000000000001";
+const ADDON_ID = "018f47a2-7b3c-7d4e-8f90-1234567890b1";
+const PRICE_ID = "018f47a2-7b3c-7d4e-8f90-1234567890c1";
 
 function actionArgs(form: Record<string, string>): Route.ActionArgs {
   const body = new FormData();

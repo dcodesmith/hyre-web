@@ -23,13 +23,13 @@ function pricingPreviewRequestKey(searchParams: URLSearchParams) {
 
 const booleanParamSchema = z.enum(["true", "false"]).transform((value) => value === "true");
 const pricingPreviewSearchSchema = z.object({
-  carId: z.string().trim().min(1),
+  carId: z.uuid(),
   bookingType: z.enum(BOOKING_TYPE_OPTIONS),
   startDate: z.iso.datetime({ offset: true }),
   endDate: z.iso.datetime({ offset: true }),
   pickupTime: z.string().trim().min(1),
   addonIds: z
-    .array(z.string().cuid())
+    .array(z.uuid())
     .max(10)
     .refine((ids) => new Set(ids).size === ids.length),
   requiresFullTank: booleanParamSchema,

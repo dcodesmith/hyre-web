@@ -42,7 +42,7 @@ describe("booking pricing preview resource", () => {
   it("returns the API-owned payable total for complete booking input", async () => {
     previewBookingPricing.mockResolvedValue({ data: preview });
     const params = new URLSearchParams({
-      carId: "car-1",
+      carId: "018f47a2-7b3c-7d4e-8f90-123456789471",
       bookingType: "DAY",
       startDate: "2026-09-01T08:00:00.000Z",
       endDate: "2026-09-01T20:00:00.000Z",
@@ -71,7 +71,7 @@ describe("booking pricing preview resource", () => {
   it("strips React Router fetcher params from the echoed request key", async () => {
     previewBookingPricing.mockResolvedValue({ data: preview });
     const params = new URLSearchParams({
-      carId: "car-1",
+      carId: "018f47a2-7b3c-7d4e-8f90-123456789471",
       bookingType: "DAY",
       startDate: "2026-09-01T08:00:00.000Z",
       endDate: "2026-09-01T20:00:00.000Z",
@@ -87,7 +87,7 @@ describe("booking pricing preview resource", () => {
     expect(result).toMatchObject({
       data: {
         requestKey:
-          "carId=car-1&bookingType=DAY&startDate=2026-09-01T08%3A00%3A00.000Z&endDate=2026-09-01T20%3A00%3A00.000Z&pickupTime=9+AM&requiresFullTank=false&useCredits=0",
+          "carId=018f47a2-7b3c-7d4e-8f90-123456789471&bookingType=DAY&startDate=2026-09-01T08%3A00%3A00.000Z&endDate=2026-09-01T20%3A00%3A00.000Z&pickupTime=9+AM&requiresFullTank=false&useCredits=0",
         preview,
         error: null,
       },
@@ -96,7 +96,7 @@ describe("booking pricing preview resource", () => {
 
   it("rejects malformed preview parameters before calling the API", async () => {
     const params = new URLSearchParams({
-      carId: "car-1",
+      carId: "018f47a2-7b3c-7d4e-8f90-123456789471",
       bookingType: "DAY",
       startDate: "not-a-date",
       endDate: "2026-09-01T20:00:00.000Z",
@@ -117,9 +117,9 @@ describe("booking pricing preview resource", () => {
 
   it("forwards unique addonIds and rejects invalid ones", async () => {
     previewBookingPricing.mockResolvedValue({ data: preview });
-    const addonId = "cmaddonprotocol0000000001";
+    const addonId = "018f47a2-7b3c-7d4e-8f90-1234567890b1";
     const params = new URLSearchParams({
-      carId: "car-1",
+      carId: "018f47a2-7b3c-7d4e-8f90-123456789471",
       bookingType: "DAY",
       startDate: "2026-09-01T08:00:00.000Z",
       endDate: "2026-09-01T20:00:00.000Z",

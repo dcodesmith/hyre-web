@@ -3,7 +3,7 @@ import { z } from "zod";
 export const platformFeeTypeSchema = z.enum(["PLATFORM_SERVICE_FEE", "FLEET_OWNER_COMMISSION"]);
 
 const rateWindowSchema = z.object({
-  id: z.string(),
+  id: z.uuid(),
   effectiveSince: z.iso.datetime(),
   effectiveUntil: z.iso.datetime().nullable(),
   description: z.string().nullable(),

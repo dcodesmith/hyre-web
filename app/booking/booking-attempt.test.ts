@@ -4,7 +4,7 @@ import { resolveBookingAttempt } from "./booking-attempt";
 
 function bookingFormData(total = "120000.00") {
   const formData = new FormData();
-  formData.set("carId", "car-1");
+  formData.set("carId", "018f47a2-7b3c-7d4e-8f90-123456789471");
   formData.set("expectedTotalAmount", total);
   formData.set("name", "Ada Lovelace");
   return formData;

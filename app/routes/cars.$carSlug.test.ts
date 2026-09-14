@@ -44,7 +44,8 @@ import { ApiRequestError } from "~/api/api.server";
 import { generateCarSlug } from "~/car/paths";
 import { action, loader } from "./cars.$carSlug";
 
-const CAR_ID = "cmmz4f7x00000l804jj2d6ikn";
+const CAR_ID = "018f47a2-7b3c-7d4e-8f90-1234567890ab";
+const PUBLIC_REF = "0123456789abcdef";
 const IDEMPOTENCY_KEY = "18aa029c-4bb1-4ca7-b25e-cfc802c4bf8c";
 
 const pricing = {
@@ -94,11 +95,11 @@ function bookingForm(guest = false) {
 
 function runAction(form: FormData) {
   return action({
-    request: new Request(`https://tripdly.com/cars/lexus-${CAR_ID}`, {
+    request: new Request(`https://tripdly.com/cars/lexus--${PUBLIC_REF}`, {
       method: "POST",
       body: form,
     }),
-    params: { carSlug: `lexus-${CAR_ID}` },
+    params: { carSlug: `lexus--${PUBLIC_REF}` },
     context: {},
   } as never);
 }
@@ -106,9 +107,10 @@ function runAction(form: FormData) {
 describe("car booking action", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    getPublicCar.mockResolvedValue({ data: { id: CAR_ID }, headers: new Headers() });
     createBooking.mockResolvedValue({
       data: {
-        bookingId: "booking-1",
+        bookingId: "018f47a2-7b3c-7d4e-8f90-123456789401",
         txRef: "tx-1",
         checkoutUrl: "https://checkout.flutterwave.test/pay",
         totalAmount: 112875,
@@ -137,6 +139,11 @@ describe("car booking action", () => {
         }),
       }),
     );
+    expect(getPublicCar).toHaveBeenCalledWith({
+      request: expect.any(Request),
+      publicRef: PUBLIC_REF,
+      from: "2026-09-01",
+    });
     expect(response).toBeInstanceOf(Response);
     expect((response as Response).status).toBe(302);
     expect((response as Response).headers.get("Location")).toBe(
@@ -163,11 +170,24 @@ describe("car booking action", () => {
   it("forwards selected add-on ids on create", async () => {
     readAuthUser.mockResolvedValue({ email: "ada@example.com", name: "Ada" });
     const form = bookingForm();
-    form.append("addonIds", "cmaddonprotocol0000000001");
+    form.append("addonIds", "018f47a2-7b3c-7d4e-8f90-1234567890b1");
 
     await runAction(form).catch(() => undefined);
 
-    expect(createBooking.mock.calls[0][0].body.addonIds).toEqual(["cmaddonprotocol0000000001"]);
+    expect(createBooking.mock.calls[0][0].body.addonIds).toEqual([
+      "018f47a2-7b3c-7d4e-8f90-1234567890b1",
+    ]);
+  });
+
+  it("rejects a submitted car UUID that does not match the public ref", async () => {
+    readAuthUser.mockResolvedValue({ email: "ada@example.com", name: "Ada" });
+    const form = bookingForm();
+    form.set("carId", "018f47a2-7b3c-7d4e-8f90-1234567890ff");
+
+    const result = await runAction(form);
+
+    expect(result).toMatchObject({ init: { status: 400 } });
+    expect(createBooking).not.toHaveBeenCalled();
   });
 
   it("returns revised pricing and retry metadata instead of silently accepting a change", async () => {
@@ -207,7 +227,7 @@ describe("car booking action", () => {
     readAuthUser.mockResolvedValue(null);
     createBooking.mockResolvedValue({
       data: {
-        bookingId: "booking-1",
+        bookingId: "018f47a2-7b3c-7d4e-8f90-123456789401",
         txRef: "tx-1",
         checkoutUrl: "https://checkout.flutterwave.test/pay",
         totalAmount: 112875,
@@ -229,6 +249,7 @@ describe("car booking action", () => {
 
 const publicCar = {
   id: CAR_ID,
+  publicRef: PUBLIC_REF,
   make: "Lexus",
   model: "UX F-Sport",
   year: 2019,
@@ -255,9 +276,9 @@ const publicRates = {
   vatRatePercent: 7.5,
 };
 
-function runLoader(slug = generateCarSlug(publicCar)) {
+function runLoader(slug = generateCarSlug(publicCar), search = "") {
   return loader({
-    request: new Request(`https://tripdly.com/cars/${slug}`),
+    request: new Request(`https://tripdly.com/cars/${slug}${search}`),
     params: { carSlug: slug },
     context: {},
   } as never);
@@ -275,6 +296,16 @@ describe("car detail loader", () => {
   it("returns public rates with the car", async () => {
     const result = await runLoader();
 
+    expect(getPublicCar).toHaveBeenCalledWith({
+      request: expect.any(Request),
+      publicRef: PUBLIC_REF,
+      from: null,
+    });
+    expect(getCarReviews).toHaveBeenCalledWith(
+      expect.objectContaining({
+        carId: CAR_ID,
+      }),
+    );
     expect(getPublicAddons).toHaveBeenCalledWith({
       request: expect.any(Request),
       bookingType: "DAY",
@@ -282,6 +313,27 @@ describe("car detail loader", () => {
     expect(result).toMatchObject({
       data: { car: publicCar, reviews: null, rates: publicRates, addons: [] },
     });
+  });
+
+  it("permanently redirects stale semantic text to current car data and preserves the query", async () => {
+    const response = await runLoader(`2018-red-old-make--${PUBLIC_REF}`, "?bookingType=DAY").catch(
+      (error: unknown) => error,
+    );
+
+    expect(response).toBeInstanceOf(Response);
+    expect((response as Response).status).toBe(301);
+    expect((response as Response).headers.get("Location")).toBe(
+      `/cars/${generateCarSlug(publicCar)}?bookingType=DAY`,
+    );
+    expect(getCarReviews).not.toHaveBeenCalled();
+  });
+
+  it("rejects malformed refs without calling the API", async () => {
+    await expect(runLoader("2019-black-lexus--0123456789abcde")).rejects.toMatchObject({
+      init: { status: 404 },
+    });
+
+    expect(getPublicCar).not.toHaveBeenCalled();
   });
 
   it("keeps the car page when public add-ons fail", async () => {

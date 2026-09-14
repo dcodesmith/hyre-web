@@ -16,7 +16,7 @@ export const inviteChauffeurFormSchema = z.object({
 });
 
 export const updateChauffeurFormSchema = z.object({
-  chauffeurId: z.string().min(1),
+  chauffeurId: z.uuid(),
   isActive: z.enum(["true", "false"]).transform((value) => value === "true"),
 });
 

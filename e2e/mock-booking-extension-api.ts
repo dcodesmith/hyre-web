@@ -18,7 +18,7 @@ export type MockBookingExtensionApi = {
 
 const mockBooking = {
   id: MOCK_EXTENSION_BOOKING_ID,
-  userId: "customer-e2e",
+  userId: "018f47a2-7b3c-7d4e-8f90-1234567894a4",
   bookingReference: "TD-EXT-001",
   status: "CONFIRMED",
   paymentStatus: "PAID",
@@ -106,7 +106,7 @@ export async function startMockBookingExtensionApi(port = 3100) {
     if (request.method === "GET" && requestPath === "/auth/session") {
       writeJson(response, 200, {
         user: {
-          id: "customer-e2e",
+          id: "018f47a2-7b3c-7d4e-8f90-1234567894a4",
           email: "customer@example.com",
           name: "Ada Customer",
           roles: ["user"],

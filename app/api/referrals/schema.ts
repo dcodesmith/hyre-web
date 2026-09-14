@@ -23,7 +23,7 @@ export const referralSummarySchema = z.object({
   }),
   referrals: z.array(
     z.object({
-      id: z.string(),
+      id: z.uuid(),
       name: z.string().nullable(),
       email: z.email(),
       createdAt: referralDateSchema,
@@ -31,7 +31,7 @@ export const referralSummarySchema = z.object({
   ),
   rewards: z.array(
     z.object({
-      id: z.string(),
+      id: z.uuid(),
       amount: z.number(),
       status: referralRewardStatusSchema,
       createdAt: referralDateSchema,

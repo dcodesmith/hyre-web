@@ -7,7 +7,7 @@ import { ChauffeurOnboardingPage } from "~/chauffeur/chauffeur-onboarding-page";
 const IDEMPOTENCY_KEY = "11111111-1111-4111-8111-111111111111";
 
 const invitedOnboarding = {
-  id: "chauffeur-1",
+  id: "018f47a2-7b3c-7d4e-8f90-1234567894a1",
   name: "Bola Adebayo",
   email: "bola@example.com",
   phoneNumber: "+2348012345678",

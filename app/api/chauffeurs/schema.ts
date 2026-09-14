@@ -15,7 +15,7 @@ export const chauffeurComplianceRequirementSchema = z.object({
 });
 
 export const chauffeurOnboardingSchema = z.object({
-  id: z.string(),
+  id: z.uuid(),
   name: z.string(),
   email: z.email(),
   phoneNumber: z.string(),
@@ -42,8 +42,8 @@ export const chauffeurPhoneVerificationSchema = z.object({
 });
 
 export const fleetOwnerChauffeurSchema = z.object({
-  id: z.string(),
-  chauffeurId: z.string().nullable(),
+  id: z.uuid(),
+  chauffeurId: z.uuid().nullable(),
   name: z.string(),
   email: z.email(),
   phoneNumber: z.string(),

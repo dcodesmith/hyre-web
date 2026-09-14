@@ -58,7 +58,7 @@ function carActionArgs(request: Request): CarRoute.ActionArgs {
     request,
     url: new URL(request.url),
     pattern: "/admin/cars/:carId",
-    params: { carId: "car-1" },
+    params: { carId: "018f47a2-7b3c-7d4e-8f90-123456789471" },
     context: new RouterContextProvider(),
   };
 }
@@ -68,7 +68,7 @@ function carLoaderArgs(request: Request): CarRoute.LoaderArgs {
     request,
     url: new URL(request.url),
     pattern: "/admin/cars/:carId",
-    params: { carId: "car-1" },
+    params: { carId: "018f47a2-7b3c-7d4e-8f90-123456789471" },
     context: new RouterContextProvider(),
   };
 }
@@ -78,7 +78,7 @@ function documentLoaderArgs(request: Request): DocumentRoute.LoaderArgs {
     request,
     url: new URL(request.url),
     pattern: "/admin/documents/:documentId",
-    params: { documentId: "document-1" },
+    params: { documentId: "018f47a2-7b3c-7d4e-8f90-123456789491" },
     context: new RouterContextProvider(),
   };
 }
@@ -143,15 +143,15 @@ describe("admin cars routes", () => {
           {
             documentType: "MOT_CERTIFICATE",
             documentUrl: "private/mot.pdf",
-            id: "document-1",
+            id: "018f47a2-7b3c-7d4e-8f90-123456789491",
             notes: null,
             status: "PENDING",
           },
         ],
-        id: "car-1",
+        id: "018f47a2-7b3c-7d4e-8f90-123456789471",
         images: [
           {
-            id: "image-1",
+            id: "018f47a2-7b3c-7d4e-8f90-123456789481",
             isPrimary: false,
             notes: null,
             status: "PENDING",
@@ -186,7 +186,7 @@ describe("admin cars routes", () => {
       method: "POST",
       body: new URLSearchParams({
         intent: "reject-image",
-        assetId: "image-1",
+        assetId: "018f47a2-7b3c-7d4e-8f90-123456789481",
         notes: "  Too dark  ",
       }),
     });
@@ -195,8 +195,8 @@ describe("admin cars routes", () => {
 
     expect(rejectAdminCarImage).toHaveBeenCalledWith({
       request,
-      carId: "car-1",
-      imageId: "image-1",
+      carId: "018f47a2-7b3c-7d4e-8f90-123456789471",
+      imageId: "018f47a2-7b3c-7d4e-8f90-123456789481",
       notes: "Too dark",
     });
     expect(result).toMatchObject({ data: { success: true } });
@@ -207,7 +207,7 @@ describe("admin cars routes", () => {
       method: "POST",
       body: new URLSearchParams({
         intent: "reject-document",
-        assetId: "document-1",
+        assetId: "018f47a2-7b3c-7d4e-8f90-123456789491",
         notes: " ",
       }),
     });
@@ -230,7 +230,10 @@ describe("admin cars routes", () => {
 
     await carAction(carActionArgs(request));
 
-    expect(approveAdminCar).toHaveBeenCalledWith({ request, carId: "car-1" });
+    expect(approveAdminCar).toHaveBeenCalledWith({
+      request,
+      carId: "018f47a2-7b3c-7d4e-8f90-123456789471",
+    });
   });
 
   it("streams a guarded API document without caching it", async () => {
@@ -249,7 +252,7 @@ describe("admin cars routes", () => {
 
     expect(getAdminDocument).toHaveBeenCalledWith({
       request,
-      documentId: "document-1",
+      documentId: "018f47a2-7b3c-7d4e-8f90-123456789491",
     });
     expect(response.headers.get("cache-control")).toBe("private, no-store");
     expect(response.headers.get("content-type")).toBe("application/pdf");

@@ -3,13 +3,13 @@ import { z } from "zod";
 const ratingSchema = z.number().int().min(1).max(5);
 
 const reviewUserSchema = z.object({
-  id: z.string(),
+  id: z.uuid(),
   name: z.string().nullable(),
   image: z.string().nullable(),
 });
 
 export const customerReviewSchema = z.object({
-  id: z.string(),
+  id: z.uuid(),
   overallRating: ratingSchema,
   carRating: ratingSchema,
   chauffeurRating: ratingSchema.nullable(),
@@ -22,7 +22,7 @@ export const customerReviewSchema = z.object({
 export const carReviewSchema = customerReviewSchema;
 
 export const reviewMutationResponseSchema = z.object({
-  id: z.string(),
+  id: z.uuid(),
 });
 
 export const reviewPaginationSchema = z.object({

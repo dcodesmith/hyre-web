@@ -48,7 +48,7 @@ const onboarding = {
 };
 const phoneVerification = { status: "PENDING", phoneNumber: "**********5678" };
 const identityVerification = {
-  id: "id-1",
+  id: "018f47a2-7b3c-7d4e-8f90-1234567894e1",
   status: "VERIFIED",
   accountType: "INDIVIDUAL",
   legalName: "JOHN MIDDLE DOE",
@@ -69,7 +69,7 @@ const drivingCredentials = {
   documents: { driversLicense: null, lasdri: null },
 };
 const accountVerification = {
-  id: "ver-1",
+  id: "018f47a2-7b3c-7d4e-8f90-1234567894f5",
   status: "SUCCEEDED",
   accountType: "INDIVIDUAL",
   isOwnerDriver: false,
@@ -179,7 +179,7 @@ describe("fleet-owner onboarding BFF", () => {
 
     await verifyFleetOwnerPayout({
       request,
-      idempotencyKey: "payout-1",
+      idempotencyKey: "018f47a2-7b3c-7d4e-8f90-1234567894f3",
       body: { bankName: "GTBank", bankCode: "058", accountNumber: "0123456789" },
     });
 
@@ -187,7 +187,7 @@ describe("fleet-owner onboarding BFF", () => {
     expect(url).toBe("https://api.example/api/fleet-owner/onboarding/payout-verifications");
     expect(init?.method).toBe("POST");
     expect(headers.get("cookie")).toBe("better-auth.session_token=session-1");
-    expect(headers.get("Idempotency-Key")).toBe("payout-1");
+    expect(headers.get("Idempotency-Key")).toBe("018f47a2-7b3c-7d4e-8f90-1234567894f3");
     expect(headers.get("content-type")).toBe("application/json");
     expect(JSON.parse(String(init?.body))).toEqual({
       bankName: "GTBank",

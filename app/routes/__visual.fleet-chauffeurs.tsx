@@ -7,8 +7,8 @@ const IDEMPOTENCY_KEY = "11111111-1111-4111-8111-111111111111";
 
 const fixtureChauffeurs = [
   {
-    id: "invite-1",
-    chauffeurId: "chauffeur-1",
+    id: "018f47a2-7b3c-7d4e-8f90-1234567894b1",
+    chauffeurId: "018f47a2-7b3c-7d4e-8f90-1234567894a1",
     name: "Bola Adebayo",
     email: "bola@example.com",
     phoneNumber: "+2348011111111",
@@ -18,8 +18,8 @@ const fixtureChauffeurs = [
     invitedAt: "2026-08-01T12:00:00.000Z",
   },
   {
-    id: "invite-2",
-    chauffeurId: "chauffeur-2",
+    id: "018f47a2-7b3c-7d4e-8f90-1234567894b2",
+    chauffeurId: "018f47a2-7b3c-7d4e-8f90-1234567894a2",
     name: "Chioma Okeke",
     email: "chioma@example.com",
     phoneNumber: "+2348022222222",
@@ -29,7 +29,7 @@ const fixtureChauffeurs = [
     invitedAt: "2026-08-08T12:00:00.000Z",
   },
   {
-    id: "invite-3",
+    id: "018f47a2-7b3c-7d4e-8f90-1234567894b3",
     chauffeurId: null,
     name: "Tunde Bakare",
     email: "tunde@example.com",

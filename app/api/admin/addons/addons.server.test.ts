@@ -23,7 +23,7 @@ const request = new Request("https://tripdly.com/admin/addon-rates", {
 });
 
 const addon = {
-  id: "cmaddonprotocol0000000001",
+  id: "018f47a2-7b3c-7d4e-8f90-1234567890b1",
   code: "PROTOCOL_SERVICE",
   name: "Protocol service",
   description: "Dedicated protocol officer",
@@ -31,20 +31,20 @@ const addon = {
   pricingUnit: "PER_BOOKING",
   financialTreatment: "PLATFORM",
   isActive: true,
-  createdById: "admin-1",
-  updatedById: "admin-1",
+  createdById: "018f47a2-7b3c-7d4e-8f90-123456789701",
+  updatedById: "018f47a2-7b3c-7d4e-8f90-123456789701",
   createdAt: "2026-01-01T00:00:00.000Z",
   updatedAt: "2026-01-01T00:00:00.000Z",
 };
 
 const price = {
-  id: "cmaddonprice0000000000001",
+  id: "018f47a2-7b3c-7d4e-8f90-1234567890c1",
   addonId: addon.id,
   amount: 15_000,
   effectiveSince: "2026-01-01T00:00:00.000Z",
   effectiveUntil: null,
-  createdById: "admin-1",
-  updatedById: "admin-1",
+  createdById: "018f47a2-7b3c-7d4e-8f90-123456789701",
+  updatedById: "018f47a2-7b3c-7d4e-8f90-123456789701",
   createdAt: "2026-01-01T00:00:00.000Z",
   updatedAt: "2026-01-01T00:00:00.000Z",
 };

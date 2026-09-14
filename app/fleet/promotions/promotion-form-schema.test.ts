@@ -35,10 +35,10 @@ describe("promotion form schemas", () => {
     ]);
   });
 
-  it("requires a CUID promotion id for deactivation", () => {
+  it("requires a UUID promotion id for deactivation", () => {
     expect(
       deactivatePromotionFormSchema.safeParse({
-        promotionId: "cm00000000000000000000001",
+        promotionId: "018f47a2-7b3c-7d4e-8f90-1234567890d1",
       }).success,
     ).toBe(true);
     expect(deactivatePromotionFormSchema.safeParse({ promotionId: "../promotion" }).success).toBe(

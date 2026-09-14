@@ -93,7 +93,11 @@ describe("admin authentication routes", () => {
     );
     verifySignInOtp.mockResolvedValue({
       data: {
-        user: { id: "staff-1", email: "staff@example.com", roles: ["staff"] },
+        user: {
+          id: "018f47a2-7b3c-7d4e-8f90-1234567894f4",
+          email: "staff@example.com",
+          roles: ["staff"],
+        },
       },
       status: 200,
       headers: apiHeaders,

@@ -2,11 +2,15 @@ import { createServer, type IncomingMessage, type Server } from "node:http";
 
 import { closeMockApiServer, listenOnMockApiPort } from "./mock-http-server";
 
-export const MOCK_FLEET_CAR_ID = "cm12345678901234567890123";
-export const MOCK_FLEET_DRAFT_CAR_ID = "cm62345678901234567890123";
-export const MOCK_FLEET_IMAGE_ID = "cm32345678901234567890123";
-export const MOCK_FLEET_DOCUMENT_ID = "cm42345678901234567890123";
-export const MOCK_VEHICLE_VERIFICATION_ID = "cm72345678901234567890123";
+function fixtureUuid(sequence: number) {
+  return `018f47a2-7b3c-7d4e-8f90-${String(sequence).padStart(12, "0")}`;
+}
+
+export const MOCK_FLEET_CAR_ID = "018f47a2-7b3c-7d4e-8f90-123456789101";
+export const MOCK_FLEET_DRAFT_CAR_ID = "018f47a2-7b3c-7d4e-8f90-123456789106";
+export const MOCK_FLEET_IMAGE_ID = "018f47a2-7b3c-7d4e-8f90-123456789103";
+export const MOCK_FLEET_DOCUMENT_ID = "018f47a2-7b3c-7d4e-8f90-123456789104";
+export const MOCK_VEHICLE_VERIFICATION_ID = "018f47a2-7b3c-7d4e-8f90-123456789107";
 const VEHICLE_VERIFICATION_DELAY_MS = 700;
 const FLEET_FILE_REPLACEMENT_PATH = new RegExp(
   `^/api/fleet-owner/cars/${MOCK_FLEET_CAR_ID}/(images|documents)/([^/]+)/file$`,
@@ -42,7 +46,7 @@ const mockVerifiedOnboarding = {
 };
 
 const mockLatestInsuranceVerification = {
-  id: "cm52345678901234567890123",
+  id: "018f47a2-7b3c-7d4e-8f90-123456789105",
   status: "SUCCEEDED",
   policyNumber: "POL-12345",
   policyStatus: "Active",
@@ -69,13 +73,14 @@ const mockVehicleVerification = {
 
 const mockFleetCar = {
   id: MOCK_FLEET_CAR_ID,
+  publicRef: "0123456789abc101",
   make: "Lexus",
   model: "RX 350",
   year: 2023,
   createdAt: "2026-08-01T10:00:00.000Z",
   updatedAt: "2026-08-20T10:00:00.000Z",
   color: "Black",
-  ownerId: "owner-1",
+  ownerId: "018f47a2-7b3c-7d4e-8f90-123456789461",
   registrationNumber: "ABC123XY",
   status: "AVAILABLE",
   approvalStatus: "APPROVED",
@@ -92,7 +97,7 @@ const mockFleetCar = {
   passengerCapacity: 4,
   pricingIncludesFuel: false,
   owner: {
-    id: "owner-1",
+    id: "018f47a2-7b3c-7d4e-8f90-123456789461",
     name: "Fleet Owner",
     username: null,
     email: "owner@example.com",
@@ -114,7 +119,7 @@ const mockFleetCar = {
       status: "APPROVED",
       documentUrl: "https://cdn.example.com/mot.pdf",
       notes: null,
-      approvedById: "admin-1",
+      approvedById: "018f47a2-7b3c-7d4e-8f90-123456789701",
       approvedAt: "2026-08-02T10:00:00.000Z",
       carId: MOCK_FLEET_CAR_ID,
       createdAt: "2026-08-01T10:00:00.000Z",
@@ -186,7 +191,7 @@ function draftDocument(id: string, documentType: "MOT_CERTIFICATE" | "INSURANCE_
 
 function draftImage(index: number) {
   return {
-    id: `cm0${index}345678901234567890123`,
+    id: fixtureUuid(2_000 + index),
     url: "https://images.unsplash.com/photo-1549399542-7e3f8b79c341",
     status: "PENDING" as const,
     isPrimary: index === 0,
@@ -199,6 +204,7 @@ function createMockDraftCar(plateNumber: string, policyNumber: string) {
   return {
     ...mockFleetCar,
     id: MOCK_FLEET_DRAFT_CAR_ID,
+    publicRef: "0123456789abc106",
     make: "Toyota",
     model: "Camry",
     year: 2020,
@@ -239,8 +245,8 @@ function createExpiredInsuranceDraft() {
     fullDayRate: 150_000,
     airportPickupRate: 50_000,
     documents: [
-      draftDocument("cm82345678901234567890123", "MOT_CERTIFICATE"),
-      draftDocument("cm92345678901234567890123", "INSURANCE_CERTIFICATE"),
+      draftDocument("018f47a2-7b3c-7d4e-8f90-123456789108", "MOT_CERTIFICATE"),
+      draftDocument("018f47a2-7b3c-7d4e-8f90-123456789109", "INSURANCE_CERTIFICATE"),
     ],
     images: Array.from({ length: 3 }, (_, index) => draftImage(index)),
     insuranceVerifications: [
@@ -258,7 +264,7 @@ const mockFleetCars = [
   mockFleetCar,
   {
     ...mockFleetCar,
-    id: "cm22345678901234567890123",
+    id: "018f47a2-7b3c-7d4e-8f90-123456789102",
     make: "Toyota",
     model: "Camry",
     year: 2022,
@@ -285,7 +291,7 @@ const mockPayouts = Array.from({ length: 21 }, (_, index) => {
   const isProcessing = number === 1;
 
   return {
-    id: `payout-${String(number).padStart(2, "0")}`,
+    id: fixtureUuid(3_000 + number),
     amountToPay: 40_000 + number * 1_000,
     amountPaid: isProcessing ? 0 : 39_500 + number * 1_000,
     currency: "NGN",
@@ -295,7 +301,7 @@ const mockPayouts = Array.from({ length: 21 }, (_, index) => {
     processedAt: isProcessing ? null : `2026-08-${String(number).padStart(2, "0")}T11:00:00.000Z`,
     completedAt: isProcessing ? null : `2026-08-${String(number).padStart(2, "0")}T12:00:00.000Z`,
     notes: null,
-    bookingId: `booking-${number}`,
+    bookingId: fixtureUuid(4_000 + number),
     extensionId: null,
   };
 });
@@ -387,7 +393,7 @@ const mockFleetChauffeurs = Array.from({ length: 21 }, (_, index) => {
   const approved = number === 1;
 
   return {
-    id: `invite-${String(number).padStart(2, "0")}`,
+    id: fixtureUuid(5_000 + number),
     chauffeurId: approved ? MOCK_APPROVED_CHAUFFEUR_ID : null,
     name: approved ? "Bola Adebayo" : `Chauffeur ${String(number).padStart(2, "0")}`,
     email: `chauffeur${number}@example.com`,
@@ -611,8 +617,8 @@ async function handlePromotionsRequest(
     const endDate = new Date(`${body.endDate}T00:00:00+01:00`);
     endDate.setUTCDate(endDate.getUTCDate() + 1);
     const promotion = {
-      id: `cm${String(promotions.length + 1).padStart(23, "0")}`,
-      ownerId: "owner-1",
+      id: fixtureUuid(6_000 + promotions.length),
+      ownerId: "018f47a2-7b3c-7d4e-8f90-123456789461",
       carId: body.scope === "CAR" ? body.carId : null,
       name: body.name ?? null,
       discountValue: String(body.discountValue),
@@ -688,8 +694,8 @@ async function handleDraftCarOnboardingMutation(
   if (request.method === "POST" && path === `${DRAFT_CAR_PATH}/documents`) {
     await readBody(request);
     state.draftCar.documents = [
-      draftDocument("cm82345678901234567890123", "MOT_CERTIFICATE"),
-      draftDocument("cm92345678901234567890123", "INSURANCE_CERTIFICATE"),
+      draftDocument("018f47a2-7b3c-7d4e-8f90-123456789108", "MOT_CERTIFICATE"),
+      draftDocument("018f47a2-7b3c-7d4e-8f90-123456789109", "INSURANCE_CERTIFICATE"),
     ];
     writeJson(response, 200, state.draftCar);
     return true;
@@ -712,7 +718,7 @@ async function handleDraftCarOnboardingMutation(
   if (request.method === "POST" && path === `${DRAFT_CAR_PATH}/insurance-verifications`) {
     const body = (await readJson(request)) as { policyNumber?: string };
     const verification = {
-      id: "cm10345678901234567890123",
+      id: "018f47a2-7b3c-7d4e-8f90-123456789110",
       status: "SUCCEEDED" as const,
       policyNumber: body.policyNumber ?? state.lastPolicyNumber,
       policyStatus: "Active",
@@ -959,7 +965,7 @@ async function handleStagedOnboardingRequest(
       staged.steps.identity = "VERIFIED";
       staged.nextAction = "VERIFY_PAYOUT";
       writeJson(response, 200, {
-        id: "id-1",
+        id: "018f47a2-7b3c-7d4e-8f90-1234567894e1",
         status: "VERIFIED",
         accountType: staged.accountType,
         legalName: staged.identity.legalName,
@@ -1004,7 +1010,7 @@ async function handleStagedOnboardingRequest(
       staged.steps.submission = "REVIEW_REQUIRED";
       staged.nextAction = "WAIT_FOR_REVIEW";
       writeJson(response, 200, {
-        id: "ver-1",
+        id: "018f47a2-7b3c-7d4e-8f90-1234567894f5",
         status: "REVIEW_REQUIRED",
         accountType: staged.accountType ?? "INDIVIDUAL",
         isOwnerDriver: staged.isOwnerDriver,
@@ -1160,7 +1166,7 @@ async function handleFleetOwnerAuthRequest(
     );
     writeJson(response, 200, {
       user: {
-        id: "owner-1",
+        id: "018f47a2-7b3c-7d4e-8f90-123456789461",
         email: "owner@example.com",
         roles: ["fleetOwner"],
       },
@@ -1176,7 +1182,7 @@ async function handleFleetOwnerAuthRequest(
 
     writeJson(response, 200, {
       user: {
-        id: "owner-1",
+        id: "018f47a2-7b3c-7d4e-8f90-123456789461",
         email: "owner@example.com",
         name: "Fleet Owner",
         roles: ["fleetOwner"],
@@ -1244,7 +1250,7 @@ async function handleFleetChauffeursRequest(
     };
     requests.chauffeurInvitations.push(body);
     const invited: MockFleetChauffeur = {
-      id: `invite-${String(chauffeurs.length + 1).padStart(2, "0")}`,
+      id: fixtureUuid(5_000 + chauffeurs.length + 1),
       chauffeurId: null,
       name: body.name ?? "Invited chauffeur",
       email: body.email ?? "invited@example.com",

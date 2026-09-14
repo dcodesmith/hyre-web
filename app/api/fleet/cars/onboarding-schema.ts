@@ -8,7 +8,7 @@ const providerVerificationStatusSchema = z.enum([
 ]);
 
 export const fleetVehicleVerificationSchema = z.object({
-  id: z.string(),
+  id: z.uuid(),
   status: providerVerificationStatusSchema,
   vehicle: z.object({
     plateNumber: z.string(),
@@ -24,12 +24,12 @@ export const fleetVehicleVerificationSchema = z.object({
     reasons: z.array(z.enum(["VEHICLE_YEAR_BELOW_MINIMUM"])),
   }),
   expiresAt: z.iso.datetime(),
-  carId: z.string().nullable(),
+  carId: z.uuid().nullable(),
 });
 
 export const fleetInsuranceVerificationSchema = z.object({
-  id: z.string(),
-  carId: z.string(),
+  id: z.uuid(),
+  carId: z.uuid(),
   status: providerVerificationStatusSchema,
   policyNumber: z.string(),
   policyStatus: z.string().nullable(),

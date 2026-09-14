@@ -6,7 +6,7 @@ import { FleetCarPlateVerificationPage } from "~/fleet/cars/fleet-car-plate-veri
 const IDEMPOTENCY_KEY = "11111111-1111-4111-8111-111111111111";
 
 const verifiedVehicle = {
-  id: "ver-1",
+  id: "018f47a2-7b3c-7d4e-8f90-1234567894f5",
   status: "SUCCEEDED",
   vehicle: {
     plateNumber: "KJA123AB",

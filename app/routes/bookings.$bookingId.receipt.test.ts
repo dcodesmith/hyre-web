@@ -51,7 +51,7 @@ function receiptResponse() {
   });
 }
 
-function runLoader(cookie = "", bookingId = "booking-1") {
+function runLoader(cookie = "", bookingId = "018f47a2-7b3c-7d4e-8f90-123456789401") {
   const request = new Request(`https://tripdly.com/bookings/${bookingId}/receipt`, {
     headers: cookie ? { cookie } : undefined,
   });
@@ -76,7 +76,10 @@ describe("booking receipt loader", () => {
     const { request, result } = runLoader(SESSION_COOKIE);
     const response = await result;
 
-    expect(getBookingReceipt).toHaveBeenCalledWith({ request, bookingId: "booking-1" });
+    expect(getBookingReceipt).toHaveBeenCalledWith({
+      request,
+      bookingId: "018f47a2-7b3c-7d4e-8f90-123456789401",
+    });
     expect(response.headers.get("cache-control")).toBe("private, no-store");
     expect(response.headers.get("content-type")).toBe("application/pdf");
     expect(response.headers.get("content-disposition")).toBe(
@@ -87,14 +90,17 @@ describe("booking receipt loader", () => {
   });
 
   it("uses the scoped guest token without requiring a session", async () => {
-    readGuestBookingSession.mockResolvedValue({ bookingId: "booking-1", token: GUEST_TOKEN });
+    readGuestBookingSession.mockResolvedValue({
+      bookingId: "018f47a2-7b3c-7d4e-8f90-123456789401",
+      token: GUEST_TOKEN,
+    });
     getBookingReceipt.mockResolvedValue(receiptResponse());
     const { request, result } = runLoader();
 
     await expect(result).resolves.toBeInstanceOf(Response);
     expect(getBookingReceipt).toHaveBeenCalledWith({
       request,
-      bookingId: "booking-1",
+      bookingId: "018f47a2-7b3c-7d4e-8f90-123456789401",
       guestToken: GUEST_TOKEN,
     });
   });
@@ -149,7 +155,10 @@ describe("booking receipt loader", () => {
   });
 
   it("falls back to guest access when the account does not own the booking", async () => {
-    readGuestBookingSession.mockResolvedValue({ bookingId: "booking-1", token: GUEST_TOKEN });
+    readGuestBookingSession.mockResolvedValue({
+      bookingId: "018f47a2-7b3c-7d4e-8f90-123456789401",
+      token: GUEST_TOKEN,
+    });
     getBookingReceipt.mockRejectedValueOnce(httpError(HTTP_STATUS.NOT_FOUND));
     getBookingReceipt.mockResolvedValueOnce(receiptResponse());
 
@@ -161,7 +170,10 @@ describe("booking receipt loader", () => {
   });
 
   it("clears guest access when the API rejects the token", async () => {
-    readGuestBookingSession.mockResolvedValue({ bookingId: "booking-1", token: GUEST_TOKEN });
+    readGuestBookingSession.mockResolvedValue({
+      bookingId: "018f47a2-7b3c-7d4e-8f90-123456789401",
+      token: GUEST_TOKEN,
+    });
     getBookingReceipt.mockRejectedValue(httpError(HTTP_STATUS.NOT_FOUND));
 
     const response = await runLoader().result.catch((error: unknown) => error);
@@ -178,7 +190,7 @@ describe("booking receipt loader", () => {
 
     expect(response).toBeInstanceOf(Response);
     expect((response as Response).headers.get("location")).toBe(
-      "/auth?redirectTo=%2Fbookings%2Fbooking-1%2Freceipt",
+      "/auth?redirectTo=%2Fbookings%2F018f47a2-7b3c-7d4e-8f90-123456789401%2Freceipt",
     );
     expect(getBookingReceipt).not.toHaveBeenCalled();
   });

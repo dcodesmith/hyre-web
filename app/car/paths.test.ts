@@ -4,7 +4,7 @@ import type { CarCategory } from "~/api/cars/schema";
 import {
   buildCarDetailPath,
   buildCategorySearchPath,
-  extractCarIdFromSlug,
+  extractPublicRefFromSlug,
   generateCarSlug,
   getCategorySectionId,
 } from "~/car/paths";
@@ -36,36 +36,66 @@ describe("car paths", () => {
     expect(getCategorySectionId(category({ name: "luxury" }))).toBe("luxury");
   });
 
-  it("builds a canonical car detail URL with the full CUID", () => {
+  it("builds the canonical semantic URL with color and public ref", () => {
     expect(
       buildCarDetailPath({
-        id: "cmmz4f7x00000l804jj2d6ikn",
+        publicRef: "0123456789abcdef",
+        color: "Pearl White",
         make: "Lexus",
         model: "UX F-Sport",
         year: 2019,
       }),
-    ).toBe("/cars/2019-lexus-ux-f-sport-cmmz4f7x00000l804jj2d6ikn?bookingType=DAY");
+    ).toBe("/cars/2019-pearl-white-lexus-ux-f-sport--0123456789abcdef?bookingType=DAY");
   });
 
-  it("extracts a full CUID from a slug and rejects hireApp 13-character prefixes", () => {
+  it("extracts only the authoritative final public ref suffix", () => {
     const car = {
-      id: "cmmz4f7x00000l804jj2d6ikn",
-      make: "Lexus",
-      model: "UX F-Sport",
+      publicRef: "0123456789abcdef",
+      color: "Blue-Black",
+      make: "Mercedes-Benz",
+      model: "GLC-300 4MATIC",
       year: 2019,
     };
 
-    expect(extractCarIdFromSlug(generateCarSlug(car))).toBe(car.id);
-    expect(extractCarIdFromSlug(car.id)).toBe(car.id);
-    expect(extractCarIdFromSlug("2019-lexus-ux-f-sport-cmmz4f7x00000")).toBeNull();
-    expect(extractCarIdFromSlug("not-a-car")).toBeNull();
+    expect(generateCarSlug(car)).toBe(
+      "2019-blue-black-mercedes-benz-glc-300-4matic--0123456789abcdef",
+    );
+    expect(extractPublicRefFromSlug(generateCarSlug(car))).toBe(car.publicRef);
+    expect(extractPublicRefFromSlug(`tampered-stale-text--${car.publicRef}`)).toBe(car.publicRef);
+    expect(extractPublicRefFromSlug(car.publicRef)).toBeNull();
+  });
+
+  it.each([
+    "car--0123456789abcde",
+    "car--0123456789abcdef0",
+    "car--0123456789abcdeF",
+    "car--0123456789abcdeg",
+    "car--0123456789abcdef-extra",
+    "car-0123456789abcdef",
+    "not-a-car",
+  ])("rejects malformed public ref suffix %s", (slug) => {
+    expect(extractPublicRefFromSlug(slug)).toBeNull();
+  });
+
+  it("keeps otherwise duplicate cars distinct by public ref", () => {
+    const sharedCar = {
+      color: "Black",
+      make: "Lexus",
+      model: "UX",
+      year: 2019,
+    };
+
+    expect(generateCarSlug({ ...sharedCar, publicRef: "0123456789abcdef" })).not.toBe(
+      generateCarSlug({ ...sharedCar, publicRef: "fedcba9876543210" }),
+    );
   });
 
   it("copies current search filters onto the car detail URL", () => {
     expect(
       buildCarDetailPath(
         {
-          id: "cmmz4f7x00000l804jj2d6ikn",
+          publicRef: "0123456789abcdef",
+          color: "Black",
           make: "Lexus",
           model: "UX F-Sport",
           year: 2019,
@@ -78,7 +108,7 @@ describe("car paths", () => {
         },
       ),
     ).toBe(
-      "/cars/2019-lexus-ux-f-sport-cmmz4f7x00000l804jj2d6ikn?vehicleType=SUV&from=2026-08-20&bookingType=NIGHT",
+      "/cars/2019-black-lexus-ux-f-sport--0123456789abcdef?vehicleType=SUV&from=2026-08-20&bookingType=NIGHT",
     );
   });
 
@@ -86,7 +116,8 @@ describe("car paths", () => {
     expect(
       buildCarDetailPath(
         {
-          id: "cmmz4f7x00000l804jj2d6ikn",
+          publicRef: "0123456789abcdef",
+          color: "Black",
           make: "Lexus",
           model: "UX F-Sport",
           year: 2019,
@@ -103,7 +134,7 @@ describe("car paths", () => {
         },
       ),
     ).toBe(
-      "/cars/2019-lexus-ux-f-sport-cmmz4f7x00000l804jj2d6ikn?vehicleType=SUV&from=2026-08-21&bookingType=AIRPORT_PICKUP&flightNumber=P4+7501",
+      "/cars/2019-black-lexus-ux-f-sport--0123456789abcdef?vehicleType=SUV&from=2026-08-21&bookingType=AIRPORT_PICKUP&flightNumber=P4+7501",
     );
   });
 });

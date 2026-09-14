@@ -6,9 +6,9 @@ const promotionDiscountSchema = z
   .pipe(z.number().min(1).max(50));
 
 const fleetOwnerPromotionBaseSchema = z.object({
-  id: z.string(),
-  ownerId: z.string(),
-  carId: z.string().nullable(),
+  id: z.uuid(),
+  ownerId: z.uuid(),
+  carId: z.uuid().nullable(),
   name: z.string().nullable(),
   discountValue: promotionDiscountSchema,
   startDate: z.iso.datetime(),
@@ -21,7 +21,7 @@ const fleetOwnerPromotionBaseSchema = z.object({
 export const fleetOwnerPromotionSchema = fleetOwnerPromotionBaseSchema.extend({
   car: z
     .object({
-      id: z.string(),
+      id: z.uuid(),
       make: z.string(),
       model: z.string(),
       year: z.number().int(),

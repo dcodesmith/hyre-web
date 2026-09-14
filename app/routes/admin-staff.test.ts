@@ -25,7 +25,7 @@ import { HTTP_STATUS } from "~/api/http-status";
 import type { Route } from "./+types/admin.staff";
 import { action, loader } from "./admin.staff";
 
-const STAFF_ID = "cm62345678901234567890123";
+const STAFF_ID = "018f47a2-7b3c-7d4e-8f90-123456789106";
 
 function loaderArgs(request: Request): Route.LoaderArgs {
   return {
@@ -135,7 +135,7 @@ describe("admin staff route", () => {
   it("creates staff with the validated body", async () => {
     createAdminStaff.mockResolvedValue({
       data: {
-        id: "staff-1",
+        id: "018f47a2-7b3c-7d4e-8f90-1234567894f4",
         name: "Ada Lovelace",
         email: "ada@example.com",
         phoneNumber: "08012345678",
@@ -174,7 +174,7 @@ describe("admin staff route", () => {
   it("keeps the add dialog open after create-more", async () => {
     createAdminStaff.mockResolvedValue({
       data: {
-        id: "staff-1",
+        id: "018f47a2-7b3c-7d4e-8f90-1234567894f4",
         name: "Ada Lovelace",
         email: "ada@example.com",
         phoneNumber: "08012345678",
@@ -270,7 +270,7 @@ describe("admin staff route", () => {
   });
 
   it("rejects an invalid staff id before calling the API", async () => {
-    const result = await action(actionArgs({ intent: "revoke", staffId: "not-a-cuid" }));
+    const result = await action(actionArgs({ intent: "revoke", staffId: "not-a-uuid" }));
 
     expect(revokeAdminStaff).not.toHaveBeenCalled();
     expect(reinstateAdminStaff).not.toHaveBeenCalled();

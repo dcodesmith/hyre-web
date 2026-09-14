@@ -7,7 +7,8 @@ describe("carSearchResponseSchema", () => {
     const parsed = carSearchResponseSchema.safeParse({
       cars: [
         {
-          id: "cmk2ibkw7000wl404f5cg3fot",
+          id: "018f47a2-7b3c-7d4e-8f90-1234567890ac",
+          publicRef: "0123456789abcdea",
           make: "Honda",
           model: "Accord LX",
           year: 2024,
@@ -45,7 +46,8 @@ describe("carSearchResponseSchema", () => {
 
 describe("publicCarDetailSchema", () => {
   const detailCar = {
-    id: "cmmz4f7x00000l804jj2d6ikn",
+    id: "018f47a2-7b3c-7d4e-8f90-1234567890ab",
+    publicRef: "0123456789abcdef",
     make: "Lexus",
     model: "UX F-Sport",
     year: 2019,
@@ -82,5 +84,17 @@ describe("publicCarDetailSchema", () => {
         createdAt: "2026-08-12T12:00:00.000Z",
       }).success,
     ).toBe(true);
+  });
+
+  it("requires UUID entity ids and a lowercase 16-character public ref", () => {
+    expect(publicCarDetailSchema.safeParse({ ...detailCar, id: "legacy-cuid" }).success).toBe(
+      false,
+    );
+    expect(
+      publicCarDetailSchema.safeParse({ ...detailCar, publicRef: "0123456789abcdeF" }).success,
+    ).toBe(false);
+    expect(
+      publicCarDetailSchema.safeParse({ ...detailCar, publicRef: "0123456789abcde" }).success,
+    ).toBe(false);
   });
 });

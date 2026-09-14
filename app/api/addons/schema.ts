@@ -3,7 +3,7 @@ import { z } from "zod";
 export const addonPricingUnitSchema = z.enum(["PER_BOOKING", "PER_LEG"]);
 
 export const publicAddonSchema = z.object({
-  id: z.string().cuid(),
+  id: z.uuid(),
   code: z.string(),
   name: z.string(),
   description: z.string().nullable(),

@@ -21,8 +21,8 @@ const request = new Request("https://tripdly.com/fleet-owner/chauffeurs", {
 });
 
 const chauffeur = {
-  id: "invite-1",
-  chauffeurId: "chauffeur-1",
+  id: "018f47a2-7b3c-7d4e-8f90-1234567894b1",
+  chauffeurId: "018f47a2-7b3c-7d4e-8f90-1234567894a1",
   name: "Bola Adebayo",
   email: "bola@example.com",
   phoneNumber: "+2348012345678",
@@ -68,7 +68,7 @@ describe("fleet-owner chauffeurs BFF", () => {
 
     await inviteFleetOwnerChauffeur({
       request,
-      idempotencyKey: "invite-1",
+      idempotencyKey: "018f47a2-7b3c-7d4e-8f90-1234567894b1",
       body: {
         name: "Bola Adebayo",
         email: "bola@example.com",
@@ -80,7 +80,7 @@ describe("fleet-owner chauffeurs BFF", () => {
     expect(url).toBe("https://api.example/api/fleet-owner/chauffeur-invitations");
     expect(init?.method).toBe("POST");
     expect(headers.get("cookie")).toBe("better-auth.session_token=session-1");
-    expect(headers.get("Idempotency-Key")).toBe("invite-1");
+    expect(headers.get("Idempotency-Key")).toBe("018f47a2-7b3c-7d4e-8f90-1234567894b1");
     expect(headers.get("content-type")).toBe("application/json");
     expect(JSON.parse(String(init?.body))).toEqual({
       name: "Bola Adebayo",

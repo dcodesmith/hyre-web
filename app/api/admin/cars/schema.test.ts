@@ -3,14 +3,15 @@ import { describe, expect, it } from "vitest";
 import { adminCarsResponseSchema } from "./schema";
 
 const adminCar = {
-  id: "cm12345678901234567890123",
+  id: "018f47a2-7b3c-7d4e-8f90-123456789101",
+  publicRef: "0123456789abc101",
   make: "Lexus",
   model: "RX 350",
   year: 2023,
   createdAt: "2026-08-01T10:00:00.000Z",
   updatedAt: "2026-08-20T10:00:00.000Z",
   color: "Black",
-  ownerId: "owner-1",
+  ownerId: "018f47a2-7b3c-7d4e-8f90-123456789461",
   registrationNumber: "ABC123XY",
   status: "AVAILABLE",
   approvalStatus: "PENDING",
@@ -26,14 +27,14 @@ const adminCar = {
   passengerCapacity: 4,
   pricingIncludesFuel: false,
   owner: {
-    id: "owner-1",
+    id: "018f47a2-7b3c-7d4e-8f90-123456789461",
     name: "Fleet Owner",
     username: null,
     email: "owner@example.com",
   },
   images: [
     {
-      id: "cm22345678901234567890123",
+      id: "018f47a2-7b3c-7d4e-8f90-123456789102",
       url: "https://cdn.example.com/car.jpg",
       status: "PENDING",
       isPrimary: false,
@@ -46,14 +47,14 @@ const adminCar = {
   ],
   documents: [
     {
-      id: "cm32345678901234567890123",
+      id: "018f47a2-7b3c-7d4e-8f90-123456789103",
       documentType: "MOT_CERTIFICATE",
       status: "PENDING",
-      documentUrl: "owner-1/cm12345678901234567890123/documents/mot.pdf",
+      documentUrl: "owner-1/018f47a2-7b3c-7d4e-8f90-123456789101/documents/mot.pdf",
       notes: null,
       approvedById: null,
       approvedAt: null,
-      carId: "cm12345678901234567890123",
+      carId: "018f47a2-7b3c-7d4e-8f90-123456789101",
       createdAt: "2026-08-01T10:00:00.000Z",
       updatedAt: "2026-08-01T10:00:00.000Z",
       userId: null,

@@ -5,7 +5,7 @@ import { BookingDetailPage } from "~/booking/booking-detail";
 import type { BookingModifyActionData } from "~/booking/booking-modify";
 
 const fixtureBooking = {
-  id: "booking-modify-1",
+  id: "018f47a2-7b3c-7d4e-8f90-123456789407",
   bookingReference: "TD-1002",
   status: "CONFIRMED",
   paymentStatus: "UNPAID",
@@ -36,7 +36,7 @@ const fixtureBooking = {
   modificationCutoffAt: "2026-09-20T20:00:00.000Z",
   legs: [
     {
-      id: "leg-1",
+      id: "018f47a2-7b3c-7d4e-8f90-123456789421",
       legDate: "2026-09-21T00:00:00.000Z",
       legStartTime: "2026-09-21T08:30:00.000Z",
       legEndTime: "2026-09-21T20:30:00.000Z",

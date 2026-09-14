@@ -58,7 +58,7 @@ const NEXT_IDEMPOTENCY_KEY = "6d76bdc5-ca7b-43f7-a69b-9fcddc8d46eb";
 const PHONE_NUMBER = "+2348012345678";
 const ONBOARDING_RETRY = "Unable to complete this onboarding step. Please try again.";
 const OWNER_USER = {
-  id: "owner-1",
+  id: "018f47a2-7b3c-7d4e-8f90-123456789461",
   email: "owner@example.com",
   name: "Fleet Owner",
   roles: ["fleetOwner"],
@@ -219,7 +219,7 @@ describe("fleet-owner onboarding route", () => {
       data: { status: "VERIFIED", phoneNumber: PHONE_NUMBER },
     });
     verifyFleetOwnerIdentity.mockResolvedValue({
-      data: { id: "id-1", status: "VERIFIED" },
+      data: { id: "018f47a2-7b3c-7d4e-8f90-1234567894e1", status: "VERIFIED" },
     });
     verifyFleetOwnerPayout.mockResolvedValue({
       data: { status: "VERIFIED" },
@@ -228,7 +228,7 @@ describe("fleet-owner onboarding route", () => {
       data: { status: "COMPLETED", isOwnerDriver: false },
     });
     submitFleetOwnerOnboarding.mockResolvedValue({
-      data: { id: "ver-1", status: "SUCCEEDED" },
+      data: { id: "018f47a2-7b3c-7d4e-8f90-1234567894f5", status: "SUCCEEDED" },
     });
     replaceFleetOwnerDriverLicense.mockResolvedValue({
       data: { status: "PENDING" },

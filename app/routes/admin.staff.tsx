@@ -19,7 +19,6 @@ import { buildPageMetadata } from "~/seo/metadata";
 import type { Route } from "./+types/admin.staff";
 
 const NO_STORE = { "Cache-Control": "private, no-store" };
-const CUID_PATTERN = /^[cC][0-9a-z]{6,}$/;
 
 export const meta = () =>
   buildPageMetadata({
@@ -112,7 +111,7 @@ async function updateStaffAccessAction(
   formData: FormData,
   intent: "revoke" | "reinstate",
 ) {
-  const staffId = z.string().regex(CUID_PATTERN).safeParse(formData.get("staffId"));
+  const staffId = z.uuid().safeParse(formData.get("staffId"));
   if (!staffId.success) {
     return data<StaffActionData>(
       { intent, error: "This staff member could not be identified.", revalidate: false },

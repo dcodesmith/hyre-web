@@ -21,7 +21,7 @@ import {
   parseReviewsPage,
   shouldRevalidateCarDetail,
 } from "~/car/car-url";
-import { extractCarIdFromSlug, generateCarSlug } from "~/car/paths";
+import { extractPublicRefFromSlug, generateCarSlug } from "~/car/paths";
 import { formatCurrency } from "~/money/currency";
 import {
   createPaymentStatusSession,
@@ -70,9 +70,9 @@ export function shouldRevalidate({
 }
 
 export async function loader({ request, params }: Route.LoaderArgs) {
-  const carId = extractCarIdFromSlug(params.carSlug ?? "");
+  const publicRef = extractPublicRefFromSlug(params.carSlug ?? "");
 
-  if (!carId) {
+  if (!publicRef) {
     throw data(null, { status: HTTP_STATUS.NOT_FOUND });
   }
 
@@ -80,24 +80,9 @@ export async function loader({ request, params }: Route.LoaderArgs) {
   const query = parseCarDetailUrl(url.searchParams);
   const carPromise = getPublicCar({
     request,
-    carId,
+    publicRef,
     from: query.search.from,
   });
-  const reviewsPromise = getCarReviews({
-    request,
-    carId,
-    page: parseReviewsPage(url.searchParams.get("reviewsPage")),
-    limit: CAR_REVIEWS_LIMIT,
-    includeRatings: true,
-  })
-    .then((response) => response.data)
-    .catch((error: unknown) => {
-      if (error instanceof ApiRequestError && error.kind === "aborted") {
-        throw error;
-      }
-
-      return null;
-    });
   const addonsPromise = getPublicAddons({ request, bookingType: query.bookingType })
     .then((response) => response.data.addons)
     .catch((error: unknown) => {
@@ -131,6 +116,21 @@ export async function loader({ request, params }: Route.LoaderArgs) {
     throw redirect(`/cars/${canonicalSlug}${url.search}`, HTTP_STATUS.MOVED_PERMANENTLY);
   }
 
+  const reviewsPromise = getCarReviews({
+    request,
+    carId: car.id,
+    page: parseReviewsPage(url.searchParams.get("reviewsPage")),
+    limit: CAR_REVIEWS_LIMIT,
+    includeRatings: true,
+  })
+    .then((response) => response.data)
+    .catch((error: unknown) => {
+      if (error instanceof ApiRequestError && error.kind === "aborted") {
+        throw error;
+      }
+
+      return null;
+    });
   const [reviews, rates, addons] = await Promise.all([reviewsPromise, ratesPromise, addonsPromise]);
 
   return data(
@@ -153,9 +153,9 @@ export function headers({ loaderHeaders }: Route.HeadersArgs) {
 }
 
 export async function action({ request, params }: Route.ActionArgs) {
-  const carId = extractCarIdFromSlug(params.carSlug ?? "");
+  const publicRef = extractPublicRefFromSlug(params.carSlug ?? "");
 
-  if (!carId) {
+  if (!publicRef) {
     throw data(null, { status: HTTP_STATUS.NOT_FOUND });
   }
 
@@ -174,7 +174,26 @@ export async function action({ request, params }: Route.ActionArgs) {
     );
   }
 
-  if (submission.value.carId !== carId) {
+  let carResponse: Awaited<ReturnType<typeof getPublicCar>>;
+  try {
+    carResponse = await getPublicCar({
+      request,
+      publicRef,
+      from: submission.value.from,
+    });
+  } catch (error) {
+    if (error instanceof ApiRequestError && error.kind === "aborted") {
+      throw error;
+    }
+
+    if (isMissingCar(error)) {
+      throw data(null, { status: HTTP_STATUS.NOT_FOUND });
+    }
+
+    throw error;
+  }
+
+  if (submission.value.carId !== carResponse.data.id) {
     return data(
       {
         lastResult: submission.reply({ formErrors: ["This car is no longer available."] }),

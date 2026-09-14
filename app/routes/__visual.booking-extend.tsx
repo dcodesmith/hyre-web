@@ -2,7 +2,7 @@ import type { BookingDetail } from "~/api/bookings/schema";
 import { BookingExtensionPage } from "~/booking/booking-extension";
 
 const fixtureBooking = {
-  id: "booking-extend-1",
+  id: "018f47a2-7b3c-7d4e-8f90-123456789408",
   bookingReference: "TD-1003",
   status: "CONFIRMED",
   paymentStatus: "PAID",
@@ -33,7 +33,7 @@ const fixtureBooking = {
   modificationCutoffAt: "2026-09-20T20:00:00.000Z",
   legs: [
     {
-      id: "leg-1",
+      id: "018f47a2-7b3c-7d4e-8f90-123456789421",
       legDate: "2026-09-21T00:00:00.000Z",
       legStartTime: "2026-09-21T08:00:00.000Z",
       legEndTime: "2026-09-21T20:00:00.000Z",
@@ -42,7 +42,7 @@ const fixtureBooking = {
       maxExtendableHours: 0,
     },
     {
-      id: "leg-2",
+      id: "018f47a2-7b3c-7d4e-8f90-123456789422",
       legDate: "2026-09-22T00:00:00.000Z",
       legStartTime: "2026-09-22T08:00:00.000Z",
       legEndTime: "2026-09-22T20:00:00.000Z",

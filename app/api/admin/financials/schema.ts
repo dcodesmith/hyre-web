@@ -28,8 +28,8 @@ const paginationMetaSchema = z.object({
 });
 
 const auditSchema = z.object({
-  id: z.string(),
-  actorUserId: z.string(),
+  id: z.uuid(),
+  actorUserId: z.uuid(),
   outcome: z.enum(["STARTED", "RECONCILED", "UNRESOLVED", "FAILED"]),
   providerReference: z.string().nullable(),
   providerStatus: z.string().nullable(),
@@ -39,7 +39,7 @@ const auditSchema = z.object({
 });
 
 export const adminRefundSchema = z.object({
-  id: z.string(),
+  id: z.uuid(),
   txRef: z.string(),
   status: refundStatusSchema,
   amountCharged: z.number().nullable(),
@@ -55,13 +55,13 @@ export const adminRefundSchema = z.object({
   canReconcile: z.boolean(),
   booking: z
     .object({
-      id: z.string(),
+      id: z.uuid(),
       bookingReference: z.string(),
     })
     .nullable(),
   extension: z
     .object({
-      id: z.string(),
+      id: z.uuid(),
       paymentStatus: z.string(),
     })
     .nullable(),
@@ -84,21 +84,21 @@ export const reconcileRefundResponseSchema = z.object({
 });
 
 export const adminPayoutSchema = z.object({
-  id: z.string(),
+  id: z.uuid(),
   status: payoutStatusSchema,
   fleetOwner: z.object({
-    id: z.string(),
+    id: z.uuid(),
     name: z.string().nullable(),
     email: z.email(),
   }),
   booking: z
     .object({
-      id: z.string(),
+      id: z.uuid(),
       bookingReference: z.string(),
       overallPayoutStatus: payoutStatusSchema.nullable(),
     })
     .nullable(),
-  extensionId: z.string().nullable(),
+  extensionId: z.uuid().nullable(),
   amountToPay: z.number(),
   amountPaid: z.number().nullable(),
   currency: z.string().length(3),

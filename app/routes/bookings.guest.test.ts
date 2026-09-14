@@ -33,12 +33,12 @@ describe("guest booking token exchange", () => {
   it("stores the token server-side and redirects to the clean booking URL", async () => {
     getGuestBooking.mockResolvedValue({
       data: {
-        bookingId: "booking-1",
+        bookingId: "018f47a2-7b3c-7d4e-8f90-123456789401",
         accessExpiresAt: "2099-01-01T00:15:00.000Z",
       },
     });
     createGuestBookingSession.mockReturnValue({
-      bookingId: "booking-1",
+      bookingId: "018f47a2-7b3c-7d4e-8f90-123456789401",
       token: TOKEN,
       expiresAt: Date.parse("2099-01-01T00:15:00.000Z"),
     });
@@ -46,7 +46,9 @@ describe("guest booking token exchange", () => {
     const response = await runLoader().catch((error: unknown) => error);
 
     expect(response).toBeInstanceOf(Response);
-    expect((response as Response).headers.get("location")).toBe("/bookings/booking-1");
+    expect((response as Response).headers.get("location")).toBe(
+      "/bookings/018f47a2-7b3c-7d4e-8f90-123456789401",
+    );
     expect((response as Response).headers.get("set-cookie")).not.toContain(TOKEN);
     expect((response as Response).headers.get("referrer-policy")).toBe("no-referrer");
   });
@@ -82,7 +84,7 @@ describe("guest booking token exchange", () => {
   it("removes the token when the protected session cannot be created", async () => {
     getGuestBooking.mockResolvedValue({
       data: {
-        bookingId: "booking-1",
+        bookingId: "018f47a2-7b3c-7d4e-8f90-123456789401",
         accessExpiresAt: "2099-01-01T00:15:00.000Z",
       },
     });

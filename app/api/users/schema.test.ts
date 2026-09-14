@@ -11,7 +11,7 @@ describe("currentUserProfileSchema", () => {
       address: "12 Marina",
       marketingConsent: false,
       email: "ada@example.com",
-      id: "user-1",
+      id: "018f47a2-7b3c-7d4e-8f90-123456789451",
     });
 
     expect(parsed.success).toBe(true);

@@ -5,7 +5,7 @@ import { adminRatesSchema } from "./schema";
 const rates = {
   platformFeeRates: [
     {
-      id: "cm52345678901234567890123",
+      id: "018f47a2-7b3c-7d4e-8f90-123456789105",
       feeType: "PLATFORM_SERVICE_FEE" as const,
       ratePercent: 10,
       effectiveSince: "2026-01-01T00:00:00.000Z",
@@ -18,7 +18,7 @@ const rates = {
   ],
   taxRates: [
     {
-      id: "cm72345678901234567890123",
+      id: "018f47a2-7b3c-7d4e-8f90-123456789107",
       ratePercent: 7.5,
       effectiveSince: "2026-01-01T00:00:00.000Z",
       effectiveUntil: null,

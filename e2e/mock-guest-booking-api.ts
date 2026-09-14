@@ -67,7 +67,7 @@ function guestBooking() {
     chauffeur: { name: "Bola Adebayo", phoneNumber: "08000000000" },
     legs: [
       {
-        id: "guest-leg-e2e",
+        id: "018f47a2-7b3c-7d4e-8f90-1234567894d1",
         legDate: "2026-09-21T00:00:00.000Z",
         legStartTime: "2026-09-21T08:00:00.000Z",
         legEndTime: "2026-09-21T20:00:00.000Z",

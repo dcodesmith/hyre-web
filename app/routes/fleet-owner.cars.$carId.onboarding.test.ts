@@ -41,7 +41,7 @@ import {
 } from "~/fleet/cars/car-onboarding-form-schema";
 import { action, loader } from "./fleet-owner.cars.$carId.onboarding";
 
-const CAR_ID = "car-1";
+const CAR_ID = "018f47a2-7b3c-7d4e-8f90-123456789471";
 const IDEMPOTENCY_KEY = "18aa029c-4bb1-4ca7-b25e-cfc802c4bf8c";
 const CAR_ONBOARDING_RETRY = "Unable to complete this car onboarding step. Please try again.";
 const ONBOARDING_PATH = `/fleet-owner/cars/${CAR_ID}/onboarding`;
@@ -55,7 +55,7 @@ const fleetCar = {
   createdAt: "2026-08-01T10:00:00.000Z",
   updatedAt: "2026-08-20T10:00:00.000Z",
   color: "Black",
-  ownerId: "owner-1",
+  ownerId: "018f47a2-7b3c-7d4e-8f90-123456789461",
   registrationNumber: "KJA123AB",
   status: "HOLD",
   approvalStatus: "PENDING",
@@ -72,7 +72,7 @@ const fleetCar = {
   pricingIncludesFuel: false,
   submittedAt: null,
   owner: {
-    id: "owner-1",
+    id: "018f47a2-7b3c-7d4e-8f90-123456789461",
     name: "Fleet Owner",
     username: null,
     email: "owner@example.com",
@@ -200,7 +200,7 @@ describe("fleet-owner car onboarding route", () => {
     uploadFleetDraftCarImages.mockResolvedValue({ data: fleetCar });
     updateFleetDraftCarPricing.mockResolvedValue({ data: fleetCar });
     createFleetInsuranceVerification.mockResolvedValue({
-      data: { id: "ins-1", carId: CAR_ID, status: "SUCCEEDED" },
+      data: { id: "018f47a2-7b3c-7d4e-8f90-1234567894f1", carId: CAR_ID, status: "SUCCEEDED" },
     });
     submitFleetCar.mockResolvedValue({
       data: {

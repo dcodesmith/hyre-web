@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { fleetCarFileReplacementFormSchema } from "./fleet-car-file-replacement-form-schema";
 
-const ASSET_ID = "cm12345678901234567890123";
+const ASSET_ID = "018f47a2-7b3c-7d4e-8f90-123456789101";
 
 describe("fleetCarFileReplacementFormSchema", () => {
   it.each([

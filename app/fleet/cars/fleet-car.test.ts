@@ -9,14 +9,15 @@ import {
 } from "./fleet-car";
 
 const fleetCar = {
-  id: "car-1",
+  id: "018f47a2-7b3c-7d4e-8f90-123456789471",
+  publicRef: "0123456789abc471",
   make: "Lexus",
   model: "RX 350",
   year: 2023,
   createdAt: "2026-08-01T10:00:00.000Z",
   updatedAt: "2026-08-20T10:00:00.000Z",
   color: "Black",
-  ownerId: "owner-1",
+  ownerId: "018f47a2-7b3c-7d4e-8f90-123456789461",
   registrationNumber: "ABC123XY",
   status: "AVAILABLE",
   approvalStatus: "APPROVED",
@@ -33,7 +34,7 @@ const fleetCar = {
   passengerCapacity: 4,
   pricingIncludesFuel: false,
   owner: {
-    id: "owner-1",
+    id: "018f47a2-7b3c-7d4e-8f90-123456789461",
     name: "Fleet Owner",
     username: null,
     email: "owner@example.com",
@@ -46,27 +47,27 @@ const fleetCar = {
 
 const onboardingDocuments = [
   {
-    id: "document-1",
+    id: "018f47a2-7b3c-7d4e-8f90-123456789491",
     documentType: "MOT_CERTIFICATE" as const,
     status: "PENDING" as const,
     documentUrl: "https://cdn.example.com/mot.pdf",
     notes: null,
     approvedById: null,
     approvedAt: null,
-    carId: "car-1",
+    carId: "018f47a2-7b3c-7d4e-8f90-123456789471",
     createdAt: "2026-08-01T10:00:00.000Z",
     updatedAt: "2026-08-01T10:00:00.000Z",
     userId: null,
   },
   {
-    id: "document-2",
+    id: "018f47a2-7b3c-7d4e-8f90-123456789492",
     documentType: "INSURANCE_CERTIFICATE" as const,
     status: "PENDING" as const,
     documentUrl: "https://cdn.example.com/insurance.pdf",
     notes: null,
     approvedById: null,
     approvedAt: null,
-    carId: "car-1",
+    carId: "018f47a2-7b3c-7d4e-8f90-123456789471",
     createdAt: "2026-08-01T10:00:00.000Z",
     updatedAt: "2026-08-01T10:00:00.000Z",
     userId: null,
@@ -85,8 +86,8 @@ function onboardingImage(id: string, isPrimary = false): FleetCar["images"][numb
 }
 
 const onboardingImages = [
-  onboardingImage("image-1", true),
-  onboardingImage("image-2"),
+  onboardingImage("018f47a2-7b3c-7d4e-8f90-123456789481", true),
+  onboardingImage("018f47a2-7b3c-7d4e-8f90-123456789482"),
   onboardingImage("image-3"),
 ] satisfies FleetCar["images"];
 
@@ -226,7 +227,7 @@ describe("fleet car onboarding step", () => {
       images: onboardingImages,
     } satisfies FleetCar;
     const expiredInsurance = {
-      id: "ins-1",
+      id: "018f47a2-7b3c-7d4e-8f90-1234567894f1",
       status: "SUCCEEDED" as const,
       policyNumber: "POL-12345",
       policyStatus: "Expired",

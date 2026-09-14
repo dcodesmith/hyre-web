@@ -19,7 +19,7 @@ import {
 describe("payment status session", () => {
   it("encrypts and restores the guest status credential in an HttpOnly cookie", async () => {
     const session = createPaymentStatusSession({
-      bookingId: "booking-1",
+      bookingId: "018f47a2-7b3c-7d4e-8f90-123456789401",
       txRef: "tx-1",
       paymentStatusToken: "guest-secret-token",
       reservationExpiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
@@ -49,8 +49,8 @@ describe("payment status session", () => {
 
   it("stores the extension identity without a guest payment token", async () => {
     const session = createExtensionPaymentStatusSession({
-      bookingId: "booking-1",
-      extensionId: "extension-1",
+      bookingId: "018f47a2-7b3c-7d4e-8f90-123456789401",
+      extensionId: "018f47a2-7b3c-7d4e-8f90-123456789411",
       txRef: "ext-tx-1",
     });
     const setCookie = await paymentStatusSetCookie(session);
@@ -64,18 +64,18 @@ describe("payment status session", () => {
         session.txRef,
       ),
     ).resolves.toEqual(session);
-    expect(setCookie).not.toContain("extension-1");
+    expect(setCookie).not.toContain("018f47a2-7b3c-7d4e-8f90-123456789411");
   });
 
   it("keeps concurrent payment callbacks in separate cookies", async () => {
     const first = createExtensionPaymentStatusSession({
-      bookingId: "booking-1",
-      extensionId: "extension-1",
+      bookingId: "018f47a2-7b3c-7d4e-8f90-123456789401",
+      extensionId: "018f47a2-7b3c-7d4e-8f90-123456789411",
       txRef: "ext-tx-1",
     });
     const second = createExtensionPaymentStatusSession({
-      bookingId: "booking-2",
-      extensionId: "extension-2",
+      bookingId: "018f47a2-7b3c-7d4e-8f90-123456789402",
+      extensionId: "018f47a2-7b3c-7d4e-8f90-123456789412",
       txRef: "ext-tx-2",
     });
     const firstCookie = (await paymentStatusSetCookie(first)).split(";")[0];
@@ -96,7 +96,7 @@ describe("payment status session", () => {
 
     try {
       const session = createPaymentStatusSession({
-        bookingId: "booking-1",
+        bookingId: "018f47a2-7b3c-7d4e-8f90-123456789401",
         txRef: "tx-1",
         paymentStatusToken: "guest-secret-token",
         reservationExpiresAt: "2026-08-27T14:00:00.000Z",

@@ -49,7 +49,7 @@ export function parseCarDetailUrl(searchParams: URLSearchParams): CarDetailUrlQu
 }
 
 export function buildCarDetailSearchPath(
-  car: { id: string; make: string; model: string; year: number },
+  car: { publicRef: string; color: string; make: string; model: string; year: number },
   query: CarDetailUrlQuery,
 ) {
   return buildCurrentCarDetailSearchPath(`/cars/${generateCarSlug(car)}`, query);
@@ -86,7 +86,7 @@ export function buildCurrentCarDetailSearchPath(pathname: string, query: CarDeta
 }
 
 export function buildBookingTypeCarPath(
-  car: { id: string; make: string; model: string; year: number },
+  car: { publicRef: string; color: string; make: string; model: string; year: number },
   bookingType: BookingType,
   current: CarDetailUrlQuery,
 ) {

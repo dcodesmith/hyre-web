@@ -19,7 +19,7 @@ const providerVerificationStatusSchema = z.enum([
 ]);
 
 const fleetCarImageSchema = z.object({
-  id: z.string(),
+  id: z.uuid(),
   url: z.url(),
   status: fleetCarDocumentStatusSchema,
   isPrimary: z.boolean(),
@@ -28,28 +28,29 @@ const fleetCarImageSchema = z.object({
 });
 
 const fleetCarDocumentSchema = z.object({
-  id: z.string(),
+  id: z.uuid(),
   documentType: fleetCarDocumentTypeSchema,
   status: fleetCarDocumentStatusSchema,
   documentUrl: z.url(),
   notes: z.string().nullable(),
-  approvedById: z.string().nullable(),
+  approvedById: z.uuid().nullable(),
   approvedAt: z.iso.datetime().nullable(),
-  carId: z.string().nullable(),
+  carId: z.uuid().nullable(),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
-  userId: z.string().nullable(),
+  userId: z.uuid().nullable(),
 });
 
 export const fleetCarSchema = z.object({
-  id: z.string(),
+  id: z.uuid(),
+  publicRef: z.string().regex(/^[0-9a-f]{16}$/),
   make: z.string(),
   model: z.string(),
   year: z.number().int(),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
   color: z.string(),
-  ownerId: z.string(),
+  ownerId: z.uuid(),
   registrationNumber: z.string(),
   status: fleetCarStatusSchema,
   approvalStatus: fleetCarApprovalStatusSchema,
@@ -66,7 +67,7 @@ export const fleetCarSchema = z.object({
   passengerCapacity: z.number().int(),
   pricingIncludesFuel: z.boolean(),
   owner: z.object({
-    id: z.string(),
+    id: z.uuid(),
     name: z.string().nullable(),
     username: z.string().nullable(),
     email: z.email(),
@@ -76,7 +77,7 @@ export const fleetCarSchema = z.object({
   insuranceVerifications: z
     .array(
       z.object({
-        id: z.string(),
+        id: z.uuid(),
         status: providerVerificationStatusSchema,
         policyNumber: z.string(),
         policyStatus: z.string().nullable(),
@@ -87,7 +88,7 @@ export const fleetCarSchema = z.object({
     .max(1),
   promotion: z
     .object({
-      id: z.string(),
+      id: z.uuid(),
       name: z.string().nullable(),
       discountValue: z.number(),
     })
@@ -97,7 +98,7 @@ export const fleetCarSchema = z.object({
 export const fleetCarsSchema = z.array(fleetCarSchema);
 
 const fleetCarReplacementRecordSchema = z.object({
-  id: z.string(),
+  id: z.uuid(),
   status: z.literal("PENDING"),
 });
 

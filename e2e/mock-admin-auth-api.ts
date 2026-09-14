@@ -6,15 +6,19 @@ type PortalRole = "admin" | "staff";
 
 const ADMIN_SESSION_COOKIE = "better-auth.session_token=admin-e2e-session";
 
-export const MOCK_ADMIN_CAR_ID = "cm12345678901234567890123";
-export const MOCK_ADMIN_IMAGE_ID = "cm22345678901234567890123";
-export const MOCK_ADMIN_DOCUMENT_ID = "cm32345678901234567890123";
-export const MOCK_ADDON_ID = "cmaddonprotocol0000000001";
-export const MOCK_ADDON_PRICE_ID = "cmaddonprice0000000000001";
-export const MOCK_ADMIN_REFUND_ID = "cm92345678901234567890123";
-export const MOCK_ADMIN_PAYOUT_ID = "cma2345678901234567890123";
-export const MOCK_ADMIN_STAFF_ID = "cmb2345678901234567890123";
-export const MOCK_REVOKED_STAFF_ID = "cmc2345678901234567890123";
+function fixtureUuid(sequence: number) {
+  return `018f47a2-7b3c-7d4e-8f90-${String(sequence).padStart(12, "0")}`;
+}
+
+export const MOCK_ADMIN_CAR_ID = "018f47a2-7b3c-7d4e-8f90-123456789101";
+export const MOCK_ADMIN_IMAGE_ID = "018f47a2-7b3c-7d4e-8f90-123456789102";
+export const MOCK_ADMIN_DOCUMENT_ID = "018f47a2-7b3c-7d4e-8f90-123456789103";
+export const MOCK_ADDON_ID = "018f47a2-7b3c-7d4e-8f90-1234567890b1";
+export const MOCK_ADDON_PRICE_ID = "018f47a2-7b3c-7d4e-8f90-1234567890c1";
+export const MOCK_ADMIN_REFUND_ID = "018f47a2-7b3c-7d4e-8f90-123456789109";
+export const MOCK_ADMIN_PAYOUT_ID = "018f47a2-7b3c-7d4e-8f90-12345678910a";
+export const MOCK_ADMIN_STAFF_ID = "018f47a2-7b3c-7d4e-8f90-12345678910b";
+export const MOCK_REVOKED_STAFF_ID = "018f47a2-7b3c-7d4e-8f90-12345678910c";
 
 type CapturedRequest = {
   body: unknown;
@@ -48,13 +52,14 @@ export type MockAdminAuthApi = {
 
 const mockAdminCar = {
   id: MOCK_ADMIN_CAR_ID,
+  publicRef: "0123456789abc101",
   make: "Lexus",
   model: "RX 350",
   year: 2023,
   createdAt: "2026-08-01T10:00:00.000Z",
   updatedAt: "2026-08-20T10:00:00.000Z",
   color: "Black",
-  ownerId: "owner-1",
+  ownerId: "018f47a2-7b3c-7d4e-8f90-123456789461",
   registrationNumber: "ABC123XY",
   status: "AVAILABLE",
   approvalStatus: "PENDING",
@@ -70,7 +75,7 @@ const mockAdminCar = {
   passengerCapacity: 4,
   pricingIncludesFuel: false,
   owner: {
-    id: "owner-1",
+    id: "018f47a2-7b3c-7d4e-8f90-123456789461",
     name: "Fleet Owner",
     username: null,
     email: "owner@example.com",
@@ -93,7 +98,7 @@ const mockAdminCar = {
       id: MOCK_ADMIN_DOCUMENT_ID,
       documentType: "MOT_CERTIFICATE",
       status: "PENDING",
-      documentUrl: "owner-1/cm12345678901234567890123/documents/mot.pdf",
+      documentUrl: "owner-1/018f47a2-7b3c-7d4e-8f90-123456789101/documents/mot.pdf",
       notes: null,
       approvedById: null,
       approvedAt: null,
@@ -108,7 +113,7 @@ const mockAdminCar = {
 const mockAdminRates = {
   platformFeeRates: [
     {
-      id: "cm52345678901234567890123",
+      id: "018f47a2-7b3c-7d4e-8f90-123456789105",
       feeType: "PLATFORM_SERVICE_FEE",
       ratePercent: 10,
       effectiveSince: "2026-01-01T00:00:00.000Z",
@@ -119,7 +124,7 @@ const mockAdminRates = {
       active: true,
     },
     {
-      id: "cm62345678901234567890123",
+      id: "018f47a2-7b3c-7d4e-8f90-123456789106",
       feeType: "FLEET_OWNER_COMMISSION",
       ratePercent: 5,
       effectiveSince: "2026-01-01T00:00:00.000Z",
@@ -132,7 +137,7 @@ const mockAdminRates = {
   ],
   taxRates: [
     {
-      id: "cm72345678901234567890123",
+      id: "018f47a2-7b3c-7d4e-8f90-123456789107",
       ratePercent: 7.5,
       effectiveSince: "2026-01-01T00:00:00.000Z",
       effectiveUntil: "2026-12-31T23:59:59.000Z",
@@ -155,8 +160,8 @@ const mockAdminAddons = {
       pricingUnit: "PER_BOOKING",
       financialTreatment: "PLATFORM",
       isActive: true,
-      createdById: "admin-1",
-      updatedById: "admin-1",
+      createdById: "018f47a2-7b3c-7d4e-8f90-123456789701",
+      updatedById: "018f47a2-7b3c-7d4e-8f90-123456789701",
       createdAt: "2026-01-01T00:00:00.000Z",
       updatedAt: "2026-01-01T00:00:00.000Z",
       prices: [
@@ -166,8 +171,8 @@ const mockAdminAddons = {
           amount: 15_000,
           effectiveSince: "2026-01-01T00:00:00.000Z",
           effectiveUntil: null,
-          createdById: "admin-1",
-          updatedById: "admin-1",
+          createdById: "018f47a2-7b3c-7d4e-8f90-123456789701",
+          updatedById: "018f47a2-7b3c-7d4e-8f90-123456789701",
           createdAt: "2026-01-01T00:00:00.000Z",
           updatedAt: "2026-01-01T00:00:00.000Z",
         },
@@ -192,7 +197,7 @@ const mockAdminRefund = {
   refundManualReviewNotifiedAt: "2026-08-25T11:00:00.000Z",
   canReconcile: true,
   booking: {
-    id: "booking-refund-1",
+    id: "018f47a2-7b3c-7d4e-8f90-12345678940a",
     bookingReference: "HYR-REF-001",
   },
   extension: null,
@@ -202,12 +207,12 @@ const mockAdminPayout = {
   id: MOCK_ADMIN_PAYOUT_ID,
   status: "PROCESSING",
   fleetOwner: {
-    id: "owner-payout-1",
+    id: "018f47a2-7b3c-7d4e-8f90-123456789463",
     name: "Ada Fleet",
     email: "ada@example.com",
   },
   booking: {
-    id: "booking-payout-1",
+    id: "018f47a2-7b3c-7d4e-8f90-12345678940b",
     bookingReference: "HYR-PAY-001",
     overallPayoutStatus: "PROCESSING",
   },
@@ -224,8 +229,8 @@ const mockAdminPayout = {
 };
 
 const mockFinancialAudit = {
-  id: "audit-financial-1",
-  actorUserId: "admin-1",
+  id: "018f47a2-7b3c-7d4e-8f90-123456789702",
+  actorUserId: "018f47a2-7b3c-7d4e-8f90-123456789701",
   outcome: "UNRESOLVED",
   providerReference: "provider-previous",
   providerStatus: "processing",
@@ -269,7 +274,7 @@ function createdRateWindow(body: Record<string, unknown>, id: string) {
 
 function persistCreatedRate(path: string, body: unknown, rates: MockAdminRates) {
   const record = typeof body === "object" && body !== null ? (body as Record<string, unknown>) : {};
-  const id = `cm8${String(rates.platformFeeRates.length + rates.taxRates.length).padStart(23, "0")}`;
+  const id = fixtureUuid(7_000 + rates.platformFeeRates.length + rates.taxRates.length);
   const window = createdRateWindow(record, id);
 
   if (path === "/api/rates/platform-fee") {
@@ -474,7 +479,7 @@ function writeCreatedAdminAddon(
   const record = jsonRecord(body);
   const now = new Date().toISOString();
   const created = {
-    id: `cmcreatedadd${String(catalog.addons.length).padStart(13, "0")}`,
+    id: `018f47a2-7b3c-7d4e-8f90-${String(catalog.addons.length + 800).padStart(12, "0")}`,
     code: typeof record.code === "string" ? record.code : "NEW_ADDON",
     name: typeof record.name === "string" ? record.name : "New add-on",
     description: typeof record.description === "string" ? record.description : null,
@@ -482,8 +487,8 @@ function writeCreatedAdminAddon(
     pricingUnit: record.pricingUnit === "PER_LEG" ? "PER_LEG" : "PER_BOOKING",
     financialTreatment: record.financialTreatment === "FLEET_OWNER" ? "FLEET_OWNER" : "PLATFORM",
     isActive: record.isActive !== false,
-    createdById: "admin-1",
-    updatedById: "admin-1",
+    createdById: "018f47a2-7b3c-7d4e-8f90-123456789701",
+    updatedById: "018f47a2-7b3c-7d4e-8f90-123456789701",
     createdAt: now,
     updatedAt: now,
   };
@@ -526,13 +531,13 @@ function writeCreatedAdminAddonPrice(
   const record = jsonRecord(body);
   const now = new Date().toISOString();
   const created = {
-    id: `cmaddonprice${String(addon.prices.length + 2).padStart(13, "0")}`,
+    id: `018f47a2-7b3c-7d4e-8f90-${String(addon.prices.length + 900).padStart(12, "0")}`,
     addonId: addon.id,
     amount: typeof record.amount === "number" ? record.amount : 0,
     effectiveSince: typeof record.effectiveSince === "string" ? record.effectiveSince : now,
     effectiveUntil: typeof record.effectiveUntil === "string" ? record.effectiveUntil : null,
-    createdById: "admin-1",
-    updatedById: "admin-1",
+    createdById: "018f47a2-7b3c-7d4e-8f90-123456789701",
+    updatedById: "018f47a2-7b3c-7d4e-8f90-123456789701",
     createdAt: now,
     updatedAt: now,
   };
@@ -674,8 +679,8 @@ async function reconcileAdminFinancialRequest(
       canReconcile: false,
     });
     financials.refundAudits.unshift({
-      id: "audit-refund-new",
-      actorUserId: "admin-1",
+      id: "018f47a2-7b3c-7d4e-8f90-123456789703",
+      actorUserId: "018f47a2-7b3c-7d4e-8f90-123456789701",
       outcome: "RECONCILED",
       providerReference,
       providerStatus: "completed",
@@ -698,8 +703,8 @@ async function reconcileAdminFinancialRequest(
     completedAt: now,
   });
   financials.payoutAudits.unshift({
-    id: "audit-payout-new",
-    actorUserId: "admin-1",
+    id: "018f47a2-7b3c-7d4e-8f90-123456789704",
+    actorUserId: "018f47a2-7b3c-7d4e-8f90-123456789701",
     outcome: "RECONCILED",
     providerReference: financials.payout.payoutProviderReference,
     providerStatus: "SUCCESSFUL",
@@ -848,7 +853,7 @@ function writeCreatedAdminStaff(
 ) {
   const record = typeof body === "object" && body !== null ? (body as Record<string, unknown>) : {};
   const created = {
-    id: `cm5${String(staff.length + 1).padStart(22, "0")}`,
+    id: fixtureUuid(1_000 + staff.length),
     name: typeof record.name === "string" ? record.name : "Ada Lovelace",
     email: typeof record.email === "string" ? record.email : "ada@example.com",
     phoneNumber: typeof record.phoneNumber === "string" ? record.phoneNumber : "08012345678",
@@ -963,7 +968,7 @@ export async function startMockAdminAuthApi(
       );
       writeJson(response, 200, {
         user: {
-          id: `${sessionRole}-1`,
+          id: fixtureUuid(sessionRole === "admin" ? 1_100 : 1_101),
           email: `${sessionRole}@example.com`,
           roles: [sessionRole],
         },
@@ -979,7 +984,7 @@ export async function startMockAdminAuthApi(
 
       writeJson(response, 200, {
         user: {
-          id: `${sessionRole}-1`,
+          id: fixtureUuid(sessionRole === "admin" ? 1_100 : 1_101),
           email: `${sessionRole}@example.com`,
           name: sessionRole === "admin" ? "Admin User" : "Staff User",
           roles: [sessionRole],

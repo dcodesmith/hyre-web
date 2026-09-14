@@ -14,7 +14,7 @@ const MAX_AGE_SECONDS = 60 * 60;
 const EXPIRY_GRACE_MS = 10 * 60 * 1000;
 
 const paymentStatusSessionBaseSchema = z.object({
-  bookingId: z.string().min(1),
+  bookingId: z.uuid(),
   txRef: z.string().min(1),
   expiresAt: z.number().int().positive(),
 });
@@ -22,7 +22,7 @@ const paymentStatusSessionBaseSchema = z.object({
 const paymentStatusSessionSchema = z.union([
   paymentStatusSessionBaseSchema.extend({
     kind: z.literal("extension"),
-    extensionId: z.string().min(1),
+    extensionId: z.uuid(),
   }),
   paymentStatusSessionBaseSchema.extend({
     kind: z.literal("booking").default("booking"),

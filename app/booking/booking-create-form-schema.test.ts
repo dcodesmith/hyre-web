@@ -24,7 +24,7 @@ const guest = createBookingFormSchema(true);
 
 function signedInDay() {
   return {
-    carId: "cmmz4f7x00000l804jj2d6ikn",
+    carId: "018f47a2-7b3c-7d4e-8f90-1234567890ab",
     idempotencyKey: "18aa029c-4bb1-4ca7-b25e-cfc802c4bf8c",
     expectedTotalAmount: "120000.00",
     bookingType: "DAY" as const,
@@ -61,7 +61,7 @@ describe("createBookingFormSchema", () => {
 
   it("maps empty guest fields from FormData the way Conform submits them", () => {
     const formData = new FormData();
-    formData.set("carId", "cmmz4f7x00000l804jj2d6ikn");
+    formData.set("carId", "018f47a2-7b3c-7d4e-8f90-1234567890ab");
     formData.set("idempotencyKey", "18aa029c-4bb1-4ca7-b25e-cfc802c4bf8c");
     formData.set("expectedTotalAmount", "120000.00");
     formData.set("bookingType", "DAY");
@@ -88,7 +88,7 @@ describe("createBookingFormSchema", () => {
 
   it("reports pickup, flight, drop-off, and guest errors together", () => {
     const formData = new FormData();
-    formData.set("carId", "cmmz4f7x00000l804jj2d6ikn");
+    formData.set("carId", "018f47a2-7b3c-7d4e-8f90-1234567890ab");
     formData.set("idempotencyKey", "18aa029c-4bb1-4ca7-b25e-cfc802c4bf8c");
     formData.set("expectedTotalAmount", "120000.00");
     formData.set("bookingType", "AIRPORT_PICKUP");
@@ -158,7 +158,7 @@ describe("createBookingFormSchema", () => {
 
   it("rejects missing dates from FormData", () => {
     const formData = new FormData();
-    formData.set("carId", "cmmz4f7x00000l804jj2d6ikn");
+    formData.set("carId", "018f47a2-7b3c-7d4e-8f90-1234567890ab");
     formData.set("idempotencyKey", "18aa029c-4bb1-4ca7-b25e-cfc802c4bf8c");
     formData.set("expectedTotalAmount", "120000.00");
     formData.set("bookingType", "DAY");
@@ -228,8 +228,8 @@ describe("create booking payload", () => {
   });
 
   it("forwards unique selected add-on ids and rejects invalid selections", () => {
-    const addonId = "cmaddonprotocol0000000001";
-    const secondId = "cmaddonsecurity0000000001";
+    const addonId = "018f47a2-7b3c-7d4e-8f90-1234567890b1";
+    const secondId = "018f47a2-7b3c-7d4e-8f90-1234567890b2";
     const value = signedIn.parse({ ...signedInDay(), addonIds: [addonId, secondId] });
     const formData = new FormData();
     for (const [name, field] of Object.entries(signedInDay())) {
@@ -250,7 +250,7 @@ describe("create booking payload", () => {
         ...signedInDay(),
         addonIds: Array.from(
           { length: 11 },
-          (_, index) => `cmaddonlimit${String(index).padStart(13, "0")}`,
+          (_, index) => `018f47a2-7b3c-7d4e-8f90-${String(index).padStart(12, "0")}`,
         ),
       }).success,
     ).toBe(false);

@@ -72,7 +72,7 @@ export const fleetOwnerDriverLicenseReplacementSchema = z.object({
 });
 
 export const fleetOwnerIdentityVerificationSchema = z.object({
-  id: z.string(),
+  id: z.uuid(),
   status: z.enum(["VERIFIED", "REVIEW_REQUIRED"]),
   accountType: accountTypeSchema,
   legalName: z.string().nullable(),
@@ -99,7 +99,7 @@ export const fleetOwnerDrivingCredentialsSchema = z.object({
 });
 
 export const fleetOwnerAccountVerificationSchema = z.object({
-  id: z.string(),
+  id: z.uuid(),
   status: z.enum(["SUCCEEDED", "REVIEW_REQUIRED"]),
   accountType: accountTypeSchema,
   isOwnerDriver: z.boolean().nullable(),

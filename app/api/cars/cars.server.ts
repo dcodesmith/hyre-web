@@ -7,6 +7,7 @@ import {
   carCategoriesResponseSchema,
   carSearchResponseSchema,
   publicCarDetailSchema,
+  publicCarRefSchema,
 } from "./schema";
 
 const carCategoriesLimitSchema = z.number().int().min(1).max(100).default(50);
@@ -34,7 +35,7 @@ export type ListPublicSitemapCarsOptions = {
 
 export type GetPublicCarOptions = {
   request?: Request;
-  carId: string;
+  publicRef: string;
   from?: string | null;
 };
 
@@ -79,6 +80,7 @@ function isAbortError(error: unknown) {
 }
 
 export function getPublicCar(options: GetPublicCarOptions) {
+  const publicRef = publicCarRefSchema.parse(options.publicRef);
   const search = new URLSearchParams();
 
   if (options.from) {
@@ -88,7 +90,7 @@ export function getPublicCar(options: GetPublicCarOptions) {
   const query = search.toString();
 
   return getApiClient().request({
-    path: query ? `/api/cars/${options.carId}?${query}` : `/api/cars/${options.carId}`,
+    path: query ? `/api/cars/by-ref/${publicRef}?${query}` : `/api/cars/by-ref/${publicRef}`,
     request: options.request,
     schema: publicCarDetailSchema,
   });

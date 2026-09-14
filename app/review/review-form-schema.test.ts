@@ -31,13 +31,13 @@ describe("reviewFormSchema", () => {
     expect(
       reviewFormSchema.parse({
         intent: "update-review",
-        reviewId: "review-1",
+        reviewId: "018f47a2-7b3c-7d4e-8f90-123456789441",
         ...ratings,
         comment: "",
       }),
     ).toEqual({
       intent: "update-review",
-      reviewId: "review-1",
+      reviewId: "018f47a2-7b3c-7d4e-8f90-123456789441",
       overallRating: 5,
       carRating: 4,
       chauffeurRating: 5,

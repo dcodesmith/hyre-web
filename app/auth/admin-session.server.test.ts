@@ -27,7 +27,7 @@ describe("admin session guards", () => {
 
   it("allows staff and reports the effective portal role", async () => {
     const user = {
-      id: "staff-1",
+      id: "018f47a2-7b3c-7d4e-8f90-1234567894f4",
       email: "staff@example.com",
       name: "Staff User",
       roles: ["staff"],
@@ -42,7 +42,7 @@ describe("admin session guards", () => {
 
   it("prefers admin when an account has both portal roles", async () => {
     readAuthSessionUser.mockResolvedValue({
-      id: "admin-1",
+      id: "018f47a2-7b3c-7d4e-8f90-123456789701",
       email: "admin@example.com",
       name: "Admin User",
       roles: ["staff", "admin"],
@@ -55,7 +55,7 @@ describe("admin session guards", () => {
 
   it("returns forbidden for authenticated non-portal users", async () => {
     readAuthSessionUser.mockResolvedValue({
-      id: "user-1",
+      id: "018f47a2-7b3c-7d4e-8f90-123456789451",
       email: "user@example.com",
       name: "Customer",
       roles: ["user"],
@@ -70,7 +70,7 @@ describe("admin session guards", () => {
 
   it("redirects an authenticated admin away from login", async () => {
     readAuthSessionUser.mockResolvedValue({
-      id: "admin-1",
+      id: "018f47a2-7b3c-7d4e-8f90-123456789701",
       email: "admin@example.com",
       name: "Admin User",
       roles: ["admin"],

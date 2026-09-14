@@ -17,7 +17,7 @@ describe("fleet payout API schemas", () => {
       total: 1,
       items: [
         {
-          id: "payout-1",
+          id: "018f47a2-7b3c-7d4e-8f90-1234567894f3",
           amountToPay: 45_000,
           amountPaid: 44_500,
           currency: "NGN",
@@ -27,7 +27,7 @@ describe("fleet payout API schemas", () => {
           processedAt: "2026-08-20T11:00:00.000Z",
           completedAt: "2026-08-20T12:00:00.000Z",
           notes: null,
-          bookingId: "booking-1",
+          bookingId: "018f47a2-7b3c-7d4e-8f90-123456789401",
           extensionId: null,
         },
       ],

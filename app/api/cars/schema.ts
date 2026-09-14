@@ -1,16 +1,20 @@
 import { z } from "zod";
 
+export const publicCarRefSchema = z.string().regex(/^[0-9a-f]{16}$/);
+
 const promotionSchema = z.object({
-  id: z.string(),
+  id: z.uuid(),
   name: z.string().nullable(),
   discountValue: z.number(),
 });
 
 const publicCarSchema = z.object({
-  id: z.string(),
+  id: z.uuid(),
+  publicRef: publicCarRefSchema,
   make: z.string(),
   model: z.string(),
   year: z.number().int(),
+  color: z.string(),
   dayRate: z.number(),
   passengerCapacity: z.number().int(),
   pricingIncludesFuel: z.boolean(),
@@ -37,7 +41,6 @@ export const carCategoriesResponseSchema = z.object({
 });
 
 const searchCarSchema = publicCarSchema.extend({
-  color: z.string().nullable(),
   nightRate: z.number().nullable(),
   fullDayRate: z.number().nullable(),
   airportPickupRate: z.number().nullable(),

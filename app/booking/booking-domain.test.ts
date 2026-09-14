@@ -11,7 +11,7 @@ import {
 } from "./booking-domain";
 
 const baseBooking = {
-  id: "booking-1",
+  id: "018f47a2-7b3c-7d4e-8f90-123456789401",
   bookingReference: "TD-1001",
   status: "COMPLETED",
   paymentStatus: "PAID",
@@ -38,7 +38,7 @@ const baseBooking = {
   modificationCutoffAt: "2026-07-01T20:00:00.000Z",
   legs: [
     {
-      id: "leg-1",
+      id: "018f47a2-7b3c-7d4e-8f90-123456789421",
       legDate: "2026-07-02T00:00:00.000Z",
       legStartTime: "2026-07-02T08:00:00.000Z",
       legEndTime: "2026-07-02T20:00:00.000Z",
@@ -50,7 +50,7 @@ const baseBooking = {
 } satisfies BookingDetail;
 
 const confirmedExtension = {
-  id: "extension-1",
+  id: "018f47a2-7b3c-7d4e-8f90-123456789411",
   status: "ACTIVE",
   paymentStatus: "PAID" as const,
   extendedDurationHours: 2,

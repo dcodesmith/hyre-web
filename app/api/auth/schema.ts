@@ -10,7 +10,7 @@ export const sendOtpResponseSchema = z.object({
 
 export const signInResponseSchema = z.object({
   user: z.object({
-    id: z.string(),
+    id: z.uuid(),
     email: z.email(),
     roles: z.array(z.string()).optional(),
   }),
@@ -19,7 +19,7 @@ export const signInResponseSchema = z.object({
 
 export const sessionResponseSchema = z.object({
   user: z.object({
-    id: z.string(),
+    id: z.uuid(),
     email: z.email(),
     name: z.string().nullable().optional(),
     roles: z.array(z.string()),

@@ -15,7 +15,7 @@ const complianceRequirements = [
 ] as const;
 
 const invitedOnboarding = {
-  id: "chauffeur-1",
+  id: "018f47a2-7b3c-7d4e-8f90-1234567894a1",
   name: "Bola Adebayo",
   email: "bola@example.com",
   phoneNumber: "+2348012345678",
@@ -33,8 +33,8 @@ const approvedOnboarding = {
 } as const;
 
 const fleetChauffeur = {
-  id: "invite-1",
-  chauffeurId: "chauffeur-1",
+  id: "018f47a2-7b3c-7d4e-8f90-1234567894b1",
+  chauffeurId: "018f47a2-7b3c-7d4e-8f90-1234567894a1",
   name: "Bola Adebayo",
   email: "bola@example.com",
   phoneNumber: "+2348012345678",
@@ -72,7 +72,7 @@ describe("chauffeur API schemas", () => {
       }),
     ).toMatchObject({
       sessionToken: "session-token",
-      onboarding: { id: "chauffeur-1", status: "INVITED" },
+      onboarding: { id: "018f47a2-7b3c-7d4e-8f90-1234567894a1", status: "INVITED" },
     });
     expect(
       chauffeurPhoneVerificationSchema.parse({
@@ -88,7 +88,7 @@ describe("chauffeur API schemas", () => {
         complianceRequirements,
       }),
     ).toMatchObject({
-      items: [{ chauffeurId: "chauffeur-1", status: "APPROVED" }],
+      items: [{ chauffeurId: "018f47a2-7b3c-7d4e-8f90-1234567894a1", status: "APPROVED" }],
       meta: { page: 1, total: 1 },
     });
   });

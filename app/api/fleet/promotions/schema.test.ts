@@ -3,8 +3,8 @@ import { describe, expect, it } from "vitest";
 import { fleetOwnerPromotionMutationSchema, fleetOwnerPromotionsSchema } from "./schema";
 
 const promotion = {
-  id: "cm00000000000000000000001",
-  ownerId: "owner-1",
+  id: "018f47a2-7b3c-7d4e-8f90-1234567890d1",
+  ownerId: "018f47a2-7b3c-7d4e-8f90-123456789461",
   carId: null,
   name: "Weekend deal",
   discountValue: "12.50",

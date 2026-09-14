@@ -18,7 +18,7 @@ const validCreate = {
 };
 
 const validPrice = {
-  addonId: "cmaddonprotocol0000000001",
+  addonId: "018f47a2-7b3c-7d4e-8f90-1234567890b1",
   amount: "15000",
   effectiveSince: "2026-09-01T09:00",
 };
@@ -71,7 +71,7 @@ describe("updateAddonFormSchema", () => {
   it("coerces isActive from the form string", () => {
     expect(
       updateAddonFormSchema.parse({
-        addonId: "cmaddonprotocol0000000001",
+        addonId: "018f47a2-7b3c-7d4e-8f90-1234567890b1",
         name: "Protocol service",
         bookingTypes: ["DAY"],
         isActive: "false",
@@ -83,7 +83,7 @@ describe("updateAddonFormSchema", () => {
 describe("createAddonPriceFormSchema", () => {
   it("parses a price window and serializes it as UTC", () => {
     expect(createAddonPriceFormSchema.parse(validPrice)).toEqual({
-      addonId: "cmaddonprotocol0000000001",
+      addonId: "018f47a2-7b3c-7d4e-8f90-1234567890b1",
       amount: 15_000,
       effectiveSince: "2026-09-01T09:00",
     });
@@ -107,16 +107,16 @@ describe("endAddonPriceFormSchema", () => {
   it("requires both add-on and price ids", () => {
     expect(
       endAddonPriceFormSchema.parse({
-        addonId: "cmaddonprotocol0000000001",
-        priceId: "cmaddonprice0000000000001",
+        addonId: "018f47a2-7b3c-7d4e-8f90-1234567890b1",
+        priceId: "018f47a2-7b3c-7d4e-8f90-1234567890c1",
       }),
     ).toEqual({
-      addonId: "cmaddonprotocol0000000001",
-      priceId: "cmaddonprice0000000000001",
+      addonId: "018f47a2-7b3c-7d4e-8f90-1234567890b1",
+      priceId: "018f47a2-7b3c-7d4e-8f90-1234567890c1",
     });
     expect(
       endAddonPriceFormSchema.safeParse({
-        addonId: "cmaddonprotocol0000000001",
+        addonId: "018f47a2-7b3c-7d4e-8f90-1234567890b1",
         priceId: "price-1",
       }).success,
     ).toBe(false);

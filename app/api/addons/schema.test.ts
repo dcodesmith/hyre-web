@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { publicAddonsSchema } from "./schema";
 
 const addon = {
-  id: "cmaddonprotocol0000000001",
+  id: "018f47a2-7b3c-7d4e-8f90-1234567890b1",
   code: "PROTOCOL_SERVICE",
   name: "Protocol service",
   description: "Dedicated protocol officer",

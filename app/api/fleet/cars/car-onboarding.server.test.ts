@@ -26,7 +26,7 @@ const request = new Request("https://tripdly.com/fleet-owner/cars/new", {
 });
 
 const vehicleVerification = {
-  id: "ver-1",
+  id: "018f47a2-7b3c-7d4e-8f90-1234567894f5",
   status: "SUCCEEDED",
   vehicle: {
     plateNumber: "KJA123AB",
@@ -43,14 +43,15 @@ const vehicleVerification = {
 };
 
 const fleetCar = {
-  id: "car-1",
+  id: "018f47a2-7b3c-7d4e-8f90-123456789471",
+  publicRef: "0123456789abc471",
   make: "Toyota",
   model: "Camry",
   year: 2020,
   createdAt: "2026-08-01T10:00:00.000Z",
   updatedAt: "2026-08-20T10:00:00.000Z",
   color: "Black",
-  ownerId: "owner-1",
+  ownerId: "018f47a2-7b3c-7d4e-8f90-123456789461",
   registrationNumber: "KJA123AB",
   status: "HOLD",
   approvalStatus: "PENDING",
@@ -67,7 +68,7 @@ const fleetCar = {
   passengerCapacity: 5,
   pricingIncludesFuel: false,
   owner: {
-    id: "owner-1",
+    id: "018f47a2-7b3c-7d4e-8f90-123456789461",
     name: "Fleet Owner",
     username: null,
     email: "owner@example.com",
@@ -79,8 +80,8 @@ const fleetCar = {
 };
 
 const insuranceVerification = {
-  id: "ins-1",
-  carId: "car-1",
+  id: "018f47a2-7b3c-7d4e-8f90-1234567894f1",
+  carId: "018f47a2-7b3c-7d4e-8f90-123456789471",
   status: "SUCCEEDED",
   policyNumber: "POL-12345",
   policyStatus: "Active",
@@ -145,10 +146,15 @@ describe("fleet car onboarding BFF", () => {
   it("GETs vehicle verification and forwards the session cookie", async () => {
     fetchMock.mockResolvedValueOnce(Response.json(vehicleVerification));
 
-    await getFleetVehicleVerification({ request, verificationId: "ver-1" });
+    await getFleetVehicleVerification({
+      request,
+      verificationId: "018f47a2-7b3c-7d4e-8f90-1234567894f5",
+    });
 
     const { url, init, headers } = capturedRequest();
-    expect(url).toBe("https://api.example/api/fleet-owner/vehicle-verifications/ver-1");
+    expect(url).toBe(
+      `https://api.example/api/fleet-owner/vehicle-verifications/${vehicleVerification.id}`,
+    );
     expect(init?.method).toBe("GET");
     expect(headers.get("cookie")).toBe("better-auth.session_token=session-1");
     expect(headers.get("content-type")).toBeNull();
@@ -157,10 +163,12 @@ describe("fleet car onboarding BFF", () => {
   it("POSTs a draft car from a verification", async () => {
     fetchMock.mockResolvedValueOnce(Response.json(fleetCar));
 
-    await createFleetDraftCar({ request, verificationId: "ver-1" });
+    await createFleetDraftCar({ request, verificationId: "018f47a2-7b3c-7d4e-8f90-1234567894f5" });
 
     const { url, init, headers } = capturedRequest();
-    expect(url).toBe("https://api.example/api/fleet-owner/vehicle-verifications/ver-1/car");
+    expect(url).toBe(
+      `https://api.example/api/fleet-owner/vehicle-verifications/${vehicleVerification.id}/car`,
+    );
     expect(init?.method).toBe("POST");
     expect(headers.get("cookie")).toBe("better-auth.session_token=session-1");
     expect(headers.get("content-type")).toBeNull();
@@ -176,13 +184,13 @@ describe("fleet car onboarding BFF", () => {
 
     await uploadFleetDraftCarDocuments({
       request,
-      carId: "car-1",
+      carId: "018f47a2-7b3c-7d4e-8f90-123456789471",
       motCertificate,
       insuranceCertificate,
     });
 
     const { url, init, headers } = capturedRequest();
-    expect(url).toBe("https://api.example/api/fleet-owner/cars/car-1/documents");
+    expect(url).toBe(`https://api.example/api/fleet-owner/cars/${fleetCar.id}/documents`);
     expect(init?.method).toBe("POST");
     expect(init?.body).toBeInstanceOf(FormData);
     expect(headers.get("cookie")).toBe("better-auth.session_token=session-1");
@@ -199,10 +207,14 @@ describe("fleet car onboarding BFF", () => {
       new File(["two"], "two.png", { type: "image/png" }),
     ];
 
-    await uploadFleetDraftCarImages({ request, carId: "car-1", images });
+    await uploadFleetDraftCarImages({
+      request,
+      carId: "018f47a2-7b3c-7d4e-8f90-123456789471",
+      images,
+    });
 
     const { url, init, headers } = capturedRequest();
-    expect(url).toBe("https://api.example/api/fleet-owner/cars/car-1/images");
+    expect(url).toBe(`https://api.example/api/fleet-owner/cars/${fleetCar.id}/images`);
     expect(init?.method).toBe("POST");
     expect(init?.body).toBeInstanceOf(FormData);
     expect(headers.get("cookie")).toBe("better-auth.session_token=session-1");
@@ -214,10 +226,14 @@ describe("fleet car onboarding BFF", () => {
   it("PATCHes pricing JSON and forwards the session cookie", async () => {
     fetchMock.mockResolvedValueOnce(Response.json(fleetCar));
 
-    await updateFleetDraftCarPricing({ request, carId: "car-1", body: pricing });
+    await updateFleetDraftCarPricing({
+      request,
+      carId: "018f47a2-7b3c-7d4e-8f90-123456789471",
+      body: pricing,
+    });
 
     const { url, init, headers } = capturedRequest();
-    expect(url).toBe("https://api.example/api/fleet-owner/cars/car-1/pricing");
+    expect(url).toBe(`https://api.example/api/fleet-owner/cars/${fleetCar.id}/pricing`);
     expect(init?.method).toBe("PATCH");
     expect(headers.get("cookie")).toBe("better-auth.session_token=session-1");
     expect(headers.get("content-type")).toBe("application/json");
@@ -229,13 +245,15 @@ describe("fleet car onboarding BFF", () => {
 
     await createFleetInsuranceVerification({
       request,
-      carId: "car-1",
+      carId: "018f47a2-7b3c-7d4e-8f90-123456789471",
       idempotencyKey: "insurance-1",
       body: { policyNumber: "POL-12345" },
     });
 
     const { url, init, headers } = capturedRequest();
-    expect(url).toBe("https://api.example/api/fleet-owner/cars/car-1/insurance-verifications");
+    expect(url).toBe(
+      `https://api.example/api/fleet-owner/cars/${fleetCar.id}/insurance-verifications`,
+    );
     expect(init?.method).toBe("POST");
     expect(headers.get("cookie")).toBe("better-auth.session_token=session-1");
     expect(headers.get("Idempotency-Key")).toBe("insurance-1");
@@ -246,10 +264,10 @@ describe("fleet car onboarding BFF", () => {
   it("POSTs car submission without a body", async () => {
     fetchMock.mockResolvedValueOnce(Response.json(submission));
 
-    await submitFleetCar({ request, carId: "car-1" });
+    await submitFleetCar({ request, carId: "018f47a2-7b3c-7d4e-8f90-123456789471" });
 
     const { url, init, headers } = capturedRequest();
-    expect(url).toBe("https://api.example/api/fleet-owner/cars/car-1/submissions");
+    expect(url).toBe(`https://api.example/api/fleet-owner/cars/${fleetCar.id}/submissions`);
     expect(init?.method).toBe("POST");
     expect(headers.get("cookie")).toBe("better-auth.session_token=session-1");
     expect(headers.get("content-type")).toBeNull();
