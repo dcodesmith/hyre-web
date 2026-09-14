@@ -1,12 +1,11 @@
 import { getFormProps, getInputProps, type SubmissionResult, useForm } from "@conform-to/react";
-import { parseWithZod } from "@conform-to/zod/v4";
+import { getZodConstraint, parseWithZod } from "@conform-to/zod/v4";
 import { Form, useNavigation } from "react-router";
 import { AccountDeletion } from "~/account/account-deletion";
 import { profileFormSchema } from "~/account/profile-form-schema";
 import type { CurrentUserProfile } from "~/api/users/schema";
 import { AuthCheckbox } from "~/auth/auth-form-primitives";
 import { FormError } from "~/components/forms/form-primitives";
-import { getZodConstraint } from "~/components/forms/get-zod-constraint";
 import { Button } from "~/components/ui/button";
 
 const fieldClassName = "h-9 w-full rounded-md border px-3 text-sm";

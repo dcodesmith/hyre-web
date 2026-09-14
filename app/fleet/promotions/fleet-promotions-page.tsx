@@ -1,11 +1,10 @@
 import { getFormProps, getInputProps, useForm } from "@conform-to/react";
-import { parseWithZod } from "@conform-to/zod/v4";
+import { getZodConstraint, parseWithZod } from "@conform-to/zod/v4";
 import { CalendarIcon, PlusCircleIcon, TagIcon, Trash2Icon } from "lucide-react";
 import { Form, Link, useFetcher, useLocation, useNavigate, useNavigation } from "react-router";
 import type { FleetCar } from "~/api/fleet/cars/schema";
 import type { FleetOwnerPromotion } from "~/api/fleet/promotions/schema";
 import { FormError } from "~/components/forms/form-primitives";
-import { getZodConstraint } from "~/components/forms/get-zod-constraint";
 import {
   AlertDialog,
   AlertDialogAction,

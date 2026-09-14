@@ -1,10 +1,9 @@
 import { getFormProps, getInputProps, useForm } from "@conform-to/react";
-import { parseWithZod } from "@conform-to/zod/v4";
+import { getZodConstraint, parseWithZod } from "@conform-to/zod/v4";
 import { ArrowLeftIcon, CheckCircle2Icon, SearchIcon, TriangleAlertIcon } from "lucide-react";
 import { Form, Link, useNavigation } from "react-router";
 import type { FleetVehicleVerification } from "~/api/fleet/cars/onboarding-schema";
 import { FormError } from "~/components/forms/form-primitives";
-import { getZodConstraint } from "~/components/forms/get-zod-constraint";
 import { Alert, AlertDescription, AlertTitle } from "~/components/ui/alert";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";

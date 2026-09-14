@@ -1,11 +1,10 @@
 import { getFormProps, getInputProps, useForm } from "@conform-to/react";
-import { parseWithZod } from "@conform-to/zod/v4";
+import { getZodConstraint, parseWithZod } from "@conform-to/zod/v4";
 import { CameraIcon, ShieldCheckIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Form, Link, useNavigation } from "react-router";
 import { AuthCheckbox } from "~/auth/auth-form-primitives";
 import { FormError } from "~/components/forms/form-primitives";
-import { getZodConstraint } from "~/components/forms/get-zod-constraint";
 import { Button } from "~/components/ui/button";
 import { Field, FieldDescription, FieldError, FieldLabel } from "~/components/ui/field";
 import { Input } from "~/components/ui/input";
