@@ -32,23 +32,23 @@ test("keeps the bookings tab on the login redirect", async ({ page }) => {
 });
 
 test("sends guests from a booking detail URL to login", async ({ page }) => {
-  await page.goto("/bookings/booking-detail-1");
+  await page.goto(`/bookings/${VISUAL_BOOKING_ID}`);
 
   await expect(page).toHaveURL((url) => {
     return (
       url.pathname === "/auth" &&
-      url.searchParams.get("redirectTo") === "/bookings/booking-detail-1"
+      url.searchParams.get("redirectTo") === `/bookings/${VISUAL_BOOKING_ID}`
     );
   });
 });
 
 test("sends guests from a booking extension URL to login", async ({ page }) => {
-  await page.goto("/bookings/booking-detail-1/extend");
+  await page.goto(`/bookings/${VISUAL_BOOKING_ID}/extend`);
 
   await expect(page).toHaveURL((url) => {
     return (
       url.pathname === "/auth" &&
-      url.searchParams.get("redirectTo") === "/bookings/booking-detail-1/extend"
+      url.searchParams.get("redirectTo") === `/bookings/${VISUAL_BOOKING_ID}/extend`
     );
   });
 });
@@ -210,7 +210,7 @@ test("renders a responsive booking extension form", async ({ page }) => {
 });
 
 test("sends an unauthenticated cancel POST to login", async ({ page, baseURL }) => {
-  const response = await page.request.post("/bookings/booking-detail-1", {
+  const response = await page.request.post(`/bookings/${VISUAL_BOOKING_ID}`, {
     form: { intent: "cancel" },
     headers: {
       origin: new URL(baseURL ?? "http://localhost:5174").origin,
@@ -219,7 +219,9 @@ test("sends an unauthenticated cancel POST to login", async ({ page, baseURL }) 
   });
 
   expect(new URL(response.url()).pathname).toBe("/auth");
-  expect(new URL(response.url()).searchParams.get("redirectTo")).toBe("/bookings/booking-detail-1");
+  expect(new URL(response.url()).searchParams.get("redirectTo")).toBe(
+    `/bookings/${VISUAL_BOOKING_ID}`,
+  );
 });
 
 test("sends a list fixture row to login for its booking", async ({ page }) => {
