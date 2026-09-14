@@ -1,10 +1,10 @@
 import { getFormProps, getInputProps, type SubmissionResult, useForm } from "@conform-to/react";
-import { getZodConstraint, parseWithZod } from "@conform-to/zod/v4";
+import { parseWithZod } from "@conform-to/zod/v4";
 import { Loader2, MailCheck } from "lucide-react";
 import { Form, Link, useNavigation } from "react-router";
-
 import { guestBookingFormSchema } from "~/booking/guest-booking-form-schema";
 import { FormError } from "~/components/forms/form-primitives";
+import { getZodConstraint } from "~/components/forms/get-zod-constraint";
 import { Alert, AlertDescription, AlertTitle } from "~/components/ui/alert";
 import { Button } from "~/components/ui/button";
 import { Field, FieldError, FieldLabel } from "~/components/ui/field";

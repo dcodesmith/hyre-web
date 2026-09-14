@@ -1,8 +1,8 @@
 import { getFormProps, getInputProps, useForm } from "@conform-to/react";
-import { getZodConstraint, parseWithZod } from "@conform-to/zod/v4";
+import { parseWithZod } from "@conform-to/zod/v4";
 import { useFetcher } from "react-router";
-
 import type { PlatformFeeRate, VatRate } from "~/api/admin/rates/schema";
+import { getZodConstraint } from "~/components/forms/get-zod-constraint";
 import { Alert, AlertDescription, AlertTitle } from "~/components/ui/alert";
 import { Button } from "~/components/ui/button";
 import {

@@ -1,8 +1,7 @@
 import { getFormProps, getInputProps, type SubmissionResult, useForm } from "@conform-to/react";
-import { getZodConstraint, parseWithZod } from "@conform-to/zod/v4";
+import { parseWithZod } from "@conform-to/zod/v4";
 import { Form, Link, useNavigation } from "react-router";
 import type { z } from "zod";
-
 import type { AuthRole } from "~/api/auth/schema";
 import { AuthCheckbox, AuthSubmitButton } from "~/auth/auth-form-primitives";
 import type { AdminPortalRole } from "~/auth/auth-form-schema";
@@ -12,6 +11,7 @@ import {
   roleLoginFormSchema,
 } from "~/auth/auth-form-schema";
 import { FormError } from "~/components/forms/form-primitives";
+import { getZodConstraint } from "~/components/forms/get-zod-constraint";
 import { cn } from "~/lib/utils";
 
 type LoginFormProps = {

@@ -1,10 +1,10 @@
 import { getFormProps, getInputProps, useForm } from "@conform-to/react";
-import { getZodConstraint, parseWithZod } from "@conform-to/zod/v4";
+import { parseWithZod } from "@conform-to/zod/v4";
 import { SendIcon, ShieldCheckIcon } from "lucide-react";
 import { Form, useNavigation } from "react-router";
-
 import type { FleetCar } from "~/api/fleet/cars/schema";
 import { FormError } from "~/components/forms/form-primitives";
+import { getZodConstraint } from "~/components/forms/get-zod-constraint";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
 import { Field, FieldDescription, FieldError, FieldLabel } from "~/components/ui/field";

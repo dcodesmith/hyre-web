@@ -1,11 +1,11 @@
 import { getFormProps, getInputProps, useForm } from "@conform-to/react";
-import { getZodConstraint, parseWithZod } from "@conform-to/zod/v4";
+import { parseWithZod } from "@conform-to/zod/v4";
 import { useFetcher } from "react-router";
-
 import { AddonActionFeedback } from "~/admin/addons/addon-action-feedback";
 import { AdminAddonPricing } from "~/admin/addons/admin-addon-pricing";
 import type { AdminAddon } from "~/api/admin/addons/schema";
 import { BOOKING_TYPE_LABELS, BOOKING_TYPE_OPTIONS } from "~/booking/types";
+import { getZodConstraint } from "~/components/forms/get-zod-constraint";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";

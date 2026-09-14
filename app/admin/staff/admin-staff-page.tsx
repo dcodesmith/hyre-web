@@ -1,5 +1,5 @@
 import { getFormProps, getInputProps, useForm } from "@conform-to/react";
-import { getZodConstraint, parseWithZod } from "@conform-to/zod/v4";
+import { parseWithZod } from "@conform-to/zod/v4";
 import { ChevronLeftIcon, ChevronRightIcon, UserPlusIcon } from "lucide-react";
 import { Form, Link, useFetcher, useLocation, useNavigate, useNavigation } from "react-router";
 import type {
@@ -7,6 +7,7 @@ import type {
   AdminStaffListResponse,
   AdminStaffStatus,
 } from "~/api/admin/staff/schema";
+import { getZodConstraint } from "~/components/forms/get-zod-constraint";
 import { StatusBadge, type StatusBadgeTone } from "~/components/status-badge";
 import { Alert, AlertDescription, AlertTitle } from "~/components/ui/alert";
 import {

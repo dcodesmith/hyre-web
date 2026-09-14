@@ -1,8 +1,8 @@
 import { type FieldMetadata, getFormProps, getInputProps, useForm } from "@conform-to/react";
-import { getZodConstraint, parseWithZod } from "@conform-to/zod/v4";
+import { parseWithZod } from "@conform-to/zod/v4";
 import { Form, useNavigation } from "react-router";
-
 import { FormError } from "~/components/forms/form-primitives";
+import { getZodConstraint } from "~/components/forms/get-zod-constraint";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
 import { Field, FieldDescription, FieldError, FieldLabel } from "~/components/ui/field";
