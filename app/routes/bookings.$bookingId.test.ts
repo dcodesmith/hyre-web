@@ -49,6 +49,9 @@ import { HTTP_STATUS } from "~/api/http-status";
 import { action, loader, shouldRevalidate } from "./bookings.$bookingId";
 
 const SESSION_COOKIE = "better-auth.session_token=test-session";
+const BOOKING_ID = "018f47a2-7b3c-7d4e-8f90-123456789401";
+const BOOKING_PATH = `/bookings/${BOOKING_ID}`;
+const BOOKING_LOGIN_REDIRECT = `/auth?redirectTo=${encodeURIComponent(BOOKING_PATH)}`;
 
 function httpError(status: number, detail: string, kind: "aborted" | "http" = "http") {
   return new ApiRequestError(kind, status, {
@@ -60,7 +63,7 @@ function httpError(status: number, detail: string, kind: "aborted" | "http" = "h
 }
 
 async function runAction({
-  bookingId = "018f47a2-7b3c-7d4e-8f90-123456789401",
+  bookingId = BOOKING_ID,
   cookie = SESSION_COOKIE,
   form = { intent: "cancel" },
 }: {
@@ -75,7 +78,7 @@ async function runAction({
   }
 
   return action({
-    request: new Request("https://hyre.example/bookings/booking-1", {
+    request: new Request(`https://hyre.example/bookings/${bookingId}`, {
       method: "POST",
       headers: cookie ? { cookie } : undefined,
       body: formData,
@@ -116,10 +119,10 @@ const guestBooking = {
 
 async function runLoader(cookie = "") {
   return loader({
-    request: new Request("https://hyre.example/bookings/booking-1", {
+    request: new Request(`https://hyre.example${BOOKING_PATH}`, {
       headers: cookie ? { cookie } : undefined,
     }),
-    params: { bookingId: "018f47a2-7b3c-7d4e-8f90-123456789401" },
+    params: { bookingId: BOOKING_ID },
   } as Parameters<typeof loader>[0]);
 }
 
@@ -301,9 +304,7 @@ describe("booking detail action", () => {
 
     expect(cancelBooking).not.toHaveBeenCalled();
     expect(response).toBeInstanceOf(Response);
-    expect((response as Response).headers.get("location")).toBe(
-      "/auth?redirectTo=%2Fbookings%2Fbooking-1",
-    );
+    expect((response as Response).headers.get("location")).toBe(BOOKING_LOGIN_REDIRECT);
   });
 
   it("sends expired sessions to login", async () => {
@@ -312,9 +313,7 @@ describe("booking detail action", () => {
     const response = await runAction().catch((error: unknown) => error);
 
     expect(response).toBeInstanceOf(Response);
-    expect((response as Response).headers.get("location")).toBe(
-      "/auth?redirectTo=%2Fbookings%2Fbooking-1",
-    );
+    expect((response as Response).headers.get("location")).toBe(BOOKING_LOGIN_REDIRECT);
   });
 
   it("returns the API detail for a 4xx cancel failure", async () => {
