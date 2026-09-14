@@ -1,7 +1,6 @@
 import { getFormProps, getInputProps, type SubmissionResult, useForm } from "@conform-to/react";
 import { getZodConstraint, parseWithZod } from "@conform-to/zod/v4";
 import { Form, useNavigation } from "react-router";
-
 import { AccountDeletion } from "~/account/account-deletion";
 import { profileFormSchema } from "~/account/profile-form-schema";
 import type { CurrentUserProfile } from "~/api/users/schema";

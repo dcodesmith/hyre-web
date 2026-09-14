@@ -1,7 +1,6 @@
 import { expect, type Page, test } from "@playwright/test";
 
 const consentKey = "tripdly-cookie-consent:v1";
-const legacyConsentKey = "tripdly-cookie-consent";
 
 async function visitShellWithConsent(page: Page) {
   await page.addInitScript((key) => {
@@ -57,13 +56,6 @@ test("supports keyboard access to the main content", async ({ page }) => {
 test("persists a cookie preference", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name === "tablet-768", "Covered at mobile and desktop widths.");
 
-  await page.addInitScript(
-    ({ currentKey, oldKey }) => {
-      localStorage.removeItem(currentKey);
-      localStorage.removeItem(oldKey);
-    },
-    { currentKey: consentKey, oldKey: legacyConsentKey },
-  );
   await page.goto("/__visual/public-shell");
 
   const banner = page.getByRole("region", { name: "Cookie consent" });
@@ -75,7 +67,12 @@ test("persists a cookie preference", async ({ page }, testInfo) => {
   });
   await essentialOnly.click();
   await expect(banner).toBeHidden();
+  await expect
+    .poll(() => page.evaluate((key) => localStorage.getItem(key), consentKey))
+    .not.toBeNull();
+
   await page.reload();
+  await expect(page.getByRole("main")).toBeVisible();
   await expect(banner).toBeHidden();
 });
 

@@ -2,7 +2,6 @@ import { getFormProps, getInputProps, type SubmissionResult, useForm } from "@co
 import { getZodConstraint, parseWithZod } from "@conform-to/zod/v4";
 import { Form, Link, useNavigation } from "react-router";
 import type { z } from "zod";
-
 import type { AuthRole } from "~/api/auth/schema";
 import { AuthCheckbox, AuthSubmitButton } from "~/auth/auth-form-primitives";
 import type { AdminPortalRole } from "~/auth/auth-form-schema";
