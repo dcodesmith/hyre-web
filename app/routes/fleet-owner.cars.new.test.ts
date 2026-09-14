@@ -85,7 +85,6 @@ const MISSING_POLICY_MESSAGE = firstIssue(carOnboardingPlateFormSchema, {
   plateNumber: "KJA123AB",
 });
 const INVALID_UUID_MESSAGE = firstIssue(z.uuid(), "not-a-uuid");
-const INVALID_VERIFICATION_ID_MESSAGE = firstIssue(z.string().trim().min(1), "");
 
 function actionData(result: unknown) {
   return (result as { data: Record<string, unknown> }).data;
@@ -256,7 +255,13 @@ describe("fleet-owner cars new route", () => {
       "create-draft verification",
       { intent: "create-draft", verificationId: "" },
       createFleetDraftCar,
-      INVALID_VERIFICATION_ID_MESSAGE,
+      INVALID_UUID_MESSAGE,
+    ],
+    [
+      "create-draft non-UUID verification",
+      { intent: "create-draft", verificationId: "verification-1" },
+      createFleetDraftCar,
+      INVALID_UUID_MESSAGE,
     ],
   ] as const)(
     "rejects invalid %s without calling the mutation API",
