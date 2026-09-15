@@ -3,8 +3,6 @@ import { useSearchParams } from "react-router";
 import type { FleetCar } from "~/api/fleet/cars/schema";
 import { FleetCarOnboardingPage } from "~/fleet/cars/fleet-car-onboarding-page";
 
-const IDEMPOTENCY_KEY = "11111111-1111-4111-8111-111111111111";
-
 const fixtureCar = {
   id: "018f47a2-7b3c-7d4e-8f90-123456789101",
   publicRef: "0123456789abc101",
@@ -43,6 +41,19 @@ const fixtureCar = {
 } satisfies FleetCar;
 
 const fixtureDocuments = [
+  {
+    id: "018f47a2-7b3c-7d4e-8f90-1234567894c0",
+    documentType: "VEHICLE_REGISTRATION",
+    status: "PENDING",
+    documentUrl: "https://cdn.example.com/vehicle-registration.pdf",
+    notes: null,
+    approvedById: null,
+    approvedAt: null,
+    carId: fixtureCar.id,
+    createdAt: "2026-08-01T10:00:00.000Z",
+    updatedAt: "2026-08-01T10:00:00.000Z",
+    userId: null,
+  },
   {
     id: "018f47a2-7b3c-7d4e-8f90-1234567894c1",
     documentType: "MOT_CERTIFICATE",
@@ -89,25 +100,6 @@ const fixturePricing = {
   airportPickupRate: 50_000,
 } as const;
 
-const currentInsurance = [
-  {
-    id: "018f47a2-7b3c-7d4e-8f90-1234567894f1",
-    status: "SUCCEEDED",
-    policyNumber: "POL-12345",
-    policyStatus: "Active",
-    policyExpiresAt: "2099-12-31T00:00:00.000Z",
-    createdAt: "2026-09-07T12:00:00.000Z",
-  },
-] satisfies FleetCar["insuranceVerifications"];
-
-const expiredInsurance = [
-  {
-    ...currentInsurance[0],
-    policyStatus: "Expired",
-    policyExpiresAt: "2026-01-01T00:00:00.000Z",
-  },
-] satisfies FleetCar["insuranceVerifications"];
-
 function carForStep(step: string | null): FleetCar {
   if (step === "photos") {
     return { ...fixtureCar, documents: fixtureDocuments };
@@ -122,17 +114,6 @@ function carForStep(step: string | null): FleetCar {
       ...fixtureCar,
       documents: fixtureDocuments,
       images: fixtureImages,
-      insuranceVerifications: currentInsurance,
-      ...fixturePricing,
-    };
-  }
-
-  if (step === "insurance-recovery") {
-    return {
-      ...fixtureCar,
-      documents: fixtureDocuments,
-      images: fixtureImages,
-      insuranceVerifications: expiredInsurance,
       ...fixturePricing,
     };
   }
@@ -143,10 +124,5 @@ function carForStep(step: string | null): FleetCar {
 export default function CarOnboardingFixture() {
   const [searchParams] = useSearchParams();
 
-  return (
-    <FleetCarOnboardingPage
-      car={carForStep(searchParams.get("step"))}
-      idempotencyKey={IDEMPOTENCY_KEY}
-    />
-  );
+  return <FleetCarOnboardingPage car={carForStep(searchParams.get("step"))} />;
 }

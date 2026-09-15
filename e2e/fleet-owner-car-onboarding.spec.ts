@@ -23,41 +23,48 @@ async function signInFleetOwner(context: BrowserContext, page: Page, baseURL: st
   ]);
 }
 
+const VALID_CHASSIS = "1HGCM82633A004352";
+
 async function verifyEligibleVehicle(page: Page) {
   await page.getByLabel("Number plate").fill("kja-123ab");
-  await page.getByLabel("Insurance policy number").fill("POL-12345");
+  await page.getByLabel("Chassis number").fill(VALID_CHASSIS);
   await page.getByRole("button", { name: "Verify Vehicle" }).click();
-  await expect(page.getByRole("heading", { name: "Vehicle and Insurance Verified" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Vehicle Details Checked" })).toBeVisible();
   await expect(page.getByText("Toyota Camry")).toBeVisible();
   await expect(page.getByText("KJA123AB")).toBeVisible();
+  await expect(page.getByText(VALID_CHASSIS)).toBeVisible();
   await expect(page.getByText("Color")).toBeVisible();
   await expect(page.getByText("Black")).toBeVisible();
-  await expect(page.getByText("Seats")).toBeVisible();
-  await expect(page.getByText("5", { exact: true })).toBeVisible();
   await expect(page.getByText("Are these the correct vehicle details?")).toBeVisible();
   await expect(page.getByRole("button", { name: "Yes, Add This Car" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "No, Check Another Car" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "No, Check Another Car" })).toBeVisible();
 }
 
 async function expectActiveOnboardingStep(
   page: Page,
   step: "documents" | "photos" | "pricing" | "submit",
-  options: { insuranceRecovery?: boolean } = {},
 ) {
-  const copy = {
-    documents: { indicator: "Step 2 of 5 · Documents", heading: "Vehicle Documents" },
-    photos: { indicator: "Step 3 of 5 · Photos", heading: "Vehicle Photos" },
-    pricing: { indicator: "Step 4 of 5 · Pricing", heading: "Pricing" },
-    submit: {
-      indicator: "Step 5 of 5 · Submit",
-      heading: options.insuranceRecovery ? "Renew Insurance" : "Submit for Approval",
-    },
+  const headings = {
+    documents: "Vehicle Documents",
+    photos: "Vehicle Photos",
+    pricing: "Pricing",
+    submit: "Submit for Approval",
+  } as const;
+  const labels = {
+    documents: "Documents",
+    photos: "Photos",
+    pricing: "Pricing",
+    submit: "Submit",
   } as const;
 
   await expect(page.getByRole("heading", { name: "Set Up Toyota Camry" })).toBeVisible();
-  await expect(page.getByText(copy[step].indicator)).toBeVisible();
-  await expect(page.getByRole("heading", { name: copy[step].heading })).toBeVisible();
-  await expect(page.getByText("Step 6")).toHaveCount(0);
+  const progress = page.getByRole("list", { name: "Car onboarding progress" });
+  await expect(progress).toBeVisible();
+  await expect(progress.getByRole("listitem")).toHaveCount(5);
+  await expect(progress.locator('[aria-current="step"]')).toContainText(labels[step]);
+  await expect(page.getByRole("heading", { name: headings[step] })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Renew Insurance" })).toHaveCount(0);
+  await expect(page.getByLabel("Policy number")).toHaveCount(0);
 
   if (step !== "documents") {
     await expect(page.getByRole("heading", { name: "Vehicle Documents" })).toHaveCount(0);
@@ -68,16 +75,12 @@ async function expectActiveOnboardingStep(
   if (step !== "pricing") {
     await expect(page.getByRole("heading", { name: "Pricing" })).toHaveCount(0);
   }
-  if (step !== "submit" || options.insuranceRecovery) {
+  if (step !== "submit") {
     await expect(page.getByRole("heading", { name: "Submit for Approval" })).toHaveCount(0);
-  }
-  if (!options.insuranceRecovery) {
-    await expect(page.getByRole("heading", { name: "Renew Insurance" })).toHaveCount(0);
-    await expect(page.getByLabel("Policy number")).toHaveCount(0);
   }
 }
 
-test("verifies a new fleet car with plate and policy, then opens the documents step", async ({
+test("verifies a new fleet car with plate and chassis, then opens the documents step", async ({
   baseURL,
   context,
   page,
@@ -93,48 +96,46 @@ test("verifies a new fleet car with plate and policy, then opens the documents s
     await expect(page.getByRole("heading", { name: "Add a Verified Car" })).toBeVisible();
     await expect(
       page.getByText(
-        "Enter the Nigerian number plate and insurance policy number to verify the vehicle.",
+        "Enter the Nigerian number plate and chassis number to check the vehicle details.",
       ),
     ).toBeVisible();
     await expect(
-      page.getByText("Use the plate and policy number shown on your documents."),
+      page.getByText(
+        "Use the plate and 17-character chassis number shown on your vehicle documents.",
+      ),
     ).toBeVisible();
 
     const plateForm = page.locator("#fleet-car-plate-verification");
     const plateInput = page.getByLabel("Number plate");
-    const policyInput = page.getByLabel("Insurance policy number");
+    const chassisInput = page.getByLabel("Chassis number");
     await expect(plateInput).toBeVisible();
-    await expect(policyInput).toBeVisible();
+    await expect(chassisInput).toBeVisible();
     await expect(plateForm).toHaveAttribute("novalidate");
     await expect(plateInput).toHaveAttribute("required", "");
-    await expect(policyInput).toHaveAttribute("required", "");
-    await expect(policyInput).toHaveAttribute("minlength", "3");
-    await expect(policyInput).toHaveAttribute("maxlength", "100");
+    await expect(chassisInput).toHaveAttribute("required", "");
+    await expect(page.getByRole("list", { name: "Car onboarding progress" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Verify Vehicle" })).toBeEnabled();
 
     await plateInput.fill("ABC123");
-    await policyInput.fill("POL-12345");
+    await chassisInput.fill(VALID_CHASSIS);
     await page.getByRole("button", { name: "Verify Vehicle" }).click();
     await expect(page.getByText("Enter a valid Nigerian number plate")).toBeVisible();
     await expect.poll(() => api.requests.vehicleVerifications).toEqual([]);
 
     await plateInput.fill("kja-123ab");
-    await policyInput.fill("  POL-12345  ");
+    await chassisInput.fill(`  ${VALID_CHASSIS.toLowerCase()}  `);
     await page.getByRole("button", { name: "Verify Vehicle" }).click();
     await expect(page.getByRole("button", { name: "Verifying Vehicle…" })).toBeDisabled();
-    await expect(
-      page.getByRole("heading", { name: "Vehicle and Insurance Verified" }),
-    ).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Vehicle Details Checked" })).toBeVisible();
     await expect(page.getByText("KJA123AB")).toBeVisible();
     await expect(page.getByText("Toyota Camry")).toBeVisible();
+    await expect(page.getByText(VALID_CHASSIS)).toBeVisible();
     await expect(page.getByText("Color")).toBeVisible();
     await expect(page.getByText("Black")).toBeVisible();
-    await expect(page.getByText("Seats")).toBeVisible();
-    await expect(page.getByText("5", { exact: true })).toBeVisible();
     await expect(page.getByText("Are these the correct vehicle details?")).toBeVisible();
     await expect
       .poll(() => api.requests.vehicleVerifications.at(-1)?.body)
-      .toEqual({ plateNumber: "KJA123AB", policyNumber: "POL-12345" });
+      .toEqual({ plateNumber: "KJA123AB", chassisNumber: VALID_CHASSIS });
     expect(api.requests.vehicleVerifications.at(-1)?.idempotencyKey).toMatch(
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
     );
@@ -151,7 +152,6 @@ test("verifies a new fleet car with plate and policy, then opens the documents s
     await stopMockFleetOwnerAuthApi(api);
   }
 });
-
 test("returns to a blank verification form without creating a draft", async ({
   baseURL,
   context,
@@ -169,17 +169,15 @@ test("returns to a blank verification form without creating a draft", async ({
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
     );
 
-    await page.getByRole("button", { name: "No, Check Another Car" }).click();
+    await page.getByRole("link", { name: "No, Check Another Car" }).click();
     await expect(page).toHaveURL("/fleet-owner/cars/new");
     await expect(page.getByRole("heading", { name: "Add a Verified Car" })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Vehicle and Insurance Verified" })).toHaveCount(
-      0,
-    );
+    await expect(page.getByRole("heading", { name: "Vehicle Details Checked" })).toHaveCount(0);
     await expect(page.getByText("Are these the correct vehicle details?")).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Yes, Add This Car" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Verify Vehicle" })).toBeEnabled();
     await expect(page.getByLabel("Number plate")).toHaveValue("");
-    await expect(page.getByLabel("Insurance policy number")).toHaveValue("");
+    await expect(page.getByLabel("Chassis number")).toHaveValue("");
     await expect.poll(() => api.requests.draftCars).toEqual([]);
     await verifyEligibleVehicle(page);
     await expect.poll(() => api.requests.vehicleVerifications).toHaveLength(2);
@@ -208,6 +206,11 @@ test("completes the five-step car onboarding flow and redirects to car detail", 
     await expect(page).toHaveURL(`/fleet-owner/cars/${MOCK_FLEET_DRAFT_CAR_ID}/onboarding`);
     await expectActiveOnboardingStep(page, "documents");
 
+    await page.getByLabel("Vehicle registration").setInputFiles({
+      name: "registration.pdf",
+      mimeType: "application/pdf",
+      buffer: Buffer.from("%PDF-1.4 registration"),
+    });
     await page.getByLabel("MOT certificate").setInputFiles({
       name: "mot.pdf",
       mimeType: "application/pdf",
@@ -280,49 +283,16 @@ test("does not show the verified result card for an ineligible vehicle", async (
     await signInFleetOwner(context, page, baseURL ?? "http://localhost:5174");
     await page.goto("/fleet-owner/cars/new");
     await page.getByLabel("Number plate").fill("kja-123ab");
-    await page.getByLabel("Insurance policy number").fill("POL-12345");
+    await page.getByLabel("Chassis number").fill(VALID_CHASSIS);
     await page.getByRole("button", { name: "Verify Vehicle" }).click();
     await expect(
       page.getByText(
         "This vehicle is not eligible. Use a vehicle from 2015 or newer, or check the plate and try again.",
       ),
     ).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Vehicle and Insurance Verified" })).toHaveCount(
-      0,
-    );
+    await expect(page.getByRole("heading", { name: "Vehicle Details Checked" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Yes, Add This Car" })).toHaveCount(0);
     await expect.poll(() => api.requests.draftCars).toEqual([]);
-  } finally {
-    await stopMockFleetOwnerAuthApi(api);
-  }
-});
-
-test("recovers expired insurance inside step 5, then submits the car", async ({
-  baseURL,
-  context,
-  page,
-}) => {
-  const api = await startMockFleetOwnerAuthApi({ expiredInsuranceDraft: true });
-
-  try {
-    await signInFleetOwner(context, page, baseURL ?? "http://localhost:5174");
-    await page.goto(`/fleet-owner/cars/${MOCK_FLEET_DRAFT_CAR_ID}/onboarding`);
-    await expectActiveOnboardingStep(page, "submit", { insuranceRecovery: true });
-    await expect(
-      page.getByText("Your insurance verification is missing or expired."),
-    ).toBeVisible();
-    await expect(page.getByLabel("Policy number")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Verify Insurance" })).toBeEnabled();
-
-    await page.getByLabel("Policy number").fill("POL-RENEWED");
-    await page.getByRole("button", { name: "Verify Insurance" }).click();
-    await expectActiveOnboardingStep(page, "submit");
-    await expect(page.getByRole("button", { name: "Submit Car for Approval" })).toBeVisible();
-
-    await page.getByRole("button", { name: "Submit Car for Approval" }).click();
-    await expect(page).toHaveURL(`/fleet-owner/cars/${MOCK_FLEET_DRAFT_CAR_ID}`);
-    await expect(page.getByRole("heading", { name: "Toyota Camry" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "Edit Car" })).toBeVisible();
   } finally {
     await stopMockFleetOwnerAuthApi(api);
   }

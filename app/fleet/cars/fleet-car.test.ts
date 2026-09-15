@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { FleetCar } from "~/api/fleet/cars/schema";
 import {
+  FLEET_CAR_ONBOARDING_STAGES,
   getFleetCarOnboardingStep,
   getFleetCarStatusLabel,
   hasFleetCarPricing,
@@ -47,6 +48,19 @@ const fleetCar = {
 
 const onboardingDocuments = [
   {
+    id: "018f47a2-7b3c-7d4e-8f90-123456789490",
+    documentType: "VEHICLE_REGISTRATION" as const,
+    status: "PENDING" as const,
+    documentUrl: "https://cdn.example.com/registration.pdf",
+    notes: null,
+    approvedById: null,
+    approvedAt: null,
+    carId: "018f47a2-7b3c-7d4e-8f90-123456789471",
+    createdAt: "2026-08-01T10:00:00.000Z",
+    updatedAt: "2026-08-01T10:00:00.000Z",
+    userId: null,
+  },
+  {
     id: "018f47a2-7b3c-7d4e-8f90-123456789491",
     documentType: "MOT_CERTIFICATE" as const,
     status: "PENDING" as const,
@@ -88,7 +102,7 @@ function onboardingImage(id: string, isPrimary = false): FleetCar["images"][numb
 const onboardingImages = [
   onboardingImage("018f47a2-7b3c-7d4e-8f90-123456789481", true),
   onboardingImage("018f47a2-7b3c-7d4e-8f90-123456789482"),
-  onboardingImage("image-3"),
+  onboardingImage("018f47a2-7b3c-7d4e-8f90-123456789483"),
 ] satisfies FleetCar["images"];
 
 const draftCar = {
@@ -157,12 +171,31 @@ describe("fleet car setup status", () => {
 });
 
 describe("fleet car onboarding step", () => {
-  it("starts at documents until both certificates are present", () => {
+  it("starts at documents until all three required documents are present", () => {
     expect(getFleetCarOnboardingStep(draftCar)).toBe("documents");
     expect(
       getFleetCarOnboardingStep({
         ...draftCar,
         documents: [onboardingDocuments[0]],
+      }),
+    ).toBe("documents");
+    expect(
+      getFleetCarOnboardingStep({
+        ...draftCar,
+        documents: onboardingDocuments.slice(0, 2),
+      }),
+    ).toBe("documents");
+  });
+
+  it("checks required document types instead of trusting the document count", () => {
+    expect(
+      getFleetCarOnboardingStep({
+        ...draftCar,
+        documents: [
+          onboardingDocuments[1],
+          onboardingDocuments[2],
+          { ...onboardingDocuments[1], id: "duplicate-mot" },
+        ],
       }),
     ).toBe("documents");
   });
@@ -219,42 +252,24 @@ describe("fleet car onboarding step", () => {
     ).toBe("submit");
   });
 
-  it("keeps insurance recovery inside submit rather than adding a sixth step", () => {
+  it("does not add an insurance-recovery step after pricing is complete", () => {
     const readyForSubmit = {
       ...fleetCar,
       submittedAt: null,
       documents: onboardingDocuments,
       images: onboardingImages,
     } satisfies FleetCar;
-    const expiredInsurance = {
-      id: "018f47a2-7b3c-7d4e-8f90-1234567894f1",
-      status: "SUCCEEDED" as const,
-      policyNumber: "POL-12345",
-      policyStatus: "Expired",
-      policyExpiresAt: "2026-01-01T00:00:00.000Z",
-      createdAt: "2026-01-01T00:00:00.000Z",
-    };
-    const failedInsurance = {
-      ...expiredInsurance,
-      status: "FAILED" as const,
-      policyStatus: "Failed",
-      policyExpiresAt: "2027-01-01T00:00:00.000Z",
-    };
 
     expect(getFleetCarOnboardingStep({ ...readyForSubmit, insuranceVerifications: [] })).toBe(
       "submit",
     );
-    expect(
-      getFleetCarOnboardingStep({
-        ...readyForSubmit,
-        insuranceVerifications: [failedInsurance],
-      }),
-    ).toBe("submit");
-    expect(
-      getFleetCarOnboardingStep({
-        ...readyForSubmit,
-        insuranceVerifications: [expiredInsurance],
-      }),
-    ).toBe("submit");
+    expect(FLEET_CAR_ONBOARDING_STAGES.map((stage) => stage.label)).toEqual([
+      "Vehicle",
+      "Documents",
+      "Photos",
+      "Pricing",
+      "Submit",
+    ]);
+    expect(FLEET_CAR_ONBOARDING_STAGES).toHaveLength(5);
   });
 });

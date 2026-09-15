@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  fleetCarSubmissionSchema,
-  fleetInsuranceVerificationSchema,
-  fleetVehicleVerificationSchema,
-} from "./onboarding-schema";
+import { fleetCarSubmissionSchema, fleetVehicleVerificationSchema } from "./onboarding-schema";
 import { fleetCarSchema } from "./schema";
 
 const succeededVehicleVerification = {
@@ -113,41 +109,20 @@ describe("fleet car onboarding API schemas", () => {
     ).toBe(false);
   });
 
-  it("parses insurance verification including nullable policy fields", () => {
-    const succeeded = {
-      id: "018f47a2-7b3c-7d4e-8f90-1234567894f1",
-      carId: "018f47a2-7b3c-7d4e-8f90-123456789471",
-      status: "SUCCEEDED",
-      policyNumber: "POL-12345",
-      policyStatus: "Active",
-      policyExpiresAt: "2027-01-01T00:00:00.000Z",
-      providerRef: "ins-ref",
-      createdAt: "2026-09-07T12:00:00.000Z",
-    };
-
-    expect(fleetInsuranceVerificationSchema.parse(succeeded)).toEqual(succeeded);
-    expect(
-      fleetInsuranceVerificationSchema.parse({
-        ...succeeded,
-        policyStatus: null,
-        policyExpiresAt: null,
-        providerRef: null,
-      }),
-    ).toMatchObject({ policyStatus: null, policyExpiresAt: null, providerRef: null });
-  });
-
-  it("parses submission requirements", () => {
+  it("parses submission requirements without an insurance gate", () => {
     const submission = {
       success: true,
       requirements: {
         hasDocuments: true,
         hasImages: true,
         hasPricing: true,
-        hasInsuranceVerification: true,
       },
     };
 
     expect(fleetCarSubmissionSchema.parse(submission)).toEqual(submission);
+    expect(fleetCarSubmissionSchema.parse(submission).requirements).not.toHaveProperty(
+      "hasInsuranceVerification",
+    );
   });
 
   it("parses the current fleet-car draft response", () => {

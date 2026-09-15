@@ -26,6 +26,7 @@ const documentStatusLabels: Record<FleetCarDocumentStatus, string> = {
 };
 
 const documentTypeLabels: Record<FleetCar["documents"][number]["documentType"], string> = {
+  VEHICLE_REGISTRATION: "Vehicle registration",
   MOT_CERTIFICATE: "MOT certificate",
   INSURANCE_CERTIFICATE: "Insurance certificate",
 };
@@ -96,11 +97,31 @@ export function needsFleetCarOnboarding(car: FleetCar) {
 }
 
 export type FleetCarOnboardingStep = "documents" | "photos" | "pricing" | "submit";
+export type FleetCarOnboardingStage = "vehicle" | FleetCarOnboardingStep;
+
+export const FLEET_CAR_ONBOARDING_STAGES = [
+  { key: "vehicle", label: "Vehicle" },
+  { key: "documents", label: "Documents" },
+  { key: "photos", label: "Photos" },
+  { key: "pricing", label: "Pricing" },
+  { key: "submit", label: "Submit" },
+] as const satisfies readonly { key: FleetCarOnboardingStage; label: string }[];
 
 export const MIN_FLEET_CAR_IMAGES = 3;
+export const REQUIRED_FLEET_CAR_DOCUMENT_TYPES = [
+  "VEHICLE_REGISTRATION",
+  "MOT_CERTIFICATE",
+  "INSURANCE_CERTIFICATE",
+] as const satisfies readonly FleetCar["documents"][number]["documentType"][];
 
 export function getFleetCarOnboardingStep(car: FleetCar): FleetCarOnboardingStep {
-  if (car.documents.length < 2) return "documents";
+  if (
+    !REQUIRED_FLEET_CAR_DOCUMENT_TYPES.every((type) =>
+      car.documents.some((document) => document.documentType === type),
+    )
+  ) {
+    return "documents";
+  }
   if (car.images.length < MIN_FLEET_CAR_IMAGES) return "photos";
   if (!hasFleetCarPricing(car)) return "pricing";
   return "submit";

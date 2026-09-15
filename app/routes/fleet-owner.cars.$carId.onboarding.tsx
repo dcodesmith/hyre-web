@@ -1,10 +1,8 @@
 import { parseWithZod } from "@conform-to/zod/v4";
 import { data, redirect, type ShouldRevalidateFunctionArgs } from "react-router";
-import { z } from "zod";
 
 import { ApiRequestError } from "~/api/api.server";
 import {
-  createFleetInsuranceVerification,
   submitFleetCar,
   updateFleetDraftCarPricing,
   uploadFleetDraftCarDocuments,
@@ -15,7 +13,6 @@ import { HTTP_STATUS } from "~/api/http-status";
 import {
   carOnboardingDocumentsFormSchema,
   carOnboardingImagesFormSchema,
-  carOnboardingInsuranceFormSchema,
   carOnboardingPricingFormSchema,
   type FleetCarOnboardingActionData,
   type FleetCarOnboardingIntent,
@@ -26,7 +23,6 @@ import type { Route } from "./+types/fleet-owner.cars.$carId.onboarding";
 
 const NO_STORE = { "Cache-Control": "private, no-store" };
 const RETRY_MESSAGE = "Unable to complete this car onboarding step. Please try again.";
-const idempotencyKeySchema = z.uuid();
 
 export const meta = ({ loaderData }: Route.MetaArgs) =>
   buildPageMetadata({
@@ -49,7 +45,7 @@ export async function loader({ request, params }: Route.LoaderArgs) {
   if (car.submittedAt) {
     return redirect(`/fleet-owner/cars/${car.id}`, { headers: NO_STORE });
   }
-  return { car, idempotencyKey: crypto.randomUUID() };
+  return { car };
 }
 
 function invalid(error: string, status: number = HTTP_STATUS.BAD_REQUEST) {
@@ -118,24 +114,6 @@ async function savePricing(request: Request, carId: string, formData: FormData) 
   return redirect(onboardingPath(carId), { headers: NO_STORE });
 }
 
-async function verifyInsurance(request: Request, carId: string, formData: FormData) {
-  const submission = parseWithZod(formData, { schema: carOnboardingInsuranceFormSchema });
-  if (submission.status !== "success") {
-    return invalidSubmission("verify-insurance", submission);
-  }
-  const idempotencyKey = idempotencyKeySchema.safeParse(formData.get("idempotencyKey"));
-  if (!idempotencyKey.success) {
-    return invalid(idempotencyKey.error.issues[0]?.message ?? "Invalid idempotency key");
-  }
-  await createFleetInsuranceVerification({
-    request,
-    carId,
-    idempotencyKey: idempotencyKey.data,
-    body: submission.value,
-  });
-  return redirect(onboardingPath(carId), { headers: NO_STORE });
-}
-
 async function executeAction(
   intent: FormDataEntryValue | null,
   request: Request,
@@ -149,8 +127,6 @@ async function executeAction(
       return uploadImages(request, carId, formData);
     case "save-pricing":
       return savePricing(request, carId, formData);
-    case "verify-insurance":
-      return verifyInsurance(request, carId, formData);
     case "submit-car":
       await submitFleetCar({ request, carId });
       return redirect(`/fleet-owner/cars/${carId}`, { headers: NO_STORE });
@@ -182,11 +158,5 @@ export default function FleetOwnerCarOnboardingRoute({
   actionData,
   loaderData,
 }: Route.ComponentProps) {
-  return (
-    <FleetCarOnboardingPage
-      actionData={actionData}
-      car={loaderData.car}
-      idempotencyKey={loaderData.idempotencyKey}
-    />
-  );
+  return <FleetCarOnboardingPage actionData={actionData} car={loaderData.car} />;
 }

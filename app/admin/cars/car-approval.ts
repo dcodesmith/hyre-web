@@ -43,6 +43,7 @@ const statusLabels: Record<AdminCarApprovalStatus | AdminCarAssetStatus, string>
 };
 
 const documentTypeLabels: Record<AdminCar["documents"][number]["documentType"], string> = {
+  VEHICLE_REGISTRATION: "Vehicle registration",
   MOT_CERTIFICATE: "MOT certificate",
   INSURANCE_CERTIFICATE: "Insurance certificate",
 };

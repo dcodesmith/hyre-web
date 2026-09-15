@@ -22,26 +22,32 @@ function pdfSchema(requiredMessage: string) {
   });
 }
 
-const policyNumberSchema = z
-  .string({ error: "Insurance policy number is required" })
-  .trim()
-  .min(3, "Insurance policy number must be at least 3 characters")
-  .max(100, "Insurance policy number must be at most 100 characters");
+const STATE_PLATE = /^[A-Z]{3}-?\d{3}[A-Z]{2}$/;
+const FEDERAL_PLATE = /^[A-Z]{2}\d{3}[A-Z]{2}$/;
+/** Prembly sandbox plates such as AAA000000. */
+const PREMBLY_SANDBOX_PLATE = /^[A-Z]{3}-?\d{6}$/;
+const VIN_PATTERN = /^[A-HJ-NPR-Z0-9]{17}$/;
+
+function isAllowedPlate(value: string) {
+  return STATE_PLATE.test(value) || FEDERAL_PLATE.test(value) || PREMBLY_SANDBOX_PLATE.test(value);
+}
 
 export const carOnboardingPlateFormSchema = z.object({
   plateNumber: z
     .string({ error: "Number plate is required" })
     .trim()
     .transform((value) => value.toUpperCase().replaceAll(/\s+/g, ""))
-    .refine(
-      (value) => /^[A-Z]{3}-?\d{3}[A-Z]{2}$/.test(value) || /^[A-Z]{2}\d{3}[A-Z]{2}$/.test(value),
-      "Enter a valid Nigerian number plate",
-    )
+    .refine(isAllowedPlate, "Enter a valid Nigerian number plate")
     .transform((value) => value.replace("-", "")),
-  policyNumber: policyNumberSchema,
+  chassisNumber: z
+    .string({ error: "Chassis number is required" })
+    .trim()
+    .transform((value) => value.toUpperCase())
+    .refine((value) => VIN_PATTERN.test(value), "Enter a valid 17-character chassis number"),
 });
 
 export const carOnboardingDocumentsFormSchema = z.object({
+  vehicleRegistration: pdfSchema("Vehicle registration is required"),
   motCertificate: pdfSchema("MOT certificate is required"),
   insuranceCertificate: pdfSchema("Insurance certificate is required"),
 });
@@ -139,10 +145,6 @@ export const carOnboardingPricingFormSchema = z
     }
   });
 
-export const carOnboardingInsuranceFormSchema = z.object({
-  policyNumber: policyNumberSchema,
-});
-
 export type CarOnboardingPricing = z.output<typeof carOnboardingPricingFormSchema>;
 
 export type NewFleetCarActionData = {
@@ -152,11 +154,7 @@ export type NewFleetCarActionData = {
   readonly verification?: FleetVehicleVerification;
 };
 
-export type FleetCarOnboardingIntent =
-  | "upload-documents"
-  | "upload-images"
-  | "save-pricing"
-  | "verify-insurance";
+export type FleetCarOnboardingIntent = "upload-documents" | "upload-images" | "save-pricing";
 
 export type FleetCarOnboardingActionData = {
   readonly error?: string;

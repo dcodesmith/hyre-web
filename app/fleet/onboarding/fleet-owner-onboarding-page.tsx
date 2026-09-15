@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Form } from "react-router";
 
 import type { FleetOwnerBank, FleetOwnerOnboarding } from "~/api/fleet/onboarding/schema";
+import { QuestionnaireProgress } from "~/components/questionnaire-progress";
 import { StatusBadge } from "~/components/status-badge";
 import { Alert, AlertDescription, AlertTitle } from "~/components/ui/alert";
 import { Button } from "~/components/ui/button";
@@ -23,6 +24,62 @@ type PageProps = {
   readonly idempotencyKey: string;
   readonly onboarding: FleetOwnerOnboarding;
 };
+
+const stages = [
+  { key: "contact", label: "Contact" },
+  { key: "identity", label: "Identity" },
+  { key: "payout", label: "Payout" },
+  { key: "driving", label: "Driving" },
+  { key: "submission", label: "Submit" },
+] as const;
+
+export function getFleetOwnerOnboardingStage(
+  onboarding: Pick<FleetOwnerOnboarding, "nextAction" | "requiredActions">,
+) {
+  if (onboarding.requiredActions.includes("UPLOAD_DRIVERS_LICENSE")) return "driving";
+
+  return (
+    {
+      VERIFY_EMAIL: "contact",
+      VERIFY_PHONE: "contact",
+      VERIFY_IDENTITY: "identity",
+      VERIFY_PAYOUT: "payout",
+      PROVIDE_DRIVING_CREDENTIALS: "driving",
+      SUBMIT_ACCOUNT: "submission",
+      WAIT_FOR_REVIEW: "submission",
+      COMPLETE: null,
+    }[onboarding.nextAction] ?? null
+  );
+}
+
+export function getFleetOwnerOnboardingProgress(
+  onboarding: Pick<FleetOwnerOnboarding, "nextAction" | "requiredActions" | "steps">,
+) {
+  const currentStage = getFleetOwnerOnboardingStage(onboarding);
+  const completedStages = {
+    contact: onboarding.steps.contact === "VERIFIED",
+    identity: onboarding.steps.identity !== "PENDING",
+    payout: onboarding.steps.payout !== "PENDING",
+    driving: onboarding.steps.driving !== "PENDING",
+    submission: onboarding.steps.submission !== "PENDING",
+  };
+  return stages.map((stage) => ({
+    ...stage,
+    complete: stage.key !== currentStage && completedStages[stage.key],
+  }));
+}
+
+function OnboardingProgress({ onboarding }: { readonly onboarding: FleetOwnerOnboarding }) {
+  const currentStage = getFleetOwnerOnboardingStage(onboarding);
+
+  return (
+    <QuestionnaireProgress
+      ariaLabel="Fleet owner onboarding progress"
+      currentStage={currentStage}
+      stages={getFleetOwnerOnboardingProgress(onboarding)}
+    />
+  );
+}
 
 function PageHeader() {
   return (
@@ -175,6 +232,7 @@ export function FleetOwnerOnboardingPage({
     <>
       <PageHeader />
       <div className="mx-auto w-full max-w-3xl space-y-5">
+        <OnboardingProgress onboarding={onboarding} />
         <Alert role="note">
           <ShieldCheckIcon aria-hidden="true" />
           <AlertTitle>Why we verify</AlertTitle>

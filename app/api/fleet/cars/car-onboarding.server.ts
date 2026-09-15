@@ -1,11 +1,7 @@
 import { env } from "cloudflare:workers";
 
 import { createApiClient } from "~/api/api.server";
-import {
-  fleetCarSubmissionSchema,
-  fleetInsuranceVerificationSchema,
-  fleetVehicleVerificationSchema,
-} from "./onboarding-schema";
+import { fleetCarSubmissionSchema, fleetVehicleVerificationSchema } from "./onboarding-schema";
 import { fleetCarSchema } from "./schema";
 
 let apiClient: ReturnType<typeof createApiClient> | undefined;
@@ -26,7 +22,7 @@ export function createFleetVehicleVerification({
 }: {
   readonly request: Request;
   readonly idempotencyKey: string;
-  readonly body: { readonly plateNumber: string; readonly policyNumber: string };
+  readonly body: { readonly plateNumber: string; readonly chassisNumber: string };
 }) {
   return getApiClient().request({
     path: "/api/fleet-owner/vehicle-verifications",
@@ -73,15 +69,18 @@ export function createFleetDraftCar({
 export function uploadFleetDraftCarDocuments({
   request,
   carId,
+  vehicleRegistration,
   motCertificate,
   insuranceCertificate,
 }: {
   readonly request: Request;
   readonly carId: string;
+  readonly vehicleRegistration: File;
   readonly motCertificate: File;
   readonly insuranceCertificate: File;
 }) {
   const formData = new FormData();
+  formData.set("vehicleRegistration", vehicleRegistration);
   formData.set("motCertificate", motCertificate);
   formData.set("insuranceCertificate", insuranceCertificate);
   return getApiClient().request({
@@ -143,28 +142,6 @@ export function updateFleetDraftCarPricing({
     forwardCookie: true,
     json: body,
     schema: fleetCarSchema,
-  });
-}
-
-export function createFleetInsuranceVerification({
-  request,
-  carId,
-  idempotencyKey,
-  body,
-}: {
-  readonly request: Request;
-  readonly carId: string;
-  readonly idempotencyKey: string;
-  readonly body: { readonly policyNumber: string };
-}) {
-  return getApiClient().request({
-    path: `/api/fleet-owner/cars/${pathSegment(carId)}/insurance-verifications`,
-    method: "POST",
-    request,
-    forwardCookie: true,
-    headers: { "Idempotency-Key": idempotencyKey },
-    json: body,
-    schema: fleetInsuranceVerificationSchema,
   });
 }
 

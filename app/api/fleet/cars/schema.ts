@@ -3,7 +3,11 @@ import { z } from "zod";
 export const fleetCarStatusSchema = z.enum(["AVAILABLE", "BOOKED", "HOLD", "IN_SERVICE"]);
 export const fleetCarApprovalStatusSchema = z.enum(["PENDING", "APPROVED", "REJECTED"]);
 export const fleetCarDocumentStatusSchema = z.enum(["PENDING", "APPROVED", "REJECTED"]);
-export const fleetCarDocumentTypeSchema = z.enum(["MOT_CERTIFICATE", "INSURANCE_CERTIFICATE"]);
+export const fleetCarDocumentTypeSchema = z.enum([
+  "VEHICLE_REGISTRATION",
+  "MOT_CERTIFICATE",
+  "INSURANCE_CERTIFICATE",
+]);
 export const fleetCarVehicleTypeSchema = z.enum(["SEDAN", "SUV", "VAN", "CROSSOVER"]);
 export const fleetCarServiceTierSchema = z.enum([
   "STANDARD",
