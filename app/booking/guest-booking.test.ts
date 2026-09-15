@@ -5,7 +5,7 @@ import { BookingDomain } from "~/booking/booking-domain";
 import { guestBookingAsDetail } from "~/booking/guest-booking";
 
 const guestBooking = {
-  bookingId: "booking-1",
+  bookingId: "018f47a2-7b3c-7d4e-8f90-123456789401",
   bookingReference: "BK-123",
   status: "CONFIRMED",
   paymentStatus: "PAID",
@@ -34,7 +34,7 @@ const guestBooking = {
   chauffeur: { name: "Bola", phoneNumber: "08000000000" },
   legs: [
     {
-      id: "leg-1",
+      id: "018f47a2-7b3c-7d4e-8f90-123456789421",
       legDate: "2026-09-21T00:00:00.000Z",
       legStartTime: "2026-09-21T08:00:00.000Z",
       legEndTime: "2026-09-21T20:00:00.000Z",
@@ -49,7 +49,7 @@ describe("guestBookingAsDetail", () => {
     const view = BookingDomain(detail);
 
     expect(detail).toMatchObject({
-      id: "booking-1",
+      id: "018f47a2-7b3c-7d4e-8f90-123456789401",
       canEdit: false,
       canCancel: false,
       legs: [{ canExtend: false, maxExtendableHours: 0 }],

@@ -24,7 +24,7 @@ export const mockReferralSummary = {
   },
   referrals: [
     {
-      id: "user-2",
+      id: "018f47a2-7b3c-7d4e-8f90-123456789452",
       name: "Ada Friend",
       email: "friend@example.com",
       createdAt: "2026-08-20T12:00:00.000Z",
@@ -32,7 +32,7 @@ export const mockReferralSummary = {
   ],
   rewards: [
     {
-      id: "reward-1",
+      id: "018f47a2-7b3c-7d4e-8f90-123456789431",
       amount: 10_000,
       status: "RELEASED",
       createdAt: "2026-08-22T12:00:00.000Z",

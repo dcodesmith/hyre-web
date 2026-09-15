@@ -36,12 +36,12 @@ vi.mock("~/payment/payment-status-session.server", () => ({
 import { loader } from "./payment-status";
 
 const confirmedStatus = {
-  bookingId: "booking-1",
+  bookingId: "018f47a2-7b3c-7d4e-8f90-123456789401",
   bookingReference: "HY-001",
   txRef: "tx-1",
   bookingStatus: "CONFIRMED",
   paymentStatus: "COMPLETED",
-  paymentId: "payment-1",
+  paymentId: "018f47a2-7b3c-7d4e-8f90-1234567894f2",
   totalAmount: 120000,
   reservationExpiresAt: null,
   lifecycleState: "CONFIRMED" as const,
@@ -53,7 +53,7 @@ describe("payment status loader", () => {
     readAuthUser.mockResolvedValue(null);
     readPaymentStatusSession.mockResolvedValue({
       kind: "booking",
-      bookingId: "booking-1",
+      bookingId: "018f47a2-7b3c-7d4e-8f90-123456789401",
       txRef: "tx-1",
       paymentStatusToken: "guest-token",
     });
@@ -72,7 +72,7 @@ describe("payment status loader", () => {
 
     expect(confirmBookingPayment).toHaveBeenCalledWith(
       expect.objectContaining({
-        bookingId: "booking-1",
+        bookingId: "018f47a2-7b3c-7d4e-8f90-123456789401",
         txRef: "tx-1",
         transactionId: "123",
         paymentStatusToken: "guest-token",
@@ -105,8 +105,8 @@ describe("payment status loader", () => {
     readAuthUser.mockResolvedValue({ email: "customer@example.com", name: "Ada" });
     readPaymentStatusSession.mockResolvedValue({
       kind: "extension",
-      bookingId: "booking-1",
-      extensionId: "extension-1",
+      bookingId: "018f47a2-7b3c-7d4e-8f90-123456789401",
+      extensionId: "018f47a2-7b3c-7d4e-8f90-123456789411",
       txRef: "ext-tx-1",
     });
     confirmExtensionPayment.mockResolvedValue({
@@ -116,7 +116,7 @@ describe("payment status loader", () => {
         amountExpected: 25_000,
         amountCharged: 25_000,
         confirmedAt: "2026-08-30T00:00:00.000Z",
-        extension: { id: "extension-1", status: "ACTIVE" },
+        extension: { id: "018f47a2-7b3c-7d4e-8f90-123456789411", status: "ACTIVE" },
       },
     });
 
@@ -131,7 +131,7 @@ describe("payment status loader", () => {
 
     expect(confirmExtensionPayment).toHaveBeenCalledWith(
       expect.objectContaining({
-        extensionId: "extension-1",
+        extensionId: "018f47a2-7b3c-7d4e-8f90-123456789411",
         txRef: "ext-tx-1",
         transactionId: "456",
       }),
@@ -141,7 +141,7 @@ describe("payment status loader", () => {
       data: {
         status: {
           kind: "extension",
-          bookingId: "booking-1",
+          bookingId: "018f47a2-7b3c-7d4e-8f90-123456789401",
           lifecycleState: "CONFIRMED",
         },
         error: null,
@@ -153,8 +153,8 @@ describe("payment status loader", () => {
     readAuthUser.mockResolvedValue({ email: "customer@example.com", name: "Ada" });
     readPaymentStatusSession.mockResolvedValue({
       kind: "extension",
-      bookingId: "booking-1",
-      extensionId: "extension-1",
+      bookingId: "018f47a2-7b3c-7d4e-8f90-123456789401",
+      extensionId: "018f47a2-7b3c-7d4e-8f90-123456789411",
       txRef: "ext-tx-1",
     });
     confirmExtensionPayment.mockRejectedValue(new Error("temporary network failure"));
@@ -165,7 +165,7 @@ describe("payment status loader", () => {
         amountExpected: 25_000,
         amountCharged: null,
         confirmedAt: null,
-        extension: { id: "extension-1", status: "PENDING" },
+        extension: { id: "018f47a2-7b3c-7d4e-8f90-123456789411", status: "PENDING" },
       },
     });
 
@@ -185,7 +185,7 @@ describe("payment status loader", () => {
       data: {
         status: {
           kind: "extension",
-          bookingId: "booking-1",
+          bookingId: "018f47a2-7b3c-7d4e-8f90-123456789401",
           lifecycleState: "PENDING",
         },
         error: null,

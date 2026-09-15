@@ -11,7 +11,7 @@ const optionalPromotionNameSchema = z.preprocess(
 export const createPromotionFormSchema = z
   .object({
     name: optionalPromotionNameSchema,
-    target: z.union([z.literal("FLEET"), z.cuid()]),
+    target: z.union([z.literal("FLEET"), z.uuid()]),
     discountValue: z.coerce
       .number({ error: "Discount percentage is required" })
       .min(1, "Discount must be at least 1%")
@@ -25,7 +25,7 @@ export const createPromotionFormSchema = z
   });
 
 export const deactivatePromotionFormSchema = z.object({
-  promotionId: z.cuid(),
+  promotionId: z.uuid(),
 });
 
 export type PromotionActionData = {

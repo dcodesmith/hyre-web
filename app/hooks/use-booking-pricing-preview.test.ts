@@ -13,7 +13,7 @@ describe("pricing preview request key", () => {
     expect(search.pickupTime).toBe("9 AM");
 
     const clientKey = bookingPricingPreviewSearchParams({
-      carId: "cmmz1wtb80000bwb5nz3j2r2p",
+      carId: "018f47a2-7b3c-7d4e-8f90-1234567890ad",
       bookingType: "DAY",
       from: "2026-08-28",
       to: "2026-08-28",
@@ -21,14 +21,14 @@ describe("pricing preview request key", () => {
     })?.toString();
 
     expect(clientKey).toBe(
-      "carId=cmmz1wtb80000bwb5nz3j2r2p&bookingType=DAY&startDate=2026-08-28T08%3A00%3A00.000Z&endDate=2026-08-28T20%3A00%3A00.000Z&pickupTime=9+AM&requiresFullTank=false&useCredits=0",
+      "carId=018f47a2-7b3c-7d4e-8f90-1234567890ad&bookingType=DAY&startDate=2026-08-28T08%3A00%3A00.000Z&endDate=2026-08-28T20%3A00%3A00.000Z&pickupTime=9+AM&requiresFullTank=false&useCredits=0",
     );
   });
 
   it("appends selected addonIds as repeated query params", () => {
-    const addonId = "cmaddonprotocol0000000001";
+    const addonId = "018f47a2-7b3c-7d4e-8f90-1234567890b1";
     const params = bookingPricingPreviewSearchParams({
-      carId: "cmmz1wtb80000bwb5nz3j2r2p",
+      carId: "018f47a2-7b3c-7d4e-8f90-1234567890ad",
       bookingType: "DAY",
       from: "2026-08-28",
       to: "2026-08-28",

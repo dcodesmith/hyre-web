@@ -13,7 +13,7 @@ import {
 } from "./schema";
 
 const listItem = {
-  id: "booking-1",
+  id: "018f47a2-7b3c-7d4e-8f90-123456789401",
   bookingReference: "TD-1001",
   status: "CONFIRMED",
   startDate: "2026-08-21T08:00:00.000Z",
@@ -39,9 +39,11 @@ describe("bookingsByStatusSchema", () => {
           car: {
             ...listItem.car,
             owner: { name: "fleet" },
-            images: [{ id: "img-1", url: "https://example.com/accord.jpg" }],
+            images: [
+              { id: "018f47a2-7b3c-7d4e-8f90-123456789483", url: "https://example.com/accord.jpg" },
+            ],
           },
-          review: { id: "rev-1", user: { name: "Ada" } },
+          review: { id: "018f47a2-7b3c-7d4e-8f90-123456789440", user: { name: "Ada" } },
         },
       ],
     });
@@ -95,8 +97,8 @@ describe("bookingsByStatusSchema", () => {
 describe("bookingDetailSchema", () => {
   it("keeps display fields and drops extras", () => {
     const payload = {
-      id: "booking-1",
-      userId: "user-1",
+      id: "018f47a2-7b3c-7d4e-8f90-123456789401",
+      userId: "018f47a2-7b3c-7d4e-8f90-123456789451",
       bookingReference: "TD-1001",
       status: "COMPLETED",
       paymentStatus: "PAID",
@@ -124,12 +126,17 @@ describe("bookingDetailSchema", () => {
         },
       ],
       securityDetailCost: 15_000,
-      car: { make: "Lexus", model: "UX F-Sport", year: 2019, owner: { id: "owner-1" } },
+      car: {
+        make: "Lexus",
+        model: "UX F-Sport",
+        year: 2019,
+        owner: { id: "018f47a2-7b3c-7d4e-8f90-123456789461" },
+      },
       chauffeur: { name: "Bola Adebayo", phoneNumber: "0801" },
       flight: null,
       legs: [
         {
-          id: "leg-1",
+          id: "018f47a2-7b3c-7d4e-8f90-123456789421",
           legDate: "2026-07-02T00:00:00.000Z",
           legStartTime: "2026-07-02T08:00:00.000Z",
           legEndTime: "2026-07-02T20:00:00.000Z",
@@ -142,14 +149,14 @@ describe("bookingDetailSchema", () => {
       canCancel: true,
       modificationCutoffAt: "2026-07-01T20:00:00.000Z",
       review: {
-        id: "review-1",
+        id: "018f47a2-7b3c-7d4e-8f90-123456789441",
         overallRating: 5,
         carRating: 4,
         chauffeurRating: 5,
         serviceRating: 5,
         comment: "Excellent trip",
         createdAt: "2026-07-03T10:00:00.000Z",
-        user: { id: "user-1", name: "Ada", image: null },
+        user: { id: "018f47a2-7b3c-7d4e-8f90-123456789451", name: "Ada", image: null },
         isVisible: true,
         moderationNotes: "hidden",
       },
@@ -185,17 +192,17 @@ describe("bookingDetailSchema", () => {
     });
     expect(booking.modificationCutoffAt).toBe("2026-07-01T20:00:00.000Z");
     expect(booking.review).toEqual({
-      id: "review-1",
+      id: "018f47a2-7b3c-7d4e-8f90-123456789441",
       overallRating: 5,
       carRating: 4,
       chauffeurRating: 5,
       serviceRating: 5,
       comment: "Excellent trip",
       createdAt: "2026-07-03T10:00:00.000Z",
-      user: { id: "user-1", name: "Ada", image: null },
+      user: { id: "018f47a2-7b3c-7d4e-8f90-123456789451", name: "Ada", image: null },
     });
     expect(booking).not.toHaveProperty("user");
-    expect(parsed.data.customerUserId).toBe("user-1");
+    expect(parsed.data.customerUserId).toBe("018f47a2-7b3c-7d4e-8f90-123456789451");
 
     const hidden = bookingDetailSchema.parse({
       ...payload,
@@ -207,8 +214,8 @@ describe("bookingDetailSchema", () => {
 
   it("drops an invalid currency instead of failing the booking", () => {
     const parsed = bookingDetailSchema.safeParse({
-      id: "booking-1",
-      userId: "user-1",
+      id: "018f47a2-7b3c-7d4e-8f90-123456789401",
+      userId: "018f47a2-7b3c-7d4e-8f90-123456789451",
       bookingReference: "TD-1001",
       status: "COMPLETED",
       paymentStatus: "PAID",
@@ -239,8 +246,8 @@ describe("bookingDetailSchema", () => {
 
   it("coerces numeric strings and rejects values that Number() would turn into 0", () => {
     const payload = {
-      id: "booking-1",
-      userId: "user-1",
+      id: "018f47a2-7b3c-7d4e-8f90-123456789401",
+      userId: "018f47a2-7b3c-7d4e-8f90-123456789451",
       bookingReference: "TD-1001",
       status: "COMPLETED",
       paymentStatus: "PAID",
@@ -277,7 +284,7 @@ describe("bookingDetailSchema", () => {
 
 describe("guest booking access schemas", () => {
   const detail = {
-    bookingId: "booking-1",
+    bookingId: "018f47a2-7b3c-7d4e-8f90-123456789401",
     bookingReference: "BK-123",
     status: "CONFIRMED",
     paymentStatus: "PAID",
@@ -302,7 +309,7 @@ describe("guest booking access schemas", () => {
     chauffeur: { name: "Bola", phoneNumber: "08000000000" },
     legs: [
       {
-        id: "leg-1",
+        id: "018f47a2-7b3c-7d4e-8f90-123456789421",
         legDate: "2026-09-21T00:00:00.000Z",
         legStartTime: "2026-09-21T08:00:00.000Z",
         legEndTime: "2026-09-21T20:00:00.000Z",
@@ -341,7 +348,7 @@ describe("bookingPricingPreviewSchema", () => {
     compareAtBaseTotal: 100_000,
     addons: [
       {
-        id: "cmaddonprotocol0000000001",
+        id: "018f47a2-7b3c-7d4e-8f90-1234567890b1",
         code: "PROTOCOL_SERVICE",
         name: "Protocol service",
         pricingUnit: "PER_BOOKING",
@@ -385,7 +392,7 @@ describe("bookingPricingPreviewSchema", () => {
 
 describe("createBookingResponseSchema", () => {
   const created = {
-    bookingId: "booking-1",
+    bookingId: "018f47a2-7b3c-7d4e-8f90-123456789401",
     txRef: "tx-1",
     totalAmount: 63_000,
     currency: "NGN",
@@ -418,7 +425,7 @@ describe("createBookingResponseSchema", () => {
 describe("createExtensionResponseSchema", () => {
   it("requires the extension identity and an https checkout URL", () => {
     const response = {
-      extensionId: "extension-1",
+      extensionId: "018f47a2-7b3c-7d4e-8f90-123456789411",
       paymentIntentId: "ext-tx-1",
     };
 
@@ -439,8 +446,13 @@ describe("createExtensionResponseSchema", () => {
 
 describe("bookingMutationResponseSchema", () => {
   it("only requires the mutated booking id", () => {
-    expect(bookingMutationResponseSchema.parse({ id: "booking-1", status: "CONFIRMED" })).toEqual({
-      id: "booking-1",
+    expect(
+      bookingMutationResponseSchema.parse({
+        id: "018f47a2-7b3c-7d4e-8f90-123456789401",
+        status: "CONFIRMED",
+      }),
+    ).toEqual({
+      id: "018f47a2-7b3c-7d4e-8f90-123456789401",
     });
   });
 });

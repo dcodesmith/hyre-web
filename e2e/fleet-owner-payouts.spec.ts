@@ -1,6 +1,11 @@
 import { expect, type Page, test } from "@playwright/test";
 
-import { startMockFleetOwnerAuthApi, stopMockFleetOwnerAuthApi } from "./mock-fleet-owner-auth-api";
+import {
+  MOCK_FIRST_PAYOUT_ID,
+  MOCK_LAST_PAYOUT_ID,
+  startMockFleetOwnerAuthApi,
+  stopMockFleetOwnerAuthApi,
+} from "./mock-fleet-owner-auth-api";
 
 const PAYOUT_TABLE_MIN_WIDTH = 768;
 
@@ -49,11 +54,11 @@ test("lists and filters fleet-owner payouts", async ({ context, page }) => {
     await expect(page.getByRole("heading", { name: "All-time summary", level: 3 })).toBeVisible();
     await expect(page.getByText("₦1,020,000")).toBeVisible();
     await expect(page.getByText("Page 1 of 2 · 21 transactions")).toBeVisible();
-    await expect(payoutId(page, "payout-01")).toBeVisible();
+    await expect(payoutId(page, MOCK_FIRST_PAYOUT_ID)).toBeVisible();
 
     await page.getByRole("link", { name: "Next" }).click();
     await expect(page).toHaveURL("/fleet-owner/payout-transactions?page=2");
-    await expect(payoutId(page, "payout-21")).toBeVisible();
+    await expect(payoutId(page, MOCK_LAST_PAYOUT_ID)).toBeVisible();
 
     await choosePayoutStatus(page, "Paid Out");
     await page.getByRole("button", { name: "Apply" }).click();

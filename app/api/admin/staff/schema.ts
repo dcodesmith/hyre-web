@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export const adminStaffSchema = z.object({
-  id: z.string(),
+  id: z.uuid(),
   name: z.string().nullable(),
   email: z.email(),
   phoneNumber: z.string().nullable(),

@@ -5,7 +5,7 @@ import type { BookingReviewActionData } from "~/review/booking-review";
 import { BookingReview } from "~/review/booking-review";
 
 const fixtureReview = {
-  id: "review-1",
+  id: "018f47a2-7b3c-7d4e-8f90-123456789441",
   overallRating: 5,
   carRating: 4,
   chauffeurRating: 5,
@@ -13,7 +13,7 @@ const fixtureReview = {
   comment: "The car was spotless and the chauffeur was excellent.",
   createdAt: "2026-07-30T09:00:00.000Z",
   user: {
-    id: "user-1",
+    id: "018f47a2-7b3c-7d4e-8f90-123456789451",
     name: "Ada Okafor",
     image: null,
   },

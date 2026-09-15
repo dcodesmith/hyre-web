@@ -50,7 +50,7 @@ const payoutStatusSummarySchema = z.object({
 });
 
 export const fleetPayoutSchema = z.object({
-  id: z.string(),
+  id: z.uuid(),
   amountToPay: z.number().nonnegative(),
   amountPaid: z.number().nonnegative(),
   currency: z.string().length(3),
@@ -60,8 +60,8 @@ export const fleetPayoutSchema = z.object({
   processedAt: z.iso.datetime().nullable(),
   completedAt: z.iso.datetime().nullable(),
   notes: z.string().nullable(),
-  bookingId: z.string().nullable(),
-  extensionId: z.string().nullable(),
+  bookingId: z.uuid().nullable(),
+  extensionId: z.uuid().nullable(),
 });
 
 export const fleetPayoutsSchema = z.object({

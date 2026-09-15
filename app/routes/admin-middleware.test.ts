@@ -20,7 +20,7 @@ describe("admin route middleware", () => {
     const session = {
       role: "staff",
       user: {
-        id: "staff-1",
+        id: "018f47a2-7b3c-7d4e-8f90-1234567894f4",
         email: "staff@example.com",
         name: "Staff User",
         roles: ["staff"],
@@ -50,7 +50,7 @@ describe("admin route middleware", () => {
     requireAdminOrStaff.mockResolvedValue({
       role: "staff",
       user: {
-        id: "staff-1",
+        id: "018f47a2-7b3c-7d4e-8f90-1234567894f4",
         email: "staff@example.com",
         name: "Staff User",
         roles: ["staff"],

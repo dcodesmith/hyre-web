@@ -42,7 +42,7 @@ const guestInfoSchema = z.object({
 });
 
 const bookingAddonIdsSchema = z
-  .array(z.string().cuid())
+  .array(z.uuid())
   .max(10, "Select no more than 10 add-ons")
   .refine((ids) => new Set(ids).size === ids.length, "Add-ons must be unique")
   .default([]);
@@ -75,7 +75,7 @@ function addGuestIssues(
 function buildBookingFormSchema(isGuest: boolean) {
   return z
     .object({
-      carId: z.string({ error: "Car ID is required" }).trim().min(1, "Car ID is required"),
+      carId: z.uuid({ error: "Car ID is invalid" }),
       idempotencyKey: z.uuid("Please retry this booking."),
       expectedTotalAmount: z
         .string({ error: "Confirm the current price before paying." })

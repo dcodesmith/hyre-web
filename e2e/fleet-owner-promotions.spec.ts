@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import {
+  MOCK_FIRST_PROMOTION_ID,
   MOCK_FLEET_CAR_ID,
   startMockFleetOwnerAuthApi,
   stopMockFleetOwnerAuthApi,
@@ -83,7 +84,9 @@ test("creates and deactivates a fleet-owner promotion", async ({ context, page }
       .click();
 
     await expect(page.getByText("Inactive")).toBeVisible();
-    await expect.poll(() => api.requests.deactivatedPromotionIds.at(-1)).toMatch(/^cm\d+$/);
+    await expect
+      .poll(() => api.requests.deactivatedPromotionIds.at(-1))
+      .toBe(MOCK_FIRST_PROMOTION_ID);
 
     await page.getByRole("link", { name: "New promotion" }).click();
     await page.getByLabel("Promotion name (optional)").fill("Fleet deal");

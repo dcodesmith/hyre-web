@@ -15,13 +15,13 @@ const referralSummary = {
   },
   referrals: [
     {
-      id: "referral-1",
+      id: "018f47a2-7b3c-7d4e-8f90-123456789431",
       name: "Grace Hopper",
       email: "grace@example.com",
       createdAt: "2026-08-20T12:00:00.000Z",
     },
     {
-      id: "referral-2",
+      id: "018f47a2-7b3c-7d4e-8f90-123456789432",
       name: null,
       email: "friend@example.com",
       createdAt: "2026-08-12T12:00:00.000Z",
@@ -29,14 +29,14 @@ const referralSummary = {
   ],
   rewards: [
     {
-      id: "reward-1",
+      id: "018f47a2-7b3c-7d4e-8f90-123456789431",
       amount: 10_000,
       status: "RELEASED",
       createdAt: "2026-08-22T12:00:00.000Z",
       refereeName: "Grace Hopper",
     },
     {
-      id: "reward-2",
+      id: "018f47a2-7b3c-7d4e-8f90-123456789432",
       amount: 10_000,
       status: "PENDING",
       createdAt: "2026-08-13T12:00:00.000Z",

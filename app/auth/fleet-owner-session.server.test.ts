@@ -9,7 +9,7 @@ vi.mock("~/auth/session.server", () => ({ readAuthSessionUser }));
 import { redirectAuthenticatedFleetOwner, requireFleetOwner } from "./fleet-owner-session.server";
 
 const fleetOwner = {
-  id: "owner-1",
+  id: "018f47a2-7b3c-7d4e-8f90-123456789461",
   email: "owner@example.com",
   name: "Fleet Owner",
   roles: ["fleetOwner"],

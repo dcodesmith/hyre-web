@@ -41,7 +41,7 @@ describe("booking receipt", () => {
   it("forwards only the scoped token for a guest receipt", async () => {
     await getBookingReceipt({
       request,
-      bookingId: "booking-1",
+      bookingId: "018f47a2-7b3c-7d4e-8f90-123456789401",
       guestToken: "a".repeat(43),
     });
 

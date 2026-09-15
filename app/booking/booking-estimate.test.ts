@@ -41,7 +41,7 @@ const preview = {
   compareAtBaseTotal: 200_000,
   addons: [
     {
-      id: "cmaddonprotocol0000000001",
+      id: "018f47a2-7b3c-7d4e-8f90-1234567890b1",
       code: "PROTOCOL_SERVICE",
       name: "Protocol service",
       pricingUnit: "PER_BOOKING",
@@ -291,8 +291,10 @@ describe("authoritative preview payment", () => {
         from: "2026-09-01",
         to: "2026-09-01",
         pickupTime: "9 AM",
-        addonIds: ["cmaddonb00000000000000002", "cmaddona00000000000000001"],
+        addonIds: ["018f47a2-7b3c-7d4e-8f90-1234567890b4", "018f47a2-7b3c-7d4e-8f90-1234567890b3"],
       }),
-    ).toBe("DAY|2026-09-01|2026-09-01|9 AM|cmaddona00000000000000001,cmaddonb00000000000000002");
+    ).toBe(
+      "DAY|2026-09-01|2026-09-01|9 AM|018f47a2-7b3c-7d4e-8f90-1234567890b3,018f47a2-7b3c-7d4e-8f90-1234567890b4",
+    );
   });
 });

@@ -133,7 +133,7 @@ test("manages admin fee, VAT, and add-on rate windows", async ({ context, page }
         method: "POST",
       });
     expect(api.requests.addonActions[1]?.path).toMatch(
-      /^\/api\/admin\/addons\/cmcreatedadd.+\/prices$/,
+      /^\/api\/admin\/addons\/[0-9a-f-]{36}\/prices$/,
     );
     await expect(createdCard.locator("[data-slot=badge]", { hasText: "Enabled" })).toBeVisible();
     await expect(createdCard.getByText("₦20,000")).toBeVisible();

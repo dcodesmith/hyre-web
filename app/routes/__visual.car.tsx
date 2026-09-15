@@ -14,7 +14,8 @@ import { parseZonedCalendarDate } from "~/time/timezone";
 const recentListingCreatedAt = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString();
 
 const fixtureCar = {
-  id: "cmmz4f7x00000l804jj2d6ikn",
+  id: "018f47a2-7b3c-7d4e-8f90-1234567890ab",
+  publicRef: "0123456789abcdef",
   make: "Lexus",
   model: "UX F-Sport",
   year: 2019,
@@ -33,7 +34,7 @@ const fixtureCar = {
   createdAt: recentListingCreatedAt,
   owner: { username: "fleet-one", name: "Fleet One" },
   promotion: {
-    id: "promo-fixture",
+    id: "018f47a2-7b3c-7d4e-8f90-123456789501",
     name: "August offer",
     discountValue: 10,
   },
@@ -44,24 +45,24 @@ const fixtureCar = {
 const fixtureReviews = {
   reviews: [
     {
-      id: "cmreviewfixture0000000001",
+      id: "018f47a2-7b3c-7d4e-8f90-123456789201",
       overallRating: 5,
       carRating: 5,
       chauffeurRating: 5,
       serviceRating: 5,
       comment: "Smooth airport pickup and a spotless cabin.",
       createdAt: "2026-08-10T09:00:00.000Z",
-      user: { id: "cmuserfixture000000000001", name: "Ada Lovelace", image: null },
+      user: { id: "018f47a2-7b3c-7d4e-8f90-123456789301", name: "Ada Lovelace", image: null },
     },
     {
-      id: "cmreviewfixture0000000002",
+      id: "018f47a2-7b3c-7d4e-8f90-123456789202",
       overallRating: 4,
       carRating: 4,
       chauffeurRating: 5,
       serviceRating: 4,
       comment: "Great for a day of meetings across Lagos.",
       createdAt: "2026-07-22T14:30:00.000Z",
-      user: { id: "cmuserfixture000000000002", name: "Bola Ahmed", image: null },
+      user: { id: "018f47a2-7b3c-7d4e-8f90-123456789302", name: "Bola Ahmed", image: null },
     },
   ],
   pagination: {
@@ -122,7 +123,7 @@ const fixtureRates = {
 
 const fixtureAddons = [
   {
-    id: "cmaddonprotocol0000000001",
+    id: "018f47a2-7b3c-7d4e-8f90-1234567890b1",
     code: "PROTOCOL_SERVICE",
     name: "Protocol service",
     description: "Dedicated protocol officer",

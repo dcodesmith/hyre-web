@@ -10,7 +10,8 @@ import {
 } from "~/car/car-url";
 
 const car = {
-  id: "cmmz4f7x00000l804jj2d6ikn",
+  publicRef: "0123456789abcdef",
+  color: "Black",
   make: "Lexus",
   model: "UX F-Sport",
   year: 2019,
@@ -68,7 +69,7 @@ describe("car detail URL contract", () => {
     );
 
     expect(buildCarDetailSearchPath(car, query)).toBe(
-      "/cars/2019-lexus-ux-f-sport-cmmz4f7x00000l804jj2d6ikn?vehicleType=SUV&from=2026-08-20&to=2026-08-21&bookingType=NIGHT",
+      "/cars/2019-black-lexus-ux-f-sport--0123456789abcdef?vehicleType=SUV&from=2026-08-20&to=2026-08-21&bookingType=NIGHT",
     );
   });
 
@@ -80,7 +81,7 @@ describe("car detail URL contract", () => {
     );
 
     expect(buildBookingTypeCarPath(car, "NIGHT", query)).toBe(
-      "/cars/2019-lexus-ux-f-sport-cmmz4f7x00000l804jj2d6ikn?vehicleType=SUV&bookingType=NIGHT",
+      "/cars/2019-black-lexus-ux-f-sport--0123456789abcdef?vehicleType=SUV&bookingType=NIGHT",
     );
   });
 

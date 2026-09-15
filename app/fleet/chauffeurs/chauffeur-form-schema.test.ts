@@ -44,11 +44,17 @@ describe("fleet chauffeur form schemas", () => {
 
   it("transforms chauffeur activation flags", () => {
     expect(
-      updateChauffeurFormSchema.parse({ chauffeurId: "chauffeur-1", isActive: "true" }),
-    ).toEqual({ chauffeurId: "chauffeur-1", isActive: true });
+      updateChauffeurFormSchema.parse({
+        chauffeurId: "018f47a2-7b3c-7d4e-8f90-1234567894a1",
+        isActive: "true",
+      }),
+    ).toEqual({ chauffeurId: "018f47a2-7b3c-7d4e-8f90-1234567894a1", isActive: true });
     expect(
-      updateChauffeurFormSchema.parse({ chauffeurId: "chauffeur-1", isActive: "false" }),
-    ).toEqual({ chauffeurId: "chauffeur-1", isActive: false });
+      updateChauffeurFormSchema.parse({
+        chauffeurId: "018f47a2-7b3c-7d4e-8f90-1234567894a1",
+        isActive: "false",
+      }),
+    ).toEqual({ chauffeurId: "018f47a2-7b3c-7d4e-8f90-1234567894a1", isActive: false });
     expect(updateChauffeurFormSchema.safeParse({ chauffeurId: "", isActive: "true" }).success).toBe(
       false,
     );

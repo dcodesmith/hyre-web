@@ -20,7 +20,7 @@ const TOKEN = "a".repeat(43);
 describe("guest booking session", () => {
   it("encrypts and scopes the guest token in an HttpOnly cookie", async () => {
     const session = createGuestBookingSession({
-      bookingId: "booking-1",
+      bookingId: "018f47a2-7b3c-7d4e-8f90-123456789401",
       token: TOKEN,
       accessExpiresAt: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
     });
@@ -35,7 +35,7 @@ describe("guest booking session", () => {
         new Request("http://localhost:5173/bookings/booking-1", {
           headers: { Cookie: cookie },
         }),
-        "booking-1",
+        "018f47a2-7b3c-7d4e-8f90-123456789401",
       ),
     ).resolves.toEqual(session);
     await expect(
@@ -43,7 +43,7 @@ describe("guest booking session", () => {
         new Request("http://localhost:5173/bookings/booking-2", {
           headers: { Cookie: cookie },
         }),
-        "booking-2",
+        "018f47a2-7b3c-7d4e-8f90-123456789402",
       ),
     ).resolves.toBeNull();
   });
@@ -55,7 +55,7 @@ describe("guest booking session", () => {
 
     try {
       const session = createGuestBookingSession({
-        bookingId: "booking-1",
+        bookingId: "018f47a2-7b3c-7d4e-8f90-123456789401",
         token: TOKEN,
         accessExpiresAt: new Date(now.getTime() + 1000).toISOString(),
       });
@@ -67,10 +67,12 @@ describe("guest booking session", () => {
           new Request("http://localhost:5173/bookings/booking-1", {
             headers: { Cookie: cookie },
           }),
-          "booking-1",
+          "018f47a2-7b3c-7d4e-8f90-123456789401",
         ),
       ).resolves.toBeNull();
-      await expect(guestBookingClearCookie("booking-1")).resolves.toContain("Max-Age=0");
+      await expect(
+        guestBookingClearCookie("018f47a2-7b3c-7d4e-8f90-123456789401"),
+      ).resolves.toContain("Max-Age=0");
     } finally {
       vi.useRealTimers();
     }

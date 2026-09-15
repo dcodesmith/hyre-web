@@ -6,7 +6,8 @@ const recentListingCreatedAt = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).to
 const fixtureResult = {
   cars: [
     {
-      id: "cmfixturetoyotacamry001",
+      id: "018f47a2-7b3c-7d4e-8f90-123456789601",
+      publicRef: "0123456789abc601",
       make: "Toyota",
       model: "Camry",
       year: 2023,
@@ -27,7 +28,8 @@ const fixtureResult = {
       totalReviews: 24,
     },
     {
-      id: "cmfixturelexusrx350002",
+      id: "018f47a2-7b3c-7d4e-8f90-123456789602",
+      publicRef: "0123456789abc602",
       make: "Lexus",
       model: "RX 350",
       year: 2022,
@@ -44,7 +46,7 @@ const fixtureResult = {
       createdAt: recentListingCreatedAt,
       owner: { username: "fleet-two", name: "Fleet Two" },
       promotion: {
-        id: "promo-fixture",
+        id: "018f47a2-7b3c-7d4e-8f90-123456789501",
         name: "August offer",
         discountValue: 10,
       },
@@ -52,7 +54,8 @@ const fixtureResult = {
       totalReviews: 18,
     },
     {
-      id: "cmfixturehighlander003",
+      id: "018f47a2-7b3c-7d4e-8f90-123456789603",
+      publicRef: "0123456789abc603",
       make: "Toyota",
       model: "Highlander",
       year: 2021,

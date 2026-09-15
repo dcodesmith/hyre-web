@@ -6,14 +6,15 @@ import { FleetCarOnboardingPage } from "~/fleet/cars/fleet-car-onboarding-page";
 const IDEMPOTENCY_KEY = "11111111-1111-4111-8111-111111111111";
 
 const fixtureCar = {
-  id: "cm12345678901234567890123",
+  id: "018f47a2-7b3c-7d4e-8f90-123456789101",
+  publicRef: "0123456789abc101",
   make: "Toyota",
   model: "Camry",
   year: 2020,
   createdAt: "2026-08-01T10:00:00.000Z",
   updatedAt: "2026-08-20T10:00:00.000Z",
   color: "Black",
-  ownerId: "owner-1",
+  ownerId: "018f47a2-7b3c-7d4e-8f90-123456789461",
   registrationNumber: "KJA123AB",
   status: "HOLD",
   approvalStatus: "PENDING",
@@ -30,7 +31,7 @@ const fixtureCar = {
   passengerCapacity: 5,
   pricingIncludesFuel: false,
   owner: {
-    id: "owner-1",
+    id: "018f47a2-7b3c-7d4e-8f90-123456789461",
     name: "Ada Lovelace",
     username: null,
     email: "owner@example.com",
@@ -43,7 +44,7 @@ const fixtureCar = {
 
 const fixtureDocuments = [
   {
-    id: "doc-mot",
+    id: "018f47a2-7b3c-7d4e-8f90-1234567894c1",
     documentType: "MOT_CERTIFICATE",
     status: "PENDING",
     documentUrl: "https://cdn.example.com/mot.pdf",
@@ -56,7 +57,7 @@ const fixtureDocuments = [
     userId: null,
   },
   {
-    id: "doc-insurance",
+    id: "018f47a2-7b3c-7d4e-8f90-1234567894c2",
     documentType: "INSURANCE_CERTIFICATE",
     status: "PENDING",
     documentUrl: "https://cdn.example.com/insurance.pdf",
@@ -71,7 +72,7 @@ const fixtureDocuments = [
 ] satisfies FleetCar["documents"];
 
 const fixtureImages = Array.from({ length: 3 }, (_, index) => ({
-  id: `img-${index + 1}`,
+  id: `018f47a2-7b3c-7d4e-8f90-12345678911${index + 1}`,
   url: `https://cdn.example.com/car-${index + 1}.jpg`,
   status: "PENDING" as const,
   isPrimary: index === 0,
@@ -90,7 +91,7 @@ const fixturePricing = {
 
 const currentInsurance = [
   {
-    id: "ins-1",
+    id: "018f47a2-7b3c-7d4e-8f90-1234567894f1",
     status: "SUCCEEDED",
     policyNumber: "POL-12345",
     policyStatus: "Active",

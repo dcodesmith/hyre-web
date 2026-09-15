@@ -20,7 +20,7 @@ import type { Route } from "./+types/fleet-owner.cars.new";
 const NO_STORE = { "Cache-Control": "private, no-store" };
 const RETRY_MESSAGE = "Unable to complete this car onboarding step. Please try again.";
 const idempotencyKeySchema = z.uuid();
-const verificationIdSchema = z.string().trim().min(1);
+const verificationIdSchema = z.uuid();
 
 export const meta = () =>
   buildPageMetadata({

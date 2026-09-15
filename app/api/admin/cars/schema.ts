@@ -13,40 +13,41 @@ export const adminCarServiceTierSchema = z.enum([
 ]);
 
 const adminCarImageSchema = z.object({
-  id: z.string(),
+  id: z.uuid(),
   url: z.url(),
   status: adminCarAssetStatusSchema,
   isPrimary: z.boolean(),
   notes: z.string().nullable(),
-  approvedById: z.string().nullable(),
+  approvedById: z.uuid().nullable(),
   approvedAt: z.iso.datetime().nullable(),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
 });
 
 const adminCarDocumentSchema = z.object({
-  id: z.string(),
+  id: z.uuid(),
   documentType: adminCarDocumentTypeSchema,
   status: adminCarAssetStatusSchema,
   documentUrl: z.string().min(1),
   notes: z.string().nullable(),
-  approvedById: z.string().nullable(),
+  approvedById: z.uuid().nullable(),
   approvedAt: z.iso.datetime().nullable(),
-  carId: z.string().nullable(),
+  carId: z.uuid().nullable(),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
-  userId: z.string().nullable(),
+  userId: z.uuid().nullable(),
 });
 
 export const adminCarSchema = z.object({
-  id: z.string(),
+  id: z.uuid(),
+  publicRef: z.string().regex(/^[0-9a-f]{16}$/),
   make: z.string(),
   model: z.string(),
   year: z.number().int(),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
   color: z.string(),
-  ownerId: z.string(),
+  ownerId: z.uuid(),
   registrationNumber: z.string(),
   status: adminCarStatusSchema,
   approvalStatus: adminCarApprovalStatusSchema,
@@ -62,7 +63,7 @@ export const adminCarSchema = z.object({
   passengerCapacity: z.number().int(),
   pricingIncludesFuel: z.boolean(),
   owner: z.object({
-    id: z.string(),
+    id: z.uuid(),
     name: z.string().nullable(),
     username: z.string().nullable(),
     email: z.email(),

@@ -168,7 +168,7 @@ test("invalidates an edited address and disables checkout", async ({ page }) => 
 
 test("selects an add-on and includes it in preview and checkout FormData", async ({ page }) => {
   await setCookiePreference(page);
-  const addonId = "cmaddonprotocol0000000001";
+  const addonId = "018f47a2-7b3c-7d4e-8f90-1234567890b1";
   await page.goto(
     "/__visual/car?bookingType=DAY&from=2026-09-01&to=2026-09-01&pickupTime=9%20AM&pickupAddress=Lekki&sameLocation=true",
   );
@@ -245,9 +245,9 @@ test("selects an add-on and includes it in preview and checkout FormData", async
   expect(addonIds).toEqual([addonId]);
 });
 
-test("returns 404 for a hireApp short slug the API cannot resolve", async ({ page }) => {
+test("returns 404 for a malformed public car ref", async ({ page }) => {
   await setCookiePreference(page);
-  const response = await page.goto("/cars/2019-lexus-ux-f-sport-cmmz4f7x00000");
+  const response = await page.goto("/cars/2019-black-lexus-ux-f-sport--0123456789abcde");
 
   expect(response?.status()).toBe(HTTP_STATUS.NOT_FOUND);
   await expect(page.getByRole("heading", { name: "Page not found" })).toBeVisible();

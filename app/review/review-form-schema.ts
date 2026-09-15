@@ -26,7 +26,7 @@ const createReviewFormSchema = z.object({
 
 const updateReviewFormSchema = z.object({
   intent: z.literal("update-review"),
-  reviewId: z.string().min(1),
+  reviewId: z.uuid(),
   ...ratingsSchema,
   comment: commentSchema.transform((comment) => comment || null),
 });

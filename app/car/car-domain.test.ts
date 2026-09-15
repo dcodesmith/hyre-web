@@ -6,7 +6,9 @@ import { formatCurrency } from "~/money/currency";
 
 function car(overrides: Partial<PublicCar> = {}): PublicCar {
   return {
-    id: "cmmz4f7x00000l804jj2d6ikn",
+    id: "018f47a2-7b3c-7d4e-8f90-1234567890ab",
+    publicRef: "0123456789abcdef",
+    color: "Black",
     make: "Lexus",
     model: "UX F-Sport",
     year: 2019,
@@ -31,14 +33,18 @@ describe("CarDomain", () => {
     const view = CarDomain(car(), now);
 
     expect(view.name).toBe("Lexus UX F-Sport (2019)");
-    expect(view.href).toBe("/cars/2019-lexus-ux-f-sport-cmmz4f7x00000l804jj2d6ikn?bookingType=DAY");
+    expect(view.href).toBe("/cars/2019-black-lexus-ux-f-sport--0123456789abcdef?bookingType=DAY");
     expect(view.imageUrl).toBe("/images/hero-640.webp");
   });
 
   it("shows a sale price and badge when a positive promotion is present", () => {
     const view = CarDomain(
       car({
-        promotion: { id: "promo-1", name: "Weekend", discountValue: 12.5 },
+        promotion: {
+          id: "018f47a2-7b3c-7d4e-8f90-123456789501",
+          name: "Weekend",
+          discountValue: 12.5,
+        },
       }),
       now,
     );
@@ -54,7 +60,11 @@ describe("CarDomain", () => {
   it("ignores a zero-discount promotion", () => {
     const view = CarDomain(
       car({
-        promotion: { id: "promo-1", name: null, discountValue: 0 },
+        promotion: {
+          id: "018f47a2-7b3c-7d4e-8f90-123456789501",
+          name: null,
+          discountValue: 0,
+        },
       }),
       now,
     );
@@ -87,7 +97,11 @@ describe("CarDomain", () => {
     const view = CarDomain(
       car({
         createdAt: "2026-08-16T12:00:00.000Z",
-        promotion: { id: "promo-1", name: "Launch", discountValue: 20 },
+        promotion: {
+          id: "018f47a2-7b3c-7d4e-8f90-123456789501",
+          name: "Launch",
+          discountValue: 20,
+        },
         averageRating: 4.8,
         totalReviews: 7,
       }),
@@ -105,7 +119,6 @@ describe("CarDomain", () => {
   it("uses the booking-type rate on search cars and falls back to the day rate", () => {
     const searchCar = {
       ...car(),
-      color: "Black",
       nightRate: 80_000,
       fullDayRate: null,
       airportPickupRate: 40_000,

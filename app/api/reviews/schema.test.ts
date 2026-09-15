@@ -11,14 +11,14 @@ describe("carReviewsResponseSchema", () => {
     const parsed = carReviewsResponseSchema.safeParse({
       reviews: [
         {
-          id: "cmreviewfixture0000000001",
+          id: "018f47a2-7b3c-7d4e-8f90-123456789201",
           overallRating: 5,
           carRating: 5,
           chauffeurRating: 4,
           serviceRating: 5,
           comment: "Great ride",
           createdAt: "2026-08-10T09:00:00.000Z",
-          user: { id: "cmuserfixture000000000001", name: null, image: null },
+          user: { id: "018f47a2-7b3c-7d4e-8f90-123456789301", name: null, image: null },
           booking: { id: "ignored", carId: "ignored" },
           isVisible: true,
         },
@@ -48,14 +48,14 @@ describe("carReviewsResponseSchema", () => {
 
 describe("customer review schemas", () => {
   const review = {
-    id: "cmreviewfixture0000000001",
+    id: "018f47a2-7b3c-7d4e-8f90-123456789201",
     overallRating: 5,
     carRating: 4,
     chauffeurRating: 5,
     serviceRating: 4,
     comment: "Great ride",
     createdAt: "2026-08-10T09:00:00.000Z",
-    user: { id: "cmuserfixture000000000001", name: "Ada", image: null },
+    user: { id: "018f47a2-7b3c-7d4e-8f90-123456789301", name: "Ada", image: null },
   };
 
   it("validates the review embedded in a booking response", () => {
@@ -63,7 +63,12 @@ describe("customer review schemas", () => {
   });
 
   it("only keeps the identity from mutation responses", () => {
-    expect(reviewMutationResponseSchema.parse({ ...review, bookingId: "booking-1" })).toEqual({
+    expect(
+      reviewMutationResponseSchema.parse({
+        ...review,
+        bookingId: "018f47a2-7b3c-7d4e-8f90-123456789401",
+      }),
+    ).toEqual({
       id: review.id,
     });
   });

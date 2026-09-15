@@ -6,7 +6,7 @@ import { decryptSession, encryptSession } from "~/auth/encrypted-session.server"
 import { readCookieValue } from "~/auth/pending-otp";
 
 const guestBookingSessionSchema = z.object({
-  bookingId: z.string().min(1),
+  bookingId: z.uuid(),
   token: guestBookingAccessTokenSchema,
   expiresAt: z.number().int().positive(),
 });

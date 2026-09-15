@@ -6,10 +6,12 @@ const recentListingCreatedAt = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).to
 
 const fixtureCars: CarCategoriesResponse["allCars"] = [
   {
-    id: "cmfixturetoyotacamry001",
+    id: "018f47a2-7b3c-7d4e-8f90-123456789601",
+    publicRef: "0123456789abc601",
     make: "Toyota",
     model: "Camry",
     year: 2023,
+    color: "White",
     dayRate: 75_000,
     passengerCapacity: 4,
     pricingIncludesFuel: true,
@@ -22,10 +24,12 @@ const fixtureCars: CarCategoriesResponse["allCars"] = [
     totalReviews: 24,
   },
   {
-    id: "cmfixturelexusrx350002",
+    id: "018f47a2-7b3c-7d4e-8f90-123456789602",
+    publicRef: "0123456789abc602",
     make: "Lexus",
     model: "RX 350",
     year: 2022,
+    color: "Black",
     dayRate: 120_000,
     passengerCapacity: 5,
     pricingIncludesFuel: false,
@@ -34,7 +38,7 @@ const fixtureCars: CarCategoriesResponse["allCars"] = [
     images: [{ url: "/images/hero-1200.webp" }],
     createdAt: recentListingCreatedAt,
     promotion: {
-      id: "promo-fixture",
+      id: "018f47a2-7b3c-7d4e-8f90-123456789501",
       name: "August offer",
       discountValue: 10,
     },
@@ -42,10 +46,12 @@ const fixtureCars: CarCategoriesResponse["allCars"] = [
     totalReviews: 18,
   },
   {
-    id: "cmfixturehighlander003",
+    id: "018f47a2-7b3c-7d4e-8f90-123456789603",
+    publicRef: "0123456789abc603",
     make: "Toyota",
     model: "Highlander",
     year: 2021,
+    color: "Silver",
     dayRate: 95_000,
     passengerCapacity: 6,
     pricingIncludesFuel: true,

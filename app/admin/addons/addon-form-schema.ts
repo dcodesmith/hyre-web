@@ -47,13 +47,13 @@ export const createAddonFormSchema = addonFieldsSchema.extend({
 });
 
 export const updateAddonFormSchema = addonFieldsSchema.extend({
-  addonId: z.string().cuid(),
+  addonId: z.uuid(),
   isActive: z.enum(["true", "false"]).transform((value) => value === "true"),
 });
 
 export const createAddonPriceFormSchema = z
   .object({
-    addonId: z.string().cuid(),
+    addonId: z.uuid(),
     amount: z.coerce
       .number({ error: "Amount is required" })
       .positive("Amount must be positive")
@@ -71,8 +71,8 @@ export const createAddonPriceFormSchema = z
   );
 
 export const endAddonPriceFormSchema = z.object({
-  addonId: z.string().cuid(),
-  priceId: z.string().cuid(),
+  addonId: z.uuid(),
+  priceId: z.uuid(),
 });
 
 export function toUtcIso(localDateTime: string) {

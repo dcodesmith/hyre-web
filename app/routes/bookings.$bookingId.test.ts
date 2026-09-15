@@ -49,6 +49,9 @@ import { HTTP_STATUS } from "~/api/http-status";
 import { action, loader, shouldRevalidate } from "./bookings.$bookingId";
 
 const SESSION_COOKIE = "better-auth.session_token=test-session";
+const BOOKING_ID = "018f47a2-7b3c-7d4e-8f90-123456789401";
+const BOOKING_PATH = `/bookings/${BOOKING_ID}`;
+const BOOKING_LOGIN_REDIRECT = `/auth?redirectTo=${encodeURIComponent(BOOKING_PATH)}`;
 
 function httpError(status: number, detail: string, kind: "aborted" | "http" = "http") {
   return new ApiRequestError(kind, status, {
@@ -60,7 +63,7 @@ function httpError(status: number, detail: string, kind: "aborted" | "http" = "h
 }
 
 async function runAction({
-  bookingId = "booking-1",
+  bookingId = BOOKING_ID,
   cookie = SESSION_COOKIE,
   form = { intent: "cancel" },
 }: {
@@ -75,7 +78,7 @@ async function runAction({
   }
 
   return action({
-    request: new Request("https://hyre.example/bookings/booking-1", {
+    request: new Request(`https://hyre.example/bookings/${bookingId}`, {
       method: "POST",
       headers: cookie ? { cookie } : undefined,
       body: formData,
@@ -85,7 +88,7 @@ async function runAction({
 }
 
 const guestBooking = {
-  bookingId: "booking-1",
+  bookingId: "018f47a2-7b3c-7d4e-8f90-123456789401",
   bookingReference: "BK-123",
   status: "CONFIRMED",
   paymentStatus: "PAID",
@@ -105,7 +108,7 @@ const guestBooking = {
   chauffeur: { name: "Bola", phoneNumber: "08000000000" },
   legs: [
     {
-      id: "leg-1",
+      id: "018f47a2-7b3c-7d4e-8f90-123456789421",
       legDate: "2026-09-21T00:00:00.000Z",
       legStartTime: "2026-09-21T08:00:00.000Z",
       legEndTime: "2026-09-21T20:00:00.000Z",
@@ -116,10 +119,10 @@ const guestBooking = {
 
 async function runLoader(cookie = "") {
   return loader({
-    request: new Request("https://hyre.example/bookings/booking-1", {
+    request: new Request(`https://hyre.example${BOOKING_PATH}`, {
       headers: cookie ? { cookie } : undefined,
     }),
-    params: { bookingId: "booking-1" },
+    params: { bookingId: BOOKING_ID },
   } as Parameters<typeof loader>[0]);
 }
 
@@ -127,7 +130,7 @@ describe("booking detail loader", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     readAuthSessionUser.mockResolvedValue({
-      id: "user-1",
+      id: "018f47a2-7b3c-7d4e-8f90-123456789451",
       email: "customer@example.com",
       name: "Customer",
       roles: ["user"],
@@ -138,12 +141,12 @@ describe("booking detail loader", () => {
     getBookingById.mockResolvedValue({
       data: {
         booking: {
-          id: "booking-1",
+          id: "018f47a2-7b3c-7d4e-8f90-123456789401",
           endDate: new Date().toISOString(),
           chauffeur: { name: "Chauffeur" },
           review: null,
         },
-        customerUserId: "user-1",
+        customerUserId: "018f47a2-7b3c-7d4e-8f90-123456789451",
         reviewVisibility: null,
       },
     });
@@ -151,7 +154,7 @@ describe("booking detail loader", () => {
     await expect(runLoader(SESSION_COOKIE)).resolves.toEqual({
       accessMode: "account",
       booking: {
-        id: "booking-1",
+        id: "018f47a2-7b3c-7d4e-8f90-123456789401",
         endDate: expect.any(String),
         chauffeur: { name: "Chauffeur" },
         review: null,
@@ -162,7 +165,7 @@ describe("booking detail loader", () => {
     });
 
     readAuthSessionUser.mockResolvedValueOnce({
-      id: "fleet-owner-1",
+      id: "018f47a2-7b3c-7d4e-8f90-123456789462",
       email: "owner@example.com",
       name: "Owner",
       roles: ["fleetOwner"],
@@ -176,14 +179,14 @@ describe("booking detail loader", () => {
 
     getBookingById.mockResolvedValueOnce({
       data: {
-        booking: { id: "booking-1", review: null },
-        customerUserId: "user-1",
+        booking: { id: "018f47a2-7b3c-7d4e-8f90-123456789401", review: null },
+        customerUserId: "018f47a2-7b3c-7d4e-8f90-123456789451",
         reviewVisibility: false,
       },
     });
 
     await expect(runLoader(SESSION_COOKIE)).resolves.toMatchObject({
-      booking: { id: "booking-1", review: null },
+      booking: { id: "018f47a2-7b3c-7d4e-8f90-123456789401", review: null },
       reviewAvailability: "moderated",
     });
   });
@@ -192,12 +195,12 @@ describe("booking detail loader", () => {
     getBookingById.mockResolvedValueOnce({
       data: {
         booking: {
-          id: "booking-1",
+          id: "018f47a2-7b3c-7d4e-8f90-123456789401",
           endDate: new Date().toISOString(),
           chauffeur: null,
           review: null,
         },
-        customerUserId: "user-1",
+        customerUserId: "018f47a2-7b3c-7d4e-8f90-123456789451",
         reviewVisibility: null,
       },
     });
@@ -209,12 +212,12 @@ describe("booking detail loader", () => {
     getBookingById.mockResolvedValueOnce({
       data: {
         booking: {
-          id: "booking-1",
+          id: "018f47a2-7b3c-7d4e-8f90-123456789401",
           endDate: "2020-01-01T00:00:00.000Z",
           chauffeur: { name: "Chauffeur" },
           review: null,
         },
-        customerUserId: "user-1",
+        customerUserId: "018f47a2-7b3c-7d4e-8f90-123456789451",
         reviewVisibility: null,
       },
     });
@@ -225,7 +228,10 @@ describe("booking detail loader", () => {
   });
 
   it("loads the redacted booking through a scoped guest session", async () => {
-    readGuestBookingSession.mockResolvedValue({ bookingId: "booking-1", token: "a".repeat(43) });
+    readGuestBookingSession.mockResolvedValue({
+      bookingId: "018f47a2-7b3c-7d4e-8f90-123456789401",
+      token: "a".repeat(43),
+    });
     getGuestBooking.mockResolvedValue({ data: guestBooking });
 
     await expect(runLoader()).resolves.toMatchObject({
@@ -233,7 +239,7 @@ describe("booking detail loader", () => {
       canDownloadReceipt: true,
       reviewAvailability: "hidden",
       booking: {
-        id: "booking-1",
+        id: "018f47a2-7b3c-7d4e-8f90-123456789401",
         canEdit: false,
         canCancel: false,
         legs: [{ canExtend: false }],
@@ -248,14 +254,20 @@ describe("booking detail loader", () => {
 
   it("falls back to valid guest access when a signed-in account does not own the booking", async () => {
     getBookingById.mockRejectedValue(httpError(HTTP_STATUS.NOT_FOUND, "Not found"));
-    readGuestBookingSession.mockResolvedValue({ bookingId: "booking-1", token: "a".repeat(43) });
+    readGuestBookingSession.mockResolvedValue({
+      bookingId: "018f47a2-7b3c-7d4e-8f90-123456789401",
+      token: "a".repeat(43),
+    });
     getGuestBooking.mockResolvedValue({ data: guestBooking });
 
     await expect(runLoader(SESSION_COOKIE)).resolves.toMatchObject({ accessMode: "guest" });
   });
 
   it("clears guest access when the API no longer accepts the token", async () => {
-    readGuestBookingSession.mockResolvedValue({ bookingId: "booking-1", token: "a".repeat(43) });
+    readGuestBookingSession.mockResolvedValue({
+      bookingId: "018f47a2-7b3c-7d4e-8f90-123456789401",
+      token: "a".repeat(43),
+    });
     getGuestBooking.mockRejectedValue(httpError(HTTP_STATUS.NOT_FOUND, "Not found"));
 
     const response = await runLoader().catch((error: unknown) => error);
@@ -292,9 +304,7 @@ describe("booking detail action", () => {
 
     expect(cancelBooking).not.toHaveBeenCalled();
     expect(response).toBeInstanceOf(Response);
-    expect((response as Response).headers.get("location")).toBe(
-      "/auth?redirectTo=%2Fbookings%2Fbooking-1",
-    );
+    expect((response as Response).headers.get("location")).toBe(BOOKING_LOGIN_REDIRECT);
   });
 
   it("sends expired sessions to login", async () => {
@@ -303,9 +313,7 @@ describe("booking detail action", () => {
     const response = await runAction().catch((error: unknown) => error);
 
     expect(response).toBeInstanceOf(Response);
-    expect((response as Response).headers.get("location")).toBe(
-      "/auth?redirectTo=%2Fbookings%2Fbooking-1",
-    );
+    expect((response as Response).headers.get("location")).toBe(BOOKING_LOGIN_REDIRECT);
   });
 
   it("returns the API detail for a 4xx cancel failure", async () => {
@@ -339,7 +347,7 @@ describe("booking detail action", () => {
 
   it("returns ok after a successful cancel", async () => {
     cancelBooking.mockResolvedValueOnce({
-      data: { id: "booking-1" },
+      data: { id: "018f47a2-7b3c-7d4e-8f90-123456789401" },
       status: HTTP_STATUS.OK,
       headers: new Headers(),
     });
@@ -349,7 +357,7 @@ describe("booking detail action", () => {
     });
     expect(cancelBooking).toHaveBeenCalledWith({
       request: expect.any(Request),
-      bookingId: "booking-1",
+      bookingId: "018f47a2-7b3c-7d4e-8f90-123456789401",
     });
   });
 
@@ -380,7 +388,7 @@ describe("booking detail action", () => {
 
   it("updates a booking with the validated API payload", async () => {
     updateBooking.mockResolvedValueOnce({
-      data: { id: "booking-1" },
+      data: { id: "018f47a2-7b3c-7d4e-8f90-123456789401" },
       status: HTTP_STATUS.OK,
       headers: new Headers(),
     });
@@ -398,7 +406,7 @@ describe("booking detail action", () => {
     expect(result).toMatchObject({ data: { ok: true } });
     expect(updateBooking).toHaveBeenCalledWith({
       request: expect.any(Request),
-      bookingId: "booking-1",
+      bookingId: "018f47a2-7b3c-7d4e-8f90-123456789401",
       body: {
         pickupTime: "9 AM",
         pickupAddress: "Ikeja GRA",
@@ -448,7 +456,7 @@ describe("booking detail action", () => {
 
   it("creates a review with the route booking id", async () => {
     createReview.mockResolvedValueOnce({
-      data: { id: "review-1" },
+      data: { id: "018f47a2-7b3c-7d4e-8f90-123456789441" },
       status: 201,
       headers: new Headers(),
     });
@@ -468,7 +476,7 @@ describe("booking detail action", () => {
     expect(createReview).toHaveBeenCalledWith({
       request: expect.any(Request),
       body: {
-        bookingId: "booking-1",
+        bookingId: "018f47a2-7b3c-7d4e-8f90-123456789401",
         overallRating: 5,
         carRating: 4,
         chauffeurRating: 5,
@@ -480,7 +488,7 @@ describe("booking detail action", () => {
 
   it("updates the review selected by the form", async () => {
     updateReview.mockResolvedValueOnce({
-      data: { id: "review-1" },
+      data: { id: "018f47a2-7b3c-7d4e-8f90-123456789441" },
       status: HTTP_STATUS.OK,
       headers: new Headers(),
     });
@@ -489,7 +497,7 @@ describe("booking detail action", () => {
       runAction({
         form: {
           intent: "update-review",
-          reviewId: "review-1",
+          reviewId: "018f47a2-7b3c-7d4e-8f90-123456789441",
           overallRating: "4",
           carRating: "4",
           chauffeurRating: "5",
@@ -500,7 +508,7 @@ describe("booking detail action", () => {
     ).resolves.toMatchObject({ data: { ok: true, operation: "updated" } });
     expect(updateReview).toHaveBeenCalledWith({
       request: expect.any(Request),
-      reviewId: "review-1",
+      reviewId: "018f47a2-7b3c-7d4e-8f90-123456789441",
       body: {
         overallRating: 4,
         carRating: 4,

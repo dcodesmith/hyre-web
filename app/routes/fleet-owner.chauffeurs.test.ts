@@ -31,8 +31,8 @@ const FRESH_IDEMPOTENCY_KEY = "9c4e2a71-6d3f-4b18-a5e2-7f1c0d8e4b92";
 const PATH = "/fleet-owner/chauffeurs";
 
 const chauffeur = {
-  id: "invite-1",
-  chauffeurId: "chauffeur-1",
+  id: "018f47a2-7b3c-7d4e-8f90-1234567894b1",
+  chauffeurId: "018f47a2-7b3c-7d4e-8f90-1234567894a1",
   name: "Bola Adebayo",
   email: "bola@example.com",
   phoneNumber: "+2348012345678",
@@ -74,7 +74,7 @@ function verifiedOnboarding(isOwnerDriver: boolean): FleetOwnerOnboarding {
 function fleetContext(isOwnerDriver: boolean): FleetOwnerRequestContext {
   return {
     user: {
-      id: "owner-1",
+      id: "018f47a2-7b3c-7d4e-8f90-123456789461",
       email: "owner@example.com",
       name: "Fleet Owner",
       roles: ["fleetOwner"],
@@ -356,7 +356,7 @@ describe("fleet-owner chauffeurs route", () => {
   it("updates chauffeur activation through the mocked API adapter", async () => {
     const args = actionArgs({
       intent: "update",
-      chauffeurId: "chauffeur-1",
+      chauffeurId: "018f47a2-7b3c-7d4e-8f90-1234567894a1",
       isActive: "false",
     });
 
@@ -364,11 +364,11 @@ describe("fleet-owner chauffeurs route", () => {
 
     expect(updateFleetOwnerChauffeur).toHaveBeenCalledWith({
       request: args.request,
-      chauffeurId: "chauffeur-1",
+      chauffeurId: "018f47a2-7b3c-7d4e-8f90-1234567894a1",
       isActive: false,
     });
     expect(result).toMatchObject({
-      data: { intent: "update", chauffeurId: "chauffeur-1" },
+      data: { intent: "update", chauffeurId: "018f47a2-7b3c-7d4e-8f90-1234567894a1" },
     });
   });
 
@@ -380,7 +380,7 @@ describe("fleet-owner chauffeurs route", () => {
     const result = await action(
       actionArgs({
         intent: "update",
-        chauffeurId: "chauffeur-1",
+        chauffeurId: "018f47a2-7b3c-7d4e-8f90-1234567894a1",
         isActive: "false",
       }),
     );
@@ -388,7 +388,7 @@ describe("fleet-owner chauffeurs route", () => {
     expect(result).toMatchObject({
       data: {
         intent: "update",
-        chauffeurId: "chauffeur-1",
+        chauffeurId: "018f47a2-7b3c-7d4e-8f90-1234567894a1",
         error: "Unable to update this chauffeur. Please try again.",
         revalidate: false,
       },

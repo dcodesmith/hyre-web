@@ -29,7 +29,7 @@ const CAR_ONBOARDING_RETRY = "Unable to complete this car onboarding step. Pleas
 const UNPROCESSABLE_ENTITY = 422;
 
 const eligibleVerification = {
-  id: "ver-1",
+  id: "018f47a2-7b3c-7d4e-8f90-1234567894f5",
   status: "SUCCEEDED",
   vehicle: {
     plateNumber: "KJA123AB",
@@ -51,7 +51,7 @@ const ineligibleVerification = {
   eligibility: { isEligible: false, reasons: ["VEHICLE_YEAR_BELOW_MINIMUM"] },
 };
 
-const fleetCar = { id: "car-1" };
+const fleetCar = { id: "018f47a2-7b3c-7d4e-8f90-123456789471" };
 
 const validPlateFields = {
   intent: "verify-plate",
@@ -62,7 +62,7 @@ const validPlateFields = {
 
 const validDraftFields = {
   intent: "create-draft",
-  verificationId: "ver-1",
+  verificationId: "018f47a2-7b3c-7d4e-8f90-1234567894f5",
 } as const;
 
 function firstIssue(schema: z.ZodType, value: unknown) {
@@ -85,7 +85,6 @@ const MISSING_POLICY_MESSAGE = firstIssue(carOnboardingPlateFormSchema, {
   plateNumber: "KJA123AB",
 });
 const INVALID_UUID_MESSAGE = firstIssue(z.uuid(), "not-a-uuid");
-const INVALID_VERIFICATION_ID_MESSAGE = firstIssue(z.string().trim().min(1), "");
 
 function actionData(result: unknown) {
   return (result as { data: Record<string, unknown> }).data;
@@ -204,9 +203,9 @@ describe("fleet-owner cars new route", () => {
 
     expect(createFleetDraftCar).toHaveBeenCalledWith({
       request,
-      verificationId: "ver-1",
+      verificationId: "018f47a2-7b3c-7d4e-8f90-1234567894f5",
     });
-    expectRedirect(result, "/fleet-owner/cars/car-1/onboarding");
+    expectRedirect(result, "/fleet-owner/cars/018f47a2-7b3c-7d4e-8f90-123456789471/onboarding");
   });
 
   it.each([
@@ -256,7 +255,13 @@ describe("fleet-owner cars new route", () => {
       "create-draft verification",
       { intent: "create-draft", verificationId: "" },
       createFleetDraftCar,
-      INVALID_VERIFICATION_ID_MESSAGE,
+      INVALID_UUID_MESSAGE,
+    ],
+    [
+      "create-draft non-UUID verification",
+      { intent: "create-draft", verificationId: "verification-1" },
+      createFleetDraftCar,
+      INVALID_UUID_MESSAGE,
     ],
   ] as const)(
     "rejects invalid %s without calling the mutation API",
@@ -324,20 +329,20 @@ describe("fleet-owner cars new route", () => {
       apiError(HTTP_STATUS.BAD_GATEWAY, "socket hung up", "network"),
     );
     getFleetVehicleVerification.mockResolvedValueOnce({
-      data: { ...eligibleVerification, carId: "car-1" },
+      data: { ...eligibleVerification, carId: "018f47a2-7b3c-7d4e-8f90-123456789471" },
     });
 
     const { request, result } = await runAction(validDraftFields);
 
     expect(createFleetDraftCar).toHaveBeenCalledWith({
       request,
-      verificationId: "ver-1",
+      verificationId: "018f47a2-7b3c-7d4e-8f90-1234567894f5",
     });
     expect(getFleetVehicleVerification).toHaveBeenCalledWith({
       request,
-      verificationId: "ver-1",
+      verificationId: "018f47a2-7b3c-7d4e-8f90-1234567894f5",
     });
-    expectRedirect(result, "/fleet-owner/cars/car-1/onboarding");
+    expectRedirect(result, "/fleet-owner/cars/018f47a2-7b3c-7d4e-8f90-123456789471/onboarding");
   });
 
   it("returns the verification after create-draft network ambiguity when it is still unused", async () => {
@@ -349,7 +354,7 @@ describe("fleet-owner cars new route", () => {
 
     expect(getFleetVehicleVerification).toHaveBeenCalledWith({
       request,
-      verificationId: "ver-1",
+      verificationId: "018f47a2-7b3c-7d4e-8f90-1234567894f5",
     });
     expect(result).not.toBeInstanceOf(Response);
     expect(result).toMatchObject({

@@ -87,7 +87,11 @@ describe("fleet-owner authentication routes", () => {
     );
     verifySignInOtp.mockResolvedValue({
       data: {
-        user: { id: "owner-1", email: "owner@example.com", roles: ["fleetOwner"] },
+        user: {
+          id: "018f47a2-7b3c-7d4e-8f90-123456789461",
+          email: "owner@example.com",
+          roles: ["fleetOwner"],
+        },
       },
       status: 200,
       headers: apiHeaders,

@@ -176,7 +176,7 @@ describe("fleet-owner onboarding API schemas", () => {
   it("parses identity, payout, and driving stage responses", () => {
     expect(
       fleetOwnerIdentityVerificationSchema.parse({
-        id: "id-1",
+        id: "018f47a2-7b3c-7d4e-8f90-1234567894e1",
         status: "VERIFIED",
         accountType: "INDIVIDUAL",
         legalName: "JOHN MIDDLE DOE",
@@ -213,7 +213,7 @@ describe("fleet-owner onboarding API schemas", () => {
   it("parses SUCCEEDED and REVIEW_REQUIRED account verification responses", () => {
     expect(
       fleetOwnerAccountVerificationSchema.parse({
-        id: "ver-1",
+        id: "018f47a2-7b3c-7d4e-8f90-1234567894f5",
         status: "SUCCEEDED",
         accountType: "INDIVIDUAL",
         isOwnerDriver: false,
@@ -233,7 +233,7 @@ describe("fleet-owner onboarding API schemas", () => {
     });
     expect(
       fleetOwnerAccountVerificationSchema.parse({
-        id: "ver-2",
+        id: "018f47a2-7b3c-7d4e-8f90-1234567894f6",
         status: "REVIEW_REQUIRED",
         accountType: "BUSINESS",
         isOwnerDriver: true,

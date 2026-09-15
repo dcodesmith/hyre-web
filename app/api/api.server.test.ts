@@ -668,10 +668,12 @@ describe("idempotencyKeyForRetry", () => {
 describe("carCategoriesResponseSchema", () => {
   it("validates the current public categories API contract", () => {
     const car = {
-      id: "car_123",
+      id: "018f47a2-7b3c-7d4e-8f90-1234567890ae",
+      publicRef: "0123456789abcdea",
       make: "Toyota",
       model: "Camry",
       year: 2024,
+      color: "Silver",
       dayRate: 50_000,
       passengerCapacity: 4,
       pricingIncludesFuel: true,
@@ -701,10 +703,12 @@ describe("carCategoriesResponseSchema", () => {
 
   it("accepts optional createdAt ISO timestamps from the API", () => {
     const car = {
-      id: "car_123",
+      id: "018f47a2-7b3c-7d4e-8f90-1234567890ae",
+      publicRef: "0123456789abcdea",
       make: "Toyota",
       model: "Camry",
       year: 2024,
+      color: "Silver",
       dayRate: 50_000,
       passengerCapacity: 4,
       pricingIncludesFuel: true,

@@ -21,8 +21,7 @@ const categorySectionIds: Readonly<Record<CarCategory["name"], string>> = {
   popular: "popular",
 };
 
-export const CAR_ID_PATTERN = /^c[a-z0-9]{24}$/i;
-const CAR_ID_IN_SLUG_PATTERN = /-c[a-z0-9]{24}$/i;
+const PUBLIC_REF_IN_SLUG_PATTERN = /--([0-9a-f]{16})$/;
 
 const PRESERVED_SEARCH_KEYS = [
   "q",
@@ -65,8 +64,10 @@ export function getCategorySectionId(category: CarCategory) {
   return categorySectionIds[category.name];
 }
 
-export function generateCarSlug(car: Pick<PublicCar, "id" | "make" | "model" | "year">) {
-  let slug = `${car.year}-${car.make}-${car.model}`
+export function generateCarSlug(
+  car: Pick<PublicCar, "publicRef" | "color" | "make" | "model" | "year">,
+) {
+  let slug = `${car.year}-${car.color}-${car.make}-${car.model}`
     .toLowerCase()
     .replaceAll(/[^\w\s-]/g, "")
     .replaceAll(/[\s_]+/g, "-")
@@ -77,7 +78,7 @@ export function generateCarSlug(car: Pick<PublicCar, "id" | "make" | "model" | "
     slug = slug.slice(0, -1);
   }
 
-  return `${slug}-${car.id}`;
+  return `${slug}--${car.publicRef}`;
 }
 
 function setOrDeleteBookingParam(
@@ -92,20 +93,12 @@ function setOrDeleteBookingParam(
   }
 }
 
-export function extractCarIdFromSlug(slug: string) {
-  if (CAR_ID_PATTERN.test(slug)) {
-    return slug;
-  }
-
-  if (CAR_ID_IN_SLUG_PATTERN.test(slug)) {
-    return slug.slice(slug.lastIndexOf("-") + 1);
-  }
-
-  return null;
+export function extractPublicRefFromSlug(slug: string) {
+  return PUBLIC_REF_IN_SLUG_PATTERN.exec(slug)?.[1] ?? null;
 }
 
 export function buildCarDetailPath(
-  car: Pick<PublicCar, "id" | "make" | "model" | "year">,
+  car: Pick<PublicCar, "publicRef" | "color" | "make" | "model" | "year">,
   bookingType: BookingType = DAY_BOOKING_TYPE,
   booking: CarDetailBookingQuery = {},
 ) {

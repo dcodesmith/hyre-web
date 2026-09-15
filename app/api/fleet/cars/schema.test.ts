@@ -3,14 +3,15 @@ import { describe, expect, it } from "vitest";
 import { fleetCarSchema, fleetCarsSchema } from "./schema";
 
 const fleetCar = {
-  id: "cm12345678901234567890123",
+  id: "018f47a2-7b3c-7d4e-8f90-123456789101",
+  publicRef: "0123456789abc101",
   make: "Lexus",
   model: "RX 350",
   year: 2023,
   createdAt: "2026-08-01T10:00:00.000Z",
   updatedAt: "2026-08-20T10:00:00.000Z",
   color: "Black",
-  ownerId: "owner-1",
+  ownerId: "018f47a2-7b3c-7d4e-8f90-123456789461",
   registrationNumber: "ABC123XY",
   status: "AVAILABLE",
   approvalStatus: "APPROVED",
@@ -27,14 +28,14 @@ const fleetCar = {
   passengerCapacity: 4,
   pricingIncludesFuel: false,
   owner: {
-    id: "owner-1",
+    id: "018f47a2-7b3c-7d4e-8f90-123456789461",
     name: "Fleet Owner",
     username: null,
     email: "owner@example.com",
   },
   images: [
     {
-      id: "image-1",
+      id: "018f47a2-7b3c-7d4e-8f90-123456789481",
       url: "https://cdn.example.com/car.jpg",
       status: "APPROVED",
       isPrimary: true,
@@ -44,14 +45,14 @@ const fleetCar = {
   ],
   documents: [
     {
-      id: "document-1",
+      id: "018f47a2-7b3c-7d4e-8f90-123456789491",
       documentType: "MOT_CERTIFICATE",
       status: "PENDING",
       documentUrl: "https://cdn.example.com/mot.pdf",
       notes: null,
       approvedById: null,
       approvedAt: null,
-      carId: "cm12345678901234567890123",
+      carId: "018f47a2-7b3c-7d4e-8f90-123456789101",
       createdAt: "2026-08-01T10:00:00.000Z",
       updatedAt: "2026-08-01T10:00:00.000Z",
       userId: null,
@@ -59,7 +60,7 @@ const fleetCar = {
   ],
   insuranceVerifications: [
     {
-      id: "ins-1",
+      id: "018f47a2-7b3c-7d4e-8f90-1234567894f1",
       status: "SUCCEEDED",
       policyNumber: "POL-12345",
       policyStatus: "Active",
@@ -107,7 +108,7 @@ describe("fleet car API schema", () => {
       submittedAt: null,
       insuranceVerifications: [
         {
-          id: "ins-1",
+          id: "018f47a2-7b3c-7d4e-8f90-1234567894f1",
           status: "SUCCEEDED",
           policyNumber: "POL-12345",
           policyStatus: null,
@@ -138,7 +139,7 @@ describe("fleet car API schema", () => {
         ...fleetCar,
         insuranceVerifications: [
           {
-            id: "ins-1",
+            id: "018f47a2-7b3c-7d4e-8f90-1234567894f1",
             status: "SUCCEEDED",
             policyNumber: "POL-12345",
             policyStatus: null,
@@ -151,7 +152,9 @@ describe("fleet car API schema", () => {
     expect(
       fleetCarSchema.safeParse({
         ...fleetCar,
-        insuranceVerifications: [{ id: "ins-1", status: "SUCCEEDED" }],
+        insuranceVerifications: [
+          { id: "018f47a2-7b3c-7d4e-8f90-1234567894f1", status: "SUCCEEDED" },
+        ],
       }).success,
     ).toBe(false);
   });

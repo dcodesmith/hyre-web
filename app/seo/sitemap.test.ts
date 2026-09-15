@@ -95,7 +95,7 @@ describe("buildSitemapXml", () => {
       buildSitemapXml([
         sitemapLoc("https://tripdly.com", "/"),
         sitemapLoc("https://tripdly.com", "/search"),
-        "https://tripdly.com/cars/2024-toyota-camry-cmmz4f7x00000l804jj2d6ikn",
+        "https://tripdly.com/cars/2024-silver-toyota-camry--0123456789abcdef",
       ]),
     ).toBe(`<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
@@ -106,7 +106,7 @@ describe("buildSitemapXml", () => {
     <loc>https://tripdly.com/search</loc>
   </url>
   <url>
-    <loc>https://tripdly.com/cars/2024-toyota-camry-cmmz4f7x00000l804jj2d6ikn</loc>
+    <loc>https://tripdly.com/cars/2024-silver-toyota-camry--0123456789abcdef</loc>
   </url>
 </urlset>
 `);

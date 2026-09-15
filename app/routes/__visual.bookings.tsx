@@ -7,7 +7,7 @@ import { parseBookingListStatus } from "~/booking/bookings-url";
 const fixtureBookings = {
   CONFIRMED: [
     {
-      id: "booking-confirmed-1",
+      id: "018f47a2-7b3c-7d4e-8f90-123456789403",
       bookingReference: "TD-1001",
       status: "CONFIRMED",
       startDate: "2026-08-21T08:00:00.000Z",
@@ -24,7 +24,7 @@ const fixtureBookings = {
   ],
   COMPLETED: [
     {
-      id: "booking-completed-1",
+      id: "018f47a2-7b3c-7d4e-8f90-123456789404",
       bookingReference: "TD-0882",
       status: "COMPLETED",
       startDate: "2026-07-02T08:00:00.000Z",
@@ -39,7 +39,7 @@ const fixtureBookings = {
       reviewed: true,
     },
     {
-      id: "booking-completed-2",
+      id: "018f47a2-7b3c-7d4e-8f90-123456789405",
       bookingReference: "TD-0883",
       status: "COMPLETED",
       startDate: "2026-07-10T23:00:00.000Z",

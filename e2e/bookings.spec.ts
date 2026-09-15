@@ -3,6 +3,8 @@ import { expect, type Page, test } from "@playwright/test";
 import { clickUntilVisible } from "./click-until";
 
 const consentKey = "tripdly-cookie-consent:v1";
+const VISUAL_BOOKING_ID = "018f47a2-7b3c-7d4e-8f90-123456789406";
+const VISUAL_COMPLETED_BOOKING_ID = "018f47a2-7b3c-7d4e-8f90-123456789404";
 
 async function setCookiePreference(page: Page) {
   await page.addInitScript((key) => {
@@ -30,23 +32,23 @@ test("keeps the bookings tab on the login redirect", async ({ page }) => {
 });
 
 test("sends guests from a booking detail URL to login", async ({ page }) => {
-  await page.goto("/bookings/booking-detail-1");
+  await page.goto(`/bookings/${VISUAL_BOOKING_ID}`);
 
   await expect(page).toHaveURL((url) => {
     return (
       url.pathname === "/auth" &&
-      url.searchParams.get("redirectTo") === "/bookings/booking-detail-1"
+      url.searchParams.get("redirectTo") === `/bookings/${VISUAL_BOOKING_ID}`
     );
   });
 });
 
 test("sends guests from a booking extension URL to login", async ({ page }) => {
-  await page.goto("/bookings/booking-detail-1/extend");
+  await page.goto(`/bookings/${VISUAL_BOOKING_ID}/extend`);
 
   await expect(page).toHaveURL((url) => {
     return (
       url.pathname === "/auth" &&
-      url.searchParams.get("redirectTo") === "/bookings/booking-detail-1/extend"
+      url.searchParams.get("redirectTo") === `/bookings/${VISUAL_BOOKING_ID}/extend`
     );
   });
 });
@@ -65,7 +67,7 @@ test("renders the booking detail fixture", async ({ page }) => {
   await expect(page.getByText("Total Amount")).toBeVisible();
   await expect(page.getByRole("link", { name: "Download Receipt" })).toHaveAttribute(
     "href",
-    "/bookings/booking-detail-1/receipt",
+    `/bookings/${VISUAL_BOOKING_ID}/receipt`,
   );
   await expect(page.getByRole("heading", { name: "Share Your Experience" })).toBeVisible();
   await page.getByRole("button", { name: "Write a Review" }).click();
@@ -208,7 +210,7 @@ test("renders a responsive booking extension form", async ({ page }) => {
 });
 
 test("sends an unauthenticated cancel POST to login", async ({ page, baseURL }) => {
-  const response = await page.request.post("/bookings/booking-detail-1", {
+  const response = await page.request.post(`/bookings/${VISUAL_BOOKING_ID}`, {
     form: { intent: "cancel" },
     headers: {
       origin: new URL(baseURL ?? "http://localhost:5174").origin,
@@ -217,7 +219,9 @@ test("sends an unauthenticated cancel POST to login", async ({ page, baseURL }) 
   });
 
   expect(new URL(response.url()).pathname).toBe("/auth");
-  expect(new URL(response.url()).searchParams.get("redirectTo")).toBe("/bookings/booking-detail-1");
+  expect(new URL(response.url()).searchParams.get("redirectTo")).toBe(
+    `/bookings/${VISUAL_BOOKING_ID}`,
+  );
 });
 
 test("sends a list fixture row to login for its booking", async ({ page }) => {
@@ -227,7 +231,7 @@ test("sends a list fixture row to login for its booking", async ({ page }) => {
   await expect(page).toHaveURL((url) => {
     return (
       url.pathname === "/auth" &&
-      url.searchParams.get("redirectTo") === "/bookings/booking-completed-1"
+      url.searchParams.get("redirectTo") === `/bookings/${VISUAL_COMPLETED_BOOKING_ID}`
     );
   });
 });

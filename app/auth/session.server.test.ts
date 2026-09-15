@@ -31,7 +31,12 @@ describe("readAuthUser", () => {
   it("reads email and name from the API session envelope", async () => {
     getAuthSession.mockResolvedValue({
       data: {
-        user: { id: "user-1", email: "ada@example.com", name: "Ada Lovelace", roles: ["user"] },
+        user: {
+          id: "018f47a2-7b3c-7d4e-8f90-123456789451",
+          email: "ada@example.com",
+          name: "Ada Lovelace",
+          roles: ["user"],
+        },
         session: {},
       },
       status: 200,
@@ -48,7 +53,7 @@ describe("readAuthUser", () => {
     getAuthSession.mockResolvedValue({
       data: {
         user: {
-          id: "owner-1",
+          id: "018f47a2-7b3c-7d4e-8f90-123456789461",
           email: "owner@example.com",
           name: "Fleet Owner",
           roles: ["fleetOwner"],
@@ -60,7 +65,7 @@ describe("readAuthUser", () => {
     });
 
     await expect(readAuthSessionUser(requestWithCookie())).resolves.toEqual({
-      id: "owner-1",
+      id: "018f47a2-7b3c-7d4e-8f90-123456789461",
       email: "owner@example.com",
       name: "Fleet Owner",
       roles: ["fleetOwner"],
@@ -70,7 +75,12 @@ describe("readAuthUser", () => {
   it("treats a blank name as missing", async () => {
     getAuthSession.mockResolvedValue({
       data: {
-        user: { id: "user-1", email: "ada@example.com", name: "  ", roles: ["user"] },
+        user: {
+          id: "018f47a2-7b3c-7d4e-8f90-123456789451",
+          email: "ada@example.com",
+          name: "  ",
+          roles: ["user"],
+        },
         session: {},
       },
       status: 200,

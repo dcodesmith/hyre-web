@@ -9,7 +9,9 @@ const replacementFileSchema = z
 export const fleetCarFileReplacementFormSchema = z
   .object({
     intent: z.enum(["replace-image", "replace-document"]),
-    assetId: z.string({ error: "Asset ID is required" }).min(1, "Asset ID is required"),
+    assetId: z
+      .string({ error: "Asset ID is required" })
+      .pipe(z.uuid({ error: "Asset ID is invalid" })),
     file: replacementFileSchema,
   })
   .superRefine(({ file, intent }, context) => {

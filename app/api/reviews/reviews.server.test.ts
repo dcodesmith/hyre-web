@@ -28,17 +28,23 @@ const ratings = {
 describe("customer review mutations", () => {
   beforeEach(() => {
     fetchMock.mockReset();
-    fetchMock.mockResolvedValue(Response.json({ id: "review-1" }));
+    fetchMock.mockResolvedValue(Response.json({ id: "018f47a2-7b3c-7d4e-8f90-123456789441" }));
   });
 
   it("creates a review with the signed-in session", async () => {
-    await createReview({ request, body: { bookingId: "booking-1", ...ratings } });
+    await createReview({
+      request,
+      body: { bookingId: "018f47a2-7b3c-7d4e-8f90-123456789401", ...ratings },
+    });
 
     const [url, init] = fetchMock.mock.calls[0] ?? [];
     expect(String(url)).toBe("https://api.example/api/reviews/create");
     expect(init?.method).toBe("POST");
     expect(new Headers(init?.headers).get("cookie")).toBe("better-auth.session_token=session-1");
-    expect(JSON.parse(String(init?.body))).toEqual({ bookingId: "booking-1", ...ratings });
+    expect(JSON.parse(String(init?.body))).toEqual({
+      bookingId: "018f47a2-7b3c-7d4e-8f90-123456789401",
+      ...ratings,
+    });
   });
 
   it("updates a review through its encoded API path", async () => {

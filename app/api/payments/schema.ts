@@ -1,12 +1,12 @@
 import { z } from "zod";
 
 export const bookingPaymentStatusSchema = z.object({
-  bookingId: z.string(),
+  bookingId: z.uuid(),
   bookingReference: z.string(),
   txRef: z.string(),
   bookingStatus: z.string(),
   paymentStatus: z.string(),
-  paymentId: z.string().nullable(),
+  paymentId: z.uuid().nullable(),
   totalAmount: z.number(),
   reservationExpiresAt: z.string().nullable(),
   lifecycleState: z.enum(["PENDING", "VERIFYING", "CONFIRMED", "FAILED", "EXPIRED"]),
@@ -19,7 +19,7 @@ export const extensionPaymentStatusSchema = z.object({
   amountCharged: z.number().nullable(),
   confirmedAt: z.string().nullable(),
   extension: z.object({
-    id: z.string(),
+    id: z.uuid(),
     status: z.string(),
   }),
 });

@@ -64,7 +64,7 @@ export const guestBookingAccessRequestResponseSchema = z.object({
 });
 
 const guestBookingExtensionSchema = z.object({
-  id: z.string(),
+  id: z.uuid(),
   extensionStartTime: isoDateSchema,
   extensionEndTime: isoDateSchema,
   extendedDurationHours: z.number().int(),
@@ -73,7 +73,7 @@ const guestBookingExtensionSchema = z.object({
 });
 
 export const guestBookingDetailSchema = z.object({
-  bookingId: z.string(),
+  bookingId: z.uuid(),
   bookingReference: z.string(),
   status: bookingStatusSchema,
   paymentStatus: paymentStatusSchema,
@@ -103,7 +103,7 @@ export const guestBookingDetailSchema = z.object({
     .nullable(),
   legs: z.array(
     z.object({
-      id: z.string(),
+      id: z.uuid(),
       legDate: isoDateSchema,
       legStartTime: isoDateSchema,
       legEndTime: isoDateSchema,
@@ -114,7 +114,7 @@ export const guestBookingDetailSchema = z.object({
 
 const bookingListItemSchema = z
   .object({
-    id: z.string(),
+    id: z.uuid(),
     bookingReference: z.string(),
     status: bookingStatusSchema,
     startDate: z.string(),
@@ -144,7 +144,7 @@ export const bookingsByStatusSchema = z
   );
 
 const bookingDetailExtensionSchema = z.object({
-  id: z.string(),
+  id: z.uuid(),
   status: z.string(),
   paymentStatus: paymentStatusSchema,
   extendedDurationHours: z.number().int(),
@@ -152,7 +152,7 @@ const bookingDetailExtensionSchema = z.object({
 });
 
 const bookingDetailLegSchema = z.object({
-  id: z.string(),
+  id: z.uuid(),
   legDate: isoDateSchema,
   legStartTime: isoDateSchema,
   legEndTime: isoDateSchema,
@@ -190,8 +190,8 @@ const bookingReviewSchema = customerReviewSchema
   );
 
 const bookingDetailResponseSchema = z.object({
-  id: z.string(),
-  userId: z.string().nullable(),
+  id: z.uuid(),
+  userId: z.uuid().nullable(),
   bookingReference: z.string(),
   status: bookingStatusSchema,
   paymentStatus: paymentStatusSchema,
@@ -238,11 +238,11 @@ export const bookingDetailSchema = bookingDetailResponseSchema.transform(
 );
 
 export const bookingMutationResponseSchema = z.object({
-  id: z.string(),
+  id: z.uuid(),
 });
 
 const bookingPricingPromotionSchema = z.object({
-  id: z.string(),
+  id: z.uuid(),
   name: z.string().nullable(),
   discountValue: z.number(),
   startDate: z.string().optional(),
@@ -260,7 +260,7 @@ const bookingPricingSegmentSchema = z.object({
 });
 
 const bookingPricingAddonSchema = bookingAddonSchema.extend({
-  id: z.string().cuid(),
+  id: z.uuid(),
 });
 
 export const bookingPricingPreviewSchema = z.object({
@@ -290,7 +290,7 @@ export const bookingPricingPreviewSchema = z.object({
 });
 
 export const createBookingResponseSchema = z.object({
-  bookingId: z.string().min(1),
+  bookingId: z.uuid(),
   txRef: z.string().min(1),
   checkoutUrl: z.url().refine((url) => new URL(url).protocol === "https:"),
   totalAmount: moneySchema,
@@ -301,7 +301,7 @@ export const createBookingResponseSchema = z.object({
 });
 
 export const createExtensionResponseSchema = z.object({
-  extensionId: z.string().min(1),
+  extensionId: z.uuid(),
   paymentIntentId: z.string().min(1),
   checkoutUrl: z.url().refine((url) => new URL(url).protocol === "https:"),
 });
