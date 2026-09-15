@@ -72,7 +72,7 @@ const fixtureDocuments = [
 ] satisfies FleetCar["documents"];
 
 const fixtureImages = Array.from({ length: 3 }, (_, index) => ({
-  id: `img-${index + 1}`,
+  id: `018f47a2-7b3c-7d4e-8f90-12345678911${index + 1}`,
   url: `https://cdn.example.com/car-${index + 1}.jpg`,
   status: "PENDING" as const,
   isPrimary: index === 0,
