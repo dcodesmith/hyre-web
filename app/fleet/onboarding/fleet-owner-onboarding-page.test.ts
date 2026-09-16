@@ -2,7 +2,36 @@ import { describe, expect, it } from "vitest";
 import {
   getFleetOwnerOnboardingProgress,
   getFleetOwnerOnboardingStage,
+  shouldShowFleetOwnerPhoneCodeStep,
 } from "./fleet-owner-onboarding-page";
+
+describe("shouldShowFleetOwnerPhoneCodeStep", () => {
+  it("stays on the phone form when sending a code fails", () => {
+    expect(
+      shouldShowFleetOwnerPhoneCodeStep({
+        intent: "send-phone",
+        error: "Unable to complete this onboarding step. Please try again.",
+      }),
+    ).toBe(false);
+  });
+
+  it("opens the SMS code form after a code is sent", () => {
+    expect(shouldShowFleetOwnerPhoneCodeStep({ intent: "send-phone" })).toBe(true);
+  });
+
+  it("keeps the SMS code form after a code check", () => {
+    expect(
+      shouldShowFleetOwnerPhoneCodeStep({
+        intent: "check-phone",
+        error: "The phone verification code is invalid or expired",
+      }),
+    ).toBe(true);
+  });
+
+  it("opens the SMS code form when the owner already has a code", () => {
+    expect(shouldShowFleetOwnerPhoneCodeStep(undefined, true)).toBe(true);
+  });
+});
 
 describe("getFleetOwnerOnboardingStage", () => {
   it("keeps contact current when email still needs verifying during licence recovery", () => {
