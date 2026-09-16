@@ -54,6 +54,16 @@ export function getFleetOwnerOnboardingStage(
   );
 }
 
+export function shouldShowFleetOwnerPhoneCodeStep(
+  actionData?: Pick<OnboardingActionData, "intent" | "error">,
+  enteringExistingCode = false,
+) {
+  if (enteringExistingCode || actionData?.intent === "check-phone") {
+    return true;
+  }
+  return actionData?.intent === "send-phone" && !actionData.error;
+}
+
 export function getFleetOwnerOnboardingProgress(
   onboarding: Pick<FleetOwnerOnboarding, "nextAction" | "requiredActions" | "steps">,
 ) {
@@ -157,7 +167,7 @@ function OnboardingStep({ actionData, banks, idempotencyKey, onboarding }: PageP
   }
 
   if (nextAction === "VERIFY_PHONE") {
-    if (actionData?.phoneNumber || enteringExistingCode) {
+    if (shouldShowFleetOwnerPhoneCodeStep(actionData, enteringExistingCode)) {
       return (
         <OnboardingPhoneCodeForm actionData={actionData} phoneNumber={actionData?.phoneNumber} />
       );
