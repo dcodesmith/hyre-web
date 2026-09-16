@@ -239,15 +239,13 @@ export function OwnerDriverFields({
 export function DriverDocumentFields({
   driversLicenseNumber,
   driversLicense,
-  lasdri,
 }: {
   readonly driversLicenseNumber: FieldMetadata<string | undefined>;
   readonly driversLicense: FieldMetadata<File | undefined>;
-  readonly lasdri: FieldMetadata<File | undefined>;
 }) {
   return (
-    <div className="grid gap-5 rounded-sm border bg-muted/30 p-4 sm:grid-cols-2">
-      <Field className="sm:col-span-2" data-invalid={Boolean(driversLicenseNumber.errors)}>
+    <div className="grid grid-cols-1 items-start gap-5 rounded-sm border bg-muted/30 p-4 sm:grid-cols-2">
+      <Field data-invalid={Boolean(driversLicenseNumber.errors)}>
         <FieldLabel htmlFor={driversLicenseNumber.id}>Driver&apos;s licence number</FieldLabel>
         <Input
           {...getInputProps(driversLicenseNumber, { type: "text" })}
@@ -278,17 +276,6 @@ export function DriverDocumentFields({
           id={driversLicense.errorId}
           errors={driversLicense.errors?.map((message) => ({ message }))}
         />
-      </Field>
-      <Field data-invalid={Boolean(lasdri.errors)}>
-        <FieldLabel htmlFor={lasdri.id}>LASDRI card</FieldLabel>
-        <Input
-          {...getInputProps(lasdri, { type: "file" })}
-          className="h-10 rounded-sm"
-          accept="image/jpeg,image/png,image/webp,application/pdf"
-          aria-invalid={lasdri.errors ? true : undefined}
-        />
-        <FieldDescription>Optional. JPEG, PNG, WebP, or PDF under 5&nbsp;MB.</FieldDescription>
-        <FieldError id={lasdri.errorId} errors={lasdri.errors?.map((message) => ({ message }))} />
       </Field>
     </div>
   );

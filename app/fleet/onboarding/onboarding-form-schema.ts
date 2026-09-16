@@ -64,7 +64,7 @@ export const onboardingPayoutFormSchema = z.object({
 
 function addDocumentIssues(
   context: z.RefinementCtx,
-  field: "driversLicense" | "lasdri" | "file",
+  field: "driversLicense" | "file",
   file: File | undefined,
 ) {
   addFileValidationIssues({
@@ -87,9 +87,8 @@ export const onboardingDrivingFormSchema = z
       .transform((value) => value === true || value === "true"),
     driversLicenseNumber: optionalDriversLicenseNumberSchema,
     driversLicense: optionalDocumentSchema,
-    lasdri: optionalDocumentSchema,
   })
-  .superRefine(({ driversLicense, driversLicenseNumber, isOwnerDriver, lasdri }, context) => {
+  .superRefine(({ driversLicense, driversLicenseNumber, isOwnerDriver }, context) => {
     if (isOwnerDriver && !driversLicenseNumber) {
       context.addIssue({
         code: "custom",
@@ -106,22 +105,15 @@ export const onboardingDrivingFormSchema = z
       });
     }
 
-    if (!isOwnerDriver && (driversLicenseNumber || driversLicense || lasdri)) {
+    if (!isOwnerDriver && (driversLicenseNumber || driversLicense)) {
       context.addIssue({
         code: "custom",
         message: "Driver credentials are only accepted for owner-drivers",
-        path: [
-          driversLicenseNumber
-            ? "driversLicenseNumber"
-            : driversLicense
-              ? "driversLicense"
-              : "lasdri",
-        ],
+        path: [driversLicenseNumber ? "driversLicenseNumber" : "driversLicense"],
       });
     }
 
     addDocumentIssues(context, "driversLicense", driversLicense);
-    addDocumentIssues(context, "lasdri", lasdri);
   });
 
 export const onboardingDriverLicenseReplacementFormSchema = z
