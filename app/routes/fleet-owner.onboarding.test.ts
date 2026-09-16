@@ -92,12 +92,17 @@ const INVALID_LICENSE_FILE = new File([new Uint8Array(32)], "license.gif", { typ
 const INVALID_LICENSE_MESSAGE = firstIssue(onboardingDriverLicenseReplacementFormSchema, {
   file: INVALID_LICENSE_FILE,
 });
-const MISSING_LICENSE_MESSAGE = firstIssue(onboardingDrivingFormSchema, {
+const MISSING_LICENSE_NUMBER_MESSAGE = firstIssue(onboardingDrivingFormSchema, {
   isOwnerDriver: "true",
+});
+const MISSING_LICENSE_FILE_MESSAGE = firstIssue(onboardingDrivingFormSchema, {
+  isOwnerDriver: "true",
+  driversLicenseNumber: "ABC-12345",
 });
 const VALID_LICENSE_FILE = new File(["%PDF-1.4 licence"], "license.pdf", {
   type: "application/pdf",
 });
+const VALID_LICENSE_NUMBER = "ABC-12345";
 
 function parentOnboarding(overrides: Partial<FleetOwnerOnboarding> = {}): FleetOwnerOnboarding {
   return {
@@ -158,6 +163,13 @@ const validDrivingFields = {
   intent: "save-driving",
   idempotencyKey: IDEMPOTENCY_KEY,
   isOwnerDriver: "false",
+} as const;
+
+const ownerDriverDrivingFields = {
+  ...validDrivingFields,
+  isOwnerDriver: "true",
+  driversLicenseNumber: VALID_LICENSE_NUMBER,
+  driversLicense: VALID_LICENSE_FILE,
 } as const;
 
 const validSubmitFields = {
@@ -349,7 +361,7 @@ describe("fleet-owner onboarding route", () => {
     expectRedirect(result, "/fleet-owner/onboarding");
   });
 
-  it("saves driving credentials with only isOwnerDriver and files", async () => {
+  it("saves driving credentials with a licence number and files", async () => {
     const driversLicense = new File(["%PDF-1.4 licence"], "license.pdf", {
       type: "application/pdf",
     });
@@ -357,6 +369,7 @@ describe("fleet-owner onboarding route", () => {
     const { request, result } = await runAction({
       ...validDrivingFields,
       isOwnerDriver: "true",
+      driversLicenseNumber: VALID_LICENSE_NUMBER,
       extra: "drop-me",
       bankName: "Evil Bank",
       driversLicense,
@@ -370,12 +383,32 @@ describe("fleet-owner onboarding route", () => {
     });
     const sent = saveFleetOwnerDrivingCredentials.mock.calls[0][0].formData as FormData;
     expect(String(sent.get("isOwnerDriver"))).toBe("true");
+    expect(sent.get("driversLicenseNumber")).toBe(VALID_LICENSE_NUMBER);
     expect((sent.get("driversLicense") as File).name).toBe("license.pdf");
     expect((sent.get("lasdri") as File).name).toBe("lasdri.jpg");
     expect(sent.get("intent")).toBeNull();
     expect(sent.get("idempotencyKey")).toBeNull();
     expect(sent.get("extra")).toBeNull();
     expect(sent.get("bankName")).toBeNull();
+    expectRedirect(result, "/fleet-owner/onboarding");
+  });
+
+  it("saves non-owner-driver credentials without a licence number", async () => {
+    const { request, result } = await runAction({
+      ...validDrivingFields,
+      extra: "drop-me",
+    });
+
+    expect(saveFleetOwnerDrivingCredentials).toHaveBeenCalledWith({
+      request,
+      idempotencyKey: IDEMPOTENCY_KEY,
+      formData: expect.any(FormData),
+    });
+    const sent = saveFleetOwnerDrivingCredentials.mock.calls[0][0].formData as FormData;
+    expect(String(sent.get("isOwnerDriver"))).toBe("false");
+    expect(sent.get("driversLicenseNumber")).toBeNull();
+    expect(sent.get("driversLicense")).toBeNull();
+    expect(sent.get("intent")).toBeNull();
     expectRedirect(result, "/fleet-owner/onboarding");
   });
 
@@ -485,7 +518,22 @@ describe("fleet-owner onboarding route", () => {
         idempotencyKey: IDEMPOTENCY_KEY,
         revalidate: false,
         submission: expect.objectContaining({
-          error: { driversLicense: [MISSING_LICENSE_MESSAGE] },
+          error: expect.objectContaining({
+            driversLicenseNumber: [MISSING_LICENSE_NUMBER_MESSAGE],
+            driversLicense: [MISSING_LICENSE_FILE_MESSAGE],
+          }),
+        }),
+      },
+    ],
+    [
+      "save-driving licence file",
+      { ...validDrivingFields, isOwnerDriver: "true", driversLicenseNumber: VALID_LICENSE_NUMBER },
+      saveFleetOwnerDrivingCredentials,
+      {
+        idempotencyKey: IDEMPOTENCY_KEY,
+        revalidate: false,
+        submission: expect.objectContaining({
+          error: { driversLicense: [MISSING_LICENSE_FILE_MESSAGE] },
         }),
       },
     ],
@@ -557,6 +605,39 @@ describe("fleet-owner onboarding route", () => {
       init: { status: HTTP_STATUS.CONFLICT },
     });
     expect(actionData(result)).not.toHaveProperty("revalidate");
+  });
+
+  it.each([
+    [
+      "OWNER_DRIVER_LICENSE_NOT_VERIFIED",
+      "We couldn't verify this driver's licence. Check the number and try again.",
+    ],
+    ["OWNER_DRIVER_LICENSE_EXPIRED", "This driver's licence has expired."],
+    [
+      "OWNER_DRIVER_LICENSE_IDENTITY_MISMATCH",
+      "This driver's licence doesn't match your verified identity.",
+    ],
+  ] as const)("maps %s onto the licence number field", async (errorCode, message) => {
+    const uuid = vi.spyOn(crypto, "randomUUID").mockReturnValue(NEXT_IDEMPOTENCY_KEY);
+    saveFleetOwnerDrivingCredentials.mockRejectedValueOnce(
+      apiError(HTTP_STATUS.UNPROCESSABLE_ENTITY, "licence problem", "http", { errorCode }),
+    );
+
+    const { result } = await runAction({ ...ownerDriverDrivingFields });
+
+    expect(result).toMatchObject({
+      data: {
+        intent: "save-driving",
+        idempotencyKey: NEXT_IDEMPOTENCY_KEY,
+        revalidate: false,
+        submission: expect.objectContaining({
+          error: { driversLicenseNumber: [message] },
+        }),
+      },
+      init: { status: HTTP_STATUS.UNPROCESSABLE_ENTITY },
+    });
+    expect(actionData(result)).not.toHaveProperty("error");
+    uuid.mockRestore();
   });
 
   it("highlights a rejected NIN without exposing the provider name and rotates the key", async () => {

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { ApiRequestError } from "~/api/api.server";
 import { HTTP_STATUS } from "~/api/http-status";
-import { accountErrorMessage } from "./onboarding-errors.server";
+import { accountErrorMessage, accountErrorReply } from "./onboarding-errors.server";
 
 const RETRY_MESSAGE = "Unable to complete this onboarding step. Please try again.";
 
@@ -51,5 +51,62 @@ describe("accountErrorMessage", () => {
     expect(
       accountErrorMessage(apiError(HTTP_STATUS.INTERNAL_SERVER_ERROR, "database exploded")),
     ).toBe(RETRY_MESSAGE);
+  });
+
+  it.each([
+    [
+      "OWNER_DRIVER_LICENSE_NOT_VERIFIED",
+      "We couldn't verify this driver's licence. Check the number and try again.",
+    ],
+    ["OWNER_DRIVER_LICENSE_EXPIRED", "This driver's licence has expired."],
+    [
+      "OWNER_DRIVER_LICENSE_IDENTITY_MISMATCH",
+      "This driver's licence doesn't match your verified identity.",
+    ],
+  ] as const)("flattens %s onto the licence number message", (errorCode, message) => {
+    expect(
+      accountErrorMessage(
+        apiError(HTTP_STATUS.UNPROCESSABLE_ENTITY, "licence problem", { errorCode }),
+      ),
+    ).toBe(message);
+  });
+});
+
+describe("accountErrorReply", () => {
+  it.each([
+    [
+      "OWNER_DRIVER_LICENSE_NOT_VERIFIED",
+      "We couldn't verify this driver's licence. Check the number and try again.",
+    ],
+    ["OWNER_DRIVER_LICENSE_EXPIRED", "This driver's licence has expired."],
+    [
+      "OWNER_DRIVER_LICENSE_IDENTITY_MISMATCH",
+      "This driver's licence doesn't match your verified identity.",
+    ],
+  ] as const)("maps %s onto driversLicenseNumber", (errorCode, message) => {
+    expect(
+      accountErrorReply(
+        apiError(HTTP_STATUS.UNPROCESSABLE_ENTITY, "licence problem", { errorCode }),
+        "INDIVIDUAL",
+      ),
+    ).toEqual({
+      fieldErrors: { driversLicenseNumber: [message] },
+    });
+  });
+
+  it("accepts API field errors for driversLicenseNumber", () => {
+    const error = apiError(HTTP_STATUS.UNPROCESSABLE_ENTITY, "licence number is invalid", {
+      errors: [
+        {
+          field: "driversLicenseNumber",
+          message: "Licence number is invalid.",
+        },
+      ],
+    });
+
+    expect(accountErrorReply(error, "INDIVIDUAL")).toEqual({
+      fieldErrors: { driversLicenseNumber: ["Licence number is invalid."] },
+    });
+    expect(accountErrorMessage(error)).toBe("Licence number is invalid.");
   });
 });

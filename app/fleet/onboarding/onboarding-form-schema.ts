@@ -84,10 +84,29 @@ export const onboardingDrivingFormSchema = z
         error: "Choose whether you will drive",
       })
       .transform((value) => value === true || value === "true"),
+    driversLicenseNumber: z
+      .string()
+      .trim()
+      .max(30)
+      .refine((value) => value.length === 0 || value.length >= 5, {
+        message: "Driver's licence number must contain at least 5 characters",
+      })
+      .refine((value) => value.length === 0 || /^[A-Za-z0-9-]+$/.test(value), {
+        message: "Enter a valid driver's licence number",
+      })
+      .optional(),
     driversLicense: optionalDocumentSchema,
     lasdri: optionalDocumentSchema,
   })
-  .superRefine(({ driversLicense, isOwnerDriver, lasdri }, context) => {
+  .superRefine(({ driversLicense, driversLicenseNumber, isOwnerDriver, lasdri }, context) => {
+    if (isOwnerDriver && !driversLicenseNumber) {
+      context.addIssue({
+        code: "custom",
+        message: "Driver's licence number is required for owner-drivers",
+        path: ["driversLicenseNumber"],
+      });
+    }
+
     if (isOwnerDriver && !driversLicense) {
       context.addIssue({
         code: "custom",
@@ -96,11 +115,17 @@ export const onboardingDrivingFormSchema = z
       });
     }
 
-    if (!isOwnerDriver && (driversLicense || lasdri)) {
+    if (!isOwnerDriver && (driversLicenseNumber || driversLicense || lasdri)) {
       context.addIssue({
         code: "custom",
-        message: "Driver documents are only accepted for owner-drivers",
-        path: [driversLicense ? "driversLicense" : "lasdri"],
+        message: "Driver credentials are only accepted for owner-drivers",
+        path: [
+          driversLicenseNumber
+            ? "driversLicenseNumber"
+            : driversLicense
+              ? "driversLicense"
+              : "lasdri",
+        ],
       });
     }
 

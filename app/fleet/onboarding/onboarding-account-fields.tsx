@@ -237,14 +237,32 @@ export function OwnerDriverFields({
 }
 
 export function DriverDocumentFields({
+  driversLicenseNumber,
   driversLicense,
   lasdri,
 }: {
+  readonly driversLicenseNumber: FieldMetadata<string | undefined>;
   readonly driversLicense: FieldMetadata<File | undefined>;
   readonly lasdri: FieldMetadata<File | undefined>;
 }) {
   return (
     <div className="grid gap-5 rounded-sm border bg-muted/30 p-4 sm:grid-cols-2">
+      <Field className="sm:col-span-2" data-invalid={Boolean(driversLicenseNumber.errors)}>
+        <FieldLabel htmlFor={driversLicenseNumber.id}>Driver&apos;s licence number</FieldLabel>
+        <Input
+          {...getInputProps(driversLicenseNumber, { type: "text" })}
+          className="h-10 rounded-sm"
+          autoComplete="off"
+          maxLength={30}
+          spellCheck={false}
+          aria-invalid={driversLicenseNumber.errors ? true : undefined}
+        />
+        <FieldDescription>Required. Enter the number shown on your licence.</FieldDescription>
+        <FieldError
+          id={driversLicenseNumber.errorId}
+          errors={driversLicenseNumber.errors?.map((message) => ({ message }))}
+        />
+      </Field>
       <Field data-invalid={Boolean(driversLicense.errors)}>
         <FieldLabel htmlFor={driversLicense.id}>Driver&apos;s licence</FieldLabel>
         <Input
