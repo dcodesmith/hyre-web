@@ -270,10 +270,8 @@ async function saveDriving(request: Request, formData: FormData) {
   if (submission.value.driversLicenseNumber) {
     sanitized.set("driversLicenseNumber", submission.value.driversLicenseNumber);
   }
-  for (const name of ["driversLicense", "lasdri"] as const) {
-    const file = optionalFile(formData.get(name));
-    if (file) sanitized.set(name, file);
-  }
+  const driversLicense = optionalFile(formData.get("driversLicense"));
+  if (driversLicense) sanitized.set("driversLicense", driversLicense);
 
   try {
     await saveFleetOwnerDrivingCredentials({

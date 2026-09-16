@@ -362,11 +362,10 @@ describe("fleet-owner onboarding route", () => {
     expectRedirect(result, "/fleet-owner/onboarding");
   });
 
-  it("saves driving credentials with a licence number and files", async () => {
+  it("saves driving credentials with a licence number and file", async () => {
     const driversLicense = new File(["%PDF-1.4 licence"], "license.pdf", {
       type: "application/pdf",
     });
-    const lasdri = new File(["lasdri"], "lasdri.jpg", { type: "image/jpeg" });
     const { request, result } = await runAction({
       ...validDrivingFields,
       isOwnerDriver: "true",
@@ -374,7 +373,6 @@ describe("fleet-owner onboarding route", () => {
       extra: "drop-me",
       bankName: "Evil Bank",
       driversLicense,
-      lasdri,
     });
 
     expect(saveFleetOwnerDrivingCredentials).toHaveBeenCalledWith({
@@ -386,7 +384,7 @@ describe("fleet-owner onboarding route", () => {
     expect(String(sent.get("isOwnerDriver"))).toBe("true");
     expect(sent.get("driversLicenseNumber")).toBe(CANONICAL_LICENSE_NUMBER);
     expect((sent.get("driversLicense") as File).name).toBe("license.pdf");
-    expect((sent.get("lasdri") as File).name).toBe("lasdri.jpg");
+    expect(sent.get("lasdri")).toBeNull();
     expect(sent.get("intent")).toBeNull();
     expect(sent.get("idempotencyKey")).toBeNull();
     expect(sent.get("extra")).toBeNull();

@@ -161,9 +161,8 @@ describe("onboarding form schemas", () => {
     expect(parsed.error.issues.find((issue) => issue.path[0] === field)?.message).toBe(message);
   });
 
-  it("requires a drivers license for owner-drivers and allows optional LASDRI", () => {
+  it("requires a drivers license number and upload for owner-drivers", () => {
     const driversLicense = documentFile();
-    const lasdri = documentFile("lasdri.jpg", "image/jpeg");
 
     expect(onboardingDrivingFormSchema.parse({ isOwnerDriver: "false" })).toMatchObject({
       isOwnerDriver: false,
@@ -179,19 +178,6 @@ describe("onboarding form schemas", () => {
       isOwnerDriver: true,
       driversLicenseNumber: CANONICAL_LICENSE_NUMBER,
       driversLicense,
-    });
-    expect(
-      onboardingDrivingFormSchema.parse({
-        isOwnerDriver: "true",
-        driversLicenseNumber: VALID_LICENSE_NUMBER,
-        driversLicense,
-        lasdri,
-      }),
-    ).toMatchObject({
-      isOwnerDriver: true,
-      driversLicenseNumber: CANONICAL_LICENSE_NUMBER,
-      driversLicense,
-      lasdri,
     });
   });
 
@@ -309,12 +295,6 @@ describe("onboarding form schemas", () => {
       onboardingDrivingFormSchema.safeParse({
         isOwnerDriver: "false",
         driversLicense: documentFile(),
-      }).success,
-    ).toBe(false);
-    expect(
-      onboardingDrivingFormSchema.safeParse({
-        isOwnerDriver: "false",
-        lasdri: documentFile("lasdri.pdf"),
       }).success,
     ).toBe(false);
   });

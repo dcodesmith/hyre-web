@@ -227,7 +227,6 @@ export function OnboardingDrivingForm({ actionData, idempotencyKey }: StageFormP
           <DriverDocumentFields
             driversLicenseNumber={fields.driversLicenseNumber}
             driversLicense={fields.driversLicense}
-            lasdri={fields.lasdri}
           />
         ) : null}
         <FormError id={form.errorId} errors={form.errors} />
