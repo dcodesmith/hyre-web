@@ -43,7 +43,9 @@ export function CarDocumentStep({ actionData }: StepProps) {
             <h3>Vehicle Documents</h3>
           </CardTitle>
         </div>
-        <CardDescription>Upload the MOT and insurance certificates as PDFs.</CardDescription>
+        <CardDescription>
+          Upload the vehicle registration, MOT, and insurance certificates as PDFs.
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <Form
@@ -53,6 +55,22 @@ export function CarDocumentStep({ actionData }: StepProps) {
           className="space-y-4"
         >
           <input type="hidden" name="intent" value="upload-documents" />
+          <Field data-invalid={Boolean(fields.vehicleRegistration.errors)}>
+            <FieldLabel htmlFor={fields.vehicleRegistration.id}>Vehicle registration</FieldLabel>
+            <Input
+              {...getInputProps(fields.vehicleRegistration, { type: "file" })}
+              className="h-10 rounded-sm"
+              accept="application/pdf"
+              aria-invalid={fields.vehicleRegistration.errors ? true : undefined}
+            />
+            <FieldDescription>
+              Upload the vehicle particulars that show both the plate and chassis number.
+            </FieldDescription>
+            <FieldError
+              id={fields.vehicleRegistration.errorId}
+              errors={fields.vehicleRegistration.errors}
+            />
+          </Field>
           <Field data-invalid={Boolean(fields.motCertificate.errors)}>
             <FieldLabel htmlFor={fields.motCertificate.id}>MOT certificate</FieldLabel>
             <Input

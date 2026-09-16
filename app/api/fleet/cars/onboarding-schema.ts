@@ -27,24 +27,12 @@ export const fleetVehicleVerificationSchema = z.object({
   carId: z.uuid().nullable(),
 });
 
-export const fleetInsuranceVerificationSchema = z.object({
-  id: z.uuid(),
-  carId: z.uuid(),
-  status: providerVerificationStatusSchema,
-  policyNumber: z.string(),
-  policyStatus: z.string().nullable(),
-  policyExpiresAt: z.iso.datetime().nullable(),
-  providerRef: z.string().nullable(),
-  createdAt: z.iso.datetime(),
-});
-
 export const fleetCarSubmissionSchema = z.object({
   success: z.literal(true),
   requirements: z.object({
     hasDocuments: z.boolean(),
     hasImages: z.boolean(),
     hasPricing: z.boolean(),
-    hasInsuranceVerification: z.boolean(),
   }),
 });
 

@@ -1,11 +1,11 @@
-import { CheckIcon, CircleIcon, Clock3Icon, ShieldCheckIcon } from "lucide-react";
+import { Clock3Icon, ShieldCheckIcon } from "lucide-react";
 
 import type { ChauffeurOnboarding } from "~/api/chauffeurs/schema";
 import { CookieConsentBanner } from "~/components/cookie-consent-banner";
 import { BrandLink } from "~/components/layout/brand-link";
+import { QuestionnaireProgress } from "~/components/questionnaire-progress";
 import { Alert, AlertDescription, AlertTitle } from "~/components/ui/alert";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
-import { cn } from "~/lib/utils";
 import type { ChauffeurOnboardingActionData } from "./chauffeur-onboarding-form-schema";
 import {
   ChauffeurConsentForm,
@@ -28,46 +28,18 @@ type ChauffeurOnboardingPageProps = {
 };
 
 function VerificationProgress({ onboarding }: { readonly onboarding: ChauffeurOnboarding }) {
-  const currentIndex = stages.findIndex(({ key }) => !onboarding.steps[key]);
+  const progressStages = stages.map((stage) => ({
+    ...stage,
+    complete: onboarding.steps[stage.key],
+  }));
+  const currentStage = progressStages.find((stage) => !stage.complete)?.key ?? null;
 
   return (
-    <ol aria-label="Verification progress" className="grid grid-cols-4 gap-2">
-      {stages.map((stage, index) => {
-        const complete = onboarding.steps[stage.key];
-        const current = index === currentIndex;
-
-        return (
-          <li
-            key={stage.key}
-            aria-current={current ? "step" : undefined}
-            className={cn(
-              "flex min-w-0 flex-col items-center gap-1.5 border-t-2 pt-2 text-center text-xs",
-              complete || current
-                ? "border-primary text-foreground"
-                : "border-border text-muted-foreground",
-            )}
-          >
-            <span
-              className={cn(
-                "flex size-6 items-center justify-center rounded-full",
-                complete
-                  ? "bg-primary text-primary-foreground"
-                  : current
-                    ? "border border-primary"
-                    : "border border-border",
-              )}
-            >
-              {complete ? (
-                <CheckIcon className="size-3.5" aria-hidden="true" />
-              ) : (
-                <CircleIcon className="size-2 fill-current" aria-hidden="true" />
-              )}
-            </span>
-            <span className="truncate">{stage.label}</span>
-          </li>
-        );
-      })}
-    </ol>
+    <QuestionnaireProgress
+      ariaLabel="Verification progress"
+      currentStage={currentStage}
+      stages={progressStages}
+    />
   );
 }
 

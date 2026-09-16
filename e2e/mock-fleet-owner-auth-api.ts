@@ -131,20 +131,6 @@ const mockFleetCar = {
   promotion: null,
 };
 
-function hasCurrentInsurance(car: {
-  insuranceVerifications: Array<{
-    status: string;
-    policyExpiresAt: string | null;
-  }>;
-}) {
-  const verification = car.insuranceVerifications[0];
-  return (
-    verification?.status === "SUCCEEDED" &&
-    verification.policyExpiresAt != null &&
-    Date.parse(verification.policyExpiresAt) > Date.now()
-  );
-}
-
 function hasDraftPricing(car: {
   airportPickupRate: number | null;
   dayRate: number | null;
@@ -164,16 +150,20 @@ function hasDraftPricing(car: {
   );
 }
 
-function canSubmitDraftCar(car: ReturnType<typeof createMockDraftCar>) {
-  return (
-    car.documents.length >= 2 &&
-    car.images.length >= 3 &&
-    hasDraftPricing(car) &&
-    hasCurrentInsurance(car)
+function hasDraftDocuments(car: ReturnType<typeof createMockDraftCar>) {
+  return ["VEHICLE_REGISTRATION", "MOT_CERTIFICATE", "INSURANCE_CERTIFICATE"].every((type) =>
+    car.documents.some((document) => document.documentType === type),
   );
 }
 
-function draftDocument(id: string, documentType: "MOT_CERTIFICATE" | "INSURANCE_CERTIFICATE") {
+function canSubmitDraftCar(car: ReturnType<typeof createMockDraftCar>) {
+  return hasDraftDocuments(car) && car.images.length >= 3 && hasDraftPricing(car);
+}
+
+function draftDocument(
+  id: string,
+  documentType: "VEHICLE_REGISTRATION" | "MOT_CERTIFICATE" | "INSURANCE_CERTIFICATE",
+) {
   return {
     id,
     documentType,
@@ -200,7 +190,7 @@ function draftImage(index: number) {
   };
 }
 
-function createMockDraftCar(plateNumber: string, policyNumber: string) {
+function createMockDraftCar(plateNumber: string) {
   return {
     ...mockFleetCar,
     id: MOCK_FLEET_DRAFT_CAR_ID,
@@ -225,38 +215,8 @@ function createMockDraftCar(plateNumber: string, policyNumber: string) {
     passengerCapacity: 5,
     images: [],
     documents: [],
-    insuranceVerifications: [
-      {
-        ...mockLatestInsuranceVerification,
-        policyNumber,
-      },
-    ],
+    insuranceVerifications: [],
     promotion: null,
-  };
-}
-
-function createExpiredInsuranceDraft() {
-  return {
-    ...createMockDraftCar("KJA123AB", "POL-EXPIRED"),
-    hourlyRate: 10_000,
-    dayRate: 80_000,
-    nightRate: 60_000,
-    fuelUpgradeRate: 20_000,
-    fullDayRate: 150_000,
-    airportPickupRate: 50_000,
-    documents: [
-      draftDocument("018f47a2-7b3c-7d4e-8f90-123456789108", "MOT_CERTIFICATE"),
-      draftDocument("018f47a2-7b3c-7d4e-8f90-123456789109", "INSURANCE_CERTIFICATE"),
-    ],
-    images: Array.from({ length: 3 }, (_, index) => draftImage(index)),
-    insuranceVerifications: [
-      {
-        ...mockLatestInsuranceVerification,
-        policyNumber: "POL-EXPIRED",
-        policyStatus: "Expired",
-        policyExpiresAt: "2026-01-01T00:00:00.000Z",
-      },
-    ],
   };
 }
 
@@ -679,7 +639,6 @@ const DRAFT_CAR_PATH = `/api/fleet-owner/cars/${MOCK_FLEET_DRAFT_CAR_ID}`;
 
 type CarOnboardingState = {
   draftCar: ReturnType<typeof createMockDraftCar> | null;
-  lastPolicyNumber: string;
   verification: typeof mockVehicleVerification;
 };
 
@@ -697,6 +656,7 @@ async function handleDraftCarOnboardingMutation(
   if (request.method === "POST" && path === `${DRAFT_CAR_PATH}/documents`) {
     await readBody(request);
     state.draftCar.documents = [
+      draftDocument("018f47a2-7b3c-7d4e-8f90-123456789107", "VEHICLE_REGISTRATION"),
       draftDocument("018f47a2-7b3c-7d4e-8f90-123456789108", "MOT_CERTIFICATE"),
       draftDocument("018f47a2-7b3c-7d4e-8f90-123456789109", "INSURANCE_CERTIFICATE"),
     ];
@@ -718,38 +678,17 @@ async function handleDraftCarOnboardingMutation(
     return true;
   }
 
-  if (request.method === "POST" && path === `${DRAFT_CAR_PATH}/insurance-verifications`) {
-    const body = (await readJson(request)) as { policyNumber?: string };
-    const verification = {
-      id: "018f47a2-7b3c-7d4e-8f90-123456789110",
-      status: "SUCCEEDED" as const,
-      policyNumber: body.policyNumber ?? state.lastPolicyNumber,
-      policyStatus: "Active",
-      policyExpiresAt: "2099-12-31T00:00:00.000Z",
-      createdAt: "2026-09-09T12:00:00.000Z",
-    };
-    state.lastPolicyNumber = verification.policyNumber;
-    state.draftCar.insuranceVerifications = [verification];
-    writeJson(response, 200, {
-      ...verification,
-      carId: MOCK_FLEET_DRAFT_CAR_ID,
-      providerRef: "provider-1",
-    });
-    return true;
-  }
-
   if (request.method === "POST" && path === `${DRAFT_CAR_PATH}/submissions`) {
-    const hasDocuments = state.draftCar.documents.length >= 2;
+    const hasDocuments = hasDraftDocuments(state.draftCar);
     const hasImages = state.draftCar.images.length >= 3;
     const hasPricing = hasDraftPricing(state.draftCar);
-    const hasInsuranceVerification = hasCurrentInsurance(state.draftCar);
     if (!canSubmitDraftCar(state.draftCar)) {
       writeJson(response, 400, {
         type: "FLEET_CAR_ONBOARDING_ERROR",
         title: "Car onboarding error",
         status: 400,
-        detail: "Car is missing required documents, images, pricing, or insurance verification.",
-        requirements: { hasDocuments, hasImages, hasPricing, hasInsuranceVerification },
+        detail: "Car is missing required documents, images, or pricing.",
+        requirements: { hasDocuments, hasImages, hasPricing },
       });
       return true;
     }
@@ -760,7 +699,6 @@ async function handleDraftCarOnboardingMutation(
         hasDocuments: true,
         hasImages: true,
         hasPricing: true,
-        hasInsuranceVerification: true,
       },
     });
     return true;
@@ -779,7 +717,7 @@ async function handleVehicleVerificationRequest(
   if (request.method === "POST" && path === "/api/fleet-owner/vehicle-verifications") {
     const body = (await readJson(request)) as {
       plateNumber?: string;
-      policyNumber?: string;
+      chassisNumber?: string;
     };
     requests.vehicleVerifications.push({
       body,
@@ -791,8 +729,8 @@ async function handleVehicleVerificationRequest(
     if (typeof body?.plateNumber === "string") {
       state.verification.vehicle.plateNumber = body.plateNumber;
     }
-    if (typeof body?.policyNumber === "string") {
-      state.lastPolicyNumber = body.policyNumber;
+    if (typeof body?.chassisNumber === "string") {
+      state.verification.vehicle.chassisNumber = body.chassisNumber;
     }
     await wait(VEHICLE_VERIFICATION_DELAY_MS);
     writeJson(response, 200, state.verification);
@@ -823,10 +761,7 @@ function handleDraftCarCreation(
   const verificationId = decodeURIComponent(draftMatch[1]);
   requests.draftCars.push({ verificationId });
   state.verification.carId = MOCK_FLEET_DRAFT_CAR_ID;
-  state.draftCar = createMockDraftCar(
-    state.verification.vehicle.plateNumber,
-    state.lastPolicyNumber,
-  );
+  state.draftCar = createMockDraftCar(state.verification.vehicle.plateNumber);
   writeJson(response, 201, state.draftCar);
   return true;
 }
@@ -1290,14 +1225,12 @@ export async function startMockFleetOwnerAuthApi({
   rejectedFiles = false,
   stagedOnboarding = false,
   ineligibleVehicle = false,
-  expiredInsuranceDraft = false,
   ownerDriver = true,
 }: {
   readonly port?: number;
   readonly rejectedFiles?: boolean;
   readonly stagedOnboarding?: boolean;
   readonly ineligibleVehicle?: boolean;
-  readonly expiredInsuranceDraft?: boolean;
   readonly ownerDriver?: boolean;
 } = {}) {
   const requests: MockFleetOwnerAuthApi["requests"] = {
@@ -1319,10 +1252,7 @@ export async function startMockFleetOwnerAuthApi({
   const promotions: MockPromotion[] = [];
   const fleetCar = structuredClone(mockFleetCar);
   const onboardingState = {
-    draftCar: expiredInsuranceDraft ? createExpiredInsuranceDraft() : null,
-    lastPolicyNumber: expiredInsuranceDraft
-      ? "POL-EXPIRED"
-      : mockLatestInsuranceVerification.policyNumber,
+    draftCar: null,
     verification: structuredClone(mockVehicleVerification),
   };
   if (ineligibleVehicle) {

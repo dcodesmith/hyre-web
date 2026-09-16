@@ -4,6 +4,7 @@ import { ArrowLeftIcon, CheckCircle2Icon, SearchIcon, TriangleAlertIcon } from "
 import { Form, Link, useNavigation } from "react-router";
 import type { FleetVehicleVerification } from "~/api/fleet/cars/onboarding-schema";
 import { FormError } from "~/components/forms/form-primitives";
+import { QuestionnaireProgress } from "~/components/questionnaire-progress";
 import { Alert, AlertDescription, AlertTitle } from "~/components/ui/alert";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
@@ -13,6 +14,7 @@ import {
   carOnboardingPlateFormSchema,
   type NewFleetCarActionData,
 } from "./car-onboarding-form-schema";
+import { FLEET_CAR_ONBOARDING_STAGES } from "./fleet-car";
 
 type PageProps = {
   readonly actionData?: NewFleetCarActionData;
@@ -37,11 +39,9 @@ function VerifiedVehicleCard({
           </div>
           <div className="min-w-0 space-y-1">
             <CardTitle>
-              <h3>Vehicle and Insurance Verified</h3>
+              <h3>Vehicle Details Checked</h3>
             </CardTitle>
-            <CardDescription>
-              Confirm these registry details before creating the draft.
-            </CardDescription>
+            <CardDescription>Confirm these details before creating the draft.</CardDescription>
           </div>
         </div>
       </CardHeader>
@@ -62,12 +62,12 @@ function VerifiedVehicleCard({
             <dd className="mt-1 font-medium">{vehicle.plateNumber}</dd>
           </div>
           <div>
-            <dt className="text-muted-foreground">Color</dt>
-            <dd className="mt-1 font-medium">{vehicle.color ?? "Unknown"}</dd>
+            <dt className="text-muted-foreground">Chassis number</dt>
+            <dd className="mt-1 break-all font-medium">{vehicle.chassisNumber}</dd>
           </div>
           <div>
-            <dt className="text-muted-foreground">Seats</dt>
-            <dd className="mt-1 font-medium">{vehicle.passengerCapacity ?? "Unknown"}</dd>
+            <dt className="text-muted-foreground">Color</dt>
+            <dd className="mt-1 font-medium">{vehicle.color ?? "Unknown"}</dd>
           </div>
         </dl>
         <div className="space-y-3">
@@ -80,11 +80,9 @@ function VerifiedVehicleCard({
                 {creatingDraft ? "Creating Draft…" : "Yes, Add This Car"}
               </Button>
             </Form>
-            <Form method="get">
-              <Button type="submit" variant="outline">
-                No, Check Another Car
-              </Button>
-            </Form>
+            <Button asChild variant="outline">
+              <Link to="/fleet-owner/cars/new">No, Check Another Car</Link>
+            </Button>
           </div>
         </div>
       </CardContent>
@@ -116,14 +114,19 @@ export function FleetCarPlateVerificationPage({ actionData, idempotencyKey }: Pa
             Back to cars
           </Link>
         </Button>
-        <p className="mb-1 text-sm font-medium text-primary">Step 1 of 5 · Vehicle</p>
         <h2 className="text-balance text-2xl font-semibold tracking-tight sm:text-3xl">
           Add a Verified Car
         </h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Enter the Nigerian number plate and insurance policy number to verify the vehicle.
+          Enter the Nigerian number plate and chassis number to check the vehicle details.
         </p>
       </div>
+
+      <QuestionnaireProgress
+        ariaLabel="Car onboarding progress"
+        currentStage="vehicle"
+        stages={FLEET_CAR_ONBOARDING_STAGES.map((stage) => ({ ...stage, complete: false }))}
+      />
 
       <Card className="rounded-sm">
         <CardHeader>
@@ -131,7 +134,7 @@ export function FleetCarPlateVerificationPage({ actionData, idempotencyKey }: Pa
             <h3>Verify Vehicle</h3>
           </CardTitle>
           <CardDescription>
-            Use the plate and policy number shown on your documents.
+            Use the plate and 17-character chassis number shown on your vehicle documents.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -153,19 +156,22 @@ export function FleetCarPlateVerificationPage({ actionData, idempotencyKey }: Pa
                 <FieldDescription>Examples: ABC-123XY, ABC123XY, or AB123XY.</FieldDescription>
                 <FieldError id={fields.plateNumber.errorId} errors={fields.plateNumber.errors} />
               </Field>
-              <Field data-invalid={Boolean(fields.policyNumber.errors)}>
-                <FieldLabel htmlFor={fields.policyNumber.id}>Insurance policy number</FieldLabel>
+              <Field data-invalid={Boolean(fields.chassisNumber.errors)}>
+                <FieldLabel htmlFor={fields.chassisNumber.id}>Chassis number</FieldLabel>
                 <Input
-                  {...getInputProps(fields.policyNumber, { type: "text" })}
+                  {...getInputProps(fields.chassisNumber, { type: "text" })}
                   className="h-10 rounded-sm"
+                  placeholder="JTJBM7FX3E5064535"
+                  autoCapitalize="characters"
                   autoComplete="off"
                   spellCheck={false}
-                  aria-invalid={fields.policyNumber.errors ? true : undefined}
+                  aria-invalid={fields.chassisNumber.errors ? true : undefined}
                 />
-                <FieldDescription>
-                  Enter the policy number from the insurance certificate.
-                </FieldDescription>
-                <FieldError id={fields.policyNumber.errorId} errors={fields.policyNumber.errors} />
+                <FieldDescription>VINs exclude the letters I, O, and Q.</FieldDescription>
+                <FieldError
+                  id={fields.chassisNumber.errorId}
+                  errors={fields.chassisNumber.errors}
+                />
               </Field>
             </div>
             <FormError id={form.errorId} errors={form.errors} />

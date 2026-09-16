@@ -2,14 +2,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 
 const {
-  createFleetInsuranceVerification,
   getFleetCar,
   submitFleetCar,
   updateFleetDraftCarPricing,
   uploadFleetDraftCarDocuments,
   uploadFleetDraftCarImages,
 } = vi.hoisted(() => ({
-  createFleetInsuranceVerification: vi.fn(),
   getFleetCar: vi.fn(),
   submitFleetCar: vi.fn(),
   updateFleetDraftCarPricing: vi.fn(),
@@ -24,7 +22,6 @@ vi.mock("cloudflare:workers", () => ({
 vi.mock("~/api/fleet/cars/cars.server", () => ({ getFleetCar }));
 
 vi.mock("~/api/fleet/cars/car-onboarding.server", () => ({
-  createFleetInsuranceVerification,
   submitFleetCar,
   updateFleetDraftCarPricing,
   uploadFleetDraftCarDocuments,
@@ -36,13 +33,11 @@ import { HTTP_STATUS } from "~/api/http-status";
 import {
   carOnboardingDocumentsFormSchema,
   carOnboardingImagesFormSchema,
-  carOnboardingInsuranceFormSchema,
   carOnboardingPricingFormSchema,
 } from "~/fleet/cars/car-onboarding-form-schema";
 import { action, loader } from "./fleet-owner.cars.$carId.onboarding";
 
 const CAR_ID = "018f47a2-7b3c-7d4e-8f90-123456789471";
-const IDEMPOTENCY_KEY = "18aa029c-4bb1-4ca7-b25e-cfc802c4bf8c";
 const CAR_ONBOARDING_RETRY = "Unable to complete this car onboarding step. Please try again.";
 const ONBOARDING_PATH = `/fleet-owner/cars/${CAR_ID}/onboarding`;
 const CAR_DETAIL_PATH = `/fleet-owner/cars/${CAR_ID}`;
@@ -106,12 +101,6 @@ const validPricingFields = {
   serviceTier: "STANDARD",
 } as const;
 
-const validInsuranceFields = {
-  intent: "verify-insurance",
-  idempotencyKey: IDEMPOTENCY_KEY,
-  policyNumber: "  POL-12345  ",
-} as const;
-
 function firstIssue(schema: z.ZodType, value: unknown) {
   const parsed = schema.safeParse(value);
   if (parsed.success) {
@@ -121,6 +110,7 @@ function firstIssue(schema: z.ZodType, value: unknown) {
 }
 
 const INVALID_DOCUMENT_MESSAGE = firstIssue(carOnboardingDocumentsFormSchema, {
+  vehicleRegistration: pdf("registration.pdf"),
   motCertificate: image("mot.jpg"),
   insuranceCertificate: pdf("insurance.pdf"),
 });
@@ -135,10 +125,6 @@ const INVALID_PRICING_MESSAGE = firstIssue(carOnboardingPricingFormSchema, {
   ...validPricingFields,
   hourlyRate: "0",
 });
-const INVALID_POLICY_MESSAGE = firstIssue(carOnboardingInsuranceFormSchema, {
-  policyNumber: "AB",
-});
-const INVALID_UUID_MESSAGE = firstIssue(z.uuid(), "not-a-uuid");
 
 function actionData(result: unknown) {
   return (result as { data: Record<string, unknown> }).data;
@@ -199,9 +185,6 @@ describe("fleet-owner car onboarding route", () => {
     uploadFleetDraftCarDocuments.mockResolvedValue({ data: fleetCar });
     uploadFleetDraftCarImages.mockResolvedValue({ data: fleetCar });
     updateFleetDraftCarPricing.mockResolvedValue({ data: fleetCar });
-    createFleetInsuranceVerification.mockResolvedValue({
-      data: { id: "018f47a2-7b3c-7d4e-8f90-1234567894f1", carId: CAR_ID, status: "SUCCEEDED" },
-    });
     submitFleetCar.mockResolvedValue({
       data: {
         success: true,
@@ -209,14 +192,12 @@ describe("fleet-owner car onboarding route", () => {
           hasDocuments: true,
           hasImages: true,
           hasPricing: true,
-          hasInsuranceVerification: true,
         },
       },
     });
   });
 
-  it("loads the existing fleet car and a fresh insurance recovery idempotency key", async () => {
-    const uuid = vi.spyOn(crypto, "randomUUID").mockReturnValue(IDEMPOTENCY_KEY);
+  it("loads the existing fleet car without an insurance-recovery key", async () => {
     const request = new Request(`https://tripdly.com${ONBOARDING_PATH}`);
 
     const result = await loader({
@@ -226,8 +207,7 @@ describe("fleet-owner car onboarding route", () => {
     } as never);
 
     expect(getFleetCar).toHaveBeenCalledWith({ request, carId: CAR_ID });
-    expect(result).toEqual({ car: fleetCar, idempotencyKey: IDEMPOTENCY_KEY });
-    uuid.mockRestore();
+    expect(result).toEqual({ car: fleetCar });
   });
 
   it("redirects already-submitted cars to car detail", async () => {
@@ -245,9 +225,10 @@ describe("fleet-owner car onboarding route", () => {
     expectRedirect(result, CAR_DETAIL_PATH);
   });
 
-  it("uploads MOT and insurance PDFs, then redirects back to onboarding", async () => {
+  it("uploads registration, MOT, and insurance PDFs, then redirects back to onboarding", async () => {
     const { request, result } = await runAction({
       intent: "upload-documents",
+      vehicleRegistration: pdf("registration.pdf"),
       motCertificate: pdf("mot.pdf"),
       insuranceCertificate: pdf("insurance.pdf"),
     });
@@ -255,14 +236,15 @@ describe("fleet-owner car onboarding route", () => {
     expect(uploadFleetDraftCarDocuments).toHaveBeenCalledWith({
       request,
       carId: CAR_ID,
+      vehicleRegistration: expect.any(File),
       motCertificate: expect.any(File),
       insuranceCertificate: expect.any(File),
     });
     const sent = uploadFleetDraftCarDocuments.mock.calls[0][0];
+    expect(sent.vehicleRegistration.name).toBe("registration.pdf");
     expect(sent.motCertificate.name).toBe("mot.pdf");
     expect(sent.motCertificate.type).toBe("application/pdf");
     expect(sent.insuranceCertificate.name).toBe("insurance.pdf");
-    expect(sent.insuranceCertificate.type).toBe("application/pdf");
     expectRedirect(result, ONBOARDING_PATH);
   });
 
@@ -313,18 +295,6 @@ describe("fleet-owner car onboarding route", () => {
     expectRedirect(result, ONBOARDING_PATH);
   });
 
-  it("verifies a trimmed insurance policy for step 5 recovery, then redirects back to onboarding", async () => {
-    const { request, result } = await runAction(validInsuranceFields);
-
-    expect(createFleetInsuranceVerification).toHaveBeenCalledWith({
-      request,
-      carId: CAR_ID,
-      idempotencyKey: IDEMPOTENCY_KEY,
-      body: { policyNumber: "POL-12345" },
-    });
-    expectRedirect(result, ONBOARDING_PATH);
-  });
-
   it("returns a 400 for an unsupported intent instead of a gateway error", async () => {
     const { result } = await runAction({ intent: "not-a-step" });
 
@@ -347,6 +317,7 @@ describe("fleet-owner car onboarding route", () => {
       "upload-documents files",
       {
         intent: "upload-documents",
+        vehicleRegistration: pdf("registration.pdf"),
         motCertificate: image("mot.jpg"),
         insuranceCertificate: pdf("insurance.pdf"),
       },
@@ -375,13 +346,6 @@ describe("fleet-owner car onboarding route", () => {
       "save-pricing",
       { hourlyRate: [INVALID_PRICING_MESSAGE] },
     ],
-    [
-      "verify-insurance policy",
-      { ...validInsuranceFields, policyNumber: "AB" },
-      createFleetInsuranceVerification,
-      "verify-insurance",
-      { policyNumber: [INVALID_POLICY_MESSAGE] },
-    ],
   ] as const)(
     "returns Conform field errors for invalid %s",
     async (_label, fields, mutation, intent, fieldErrors) => {
@@ -399,24 +363,12 @@ describe("fleet-owner car onboarding route", () => {
     },
   );
 
-  it("rejects invalid verify-insurance idempotency without calling the mutation API", async () => {
-    const { result } = await runAction({
-      ...validInsuranceFields,
-      idempotencyKey: "not-a-uuid",
-    });
-
-    expect(createFleetInsuranceVerification).not.toHaveBeenCalled();
-    expect(result).toMatchObject({
-      data: { error: INVALID_UUID_MESSAGE, revalidate: false },
-      init: { status: HTTP_STATUS.BAD_REQUEST },
-    });
-  });
-
   it.each([
     [
       "upload-documents",
       () => ({
         intent: "upload-documents",
+        vehicleRegistration: pdf("registration.pdf"),
         motCertificate: pdf("mot.pdf"),
         insuranceCertificate: pdf("insurance.pdf"),
       }),
@@ -431,7 +383,6 @@ describe("fleet-owner car onboarding route", () => {
       uploadFleetDraftCarImages,
     ],
     ["save-pricing", () => validPricingFields, updateFleetDraftCarPricing],
-    ["verify-insurance", () => validInsuranceFields, createFleetInsuranceVerification],
     ["submit-car", () => ({ intent: "submit-car" }), submitFleetCar],
   ] as const)("surfaces the API 4xx detail for %s", async (_label, fields, mutation) => {
     mutation.mockRejectedValueOnce(

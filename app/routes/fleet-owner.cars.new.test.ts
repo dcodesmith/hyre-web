@@ -56,7 +56,7 @@ const fleetCar = { id: "018f47a2-7b3c-7d4e-8f90-123456789471" };
 const validPlateFields = {
   intent: "verify-plate",
   plateNumber: "kja-123ab",
-  policyNumber: "  POL-12345  ",
+  chassisNumber: "  1hgcm82633a004352  ",
   idempotencyKey: IDEMPOTENCY_KEY,
 } as const;
 
@@ -75,13 +75,13 @@ function firstIssue(schema: z.ZodType, value: unknown) {
 
 const INVALID_PLATE_MESSAGE = firstIssue(carOnboardingPlateFormSchema, {
   plateNumber: "ABC123",
-  policyNumber: "POL-12345",
+  chassisNumber: "1HGCM82633A004352",
 });
-const INVALID_POLICY_MESSAGE = firstIssue(carOnboardingPlateFormSchema, {
+const INVALID_CHASSIS_MESSAGE = firstIssue(carOnboardingPlateFormSchema, {
   plateNumber: "KJA123AB",
-  policyNumber: "AB",
+  chassisNumber: "1HGCM82633A00435I",
 });
-const MISSING_POLICY_MESSAGE = firstIssue(carOnboardingPlateFormSchema, {
+const MISSING_CHASSIS_MESSAGE = firstIssue(carOnboardingPlateFormSchema, {
   plateNumber: "KJA123AB",
 });
 const INVALID_UUID_MESSAGE = firstIssue(z.uuid(), "not-a-uuid");
@@ -170,7 +170,7 @@ describe("fleet-owner cars new route", () => {
     expect(createFleetVehicleVerification).toHaveBeenCalledWith({
       request,
       idempotencyKey: IDEMPOTENCY_KEY,
-      body: { plateNumber: "KJA123AB", policyNumber: "POL-12345" },
+      body: { plateNumber: "KJA123AB", chassisNumber: "1HGCM82633A004352" },
     });
     expect(createFleetDraftCar).not.toHaveBeenCalled();
     expect(result).toMatchObject({ data: { verification: eligibleVerification } });
@@ -215,18 +215,18 @@ describe("fleet-owner cars new route", () => {
       { plateNumber: [INVALID_PLATE_MESSAGE] },
     ],
     [
-      "policy",
-      { ...validPlateFields, policyNumber: "AB" },
-      { policyNumber: [INVALID_POLICY_MESSAGE] },
+      "chassis",
+      { ...validPlateFields, chassisNumber: "1HGCM82633A00435I" },
+      { chassisNumber: [INVALID_CHASSIS_MESSAGE] },
     ],
     [
-      "missing policy",
+      "missing chassis",
       {
         intent: "verify-plate",
         plateNumber: "kja-123ab",
         idempotencyKey: IDEMPOTENCY_KEY,
       },
-      { policyNumber: [MISSING_POLICY_MESSAGE] },
+      { chassisNumber: [MISSING_CHASSIS_MESSAGE] },
     ],
   ] as const)(
     "returns Conform field errors for an invalid verify-plate %s",

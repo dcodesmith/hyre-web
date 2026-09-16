@@ -2,11 +2,12 @@ import { ArrowLeftIcon, CarIcon, TriangleAlertIcon } from "lucide-react";
 import { Link } from "react-router";
 
 import type { FleetCar } from "~/api/fleet/cars/schema";
+import { QuestionnaireProgress } from "~/components/questionnaire-progress";
 import { Alert, AlertDescription, AlertTitle } from "~/components/ui/alert";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import type { FleetCarOnboardingActionData } from "./car-onboarding-form-schema";
-import { type FleetCarOnboardingStep, getFleetCarOnboardingStep } from "./fleet-car";
+import { FLEET_CAR_ONBOARDING_STAGES, getFleetCarOnboardingStep } from "./fleet-car";
 import { CarDocumentStep, CarImageStep } from "./fleet-car-onboarding-assets";
 import { CarPricingStep } from "./fleet-car-onboarding-pricing";
 import { CarSubmissionStep } from "./fleet-car-onboarding-submission";
@@ -14,19 +15,15 @@ import { CarSubmissionStep } from "./fleet-car-onboarding-submission";
 type PageProps = {
   readonly actionData?: FleetCarOnboardingActionData;
   readonly car: FleetCar;
-  readonly idempotencyKey: string;
 };
 
-const stepDetails = {
-  documents: { number: 2, label: "Documents" },
-  photos: { number: 3, label: "Photos" },
-  pricing: { number: 4, label: "Pricing" },
-  submit: { number: 5, label: "Submit" },
-} satisfies Record<FleetCarOnboardingStep, { number: number; label: string }>;
-
-export function FleetCarOnboardingPage({ actionData, car, idempotencyKey }: PageProps) {
+export function FleetCarOnboardingPage({ actionData, car }: PageProps) {
   const step = getFleetCarOnboardingStep(car);
-  const currentStep = stepDetails[step];
+  const currentIndex = FLEET_CAR_ONBOARDING_STAGES.findIndex(({ key }) => key === step);
+  const progressStages = FLEET_CAR_ONBOARDING_STAGES.map((stage, index) => ({
+    ...stage,
+    complete: index < currentIndex,
+  }));
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -37,9 +34,6 @@ export function FleetCarOnboardingPage({ actionData, car, idempotencyKey }: Page
             Back to cars
           </Link>
         </Button>
-        <p className="mb-1 text-sm font-medium text-primary" role="status" aria-live="polite">
-          Step {currentStep.number} of 5 · {currentStep.label}
-        </p>
         <h2 className="wrap-break-word text-balance text-2xl font-semibold tracking-tight sm:text-3xl">
           Set Up {car.make} {car.model}
         </h2>
@@ -47,6 +41,12 @@ export function FleetCarOnboardingPage({ actionData, car, idempotencyKey }: Page
           Complete this step to continue setting up your car.
         </p>
       </div>
+
+      <QuestionnaireProgress
+        ariaLabel="Car onboarding progress"
+        currentStage={step}
+        stages={progressStages}
+      />
 
       {actionData?.error ? (
         <Alert variant="destructive">
@@ -90,9 +90,7 @@ export function FleetCarOnboardingPage({ actionData, car, idempotencyKey }: Page
       {step === "documents" ? <CarDocumentStep actionData={actionData} /> : null}
       {step === "photos" ? <CarImageStep actionData={actionData} /> : null}
       {step === "pricing" ? <CarPricingStep actionData={actionData} car={car} /> : null}
-      {step === "submit" ? (
-        <CarSubmissionStep actionData={actionData} car={car} idempotencyKey={idempotencyKey} />
-      ) : null}
+      {step === "submit" ? <CarSubmissionStep /> : null}
     </div>
   );
 }

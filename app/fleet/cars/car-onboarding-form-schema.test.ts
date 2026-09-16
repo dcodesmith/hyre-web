@@ -4,7 +4,6 @@ import { describe, expect, it } from "vitest";
 import {
   carOnboardingDocumentsFormSchema,
   carOnboardingImagesFormSchema,
-  carOnboardingInsuranceFormSchema,
   carOnboardingPlateFormSchema,
   carOnboardingPricingFormSchema,
 } from "./car-onboarding-form-schema";
@@ -28,8 +27,8 @@ const validPricing = {
   serviceTier: "LUXURY",
 };
 
-const validPolicyNumber = "POL-12345";
-const validPlateFields = { plateNumber: "ABC123XY", policyNumber: validPolicyNumber };
+const validChassisNumber = "1HGCM82633A004352";
+const validPlateFields = { plateNumber: "ABC123XY", chassisNumber: validChassisNumber };
 
 describe("car onboarding form schemas", () => {
   it.each([
@@ -37,64 +36,71 @@ describe("car onboarding form schemas", () => {
     ["abc123xy", "ABC123XY"],
     ["ABC 123 XY", "ABC123XY"],
     ["ab123xy", "AB123XY"],
-  ] as const)("accepts and normalizes Nigerian plate %s with a policy", (input, normalized) => {
+    ["AAA000000", "AAA000000"],
+    ["aaa-000000", "AAA000000"],
+  ] as const)("accepts and normalizes Nigerian plate %s with a chassis", (input, normalized) => {
     expect(
-      carOnboardingPlateFormSchema.parse({ plateNumber: input, policyNumber: validPolicyNumber }),
+      carOnboardingPlateFormSchema.parse({ plateNumber: input, chassisNumber: validChassisNumber }),
     ).toEqual({
       plateNumber: normalized,
-      policyNumber: validPolicyNumber,
+      chassisNumber: validChassisNumber,
     });
   });
 
-  it("trims the initial-form policy number", () => {
+  it("uppercases and trims the chassis number", () => {
     expect(
       carOnboardingPlateFormSchema.parse({
         plateNumber: "ABC-123XY",
-        policyNumber: "  POL-12345  ",
+        chassisNumber: `  ${validChassisNumber.toLowerCase()}  `,
       }),
     ).toEqual({
       plateNumber: "ABC123XY",
-      policyNumber: "POL-12345",
+      chassisNumber: validChassisNumber,
     });
   });
 
   it.each(["ABC123", "AB-123XY", "ABC-12XY", "ABCD123XY", ""] as const)(
-    "rejects malformed plate %s even with a valid policy",
+    "rejects malformed plate %s even with a valid chassis",
     (plateNumber) => {
       expect(
-        carOnboardingPlateFormSchema.safeParse({ plateNumber, policyNumber: validPolicyNumber })
+        carOnboardingPlateFormSchema.safeParse({ plateNumber, chassisNumber: validChassisNumber })
           .success,
       ).toBe(false);
     },
   );
 
   it.each([
+    ["too short", "1HGCM82633A00435"],
+    ["contains I", "1HGCM82633A00435I"],
     ["empty", ""],
-    ["too short", "AB"],
-    ["too long", "A".repeat(101)],
-    ["whitespace only", "   "],
-  ] as const)("rejects a %s policy even with a valid plate", (_label, policyNumber) => {
+  ] as const)("rejects a %s chassis even with a valid plate", (_label, chassisNumber) => {
     expect(
       carOnboardingPlateFormSchema.safeParse({
         plateNumber: validPlateFields.plateNumber,
-        policyNumber,
+        chassisNumber,
       }).success,
     ).toBe(false);
   });
 
-  it("rejects a missing policy number on the initial form", () => {
+  it("rejects a missing chassis number on the initial form", () => {
     expect(carOnboardingPlateFormSchema.safeParse({ plateNumber: "ABC123XY" }).success).toBe(false);
   });
 
   it("accepts PDF documents at or under 5MB", () => {
+    const vehicleRegistration = documentFile("registration.pdf");
     const motCertificate = documentFile();
     const insuranceCertificate = documentFile("insurance.pdf");
 
     expect(
-      carOnboardingDocumentsFormSchema.parse({ motCertificate, insuranceCertificate }),
-    ).toEqual({ motCertificate, insuranceCertificate });
+      carOnboardingDocumentsFormSchema.parse({
+        vehicleRegistration,
+        motCertificate,
+        insuranceCertificate,
+      }),
+    ).toEqual({ vehicleRegistration, motCertificate, insuranceCertificate });
     expect(
       carOnboardingDocumentsFormSchema.parse({
+        vehicleRegistration,
         motCertificate: documentFile("mot.pdf", "application/pdf", 5 * 1024 * 1024),
         insuranceCertificate,
       }).motCertificate.size,
@@ -103,6 +109,7 @@ describe("car onboarding form schemas", () => {
 
   it("reports the required-file messages through Conform for empty document inputs", () => {
     const formData = new FormData();
+    formData.set("vehicleRegistration", new File([], ""));
     formData.set("motCertificate", new File([], ""));
     formData.set("insuranceCertificate", new File([], ""));
     const submission = parseWithZod(formData, { schema: carOnboardingDocumentsFormSchema });
@@ -110,6 +117,7 @@ describe("car onboarding form schemas", () => {
     expect(submission.status).toBe("error");
     if (submission.status !== "error") return;
     expect(submission.error).toEqual({
+      vehicleRegistration: ["Vehicle registration is required"],
       motCertificate: ["MOT certificate is required"],
       insuranceCertificate: ["Insurance certificate is required"],
     });
@@ -120,6 +128,9 @@ describe("car onboarding form schemas", () => {
     expect(parsed.success).toBe(false);
     if (parsed.success) return;
 
+    expect(
+      parsed.error.issues.find((issue) => issue.path[0] === "vehicleRegistration")?.message,
+    ).toBe("Vehicle registration is required");
     expect(parsed.error.issues.find((issue) => issue.path[0] === "motCertificate")?.message).toBe(
       "MOT certificate is required",
     );
@@ -129,16 +140,19 @@ describe("car onboarding form schemas", () => {
   });
 
   it("rejects document MIME types other than PDF or files larger than 5MB", () => {
+    const vehicleRegistration = documentFile("registration.pdf");
     const insuranceCertificate = documentFile("insurance.pdf");
 
     expect(
       carOnboardingDocumentsFormSchema.safeParse({
+        vehicleRegistration,
         motCertificate: documentFile("mot.jpg", "image/jpeg"),
         insuranceCertificate,
       }).success,
     ).toBe(false);
     expect(
       carOnboardingDocumentsFormSchema.safeParse({
+        vehicleRegistration,
         motCertificate: documentFile("mot.pdf", "application/pdf", 5 * 1024 * 1024 + 1),
         insuranceCertificate,
       }).success,
@@ -280,18 +294,5 @@ describe("car onboarding form schemas", () => {
         pricingIncludesFuel: "on",
       }),
     ).toMatchObject({ pricingIncludesFuel: true, fuelUpgradeRate: null });
-  });
-
-  it("accepts a trimmed policy number of 3-100 characters", () => {
-    expect(carOnboardingInsuranceFormSchema.parse({ policyNumber: "  ABC  " })).toEqual({
-      policyNumber: "ABC",
-    });
-    expect(
-      carOnboardingInsuranceFormSchema.parse({ policyNumber: "A".repeat(100) }).policyNumber,
-    ).toHaveLength(100);
-    expect(carOnboardingInsuranceFormSchema.safeParse({ policyNumber: "AB" }).success).toBe(false);
-    expect(
-      carOnboardingInsuranceFormSchema.safeParse({ policyNumber: "A".repeat(101) }).success,
-    ).toBe(false);
   });
 });

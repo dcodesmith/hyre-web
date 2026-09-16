@@ -12,7 +12,6 @@ vi.stubGlobal("fetch", fetchMock);
 
 import {
   createFleetDraftCar,
-  createFleetInsuranceVerification,
   createFleetVehicleVerification,
   getFleetVehicleVerification,
   submitFleetCar,
@@ -79,24 +78,12 @@ const fleetCar = {
   promotion: null,
 };
 
-const insuranceVerification = {
-  id: "018f47a2-7b3c-7d4e-8f90-1234567894f1",
-  carId: "018f47a2-7b3c-7d4e-8f90-123456789471",
-  status: "SUCCEEDED",
-  policyNumber: "POL-12345",
-  policyStatus: "Active",
-  policyExpiresAt: "2027-01-01T00:00:00.000Z",
-  providerRef: "ins-ref",
-  createdAt: "2026-09-07T12:00:00.000Z",
-};
-
 const submission = {
   success: true,
   requirements: {
     hasDocuments: true,
     hasImages: true,
     hasPricing: true,
-    hasInsuranceVerification: true,
   },
 };
 
@@ -128,7 +115,7 @@ describe("fleet car onboarding BFF", () => {
     await createFleetVehicleVerification({
       request,
       idempotencyKey: "vehicle-1",
-      body: { plateNumber: "KJA-123AB", policyNumber: "POL-12345" },
+      body: { plateNumber: "KJA-123AB", chassisNumber: "1HGCM82633A004352" },
     });
 
     const { url, init, headers } = capturedRequest();
@@ -139,7 +126,7 @@ describe("fleet car onboarding BFF", () => {
     expect(headers.get("content-type")).toBe("application/json");
     expect(JSON.parse(String(init?.body))).toEqual({
       plateNumber: "KJA-123AB",
-      policyNumber: "POL-12345",
+      chassisNumber: "1HGCM82633A004352",
     });
   });
 
@@ -175,8 +162,11 @@ describe("fleet car onboarding BFF", () => {
     expect(init?.body).toBeUndefined();
   });
 
-  it("POSTs document multipart fields motCertificate and insuranceCertificate", async () => {
+  it("POSTs document multipart fields for registration, MOT, and insurance", async () => {
     fetchMock.mockResolvedValueOnce(Response.json(fleetCar));
+    const vehicleRegistration = new File(["%PDF-1.4 reg"], "registration.pdf", {
+      type: "application/pdf",
+    });
     const motCertificate = new File(["%PDF-1.4 mot"], "mot.pdf", { type: "application/pdf" });
     const insuranceCertificate = new File(["%PDF-1.4 ins"], "insurance.pdf", {
       type: "application/pdf",
@@ -185,6 +175,7 @@ describe("fleet car onboarding BFF", () => {
     await uploadFleetDraftCarDocuments({
       request,
       carId: "018f47a2-7b3c-7d4e-8f90-123456789471",
+      vehicleRegistration,
       motCertificate,
       insuranceCertificate,
     });
@@ -196,6 +187,7 @@ describe("fleet car onboarding BFF", () => {
     expect(headers.get("cookie")).toBe("better-auth.session_token=session-1");
     expect(headers.get("content-type")).toBeNull();
     const formData = init?.body as FormData;
+    expect(formData.get("vehicleRegistration")).toBe(vehicleRegistration);
     expect(formData.get("motCertificate")).toBe(motCertificate);
     expect(formData.get("insuranceCertificate")).toBe(insuranceCertificate);
   });
@@ -240,27 +232,6 @@ describe("fleet car onboarding BFF", () => {
     expect(JSON.parse(String(init?.body))).toEqual(pricing);
   });
 
-  it("POSTs insurance verification JSON with Idempotency-Key and the session cookie", async () => {
-    fetchMock.mockResolvedValueOnce(Response.json(insuranceVerification));
-
-    await createFleetInsuranceVerification({
-      request,
-      carId: "018f47a2-7b3c-7d4e-8f90-123456789471",
-      idempotencyKey: "insurance-1",
-      body: { policyNumber: "POL-12345" },
-    });
-
-    const { url, init, headers } = capturedRequest();
-    expect(url).toBe(
-      `https://api.example/api/fleet-owner/cars/${fleetCar.id}/insurance-verifications`,
-    );
-    expect(init?.method).toBe("POST");
-    expect(headers.get("cookie")).toBe("better-auth.session_token=session-1");
-    expect(headers.get("Idempotency-Key")).toBe("insurance-1");
-    expect(headers.get("content-type")).toBe("application/json");
-    expect(JSON.parse(String(init?.body))).toEqual({ policyNumber: "POL-12345" });
-  });
-
   it("POSTs car submission without a body", async () => {
     fetchMock.mockResolvedValueOnce(Response.json(submission));
 
@@ -293,6 +264,9 @@ describe("fleet car onboarding BFF", () => {
         uploadFleetDraftCarDocuments({
           request,
           carId: "car/1+x",
+          vehicleRegistration: new File(["%PDF-1.4 reg"], "registration.pdf", {
+            type: "application/pdf",
+          }),
           motCertificate: new File(["%PDF-1.4 mot"], "mot.pdf", { type: "application/pdf" }),
           insuranceCertificate: new File(["%PDF-1.4 ins"], "insurance.pdf", {
             type: "application/pdf",
@@ -317,18 +291,6 @@ describe("fleet car onboarding BFF", () => {
       () => updateFleetDraftCarPricing({ request, carId: "car/1+x", body: pricing }),
       "https://api.example/api/fleet-owner/cars/car%2F1%2Bx/pricing",
       fleetCar,
-    ],
-    [
-      "insurance verification POST",
-      () =>
-        createFleetInsuranceVerification({
-          request,
-          carId: "car/1+x",
-          idempotencyKey: "insurance-1",
-          body: { policyNumber: "POL-12345" },
-        }),
-      "https://api.example/api/fleet-owner/cars/car%2F1%2Bx/insurance-verifications",
-      insuranceVerification,
     ],
     [
       "car submission POST",
