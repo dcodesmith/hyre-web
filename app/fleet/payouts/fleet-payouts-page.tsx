@@ -1,6 +1,6 @@
+import { cn } from "cn";
 import { CalendarClockIcon, CircleAlertIcon, Clock3Icon, WalletCardsIcon } from "lucide-react";
 import { Form, Link, useNavigation } from "react-router";
-
 import type { PayoutStatus } from "~/api/fleet/dashboard/schema";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
@@ -28,7 +28,6 @@ import {
   TableHeader,
   TableRow,
 } from "~/components/ui/table";
-import { cn } from "~/lib/utils";
 import { formatCurrency } from "~/money/currency";
 import {
   type FleetPayoutRow,

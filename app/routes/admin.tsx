@@ -1,12 +1,11 @@
+import { cn } from "cn";
 import { Outlet, useLocation, useNavigation } from "react-router";
-
 import { AdminSidebar } from "~/admin/admin-sidebar";
 import { adminSessionContext } from "~/auth/admin-context.server";
 import { requireAdminOrStaff } from "~/auth/admin-session.server";
 import { Separator } from "~/components/ui/separator";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "~/components/ui/sidebar";
 import { TooltipProvider } from "~/components/ui/tooltip";
-import { cn } from "~/lib/utils";
 import { buildPageMetadata } from "~/seo/metadata";
 import type { Route } from "./+types/admin";
 

@@ -9,10 +9,9 @@ export default defineConfig({
     include: [
       "@tanstack/react-table",
       "class-variance-authority",
-      "clsx",
+      "cn",
       "lucide-react",
       "radix-ui",
-      "tailwind-merge",
     ],
   },
   resolve: {

@@ -1,6 +1,7 @@
 import type { SubmissionResult } from "@conform-to/react";
 import { z } from "zod";
 import { addFileValidationIssues } from "~/components/forms/file-validation";
+import { optionalDriversLicenseNumberSchema } from "~/schema/drivers-license-number";
 
 const DOCUMENT_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "application/pdf"]);
 
@@ -84,10 +85,19 @@ export const onboardingDrivingFormSchema = z
         error: "Choose whether you will drive",
       })
       .transform((value) => value === true || value === "true"),
+    driversLicenseNumber: optionalDriversLicenseNumberSchema,
     driversLicense: optionalDocumentSchema,
     lasdri: optionalDocumentSchema,
   })
-  .superRefine(({ driversLicense, isOwnerDriver, lasdri }, context) => {
+  .superRefine(({ driversLicense, driversLicenseNumber, isOwnerDriver, lasdri }, context) => {
+    if (isOwnerDriver && !driversLicenseNumber) {
+      context.addIssue({
+        code: "custom",
+        message: "Driver's licence number is required for owner-drivers",
+        path: ["driversLicenseNumber"],
+      });
+    }
+
     if (isOwnerDriver && !driversLicense) {
       context.addIssue({
         code: "custom",
@@ -96,11 +106,17 @@ export const onboardingDrivingFormSchema = z
       });
     }
 
-    if (!isOwnerDriver && (driversLicense || lasdri)) {
+    if (!isOwnerDriver && (driversLicenseNumber || driversLicense || lasdri)) {
       context.addIssue({
         code: "custom",
-        message: "Driver documents are only accepted for owner-drivers",
-        path: [driversLicense ? "driversLicense" : "lasdri"],
+        message: "Driver credentials are only accepted for owner-drivers",
+        path: [
+          driversLicenseNumber
+            ? "driversLicenseNumber"
+            : driversLicense
+              ? "driversLicense"
+              : "lasdri",
+        ],
       });
     }
 

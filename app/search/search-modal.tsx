@@ -1,5 +1,5 @@
+import { cn } from "cn";
 import type { ReactNode } from "react";
-
 import {
   Dialog,
   DialogContent,
@@ -8,7 +8,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "~/components/ui/dialog";
-import { cn } from "~/lib/utils";
 import { AiSearchModal } from "~/search/ai-search-modal";
 import { SearchForm } from "~/search/search-form";
 

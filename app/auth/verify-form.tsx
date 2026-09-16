@@ -1,11 +1,11 @@
 import { getFormProps, getInputProps, type SubmissionResult, useForm } from "@conform-to/react";
 import { getZodConstraint, parseWithZod } from "@conform-to/zod/v4";
+import { cn } from "cn";
 import { Form, Link, useNavigation } from "react-router";
 import { AuthSubmitButton } from "~/auth/auth-form-primitives";
 import { verifyFormSchema } from "~/auth/auth-form-schema";
 import { FormError } from "~/components/forms/form-primitives";
 import { Button } from "~/components/ui/button";
-import { cn } from "~/lib/utils";
 
 type VerifyFormProps = {
   readonly actionData?: {

@@ -2,6 +2,7 @@ import type { SubmissionResult } from "@conform-to/react";
 import { z } from "zod";
 
 import { addFileValidationIssues } from "~/components/forms/file-validation";
+import { driversLicenseNumberSchema } from "~/schema/drivers-license-number";
 
 const SELFIE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 const idempotencyKeySchema = z.uuid();
@@ -28,12 +29,7 @@ export const chauffeurNinFormSchema = z.object({
 
 export const chauffeurDrivingFormSchema = z
   .object({
-    driversLicenseNumber: z
-      .string({ error: "Driver's licence number is required" })
-      .trim()
-      .min(5, "Driver's licence number must contain at least 5 characters")
-      .max(30)
-      .regex(/^[A-Za-z0-9-]+$/, "Enter a valid driver's licence number"),
+    driversLicenseNumber: driversLicenseNumberSchema,
     selfie: z.file({ error: "Take or upload a clear passport photograph" }),
     idempotencyKey: idempotencyKeySchema,
   })

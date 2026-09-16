@@ -1,11 +1,10 @@
+import { cn } from "cn";
 import { Sparkles, Tag, Users } from "lucide-react";
 import { Link } from "react-router";
-
 import { type BookingType, DAY_BOOKING_TYPE } from "~/booking/types";
 import { CarDomain, type DisplayCar } from "~/car/car-domain";
 import { CompactStarRating } from "~/car/compact-star-rating";
 import type { CarDetailBookingQuery } from "~/car/paths";
-import { cn } from "~/lib/utils";
 import { formatCurrency } from "~/money/currency";
 
 type CarView = ReturnType<typeof CarDomain>;

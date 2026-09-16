@@ -1,3 +1,4 @@
+import { cn } from "cn";
 import type {
   AdminFinancialAudit,
   PayoutStatus,
@@ -5,7 +6,6 @@ import type {
 } from "~/api/admin/financials/schema";
 import { Badge } from "~/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
-import { cn } from "~/lib/utils";
 import { formatFinancialDateTime } from "./financials-format";
 
 const statusConfig: Readonly<

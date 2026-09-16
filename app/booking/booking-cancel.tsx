@@ -1,7 +1,7 @@
+import { cn } from "cn";
 import { Loader2 } from "lucide-react";
 import { useState } from "react";
 import { useFetcher } from "react-router";
-
 import type { BookingDetail } from "~/api/bookings/schema";
 import {
   Dialog,
@@ -10,7 +10,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "~/components/ui/dialog";
-import { cn } from "~/lib/utils";
 
 export type BookingCancelActionData = {
   error?: string;

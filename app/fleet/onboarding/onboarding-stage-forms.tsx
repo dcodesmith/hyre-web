@@ -224,7 +224,11 @@ export function OnboardingDrivingForm({ actionData, idempotencyKey }: StageFormP
           onChange={setIsOwnerDriver}
         />
         {isOwnerDriver ? (
-          <DriverDocumentFields driversLicense={fields.driversLicense} lasdri={fields.lasdri} />
+          <DriverDocumentFields
+            driversLicenseNumber={fields.driversLicenseNumber}
+            driversLicense={fields.driversLicense}
+            lasdri={fields.lasdri}
+          />
         ) : null}
         <FormError id={form.errorId} errors={form.errors} />
         {actionData?.intent === "save-driving" && actionData.error ? (

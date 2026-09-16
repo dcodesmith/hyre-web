@@ -1,6 +1,6 @@
+import { cn } from "cn";
 import { useState } from "react";
 import { Form, useLocation, useNavigate, useSearchParams } from "react-router";
-
 import { isCompleteFlightNumber } from "~/booking/airport-pickup";
 import { BookingTypeTabs } from "~/booking/booking-type-tabs";
 import { isValidToDateSelection, nextToDateOnFromChange } from "~/booking/dates";
@@ -12,7 +12,6 @@ import {
   NIGHT_BOOKING_TYPE,
 } from "~/booking/types";
 import { useAirportPickup } from "~/hooks/use-airport-pickup";
-import { cn } from "~/lib/utils";
 import {
   AirportSearchFields,
   SearchButton,

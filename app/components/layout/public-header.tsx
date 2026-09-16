@@ -1,10 +1,9 @@
+import { cn } from "cn";
 import { useLocation } from "react-router";
-
 import type { User } from "~/auth/user";
 import { UserNav } from "~/auth/user-nav";
 import { BrandLink } from "~/components/layout/brand-link";
 import { useHeroScroll } from "~/hooks/use-hero-scroll";
-import { cn } from "~/lib/utils";
 import { SearchForm } from "~/search/search-form";
 
 export function PublicHeader({ user }: { readonly user: User | null }) {

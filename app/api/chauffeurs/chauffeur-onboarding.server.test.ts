@@ -159,7 +159,7 @@ describe("chauffeur onboarding BFF", () => {
     );
     const selfie = new File(["selfie"], "selfie.jpg", { type: "image/jpeg" });
     const formData = new FormData();
-    formData.set("driversLicenseNumber", "ABC-12345");
+    formData.set("driversLicenseNumber", "ABC12345DE67");
     formData.set("selfie", selfie);
 
     await verifyChauffeurDriving({
@@ -180,7 +180,7 @@ describe("chauffeur onboarding BFF", () => {
     if (!(init?.body instanceof FormData)) {
       throw new Error("expected FormData");
     }
-    expect(formData.get("driversLicenseNumber")).toBe("ABC-12345");
+    expect(formData.get("driversLicenseNumber")).toBe("ABC12345DE67");
     expect(formData.get("selfie")).toBe(selfie);
   });
 });

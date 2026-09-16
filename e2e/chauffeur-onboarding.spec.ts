@@ -85,7 +85,7 @@ test("completes staged chauffeur verification through consent, phone, identity, 
     await page.getByRole("button", { name: "Verify NIN" }).click();
     await expect(page.getByText("Verify your driving credentials", { exact: true })).toBeVisible();
 
-    await page.getByLabel("Driver's licence number").fill("ABC-12345");
+    await page.getByLabel("Driver's licence number").fill("ABC12345DE67");
     const selfieInput = page.getByLabel("Passport photograph or selfie");
     await selfieInput.setInputFiles({
       name: "selfie.jpg",

@@ -1,6 +1,5 @@
+import { cn } from "cn";
 import { CheckIcon, CircleIcon } from "lucide-react";
-
-import { cn } from "~/lib/utils";
 
 export type QuestionnaireStage = {
   readonly complete: boolean;

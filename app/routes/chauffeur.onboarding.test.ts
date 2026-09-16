@@ -116,7 +116,7 @@ function apiError(
 function drivingFields(overrides: Record<string, File | string> = {}) {
   return {
     intent: "verify-driving",
-    driversLicenseNumber: "ABC-12345",
+    driversLicenseNumber: "ABC-12345-DE67",
     selfie: new File(["selfie"], "selfie.jpg", { type: "image/jpeg" }),
     idempotencyKey: IDEMPOTENCY_KEY,
     ...overrides,
@@ -517,7 +517,7 @@ describe("chauffeur onboarding route", () => {
     const { request, result } = await runAction(
       {
         intent: "verify-driving",
-        driversLicenseNumber: "ABC-12345",
+        driversLicenseNumber: "ABC-12345-DE67",
         selfie,
         idempotencyKey: IDEMPOTENCY_KEY,
       },
@@ -534,7 +534,7 @@ describe("chauffeur onboarding route", () => {
     if (!(sent instanceof FormData)) {
       throw new Error("expected FormData");
     }
-    expect(sent.get("driversLicenseNumber")).toBe("ABC-12345");
+    expect(sent.get("driversLicenseNumber")).toBe("ABC12345DE67");
     const sentSelfie = sent.get("selfie");
     expect(sentSelfie).toBeInstanceOf(File);
     if (!(sentSelfie instanceof File)) {

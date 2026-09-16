@@ -1,3 +1,4 @@
+import { cn } from "cn";
 import {
   ArrowLeftIcon,
   ExternalLinkIcon,
@@ -6,7 +7,6 @@ import {
   UploadIcon,
 } from "lucide-react";
 import { Link, useFetcher } from "react-router";
-
 import type { FleetCar } from "~/api/fleet/cars/schema";
 import { Alert, AlertDescription, AlertTitle } from "~/components/ui/alert";
 import { Button } from "~/components/ui/button";
@@ -14,7 +14,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/com
 import { Field, FieldDescription, FieldLabel } from "~/components/ui/field";
 import { Input } from "~/components/ui/input";
 import { Separator } from "~/components/ui/separator";
-import { cn } from "~/lib/utils";
 import { formatCurrency } from "~/money/currency";
 import {
   formatFleetCarRate,

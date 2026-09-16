@@ -267,6 +267,9 @@ async function saveDriving(request: Request, formData: FormData) {
 
   const sanitized = new FormData();
   sanitized.set("isOwnerDriver", String(submission.value.isOwnerDriver));
+  if (submission.value.driversLicenseNumber) {
+    sanitized.set("driversLicenseNumber", submission.value.driversLicenseNumber);
+  }
   for (const name of ["driversLicense", "lasdri"] as const) {
     const file = optionalFile(formData.get(name));
     if (file) sanitized.set(name, file);

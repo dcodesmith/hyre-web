@@ -301,6 +301,9 @@ export function ChauffeurDrivingForm({
           spellCheck={false}
           aria-invalid={fields.driversLicenseNumber.errors ? true : undefined}
         />
+        <FieldDescription>
+          Enter the number shown on your licence, for example ABC12345DE67.
+        </FieldDescription>
         <FieldError
           id={fields.driversLicenseNumber.errorId}
           errors={fields.driversLicenseNumber.errors?.map((message) => ({ message }))}

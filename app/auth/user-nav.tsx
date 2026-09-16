@@ -1,6 +1,6 @@
+import { cn } from "cn";
 import { useRef } from "react";
 import { Form, Link, useNavigation } from "react-router";
-
 import { isLogoutFormAction } from "~/auth/logout-navigation";
 import { getUserInitials, type User } from "~/auth/user";
 import { Button } from "~/components/ui/button";
@@ -13,7 +13,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "~/components/ui/dropdown-menu";
-import { cn } from "~/lib/utils";
 
 export function UserNav({
   user,

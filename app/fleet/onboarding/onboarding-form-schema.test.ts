@@ -27,8 +27,22 @@ const payout = {
   accountNumber: "0123456789",
 } as const;
 
+const VALID_LICENSE_NUMBER = "ABC-12345-DE67";
+const CANONICAL_LICENSE_NUMBER = "ABC12345DE67";
+const LICENSE_NUMBER_REQUIRED = "Driver's licence number is required for owner-drivers";
+const LICENSE_NUMBER_INVALID = "Enter a valid driver's licence number";
+const DRIVER_CREDENTIALS_OWNER_ONLY = "Driver credentials are only accepted for owner-drivers";
+
 function documentFile(name = "license.pdf", type = "application/pdf", size = 1024) {
   return new File([new Uint8Array(size)], name, { type });
+}
+
+function drivingFieldIssue(input: unknown, field: string) {
+  const parsed = onboardingDrivingFormSchema.safeParse(input);
+  if (parsed.success) {
+    throw new Error("expected invalid driving form");
+  }
+  return parsed.error.issues.find((issue) => issue.path[0] === field)?.message ?? "";
 }
 
 describe("onboarding form schemas", () => {
@@ -158,16 +172,27 @@ describe("onboarding form schemas", () => {
     expect(
       onboardingDrivingFormSchema.parse({
         isOwnerDriver: "true",
+        driversLicenseNumber: VALID_LICENSE_NUMBER,
         driversLicense,
       }),
-    ).toMatchObject({ isOwnerDriver: true, driversLicense });
+    ).toMatchObject({
+      isOwnerDriver: true,
+      driversLicenseNumber: CANONICAL_LICENSE_NUMBER,
+      driversLicense,
+    });
     expect(
       onboardingDrivingFormSchema.parse({
         isOwnerDriver: "true",
+        driversLicenseNumber: VALID_LICENSE_NUMBER,
         driversLicense,
         lasdri,
       }),
-    ).toMatchObject({ isOwnerDriver: true, driversLicense, lasdri });
+    ).toMatchObject({
+      isOwnerDriver: true,
+      driversLicenseNumber: CANONICAL_LICENSE_NUMBER,
+      driversLicense,
+      lasdri,
+    });
   });
 
   it.each([
@@ -181,6 +206,7 @@ describe("onboarding form schemas", () => {
     expect(
       onboardingDrivingFormSchema.parse({
         isOwnerDriver: "true",
+        driversLicenseNumber: VALID_LICENSE_NUMBER,
         driversLicense,
       }).driversLicense,
     ).toBe(driversLicense);
@@ -190,15 +216,92 @@ describe("onboarding form schemas", () => {
     expect(
       onboardingDrivingFormSchema.safeParse({
         isOwnerDriver: "true",
+        driversLicenseNumber: VALID_LICENSE_NUMBER,
         driversLicense: documentFile("license.gif", "image/gif"),
       }).success,
     ).toBe(false);
     expect(
       onboardingDrivingFormSchema.safeParse({
         isOwnerDriver: "true",
+        driversLicenseNumber: VALID_LICENSE_NUMBER,
         driversLicense: documentFile("license.pdf", "application/pdf", 5 * 1024 * 1024 + 1),
       }).success,
     ).toBe(false);
+  });
+
+  it("requires a typed licence number when the field is omitted for owner-drivers", () => {
+    const driversLicense = documentFile();
+
+    expect(drivingFieldIssue({ isOwnerDriver: "true" }, "driversLicenseNumber")).toBe(
+      LICENSE_NUMBER_REQUIRED,
+    );
+    expect(
+      drivingFieldIssue({ isOwnerDriver: "true", driversLicense }, "driversLicenseNumber"),
+    ).toBe(LICENSE_NUMBER_REQUIRED);
+  });
+
+  it.each(["", "   "] as const)(
+    "rejects an empty licence number with the required message",
+    (driversLicenseNumber) => {
+      expect(
+        drivingFieldIssue(
+          {
+            isOwnerDriver: "true",
+            driversLicense: documentFile(),
+            driversLicenseNumber,
+          },
+          "driversLicenseNumber",
+        ),
+      ).toBe(LICENSE_NUMBER_REQUIRED);
+    },
+  );
+
+  it("rejects licence numbers that are not the current FRSC shape", () => {
+    const driversLicense = documentFile();
+
+    expect(
+      drivingFieldIssue(
+        { isOwnerDriver: "true", driversLicense, driversLicenseNumber: "ABC12345" },
+        "driversLicenseNumber",
+      ),
+    ).toBe(LICENSE_NUMBER_INVALID);
+    expect(
+      drivingFieldIssue(
+        { isOwnerDriver: "true", driversLicense, driversLicenseNumber: "ABC 12345" },
+        "driversLicenseNumber",
+      ),
+    ).toBe(LICENSE_NUMBER_INVALID);
+    expect(
+      drivingFieldIssue(
+        { isOwnerDriver: "true", driversLicense, driversLicenseNumber: "A".repeat(31) },
+        "driversLicenseNumber",
+      ),
+    ).toBe(LICENSE_NUMBER_INVALID);
+  });
+
+  it("accepts a hyphenated licence number and canonicalizes it", () => {
+    const driversLicense = documentFile();
+
+    expect(
+      onboardingDrivingFormSchema.parse({
+        isOwnerDriver: "true",
+        driversLicenseNumber: "  abc-12345-de67  ",
+        driversLicense,
+      }),
+    ).toMatchObject({
+      isOwnerDriver: true,
+      driversLicenseNumber: CANONICAL_LICENSE_NUMBER,
+      driversLicense,
+    });
+  });
+
+  it("rejects a licence number when the owner is not an owner-driver", () => {
+    expect(
+      drivingFieldIssue(
+        { isOwnerDriver: "false", driversLicenseNumber: VALID_LICENSE_NUMBER },
+        "driversLicenseNumber",
+      ),
+    ).toBe(DRIVER_CREDENTIALS_OWNER_ONLY);
   });
 
   it("rejects driver documents when the owner is not an owner-driver", () => {
@@ -229,6 +332,7 @@ describe("onboarding driver-licence replacement form schema", () => {
   function drivingDocumentIssue(file: File) {
     const parsed = onboardingDrivingFormSchema.safeParse({
       isOwnerDriver: "true",
+      driversLicenseNumber: VALID_LICENSE_NUMBER,
       driversLicense: file,
     });
     if (parsed.success) {

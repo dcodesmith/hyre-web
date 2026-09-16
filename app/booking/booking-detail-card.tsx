@@ -1,6 +1,5 @@
+import { cn } from "cn";
 import type { ReactNode } from "react";
-
-import { cn } from "~/lib/utils";
 
 export function DetailCard({ children }: { readonly children: ReactNode }) {
   return (

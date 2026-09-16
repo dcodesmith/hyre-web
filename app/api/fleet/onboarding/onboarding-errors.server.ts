@@ -13,6 +13,7 @@ const accountFieldErrorsSchema = z.array(
       "bankName",
       "bankCode",
       "accountNumber",
+      "driversLicenseNumber",
       "driversLicense",
       "lasdri",
       "businessName",
@@ -105,6 +106,26 @@ function knownAccountErrorReply(
       return {
         fieldErrors: {
           driversLicense: ["Upload your driver's licence to continue."],
+        },
+      };
+    case "OWNER_DRIVER_LICENSE_NOT_VERIFIED":
+      return {
+        fieldErrors: {
+          driversLicenseNumber: [
+            "We couldn't verify this driver's licence. Check the number and try again.",
+          ],
+        },
+      };
+    case "OWNER_DRIVER_LICENSE_EXPIRED":
+      return {
+        fieldErrors: {
+          driversLicenseNumber: ["This driver's licence has expired."],
+        },
+      };
+    case "OWNER_DRIVER_LICENSE_IDENTITY_MISMATCH":
+      return {
+        fieldErrors: {
+          driversLicenseNumber: ["This driver's licence doesn't match your verified identity."],
         },
       };
     case "VERIFICATION_IDEMPOTENCY_KEY_REUSED":
