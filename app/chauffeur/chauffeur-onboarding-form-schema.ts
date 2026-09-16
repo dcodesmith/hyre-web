@@ -2,7 +2,7 @@ import type { SubmissionResult } from "@conform-to/react";
 import { z } from "zod";
 
 import { addFileValidationIssues } from "~/components/forms/file-validation";
-import { driversLicenseNumberSchema } from "~/lib/drivers-license-number";
+import { driversLicenseNumberSchema } from "~/schema/drivers-license-number";
 
 const SELFIE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 const idempotencyKeySchema = z.uuid();

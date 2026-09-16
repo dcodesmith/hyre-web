@@ -1,7 +1,7 @@
 import type { SubmissionResult } from "@conform-to/react";
 import { z } from "zod";
 import { addFileValidationIssues } from "~/components/forms/file-validation";
-import { optionalDriversLicenseNumberSchema } from "~/lib/drivers-license-number";
+import { optionalDriversLicenseNumberSchema } from "~/schema/drivers-license-number";
 
 const DOCUMENT_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "application/pdf"]);
 
