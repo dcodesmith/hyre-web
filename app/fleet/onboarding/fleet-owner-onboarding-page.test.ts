@@ -5,6 +5,24 @@ import {
 } from "./fleet-owner-onboarding-page";
 
 describe("getFleetOwnerOnboardingStage", () => {
+  it("keeps contact current when email still needs verifying during licence recovery", () => {
+    expect(
+      getFleetOwnerOnboardingStage({
+        nextAction: "VERIFY_EMAIL",
+        requiredActions: ["VERIFY_EMAIL", "UPLOAD_DRIVERS_LICENSE"],
+      }),
+    ).toBe("contact");
+  });
+
+  it("keeps contact current when phone still needs verifying during licence recovery", () => {
+    expect(
+      getFleetOwnerOnboardingStage({
+        nextAction: "VERIFY_PHONE",
+        requiredActions: ["VERIFY_PHONE", "UPLOAD_DRIVERS_LICENSE"],
+      }),
+    ).toBe("contact");
+  });
+
   it("gives a required driver licence upload precedence over waiting for review", () => {
     expect(
       getFleetOwnerOnboardingStage({

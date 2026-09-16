@@ -36,12 +36,14 @@ const stages = [
 export function getFleetOwnerOnboardingStage(
   onboarding: Pick<FleetOwnerOnboarding, "nextAction" | "requiredActions">,
 ) {
+  if (onboarding.nextAction === "VERIFY_EMAIL" || onboarding.nextAction === "VERIFY_PHONE") {
+    return "contact";
+  }
+
   if (onboarding.requiredActions.includes("UPLOAD_DRIVERS_LICENSE")) return "driving";
 
   return (
     {
-      VERIFY_EMAIL: "contact",
-      VERIFY_PHONE: "contact",
       VERIFY_IDENTITY: "identity",
       VERIFY_PAYOUT: "payout",
       PROVIDE_DRIVING_CREDENTIALS: "driving",
