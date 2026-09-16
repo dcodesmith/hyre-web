@@ -27,9 +27,9 @@ const payout = {
   accountNumber: "0123456789",
 } as const;
 
-const VALID_LICENSE_NUMBER = "ABC-12345";
+const VALID_LICENSE_NUMBER = "ABC-12345-DE67";
+const CANONICAL_LICENSE_NUMBER = "ABC12345DE67";
 const LICENSE_NUMBER_REQUIRED = "Driver's licence number is required for owner-drivers";
-const LICENSE_NUMBER_TOO_SHORT = "Driver's licence number must contain at least 5 characters";
 const LICENSE_NUMBER_INVALID = "Enter a valid driver's licence number";
 const DRIVER_CREDENTIALS_OWNER_ONLY = "Driver credentials are only accepted for owner-drivers";
 
@@ -177,7 +177,7 @@ describe("onboarding form schemas", () => {
       }),
     ).toMatchObject({
       isOwnerDriver: true,
-      driversLicenseNumber: VALID_LICENSE_NUMBER,
+      driversLicenseNumber: CANONICAL_LICENSE_NUMBER,
       driversLicense,
     });
     expect(
@@ -189,7 +189,7 @@ describe("onboarding form schemas", () => {
       }),
     ).toMatchObject({
       isOwnerDriver: true,
-      driversLicenseNumber: VALID_LICENSE_NUMBER,
+      driversLicenseNumber: CANONICAL_LICENSE_NUMBER,
       driversLicense,
       lasdri,
     });
@@ -256,15 +256,15 @@ describe("onboarding form schemas", () => {
     },
   );
 
-  it("rejects licence numbers that are too short, contain spaces, or are too long", () => {
+  it("rejects licence numbers that are not the current FRSC shape", () => {
     const driversLicense = documentFile();
 
     expect(
       drivingFieldIssue(
-        { isOwnerDriver: "true", driversLicense, driversLicenseNumber: "AB12" },
+        { isOwnerDriver: "true", driversLicense, driversLicenseNumber: "ABC12345" },
         "driversLicenseNumber",
       ),
-    ).toBe(LICENSE_NUMBER_TOO_SHORT);
+    ).toBe(LICENSE_NUMBER_INVALID);
     expect(
       drivingFieldIssue(
         { isOwnerDriver: "true", driversLicense, driversLicenseNumber: "ABC 12345" },
@@ -276,21 +276,21 @@ describe("onboarding form schemas", () => {
         { isOwnerDriver: "true", driversLicense, driversLicenseNumber: "A".repeat(31) },
         "driversLicenseNumber",
       ),
-    ).toBe("Too big: expected string to have <=30 characters");
+    ).toBe(LICENSE_NUMBER_INVALID);
   });
 
-  it("accepts a hyphenated licence number and trims surrounding whitespace", () => {
+  it("accepts a hyphenated licence number and canonicalizes it", () => {
     const driversLicense = documentFile();
 
     expect(
       onboardingDrivingFormSchema.parse({
         isOwnerDriver: "true",
-        driversLicenseNumber: "  ABC-12345  ",
+        driversLicenseNumber: "  abc-12345-de67  ",
         driversLicense,
       }),
     ).toMatchObject({
       isOwnerDriver: true,
-      driversLicenseNumber: VALID_LICENSE_NUMBER,
+      driversLicenseNumber: CANONICAL_LICENSE_NUMBER,
       driversLicense,
     });
   });

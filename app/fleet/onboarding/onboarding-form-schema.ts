@@ -1,6 +1,7 @@
 import type { SubmissionResult } from "@conform-to/react";
 import { z } from "zod";
 import { addFileValidationIssues } from "~/components/forms/file-validation";
+import { optionalDriversLicenseNumberSchema } from "~/lib/drivers-license-number";
 
 const DOCUMENT_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "application/pdf"]);
 
@@ -84,17 +85,7 @@ export const onboardingDrivingFormSchema = z
         error: "Choose whether you will drive",
       })
       .transform((value) => value === true || value === "true"),
-    driversLicenseNumber: z
-      .string()
-      .trim()
-      .max(30)
-      .refine((value) => value.length === 0 || value.length >= 5, {
-        message: "Driver's licence number must contain at least 5 characters",
-      })
-      .refine((value) => value.length === 0 || /^[A-Za-z0-9-]+$/.test(value), {
-        message: "Enter a valid driver's licence number",
-      })
-      .optional(),
+    driversLicenseNumber: optionalDriversLicenseNumberSchema,
     driversLicense: optionalDocumentSchema,
     lasdri: optionalDocumentSchema,
   })

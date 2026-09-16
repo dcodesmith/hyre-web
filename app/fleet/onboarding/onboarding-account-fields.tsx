@@ -257,7 +257,9 @@ export function DriverDocumentFields({
           spellCheck={false}
           aria-invalid={driversLicenseNumber.errors ? true : undefined}
         />
-        <FieldDescription>Required. Enter the number shown on your licence.</FieldDescription>
+        <FieldDescription>
+          Required. Enter the number shown on your licence, for example ABC12345DE67.
+        </FieldDescription>
         <FieldError
           id={driversLicenseNumber.errorId}
           errors={driversLicenseNumber.errors?.map((message) => ({ message }))}

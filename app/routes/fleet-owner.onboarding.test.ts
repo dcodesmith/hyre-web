@@ -97,12 +97,13 @@ const MISSING_LICENSE_NUMBER_MESSAGE = firstIssue(onboardingDrivingFormSchema, {
 });
 const MISSING_LICENSE_FILE_MESSAGE = firstIssue(onboardingDrivingFormSchema, {
   isOwnerDriver: "true",
-  driversLicenseNumber: "ABC-12345",
+  driversLicenseNumber: "ABC12345DE67",
 });
 const VALID_LICENSE_FILE = new File(["%PDF-1.4 licence"], "license.pdf", {
   type: "application/pdf",
 });
-const VALID_LICENSE_NUMBER = "ABC-12345";
+const VALID_LICENSE_NUMBER = "ABC-12345-DE67";
+const CANONICAL_LICENSE_NUMBER = "ABC12345DE67";
 
 function parentOnboarding(overrides: Partial<FleetOwnerOnboarding> = {}): FleetOwnerOnboarding {
   return {
@@ -383,7 +384,7 @@ describe("fleet-owner onboarding route", () => {
     });
     const sent = saveFleetOwnerDrivingCredentials.mock.calls[0][0].formData as FormData;
     expect(String(sent.get("isOwnerDriver"))).toBe("true");
-    expect(sent.get("driversLicenseNumber")).toBe(VALID_LICENSE_NUMBER);
+    expect(sent.get("driversLicenseNumber")).toBe(CANONICAL_LICENSE_NUMBER);
     expect((sent.get("driversLicense") as File).name).toBe("license.pdf");
     expect((sent.get("lasdri") as File).name).toBe("lasdri.jpg");
     expect(sent.get("intent")).toBeNull();

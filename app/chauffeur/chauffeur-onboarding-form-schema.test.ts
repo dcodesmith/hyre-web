@@ -71,16 +71,20 @@ describe("chauffeur onboarding form schemas", () => {
 
     expect(
       chauffeurDrivingFormSchema.parse({
-        driversLicenseNumber: "ABC-12345",
+        driversLicenseNumber: "ABC-12345-DE67",
         selfie,
         idempotencyKey: IDEMPOTENCY_KEY,
       }),
-    ).toMatchObject({ driversLicenseNumber: "ABC-12345", selfie, idempotencyKey: IDEMPOTENCY_KEY });
+    ).toMatchObject({
+      driversLicenseNumber: "ABC12345DE67",
+      selfie,
+      idempotencyKey: IDEMPOTENCY_KEY,
+    });
   });
 
   it("rejects an invalid licence, empty selfie, wrong type, or oversized image", () => {
     const valid = {
-      driversLicenseNumber: "ABC-12345",
+      driversLicenseNumber: "ABC-12345-DE67",
       selfie: selfieFile(),
       idempotencyKey: IDEMPOTENCY_KEY,
     };
