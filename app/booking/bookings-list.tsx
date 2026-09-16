@@ -1,6 +1,6 @@
+import { cn } from "cn";
 import { ChevronRight } from "lucide-react";
 import { Link } from "react-router";
-
 import type { BookingListItem, BookingsByStatus } from "~/api/bookings/schema";
 import {
   BOOKING_LIST_STATUSES,
@@ -8,7 +8,6 @@ import {
   bookingListStatusLabel,
   formatBookingListDateTime,
 } from "~/booking/bookings-url";
-import { cn } from "~/lib/utils";
 import { formatCurrency } from "~/money/currency";
 
 function BookingRow({ booking }: { readonly booking: BookingListItem }) {

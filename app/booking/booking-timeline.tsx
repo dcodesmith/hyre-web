@@ -1,7 +1,7 @@
+import { cn } from "cn";
 import { Calendar } from "lucide-react";
 import { DetailCard, DetailCardBody, DetailCardHeader } from "~/booking/booking-detail-card";
 import type { BookingLegStatusKind, BookingLegView } from "~/booking/booking-domain";
-import { cn } from "~/lib/utils";
 
 const LEG_STATUS_CLASS = {
   cancelled: "bg-red-50 text-red-700 border-red-200",

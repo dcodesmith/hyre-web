@@ -1,5 +1,5 @@
+import { cn } from "cn";
 import { BOOKING_TYPE_OPTIONS, BOOKING_TYPE_OPTIONS_MAP, type BookingType } from "~/booking/types";
-import { cn } from "~/lib/utils";
 
 interface BookingTypeTabsProps {
   readonly value: BookingType;

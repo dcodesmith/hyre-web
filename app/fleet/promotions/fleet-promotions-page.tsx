@@ -1,5 +1,6 @@
 import { getFormProps, getInputProps, useForm } from "@conform-to/react";
 import { getZodConstraint, parseWithZod } from "@conform-to/zod/v4";
+import { cn } from "cn";
 import { CalendarIcon, PlusCircleIcon, TagIcon, Trash2Icon } from "lucide-react";
 import { Form, Link, useFetcher, useLocation, useNavigate, useNavigation } from "react-router";
 import type { FleetCar } from "~/api/fleet/cars/schema";
@@ -43,7 +44,6 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "~/components/ui/sheet";
-import { cn } from "~/lib/utils";
 import { formatPromotionDateRange, getPromotionStatus, type PromotionStatus } from "./promotion";
 import {
   createPromotionFormSchema,

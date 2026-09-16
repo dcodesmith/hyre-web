@@ -1,6 +1,6 @@
+import { cn } from "cn";
 import { CheckIcon, ChevronsUpDownIcon, SearchIcon } from "lucide-react";
 import { useId, useState } from "react";
-
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { FieldLegend, FieldSet } from "~/components/ui/field";
@@ -8,7 +8,6 @@ import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "~/components/ui/popover";
 import { Separator } from "~/components/ui/separator";
-import { cn } from "~/lib/utils";
 
 export type FleetCarsFilterOption = {
   readonly value: string;

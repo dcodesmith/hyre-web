@@ -1,8 +1,7 @@
+import { cn } from "cn";
 import { ChevronsDownUp, ChevronsUpDown } from "lucide-react";
 import type { ComponentProps } from "react";
-
 import { Button } from "~/components/ui/button";
-import { cn } from "~/lib/utils";
 
 interface LabeledDateTriggerProps {
   readonly triggerId: string;

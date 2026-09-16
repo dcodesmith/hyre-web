@@ -1,6 +1,6 @@
+import { cn } from "cn";
 import type { ReactNode } from "react";
 import { Badge } from "~/components/ui/badge";
-import { cn } from "~/lib/utils";
 
 export const statusBadgeTones = {
   success: "bg-green-50 text-green-700 ring-green-600/15",

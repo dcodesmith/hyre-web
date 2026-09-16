@@ -1,8 +1,7 @@
 import { type FieldMetadata, getInputProps } from "@conform-to/react";
-
+import { cn } from "cn";
 import { FormError } from "~/components/forms/form-primitives";
 import { Label } from "~/components/ui/label";
-import { cn } from "~/lib/utils";
 
 type GuestFields = {
   readonly name: FieldMetadata<string>;

@@ -1,11 +1,10 @@
+import { cn } from "cn";
 import { Outlet, useLocation } from "react-router";
-
 import { readAuthUser } from "~/auth/session.server";
 import { CookieConsentBanner } from "~/components/cookie-consent-banner";
 import { PublicFooter } from "~/components/layout/public-footer";
 import { PublicHeader } from "~/components/layout/public-header";
 import { PublicMobileNav } from "~/components/layout/public-mobile-nav";
-import { cn } from "~/lib/utils";
 import type { Route } from "./+types/_public";
 
 export async function loader({ request }: Route.LoaderArgs) {

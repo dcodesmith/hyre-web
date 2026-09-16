@@ -1,10 +1,10 @@
+import { cn } from "cn";
 import { useId, useState } from "react";
 import { LabeledDateTrigger, OutlineDateTrigger } from "~/booking/date-picker-triggers";
 import { getDisabledBookableDays, getEarliestBookableDate } from "~/booking/dates";
 import type { BookingType } from "~/booking/types";
 import { Calendar } from "~/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "~/components/ui/popover";
-import { cn } from "~/lib/utils";
 import { formatOutlinePickerDate, formatPickerDate, SERVICE_TIMEZONE } from "~/time/timezone";
 
 interface SingleDatePickerProps {

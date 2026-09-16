@@ -1,3 +1,4 @@
+import { cn } from "cn";
 import { Mail, Phone, Search } from "lucide-react";
 import { useState } from "react";
 import {
@@ -10,7 +11,6 @@ import { Button } from "~/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import { FAQ_CATEGORIES, FAQ_ITEMS } from "~/content/faq";
 import { LEGAL_CONSTANTS } from "~/content/legal";
-import { cn } from "~/lib/utils";
 import { buildPageMetadata, SITE_ORIGIN } from "~/seo/metadata";
 import { BreadcrumbStructuredData, FaqStructuredData } from "~/seo/structured-data";
 

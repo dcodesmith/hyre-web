@@ -1,7 +1,7 @@
+import { cn } from "cn";
 import { Loader2, Search, Sparkles, X } from "lucide-react";
 import { useId, useState } from "react";
 import { useFetcher } from "react-router";
-
 import { Button } from "~/components/ui/button";
 import {
   Dialog,
@@ -12,7 +12,6 @@ import {
   DialogTrigger,
 } from "~/components/ui/dialog";
 import { Label } from "~/components/ui/label";
-import { cn } from "~/lib/utils";
 
 const EXAMPLE_QUERIES = [
   "Black Toyota SUV for 5 days",

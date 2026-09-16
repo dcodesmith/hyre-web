@@ -1,3 +1,4 @@
+import { cn } from "cn";
 import { useId, useState } from "react";
 import { getPickupTimes, normalizePickupTime } from "~/booking/pickup";
 import type { BookingType } from "~/booking/types";
@@ -9,7 +10,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "~/components/ui/select";
-import { cn } from "~/lib/utils";
 
 interface BookingTimeSelectProps {
   readonly date: Date;

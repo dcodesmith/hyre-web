@@ -1,8 +1,7 @@
+import { cn } from "cn";
 import { MoveLeft, MoveRight } from "lucide-react";
 import { type MouseEvent, type TouchEvent, useRef, useState } from "react";
-
 import { Button } from "~/components/ui/button";
-import { cn } from "~/lib/utils";
 
 interface CarGalleryProps {
   readonly images: readonly string[];

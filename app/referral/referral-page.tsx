@@ -1,10 +1,9 @@
+import { cn } from "cn";
 import { AlertTriangle, Clipboard, Gift, Share2, Sparkles, Users, Wallet } from "lucide-react";
-
 import type { ReferralSummary } from "~/api/referrals/schema";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardHeader } from "~/components/ui/card";
-import { cn } from "~/lib/utils";
 import { formatCurrency } from "~/money/currency";
 
 import { shareReferralLink } from "./share-referral-link";

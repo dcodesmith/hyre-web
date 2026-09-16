@@ -1,5 +1,5 @@
+import { cn } from "cn";
 import { useFetcher } from "react-router";
-
 import type { ChauffeurVerificationStatus, FleetOwnerChauffeur } from "~/api/chauffeurs/schema";
 import { Avatar, AvatarFallback, AvatarImage } from "~/components/ui/avatar";
 import { Badge } from "~/components/ui/badge";
@@ -14,7 +14,6 @@ import {
   TableHeader,
   TableRow,
 } from "~/components/ui/table";
-import { cn } from "~/lib/utils";
 import type { ChauffeurActionData } from "./chauffeur-form-schema";
 
 const statusConfig: Record<

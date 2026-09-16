@@ -1,11 +1,10 @@
+import { cn } from "cn";
 import { useId } from "react";
-
 import type { SearchFlight } from "~/api/flights/schema";
 import { formatFlightRoute, formatLagosClock } from "~/booking/airport-pickup";
 import { FlightNumberAutocomplete } from "~/booking/booking-flight-field";
 import { BookingTimeSelect } from "~/booking/booking-time-select";
 import { AIRPORT_PICKUP_BOOKING_TYPE, type BookingType, NIGHT_BOOKING_TYPE } from "~/booking/types";
-import { cn } from "~/lib/utils";
 
 interface BookingTypeInputProps {
   readonly bookingType: BookingType;

@@ -1,12 +1,11 @@
+import { cn } from "cn";
 import { Loader2, Search } from "lucide-react";
 import { useNavigation } from "react-router";
-
 import type { SearchFlight } from "~/api/flights/schema";
 import { BookingTypeInput } from "~/booking/booking-type-input";
 import { getToDateMinDate } from "~/booking/dates";
 import { SingleDatePicker } from "~/booking/single-date-picker";
 import { AIRPORT_PICKUP_BOOKING_TYPE, type BookingType } from "~/booking/types";
-import { cn } from "~/lib/utils";
 
 interface AirportSearchFieldsProps {
   readonly isCompact: boolean;

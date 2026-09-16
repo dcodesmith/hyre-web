@@ -1,7 +1,7 @@
+import { cn } from "cn";
 import { ArrowRight, ChevronLeft, ChevronRight, Fingerprint, ShieldCheck } from "lucide-react";
 import { useRef, useState } from "react";
 import { Link } from "react-router";
-
 import type { CarCategoriesResponse, CarCategory, PublicCar } from "~/api/cars/schema";
 import { CarDomain } from "~/car/car-domain";
 import { buildCategorySearchPath, getCategorySectionId } from "~/car/paths";
@@ -14,7 +14,6 @@ import {
 } from "~/components/ui/accordion";
 import { HOME_FAQ_ITEMS } from "~/content/home";
 import { getHeroHeightClasses, useHeroScroll } from "~/hooks/use-hero-scroll";
-import { cn } from "~/lib/utils";
 import { AiSearchModal } from "~/search/ai-search-modal";
 import { CompactSearchBar } from "~/search/compact-search-bar";
 import { SearchForm } from "~/search/search-form";

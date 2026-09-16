@@ -1,3 +1,4 @@
+import { cn } from "cn";
 import { Calendar, Gift, Home, LogIn, LogOut, User as UserIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { Form, NavLink, useLocation, useNavigation } from "react-router";
@@ -5,7 +6,6 @@ import { isLogoutFormAction } from "~/auth/logout-navigation";
 import type { User } from "~/auth/user";
 import { LEGAL_CONSTANTS } from "~/content/legal";
 import { useHeroScroll } from "~/hooks/use-hero-scroll";
-import { cn } from "~/lib/utils";
 
 const itemClassName =
   "flex min-w-0 flex-1 touch-manipulation flex-col items-center justify-center px-1 py-2 text-muted-foreground transition-colors motion-reduce:transition-none hover:text-foreground focus-visible:rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2";

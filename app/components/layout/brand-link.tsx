@@ -1,7 +1,6 @@
+import { cn } from "cn";
 import { Link } from "react-router";
-
 import { LEGAL_CONSTANTS } from "~/content/legal";
-import { cn } from "~/lib/utils";
 
 interface BrandLinkProps {
   readonly className?: string;
