@@ -1,6 +1,13 @@
 import { type FieldMetadata, getInputProps } from "@conform-to/react";
-
 import type { FleetOwnerBank } from "~/api/fleet/onboarding/schema";
+import {
+  Combobox,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+} from "~/components/ui/combobox";
 import { Field, FieldDescription, FieldError, FieldLabel } from "~/components/ui/field";
 import { Input } from "~/components/ui/input";
 
@@ -146,6 +153,54 @@ export function BusinessFields({
   );
 }
 
+function BankCombobox({
+  banks,
+  field,
+}: {
+  readonly banks: readonly FleetOwnerBank[];
+  readonly field: FieldMetadata<string>;
+}) {
+  const initial = typeof field.initialValue === "string" ? field.initialValue : "";
+
+  return (
+    <Combobox
+      items={banks}
+      defaultValue={banks.find((bank) => bank.code === initial) ?? null}
+      itemToStringLabel={(bank) => bank.name}
+      itemToStringValue={(bank) => bank.code}
+      isItemEqualToValue={(left, right) => left.code === right.code}
+      name={field.name}
+      id={field.id}
+      autoHighlight
+      autoComplete="off"
+      filter={(bank, query) => {
+        const normalized = query.trim().toLocaleLowerCase();
+        return (
+          bank.name.toLocaleLowerCase().includes(normalized) ||
+          bank.code.toLocaleLowerCase().includes(normalized)
+        );
+      }}
+    >
+      <ComboboxInput
+        placeholder="Search your bank"
+        aria-invalid={field.errors ? true : undefined}
+        aria-describedby={field.errors ? field.errorId : undefined}
+        className="h-10 w-full rounded-sm"
+      />
+      <ComboboxContent>
+        <ComboboxEmpty>No bank found.</ComboboxEmpty>
+        <ComboboxList>
+          {(bank) => (
+            <ComboboxItem key={bank.code} value={bank}>
+              {bank.name}
+            </ComboboxItem>
+          )}
+        </ComboboxList>
+      </ComboboxContent>
+    </Combobox>
+  );
+}
+
 export function BankFields({
   banks,
   bankCode,
@@ -159,23 +214,7 @@ export function BankFields({
     <div className="grid gap-5 sm:grid-cols-2">
       <Field data-invalid={Boolean(bankCode.errors)}>
         <FieldLabel htmlFor={bankCode.id}>Bank</FieldLabel>
-        <select
-          id={bankCode.id}
-          name={bankCode.name}
-          defaultValue={typeof bankCode.initialValue === "string" ? bankCode.initialValue : ""}
-          className={selectClassName}
-          aria-invalid={bankCode.errors ? true : undefined}
-          aria-describedby={bankCode.errors ? bankCode.errorId : undefined}
-        >
-          <option value="" disabled>
-            Select your bank
-          </option>
-          {banks.map((bank) => (
-            <option key={bank.code} value={bank.code}>
-              {bank.name}
-            </option>
-          ))}
-        </select>
+        <BankCombobox banks={banks} field={bankCode} />
         <FieldError
           id={bankCode.errorId}
           errors={bankCode.errors?.map((message) => ({ message }))}

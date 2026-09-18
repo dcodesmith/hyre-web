@@ -21,6 +21,7 @@
     "postinstall": "wrangler types --env production"
   },
   "dependencies": {
+    "@base-ui/react": "^1.8.0",
     "@conform-to/react": "^1.21.1",
     "@conform-to/zod": "^1.21.1",
     "@tanstack/react-table": "^9.2.4",
