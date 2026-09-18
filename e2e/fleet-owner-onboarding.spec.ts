@@ -47,7 +47,8 @@ test("completes staged fleet-owner onboarding through phone, identity, payout, d
     await expect(page.getByRole("heading", { name: "Add Payout Details" })).toBeVisible();
     await expect(page.getByText("JOHN MIDDLE DOE")).toBeVisible();
 
-    await page.getByLabel("Bank").selectOption("058");
+    await page.getByRole("combobox", { name: "Bank" }).fill("GTBank");
+    await page.getByRole("option", { name: "GTBank" }).click();
     await page.getByLabel("Account number").fill("0123456789");
     await page.getByRole("button", { name: "Verify Payout" }).click();
     await expect(page.getByRole("heading", { name: "Driving Credentials" })).toBeVisible();
