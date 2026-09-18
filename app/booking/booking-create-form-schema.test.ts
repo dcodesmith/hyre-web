@@ -256,6 +256,23 @@ describe("create booking payload", () => {
     ).toBe(false);
   });
 
+  it("forwards requested booking credits on preview and create payloads", () => {
+    const value = signedIn.parse({ ...signedInDay(), useCredits: "2500.50" });
+    const formData = new FormData();
+    for (const [name, field] of Object.entries(signedInDay())) {
+      formData.set(name, String(field));
+    }
+    formData.set("useCredits", "2500.50");
+
+    expect(value.useCredits).toBe(2500.5);
+    expect(toPricingPreviewBody(value)?.useCredits).toBe(2500.5);
+    expect(toCreateBookingBody(value)?.useCredits).toBe(2500.5);
+    expect(parseWithZod(formData, { schema: signedIn }).status).toBe("success");
+    expect(signedIn.parse(signedInDay()).useCredits).toBe(0);
+    expect(signedIn.safeParse({ ...signedInDay(), useCredits: "-1" }).success).toBe(false);
+    expect(signedIn.safeParse({ ...signedInDay(), useCredits: "1.001" }).success).toBe(false);
+  });
+
   it("omits submitted guest identity fields from signed-in booking bodies", () => {
     const value = signedIn.parse({
       ...signedInDay(),

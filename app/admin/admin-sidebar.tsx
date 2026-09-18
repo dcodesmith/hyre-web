@@ -1,6 +1,7 @@
 import {
   BanknoteIcon,
   CarIcon,
+  GiftIcon,
   LayoutDashboardIcon,
   LogOutIcon,
   ShieldCheckIcon,
@@ -43,6 +44,7 @@ export function AdminSidebar({ isLoggingOut, role, user }: AdminSidebarProps) {
   const isFinancialsActive = location.pathname.startsWith("/admin/financials");
   const isFeesActive = location.pathname === "/admin/fees";
   const isAddonRatesActive = location.pathname === "/admin/addon-rates";
+  const isReferralsActive = location.pathname === "/admin/referrals";
   const isStaffActive = location.pathname === "/admin/staff";
 
   function closeMobileSidebar() {
@@ -123,6 +125,22 @@ export function AdminSidebar({ isLoggingOut, role, user }: AdminSidebarProps) {
                   >
                     <SlidersHorizontalIcon />
                     <span>Add-ons</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={isReferralsActive}
+                  tooltip="Referral programme"
+                >
+                  <Link
+                    to="/admin/referrals"
+                    aria-current={isReferralsActive ? "page" : undefined}
+                    onClick={closeMobileSidebar}
+                  >
+                    <GiftIcon />
+                    <span>Referral programme</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>

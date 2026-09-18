@@ -39,4 +39,17 @@ describe("pricing preview request key", () => {
     expect(params?.getAll("addonIds")).toEqual([addonId]);
     expect(params?.toString()).toContain(`addonIds=${addonId}`);
   });
+
+  it("includes requested booking credits in the preview query", () => {
+    const params = bookingPricingPreviewSearchParams({
+      carId: "018f47a2-7b3c-7d4e-8f90-1234567890ad",
+      bookingType: "DAY",
+      from: "2026-08-28",
+      to: "2026-08-28",
+      pickupTime: "9 AM",
+      useCredits: 2500.5,
+    });
+
+    expect(params?.get("useCredits")).toBe("2500.5");
+  });
 });

@@ -147,4 +147,28 @@ describe("booking pricing preview resource", () => {
 
     expect(rejected).toMatchObject({ init: { status: 400 }, data: { preview: null } });
   });
+
+  it("forwards requested booking credits to the API-owned preview", async () => {
+    previewBookingPricing.mockResolvedValue({ data: { ...preview, creditsUsed: 2500 } });
+    const params = new URLSearchParams({
+      carId: "018f47a2-7b3c-7d4e-8f90-123456789471",
+      bookingType: "DAY",
+      startDate: "2026-09-01T08:00:00.000Z",
+      endDate: "2026-09-01T20:00:00.000Z",
+      pickupTime: "9 AM",
+      requiresFullTank: "false",
+      useCredits: "2500",
+    });
+    const request = new Request(`https://tripdly.com/api/booking-pricing-preview?${params}`);
+
+    const result = await loader({ request, params: {}, context: {} } as never);
+
+    expect(previewBookingPricing).toHaveBeenCalledWith({
+      request,
+      body: expect.objectContaining({ useCredits: 2500 }),
+    });
+    expect(result).toMatchObject({
+      data: { preview: { creditsUsed: 2500, totalAmount: 112875 }, error: null },
+    });
+  });
 });

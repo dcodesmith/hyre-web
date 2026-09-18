@@ -7,7 +7,9 @@ import type { PublicAddon } from "~/api/addons/schema";
 import type { BookingPricingPreview } from "~/api/bookings/schema";
 import type { PublicCarDetail } from "~/api/cars/schema";
 import type { PublicRates } from "~/api/rates/schema";
+import { usePublicUser } from "~/auth/use-public-user";
 import { composeAirportPickupAddress } from "~/booking/airport-pickup";
+import { BookingCreditsControl } from "~/booking/booking-credits-control";
 import {
   estimateBookingCost,
   overlayBookingCostPreview,
@@ -17,6 +19,7 @@ import {
 } from "~/booking/booking-estimate";
 import { nextToDateOnFromChange } from "~/booking/dates";
 import { AIRPORT_PICKUP_BOOKING_TYPE } from "~/booking/types";
+import { useBookingCredits } from "~/booking/use-booking-credits";
 import { CarBookingPayForm } from "~/car/car-booking-pay-form";
 import { CarBookingScheduleFields } from "~/car/car-booking-schedule-fields";
 import { buildCurrentCarDetailSearchPath, parseCarDetailUrl } from "~/car/car-url";
@@ -48,6 +51,7 @@ function pricingPreviewInput(
   card: ReturnType<typeof useCarBookingCard>,
   actionPreview: BookingPricingPreview | undefined,
   addonIds: readonly string[],
+  useCredits: number,
 ) {
   if (!card.hasCompleteDates || actionPreview) {
     return null;
@@ -60,6 +64,7 @@ function pricingPreviewInput(
     to: formatOptionalCalendarDate(card.toDate),
     pickupTime: card.pickupTime ?? "",
     addonIds,
+    useCredits,
   };
 }
 
@@ -122,6 +127,7 @@ export function CarBookingCard({
     ids: [] as string[],
   });
   const selectedAddonIds = addonSelection.catalogKey === addonCatalogKey ? addonSelection.ids : [];
+  const isSignedIn = usePublicUser() != null;
   const initialFromDate = parseOptionalCalendarDate(query.search.from);
   const parsedToDate = parseOptionalCalendarDate(query.search.to);
   const initialToDate = nextToDateOnFromChange(query.bookingType, initialFromDate, parsedToDate);
@@ -163,17 +169,37 @@ export function CarBookingCard({
     calculateDuration: airportPickup.calculateDuration,
     resetDuration: airportPickup.resetDuration,
   });
-  const actionPreview = pricingPreviewForSelection(currentPricing, currentPricingSelectionKey, {
-    bookingType: card.bookingType,
-    from: formatOptionalCalendarDate(card.fromDate),
-    to: formatOptionalCalendarDate(card.toDate),
-    pickupTime: card.pickupTime ?? "",
-    addonIds: selectedAddonIds,
-  });
+  const matchedActionPreview = pricingPreviewForSelection(
+    currentPricing,
+    currentPricingSelectionKey,
+    {
+      bookingType: card.bookingType,
+      from: formatOptionalCalendarDate(card.fromDate),
+      to: formatOptionalCalendarDate(card.toDate),
+      pickupTime: card.pickupTime ?? "",
+      addonIds: selectedAddonIds,
+    },
+  );
+  const bookingCredits = useBookingCredits(
+    isSignedIn ? (matchedActionPreview?.creditsUsed ?? 0) : 0,
+  );
+  const requestedCredits = bookingCredits.requestedCredits;
+  const actionPreview =
+    matchedActionPreview?.creditsUsed === requestedCredits ? matchedActionPreview : undefined;
   const pricing = useBookingPricingPreview(
-    pricingPreviewInput(car.id, card, actionPreview, selectedAddonIds),
+    pricingPreviewInput(car.id, card, actionPreview, selectedAddonIds, requestedCredits),
   );
   const preview = actionPreview ?? pricing.preview;
+  const credits = isSignedIn ? (
+    <BookingCreditsControl
+      checked={bookingCredits.enabled}
+      data={bookingCredits.data}
+      isLoadingBalance={bookingCredits.isLoading}
+      isPricingLoading={pricing.isLoading}
+      appliedCredits={preview?.creditsUsed ?? 0}
+      onCheckedChange={bookingCredits.setCreditsEnabled}
+    />
+  ) : null;
   const estimate = estimateBookingCost({
     dayRate: car.dayRate,
     nightRate: car.nightRate,
@@ -220,6 +246,7 @@ export function CarBookingCard({
       sameLocation={card.sameLocation}
       addons={addons}
       selectedAddonIds={selectedAddonIds}
+      useCredits={requestedCredits}
       onAddonSelectionChange={(addonId, selected) => {
         setAddonSelection((current) => {
           const ids = current.catalogKey === addonCatalogKey ? current.ids : [];
@@ -232,11 +259,12 @@ export function CarBookingCard({
       }}
       cost={overlayBookingCostPreview(estimate, preview)}
       preview={preview}
-      pricingError={actionPreview ? null : pricing.error}
-      isPricingLoading={actionPreview ? false : pricing.isLoading}
+      pricingError={bookingCredits.error ?? (actionPreview ? null : pricing.error)}
+      isPricingLoading={(actionPreview ? false : pricing.isLoading) || bookingCredits.isLoading}
       lastResult={lastResult}
       price={price}
       schedule={schedule}
+      credits={credits}
       tripArrivalTime={
         card.isAirportPickup && airportPickup.flight ? airportPickup.flight.arrivalTime : null
       }

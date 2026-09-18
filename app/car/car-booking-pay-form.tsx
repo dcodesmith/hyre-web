@@ -40,6 +40,7 @@ export function CarBookingPayForm({
   sameLocation,
   addons,
   selectedAddonIds,
+  useCredits,
   onAddonSelectionChange,
   cost,
   preview,
@@ -48,6 +49,7 @@ export function CarBookingPayForm({
   lastResult,
   price,
   schedule,
+  credits,
   tripArrivalTime,
   tripDuration,
 }: {
@@ -62,6 +64,7 @@ export function CarBookingPayForm({
   readonly sameLocation: boolean;
   readonly addons: PublicAddon[];
   readonly selectedAddonIds: readonly string[];
+  readonly useCredits: number;
   readonly onAddonSelectionChange: (addonId: string, selected: boolean) => void;
   readonly cost: BookingCostDisplay;
   readonly preview: BookingPricingPreview | null;
@@ -70,6 +73,7 @@ export function CarBookingPayForm({
   readonly lastResult?: SubmissionResult<string[]>;
   readonly price: ReactNode;
   readonly schedule: ReactNode;
+  readonly credits: ReactNode;
   readonly tripArrivalTime: string | null;
   readonly tripDuration: TripDurationResponse | null;
 }) {
@@ -133,6 +137,7 @@ export function CarBookingPayForm({
       <input type="hidden" name="pickupAddress" value={pickupAddress} />
       <input type="hidden" name="dropOffAddress" value={dropOffAddress} />
       <input type="hidden" name="sameLocation" value={sameLocation ? "true" : "false"} />
+      <input type="hidden" name="useCredits" value={useCredits} />
       {bookingErrors.length > 0 ? (
         <span id={form.errorId} className="sr-only">
           {bookingErrors.join(" ")}
@@ -163,6 +168,7 @@ export function CarBookingPayForm({
                 onSelectionChange={onAddonSelectionChange}
               />
             ) : null,
+          credits,
           cost,
           pricingError,
           canPay,
