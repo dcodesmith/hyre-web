@@ -2,6 +2,17 @@ import { type BrowserContext, expect, type Page, test } from "@playwright/test";
 
 import { startMockFleetOwnerAuthApi, stopMockFleetOwnerAuthApi } from "./mock-fleet-owner-auth-api";
 
+async function choosePayoutBank(page: Page, name: string) {
+  const bank = page.getByRole("combobox", { name: "Bank" });
+  const option = page.getByRole("option", { name, exact: true });
+
+  await bank.scrollIntoViewIfNeeded();
+  await bank.focus();
+  await bank.pressSequentially(name);
+  await option.click({ force: true });
+  await expect(bank).toHaveValue(name);
+}
+
 async function signInFleetOwner(context: BrowserContext, page: Page, baseURL: string) {
   await page.addInitScript(() => {
     localStorage.setItem(
@@ -47,11 +58,7 @@ test("completes staged fleet-owner onboarding through phone, identity, payout, d
     await expect(page.getByRole("heading", { name: "Add Payout Details" })).toBeVisible();
     await expect(page.getByText("JOHN MIDDLE DOE")).toBeVisible();
 
-    const bank = page.getByRole("combobox", { name: "Bank" });
-    await bank.click();
-    await bank.fill("GTBank");
-    await expect(bank).toHaveAttribute("aria-expanded", "true");
-    await bank.press("Enter");
+    await choosePayoutBank(page, "GTBank");
     await page.getByLabel("Account number").fill("0123456789");
     await page.getByRole("button", { name: "Verify Payout" }).click();
     await expect(page.getByRole("heading", { name: "Driving Credentials" })).toBeVisible();
