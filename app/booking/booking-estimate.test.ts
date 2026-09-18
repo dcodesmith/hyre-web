@@ -243,6 +243,12 @@ describe("authoritative preview payment", () => {
     expect(canAuthorizeBookingPayment(preview, false, null)).toBe(true);
   });
 
+  it("keeps credit balance and pricing loading from authorizing payment", () => {
+    expect(canAuthorizeBookingPayment(preview, true, null)).toBe(false);
+    expect(expectedBookingTotalAmount(preview)).toBe("231250");
+    expect(expectedBookingTotalAmount(undefined)).toBe("");
+  });
+
   it("does not authorize action pricing for a different selection", () => {
     const submittedSelection = {
       bookingType: "DAY" as const,

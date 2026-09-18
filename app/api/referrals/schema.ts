@@ -7,7 +7,17 @@ export const referralSummarySchema = z.object({
   referralCode: z.string().nullable(),
   shareLink: z.string().nullable(),
   programEnabled: z.boolean(),
-  discountAmount: z.number(),
+  discountAmount: z.number().nullable(),
+  discount: z
+    .discriminatedUnion("type", [
+      z.object({ type: z.literal("FIXED"), amount: z.number().positive() }),
+      z.object({
+        type: z.literal("PERCENTAGE"),
+        percentage: z.number().positive().max(100),
+        maxAmount: z.number().positive(),
+      }),
+    ])
+    .nullable(),
   hasUsedDiscount: z.boolean(),
   referredBy: z.string().nullable(),
   signupDate: referralDateSchema.nullable(),

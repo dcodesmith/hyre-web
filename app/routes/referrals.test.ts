@@ -24,6 +24,7 @@ const summary = {
   shareLink: "https://api.example/auth?ref=ABCD1234",
   programEnabled: true,
   discountAmount: 10_000,
+  discount: { type: "FIXED", amount: 10_000 },
   hasUsedDiscount: false,
   referredBy: null,
   signupDate: null,
@@ -44,7 +45,7 @@ const summary = {
 const pageSummary = {
   referralCode: summary.referralCode,
   programEnabled: summary.programEnabled,
-  discountAmount: summary.discountAmount,
+  discount: summary.discount,
   stats: {
     totalReferrals: summary.stats.totalReferrals,
     totalRewardsGranted: summary.stats.totalRewardsGranted,
@@ -121,6 +122,33 @@ describe("referrals loader", () => {
     await expect(runLoader()).resolves.toEqual({
       summary: { ...pageSummary, referralCode: null },
       shareLink: null,
+    });
+  });
+
+  it("forwards a paused programme and a generic null offer", async () => {
+    getCurrentUserReferralSummary.mockResolvedValueOnce({
+      data: { ...summary, programEnabled: false, discountAmount: null, discount: null },
+      status: HTTP_STATUS.OK,
+      headers: new Headers(),
+    });
+
+    await expect(runLoader()).resolves.toEqual({
+      summary: { ...pageSummary, programEnabled: false, discount: null },
+      shareLink: "https://tripdly.com/auth?ref=ABCD1234",
+    });
+  });
+
+  it("forwards a percentage first-booking offer", async () => {
+    const discount = { type: "PERCENTAGE" as const, percentage: 10, maxAmount: 20_000 };
+    getCurrentUserReferralSummary.mockResolvedValueOnce({
+      data: { ...summary, discountAmount: null, discount },
+      status: HTTP_STATUS.OK,
+      headers: new Headers(),
+    });
+
+    await expect(runLoader()).resolves.toEqual({
+      summary: { ...pageSummary, discount },
+      shareLink: "https://tripdly.com/auth?ref=ABCD1234",
     });
   });
 });

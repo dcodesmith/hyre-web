@@ -46,6 +46,9 @@ function getPageTitle(pathname: string) {
   if (pathname === "/admin/addon-rates") {
     return "Add-ons";
   }
+  if (pathname === "/admin/referrals") {
+    return "Referral programme";
+  }
   if (pathname === "/admin/staff") {
     return "Staff";
   }

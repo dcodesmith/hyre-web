@@ -9,6 +9,7 @@ export const mockReferralSummary = {
   shareLink: "https://api.example/auth?ref=ABCD2345",
   programEnabled: true,
   discountAmount: 10_000,
+  discount: { type: "FIXED", amount: 10_000 },
   hasUsedDiscount: false,
   referredBy: null,
   signupDate: null,

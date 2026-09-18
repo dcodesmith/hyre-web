@@ -5,7 +5,7 @@ import { ReferralPage, type ReferralPageSummary } from "~/referral/referral-page
 const referralSummary = {
   referralCode: "ADA2026X",
   programEnabled: true,
-  discountAmount: 10_000,
+  discount: { type: "FIXED", amount: 10_000 },
   stats: {
     totalReferrals: 3,
     totalRewardsGranted: 20_000,

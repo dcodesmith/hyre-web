@@ -44,7 +44,7 @@ export async function loader({ request }: Route.LoaderArgs) {
     const pageSummary: ReferralPageSummary = {
       referralCode: summary.referralCode,
       programEnabled: summary.programEnabled,
-      discountAmount: summary.discountAmount,
+      discount: summary.discount,
       stats: {
         totalReferrals: summary.stats.totalReferrals,
         totalRewardsGranted: summary.stats.totalRewardsGranted,

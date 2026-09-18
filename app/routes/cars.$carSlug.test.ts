@@ -179,6 +179,16 @@ describe("car booking action", () => {
     ]);
   });
 
+  it("forwards requested booking credits on create", async () => {
+    readAuthUser.mockResolvedValue({ email: "ada@example.com", name: "Ada" });
+    const form = bookingForm();
+    form.set("useCredits", "2500");
+
+    await runAction(form).catch(() => undefined);
+
+    expect(createBooking.mock.calls[0][0].body.useCredits).toBe(2500);
+  });
+
   it("rejects a submitted car UUID that does not match the public ref", async () => {
     readAuthUser.mockResolvedValue({ email: "ada@example.com", name: "Ada" });
     const form = bookingForm();

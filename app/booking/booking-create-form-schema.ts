@@ -93,6 +93,7 @@ function buildBookingFormSchema(isGuest: boolean) {
       email: z.string().optional(),
       phoneNumber: z.string().optional(),
       addonIds: bookingAddonIdsSchema,
+      useCredits: z.coerce.number().min(0).max(99_999_999.99).multipleOf(0.01).default(0),
     })
     .superRefine((data, ctx) => {
       if (!data.pickupAddress?.trim()) {
@@ -276,6 +277,7 @@ export function toBookingApiWindow(value: BookingWindowInput) {
 export type BookingPricingInput = BookingWindowInput & {
   readonly carId: string;
   readonly addonIds?: readonly string[];
+  readonly useCredits?: number;
 };
 
 export function toPricingPreviewBody(value: BookingPricingInput) {
@@ -293,7 +295,7 @@ export function toPricingPreviewBody(value: BookingPricingInput) {
     pickupTime: resolveCreatePickupTime(value.bookingType, value.pickupTime),
     addonIds: [...(value.addonIds ?? [])],
     requiresFullTank: false,
-    useCredits: 0,
+    useCredits: value.useCredits ?? 0,
   };
 }
 

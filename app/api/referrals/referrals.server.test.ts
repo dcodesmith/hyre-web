@@ -17,6 +17,7 @@ const summary = {
   shareLink: "https://api.example/auth?ref=ABCD1234",
   programEnabled: true,
   discountAmount: 10_000,
+  discount: { type: "FIXED", amount: 10_000 },
   hasUsedDiscount: false,
   referredBy: null,
   signupDate: null,

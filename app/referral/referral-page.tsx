@@ -11,7 +11,7 @@ import { useCopyFeedback } from "./use-copy-feedback";
 
 export type ReferralPageSummary = Pick<
   ReferralSummary,
-  "referralCode" | "programEnabled" | "discountAmount"
+  "referralCode" | "programEnabled" | "discount"
 > & {
   readonly stats: Pick<
     ReferralSummary["stats"],
@@ -50,6 +50,16 @@ const statIcons = {
 
 function formatReferralDate(value: string) {
   return referralDateFormatter.format(new Date(value));
+}
+
+function describeCustomerDiscount(discount: ReferralPageSummary["discount"]) {
+  if (!discount) {
+    return "a first-booking discount";
+  }
+
+  return discount.type === "FIXED"
+    ? `${formatCurrency(discount.amount)} off their first eligible booking`
+    : `${discount.percentage}% off, up to ${formatCurrency(discount.maxAmount)}, on their first eligible booking`;
 }
 
 function rewardStatusClassName(status: ReferralPageSummary["rewards"][number]["status"]) {
@@ -153,7 +163,7 @@ export function ReferralPage({
     },
     {
       title: "Both get rewards",
-      body: `They get ${formatCurrency(summary.discountAmount)} discount, you earn ${formatCurrency(summary.discountAmount)} reward`,
+      body: `They get ${describeCustomerDiscount(summary.discount)}. You earn booking credits after they complete that booking.`,
     },
   ];
 

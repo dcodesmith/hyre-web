@@ -23,6 +23,7 @@ const bookingCardContentClassName = "space-y-4 px-4 pb-6 [&>div:first-of-type]:m
 interface CheckoutState {
   readonly guest: ReactNode;
   readonly addons: ReactNode;
+  readonly credits: ReactNode;
   readonly cost: BookingCostDisplay;
   readonly pricingError: string | null;
   readonly canPay: boolean;
@@ -84,7 +85,7 @@ function CarBookingMobilePayBar({
   bookingErrors,
   canPay,
   barRef,
-}: Omit<CheckoutState, "guest" | "pricingError" | "addons"> & {
+}: Omit<CheckoutState, "guest" | "pricingError" | "addons" | "credits"> & {
   readonly barRef: Ref<HTMLDivElement>;
 }) {
   return (
@@ -186,6 +187,9 @@ export function CarBookingCheckout({
           ) : null}
         </div>
         {checkout.addons}
+        {checkout.credits ? (
+          <div className="mt-4 px-4 lg:mt-0 lg:px-6 lg:pb-4">{checkout.credits}</div>
+        ) : null}
         <CardFooter className="hidden flex-col items-stretch gap-4 border-t bg-gray-100 p-4 lg:flex">
           <CarBookingCheckoutSummary
             {...checkoutProps}
