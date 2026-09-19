@@ -44,6 +44,7 @@ describe("useBookingCredits", () => {
 
     expect(credits.enabled).toBe(false);
     expect(credits.requestedCredits).toBe(0);
+    expect(credits.hasUsableCredits).toBe(false);
     expect(credits.isLoading).toBe(false);
     expect(credits.error).toBeNull();
     expect(fetcher.load).not.toHaveBeenCalled();
@@ -67,6 +68,7 @@ describe("useBookingCredits", () => {
     const credits = renderCredits(2_000);
 
     expect(credits.enabled).toBe(true);
+    expect(credits.hasUsableCredits).toBe(true);
     expect(credits.requestedCredits).toBe(8_000);
     expect(credits.isLoading).toBe(false);
     expect(credits.error).toBeNull();
@@ -92,8 +94,25 @@ describe("useBookingCredits", () => {
     const credits = renderCredits(0);
 
     expect(credits.enabled).toBe(false);
+    expect(credits.hasUsableCredits).toBe(true);
     expect(credits.requestedCredits).toBe(0);
     expect(credits.error).toBeNull();
+  });
+
+  it("does not expose credits when the balance or booking cap is zero", () => {
+    fetcher.data = {
+      availableCredits: 0,
+      maxCreditsPerBooking: 8_000,
+      error: null,
+    };
+    expect(renderCredits(0).hasUsableCredits).toBe(false);
+
+    fetcher.data = {
+      availableCredits: 15_000,
+      maxCreditsPerBooking: 0,
+      error: null,
+    };
+    expect(renderCredits(0).hasUsableCredits).toBe(false);
   });
 
   it("surfaces an error and retries the balance load", () => {
@@ -106,6 +125,7 @@ describe("useBookingCredits", () => {
     const credits = renderCredits(1_000);
 
     expect(credits.error).toBe("Unable to check your booking credits. Please try again.");
+    expect(credits.hasUsableCredits).toBe(false);
     expect(credits.isLoading).toBe(false);
     expect(credits.requestedCredits).toBe(1_000);
 

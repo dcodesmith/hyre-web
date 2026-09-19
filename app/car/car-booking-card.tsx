@@ -182,6 +182,7 @@ export function CarBookingCard({
   );
   const bookingCredits = useBookingCredits(
     isSignedIn ? (matchedActionPreview?.creditsUsed ?? 0) : 0,
+    isSignedIn,
   );
   const requestedCredits = bookingCredits.requestedCredits;
   const actionPreview =
@@ -190,16 +191,13 @@ export function CarBookingCard({
     pricingPreviewInput(car.id, card, actionPreview, selectedAddonIds, requestedCredits),
   );
   const preview = actionPreview ?? pricing.preview;
-  const credits = isSignedIn ? (
-    <BookingCreditsControl
-      checked={bookingCredits.enabled}
-      data={bookingCredits.data}
-      isLoadingBalance={bookingCredits.isLoading}
-      isPricingLoading={pricing.isLoading}
-      appliedCredits={preview?.creditsUsed ?? 0}
-      onCheckedChange={bookingCredits.setCreditsEnabled}
-    />
-  ) : null;
+  const credits =
+    isSignedIn && bookingCredits.hasUsableCredits ? (
+      <BookingCreditsControl
+        checked={bookingCredits.enabled}
+        onCheckedChange={bookingCredits.setCreditsEnabled}
+      />
+    ) : null;
   const estimate = estimateBookingCost({
     dayRate: car.dayRate,
     nightRate: car.nightRate,

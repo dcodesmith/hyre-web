@@ -1,7 +1,12 @@
-import { expect, type Page, test } from "@playwright/test";
+import { type BrowserContext, expect, type Page, test } from "@playwright/test";
 
 import { HTTP_STATUS } from "../app/api/http-status";
 import { clickUntilVisible } from "./click-until";
+import {
+  mockReferralSummary,
+  startMockReferralApi,
+  stopMockReferralApi,
+} from "./mock-referral-api";
 
 const consentKey = "tripdly-cookie-consent:v1";
 
@@ -9,6 +14,16 @@ async function setCookiePreference(page: Page) {
   await page.addInitScript((key) => {
     localStorage.setItem(key, JSON.stringify({ analytics: false, timestamp: 1 }));
   }, consentKey);
+}
+
+async function signInCustomer(context: BrowserContext) {
+  await context.addCookies([
+    {
+      name: "better-auth.session_token",
+      value: "e2e-session",
+      url: "http://localhost:5174",
+    },
+  ]);
 }
 
 test("renders crawlable car metadata and booking controls from the fixture", async ({
@@ -39,6 +54,7 @@ test("renders crawlable car metadata and booking controls from the fixture", asy
   await expect(page.getByLabel("Name")).toBeVisible();
   await expect(page.getByLabel("Email")).toBeVisible();
   await expect(page.getByLabel("Phone Number")).toBeVisible();
+  await expect(page.getByText("Use booking credits")).toHaveCount(0);
   await expect(
     page.getByRole("button", { name: "Pay Now as Guest" }).filter({ visible: true }),
   ).toBeDisabled();
@@ -58,6 +74,47 @@ test("renders crawlable car metadata and booking controls from the fixture", asy
   if ((viewport?.width ?? 0) >= 1024) {
     await expect(page.getByRole("link", { name: /Back to search results/ })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Car information and features" })).toBeVisible();
+  }
+});
+
+test("shows booking credits only after loading a signed-in customer's balance", async ({
+  context,
+  page,
+}) => {
+  const api = await startMockReferralApi();
+
+  try {
+    await setCookiePreference(page);
+    await signInCustomer(context);
+    await page.goto("/__visual/car?bookingType=DAY");
+
+    await expect(page.getByRole("switch", { name: "Use booking credits" })).toBeVisible();
+  } finally {
+    await stopMockReferralApi(api);
+  }
+});
+
+test("hides booking credits when a signed-in customer has no balance", async ({
+  context,
+  page,
+}) => {
+  const api = await startMockReferralApi({
+    ...mockReferralSummary,
+    stats: { ...mockReferralSummary.stats, availableCredits: 0 },
+  });
+
+  try {
+    await setCookiePreference(page);
+    await signInCustomer(context);
+    const creditsResponse = page.waitForResponse((response) =>
+      new URL(response.url()).pathname.includes("/api/referral-credits"),
+    );
+    await page.goto("/__visual/car?bookingType=DAY");
+    await creditsResponse;
+
+    await expect(page.getByRole("switch", { name: "Use booking credits" })).toHaveCount(0);
+  } finally {
+    await stopMockReferralApi(api);
   }
 });
 
