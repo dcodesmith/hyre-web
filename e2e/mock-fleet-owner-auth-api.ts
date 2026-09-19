@@ -661,7 +661,7 @@ async function handleDraftCarOnboardingMutation(
       draftDocument("018f47a2-7b3c-7d4e-8f90-123456789108", "MOT_CERTIFICATE"),
       draftDocument("018f47a2-7b3c-7d4e-8f90-123456789109", "INSURANCE_CERTIFICATE"),
     ];
-    writeJson(response, 200, state.draftCar);
+    writeJson(response, 201, { id: state.draftCar.id });
     return true;
   }
 

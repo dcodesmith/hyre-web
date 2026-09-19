@@ -48,7 +48,6 @@ const fleetCar = {
       id: "018f47a2-7b3c-7d4e-8f90-123456789490",
       documentType: "VEHICLE_REGISTRATION",
       status: "PENDING",
-      documentUrl: "https://cdn.example.com/registration.pdf",
       notes: null,
       approvedById: null,
       approvedAt: null,
@@ -61,7 +60,6 @@ const fleetCar = {
       id: "018f47a2-7b3c-7d4e-8f90-123456789491",
       documentType: "MOT_CERTIFICATE",
       status: "PENDING",
-      documentUrl: "https://cdn.example.com/mot.pdf",
       notes: null,
       approvedById: null,
       approvedAt: null,
@@ -74,7 +72,6 @@ const fleetCar = {
       id: "018f47a2-7b3c-7d4e-8f90-123456789492",
       documentType: "INSURANCE_CERTIFICATE",
       status: "PENDING",
-      documentUrl: "https://cdn.example.com/insurance.pdf",
       notes: null,
       approvedById: null,
       approvedAt: null,
@@ -187,5 +184,19 @@ describe("fleet car API schema", () => {
         ],
       }).success,
     ).toBe(false);
+  });
+
+  it("does not expose private document keys on fleet-owner car responses", () => {
+    expect(
+      fleetCarSchema.parse({
+        ...fleetCar,
+        documents: [
+          {
+            ...fleetCar.documents[0],
+            documentUrl: "fleet-owners/owner-1/cars/x/documents/a.pdf",
+          },
+        ],
+      }).documents[0],
+    ).not.toHaveProperty("documentUrl");
   });
 });

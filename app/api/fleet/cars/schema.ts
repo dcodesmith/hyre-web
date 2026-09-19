@@ -35,7 +35,6 @@ const fleetCarDocumentSchema = z.object({
   id: z.uuid(),
   documentType: fleetCarDocumentTypeSchema,
   status: fleetCarDocumentStatusSchema,
-  documentUrl: z.url(),
   notes: z.string().nullable(),
   approvedById: z.uuid().nullable(),
   approvedAt: z.iso.datetime().nullable(),
