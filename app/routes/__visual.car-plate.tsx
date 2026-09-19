@@ -1,6 +1,7 @@
 import { useSearchParams } from "react-router";
 
 import type { FleetVehicleVerification } from "~/api/fleet/cars/onboarding-schema";
+import { ineligibleFleetVehicleMessage } from "~/fleet/cars/fleet-car";
 import { FleetCarPlateVerificationPage } from "~/fleet/cars/fleet-car-plate-verification-page";
 
 const IDEMPOTENCY_KEY = "11111111-1111-4111-8111-111111111111";
@@ -25,7 +26,13 @@ const verifiedVehicle = {
 export default function CarPlateFixture() {
   const [searchParams] = useSearchParams();
   const actionData =
-    searchParams.get("verified") === "true" ? { verification: verifiedVehicle } : undefined;
+    searchParams.get("verified") === "true"
+      ? { verification: verifiedVehicle }
+      : searchParams.get("error") === "ineligible"
+        ? {
+            error: ineligibleFleetVehicleMessage(),
+          }
+        : undefined;
 
   return <FleetCarPlateVerificationPage actionData={actionData} idempotencyKey={IDEMPOTENCY_KEY} />;
 }

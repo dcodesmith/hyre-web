@@ -21,6 +21,7 @@ vi.mock("~/api/fleet/cars/car-onboarding.server", () => ({
 import { ApiRequestError } from "~/api/api.server";
 import { HTTP_STATUS } from "~/api/http-status";
 import { carOnboardingPlateFormSchema } from "~/fleet/cars/car-onboarding-form-schema";
+import { ineligibleFleetVehicleMessage, minimumVehicleYear } from "~/fleet/cars/fleet-car";
 import { action, loader, shouldRevalidate } from "./fleet-owner.cars.new";
 
 const IDEMPOTENCY_KEY = "18aa029c-4bb1-4ca7-b25e-cfc802c4bf8c";
@@ -47,7 +48,7 @@ const eligibleVerification = {
 
 const ineligibleVerification = {
   ...eligibleVerification,
-  vehicle: { ...eligibleVerification.vehicle, year: 2014 },
+  vehicle: { ...eligibleVerification.vehicle, year: minimumVehicleYear() - 1 },
   eligibility: { isEligible: false, reasons: ["VEHICLE_YEAR_BELOW_MINIMUM"] },
 };
 
@@ -189,8 +190,7 @@ describe("fleet-owner cars new route", () => {
     expect(createFleetDraftCar).not.toHaveBeenCalled();
     expect(result).toMatchObject({
       data: {
-        error:
-          "This vehicle is not eligible. Use a vehicle from 2015 or newer, or check the plate and try again.",
+        error: ineligibleFleetVehicleMessage(),
         revalidate: false,
         verification: ineligibleVerification,
       },

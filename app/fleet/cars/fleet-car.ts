@@ -5,6 +5,17 @@ import type {
   FleetCarStatus,
 } from "~/api/fleet/cars/schema";
 import { formatCurrency } from "~/money/currency";
+import { getZonedYear } from "~/time/timezone";
+
+export const MAX_VEHICLE_AGE_YEARS = 15;
+
+export function minimumVehicleYear(now = new Date()) {
+  return getZonedYear(now) - MAX_VEHICLE_AGE_YEARS;
+}
+
+export function ineligibleFleetVehicleMessage(now = new Date()) {
+  return `This vehicle is not eligible. Use a vehicle from ${minimumVehicleYear(now)} or newer, or check the plate and try again.`;
+}
 
 const statusLabels: Record<FleetCarStatus, string> = {
   AVAILABLE: "Available",

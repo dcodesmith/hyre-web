@@ -13,6 +13,7 @@ import {
   carOnboardingPlateFormSchema,
   type NewFleetCarActionData,
 } from "~/fleet/cars/car-onboarding-form-schema";
+import { ineligibleFleetVehicleMessage } from "~/fleet/cars/fleet-car";
 import { FleetCarPlateVerificationPage } from "~/fleet/cars/fleet-car-plate-verification-page";
 import { buildPageMetadata } from "~/seo/metadata";
 import type { Route } from "./+types/fleet-owner.cars.new";
@@ -82,8 +83,7 @@ async function verifyPlate(request: Request, formData: FormData) {
     if (!verification.eligibility.isEligible) {
       return data<NewFleetCarActionData>(
         {
-          error:
-            "This vehicle is not eligible. Use a vehicle from 2015 or newer, or check the plate and try again.",
+          error: ineligibleFleetVehicleMessage(),
           revalidate: false,
           verification,
         },

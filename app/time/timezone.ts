@@ -81,6 +81,10 @@ export function getZonedHour(date: Date = new Date()) {
   return getZonedParts(date).hour;
 }
 
+export function getZonedYear(date: Date = new Date()) {
+  return getZonedParts(date).year;
+}
+
 export function formatZonedDate(date: Date) {
   return dateFormat.format(date);
 }

@@ -6,6 +6,8 @@ import {
   getFleetCarOnboardingStep,
   getFleetCarStatusLabel,
   hasFleetCarPricing,
+  ineligibleFleetVehicleMessage,
+  minimumVehicleYear,
   needsFleetCarOnboarding,
 } from "./fleet-car";
 
@@ -275,5 +277,15 @@ describe("fleet car onboarding step", () => {
       "Submit",
     ]);
     expect(FLEET_CAR_ONBOARDING_STAGES).toHaveLength(5);
+  });
+});
+
+describe("fleet car year eligibility", () => {
+  it("names the 15-year floor from the Lagos calendar year", () => {
+    expect(minimumVehicleYear(new Date("2026-09-19T12:00:00.000Z"))).toBe(2011);
+    expect(minimumVehicleYear(new Date("2026-12-31T23:30:00.000Z"))).toBe(2012);
+    expect(ineligibleFleetVehicleMessage(new Date("2026-09-19T12:00:00.000Z"))).toBe(
+      "This vehicle is not eligible. Use a vehicle from 2011 or newer, or check the plate and try again.",
+    );
   });
 });

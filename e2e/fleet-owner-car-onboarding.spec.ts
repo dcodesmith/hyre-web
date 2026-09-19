@@ -1,5 +1,6 @@
 import { type BrowserContext, expect, type Page, test } from "@playwright/test";
 
+import { ineligibleFleetVehicleMessage } from "../app/fleet/cars/fleet-car";
 import {
   MOCK_FLEET_DRAFT_CAR_ID,
   MOCK_VEHICLE_VERIFICATION_ID,
@@ -285,11 +286,7 @@ test("does not show the verified result card for an ineligible vehicle", async (
     await page.getByLabel("Number plate").fill("kja-123ab");
     await page.getByLabel("Chassis number").fill(VALID_CHASSIS);
     await page.getByRole("button", { name: "Verify Vehicle" }).click();
-    await expect(
-      page.getByText(
-        "This vehicle is not eligible. Use a vehicle from 2015 or newer, or check the plate and try again.",
-      ),
-    ).toBeVisible();
+    await expect(page.getByText(ineligibleFleetVehicleMessage())).toBeVisible();
     await expect(page.getByRole("heading", { name: "Vehicle Details Checked" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Yes, Add This Car" })).toHaveCount(0);
     await expect.poll(() => api.requests.draftCars).toEqual([]);
