@@ -32,6 +32,9 @@ async function verifyEligibleVehicle(page: Page) {
   await page.getByLabel("Chassis number").fill(VALID_CHASSIS);
   await page.getByRole("button", { name: "Verify Vehicle" }).click();
   await expect(page.getByRole("heading", { name: "Vehicle Details Checked" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Verify Vehicle", exact: true })).toHaveCount(0);
+  await expect(page.getByLabel("Number plate")).toHaveCount(0);
+  await expect(page.getByLabel("Chassis number")).toHaveCount(0);
   await expect(page.getByText("Toyota Camry")).toBeVisible();
   await expect(page.getByText("KJA123AB")).toBeVisible();
   await expect(page.getByText(VALID_CHASSIS)).toBeVisible();
