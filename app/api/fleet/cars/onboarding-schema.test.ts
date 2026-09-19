@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { fleetCarSubmissionSchema, fleetVehicleVerificationSchema } from "./onboarding-schema";
+import {
+  fleetCarSubmissionSchema,
+  fleetDraftCarCreatedSchema,
+  fleetVehicleVerificationSchema,
+} from "./onboarding-schema";
 import { fleetCarSchema } from "./schema";
 
 const succeededVehicleVerification = {
@@ -117,6 +121,13 @@ describe("fleet car onboarding API schemas", () => {
         },
       }).success,
     ).toBe(false);
+  });
+
+  it("accepts a created draft car by id only", () => {
+    expect(fleetDraftCarCreatedSchema.parse({ id: fleetCar.id, extra: true })).toEqual({
+      id: fleetCar.id,
+    });
+    expect(fleetDraftCarCreatedSchema.safeParse({}).success).toBe(false);
   });
 
   it("parses submission requirements without an insurance gate", () => {

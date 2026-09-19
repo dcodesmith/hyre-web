@@ -20,6 +20,7 @@ import type { Route } from "./+types/fleet-owner.cars.new";
 
 const NO_STORE = { "Cache-Control": "private, no-store" };
 const RETRY_MESSAGE = "Unable to complete this car onboarding step. Please try again.";
+const DRAFT_RETRY_MESSAGE = "Unable to save this car. Please try again.";
 const IDEMPOTENCY_KEY_REUSED = "VERIFICATION_IDEMPOTENCY_KEY_REUSED";
 const idempotencyKeySchema = z.uuid();
 const verificationIdSchema = z.uuid();
@@ -113,7 +114,25 @@ async function verifyPlate(request: Request, formData: FormData) {
   }
 }
 
-async function reconcileDraft(request: Request, verificationId: string, error: ApiRequestError) {
+function draftFailure(error: unknown, verification: NewFleetCarActionData["verification"]) {
+  const expected =
+    error instanceof ApiRequestError &&
+    error.kind === "http" &&
+    error.status < HTTP_STATUS.INTERNAL_SERVER_ERROR;
+  return data<NewFleetCarActionData>(
+    {
+      error: expected ? error.problem.detail : DRAFT_RETRY_MESSAGE,
+      revalidate: false,
+      verification,
+    },
+    {
+      status: error instanceof ApiRequestError ? error.status : HTTP_STATUS.BAD_GATEWAY,
+      headers: NO_STORE,
+    },
+  );
+}
+
+async function recoverDraft(request: Request, verificationId: string, error: unknown) {
   try {
     const { data: verification } = await getFleetVehicleVerification({
       request,
@@ -124,10 +143,7 @@ async function reconcileDraft(request: Request, verificationId: string, error: A
         headers: NO_STORE,
       });
     }
-    return data<NewFleetCarActionData>(
-      { error: RETRY_MESSAGE, revalidate: false, verification },
-      { status: error.status, headers: NO_STORE },
-    );
+    return draftFailure(error, verification);
   } catch {
     return failure(error);
   }
@@ -146,10 +162,8 @@ async function createDraft(request: Request, formData: FormData) {
     });
     return redirect(`/fleet-owner/cars/${car.id}/onboarding`, { headers: NO_STORE });
   } catch (error) {
-    if (error instanceof ApiRequestError && error.kind === "network") {
-      return reconcileDraft(request, verificationId.data, error);
-    }
-    return failure(error);
+    if (error instanceof ApiRequestError && error.kind === "aborted") throw error;
+    return recoverDraft(request, verificationId.data, error);
   }
 }
 

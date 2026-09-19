@@ -149,9 +149,12 @@ describe("fleet car onboarding BFF", () => {
   });
 
   it("POSTs a draft car from a verification", async () => {
-    fetchMock.mockResolvedValueOnce(Response.json(fleetCar));
+    const { promotion: _, ...draftWithoutPromotion } = fleetCar;
+    fetchMock.mockResolvedValueOnce(Response.json(draftWithoutPromotion));
 
-    await createFleetDraftCar({ request, verificationId: "018f47a2-7b3c-7d4e-8f90-1234567894f5" });
+    await expect(
+      createFleetDraftCar({ request, verificationId: "018f47a2-7b3c-7d4e-8f90-1234567894f5" }),
+    ).resolves.toMatchObject({ data: { id: fleetCar.id } });
 
     const { url, init, headers } = capturedRequest();
     expect(url).toBe(
