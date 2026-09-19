@@ -20,6 +20,7 @@ import type { Route } from "./+types/fleet-owner.cars.new";
 
 const NO_STORE = { "Cache-Control": "private, no-store" };
 const RETRY_MESSAGE = "Unable to complete this car onboarding step. Please try again.";
+const IDEMPOTENCY_KEY_REUSED = "VERIFICATION_IDEMPOTENCY_KEY_REUSED";
 const idempotencyKeySchema = z.uuid();
 const verificationIdSchema = z.uuid();
 
@@ -43,12 +44,21 @@ function invalid(error: string, status: number = HTTP_STATUS.BAD_REQUEST) {
   return data<NewFleetCarActionData>({ error, revalidate: false }, { status, headers: NO_STORE });
 }
 
+function isIdempotencyKeyReused(error: unknown) {
+  return (
+    error instanceof ApiRequestError &&
+    error.kind === "http" &&
+    error.problem.errorCode === IDEMPOTENCY_KEY_REUSED
+  );
+}
+
 function failure(error: unknown) {
   if (error instanceof ApiRequestError && error.kind === "aborted") throw error;
   const expected =
     error instanceof ApiRequestError &&
     error.kind === "http" &&
-    error.status < HTTP_STATUS.INTERNAL_SERVER_ERROR;
+    error.status < HTTP_STATUS.INTERNAL_SERVER_ERROR &&
+    !isIdempotencyKeyReused(error);
   return data<NewFleetCarActionData>(
     {
       error: expected ? error.problem.detail : RETRY_MESSAGE,
@@ -79,6 +89,13 @@ async function verifyPlate(request: Request, formData: FormData) {
       request,
       idempotencyKey: idempotencyKey.data,
       body: submission.value,
+    }).catch((error: unknown) => {
+      if (!isIdempotencyKeyReused(error)) throw error;
+      return createFleetVehicleVerification({
+        request,
+        idempotencyKey: crypto.randomUUID(),
+        body: submission.value,
+      });
     });
     if (!verification.eligibility.isEligible) {
       return data<NewFleetCarActionData>(

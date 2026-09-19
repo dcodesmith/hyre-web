@@ -91,12 +91,18 @@ function actionData(result: unknown) {
   return (result as { data: Record<string, unknown> }).data;
 }
 
-function apiError(status: number, detail: string, kind: "http" | "network" = "http") {
+function apiError(
+  status: number,
+  detail: string,
+  kind: "http" | "network" = "http",
+  problem: { errorCode?: string } = {},
+) {
   return new ApiRequestError(kind, status, {
     type: "FLEET_CAR_ONBOARDING_ERROR",
     title: "Car onboarding error",
     status,
     detail,
+    ...problem,
   });
 }
 
@@ -209,6 +215,36 @@ describe("fleet-owner cars new route", () => {
 
     expect(actionData(result).error).toBe(ineligibleFleetVehicleMessage(2012));
     expect(createFleetDraftCar).not.toHaveBeenCalled();
+  });
+
+  it("retries verify-plate with a new key when the previous chassis used the same key", async () => {
+    createFleetVehicleVerification
+      .mockRejectedValueOnce(
+        apiError(
+          HTTP_STATUS.CONFLICT,
+          "This Idempotency-Key was already used with a different request",
+          "http",
+          { errorCode: "VERIFICATION_IDEMPOTENCY_KEY_REUSED" },
+        ),
+      )
+      .mockResolvedValueOnce({ data: eligibleVerification });
+    const uuid = vi.spyOn(crypto, "randomUUID").mockReturnValue(NEXT_IDEMPOTENCY_KEY);
+
+    const { request, result } = await runAction(validPlateFields);
+
+    expect(createFleetVehicleVerification).toHaveBeenNthCalledWith(1, {
+      request,
+      idempotencyKey: IDEMPOTENCY_KEY,
+      body: { plateNumber: "KJA123AB", chassisNumber: "1HGCM82633A004352" },
+    });
+    expect(createFleetVehicleVerification).toHaveBeenNthCalledWith(2, {
+      request,
+      idempotencyKey: NEXT_IDEMPOTENCY_KEY,
+      body: { plateNumber: "KJA123AB", chassisNumber: "1HGCM82633A004352" },
+    });
+    expect(result).toMatchObject({ data: { verification: eligibleVerification } });
+    expect(JSON.stringify(result)).not.toContain("Idempotency-Key");
+    uuid.mockRestore();
   });
 
   it("creates a draft from the verification and redirects to onboarding", async () => {
