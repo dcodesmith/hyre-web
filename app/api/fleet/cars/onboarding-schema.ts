@@ -22,6 +22,7 @@ export const fleetVehicleVerificationSchema = z.object({
   eligibility: z.object({
     isEligible: z.boolean(),
     reasons: z.array(z.enum(["VEHICLE_YEAR_BELOW_MINIMUM"])),
+    minimumYear: z.number().int(),
   }),
   expiresAt: z.iso.datetime(),
   carId: z.uuid().nullable(),

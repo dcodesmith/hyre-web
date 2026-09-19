@@ -83,7 +83,7 @@ async function verifyPlate(request: Request, formData: FormData) {
     if (!verification.eligibility.isEligible) {
       return data<NewFleetCarActionData>(
         {
-          error: ineligibleFleetVehicleMessage(),
+          error: ineligibleFleetVehicleMessage(verification.eligibility.minimumYear),
           revalidate: false,
           verification,
         },

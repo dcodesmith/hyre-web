@@ -14,7 +14,7 @@ const succeededVehicleVerification = {
     color: "Black",
     passengerCapacity: 5,
   },
-  eligibility: { isEligible: true, reasons: [] },
+  eligibility: { isEligible: true, reasons: [], minimumYear: 2011 },
   expiresAt: "2026-09-08T12:00:00.000Z",
   carId: null,
 };
@@ -65,9 +65,19 @@ describe("fleet car onboarding API schemas", () => {
       fleetVehicleVerificationSchema.parse({
         ...succeededVehicleVerification,
         vehicle: { ...succeededVehicleVerification.vehicle, year: 2014 },
-        eligibility: { isEligible: false, reasons: ["VEHICLE_YEAR_BELOW_MINIMUM"] },
+        eligibility: {
+          isEligible: false,
+          reasons: ["VEHICLE_YEAR_BELOW_MINIMUM"],
+          minimumYear: 2011,
+        },
       }).eligibility,
-    ).toEqual({ isEligible: false, reasons: ["VEHICLE_YEAR_BELOW_MINIMUM"] });
+    ).toEqual({ isEligible: false, reasons: ["VEHICLE_YEAR_BELOW_MINIMUM"], minimumYear: 2011 });
+    expect(
+      fleetVehicleVerificationSchema.safeParse({
+        ...succeededVehicleVerification,
+        eligibility: { isEligible: true, reasons: [] },
+      }).success,
+    ).toBe(false);
   });
 
   it("allows nullable vehicle verification fields except required color", () => {
@@ -83,7 +93,7 @@ describe("fleet car onboarding API schemas", () => {
           color: "Black",
           passengerCapacity: null,
         },
-        eligibility: { isEligible: false, reasons: [] },
+        eligibility: { isEligible: false, reasons: [], minimumYear: 2011 },
       }).vehicle,
     ).toEqual({
       plateNumber: "KJA123AB",

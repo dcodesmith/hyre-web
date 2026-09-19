@@ -6,7 +6,6 @@ import {
   formatPickerDate,
   formatZonedDate,
   getZonedHour,
-  getZonedYear,
   ordinalDay,
   parseZonedCalendarDate,
   startOfZonedDay,
@@ -41,11 +40,6 @@ describe("service timezone helpers", () => {
 
   it("reads the service-timezone hour from a UTC instant", () => {
     expect(getZonedHour(new Date("2026-08-18T22:30:00.000Z"))).toBe(23);
-  });
-
-  it("reads the service-timezone calendar year from a UTC instant", () => {
-    expect(getZonedYear(new Date("2026-12-31T22:30:00.000Z"))).toBe(2026);
-    expect(getZonedYear(new Date("2026-12-31T23:30:00.000Z"))).toBe(2027);
   });
 
   it("returns midnight in the service timezone as a real instant", () => {

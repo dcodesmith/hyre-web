@@ -36,7 +36,7 @@ const vehicleVerification = {
     color: "Black",
     passengerCapacity: 5,
   },
-  eligibility: { isEligible: true, reasons: [] },
+  eligibility: { isEligible: true, reasons: [], minimumYear: 2011 },
   expiresAt: "2026-09-08T12:00:00.000Z",
   carId: null,
 };

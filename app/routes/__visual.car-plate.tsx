@@ -18,7 +18,7 @@ const verifiedVehicle = {
     color: "Black",
     passengerCapacity: 5,
   },
-  eligibility: { isEligible: true, reasons: [] },
+  eligibility: { isEligible: true, reasons: [], minimumYear: 2011 },
   expiresAt: "2026-09-08T12:00:00.000Z",
   carId: null,
 } satisfies FleetVehicleVerification;
@@ -30,7 +30,7 @@ export default function CarPlateFixture() {
       ? { verification: verifiedVehicle }
       : searchParams.get("error") === "ineligible"
         ? {
-            error: ineligibleFleetVehicleMessage(),
+            error: ineligibleFleetVehicleMessage(2011),
           }
         : undefined;
 
