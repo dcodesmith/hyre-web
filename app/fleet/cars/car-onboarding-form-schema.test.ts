@@ -286,12 +286,16 @@ describe("car onboarding form schemas", () => {
     );
   });
 
-  it("rejects passenger capacity outside 1-15", () => {
+  it("rejects passenger capacity outside 4-60", () => {
     expect(
-      carOnboardingPricingFormSchema.safeParse({ ...validPricing, passengerCapacity: "0" }).success,
+      carOnboardingPricingFormSchema.safeParse({ ...validPricing, passengerCapacity: "3" }).success,
     ).toBe(false);
     expect(
-      carOnboardingPricingFormSchema.safeParse({ ...validPricing, passengerCapacity: "16" })
+      carOnboardingPricingFormSchema.parse({ ...validPricing, passengerCapacity: "16" })
+        .passengerCapacity,
+    ).toBe(16);
+    expect(
+      carOnboardingPricingFormSchema.safeParse({ ...validPricing, passengerCapacity: "61" })
         .success,
     ).toBe(false);
   });

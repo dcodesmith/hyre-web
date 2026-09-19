@@ -153,8 +153,8 @@ export function CarPricingStep({ actionData, car }: Props) {
                 className="h-10 rounded-sm"
                 inputMode="numeric"
                 autoComplete="off"
-                min={1}
-                max={15}
+                min={4}
+                max={60}
                 readOnly={car.passengerCapacity != null}
                 aria-invalid={fields.passengerCapacity.errors ? true : undefined}
               />
