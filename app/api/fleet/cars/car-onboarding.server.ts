@@ -124,6 +124,7 @@ export type FleetCarPricingInput = {
   readonly pricingIncludesFuel: boolean;
   readonly vehicleType: "SEDAN" | "SUV" | "VAN" | "CROSSOVER";
   readonly serviceTier: "STANDARD" | "EXECUTIVE" | "LUXURY" | "ULTRA_LUXURY";
+  readonly passengerCapacity: number;
 };
 
 export function updateFleetDraftCarPricing({

@@ -25,6 +25,7 @@ const validPricing = {
   fuelUpgradeRate: "20000",
   vehicleType: "SUV",
   serviceTier: "LUXURY",
+  passengerCapacity: "5",
 };
 
 const validChassisNumber = "1HGCM82633A004352";
@@ -236,6 +237,7 @@ describe("car onboarding form schemas", () => {
       pricingIncludesFuel: false,
       vehicleType: "SUV",
       serviceTier: "LUXURY",
+      passengerCapacity: 5,
     });
     expect(
       carOnboardingPricingFormSchema.safeParse({ ...validPricing, hourlyRate: "0" }).success,
@@ -254,6 +256,7 @@ describe("car onboarding form schemas", () => {
     ["nightRate", "Nightly rate"],
     ["fullDayRate", "Full day rate"],
     ["airportPickupRate", "Airport pickup rate"],
+    ["passengerCapacity", "Passenger capacity"],
   ] as const)("keeps the required message when %s is blank", (field, label) => {
     for (const blank of ["", "   ", null] as const) {
       const parsed = carOnboardingPricingFormSchema.safeParse({ ...validPricing, [field]: blank });
@@ -281,6 +284,20 @@ describe("car onboarding form schemas", () => {
     expect(parsed.error.issues.find((issue) => issue.path[0] === "hourlyRate")?.message).toBe(
       "Hourly rate must be greater than 0",
     );
+  });
+
+  it("rejects passenger capacity outside 4-60", () => {
+    expect(
+      carOnboardingPricingFormSchema.safeParse({ ...validPricing, passengerCapacity: "3" }).success,
+    ).toBe(false);
+    expect(
+      carOnboardingPricingFormSchema.parse({ ...validPricing, passengerCapacity: "16" })
+        .passengerCapacity,
+    ).toBe(16);
+    expect(
+      carOnboardingPricingFormSchema.safeParse({ ...validPricing, passengerCapacity: "61" })
+        .success,
+    ).toBe(false);
   });
 
   it("requires fuelUpgradeRate only when pricing does not include fuel", () => {

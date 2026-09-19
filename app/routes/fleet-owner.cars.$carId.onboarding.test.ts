@@ -87,6 +87,7 @@ const pricing = {
   pricingIncludesFuel: false,
   vehicleType: "SEDAN" as const,
   serviceTier: "STANDARD" as const,
+  passengerCapacity: 5,
 };
 
 const validPricingFields = {
@@ -99,6 +100,7 @@ const validPricingFields = {
   fuelUpgradeRate: "20000",
   vehicleType: "SEDAN",
   serviceTier: "STANDARD",
+  passengerCapacity: "5",
 } as const;
 
 function firstIssue(schema: z.ZodType, value: unknown) {

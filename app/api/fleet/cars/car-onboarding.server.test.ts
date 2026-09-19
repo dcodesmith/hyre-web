@@ -97,6 +97,7 @@ const pricing = {
   pricingIncludesFuel: false,
   vehicleType: "SEDAN" as const,
   serviceTier: "STANDARD" as const,
+  passengerCapacity: 5,
 };
 
 function capturedRequest() {

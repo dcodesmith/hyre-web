@@ -79,6 +79,7 @@ type FleetCarWithPricing = FleetCar & {
   fullDayRate: number;
   hourlyRate: number;
   nightRate: number;
+  passengerCapacity: number;
 };
 
 export function hasFleetCarPricing(car: FleetCar): car is FleetCarWithPricing {
@@ -88,6 +89,7 @@ export function hasFleetCarPricing(car: FleetCar): car is FleetCarWithPricing {
     car.nightRate !== null &&
     car.fullDayRate !== null &&
     car.airportPickupRate !== null &&
+    car.passengerCapacity != null &&
     (car.pricingIncludesFuel || car.fuelUpgradeRate !== null)
   );
 }

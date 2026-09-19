@@ -167,6 +167,7 @@ describe("fleet car setup status", () => {
         fuelUpgradeRate: null,
       }),
     ).toBe(true);
+    expect(hasFleetCarPricing({ ...fleetCar, passengerCapacity: null })).toBe(false);
   });
 });
 
@@ -250,6 +251,9 @@ describe("fleet car onboarding step", () => {
         fuelUpgradeRate: null,
       }),
     ).toBe("submit");
+    expect(getFleetCarOnboardingStep({ ...readyForPricing, passengerCapacity: null })).toBe(
+      "pricing",
+    );
   });
 
   it("does not add an insurance-recovery step after pricing is complete", () => {

@@ -79,10 +79,12 @@ export function FleetCarOnboardingPage({ actionData, car }: PageProps) {
               <dt className="text-muted-foreground">Color</dt>
               <dd className="mt-1 font-medium">{car.color || "Not specified"}</dd>
             </div>
-            <div>
-              <dt className="text-muted-foreground">Seats</dt>
-              <dd className="mt-1 font-medium">{car.passengerCapacity}</dd>
-            </div>
+            {car.passengerCapacity != null ? (
+              <div>
+                <dt className="text-muted-foreground">Seats</dt>
+                <dd className="mt-1 font-medium">{car.passengerCapacity}</dd>
+              </div>
+            ) : null}
           </dl>
         </CardContent>
       </Card>

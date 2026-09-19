@@ -69,6 +69,12 @@ function VerifiedVehicleCard({
             <dt className="text-muted-foreground">Color</dt>
             <dd className="mt-1 font-medium">{vehicle.color ?? "Unknown"}</dd>
           </div>
+          {vehicle.passengerCapacity != null ? (
+            <div>
+              <dt className="text-muted-foreground">Seats</dt>
+              <dd className="mt-1 font-medium">{vehicle.passengerCapacity}</dd>
+            </div>
+          ) : null}
         </dl>
         <div className="space-y-3">
           <p className="font-medium">Are these the correct vehicle details?</p>
