@@ -31,6 +31,7 @@ export function createFleetVehicleVerification({
     forwardCookie: true,
     headers: { "Idempotency-Key": idempotencyKey },
     json: body,
+    timeoutMs: 30_000,
     schema: fleetVehicleVerificationSchema,
   });
 }
