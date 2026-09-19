@@ -1,3 +1,5 @@
+import { useSearchParams } from "react-router";
+
 import type { BookingDetail } from "~/api/bookings/schema";
 import { BookingExtensionPage } from "~/booking/booking-extension";
 
@@ -54,8 +56,18 @@ const fixtureBooking = {
 } satisfies BookingDetail;
 
 export default function BookingExtensionFixture() {
+  const [searchParams] = useSearchParams();
+  const actionData =
+    searchParams.get("error") === "true"
+      ? {
+          error:
+            "This extension is no longer available. Choose a shorter duration, or check the trip dates and try again.",
+        }
+      : undefined;
+
   return (
     <BookingExtensionPage
+      actionData={actionData}
       booking={fixtureBooking}
       idempotencyKey="00000000-0000-4000-8000-000000000001"
     />

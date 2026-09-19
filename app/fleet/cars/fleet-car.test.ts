@@ -6,6 +6,7 @@ import {
   getFleetCarOnboardingStep,
   getFleetCarStatusLabel,
   hasFleetCarPricing,
+  ineligibleFleetVehicleMessage,
   needsFleetCarOnboarding,
 } from "./fleet-car";
 
@@ -275,5 +276,13 @@ describe("fleet car onboarding step", () => {
       "Submit",
     ]);
     expect(FLEET_CAR_ONBOARDING_STAGES).toHaveLength(5);
+  });
+});
+
+describe("fleet car year eligibility", () => {
+  it("uses the API minimum year in the ineligible-vehicle message", () => {
+    expect(ineligibleFleetVehicleMessage(2011)).toBe(
+      "This vehicle is not eligible. Use a vehicle from 2011 or newer, or check the plate and try again.",
+    );
   });
 });

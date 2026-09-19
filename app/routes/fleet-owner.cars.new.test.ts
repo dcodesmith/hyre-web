@@ -21,6 +21,7 @@ vi.mock("~/api/fleet/cars/car-onboarding.server", () => ({
 import { ApiRequestError } from "~/api/api.server";
 import { HTTP_STATUS } from "~/api/http-status";
 import { carOnboardingPlateFormSchema } from "~/fleet/cars/car-onboarding-form-schema";
+import { ineligibleFleetVehicleMessage } from "~/fleet/cars/fleet-car";
 import { action, loader, shouldRevalidate } from "./fleet-owner.cars.new";
 
 const IDEMPOTENCY_KEY = "18aa029c-4bb1-4ca7-b25e-cfc802c4bf8c";
@@ -40,15 +41,15 @@ const eligibleVerification = {
     color: "Black",
     passengerCapacity: 5,
   },
-  eligibility: { isEligible: true, reasons: [] },
+  eligibility: { isEligible: true, reasons: [], minimumYear: 2011 },
   expiresAt: "2026-09-08T12:00:00.000Z",
   carId: null,
 };
 
 const ineligibleVerification = {
   ...eligibleVerification,
-  vehicle: { ...eligibleVerification.vehicle, year: 2014 },
-  eligibility: { isEligible: false, reasons: ["VEHICLE_YEAR_BELOW_MINIMUM"] },
+  vehicle: { ...eligibleVerification.vehicle, year: 2010 },
+  eligibility: { isEligible: false, reasons: ["VEHICLE_YEAR_BELOW_MINIMUM"], minimumYear: 2011 },
 };
 
 const fleetCar = { id: "018f47a2-7b3c-7d4e-8f90-123456789471" };
@@ -189,13 +190,25 @@ describe("fleet-owner cars new route", () => {
     expect(createFleetDraftCar).not.toHaveBeenCalled();
     expect(result).toMatchObject({
       data: {
-        error:
-          "This vehicle is not eligible. Use a vehicle from 2015 or newer, or check the plate and try again.",
+        error: ineligibleFleetVehicleMessage(2011),
         revalidate: false,
         verification: ineligibleVerification,
       },
       init: { status: UNPROCESSABLE_ENTITY },
     });
+  });
+
+  it("uses the API minimum year in the ineligible-vehicle message", async () => {
+    const verification = {
+      ...ineligibleVerification,
+      eligibility: { ...ineligibleVerification.eligibility, minimumYear: 2012 },
+    };
+    createFleetVehicleVerification.mockResolvedValueOnce({ data: verification });
+
+    const { result } = await runAction(validPlateFields);
+
+    expect(actionData(result).error).toBe(ineligibleFleetVehicleMessage(2012));
+    expect(createFleetDraftCar).not.toHaveBeenCalled();
   });
 
   it("creates a draft from the verification and redirects to onboarding", async () => {

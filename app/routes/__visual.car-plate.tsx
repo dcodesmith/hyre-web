@@ -1,6 +1,7 @@
 import { useSearchParams } from "react-router";
 
 import type { FleetVehicleVerification } from "~/api/fleet/cars/onboarding-schema";
+import { ineligibleFleetVehicleMessage } from "~/fleet/cars/fleet-car";
 import { FleetCarPlateVerificationPage } from "~/fleet/cars/fleet-car-plate-verification-page";
 
 const IDEMPOTENCY_KEY = "11111111-1111-4111-8111-111111111111";
@@ -17,7 +18,7 @@ const verifiedVehicle = {
     color: "Black",
     passengerCapacity: 5,
   },
-  eligibility: { isEligible: true, reasons: [] },
+  eligibility: { isEligible: true, reasons: [], minimumYear: 2011 },
   expiresAt: "2026-09-08T12:00:00.000Z",
   carId: null,
 } satisfies FleetVehicleVerification;
@@ -25,7 +26,13 @@ const verifiedVehicle = {
 export default function CarPlateFixture() {
   const [searchParams] = useSearchParams();
   const actionData =
-    searchParams.get("verified") === "true" ? { verification: verifiedVehicle } : undefined;
+    searchParams.get("verified") === "true"
+      ? { verification: verifiedVehicle }
+      : searchParams.get("error") === "ineligible"
+        ? {
+            error: ineligibleFleetVehicleMessage(2011),
+          }
+        : undefined;
 
   return <FleetCarPlateVerificationPage actionData={actionData} idempotencyKey={IDEMPOTENCY_KEY} />;
 }

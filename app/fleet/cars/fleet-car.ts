@@ -6,6 +6,10 @@ import type {
 } from "~/api/fleet/cars/schema";
 import { formatCurrency } from "~/money/currency";
 
+export function ineligibleFleetVehicleMessage(minimumYear: number) {
+  return `This vehicle is not eligible. Use a vehicle from ${minimumYear} or newer, or check the plate and try again.`;
+}
+
 const statusLabels: Record<FleetCarStatus, string> = {
   AVAILABLE: "Available",
   BOOKED: "Booked",

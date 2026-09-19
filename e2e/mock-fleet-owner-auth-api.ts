@@ -11,6 +11,7 @@ export const MOCK_FLEET_DRAFT_CAR_ID = "018f47a2-7b3c-7d4e-8f90-123456789106";
 export const MOCK_FLEET_IMAGE_ID = "018f47a2-7b3c-7d4e-8f90-123456789103";
 export const MOCK_FLEET_DOCUMENT_ID = "018f47a2-7b3c-7d4e-8f90-123456789104";
 export const MOCK_VEHICLE_VERIFICATION_ID = "018f47a2-7b3c-7d4e-8f90-123456789107";
+export const MOCK_MINIMUM_VEHICLE_YEAR = 2011;
 const VEHICLE_VERIFICATION_DELAY_MS = 700;
 const FLEET_FILE_REPLACEMENT_PATH = new RegExp(
   `^/api/fleet-owner/cars/${MOCK_FLEET_CAR_ID}/(images|documents)/([^/]+)/file$`,
@@ -66,7 +67,7 @@ const mockVehicleVerification = {
     color: "Black",
     passengerCapacity: 5,
   },
-  eligibility: { isEligible: true, reasons: [] },
+  eligibility: { isEligible: true, reasons: [], minimumYear: MOCK_MINIMUM_VEHICLE_YEAR },
   expiresAt: "2026-09-08T12:00:00.000Z",
   carId: null as string | null,
 };
@@ -1256,10 +1257,11 @@ export async function startMockFleetOwnerAuthApi({
     verification: structuredClone(mockVehicleVerification),
   };
   if (ineligibleVehicle) {
-    Object.assign(onboardingState.verification.vehicle, { year: 2014 });
+    Object.assign(onboardingState.verification.vehicle, { year: MOCK_MINIMUM_VEHICLE_YEAR - 1 });
     Object.assign(onboardingState.verification.eligibility, {
       isEligible: false,
       reasons: ["VEHICLE_YEAR_BELOW_MINIMUM"],
+      minimumYear: MOCK_MINIMUM_VEHICLE_YEAR,
     });
   }
   const stagedOwnerOnboarding = stagedOnboarding ? createStagedOnboarding() : null;

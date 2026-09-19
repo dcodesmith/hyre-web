@@ -75,10 +75,18 @@ function actionDataForStep(step: string | null): ChauffeurOnboardingActionData |
 export default function ChauffeurOnboardingFixture() {
   const [searchParams] = useSearchParams();
   const step = searchParams.get("step");
+  const actionData =
+    searchParams.get("error") === "true"
+      ? {
+          intent: "accept-consent" as const,
+          error:
+            "We could not complete that step. Check the details and try again, or contact support if the problem continues.",
+        }
+      : actionDataForStep(step);
 
   return (
     <ChauffeurOnboardingPage
-      actionData={actionDataForStep(step)}
+      actionData={actionData}
       idempotencyKey={IDEMPOTENCY_KEY}
       onboarding={onboardingForStep(step)}
     />

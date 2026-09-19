@@ -123,6 +123,15 @@ function carForStep(step: string | null): FleetCar {
 
 export default function CarOnboardingFixture() {
   const [searchParams] = useSearchParams();
+  const actionData =
+    searchParams.get("error") === "true"
+      ? {
+          error:
+            "We could not save this step. Check the files and try again, or contact support if the problem continues.",
+        }
+      : undefined;
 
-  return <FleetCarOnboardingPage car={carForStep(searchParams.get("step"))} />;
+  return (
+    <FleetCarOnboardingPage actionData={actionData} car={carForStep(searchParams.get("step"))} />
+  );
 }
