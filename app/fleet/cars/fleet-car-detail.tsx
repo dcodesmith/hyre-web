@@ -206,10 +206,12 @@ export function FleetCarDetail({ car }: { readonly car: FleetCar }) {
                 label="Service tier"
                 value={getFleetCarServiceTierLabel(car.serviceTier)}
               />
-              <DetailRow
-                label="Passenger capacity"
-                value={`${car.passengerCapacity} passenger${car.passengerCapacity === 1 ? "" : "s"}`}
-              />
+              {car.passengerCapacity != null ? (
+                <DetailRow
+                  label="Passenger capacity"
+                  value={`${car.passengerCapacity} passenger${car.passengerCapacity === 1 ? "" : "s"}`}
+                />
+              ) : null}
               <DetailRow label="Color" value={car.color || "Not specified"} />
             </DetailList>
           </CardContent>

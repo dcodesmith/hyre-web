@@ -68,7 +68,7 @@ export const fleetCarSchema = z.object({
   airportPickupRate: z.number().int().nullable(),
   vehicleType: fleetCarVehicleTypeSchema,
   serviceTier: fleetCarServiceTierSchema,
-  passengerCapacity: z.number().int(),
+  passengerCapacity: z.number().int().nullable(),
   pricingIncludesFuel: z.boolean(),
   owner: z.object({
     id: z.uuid(),

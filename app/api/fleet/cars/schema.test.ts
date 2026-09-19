@@ -126,6 +126,10 @@ describe("fleet car API schema", () => {
 
     expect(fleetCarSchema.parse(draftCar)).toEqual(draftCar);
     expect(fleetCarsSchema.parse([draftCar])).toEqual([draftCar]);
+    expect(fleetCarSchema.parse({ ...draftCar, passengerCapacity: null })).toEqual({
+      ...draftCar,
+      passengerCapacity: null,
+    });
   });
 
   it("parses nullable submittedAt and the latest insurance verification", () => {

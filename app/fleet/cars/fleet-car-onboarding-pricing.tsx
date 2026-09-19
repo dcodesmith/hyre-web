@@ -98,6 +98,7 @@ export function CarPricingStep({ actionData, car }: Props) {
       pricingIncludesFuel: car.pricingIncludesFuel ? "on" : "",
       vehicleType: car.vehicleType,
       serviceTier: car.serviceTier,
+      passengerCapacity: car.passengerCapacity == null ? "" : String(car.passengerCapacity),
     },
     onValidate({ formData }) {
       return parseWithZod(formData, { schema: carOnboardingPricingFormSchema });
@@ -145,6 +146,28 @@ export function CarPricingStep({ actionData, car }: Props) {
                 }),
               )}
             />
+            <Field data-invalid={Boolean(fields.passengerCapacity.errors)}>
+              <FieldLabel htmlFor={fields.passengerCapacity.id}>Passenger capacity</FieldLabel>
+              <Input
+                {...getInputProps(fields.passengerCapacity, { type: "number" })}
+                className="h-10 rounded-sm"
+                inputMode="numeric"
+                autoComplete="off"
+                min={1}
+                max={15}
+                readOnly={car.passengerCapacity != null}
+                aria-invalid={fields.passengerCapacity.errors ? true : undefined}
+              />
+              <FieldDescription>
+                {car.passengerCapacity == null
+                  ? "Required. Enter how many passengers this car seats."
+                  : "Confirmed from the vehicle check and cannot be changed."}
+              </FieldDescription>
+              <FieldError
+                id={fields.passengerCapacity.errorId}
+                errors={fields.passengerCapacity.errors}
+              />
+            </Field>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">

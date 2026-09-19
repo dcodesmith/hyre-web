@@ -134,6 +134,14 @@ export const carOnboardingPricingFormSchema = z
     serviceTier: z.enum(["STANDARD", "EXECUTIVE", "LUXURY", "ULTRA_LUXURY"], {
       error: "Select a service tier",
     }),
+    passengerCapacity: z.preprocess(
+      blankToUndefined,
+      z.coerce
+        .number({ error: "Passenger capacity is required" })
+        .int("Passenger capacity must be a whole number")
+        .min(1, "Passenger capacity must be at least 1")
+        .max(15, "Passenger capacity must be at most 15"),
+    ),
   })
   .superRefine(({ fuelUpgradeRate, pricingIncludesFuel }, context) => {
     if (!pricingIncludesFuel && fuelUpgradeRate === null) {

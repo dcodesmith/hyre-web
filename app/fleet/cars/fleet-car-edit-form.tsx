@@ -273,13 +273,15 @@ export function FleetCarEditForm({ actionData, car }: FleetCarEditFormProps) {
                       {getFleetCarServiceTierLabel(car.serviceTier)}
                     </dd>
                   </div>
-                  <div>
-                    <dt className="text-muted-foreground">Passenger capacity</dt>
-                    <dd className="mt-1 font-medium">
-                      {car.passengerCapacity} passenger
-                      {car.passengerCapacity === 1 ? "" : "s"}
-                    </dd>
-                  </div>
+                  {car.passengerCapacity != null ? (
+                    <div>
+                      <dt className="text-muted-foreground">Passenger capacity</dt>
+                      <dd className="mt-1 font-medium">
+                        {car.passengerCapacity} passenger
+                        {car.passengerCapacity === 1 ? "" : "s"}
+                      </dd>
+                    </div>
+                  ) : null}
                 </dl>
               </CardContent>
             </Card>
