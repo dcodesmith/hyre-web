@@ -1,11 +1,5 @@
 import { cn } from "cn";
-import {
-  ArrowLeftIcon,
-  ExternalLinkIcon,
-  PencilIcon,
-  TriangleAlertIcon,
-  UploadIcon,
-} from "lucide-react";
+import { ArrowLeftIcon, PencilIcon, TriangleAlertIcon, UploadIcon } from "lucide-react";
 import { Link, useFetcher } from "react-router";
 import type { FleetCar } from "~/api/fleet/cars/schema";
 import { Alert, AlertDescription, AlertTitle } from "~/components/ui/alert";
@@ -279,20 +273,12 @@ export function FleetCarDetail({ car }: { readonly car: FleetCar }) {
                       />
                     ) : null}
                   </div>
-                  <div className="flex shrink-0 items-center gap-2">
-                    <span aria-live="polite">
-                      <FleetCarReviewBadge
-                        label={getFleetCarDocumentStatusLabel(document.status)}
-                        status={document.status}
-                      />
-                    </span>
-                    <Button asChild size="sm" variant="outline">
-                      <a href={document.documentUrl} target="_blank" rel="noreferrer">
-                        View
-                        <ExternalLinkIcon data-icon="inline-end" />
-                      </a>
-                    </Button>
-                  </div>
+                  <span aria-live="polite">
+                    <FleetCarReviewBadge
+                      label={getFleetCarDocumentStatusLabel(document.status)}
+                      status={document.status}
+                    />
+                  </span>
                 </div>
               </div>
             ))

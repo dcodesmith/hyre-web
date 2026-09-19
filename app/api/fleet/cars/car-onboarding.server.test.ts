@@ -167,7 +167,15 @@ describe("fleet car onboarding BFF", () => {
   });
 
   it("POSTs document multipart fields for registration, MOT, and insurance", async () => {
-    fetchMock.mockResolvedValueOnce(Response.json(fleetCar));
+    fetchMock.mockResolvedValueOnce(
+      Response.json(
+        {
+          id: fleetCar.id,
+          documents: [{ documentUrl: "fleet-owners/owner-1/cars/x/documents/a.pdf" }],
+        },
+        { status: 201 },
+      ),
+    );
     const vehicleRegistration = new File(["%PDF-1.4 reg"], "registration.pdf", {
       type: "application/pdf",
     });
@@ -176,13 +184,14 @@ describe("fleet car onboarding BFF", () => {
       type: "application/pdf",
     });
 
-    await uploadFleetDraftCarDocuments({
+    const result = await uploadFleetDraftCarDocuments({
       request,
       carId: "018f47a2-7b3c-7d4e-8f90-123456789471",
       vehicleRegistration,
       motCertificate,
       insuranceCertificate,
     });
+    expect(result.data).toEqual({ id: fleetCar.id });
 
     const { url, init, headers } = capturedRequest();
     expect(url).toBe(`https://api.example/api/fleet-owner/cars/${fleetCar.id}/documents`);

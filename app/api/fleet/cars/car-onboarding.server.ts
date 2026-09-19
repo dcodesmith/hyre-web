@@ -94,7 +94,7 @@ export function uploadFleetDraftCarDocuments({
     request,
     forwardCookie: true,
     formData,
-    schema: fleetCarSchema,
+    schema: fleetDraftCarCreatedSchema,
   });
 }
 
