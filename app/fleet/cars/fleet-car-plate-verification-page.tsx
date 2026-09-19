@@ -30,11 +30,11 @@ type PageProps = {
 
 function VerifiedVehicleCard({
   creatingDraft,
-  error,
+  draftError,
   verification,
 }: {
   readonly creatingDraft: boolean;
-  readonly error?: string;
+  readonly draftError?: string;
   readonly verification: FleetVehicleVerification;
 }) {
   const vehicle = verification.vehicle;
@@ -87,11 +87,11 @@ function VerifiedVehicleCard({
         </dl>
         <div className="space-y-3">
           <p className="font-medium">Are these the correct vehicle details?</p>
-          {error ? (
+          {draftError ? (
             <Alert variant="destructive">
               <TriangleAlertIcon aria-hidden="true" />
               <AlertTitle>Unable to continue</AlertTitle>
-              <AlertDescription>{error}</AlertDescription>
+              <AlertDescription>{draftError}</AlertDescription>
             </Alert>
           ) : null}
           <div className="flex flex-wrap gap-3">
@@ -158,7 +158,7 @@ export function FleetCarPlateVerificationPage({
       {verification?.eligibility.isEligible ? (
         <VerifiedVehicleCard
           creatingDraft={intent === "create-draft"}
-          error={actionData?.error}
+          draftError={actionData?.error}
           verification={verification}
         />
       ) : (
