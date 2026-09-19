@@ -30,9 +30,11 @@ type PageProps = {
 
 function VerifiedVehicleCard({
   creatingDraft,
+  draftError,
   verification,
 }: {
   readonly creatingDraft: boolean;
+  readonly draftError?: string;
   readonly verification: FleetVehicleVerification;
 }) {
   const vehicle = verification.vehicle;
@@ -85,6 +87,13 @@ function VerifiedVehicleCard({
         </dl>
         <div className="space-y-3">
           <p className="font-medium">Are these the correct vehicle details?</p>
+          {draftError ? (
+            <Alert variant="destructive">
+              <TriangleAlertIcon aria-hidden="true" />
+              <AlertTitle>Unable to continue</AlertTitle>
+              <AlertDescription>{draftError}</AlertDescription>
+            </Alert>
+          ) : null}
           <div className="flex flex-wrap gap-3">
             <Form method="post">
               <input type="hidden" name="intent" value="create-draft" />
@@ -146,84 +155,89 @@ export function FleetCarPlateVerificationPage({
         stages={FLEET_CAR_ONBOARDING_STAGES.map((stage) => ({ ...stage, complete: false }))}
       />
 
-      <Card className="rounded-sm">
-        <CardHeader>
-          <CardTitle>
-            <h3>Verify Vehicle</h3>
-          </CardTitle>
-          <CardDescription>
-            Use the plate and 17-character chassis number shown on your vehicle documents.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Form
-            key={idempotencyKey}
-            method="post"
-            {...getFormProps(form)}
-            aria-busy={verifying || undefined}
-            className="space-y-5"
-          >
-            <input type="hidden" name="intent" value="verify-plate" />
-            <input type="hidden" name="idempotencyKey" value={idempotencyKey} />
-            <div className="grid gap-5 sm:grid-cols-2">
-              <Field data-invalid={Boolean(fields.plateNumber.errors)}>
-                <FieldLabel htmlFor={fields.plateNumber.id}>Number plate</FieldLabel>
-                <Input
-                  {...getInputProps(fields.plateNumber, { type: "text" })}
-                  className="h-10 rounded-sm"
-                  placeholder="ABC 123 XY…"
-                  autoCapitalize="characters"
-                  autoComplete="off"
-                  spellCheck={false}
-                  aria-invalid={fields.plateNumber.errors ? true : undefined}
-                />
-                <FieldDescription>Examples: ABC-123XY, ABC123XY, or AB123XY.</FieldDescription>
-                <FieldError id={fields.plateNumber.errorId} errors={fields.plateNumber.errors} />
-              </Field>
-              <Field data-invalid={Boolean(fields.chassisNumber.errors)}>
-                <FieldLabel htmlFor={fields.chassisNumber.id}>Chassis number</FieldLabel>
-                <Input
-                  {...getInputProps(fields.chassisNumber, { type: "text" })}
-                  className="h-10 rounded-sm"
-                  placeholder="JTJBM7FX3E5064535"
-                  autoCapitalize="characters"
-                  autoComplete="off"
-                  spellCheck={false}
-                  aria-invalid={fields.chassisNumber.errors ? true : undefined}
-                />
-                <FieldDescription>VINs exclude the letters I, O, and Q.</FieldDescription>
-                <FieldError
-                  id={fields.chassisNumber.errorId}
-                  errors={fields.chassisNumber.errors}
-                />
-              </Field>
-            </div>
-            <FormError id={form.errorId} errors={form.errors} />
-            {actionData?.error ? (
-              <Alert variant="destructive">
-                <TriangleAlertIcon aria-hidden="true" />
-                <AlertTitle>Unable to continue</AlertTitle>
-                <AlertDescription>{actionData.error}</AlertDescription>
-              </Alert>
-            ) : null}
-            <Button type="submit" disabled={verifying}>
-              {verifying ? (
-                <Loader2Icon data-icon="inline-start" className="animate-spin" aria-hidden="true" />
-              ) : (
-                <SearchIcon data-icon="inline-start" aria-hidden="true" />
-              )}
-              {verifying ? "Verifying Vehicle…" : "Verify Vehicle"}
-            </Button>
-          </Form>
-        </CardContent>
-      </Card>
-
       {verification?.eligibility.isEligible ? (
         <VerifiedVehicleCard
           creatingDraft={intent === "create-draft"}
+          draftError={actionData?.error}
           verification={verification}
         />
-      ) : null}
+      ) : (
+        <Card className="rounded-sm">
+          <CardHeader>
+            <CardTitle>
+              <h3>Verify Vehicle</h3>
+            </CardTitle>
+            <CardDescription>
+              Use the plate and 17-character chassis number shown on your vehicle documents.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Form
+              key={idempotencyKey}
+              method="post"
+              {...getFormProps(form)}
+              aria-busy={verifying || undefined}
+              className="space-y-5"
+            >
+              <input type="hidden" name="intent" value="verify-plate" />
+              <input type="hidden" name="idempotencyKey" value={idempotencyKey} />
+              <div className="grid gap-5 sm:grid-cols-2">
+                <Field data-invalid={Boolean(fields.plateNumber.errors)}>
+                  <FieldLabel htmlFor={fields.plateNumber.id}>Number plate</FieldLabel>
+                  <Input
+                    {...getInputProps(fields.plateNumber, { type: "text" })}
+                    className="h-10 rounded-sm"
+                    placeholder="ABC 123 XY…"
+                    autoCapitalize="characters"
+                    autoComplete="off"
+                    spellCheck={false}
+                    aria-invalid={fields.plateNumber.errors ? true : undefined}
+                  />
+                  <FieldDescription>Examples: ABC-123XY, ABC123XY, or AB123XY.</FieldDescription>
+                  <FieldError id={fields.plateNumber.errorId} errors={fields.plateNumber.errors} />
+                </Field>
+                <Field data-invalid={Boolean(fields.chassisNumber.errors)}>
+                  <FieldLabel htmlFor={fields.chassisNumber.id}>Chassis number</FieldLabel>
+                  <Input
+                    {...getInputProps(fields.chassisNumber, { type: "text" })}
+                    className="h-10 rounded-sm"
+                    placeholder="JTJBM7FX3E5064535"
+                    autoCapitalize="characters"
+                    autoComplete="off"
+                    spellCheck={false}
+                    aria-invalid={fields.chassisNumber.errors ? true : undefined}
+                  />
+                  <FieldDescription>VINs exclude the letters I, O, and Q.</FieldDescription>
+                  <FieldError
+                    id={fields.chassisNumber.errorId}
+                    errors={fields.chassisNumber.errors}
+                  />
+                </Field>
+              </div>
+              <FormError id={form.errorId} errors={form.errors} />
+              {actionData?.error ? (
+                <Alert variant="destructive">
+                  <TriangleAlertIcon aria-hidden="true" />
+                  <AlertTitle>Unable to continue</AlertTitle>
+                  <AlertDescription>{actionData.error}</AlertDescription>
+                </Alert>
+              ) : null}
+              <Button type="submit" disabled={verifying}>
+                {verifying ? (
+                  <Loader2Icon
+                    data-icon="inline-start"
+                    className="animate-spin"
+                    aria-hidden="true"
+                  />
+                ) : (
+                  <SearchIcon data-icon="inline-start" aria-hidden="true" />
+                )}
+                {verifying ? "Verifying Vehicle…" : "Verify Vehicle"}
+              </Button>
+            </Form>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
