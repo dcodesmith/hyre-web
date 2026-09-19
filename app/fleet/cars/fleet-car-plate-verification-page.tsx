@@ -1,6 +1,12 @@
 import { getFormProps, getInputProps, useForm } from "@conform-to/react";
 import { getZodConstraint, parseWithZod } from "@conform-to/zod/v4";
-import { ArrowLeftIcon, CheckCircle2Icon, SearchIcon, TriangleAlertIcon } from "lucide-react";
+import {
+  ArrowLeftIcon,
+  CheckCircle2Icon,
+  Loader2Icon,
+  SearchIcon,
+  TriangleAlertIcon,
+} from "lucide-react";
 import { Form, Link, useNavigation } from "react-router";
 import type { FleetVehicleVerification } from "~/api/fleet/cars/onboarding-schema";
 import { FormError } from "~/components/forms/form-primitives";
@@ -19,6 +25,7 @@ import { FLEET_CAR_ONBOARDING_STAGES } from "./fleet-car";
 type PageProps = {
   readonly actionData?: NewFleetCarActionData;
   readonly idempotencyKey: string;
+  readonly verifying?: boolean;
 };
 
 function VerifiedVehicleCard({
@@ -96,9 +103,14 @@ function VerifiedVehicleCard({
   );
 }
 
-export function FleetCarPlateVerificationPage({ actionData, idempotencyKey }: PageProps) {
+export function FleetCarPlateVerificationPage({
+  actionData,
+  idempotencyKey,
+  verifying: verifyingOverride,
+}: PageProps) {
   const navigation = useNavigation();
   const intent = navigation.formData?.get("intent");
+  const verifying = verifyingOverride ?? intent === "verify-plate";
   const verification = actionData?.verification;
   const [form, fields] = useForm({
     id: "fleet-car-plate-verification",
@@ -144,7 +156,13 @@ export function FleetCarPlateVerificationPage({ actionData, idempotencyKey }: Pa
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Form key={idempotencyKey} method="post" {...getFormProps(form)} className="space-y-5">
+          <Form
+            key={idempotencyKey}
+            method="post"
+            {...getFormProps(form)}
+            aria-busy={verifying || undefined}
+            className="space-y-5"
+          >
             <input type="hidden" name="intent" value="verify-plate" />
             <input type="hidden" name="idempotencyKey" value={idempotencyKey} />
             <div className="grid gap-5 sm:grid-cols-2">
@@ -188,9 +206,13 @@ export function FleetCarPlateVerificationPage({ actionData, idempotencyKey }: Pa
                 <AlertDescription>{actionData.error}</AlertDescription>
               </Alert>
             ) : null}
-            <Button type="submit" disabled={intent === "verify-plate"}>
-              <SearchIcon data-icon="inline-start" aria-hidden="true" />
-              {intent === "verify-plate" ? "Verifying Vehicle…" : "Verify Vehicle"}
+            <Button type="submit" disabled={verifying}>
+              {verifying ? (
+                <Loader2Icon data-icon="inline-start" className="animate-spin" aria-hidden="true" />
+              ) : (
+                <SearchIcon data-icon="inline-start" aria-hidden="true" />
+              )}
+              {verifying ? "Verifying Vehicle…" : "Verify Vehicle"}
             </Button>
           </Form>
         </CardContent>

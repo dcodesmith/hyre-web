@@ -34,5 +34,11 @@ export default function CarPlateFixture() {
           }
         : undefined;
 
-  return <FleetCarPlateVerificationPage actionData={actionData} idempotencyKey={IDEMPOTENCY_KEY} />;
+  return (
+    <FleetCarPlateVerificationPage
+      actionData={actionData}
+      idempotencyKey={IDEMPOTENCY_KEY}
+      verifying={searchParams.get("pending") === "true"}
+    />
+  );
 }
