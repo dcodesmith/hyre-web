@@ -27,6 +27,7 @@ import { action, loader, shouldRevalidate } from "./fleet-owner.cars.new";
 const IDEMPOTENCY_KEY = "18aa029c-4bb1-4ca7-b25e-cfc802c4bf8c";
 const NEXT_IDEMPOTENCY_KEY = "2b0f4d6a-8c11-4e22-9f33-a1b2c3d4e5f6";
 const CAR_ONBOARDING_RETRY = "Unable to complete this car onboarding step. Please try again.";
+const DRAFT_RETRY = "Unable to save this car. Please try again.";
 const UNPROCESSABLE_ENTITY = 422;
 
 const eligibleVerification = {
@@ -94,7 +95,7 @@ function actionData(result: unknown) {
 function apiError(
   status: number,
   detail: string,
-  kind: "http" | "network" = "http",
+  kind: "http" | "network" | "contract" = "http",
   problem: { errorCode?: string } = {},
 ) {
   return new ApiRequestError(kind, status, {
@@ -325,15 +326,12 @@ describe("fleet-owner cars new route", () => {
     },
   );
 
-  it.each([
-    ["verify-plate", validPlateFields, createFleetVehicleVerification],
-    ["create-draft", validDraftFields, createFleetDraftCar],
-  ] as const)("surfaces the API 4xx detail for %s", async (_label, fields, mutation) => {
-    mutation.mockRejectedValueOnce(
+  it("surfaces the API 4xx detail for verify-plate", async () => {
+    createFleetVehicleVerification.mockRejectedValueOnce(
       apiError(HTTP_STATUS.CONFLICT, "This plate is already registered."),
     );
 
-    const { result } = await runAction({ ...fields });
+    const { result } = await runAction(validPlateFields);
 
     expect(getFleetVehicleVerification).not.toHaveBeenCalled();
     expect(result).toMatchObject({
@@ -341,6 +339,24 @@ describe("fleet-owner cars new route", () => {
       init: { status: HTTP_STATUS.CONFLICT },
     });
     expect(actionData(result)).not.toHaveProperty("revalidate");
+  });
+
+  it("keeps create-draft on the verification after a 4xx save failure", async () => {
+    createFleetDraftCar.mockRejectedValueOnce(
+      apiError(HTTP_STATUS.CONFLICT, "This plate is already registered."),
+    );
+
+    const { result } = await runAction(validDraftFields);
+
+    expect(getFleetVehicleVerification).toHaveBeenCalledOnce();
+    expect(result).toMatchObject({
+      data: {
+        error: "This plate is already registered.",
+        revalidate: false,
+        verification: eligibleVerification,
+      },
+      init: { status: HTTP_STATUS.CONFLICT },
+    });
   });
 
   it("hides 5xx details behind a generic retry message and omits revalidate so keys can rotate", async () => {
@@ -373,41 +389,56 @@ describe("fleet-owner cars new route", () => {
     expect(JSON.stringify(result)).not.toContain("socket hung up");
   });
 
-  it("redirects create-draft network ambiguity to the consumed car", async () => {
-    createFleetDraftCar.mockRejectedValueOnce(
-      apiError(HTTP_STATUS.BAD_GATEWAY, "socket hung up", "network"),
-    );
-    getFleetVehicleVerification.mockResolvedValueOnce({
-      data: { ...eligibleVerification, carId: "018f47a2-7b3c-7d4e-8f90-123456789471" },
-    });
+  it.each([
+    ["network", "network", HTTP_STATUS.BAD_GATEWAY, "socket hung up"] as const,
+    ["5xx", "http", HTTP_STATUS.INTERNAL_SERVER_ERROR, "database exploded"] as const,
+    ["contract", "contract", HTTP_STATUS.BAD_GATEWAY, "unexpected response shape"] as const,
+  ])(
+    "redirects create-draft %s failure when the verification was consumed",
+    async (_label, kind, status, detail) => {
+      createFleetDraftCar.mockRejectedValueOnce(apiError(status, detail, kind));
+      getFleetVehicleVerification.mockResolvedValueOnce({
+        data: { ...eligibleVerification, carId: "018f47a2-7b3c-7d4e-8f90-123456789471" },
+      });
 
-    const { request, result } = await runAction(validDraftFields);
+      const { request, result } = await runAction(validDraftFields);
 
-    expect(createFleetDraftCar).toHaveBeenCalledWith({
-      request,
-      verificationId: "018f47a2-7b3c-7d4e-8f90-1234567894f5",
-    });
-    expect(getFleetVehicleVerification).toHaveBeenCalledWith({
-      request,
-      verificationId: "018f47a2-7b3c-7d4e-8f90-1234567894f5",
-    });
-    expectRedirect(result, "/fleet-owner/cars/018f47a2-7b3c-7d4e-8f90-123456789471/onboarding");
-  });
+      expect(createFleetDraftCar).toHaveBeenCalledWith({
+        request,
+        verificationId: "018f47a2-7b3c-7d4e-8f90-1234567894f5",
+      });
+      expect(getFleetVehicleVerification).toHaveBeenCalledWith({
+        request,
+        verificationId: "018f47a2-7b3c-7d4e-8f90-1234567894f5",
+      });
+      expectRedirect(result, "/fleet-owner/cars/018f47a2-7b3c-7d4e-8f90-123456789471/onboarding");
+    },
+  );
 
-  it("returns the verification after create-draft network ambiguity when it is still unused", async () => {
-    createFleetDraftCar.mockRejectedValueOnce(
-      apiError(HTTP_STATUS.BAD_GATEWAY, "socket hung up", "network"),
-    );
+  it.each([
+    ["network", "network", HTTP_STATUS.BAD_GATEWAY, "socket hung up"] as const,
+    ["5xx", "http", HTTP_STATUS.INTERNAL_SERVER_ERROR, "database exploded"] as const,
+    ["contract", "contract", HTTP_STATUS.BAD_GATEWAY, "unexpected response shape"] as const,
+  ])(
+    "keeps create-draft on the verification after a %s save failure",
+    async (_label, kind, status, detail) => {
+      createFleetDraftCar.mockRejectedValueOnce(apiError(status, detail, kind));
 
-    const { request, result } = await runAction(validDraftFields);
+      const { result } = await runAction(validDraftFields);
 
-    expect(getFleetVehicleVerification).toHaveBeenCalledWith({
-      request,
-      verificationId: "018f47a2-7b3c-7d4e-8f90-1234567894f5",
-    });
-    expect(result).not.toBeInstanceOf(Response);
-    expect(result).toMatchObject({
-      data: { verification: eligibleVerification, revalidate: false },
-    });
-  });
+      expect(getFleetVehicleVerification).toHaveBeenCalledWith({
+        request: expect.any(Request),
+        verificationId: "018f47a2-7b3c-7d4e-8f90-1234567894f5",
+      });
+      expect(result).not.toBeInstanceOf(Response);
+      expect(result).toMatchObject({
+        data: {
+          error: DRAFT_RETRY,
+          revalidate: false,
+          verification: eligibleVerification,
+        },
+      });
+      expect(JSON.stringify(result)).not.toContain(detail);
+    },
+  );
 });

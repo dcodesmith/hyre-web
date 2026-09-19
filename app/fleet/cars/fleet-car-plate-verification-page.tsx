@@ -90,7 +90,7 @@ function VerifiedVehicleCard({
           {draftError ? (
             <Alert variant="destructive">
               <TriangleAlertIcon aria-hidden="true" />
-              <AlertTitle>Unable to continue</AlertTitle>
+              <AlertTitle>Unable to save this car</AlertTitle>
               <AlertDescription>{draftError}</AlertDescription>
             </Alert>
           ) : null}

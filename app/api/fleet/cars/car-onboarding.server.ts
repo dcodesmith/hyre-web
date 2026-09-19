@@ -1,7 +1,11 @@
 import { env } from "cloudflare:workers";
 
 import { createApiClient } from "~/api/api.server";
-import { fleetCarSubmissionSchema, fleetVehicleVerificationSchema } from "./onboarding-schema";
+import {
+  fleetCarSubmissionSchema,
+  fleetDraftCarCreatedSchema,
+  fleetVehicleVerificationSchema,
+} from "./onboarding-schema";
 import { fleetCarSchema } from "./schema";
 
 let apiClient: ReturnType<typeof createApiClient> | undefined;
@@ -63,7 +67,7 @@ export function createFleetDraftCar({
     method: "POST",
     request,
     forwardCookie: true,
-    schema: fleetCarSchema,
+    schema: fleetDraftCarCreatedSchema,
   });
 }
 

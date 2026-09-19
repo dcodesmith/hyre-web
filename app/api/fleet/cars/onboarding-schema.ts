@@ -28,6 +28,10 @@ export const fleetVehicleVerificationSchema = z.object({
   carId: z.uuid().nullable(),
 });
 
+export const fleetDraftCarCreatedSchema = z.object({
+  id: z.uuid(),
+});
+
 export const fleetCarSubmissionSchema = z.object({
   success: z.literal(true),
   requirements: z.object({
