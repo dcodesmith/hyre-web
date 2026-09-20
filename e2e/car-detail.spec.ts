@@ -78,6 +78,18 @@ test("renders crawlable car metadata and booking controls from the fixture", asy
   }
 });
 
+test("shows referral credit on the visual credits fixture", async ({ page }) => {
+  await setCookiePreference(page);
+  await page.goto("/__visual/car?bookingType=DAY&credits=true");
+
+  await expect(page.getByRole("heading", { name: "Referral credit" })).toBeVisible();
+  await expect(page.getByRole("checkbox", { name: /Apply referral credit/ })).toBeVisible();
+  await expect(page.getByText("-₦12,500", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("₦15,000 available (Up to ₦12,500 can be used on this booking)"),
+  ).toBeVisible();
+});
+
 test("shows referral credit after loading a signed-in customer's usable balance", async ({
   context,
   page,
@@ -98,7 +110,7 @@ test("shows referral credit after loading a signed-in customer's usable balance"
 
     await expect(page.getByRole("heading", { name: "Referral credit" })).toBeVisible();
     await expect(page.getByRole("checkbox", { name: /Apply referral credit/ })).toBeVisible();
-    await expect(page.getByText("₦12,500", { exact: true })).toBeVisible();
+    await expect(page.getByText("-₦12,500", { exact: true })).toBeVisible();
     await expect(
       page.getByText("₦15,000 available (Up to ₦12,500 can be used on this booking)"),
     ).toBeVisible();

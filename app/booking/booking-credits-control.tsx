@@ -32,7 +32,7 @@ export function BookingCreditsControl({
             <span className="flex justify-between gap-3 text-sm leading-5">
               <span className="min-w-0 wrap-break-words font-medium">Apply referral credit</span>
               <span className="shrink-0 font-medium tabular-nums">
-                {formatCurrency(creditLimit)}
+                -{formatCurrency(creditLimit)}
               </span>
             </span>
             <span className="mt-0.5 block text-xs leading-4 text-muted-foreground">

@@ -157,6 +157,11 @@ export default function CarFixture() {
             })
           : undefined
       }
+      previewReferralCredit={
+        searchParams.get("credits") === "true"
+          ? { availableCredits: 15_000, creditLimit: 12_500 }
+          : undefined
+      }
     />
   );
 }
