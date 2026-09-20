@@ -141,6 +141,6 @@ describe("CarBookingPayForm credits", () => {
 
     expect(markup).toContain("₦99,437.50");
     expect(markup).toContain("Referral discount");
-    expect(markup).toContain("Booking credits");
+    expect(markup).toContain("Referral credit");
   });
 });

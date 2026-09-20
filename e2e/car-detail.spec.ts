@@ -54,7 +54,8 @@ test("renders crawlable car metadata and booking controls from the fixture", asy
   await expect(page.getByLabel("Name")).toBeVisible();
   await expect(page.getByLabel("Email")).toBeVisible();
   await expect(page.getByLabel("Phone Number")).toBeVisible();
-  await expect(page.getByText("Use booking credits")).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Referral credit" })).toHaveCount(0);
+  await expect(page.getByRole("switch", { name: "Apply referral credit" })).toHaveCount(0);
   await expect(
     page.getByRole("button", { name: "Pay Now as Guest" }).filter({ visible: true }),
   ).toBeDisabled();
@@ -77,24 +78,34 @@ test("renders crawlable car metadata and booking controls from the fixture", asy
   }
 });
 
-test("shows booking credits only after loading a signed-in customer's balance", async ({
+test("shows referral credit after loading a signed-in customer's usable balance", async ({
   context,
   page,
 }) => {
-  const api = await startMockReferralApi();
+  const api = await startMockReferralApi({
+    ...mockReferralSummary,
+    stats: { ...mockReferralSummary.stats, maxCreditsPerBooking: 12_500 },
+  });
 
   try {
     await setCookiePreference(page);
     await signInCustomer(context);
+    const creditsResponse = page.waitForResponse((response) =>
+      new URL(response.url()).pathname.includes("/api/referral-credits"),
+    );
     await page.goto("/__visual/car?bookingType=DAY");
+    await creditsResponse;
 
-    await expect(page.getByRole("switch", { name: "Use booking credits" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Referral credit" })).toBeVisible();
+    await expect(page.getByText("₦15,000 available")).toBeVisible();
+    await expect(page.getByText("(Up to ₦12,500 can be used on this booking)")).toBeVisible();
+    await expect(page.getByRole("switch", { name: "Apply referral credit" })).toBeVisible();
   } finally {
     await stopMockReferralApi(api);
   }
 });
 
-test("hides booking credits when a signed-in customer has no balance", async ({
+test("hides referral credit when a signed-in customer has no balance", async ({
   context,
   page,
 }) => {
@@ -112,7 +123,8 @@ test("hides booking credits when a signed-in customer has no balance", async ({
     await page.goto("/__visual/car?bookingType=DAY");
     await creditsResponse;
 
-    await expect(page.getByRole("switch", { name: "Use booking credits" })).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: "Referral credit" })).toHaveCount(0);
+    await expect(page.getByRole("switch", { name: "Apply referral credit" })).toHaveCount(0);
   } finally {
     await stopMockReferralApi(api);
   }

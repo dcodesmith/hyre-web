@@ -12,14 +12,9 @@ export function useBookingCredits(initialAppliedCredits: number, prefetch = fals
   const [enabled, setEnabled] = useState(initialAppliedCredits > 0);
   const error = enabled ? (fetcher.data?.error ?? null) : null;
   const data = fetcher.data?.error ? undefined : fetcher.data;
-  const hasUsableCredits = Boolean(
-    data && data.availableCredits > 0 && data.maxCreditsPerBooking > 0,
-  );
-  const requestedCredits = enabled
-    ? data
-      ? Math.min(data.availableCredits, data.maxCreditsPerBooking)
-      : initialAppliedCredits
-    : 0;
+  const creditLimit = data ? Math.min(data.availableCredits, data.maxCreditsPerBooking) : 0;
+  const hasUsableCredits = creditLimit > 0;
+  const requestedCredits = enabled ? (data ? creditLimit : initialAppliedCredits) : 0;
 
   const prefetchBalance = useEffectEvent(() => {
     if (fetcher.state === "idle" && (!fetcher.data || fetcher.data.error)) {
@@ -41,6 +36,8 @@ export function useBookingCredits(initialAppliedCredits: number, prefetch = fals
   }
 
   return {
+    availableCredits: data?.availableCredits ?? 0,
+    creditLimit,
     enabled,
     error,
     hasUsableCredits,

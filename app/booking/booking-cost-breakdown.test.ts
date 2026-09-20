@@ -35,14 +35,14 @@ function renderBreakdown(display: BookingCostDisplay = cost) {
 }
 
 describe("BookingCostBreakdown", () => {
-  it("renders automatic referral discount and banked booking credits separately", () => {
+  it("renders automatic referral discount and referral credit separately", () => {
     const markup = renderBreakdown();
 
     expect(markup).toContain("Referral discount");
-    expect(markup).toContain("Booking credits");
+    expect(markup).toContain("Referral credit");
     expect(markup).toContain("-₦10,000");
     expect(markup).toContain("-₦4,500");
-    expect(markup.indexOf("Referral discount")).toBeLessThan(markup.indexOf("Booking credits"));
+    expect(markup.indexOf("Referral discount")).toBeLessThan(markup.indexOf("Referral credit"));
   });
 
   it("hides zero discount and credit rows", () => {
@@ -54,6 +54,6 @@ describe("BookingCostBreakdown", () => {
     });
 
     expect(markup).not.toContain("Referral discount");
-    expect(markup).not.toContain("Booking credits");
+    expect(markup).not.toContain("Referral credit");
   });
 });

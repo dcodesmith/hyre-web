@@ -15,7 +15,7 @@ import type { Route } from "./+types/referrals";
 export const meta = () =>
   buildPageMetadata({
     title: "Referral Program | Tripdly",
-    description: "Invite friends and view your Tripdly referral rewards and booking credits.",
+    description: "Invite friends and view your Tripdly referral rewards and referral credit.",
     path: "/referrals",
     index: false,
   });

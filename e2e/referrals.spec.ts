@@ -53,7 +53,7 @@ test("loads the signed-in referral summary from the API", async ({ context, page
     await expect(page.getByLabel("Share Link:")).not.toHaveValue(
       "https://api.example/auth?ref=ABCD2345",
     );
-    await expect(page.getByLabel("Referral statistics")).toContainText("Available Credits");
+    await expect(page.getByLabel("Referral statistics")).toContainText("Available credit");
     await expect(page.getByRole("heading", { name: "Recent Rewards" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Your Referrals" })).toBeVisible();
   } finally {
@@ -68,7 +68,7 @@ test("renders referral details and copies the referral code", async ({ page }) =
 
   await expect(page.getByRole("heading", { name: "Referral Program" })).toBeVisible();
   await expect(page.locator("code")).toContainText("ADA2026X");
-  await expect(page.getByLabel("Referral statistics")).toContainText("Available Credits");
+  await expect(page.getByLabel("Referral statistics")).toContainText("Available credit");
   await expect(page.getByRole("heading", { name: "Recent Rewards" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Your Referrals" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "How it works" })).toBeVisible();

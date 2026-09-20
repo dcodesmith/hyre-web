@@ -194,6 +194,8 @@ export function CarBookingCard({
   const credits =
     isSignedIn && bookingCredits.hasUsableCredits ? (
       <BookingCreditsControl
+        availableCredits={bookingCredits.availableCredits}
+        creditLimit={bookingCredits.creditLimit}
         checked={bookingCredits.enabled}
         onCheckedChange={bookingCredits.setCreditsEnabled}
       />

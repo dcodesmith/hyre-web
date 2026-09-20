@@ -98,7 +98,7 @@ export function BookingCostBreakdown({
           ) : null}
           {cost.creditsUsed > 0 ? (
             <MoneyRow
-              label="Booking credits"
+              label="Referral credit"
               value={cost.creditsUsed}
               currency={currency}
               discount

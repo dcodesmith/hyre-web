@@ -5,7 +5,7 @@ import { getCurrentUserReferralSummary } from "~/api/referrals/referrals.server"
 import type { Route } from "./+types/api.referral-credits";
 
 const NO_STORE = { "Cache-Control": "private, no-store" };
-const LOAD_ERROR = "Unable to check your booking credits. Please try again.";
+const LOAD_ERROR = "Unable to check your referral credit. Please try again.";
 
 export async function loader({ request }: Route.LoaderArgs) {
   try {
