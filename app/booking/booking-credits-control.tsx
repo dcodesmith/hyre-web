@@ -1,4 +1,4 @@
-import { Switch } from "~/components/ui/switch";
+import { Checkbox } from "~/components/ui/checkbox";
 import { formatCurrency } from "~/money/currency";
 
 export function BookingCreditsControl({
@@ -21,25 +21,25 @@ export function BookingCreditsControl({
         Referral credit
       </h3>
       <div className="space-y-3 rounded border border-neutral-200 bg-white px-4 py-4 shadow-xl inset-shadow-sm transform-gpu lg:rounded-none lg:border-none lg:bg-transparent lg:px-0 lg:py-0 lg:shadow-none lg:inset-shadow-none">
-        <p className="text-sm text-gray-600">
-          <span className="font-medium text-gray-950">
-            {formatCurrency(availableCredits)} available
-          </span>{" "}
-          (Up to {formatCurrency(creditLimit)} can be used on this booking)
-        </p>
-        <div className="flex items-center justify-between gap-4">
-          <label
-            htmlFor="apply-referral-credit"
-            className="cursor-pointer text-sm font-medium text-gray-950"
-          >
-            Apply referral credit
-          </label>
-          <Switch
+        <div className="flex items-start gap-3">
+          <Checkbox
             id="apply-referral-credit"
             checked={checked}
-            onCheckedChange={onCheckedChange}
-            aria-label="Apply referral credit"
+            className="mt-0.5"
+            onCheckedChange={(value) => onCheckedChange(value === true)}
           />
+          <label htmlFor="apply-referral-credit" className="min-w-0 flex-1 cursor-pointer">
+            <span className="flex justify-between gap-3 text-sm leading-5">
+              <span className="min-w-0 wrap-break-words font-medium">Apply referral credit</span>
+              <span className="shrink-0 font-medium tabular-nums">
+                {formatCurrency(creditLimit)}
+              </span>
+            </span>
+            <span className="mt-0.5 block text-xs leading-4 text-muted-foreground">
+              {formatCurrency(availableCredits)} available (Up to {formatCurrency(creditLimit)} can
+              be used on this booking)
+            </span>
+          </label>
         </div>
       </div>
     </section>

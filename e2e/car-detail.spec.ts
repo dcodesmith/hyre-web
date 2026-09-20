@@ -55,7 +55,7 @@ test("renders crawlable car metadata and booking controls from the fixture", asy
   await expect(page.getByLabel("Email")).toBeVisible();
   await expect(page.getByLabel("Phone Number")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Referral credit" })).toHaveCount(0);
-  await expect(page.getByRole("switch", { name: "Apply referral credit" })).toHaveCount(0);
+  await expect(page.getByRole("checkbox", { name: /Apply referral credit/ })).toHaveCount(0);
   await expect(
     page.getByRole("button", { name: "Pay Now as Guest" }).filter({ visible: true }),
   ).toBeDisabled();
@@ -97,9 +97,11 @@ test("shows referral credit after loading a signed-in customer's usable balance"
     await creditsResponse;
 
     await expect(page.getByRole("heading", { name: "Referral credit" })).toBeVisible();
-    await expect(page.getByText("₦15,000 available")).toBeVisible();
-    await expect(page.getByText("(Up to ₦12,500 can be used on this booking)")).toBeVisible();
-    await expect(page.getByRole("switch", { name: "Apply referral credit" })).toBeVisible();
+    await expect(page.getByRole("checkbox", { name: /Apply referral credit/ })).toBeVisible();
+    await expect(page.getByText("₦12,500", { exact: true })).toBeVisible();
+    await expect(
+      page.getByText("₦15,000 available (Up to ₦12,500 can be used on this booking)"),
+    ).toBeVisible();
   } finally {
     await stopMockReferralApi(api);
   }
@@ -124,7 +126,7 @@ test("hides referral credit when a signed-in customer has no balance", async ({
     await creditsResponse;
 
     await expect(page.getByRole("heading", { name: "Referral credit" })).toHaveCount(0);
-    await expect(page.getByRole("switch", { name: "Apply referral credit" })).toHaveCount(0);
+    await expect(page.getByRole("checkbox", { name: /Apply referral credit/ })).toHaveCount(0);
   } finally {
     await stopMockReferralApi(api);
   }
