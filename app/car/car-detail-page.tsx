@@ -27,6 +27,10 @@ interface CarDetailPageProps {
   readonly lastResult?: SubmissionResult<string[]>;
   readonly currentPricing?: BookingPricingPreview;
   readonly currentPricingSelectionKey?: string;
+  readonly previewReferralCredit?: {
+    readonly availableCredits: number;
+    readonly creditLimit: number;
+  };
 }
 
 function MobileReviewSummary({
@@ -73,6 +77,7 @@ export function CarDetailPage({
   lastResult,
   currentPricing,
   currentPricingSelectionKey,
+  previewReferralCredit,
 }: CarDetailPageProps) {
   const [searchParams] = useSearchParams();
   const [reviewsOpen, setReviewsOpen] = useState(false);
@@ -176,6 +181,7 @@ export function CarDetailPage({
               lastResult={lastResult}
               currentPricing={currentPricing}
               currentPricingSelectionKey={currentPricingSelectionKey}
+              previewReferralCredit={previewReferralCredit}
             />
           </div>
         </div>

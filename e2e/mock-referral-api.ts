@@ -51,8 +51,30 @@ function hasSessionCookie(request: IncomingMessage) {
   return request.headers.cookie?.includes("better-auth.session_token=") === true;
 }
 
-export async function startMockReferralApi(port = 3100) {
+export async function startMockReferralApi(summary = mockReferralSummary, port = 3100) {
   const server = createServer((request, response) => {
+    if (request.method === "GET" && requestPath(request) === "/auth/session") {
+      if (!hasSessionCookie(request)) {
+        response.writeHead(401, { "content-type": "application/json" });
+        response.end(JSON.stringify({ status: 401, detail: "Unauthorized" }));
+        return;
+      }
+
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(
+        JSON.stringify({
+          user: {
+            id: "018f47a2-7b3c-7d4e-8f90-1234567894a4",
+            email: "customer@example.com",
+            name: "Ada Customer",
+            roles: ["user"],
+          },
+          session: {},
+        }),
+      );
+      return;
+    }
+
     if (request.method === "GET" && requestPath(request) === "/api/referrals/user") {
       if (!hasSessionCookie(request)) {
         response.writeHead(401, { "content-type": "application/json" });
@@ -61,7 +83,7 @@ export async function startMockReferralApi(port = 3100) {
       }
 
       response.writeHead(200, { "content-type": "application/json" });
-      response.end(JSON.stringify(mockReferralSummary));
+      response.end(JSON.stringify(summary));
       return;
     }
 

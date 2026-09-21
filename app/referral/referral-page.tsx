@@ -141,12 +141,12 @@ export function ReferralPage({
       icon: statIcons.pendingRewards,
     },
     {
-      label: "Used Credits",
+      label: "Used credit",
       value: formatCurrency(summary.stats.totalUsed),
       icon: statIcons.usedCredits,
     },
     {
-      label: "Available Credits",
+      label: "Available credit",
       value: formatCurrency(summary.stats.availableCredits),
       icon: statIcons.availableCredits,
     },
@@ -163,7 +163,7 @@ export function ReferralPage({
     },
     {
       title: "Both get rewards",
-      body: `They get ${describeCustomerDiscount(summary.discount)}. You earn booking credits after they complete that booking.`,
+      body: `They get ${describeCustomerDiscount(summary.discount)}. You earn referral credit after they complete that booking.`,
     },
   ];
 

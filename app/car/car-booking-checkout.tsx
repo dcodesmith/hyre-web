@@ -187,9 +187,7 @@ export function CarBookingCheckout({
           ) : null}
         </div>
         {checkout.addons}
-        {checkout.credits ? (
-          <div className="mt-4 px-4 lg:mt-0 lg:px-6 lg:pb-4">{checkout.credits}</div>
-        ) : null}
+        {checkout.credits}
         <CardFooter className="hidden flex-col items-stretch gap-4 border-t bg-gray-100 p-4 lg:flex">
           <CarBookingCheckoutSummary
             {...checkoutProps}

@@ -67,7 +67,7 @@ describe("referral credits resource", () => {
       data: {
         availableCredits: 0,
         maxCreditsPerBooking: 0,
-        error: "Unable to check your booking credits. Please try again.",
+        error: "Unable to check your referral credit. Please try again.",
       },
       init: { status: HTTP_STATUS.FORBIDDEN },
     });
@@ -80,7 +80,7 @@ describe("referral credits resource", () => {
       data: {
         availableCredits: 0,
         maxCreditsPerBooking: 0,
-        error: "Unable to check your booking credits. Please try again.",
+        error: "Unable to check your referral credit. Please try again.",
       },
       init: { status: HTTP_STATUS.BAD_GATEWAY },
     });

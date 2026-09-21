@@ -38,7 +38,11 @@ function renderPage(overrides: Partial<ReferralPageSummary> = {}) {
 
 describe("ReferralPage offer copy", () => {
   it("describes a fixed first-booking discount", () => {
-    expect(renderPage()).toContain("₦10,000 off their first eligible booking");
+    const markup = renderPage();
+
+    expect(markup).toContain("₦10,000 off their first eligible booking");
+    expect(markup).toContain("Available credit");
+    expect(markup).toContain("Used credit");
   });
 
   it("describes a percentage first-booking discount with a cap", () => {
@@ -51,7 +55,7 @@ describe("ReferralPage offer copy", () => {
 
   it("uses generic copy when the offer is null", () => {
     expect(renderPage({ discount: null })).toContain(
-      "They get a first-booking discount. You earn booking credits after they complete that booking.",
+      "They get a first-booking discount. You earn referral credit after they complete that booking.",
     );
   });
 

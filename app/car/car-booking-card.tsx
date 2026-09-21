@@ -36,6 +36,10 @@ interface CarBookingCardProps {
   readonly lastResult?: SubmissionResult<string[]>;
   readonly currentPricing?: BookingPricingPreview;
   readonly currentPricingSelectionKey?: string;
+  readonly previewReferralCredit?: {
+    readonly availableCredits: number;
+    readonly creditLimit: number;
+  };
 }
 
 function parseOptionalCalendarDate(value: string | null | undefined) {
@@ -116,6 +120,7 @@ export function CarBookingCard({
   lastResult,
   currentPricing,
   currentPricingSelectionKey,
+  previewReferralCredit,
 }: CarBookingCardProps) {
   const [searchParams] = useSearchParams();
   const location = useLocation();
@@ -126,6 +131,7 @@ export function CarBookingCard({
     catalogKey: addonCatalogKey,
     ids: [] as string[],
   });
+  const [previewCreditsEnabled, setPreviewCreditsEnabled] = useState(false);
   const selectedAddonIds = addonSelection.catalogKey === addonCatalogKey ? addonSelection.ids : [];
   const isSignedIn = usePublicUser() != null;
   const initialFromDate = parseOptionalCalendarDate(query.search.from);
@@ -182,6 +188,7 @@ export function CarBookingCard({
   );
   const bookingCredits = useBookingCredits(
     isSignedIn ? (matchedActionPreview?.creditsUsed ?? 0) : 0,
+    isSignedIn,
   );
   const requestedCredits = bookingCredits.requestedCredits;
   const actionPreview =
@@ -190,13 +197,18 @@ export function CarBookingCard({
     pricingPreviewInput(car.id, card, actionPreview, selectedAddonIds, requestedCredits),
   );
   const preview = actionPreview ?? pricing.preview;
-  const credits = isSignedIn ? (
+  const credits = previewReferralCredit ? (
     <BookingCreditsControl
+      availableCredits={previewReferralCredit.availableCredits}
+      creditLimit={previewReferralCredit.creditLimit}
+      checked={previewCreditsEnabled}
+      onCheckedChange={setPreviewCreditsEnabled}
+    />
+  ) : isSignedIn && bookingCredits.hasUsableCredits ? (
+    <BookingCreditsControl
+      availableCredits={bookingCredits.availableCredits}
+      creditLimit={bookingCredits.creditLimit}
       checked={bookingCredits.enabled}
-      data={bookingCredits.data}
-      isLoadingBalance={bookingCredits.isLoading}
-      isPricingLoading={pricing.isLoading}
-      appliedCredits={preview?.creditsUsed ?? 0}
       onCheckedChange={bookingCredits.setCreditsEnabled}
     />
   ) : null;

@@ -43,7 +43,10 @@ describe("useBookingCredits", () => {
     const credits = renderCredits(0);
 
     expect(credits.enabled).toBe(false);
+    expect(credits.availableCredits).toBe(0);
+    expect(credits.creditLimit).toBe(0);
     expect(credits.requestedCredits).toBe(0);
+    expect(credits.hasUsableCredits).toBe(false);
     expect(credits.isLoading).toBe(false);
     expect(credits.error).toBeNull();
     expect(fetcher.load).not.toHaveBeenCalled();
@@ -67,6 +70,9 @@ describe("useBookingCredits", () => {
     const credits = renderCredits(2_000);
 
     expect(credits.enabled).toBe(true);
+    expect(credits.hasUsableCredits).toBe(true);
+    expect(credits.availableCredits).toBe(15_000);
+    expect(credits.creditLimit).toBe(8_000);
     expect(credits.requestedCredits).toBe(8_000);
     expect(credits.isLoading).toBe(false);
     expect(credits.error).toBeNull();
@@ -92,20 +98,46 @@ describe("useBookingCredits", () => {
     const credits = renderCredits(0);
 
     expect(credits.enabled).toBe(false);
+    expect(credits.hasUsableCredits).toBe(true);
+    expect(credits.availableCredits).toBe(15_000);
+    expect(credits.creditLimit).toBe(8_000);
     expect(credits.requestedCredits).toBe(0);
     expect(credits.error).toBeNull();
+  });
+
+  it("does not expose credits when the balance or booking cap is zero", () => {
+    fetcher.data = {
+      availableCredits: 0,
+      maxCreditsPerBooking: 8_000,
+      error: null,
+    };
+    const noBalance = renderCredits(0);
+    expect(noBalance.hasUsableCredits).toBe(false);
+    expect(noBalance.availableCredits).toBe(0);
+    expect(noBalance.creditLimit).toBe(0);
+
+    fetcher.data = {
+      availableCredits: 15_000,
+      maxCreditsPerBooking: 0,
+      error: null,
+    };
+    const noCap = renderCredits(0);
+    expect(noCap.hasUsableCredits).toBe(false);
+    expect(noCap.availableCredits).toBe(15_000);
+    expect(noCap.creditLimit).toBe(0);
   });
 
   it("surfaces an error and retries the balance load", () => {
     fetcher.data = {
       availableCredits: 0,
       maxCreditsPerBooking: 0,
-      error: "Unable to check your booking credits. Please try again.",
+      error: "Unable to check your referral credit. Please try again.",
     };
 
     const credits = renderCredits(1_000);
 
-    expect(credits.error).toBe("Unable to check your booking credits. Please try again.");
+    expect(credits.error).toBe("Unable to check your referral credit. Please try again.");
+    expect(credits.hasUsableCredits).toBe(false);
     expect(credits.isLoading).toBe(false);
     expect(credits.requestedCredits).toBe(1_000);
 
