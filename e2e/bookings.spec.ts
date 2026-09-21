@@ -175,11 +175,8 @@ test("modifies a booking", async ({ page }) => {
   await page.goto("/__visual/booking-modify");
 
   const modifyTrigger = page.getByRole("button", { name: "Modify Booking" });
-  await modifyTrigger.scrollIntoViewIfNeeded();
-  await modifyTrigger.click();
-
   const dialog = page.getByRole("dialog", { name: "Modify Booking" });
-  await expect(dialog).toBeVisible();
+  await clickUntilVisible(modifyTrigger, dialog);
   await expect(dialog.getByLabel("Pickup address")).toHaveValue("Murtala Muhammed Airport, Ikeja");
 
   const pickupTime = dialog.getByRole("combobox", { name: "Select pickup time" });
@@ -192,8 +189,7 @@ test("modifies a booking", async ({ page }) => {
   await expect(dialog).toHaveCount(0);
   await expect(page.locator("output")).toHaveText("Booking updated successfully.");
 
-  await modifyTrigger.click();
-  await expect(dialog).toBeVisible();
+  await clickUntilVisible(modifyTrigger, dialog);
   await dialog.locator("form").getByRole("button", { name: "Close" }).click();
   await expect(dialog).toHaveCount(0);
 });

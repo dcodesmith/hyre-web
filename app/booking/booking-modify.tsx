@@ -88,6 +88,7 @@ function BookingModifyFields({
   dropOffAddress,
   setDropOffAddress,
   errors,
+  now,
 }: {
   readonly booking: Pick<BookingDetail, "startDate" | "type">;
   readonly hasEditablePickupTime: boolean;
@@ -101,6 +102,7 @@ function BookingModifyFields({
   readonly dropOffAddress: string;
   readonly setDropOffAddress: (value: string) => void;
   readonly errors: BookingModifyFieldErrors | undefined;
+  readonly now: Date;
 }) {
   return (
     <>
@@ -121,6 +123,7 @@ function BookingModifyFields({
               value={pickupTime}
               onValueChange={setPickupTime}
               contentClassName="z-70"
+              now={now}
               aria-invalid={Boolean(errors?.pickupTime)}
               aria-describedby={errors?.pickupTime ? "modify-pickup-time-error" : undefined}
             />
@@ -189,12 +192,15 @@ function BookingModifyFields({
 
 export function BookingModifyCard({
   booking,
+  now,
 }: {
   readonly booking: Pick<
     BookingDetail,
     "startDate" | "type" | "pickupLocation" | "returnLocation" | "modificationCutoffAt"
   >;
+  readonly now: string;
 }) {
+  const clock = new Date(now);
   const fetcher = useFetcher<BookingModifyActionData>();
   const initialPickupTime =
     normalizePickupTime(formatDate(pickupTimeFormatter, booking.startDate)) ?? "";
@@ -302,6 +308,7 @@ export function BookingModifyCard({
                 setState((current) => ({ ...current, dropOffAddress }))
               }
               errors={errors}
+              now={clock}
             />
 
             <DialogFooter>

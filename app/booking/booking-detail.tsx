@@ -109,7 +109,7 @@ export function BookingDetailPage({
             {!isGuest && detail.legs.some((leg) => leg.canExtend) ? (
               <BookingExtendCard bookingId={detail.id} />
             ) : null}
-            {!isGuest && detail.canEdit ? <BookingModifyCard booking={detail} /> : null}
+            {!isGuest && detail.canEdit ? <BookingModifyCard booking={detail} now={now} /> : null}
             {!isGuest && detail.canCancel ? (
               <BookingCancelCard paymentStatus={detail.paymentStatus} />
             ) : null}

@@ -28,6 +28,7 @@ interface BookingTimeSelectProps {
   readonly labelClassName?: string;
   readonly showLabel?: boolean;
   readonly placeholder?: string;
+  readonly now?: Date;
 }
 
 export function BookingTimeSelect({
@@ -47,6 +48,7 @@ export function BookingTimeSelect({
   labelClassName = "text-xs font-semibold leading-tight text-gray-700",
   showLabel = false,
   placeholder = "Select pickup time",
+  now,
 }: BookingTimeSelectProps) {
   const autoTriggerId = useId();
   const triggerId = id ?? autoTriggerId;
@@ -56,7 +58,7 @@ export function BookingTimeSelect({
   const [uncontrolledHiddenValue, setUncontrolledHiddenValue] = useState(
     normalizedDefaultValue ?? "",
   );
-  const pickupTimes = getPickupTimes(date, bookingType);
+  const pickupTimes = getPickupTimes(date, bookingType, now);
   const selectedValue = normalizedValue ?? normalizedDefaultValue;
   const additionalOption =
     selectedValue && !pickupTimes.some((time) => time.value === selectedValue)
