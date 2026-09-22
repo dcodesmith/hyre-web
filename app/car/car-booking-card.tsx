@@ -1,6 +1,6 @@
 import type { SubmissionResult } from "@conform-to/react";
 import { Tag } from "lucide-react";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router";
 
 import type { PublicAddon } from "~/api/addons/schema";
@@ -197,14 +197,32 @@ export function CarBookingCard({
     pricingPreviewInput(car.id, card, actionPreview, selectedAddonIds, requestedCredits),
   );
   const preview = actionPreview ?? pricing.preview;
-  const lastApplicableCreditsRef = useRef(0);
-  if (preview) {
-    lastApplicableCreditsRef.current = preview.creditsApplicable;
+  const applicableCreditsKey = [
+    car.id,
+    card.bookingType,
+    formatOptionalCalendarDate(card.fromDate),
+    formatOptionalCalendarDate(card.toDate),
+    card.pickupTime ?? "",
+    [...selectedAddonIds].sort().join(","),
+  ].join("|");
+  const [lastApplicableCredits, setLastApplicableCredits] = useState({
+    key: "",
+    amount: 0,
+  });
+  if (
+    preview &&
+    (lastApplicableCredits.key !== applicableCreditsKey ||
+      lastApplicableCredits.amount !== preview.creditsApplicable)
+  ) {
+    setLastApplicableCredits({
+      key: applicableCreditsKey,
+      amount: preview.creditsApplicable,
+    });
   }
   const thisBookingCredits = preview
     ? preview.creditsApplicable
-    : pricing.isLoading
-      ? lastApplicableCreditsRef.current
+    : pricing.isLoading && lastApplicableCredits.key === applicableCreditsKey
+      ? lastApplicableCredits.amount
       : 0;
   const credits = previewReferralCredit ? (
     <BookingCreditsControl

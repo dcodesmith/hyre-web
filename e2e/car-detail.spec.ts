@@ -86,7 +86,9 @@ test("shows referral credit on the visual credits fixture", async ({ page }) => 
   await expect(page.getByRole("checkbox", { name: /Apply referral credit/ })).toBeVisible();
   await expect(page.getByText("-₦12,500", { exact: true })).toBeVisible();
   await expect(
-    page.getByText("Your available credit is ₦15,000. You can use ₦12,500 for this booking."),
+    page.getByText("Your available credit is ₦15,000. You can use ₦12,500 for this booking.", {
+      exact: true,
+    }),
   ).toBeVisible();
 });
 
@@ -114,7 +116,9 @@ test("shows referral credit after loading a signed-in customer's usable balance"
     await expect(page.getByRole("checkbox", { name: /Apply referral credit/ })).toBeVisible();
     await expect(page.getByText("-₦12,500", { exact: true })).toBeVisible();
     await expect(
-      page.getByText("Your available credit is ₦15,000. You can use ₦12,500 for this booking."),
+      page.getByText("Your available credit is ₦15,000. You can use ₦12,500 for this booking.", {
+        exact: true,
+      }),
     ).toBeVisible();
   } finally {
     await stopMockReferralApi(api);
