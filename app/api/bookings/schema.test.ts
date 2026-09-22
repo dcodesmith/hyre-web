@@ -366,6 +366,7 @@ describe("bookingPricingPreviewSchema", () => {
     compareAtSubtotalBeforeDiscounts: 120_000,
     referralDiscountAmount: 0,
     creditsUsed: 0,
+    creditsApplicable: 0,
     subtotalAfterDiscounts: 120_000,
     vatRatePercent: 7.5,
     vatAmount: 9_000,
@@ -382,6 +383,11 @@ describe("bookingPricingPreviewSchema", () => {
         securityDetailCost: 15_000,
       }),
     ).toEqual(preview);
+  });
+
+  it("defaults creditsApplicable when the API omits it", () => {
+    const { creditsApplicable: _creditsApplicable, ...withoutApplicable } = preview;
+    expect(bookingPricingPreviewSchema.parse(withoutApplicable).creditsApplicable).toBe(0);
   });
 
   it("rejects a preview without addons or addonTotal", () => {

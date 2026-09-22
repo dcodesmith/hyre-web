@@ -107,6 +107,7 @@ const fixturePricing = {
   compareAtSubtotalBeforeDiscounts: 73_500,
   referralDiscountAmount: 0,
   creditsUsed: 0,
+  creditsApplicable: 12_500,
   subtotalAfterDiscounts: 73_500,
   vatRatePercent: 7.5,
   vatAmount: 5_512.5,

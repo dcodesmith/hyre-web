@@ -28,7 +28,7 @@ describe("BookingCreditsControl", () => {
     const markup = renderControl();
     const applyLabel = "Apply referral credit";
     const usableAmount = "-₦12,500";
-    const helperCopy = "₦15,000 available (Up to ₦12,500 can be used on this booking)";
+    const helperCopy = "Your available credit is ₦15,000. You can use ₦12,500 for this booking.";
 
     expect(markup).toContain('id="referral-credit-heading"');
     expect(markup).toContain("Referral credit");

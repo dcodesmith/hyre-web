@@ -280,6 +280,7 @@ export const bookingPricingPreviewSchema = z.object({
   compareAtSubtotalBeforeDiscounts: moneySchema,
   referralDiscountAmount: moneySchema,
   creditsUsed: moneySchema,
+  creditsApplicable: moneySchema.optional().default(0),
   subtotalAfterDiscounts: moneySchema,
   vatRatePercent: moneySchema,
   vatAmount: moneySchema,

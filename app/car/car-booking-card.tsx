@@ -1,6 +1,6 @@
 import type { SubmissionResult } from "@conform-to/react";
 import { Tag } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router";
 
 import type { PublicAddon } from "~/api/addons/schema";
@@ -197,6 +197,15 @@ export function CarBookingCard({
     pricingPreviewInput(car.id, card, actionPreview, selectedAddonIds, requestedCredits),
   );
   const preview = actionPreview ?? pricing.preview;
+  const lastApplicableCreditsRef = useRef(0);
+  if (preview) {
+    lastApplicableCreditsRef.current = preview.creditsApplicable;
+  }
+  const thisBookingCredits = preview
+    ? preview.creditsApplicable
+    : pricing.isLoading
+      ? lastApplicableCreditsRef.current
+      : 0;
   const credits = previewReferralCredit ? (
     <BookingCreditsControl
       availableCredits={previewReferralCredit.availableCredits}
@@ -204,10 +213,10 @@ export function CarBookingCard({
       checked={previewCreditsEnabled}
       onCheckedChange={setPreviewCreditsEnabled}
     />
-  ) : isSignedIn && bookingCredits.hasUsableCredits ? (
+  ) : isSignedIn && bookingCredits.availableCredits > 0 && thisBookingCredits > 0 ? (
     <BookingCreditsControl
       availableCredits={bookingCredits.availableCredits}
-      creditLimit={bookingCredits.creditLimit}
+      creditLimit={thisBookingCredits}
       checked={bookingCredits.enabled}
       onCheckedChange={bookingCredits.setCreditsEnabled}
     />
