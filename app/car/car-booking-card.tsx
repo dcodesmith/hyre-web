@@ -197,6 +197,33 @@ export function CarBookingCard({
     pricingPreviewInput(car.id, card, actionPreview, selectedAddonIds, requestedCredits),
   );
   const preview = actionPreview ?? pricing.preview;
+  const applicableCreditsKey = [
+    car.id,
+    card.bookingType,
+    formatOptionalCalendarDate(card.fromDate),
+    formatOptionalCalendarDate(card.toDate),
+    card.pickupTime ?? "",
+    [...selectedAddonIds].sort().join(","),
+  ].join("|");
+  const [lastApplicableCredits, setLastApplicableCredits] = useState({
+    key: "",
+    amount: 0,
+  });
+  if (
+    preview &&
+    (lastApplicableCredits.key !== applicableCreditsKey ||
+      lastApplicableCredits.amount !== preview.creditsApplicable)
+  ) {
+    setLastApplicableCredits({
+      key: applicableCreditsKey,
+      amount: preview.creditsApplicable,
+    });
+  }
+  const thisBookingCredits = preview
+    ? preview.creditsApplicable
+    : pricing.isLoading && lastApplicableCredits.key === applicableCreditsKey
+      ? lastApplicableCredits.amount
+      : 0;
   const credits = previewReferralCredit ? (
     <BookingCreditsControl
       availableCredits={previewReferralCredit.availableCredits}
@@ -204,10 +231,10 @@ export function CarBookingCard({
       checked={previewCreditsEnabled}
       onCheckedChange={setPreviewCreditsEnabled}
     />
-  ) : isSignedIn && bookingCredits.hasUsableCredits ? (
+  ) : isSignedIn && bookingCredits.availableCredits > 0 && thisBookingCredits > 0 ? (
     <BookingCreditsControl
       availableCredits={bookingCredits.availableCredits}
-      creditLimit={bookingCredits.creditLimit}
+      creditLimit={thisBookingCredits}
       checked={bookingCredits.enabled}
       onCheckedChange={bookingCredits.setCreditsEnabled}
     />

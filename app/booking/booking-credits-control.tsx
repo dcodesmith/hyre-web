@@ -36,8 +36,8 @@ export function BookingCreditsControl({
               </span>
             </span>
             <span className="mt-0.5 block text-xs leading-4 text-muted-foreground">
-              {formatCurrency(availableCredits)} available (Up to {formatCurrency(creditLimit)} can
-              be used on this booking)
+              Your available credit is {formatCurrency(availableCredits)}. You can use{" "}
+              {formatCurrency(creditLimit)} for this booking.
             </span>
           </label>
         </div>

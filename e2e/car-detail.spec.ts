@@ -86,7 +86,9 @@ test("shows referral credit on the visual credits fixture", async ({ page }) => 
   await expect(page.getByRole("checkbox", { name: /Apply referral credit/ })).toBeVisible();
   await expect(page.getByText("-₦12,500", { exact: true })).toBeVisible();
   await expect(
-    page.getByText("₦15,000 available (Up to ₦12,500 can be used on this booking)"),
+    page.getByText("Your available credit is ₦15,000. You can use ₦12,500 for this booking.", {
+      exact: true,
+    }),
   ).toBeVisible();
 });
 
@@ -105,14 +107,18 @@ test("shows referral credit after loading a signed-in customer's usable balance"
     const creditsResponse = page.waitForResponse((response) =>
       new URL(response.url()).pathname.includes("/api/referral-credits"),
     );
-    await page.goto("/__visual/car?bookingType=DAY");
+    await page.goto(
+      "/__visual/car?bookingType=DAY&from=2026-09-01&to=2026-09-01&pickupTime=9%20AM",
+    );
     await creditsResponse;
 
     await expect(page.getByRole("heading", { name: "Referral credit" })).toBeVisible();
     await expect(page.getByRole("checkbox", { name: /Apply referral credit/ })).toBeVisible();
     await expect(page.getByText("-₦12,500", { exact: true })).toBeVisible();
     await expect(
-      page.getByText("₦15,000 available (Up to ₦12,500 can be used on this booking)"),
+      page.getByText("Your available credit is ₦15,000. You can use ₦12,500 for this booking.", {
+        exact: true,
+      }),
     ).toBeVisible();
   } finally {
     await stopMockReferralApi(api);
@@ -134,7 +140,9 @@ test("hides referral credit when a signed-in customer has no balance", async ({
     const creditsResponse = page.waitForResponse((response) =>
       new URL(response.url()).pathname.includes("/api/referral-credits"),
     );
-    await page.goto("/__visual/car?bookingType=DAY");
+    await page.goto(
+      "/__visual/car?bookingType=DAY&from=2026-09-01&to=2026-09-01&pickupTime=9%20AM",
+    );
     await creditsResponse;
 
     await expect(page.getByRole("heading", { name: "Referral credit" })).toHaveCount(0);

@@ -7,9 +7,10 @@ async function choosePayoutBank(page: Page, name: string) {
   const option = page.getByRole("option", { name, exact: true });
 
   await bank.scrollIntoViewIfNeeded();
-  await bank.focus();
-  await bank.pressSequentially(name);
-  await option.click({ force: true });
+  await bank.click();
+  await bank.fill(name);
+  await expect(option).toBeVisible();
+  await option.click();
   await expect(bank).toHaveValue(name);
 }
 

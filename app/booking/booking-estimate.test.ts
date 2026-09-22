@@ -59,6 +59,7 @@ const preview = {
   compareAtSubtotalBeforeDiscounts: 235_000,
   referralDiscountAmount: 5_000,
   creditsUsed: 2_000,
+  creditsApplicable: 2_000,
   subtotalAfterDiscounts: 217_000,
   vatRatePercent: 7.5,
   vatAmount: 14_250,
