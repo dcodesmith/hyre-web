@@ -90,17 +90,25 @@ function FileReplacementForm({
   );
 }
 
-export function FleetCarDetail({ car }: { readonly car: FleetCar }) {
+export function FleetCarDetail({
+  backHref = "/fleet-owner/cars",
+  car,
+}: {
+  readonly backHref?: string | null;
+  readonly car: FleetCar;
+}) {
   const needsOnboarding = needsFleetCarOnboarding(car);
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-6">
       <div>
-        <Button asChild className="-ml-2 mb-3" size="sm" variant="ghost">
-          <Link to="/fleet-owner/cars">
-            <ArrowLeftIcon data-icon="inline-start" />
-            Back to cars
-          </Link>
-        </Button>
+        {backHref ? (
+          <Button asChild className="-ml-2 mb-3" size="sm" variant="ghost">
+            <Link to={backHref}>
+              <ArrowLeftIcon data-icon="inline-start" />
+              Back to cars
+            </Link>
+          </Button>
+        ) : null}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">

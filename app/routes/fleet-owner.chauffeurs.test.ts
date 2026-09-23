@@ -186,12 +186,13 @@ describe("fleet-owner chauffeurs route", () => {
     uuid.mockRestore();
   });
 
-  it("marks owner-driver accounts from the parent onboarding context", async () => {
-    const request = new Request(`https://tripdly.com${PATH}`);
+  it("sends an owner-driver back to the dashboard", async () => {
+    const result = await loader(routeArgs(new Request(`https://tripdly.com${PATH}`), true)).catch(
+      (error: unknown) => error,
+    );
 
-    const result = await loader(routeArgs(request, true));
-
-    expect(result).toMatchObject({ isOwnerDriver: true });
+    expectRedirect(result, "/fleet-owner");
+    expect(getFleetOwnerChauffeurs).not.toHaveBeenCalled();
   });
 
   it("redirects an out-of-range page to the last available page", async () => {

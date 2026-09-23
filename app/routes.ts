@@ -32,6 +32,7 @@ const visualFleetRoutes =
           route("__visual/car-plate", "routes/__visual.car-plate.tsx"),
           route("__visual/car-onboarding", "routes/__visual.car-onboarding.tsx"),
           route("__visual/fleet-chauffeurs", "routes/__visual.fleet-chauffeurs.tsx"),
+          route("__visual/owner-car", "routes/__visual.owner-car.tsx"),
         ]),
       ]
     : [];

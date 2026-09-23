@@ -1,10 +1,14 @@
-import { type ShouldRevalidateFunctionArgs, useRevalidator } from "react-router";
+import { redirect, type ShouldRevalidateFunctionArgs, useRevalidator } from "react-router";
 
 import { getFleetCars } from "~/api/fleet/cars/cars.server";
 import { Button } from "~/components/ui/button";
+import { soleOwnerDriverCar } from "~/fleet/cars/fleet-car";
 import { FleetCarsList } from "~/fleet/cars/fleet-cars-list";
+import { fleetOwnerContext } from "~/fleet/fleet-owner-context";
 import { buildPageMetadata } from "~/seo/metadata";
 import type { Route } from "./+types/fleet-owner.cars";
+
+const NO_STORE = { "Cache-Control": "private, no-store" };
 
 export const meta = () =>
   buildPageMetadata({
@@ -15,12 +19,19 @@ export const meta = () =>
   });
 
 export function headers() {
-  return { "Cache-Control": "private, no-store" };
+  return NO_STORE;
 }
 
-export async function loader({ request }: Route.LoaderArgs) {
+export async function loader({ context, request }: Route.LoaderArgs) {
+  const isOwnerDriver = context.get(fleetOwnerContext).onboarding.isOwnerDriver === true;
   const { data: cars } = await getFleetCars({ request });
-  return { cars };
+  const car = soleOwnerDriverCar(isOwnerDriver, cars);
+
+  if (car) {
+    throw redirect(`/fleet-owner/cars/${car.id}`, { headers: NO_STORE });
+  }
+
+  return { cars, isOwnerDriver };
 }
 
 export function shouldRevalidate({
@@ -36,7 +47,12 @@ export function shouldRevalidate({
 }
 
 export default function FleetOwnerCarsRoute({ loaderData }: Route.ComponentProps) {
-  return <FleetCarsList cars={loaderData.cars} />;
+  return (
+    <FleetCarsList
+      allowAdd={!loaderData.isOwnerDriver || loaderData.cars.length === 0}
+      cars={loaderData.cars}
+    />
+  );
 }
 
 export function ErrorBoundary() {

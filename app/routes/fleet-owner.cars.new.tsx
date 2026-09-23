@@ -8,13 +8,15 @@ import {
   createFleetVehicleVerification,
   getFleetVehicleVerification,
 } from "~/api/fleet/cars/car-onboarding.server";
+import { getFleetCars } from "~/api/fleet/cars/cars.server";
 import { HTTP_STATUS } from "~/api/http-status";
 import {
   carOnboardingPlateFormSchema,
   type NewFleetCarActionData,
 } from "~/fleet/cars/car-onboarding-form-schema";
-import { ineligibleFleetVehicleMessage } from "~/fleet/cars/fleet-car";
+import { ineligibleFleetVehicleMessage, soleOwnerDriverCar } from "~/fleet/cars/fleet-car";
 import { FleetCarPlateVerificationPage } from "~/fleet/cars/fleet-car-plate-verification-page";
+import { fleetOwnerContext } from "~/fleet/fleet-owner-context";
 import { buildPageMetadata } from "~/seo/metadata";
 import type { Route } from "./+types/fleet-owner.cars.new";
 
@@ -37,7 +39,18 @@ export function headers() {
   return NO_STORE;
 }
 
-export function loader(_args: Route.LoaderArgs) {
+async function redirectOwnerDriverWithCar(context: Route.LoaderArgs["context"], request: Request) {
+  if (context.get(fleetOwnerContext).onboarding.isOwnerDriver !== true) return;
+
+  const { data: cars } = await getFleetCars({ request });
+  if (cars.length === 0) return;
+
+  const car = soleOwnerDriverCar(true, cars);
+  throw redirect(car ? `/fleet-owner/cars/${car.id}` : "/fleet-owner/cars", { headers: NO_STORE });
+}
+
+export async function loader({ context, request }: Route.LoaderArgs) {
+  await redirectOwnerDriverWithCar(context, request);
   return { idempotencyKey: crypto.randomUUID() };
 }
 
@@ -167,7 +180,8 @@ async function createDraft(request: Request, formData: FormData) {
   }
 }
 
-export async function action({ request }: Route.ActionArgs) {
+export async function action({ context, request }: Route.ActionArgs) {
+  await redirectOwnerDriverWithCar(context, request);
   const formData = await request.formData();
   switch (formData.get("intent")) {
     case "verify-plate":

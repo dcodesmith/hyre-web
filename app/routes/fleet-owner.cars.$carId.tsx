@@ -4,6 +4,7 @@ import {
   Link,
   type ShouldRevalidateFunctionArgs,
   useRouteError,
+  useRouteLoaderData,
 } from "react-router";
 
 import { ApiRequestError } from "~/api/api.server";
@@ -19,8 +20,10 @@ import {
   type FleetCarFileReplacementActionData,
   fleetCarFileReplacementFormSchema,
 } from "~/fleet/cars/fleet-car-file-replacement-form-schema";
+import { fleetOwnerContext } from "~/fleet/fleet-owner-context";
 import { buildPageMetadata } from "~/seo/metadata";
 import type { Route } from "./+types/fleet-owner.cars.$carId";
+import type { FleetOwnerOutletContext } from "./fleet-owner";
 
 const NO_STORE = { "Cache-Control": "private, no-store" };
 
@@ -38,10 +41,13 @@ export function headers() {
   return NO_STORE;
 }
 
-export async function loader({ request, params }: Route.LoaderArgs) {
+export async function loader({ context, params, request }: Route.LoaderArgs) {
   try {
     const { data: car } = await getFleetCar({ request, carId: params.carId });
-    return { car };
+    return {
+      car,
+      isOwnerDriver: context.get(fleetOwnerContext).onboarding.isOwnerDriver === true,
+    };
   } catch (error) {
     if (
       error instanceof ApiRequestError &&
@@ -120,12 +126,19 @@ export function shouldRevalidate({
 }
 
 export default function FleetOwnerCarRoute({ loaderData }: Route.ComponentProps) {
-  return <FleetCarDetail car={loaderData.car} />;
+  return (
+    <FleetCarDetail
+      backHref={loaderData.isOwnerDriver ? null : "/fleet-owner/cars"}
+      car={loaderData.car}
+    />
+  );
 }
 
 export function ErrorBoundary() {
   const error = useRouteError();
+  const parent = useRouteLoaderData<FleetOwnerOutletContext>("routes/fleet-owner");
   const notFound = isRouteErrorResponse(error) && error.status === HTTP_STATUS.NOT_FOUND;
+  const backTo = parent?.onboarding.isOwnerDriver ? "/fleet-owner" : "/fleet-owner/cars";
 
   return (
     <div className="mx-auto flex min-h-80 max-w-lg flex-col items-center justify-center text-center">
@@ -135,10 +148,14 @@ export function ErrorBoundary() {
       <p className="mt-2 text-sm text-muted-foreground">
         {notFound
           ? "This car is not available in your fleet."
-          : "Please return to your cars and try again."}
+          : parent?.onboarding.isOwnerDriver
+            ? "Please return to your dashboard and try again."
+            : "Please return to your cars and try again."}
       </p>
       <Button asChild className="mt-5">
-        <Link to="/fleet-owner/cars">Back to cars</Link>
+        <Link to={backTo}>
+          {parent?.onboarding.isOwnerDriver ? "Back to dashboard" : "Back to cars"}
+        </Link>
       </Button>
     </div>
   );

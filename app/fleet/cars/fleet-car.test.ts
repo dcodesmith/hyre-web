@@ -8,6 +8,7 @@ import {
   hasFleetCarPricing,
   ineligibleFleetVehicleMessage,
   needsFleetCarOnboarding,
+  soleOwnerDriverCar,
 } from "./fleet-car";
 
 const fleetCar = {
@@ -113,6 +114,15 @@ const draftCar = {
   fullDayRate: null,
   airportPickupRate: null,
 } satisfies FleetCar;
+
+describe("soleOwnerDriverCar", () => {
+  it("returns the only car for an owner-driver", () => {
+    expect(soleOwnerDriverCar(true, [fleetCar])).toBe(fleetCar);
+    expect(soleOwnerDriverCar(true, [])).toBeNull();
+    expect(soleOwnerDriverCar(true, [fleetCar, fleetCar])).toBeNull();
+    expect(soleOwnerDriverCar(false, [fleetCar])).toBeNull();
+  });
+});
 
 describe("fleet car display labels", () => {
   it("uses the hireApp status wording", () => {

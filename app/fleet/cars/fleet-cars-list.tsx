@@ -12,7 +12,13 @@ import {
 } from "~/components/ui/empty";
 import { FleetCarsTable } from "./fleet-cars-table";
 
-export function FleetCarsList({ cars }: { readonly cars: FleetCar[] }) {
+export function FleetCarsList({
+  allowAdd = true,
+  cars,
+}: {
+  readonly allowAdd?: boolean;
+  readonly cars: FleetCar[];
+}) {
   return (
     <section aria-labelledby="fleet-cars-heading">
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
@@ -24,12 +30,14 @@ export function FleetCarsList({ cars }: { readonly cars: FleetCar[] }) {
             View vehicle status, approval, and pricing details.
           </p>
         </div>
-        <Button asChild>
-          <Link to="/fleet-owner/cars/new">
-            <PlusIcon data-icon="inline-start" />
-            Add Car
-          </Link>
-        </Button>
+        {allowAdd ? (
+          <Button asChild>
+            <Link to="/fleet-owner/cars/new">
+              <PlusIcon data-icon="inline-start" />
+              Add Car
+            </Link>
+          </Button>
+        ) : null}
       </div>
 
       {cars.length > 0 ? (

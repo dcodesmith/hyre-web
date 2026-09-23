@@ -41,12 +41,22 @@ const navigation = [
 
 type FleetOwnerSidebarProps = {
   readonly isLoggingOut: boolean;
+  readonly roleLabel: string;
+  readonly showChauffeurs: boolean;
   readonly user: User;
 };
 
-export function FleetOwnerSidebar({ isLoggingOut, user }: FleetOwnerSidebarProps) {
+export function FleetOwnerSidebar({
+  isLoggingOut,
+  roleLabel,
+  showChauffeurs,
+  user,
+}: FleetOwnerSidebarProps) {
   const location = useLocation();
   const { isMobile, setOpenMobile } = useSidebar();
+  const items = showChauffeurs
+    ? navigation
+    : navigation.filter((item) => item.to !== "/fleet-owner/chauffeurs");
 
   function closeMobileSidebar() {
     if (isMobile) {
@@ -66,7 +76,7 @@ export function FleetOwnerSidebar({ isLoggingOut, user }: FleetOwnerSidebarProps
                 </span>
                 <span className="grid flex-1 text-left leading-tight">
                   <span className="truncate font-semibold">Fleet Manager</span>
-                  <span className="truncate text-xs text-muted-foreground">Tripdly</span>
+                  <span className="truncate text-xs text-muted-foreground">{roleLabel}</span>
                 </span>
               </Link>
             </SidebarMenuButton>
@@ -79,7 +89,7 @@ export function FleetOwnerSidebar({ isLoggingOut, user }: FleetOwnerSidebarProps
           <SidebarGroupLabel>Navigation</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {navigation.map((item) => {
+              {items.map((item) => {
                 const isActive = item.exact
                   ? location.pathname === item.to
                   : location.pathname === item.to || location.pathname.startsWith(`${item.to}/`);

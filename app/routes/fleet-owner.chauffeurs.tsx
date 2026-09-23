@@ -39,6 +39,10 @@ export function headers() {
 }
 
 export async function loader({ request, context }: Route.LoaderArgs) {
+  if (context.get(fleetOwnerContext).onboarding.isOwnerDriver === true) {
+    throw redirect("/fleet-owner", { headers: NO_STORE });
+  }
+
   const page = parseChauffeursPage(new URL(request.url).searchParams);
   const response = await getFleetOwnerChauffeurs({
     request,

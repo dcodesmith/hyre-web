@@ -10,6 +10,10 @@ export function ineligibleFleetVehicleMessage(minimumYear: number) {
   return `This vehicle is not eligible. Use a vehicle from ${minimumYear} or newer, or check the plate and try again.`;
 }
 
+export function soleOwnerDriverCar<T>(isOwnerDriver: boolean, cars: readonly T[]) {
+  return isOwnerDriver && cars.length === 1 ? (cars[0] ?? null) : null;
+}
+
 const statusLabels: Record<FleetCarStatus, string> = {
   AVAILABLE: "Available",
   BOOKED: "Booked",
