@@ -90,7 +90,7 @@ test("verifies a new fleet car with plate and chassis, then opens the documents 
   context,
   page,
 }) => {
-  const api = await startMockFleetOwnerAuthApi();
+  const api = await startMockFleetOwnerAuthApi({ ownerDriver: false });
 
   try {
     await signInFleetOwner(context, page, baseURL ?? "http://localhost:5174");
@@ -162,7 +162,7 @@ test("returns to a blank verification form without creating a draft", async ({
   context,
   page,
 }) => {
-  const api = await startMockFleetOwnerAuthApi();
+  const api = await startMockFleetOwnerAuthApi({ ownerDriver: false });
 
   try {
     await signInFleetOwner(context, page, baseURL ?? "http://localhost:5174");
@@ -201,7 +201,7 @@ test("completes the five-step car onboarding flow and redirects to car detail", 
   context,
   page,
 }) => {
-  const api = await startMockFleetOwnerAuthApi();
+  const api = await startMockFleetOwnerAuthApi({ ownerDriver: false });
 
   try {
     await signInFleetOwner(context, page, baseURL ?? "http://localhost:5174");
@@ -282,7 +282,7 @@ test("does not show the verified result card for an ineligible vehicle", async (
   context,
   page,
 }) => {
-  const api = await startMockFleetOwnerAuthApi({ ineligibleVehicle: true });
+  const api = await startMockFleetOwnerAuthApi({ ineligibleVehicle: true, ownerDriver: false });
 
   try {
     await signInFleetOwner(context, page, baseURL ?? "http://localhost:5174");

@@ -89,16 +89,15 @@ test("lists, invites, and deactivates fleet chauffeurs", async ({ context, page 
   }
 });
 
-test("hides chauffeur invitations for owner-driver accounts", async ({ context, page }) => {
+test("sends an owner-driver away from chauffeurs", async ({ context, page }) => {
   const api = await startMockFleetOwnerAuthApi({ ownerDriver: true });
 
   try {
     await signInFleetOwner(context, page);
     await page.goto("/fleet-owner/chauffeurs");
-    await expect(page.getByRole("heading", { name: "Chauffeurs", level: 2 })).toBeVisible();
-    await expect(page.getByText("Your account is set up as owner-driver")).toBeVisible();
-    await expect(page.getByRole("link", { name: "Invite chauffeur" })).toHaveCount(0);
-    await expect(page.getByText("You are currently the driver for this fleet.")).toBeVisible();
+    await expect(page).toHaveURL("/fleet-owner");
+    await expect(page.getByRole("link", { name: "Chauffeurs" })).toHaveCount(0);
+    await expect(page.getByText("Owner-driver", { exact: true })).toBeVisible();
   } finally {
     await stopMockFleetOwnerAuthApi(api);
   }
