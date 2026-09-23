@@ -97,7 +97,11 @@ test("sends an owner-driver away from chauffeurs", async ({ context, page }) => 
     await page.goto("/fleet-owner/chauffeurs");
     await expect(page).toHaveURL("/fleet-owner");
     await expect(page.getByRole("link", { name: "Chauffeurs" })).toHaveCount(0);
-    await expect(page.getByText("Owner-driver", { exact: true })).toBeVisible();
+    const role = page.getByText("Owner-driver", { exact: true });
+    if (!(await role.isVisible())) {
+      await page.getByRole("button", { name: "Toggle Sidebar" }).click();
+    }
+    await expect(role).toBeVisible();
   } finally {
     await stopMockFleetOwnerAuthApi(api);
   }

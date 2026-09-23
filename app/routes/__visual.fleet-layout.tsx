@@ -16,7 +16,9 @@ function visualFleetTitle(pathname: string) {
 
 export default function FleetVisualLayout() {
   const location = useLocation();
-  const role = new URLSearchParams(location.search).get("role");
+  const role =
+    new URLSearchParams(location.search).get("role") ??
+    (location.pathname.includes("owner-car") ? "owner-driver" : null);
   const onboarding = {
     accountType: role === "business" ? "BUSINESS" : "INDIVIDUAL",
     isOwnerDriver: role === "owner-driver",
