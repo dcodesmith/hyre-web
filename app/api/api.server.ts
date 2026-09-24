@@ -324,7 +324,25 @@ function buildHeaders(options: ApiFetchOptions, hasJsonBody: boolean) {
     headers.set("x-forwarded-for", clientIp);
   }
 
+  copyHeader(incomingHeaders, headers, "user-agent");
+  copyHeader(incomingHeaders, headers, "cf-ipcountry");
+
+  const edgeSecret = edgeClientSecret();
+  if (clientIp && edgeSecret) {
+    headers.set("x-hyre-edge", edgeSecret);
+  }
+
   return headers;
+}
+
+let edgeClientSecretValue: string | undefined;
+
+export function setEdgeClientSecret(value: string | undefined) {
+  edgeClientSecretValue = value && value.length > 0 ? value : undefined;
+}
+
+function edgeClientSecret() {
+  return edgeClientSecretValue;
 }
 
 function copyHeader(source: Headers, destination: Headers, name: string) {

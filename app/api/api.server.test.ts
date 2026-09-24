@@ -1,7 +1,12 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 
-import { ApiRequestError, createApiClient, idempotencyKeyForRetry } from "./api.server";
+import {
+  ApiRequestError,
+  createApiClient,
+  idempotencyKeyForRetry,
+  setEdgeClientSecret,
+} from "./api.server";
 import { carCategoriesResponseSchema } from "./cars/schema";
 import { HTTP_STATUS, type HttpStatus } from "./http-status";
 import { toPublicProblemDetails } from "./problem-details";
@@ -9,6 +14,10 @@ import { toPublicProblemDetails } from "./problem-details";
 const okSchema = z.object({ ok: z.boolean() });
 
 describe("createApiClient", () => {
+  afterEach(() => {
+    setEdgeClientSecret(undefined);
+  });
+
   it("uses root-relative URLs and forwards tracing headers", async () => {
     let capturedUrl = "";
     let capturedInit: RequestInit | undefined;
@@ -26,6 +35,8 @@ describe("createApiClient", () => {
         traceparent: "00-trace-parent",
         "x-request-id": "request-123",
         "cf-connecting-ip": "203.0.113.10",
+        "cf-ipcountry": "NG",
+        "user-agent": "Hyre/1",
         "x-forwarded-for": "198.51.100.1",
       },
     });
@@ -49,6 +60,9 @@ describe("createApiClient", () => {
     expect(headers.get("cookie")).toBeNull();
     expect(headers.get("origin")).toBeNull();
     expect(headers.get("cf-connecting-ip")).toBe("203.0.113.10");
+    expect(headers.get("cf-ipcountry")).toBe("NG");
+    expect(headers.get("user-agent")).toBe("Hyre/1");
+    expect(headers.get("x-hyre-edge")).toBeNull();
     expect(headers.get("x-forwarded-for")).toBe("203.0.113.10");
     expect(headers.get("x-forwarded-for")).not.toBe("198.51.100.1");
     expect(response).toMatchObject({
@@ -56,6 +70,28 @@ describe("createApiClient", () => {
       status: HTTP_STATUS.OK,
     });
     expect(response.headers.get("cache-control")).toBe("public, max-age=300");
+  });
+
+  it("sends the edge secret only with a Cloudflare client IP", async () => {
+    setEdgeClientSecret("edge-secret-value");
+    let capturedInit: RequestInit | undefined;
+    const client = createApiClient({
+      apiOrigin: "https://api.example",
+      fetchImpl: async (_input, init) => {
+        capturedInit = init;
+        return jsonResponse({ ok: true }, HTTP_STATUS.OK);
+      },
+    });
+
+    await client.request({
+      path: "/api/cars/categories",
+      request: new Request("https://hyre.example/", {
+        headers: { "cf-connecting-ip": "203.0.113.10" },
+      }),
+      schema: okSchema,
+    });
+
+    expect(new Headers(capturedInit?.headers).get("x-hyre-edge")).toBe("edge-secret-value");
   });
 
   it("returns successful binary responses without consuming the body", async () => {
