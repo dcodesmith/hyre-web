@@ -344,12 +344,15 @@ type MockFleetChauffeur = {
   id: string;
   chauffeurId: string | null;
   name: string;
+  firstName: string;
+  lastName: string;
   email: string;
   phoneNumber: string;
   status: "INVITED" | "CONSENTED" | "PHONE_VERIFIED" | "IDENTITY_VERIFIED" | "APPROVED";
   isActive: boolean;
   image: string | null;
   invitedAt: string;
+  canReinvite: boolean;
 };
 
 const mockFleetChauffeurs = Array.from({ length: 21 }, (_, index) => {
@@ -360,12 +363,15 @@ const mockFleetChauffeurs = Array.from({ length: 21 }, (_, index) => {
     id: fixtureUuid(5_000 + number),
     chauffeurId: approved ? MOCK_APPROVED_CHAUFFEUR_ID : null,
     name: approved ? "Bola Adebayo" : `Chauffeur ${String(number).padStart(2, "0")}`,
+    firstName: approved ? "Bola" : "Chauffeur",
+    lastName: approved ? "Adebayo" : String(number).padStart(2, "0"),
     email: `chauffeur${number}@example.com`,
     phoneNumber: `+23480${String(10000000 + number).slice(-8)}`,
     status: approved ? "APPROVED" : "INVITED",
     isActive: approved,
     image: null,
     invitedAt: `2026-08-${String(Math.min(number, 28)).padStart(2, "0")}T12:00:00.000Z`,
+    canReinvite: number === 2,
   } satisfies MockFleetChauffeur;
 });
 
@@ -1193,12 +1199,15 @@ async function handleFleetChauffeursRequest(
       id: fixtureUuid(5_000 + chauffeurs.length + 1),
       chauffeurId: null,
       name: [body.firstName, body.lastName].filter(Boolean).join(" ") || "Invited chauffeur",
+      firstName: body.firstName ?? "Invited",
+      lastName: body.lastName ?? "chauffeur",
       email: body.email ?? "invited@example.com",
       phoneNumber: body.phoneNumber ?? "+2348099999999",
       status: "INVITED",
       isActive: false,
       image: null,
       invitedAt: "2026-09-11T12:00:00.000Z",
+      canReinvite: false,
     };
     chauffeurs.unshift(invited);
     writeJson(response, 201, invited);

@@ -41,6 +41,15 @@ test("lists, invites, and deactivates fleet chauffeurs", async ({ context, page 
     await expect(page.getByRole("heading", { name: "Chauffeurs", level: 2 })).toBeVisible();
     await expect(page.getByText("Page 1 of 2 · 21 chauffeurs")).toBeVisible();
     await expect(chauffeurName(page, "Bola Adebayo")).toBeVisible();
+    await page.getByRole("button", { name: "Re-invite" }).click();
+    await expect
+      .poll(() => api.requests.chauffeurInvitations.at(-1))
+      .toEqual({
+        firstName: "Chauffeur",
+        lastName: "02",
+        email: "chauffeur2@example.com",
+        phoneNumber: "+2348010000002",
+      });
 
     if ((page.viewportSize()?.width ?? 0) >= TABLE_MIN_WIDTH) {
       await expect(page.getByRole("table")).toBeVisible();

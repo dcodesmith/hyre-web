@@ -88,6 +88,10 @@ async function inviteAction(request: Request, formData: FormData, isOwnerDriver:
       {
         intent: "invite",
         idempotencyKey: typeof idempotencyKey === "string" ? idempotencyKey : "",
+        error:
+          formData.get("reinvite") === "1"
+            ? "This invitation has no last name. Use Invite chauffeur and enter the name on their NIN."
+            : undefined,
         revalidate: false,
         submission: submission.reply(),
       },
