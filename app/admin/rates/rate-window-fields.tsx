@@ -16,6 +16,7 @@ export function RateWindowFields({ fields }: { readonly fields: RateWindowFields
         <FieldLabel htmlFor={fields.effectiveSince.id}>Effective from</FieldLabel>
         <Input
           {...getInputProps(fields.effectiveSince, { type: "datetime-local" })}
+          className="h-10 rounded-sm"
           autoComplete="off"
         />
         <FieldDescription>Enter date and time in UTC.</FieldDescription>
@@ -28,6 +29,7 @@ export function RateWindowFields({ fields }: { readonly fields: RateWindowFields
         <FieldLabel htmlFor={fields.effectiveUntil.id}>Effective until (optional)</FieldLabel>
         <Input
           {...getInputProps(fields.effectiveUntil, { type: "datetime-local" })}
+          className="h-10 rounded-sm"
           autoComplete="off"
         />
         <FieldError id={fields.effectiveUntil.errorId}>
@@ -39,6 +41,7 @@ export function RateWindowFields({ fields }: { readonly fields: RateWindowFields
         <FieldLabel htmlFor={fields.description.id}>Description (optional)</FieldLabel>
         <Input
           {...getInputProps(fields.description, { type: "text" })}
+          className="h-10 rounded-sm"
           autoComplete="off"
           maxLength={500}
           placeholder="Why this rate applies…"

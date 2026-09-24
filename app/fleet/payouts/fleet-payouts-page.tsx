@@ -246,7 +246,7 @@ export function FleetPayoutsPage({ payouts, summary, total, view }: FleetPayouts
               Status
             </label>
             <Select key={view.status} name="status" defaultValue={view.status ?? "ALL"}>
-              <SelectTrigger id="payout-status" className="w-48">
+              <SelectTrigger id="payout-status" className="h-10 w-48 rounded-sm">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

@@ -1183,7 +1183,8 @@ async function handleFleetChauffeursRequest(
 
   if (request.method === "POST" && isInvite) {
     const body = (await readJson(request)) as {
-      name?: string;
+      firstName?: string;
+      lastName?: string;
       email?: string;
       phoneNumber?: string;
     };
@@ -1191,7 +1192,7 @@ async function handleFleetChauffeursRequest(
     const invited: MockFleetChauffeur = {
       id: fixtureUuid(5_000 + chauffeurs.length + 1),
       chauffeurId: null,
-      name: body.name ?? "Invited chauffeur",
+      name: [body.firstName, body.lastName].filter(Boolean).join(" ") || "Invited chauffeur",
       email: body.email ?? "invited@example.com",
       phoneNumber: body.phoneNumber ?? "+2348099999999",
       status: "INVITED",

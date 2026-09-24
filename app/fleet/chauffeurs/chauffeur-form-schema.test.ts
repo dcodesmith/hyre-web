@@ -5,17 +5,19 @@ import { inviteChauffeurFormSchema, updateChauffeurFormSchema } from "./chauffeu
 const IDEMPOTENCY_KEY = "18aa029c-4bb1-4ca7-b25e-cfc802c4bf8c";
 
 const validInvite = {
-  name: "Bola Adebayo",
+  firstName: "Bola",
+  lastName: "Adebayo",
   email: "bola@example.com",
   phoneNumber: "+2348012345678",
   idempotencyKey: IDEMPOTENCY_KEY,
 };
 
 describe("fleet chauffeur form schemas", () => {
-  it("trims the invite name, lowercases email, and accepts E.164 phones", () => {
+  it("trims both names, lowercases email, and accepts E.164 phones", () => {
     expect(
       inviteChauffeurFormSchema.parse({
-        name: "  Bola Adebayo  ",
+        firstName: "  Bola  ",
+        lastName: "  Adebayo  ",
         email: " Bola@Example.com ",
         phoneNumber: " +2348012345678 ",
         idempotencyKey: IDEMPOTENCY_KEY,
@@ -23,9 +25,10 @@ describe("fleet chauffeur form schemas", () => {
     ).toEqual(validInvite);
   });
 
-  it("rejects a short name, invalid email, or local phone number", () => {
+  it("rejects an empty name, invalid email, or local phone number", () => {
     const parsed = inviteChauffeurFormSchema.safeParse({
-      name: "A",
+      firstName: "",
+      lastName: "",
       email: "not-an-email",
       phoneNumber: "08012345678",
       idempotencyKey: IDEMPOTENCY_KEY,
@@ -36,7 +39,8 @@ describe("fleet chauffeur form schemas", () => {
       return;
     }
     expect(parsed.error.flatten().fieldErrors).toMatchObject({
-      name: expect.any(Array),
+      firstName: expect.any(Array),
+      lastName: expect.any(Array),
       email: ["Enter a valid email address"],
       phoneNumber: ["Use international format, for example +2348012345678"],
     });

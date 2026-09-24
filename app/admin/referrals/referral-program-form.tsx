@@ -103,7 +103,7 @@ function IncentiveFields({
             value={type}
             onValueChange={(value) => onTypeChange(value as IncentiveType)}
           >
-            <SelectTrigger id={typeField.id} className="w-full">
+            <SelectTrigger id={typeField.id} className="h-10 w-full rounded-sm">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -119,6 +119,7 @@ function IncentiveFields({
             <FieldLabel htmlFor={amountField.id}>Amount (NGN)</FieldLabel>
             <Input
               {...getInputProps(amountField, { type: "number" })}
+              className="h-10 rounded-sm"
               min={0.01}
               step="0.01"
               inputMode="decimal"
@@ -131,6 +132,7 @@ function IncentiveFields({
               <FieldLabel htmlFor={percentageField.id}>Percentage</FieldLabel>
               <Input
                 {...getInputProps(percentageField, { type: "number" })}
+                className="h-10 rounded-sm"
                 min={0.01}
                 max={100}
                 step="0.01"
@@ -142,6 +144,7 @@ function IncentiveFields({
               <FieldLabel htmlFor={maxAmountField.id}>Maximum amount (NGN)</FieldLabel>
               <Input
                 {...getInputProps(maxAmountField, { type: "number" })}
+                className="h-10 rounded-sm"
                 min={0.01}
                 step="0.01"
                 inputMode="decimal"
@@ -215,6 +218,7 @@ export function ReferralProgramForm({ program }: { readonly program: ReferralPro
             </FieldLabel>
             <Input
               {...getInputProps(fields.minimumBookingAmount, { type: "number" })}
+              className="h-10 rounded-sm"
               min={0.01}
               step="0.01"
               inputMode="decimal"
@@ -227,6 +231,7 @@ export function ReferralProgramForm({ program }: { readonly program: ReferralPro
             </FieldLabel>
             <Input
               {...getInputProps(fields.referralValidityDays, { type: "number" })}
+              className="h-10 rounded-sm"
               min={0}
               max={3650}
               step={1}
@@ -241,6 +246,7 @@ export function ReferralProgramForm({ program }: { readonly program: ReferralPro
             </FieldLabel>
             <Input
               {...getInputProps(fields.maxCreditsPerBookingAmount, { type: "number" })}
+              className="h-10 rounded-sm"
               min={0}
               step="0.01"
               inputMode="decimal"
@@ -253,6 +259,7 @@ export function ReferralProgramForm({ program }: { readonly program: ReferralPro
             </FieldLabel>
             <Input
               {...getInputProps(fields.maxCreditsPerBookingPercent, { type: "number" })}
+              className="h-10 rounded-sm"
               min={0}
               max={100}
               step="0.01"

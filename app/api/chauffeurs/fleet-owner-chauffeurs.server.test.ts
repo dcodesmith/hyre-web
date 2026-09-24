@@ -70,7 +70,8 @@ describe("fleet-owner chauffeurs BFF", () => {
       request,
       idempotencyKey: "018f47a2-7b3c-7d4e-8f90-1234567894b1",
       body: {
-        name: "Bola Adebayo",
+        firstName: "Bola",
+        lastName: "Adebayo",
         email: "bola@example.com",
         phoneNumber: "+2348012345678",
       },
@@ -83,7 +84,8 @@ describe("fleet-owner chauffeurs BFF", () => {
     expect(headers.get("Idempotency-Key")).toBe("018f47a2-7b3c-7d4e-8f90-1234567894b1");
     expect(headers.get("content-type")).toBe("application/json");
     expect(JSON.parse(String(init?.body))).toEqual({
-      name: "Bola Adebayo",
+      firstName: "Bola",
+      lastName: "Adebayo",
       email: "bola@example.com",
       phoneNumber: "+2348012345678",
     });

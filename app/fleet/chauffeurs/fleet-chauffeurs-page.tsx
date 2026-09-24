@@ -76,18 +76,44 @@ function InviteChauffeurForm({
         name="idempotencyKey"
         value={inviteResult?.idempotencyKey ?? idempotencyKey}
       />
-      <Field data-invalid={Boolean(fields.name.errors)}>
-        <FieldLabel htmlFor={fields.name.id}>Full name</FieldLabel>
-        <Input {...getInputProps(fields.name, { type: "text" })} autoComplete="name" />
+      <Field data-invalid={Boolean(fields.firstName.errors)}>
+        <FieldLabel htmlFor={fields.firstName.id}>First name</FieldLabel>
+        <FieldDescription id={fields.firstName.descriptionId}>
+          Use their first and last name as they appear on their NIN.
+        </FieldDescription>
+        <Input
+          {...getInputProps(fields.firstName, {
+            type: "text",
+            ariaDescribedBy: fields.firstName.descriptionId,
+          })}
+          className="h-10 rounded-sm"
+          autoComplete="given-name"
+        />
         <FieldError
-          id={fields.name.errorId}
-          errors={fields.name.errors?.map((message) => ({ message }))}
+          id={fields.firstName.errorId}
+          errors={fields.firstName.errors?.map((message) => ({ message }))}
+        />
+      </Field>
+      <Field data-invalid={Boolean(fields.lastName.errors)}>
+        <FieldLabel htmlFor={fields.lastName.id}>Last name</FieldLabel>
+        <Input
+          {...getInputProps(fields.lastName, {
+            type: "text",
+            ariaDescribedBy: fields.firstName.descriptionId,
+          })}
+          className="h-10 rounded-sm"
+          autoComplete="family-name"
+        />
+        <FieldError
+          id={fields.lastName.errorId}
+          errors={fields.lastName.errors?.map((message) => ({ message }))}
         />
       </Field>
       <Field data-invalid={Boolean(fields.email.errors)}>
         <FieldLabel htmlFor={fields.email.id}>Email address</FieldLabel>
         <Input
           {...getInputProps(fields.email, { type: "email" })}
+          className="h-10 rounded-sm"
           autoComplete="email"
           spellCheck={false}
         />
@@ -100,6 +126,7 @@ function InviteChauffeurForm({
         <FieldLabel htmlFor={fields.phoneNumber.id}>Phone number</FieldLabel>
         <Input
           {...getInputProps(fields.phoneNumber, { type: "tel" })}
+          className="h-10 rounded-sm"
           autoComplete="tel"
           inputMode="tel"
           placeholder="+234 801 234 5678…"

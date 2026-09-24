@@ -60,6 +60,7 @@ function FileReplacementForm({
             id={inputId}
             name="file"
             type="file"
+            className="h-10 rounded-sm"
             accept={kind === "image" ? "image/jpeg,image/png,image/webp" : "application/pdf"}
             required
             disabled={isUploading}

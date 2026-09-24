@@ -309,7 +309,7 @@ export function AdminFinancialsPage(props: AdminFinancialsPageProps) {
             autoComplete="off"
             defaultValue={view.attentionOnly ? "attention" : "all"}
           >
-            <SelectTrigger id="financial-scope" className="w-full">
+            <SelectTrigger id="financial-scope" className="h-10 w-full rounded-sm">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -326,7 +326,7 @@ export function AdminFinancialsPage(props: AdminFinancialsPageProps) {
             autoComplete="off"
             defaultValue={view.status ?? "ALL"}
           >
-            <SelectTrigger id="financial-status" className="w-full">
+            <SelectTrigger id="financial-status" className="h-10 w-full rounded-sm">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

@@ -134,6 +134,7 @@ function VatRateForm({ actionData }: { readonly actionData?: RateActionData }) {
           <FieldLabel htmlFor={fields.ratePercent.id}>Rate percentage</FieldLabel>
           <Input
             {...getInputProps(fields.ratePercent, { type: "number" })}
+            className="h-10 rounded-sm"
             autoComplete="off"
             min={0}
             max={100}
@@ -183,7 +184,7 @@ function PlatformFeeForm({ actionData }: { readonly actionData?: RateActionData 
           >
             <SelectTrigger
               id={fields.feeType.id}
-              className="w-full"
+              className="h-10 w-full rounded-sm"
               aria-invalid={fields.feeType.errors ? true : undefined}
               aria-describedby={fields.feeType.errors ? fields.feeType.errorId : undefined}
             >
@@ -202,6 +203,7 @@ function PlatformFeeForm({ actionData }: { readonly actionData?: RateActionData 
           <FieldLabel htmlFor={fields.ratePercent.id}>Rate percentage</FieldLabel>
           <Input
             {...getInputProps(fields.ratePercent, { type: "number" })}
+            className="h-10 rounded-sm"
             autoComplete="off"
             min={0}
             max={100}

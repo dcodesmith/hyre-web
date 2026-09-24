@@ -59,6 +59,7 @@ function ReconcileRefund({ refund }: { readonly refund: AdminRefundDetail }) {
                   id="refund-provider-id"
                   form={formId}
                   name="refundProviderId"
+                  className="h-10 rounded-sm"
                   autoComplete="off"
                   spellCheck={false}
                   required

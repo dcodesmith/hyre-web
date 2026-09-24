@@ -71,6 +71,7 @@ function CreateAddonForm() {
           <FieldLabel htmlFor={fields.name.id}>Name</FieldLabel>
           <Input
             {...getInputProps(fields.name, { type: "text" })}
+            className="h-10 rounded-sm"
             autoComplete="off"
             maxLength={100}
           />
@@ -80,11 +81,11 @@ function CreateAddonForm() {
           <FieldLabel htmlFor={fields.code.id}>Code</FieldLabel>
           <Input
             {...getInputProps(fields.code, { type: "text" })}
+            className="h-10 rounded-sm uppercase"
             autoComplete="off"
             maxLength={64}
             placeholder="e.g. PROTOCOL_SERVICE…"
             spellCheck={false}
-            className="uppercase"
           />
           <FieldError errors={fields.code.errors} />
         </Field>
@@ -93,6 +94,7 @@ function CreateAddonForm() {
         <FieldLabel htmlFor={fields.description.id}>Description (optional)</FieldLabel>
         <Input
           {...getInputProps(fields.description, { type: "text" })}
+          className="h-10 rounded-sm"
           autoComplete="off"
           maxLength={500}
         />
@@ -111,7 +113,7 @@ function CreateAddonForm() {
             id={fields.pricingUnit.id}
             name={fields.pricingUnit.name}
             defaultValue={fields.pricingUnit.initialValue ?? "PER_BOOKING"}
-            className="h-9 w-full rounded-md border bg-background px-3 text-sm text-foreground"
+            className="h-10 w-full rounded-sm border bg-background px-3 text-sm text-foreground"
           >
             <option value="PER_BOOKING">Once per booking</option>
             <option value="PER_LEG">For every booking leg</option>
@@ -124,7 +126,7 @@ function CreateAddonForm() {
             id={fields.financialTreatment.id}
             name={fields.financialTreatment.name}
             defaultValue={fields.financialTreatment.initialValue ?? "PLATFORM"}
-            className="h-9 w-full rounded-md border bg-background px-3 text-sm text-foreground"
+            className="h-10 w-full rounded-sm border bg-background px-3 text-sm text-foreground"
           >
             <option value="PLATFORM">Tripdly</option>
             <option value="FLEET_OWNER">Fleet owner</option>
@@ -171,6 +173,7 @@ function UpdateAddonForm({ addon }: { readonly addon: AdminAddon }) {
         <FieldLabel htmlFor={fields.name.id}>Name</FieldLabel>
         <Input
           {...getInputProps(fields.name, { type: "text" })}
+          className="h-10 rounded-sm"
           autoComplete="off"
           maxLength={100}
         />
@@ -180,6 +183,7 @@ function UpdateAddonForm({ addon }: { readonly addon: AdminAddon }) {
         <FieldLabel htmlFor={fields.description.id}>Description (optional)</FieldLabel>
         <Input
           {...getInputProps(fields.description, { type: "text" })}
+          className="h-10 rounded-sm"
           autoComplete="off"
           maxLength={500}
         />
@@ -196,7 +200,7 @@ function UpdateAddonForm({ addon }: { readonly addon: AdminAddon }) {
           id={fields.isActive.id}
           name={fields.isActive.name}
           defaultValue={String(addon.isActive)}
-          className="h-9 w-full rounded-md border bg-background px-3 text-sm text-foreground"
+          className="h-10 w-full rounded-sm border bg-background px-3 text-sm text-foreground"
         >
           <option value="true">Enabled</option>
           <option value="false">Disabled</option>

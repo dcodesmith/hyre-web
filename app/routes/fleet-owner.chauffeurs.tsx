@@ -113,7 +113,8 @@ async function inviteAction(request: Request, formData: FormData, isOwnerDriver:
       request,
       idempotencyKey: submission.value.idempotencyKey,
       body: {
-        name: submission.value.name,
+        firstName: submission.value.firstName,
+        lastName: submission.value.lastName,
         email: submission.value.email,
         phoneNumber: submission.value.phoneNumber,
       },

@@ -63,7 +63,7 @@ function FilterOptions({ title, options, selectedValues, onToggle, inline }: Fle
             value={query}
             onChange={(event) => setQuery(event.currentTarget.value)}
             placeholder={`Search ${title}`}
-            className="h-9 pl-9"
+            className="h-10 rounded-sm pl-9"
           />
         </div>
       ) : null}

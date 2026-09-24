@@ -2,7 +2,8 @@ import type { SubmissionResult } from "@conform-to/react";
 import { z } from "zod";
 
 export const inviteChauffeurFormSchema = z.object({
-  name: z.string({ error: "Name is required" }).trim().min(2).max(120),
+  firstName: z.string({ error: "First name is required" }).trim().min(1).max(80),
+  lastName: z.string({ error: "Last name is required" }).trim().min(1).max(80),
   email: z
     .string({ error: "Email is required" })
     .trim()
