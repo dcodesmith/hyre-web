@@ -3,20 +3,34 @@ import { Outlet, useLocation } from "react-router";
 import { Separator } from "~/components/ui/separator";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "~/components/ui/sidebar";
 import { TooltipProvider } from "~/components/ui/tooltip";
+import { fleetOwnerRoleLabel } from "~/fleet/fleet-owner-role";
 import { FleetOwnerSidebar } from "~/fleet/fleet-owner-sidebar";
 
 function visualFleetTitle(pathname: string) {
+  if (pathname.includes("owner-car")) {
+    return "Your car";
+  }
+
   return pathname.includes("chauffeur") ? "Chauffeurs" : "Add Car";
 }
 
 export default function FleetVisualLayout() {
   const location = useLocation();
+  const role =
+    new URLSearchParams(location.search).get("role") ??
+    (location.pathname.includes("owner-car") ? "owner-driver" : null);
+  const onboarding = {
+    accountType: role === "business" ? "BUSINESS" : "INDIVIDUAL",
+    isOwnerDriver: role === "owner-driver",
+  } as const;
 
   return (
     <TooltipProvider>
       <SidebarProvider>
         <FleetOwnerSidebar
           isLoggingOut={false}
+          roleLabel={fleetOwnerRoleLabel(onboarding)}
+          showChauffeurs={!onboarding.isOwnerDriver}
           user={{ email: "owner@example.com", name: "Ada Lovelace" }}
         />
         <SidebarInset>

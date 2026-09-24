@@ -1,15 +1,25 @@
+import { RouterContextProvider } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 
-const { createFleetDraftCar, createFleetVehicleVerification, getFleetVehicleVerification } =
-  vi.hoisted(() => ({
-    createFleetDraftCar: vi.fn(),
-    createFleetVehicleVerification: vi.fn(),
-    getFleetVehicleVerification: vi.fn(),
-  }));
+const {
+  createFleetDraftCar,
+  createFleetVehicleVerification,
+  getFleetCars,
+  getFleetVehicleVerification,
+} = vi.hoisted(() => ({
+  createFleetDraftCar: vi.fn(),
+  createFleetVehicleVerification: vi.fn(),
+  getFleetCars: vi.fn(),
+  getFleetVehicleVerification: vi.fn(),
+}));
 
 vi.mock("cloudflare:workers", () => ({
   env: { API_ORIGIN: "https://api.invalid" },
+}));
+
+vi.mock("~/api/fleet/cars/cars.server", () => ({
+  getFleetCars,
 }));
 
 vi.mock("~/api/fleet/cars/car-onboarding.server", () => ({
@@ -22,6 +32,8 @@ import { ApiRequestError } from "~/api/api.server";
 import { HTTP_STATUS } from "~/api/http-status";
 import { carOnboardingPlateFormSchema } from "~/fleet/cars/car-onboarding-form-schema";
 import { ineligibleFleetVehicleMessage } from "~/fleet/cars/fleet-car";
+import type { FleetOwnerRequestContext } from "~/fleet/fleet-owner-context";
+import { fleetOwnerContext } from "~/fleet/fleet-owner-context";
 import { action, loader, shouldRevalidate } from "./fleet-owner.cars.new";
 
 const IDEMPOTENCY_KEY = "18aa029c-4bb1-4ca7-b25e-cfc802c4bf8c";
@@ -115,14 +127,25 @@ function formData(fields: Record<string, string>) {
   return body;
 }
 
-async function runAction(fields: Record<string, string>) {
+function fleetContext(isOwnerDriver = false) {
+  const context = new RouterContextProvider();
+  context.set(fleetOwnerContext, {
+    onboarding: { isOwnerDriver },
+    user: { id: "user-1", email: "owner@example.com", name: "Ada", roles: ["fleetOwner"] },
+  } as FleetOwnerRequestContext);
+  return context;
+}
+
+async function runAction(fields: Record<string, string>, isOwnerDriver = false) {
   const request = new Request("https://tripdly.com/fleet-owner/cars/new", {
     method: "POST",
     body: formData(fields),
   });
-  const result = await action({ request, params: {}, context: {} } as never).catch(
-    (error: unknown) => error,
-  );
+  const result = await action({
+    request,
+    params: {},
+    context: fleetContext(isOwnerDriver),
+  } as never).catch((error: unknown) => error);
   return { request, result };
 }
 
@@ -147,15 +170,36 @@ describe("fleet-owner cars new route", () => {
       .mockReturnValueOnce(NEXT_IDEMPOTENCY_KEY);
     const request = new Request("https://tripdly.com/fleet-owner/cars/new");
 
-    expect(await loader({ request, params: {}, context: {} } as never)).toEqual({
+    expect(await loader({ request, params: {}, context: fleetContext() } as never)).toEqual({
       idempotencyKey: IDEMPOTENCY_KEY,
     });
-    expect(await loader({ request, params: {}, context: {} } as never)).toEqual({
+    expect(await loader({ request, params: {}, context: fleetContext() } as never)).toEqual({
       idempotencyKey: NEXT_IDEMPOTENCY_KEY,
     });
     expect(createFleetDraftCar).not.toHaveBeenCalled();
     expect(createFleetVehicleVerification).not.toHaveBeenCalled();
     uuid.mockRestore();
+  });
+
+  it("sends an owner-driver who already has a car back to that car", async () => {
+    getFleetCars.mockResolvedValue({ data: [fleetCar] });
+    const request = new Request("https://tripdly.com/fleet-owner/cars/new");
+    const result = await loader({
+      request,
+      params: {},
+      context: fleetContext(true),
+    } as never).catch((error: unknown) => error);
+
+    expectRedirect(result, `/fleet-owner/cars/${fleetCar.id}`);
+    expect(createFleetDraftCar).not.toHaveBeenCalled();
+  });
+
+  it("does not create a second car for an owner-driver", async () => {
+    getFleetCars.mockResolvedValue({ data: [fleetCar] });
+    const { result } = await runAction(validDraftFields, true);
+
+    expectRedirect(result, `/fleet-owner/cars/${fleetCar.id}`);
+    expect(createFleetDraftCar).not.toHaveBeenCalled();
   });
 
   it("revalidates GET navigations so No can remount the form with a new key", () => {

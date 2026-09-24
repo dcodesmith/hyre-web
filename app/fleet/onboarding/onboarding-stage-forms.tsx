@@ -6,6 +6,7 @@ import type { FleetOwnerBank, FleetOwnerOnboarding } from "~/api/fleet/onboardin
 import { FormError } from "~/components/forms/form-primitives";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
+import { fleetOwnerRoleLabel } from "~/fleet/fleet-owner-role";
 import {
   AccountTypeFields,
   BankFields,
@@ -256,6 +257,10 @@ export function OnboardingSubmitForm({
       description="Confirm these details, then submit for review."
     >
       <dl className="mb-6 grid gap-3 rounded-sm border p-4 text-sm sm:grid-cols-2">
+        <div>
+          <dt className="text-muted-foreground">Account</dt>
+          <dd className="mt-1 font-medium">{fleetOwnerRoleLabel(onboarding)}</dd>
+        </div>
         <div>
           <dt className="text-muted-foreground">Identity</dt>
           <dd className="mt-1 wrap-break-words font-medium">
