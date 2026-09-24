@@ -78,11 +78,14 @@ function InviteChauffeurForm({
       />
       <Field data-invalid={Boolean(fields.firstName.errors)}>
         <FieldLabel htmlFor={fields.firstName.id}>First name</FieldLabel>
-        <FieldDescription>
+        <FieldDescription id={fields.firstName.descriptionId}>
           Use their first and last name as they appear on their NIN.
         </FieldDescription>
         <Input
-          {...getInputProps(fields.firstName, { type: "text" })}
+          {...getInputProps(fields.firstName, {
+            type: "text",
+            ariaDescribedBy: fields.firstName.descriptionId,
+          })}
           className="h-10 rounded-sm"
           autoComplete="given-name"
         />
@@ -94,7 +97,10 @@ function InviteChauffeurForm({
       <Field data-invalid={Boolean(fields.lastName.errors)}>
         <FieldLabel htmlFor={fields.lastName.id}>Last name</FieldLabel>
         <Input
-          {...getInputProps(fields.lastName, { type: "text" })}
+          {...getInputProps(fields.lastName, {
+            type: "text",
+            ariaDescribedBy: fields.firstName.descriptionId,
+          })}
           className="h-10 rounded-sm"
           autoComplete="family-name"
         />
