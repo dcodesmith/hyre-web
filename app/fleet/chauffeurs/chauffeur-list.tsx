@@ -1,4 +1,5 @@
 import { cn } from "cn";
+import { useState } from "react";
 import { useFetcher } from "react-router";
 import type { ChauffeurVerificationStatus, FleetOwnerChauffeur } from "~/api/chauffeurs/schema";
 import { Avatar, AvatarFallback, AvatarImage } from "~/components/ui/avatar";
@@ -63,8 +64,45 @@ function StatusBadge({ chauffeur }: { readonly chauffeur: FleetOwnerChauffeur })
   );
 }
 
+function ChauffeurReinvite({ chauffeur }: { readonly chauffeur: FleetOwnerChauffeur }) {
+  const fetcher = useFetcher<ChauffeurActionData>();
+  const [idempotencyKey] = useState(() => crypto.randomUUID());
+  const pending = fetcher.state !== "idle";
+  const result = fetcher.data?.intent === "invite" ? fetcher.data : undefined;
+
+  return (
+    <div className="space-y-1.5">
+      <fetcher.Form method="post">
+        <input type="hidden" name="intent" value="invite" />
+        <input type="hidden" name="reinvite" value="1" />
+        <input
+          type="hidden"
+          name="idempotencyKey"
+          value={result?.idempotencyKey ?? idempotencyKey}
+        />
+        <input type="hidden" name="firstName" value={chauffeur.firstName} />
+        <input type="hidden" name="lastName" value={chauffeur.lastName} />
+        <input type="hidden" name="email" value={chauffeur.email} />
+        <input type="hidden" name="phoneNumber" value={chauffeur.phoneNumber} />
+        <Button type="submit" variant="outline" size="sm" disabled={pending} aria-live="polite">
+          {pending ? "Sending…" : "Re-invite"}
+        </Button>
+      </fetcher.Form>
+      {result?.error ? (
+        <p role="alert" className="max-w-48 text-xs text-destructive">
+          {result.error}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 function ChauffeurToggle({ chauffeur }: { readonly chauffeur: FleetOwnerChauffeur }) {
   const fetcher = useFetcher<ChauffeurActionData>();
+
+  if (chauffeur.canReinvite) {
+    return <ChauffeurReinvite chauffeur={chauffeur} />;
+  }
 
   if (chauffeur.status !== "APPROVED" || !chauffeur.chauffeurId) {
     return <span className="text-xs text-muted-foreground">Verification in progress</span>;

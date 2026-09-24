@@ -34,12 +34,15 @@ const chauffeur = {
   id: "018f47a2-7b3c-7d4e-8f90-1234567894b1",
   chauffeurId: "018f47a2-7b3c-7d4e-8f90-1234567894a1",
   name: "Bola Adebayo",
+  firstName: "Bola",
+  lastName: "Adebayo",
   email: "bola@example.com",
   phoneNumber: "+2348012345678",
   status: "APPROVED" as const,
   isActive: true,
   image: null,
   invitedAt: "2026-08-20T12:00:00.000Z",
+  canReinvite: false,
 };
 
 const complianceRequirements = [{ type: "LASDRI" as const, label: "LASDRI card", required: false }];
@@ -235,6 +238,53 @@ describe("fleet-owner chauffeurs route", () => {
       },
     });
     expectRedirect(result, PATH);
+  });
+
+  it("tells the fleet owner to correct a re-invite that has no last name", async () => {
+    const result = await action(
+      actionArgs({
+        intent: "invite",
+        reinvite: "1",
+        firstName: "Ada",
+        lastName: "",
+        email: "ada@example.com",
+        phoneNumber: "+2348012345678",
+        idempotencyKey: IDEMPOTENCY_KEY,
+      }),
+    );
+
+    expect(inviteFleetOwnerChauffeur).not.toHaveBeenCalled();
+    expect(result).toMatchObject({
+      data: {
+        intent: "invite",
+        error:
+          "This invitation has no last name. Use Invite chauffeur and enter the name on their NIN.",
+      },
+      init: { status: HTTP_STATUS.BAD_REQUEST },
+    });
+  });
+
+  it("reports the phone validation error when a re-invite last name is present", async () => {
+    const result = await action(
+      actionArgs({
+        intent: "invite",
+        reinvite: "1",
+        firstName: "Ada",
+        lastName: "Lovelace",
+        email: "ada@example.com",
+        phoneNumber: "08012345678",
+        idempotencyKey: IDEMPOTENCY_KEY,
+      }),
+    );
+
+    expect(inviteFleetOwnerChauffeur).not.toHaveBeenCalled();
+    expect(result).toMatchObject({
+      data: {
+        intent: "invite",
+        error: "Use international format, for example +2348012345678",
+      },
+      init: { status: HTTP_STATUS.BAD_REQUEST },
+    });
   });
 
   it("rejects an owner-driver invitation without calling the API", async () => {

@@ -24,12 +24,15 @@ const chauffeur = {
   id: "018f47a2-7b3c-7d4e-8f90-1234567894b1",
   chauffeurId: "018f47a2-7b3c-7d4e-8f90-1234567894a1",
   name: "Bola Adebayo",
+  firstName: "Bola",
+  lastName: "Adebayo",
   email: "bola@example.com",
   phoneNumber: "+2348012345678",
   status: "APPROVED",
   isActive: true,
   image: null,
   invitedAt: "2026-08-20T12:00:00.000Z",
+  canReinvite: false,
 };
 
 const chauffeurs = {

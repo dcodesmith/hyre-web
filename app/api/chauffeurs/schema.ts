@@ -45,12 +45,15 @@ export const fleetOwnerChauffeurSchema = z.object({
   id: z.uuid(),
   chauffeurId: z.uuid().nullable(),
   name: z.string(),
+  firstName: z.string(),
+  lastName: z.string(),
   email: z.email(),
   phoneNumber: z.string(),
   status: chauffeurVerificationStatusSchema,
   isActive: z.boolean(),
   image: z.string().nullable(),
   invitedAt: z.iso.datetime(),
+  canReinvite: z.boolean(),
 });
 
 export const fleetOwnerChauffeursSchema = z.object({

@@ -58,6 +58,15 @@ test("lists, invites, and deactivates fleet chauffeurs", async ({ context, page 
     await expect(page).toHaveURL("/fleet-owner/chauffeurs?page=2");
 
     await page.goto("/fleet-owner/chauffeurs");
+    await page.getByRole("button", { name: "Re-invite" }).click();
+    await expect
+      .poll(() => api.requests.chauffeurInvitations.at(-1))
+      .toEqual({
+        firstName: "Chauffeur",
+        lastName: "02",
+        email: "chauffeur2@example.com",
+        phoneNumber: "+2348010000002",
+      });
     await page.getByRole("link", { name: "Invite chauffeur" }).click();
     await expect(page).toHaveURL("/fleet-owner/chauffeurs?invite=1");
     await expect(page.getByRole("heading", { name: "Invite a chauffeur" })).toBeVisible();
