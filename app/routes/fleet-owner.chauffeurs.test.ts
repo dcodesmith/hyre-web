@@ -129,7 +129,8 @@ function apiError(
 function inviteFields(overrides: Record<string, string> = {}) {
   return {
     intent: "invite",
-    name: "Bola Adebayo",
+    firstName: "Bola",
+    lastName: "Adebayo",
     email: "bola@example.com",
     phoneNumber: "+2348012345678",
     idempotencyKey: IDEMPOTENCY_KEY,
@@ -214,7 +215,8 @@ describe("fleet-owner chauffeurs route", () => {
   it("invites a chauffeur and redirects to the list", async () => {
     const args = actionArgs({
       intent: "invite",
-      name: "  Bola Adebayo  ",
+      firstName: "  Bola  ",
+      lastName: "  Adebayo  ",
       email: " Bola@Example.com ",
       phoneNumber: "+2348012345678",
       idempotencyKey: IDEMPOTENCY_KEY,
@@ -226,7 +228,8 @@ describe("fleet-owner chauffeurs route", () => {
       request: args.request,
       idempotencyKey: IDEMPOTENCY_KEY,
       body: {
-        name: "Bola Adebayo",
+        firstName: "Bola",
+        lastName: "Adebayo",
         email: "bola@example.com",
         phoneNumber: "+2348012345678",
       },
@@ -239,7 +242,8 @@ describe("fleet-owner chauffeurs route", () => {
       actionArgs(
         {
           intent: "invite",
-          name: "Bola Adebayo",
+          firstName: "Bola",
+          lastName: "Adebayo",
           email: "bola@example.com",
           phoneNumber: "+2348012345678",
           idempotencyKey: IDEMPOTENCY_KEY,
@@ -265,7 +269,8 @@ describe("fleet-owner chauffeurs route", () => {
     const invalid = await action(
       actionArgs(
         inviteFields({
-          name: "A",
+          firstName: "",
+          lastName: "",
           email: "not-an-email",
           phoneNumber: "08012345678",
         }),

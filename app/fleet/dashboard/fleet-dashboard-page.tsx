@@ -139,7 +139,7 @@ function RangeFilter({
           value={selectedRange}
           onValueChange={(value) => setSelectedRange(value as DashboardRange)}
         >
-          <SelectTrigger id="dashboard-range">
+          <SelectTrigger id="dashboard-range" className="h-10 rounded-sm">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>

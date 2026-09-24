@@ -33,7 +33,8 @@ export function inviteFleetOwnerChauffeur({
   readonly request: Request;
   readonly idempotencyKey: string;
   readonly body: {
-    readonly name: string;
+    readonly firstName: string;
+    readonly lastName: string;
     readonly email: string;
     readonly phoneNumber: string;
   };

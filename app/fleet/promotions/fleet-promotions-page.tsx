@@ -197,6 +197,7 @@ function CreatePromotionForm({
         <Label htmlFor={fields.name.id}>Promotion name (optional)</Label>
         <Input
           {...getInputProps(fields.name, { type: "text" })}
+          className="h-10 rounded-sm"
           placeholder="e.g. Easter Special"
         />
         <FormError id={fields.name.errorId} errors={fields.name.errors} />
@@ -211,7 +212,7 @@ function CreatePromotionForm({
         >
           <SelectTrigger
             id={fields.target.id}
-            className="w-full"
+            className="h-10 w-full rounded-sm"
             aria-invalid={fields.target.errors ? true : undefined}
             aria-describedby={fields.target.errors ? fields.target.errorId : undefined}
           >
@@ -233,6 +234,7 @@ function CreatePromotionForm({
         <Label htmlFor={fields.discountValue.id}>Discount (%)</Label>
         <Input
           {...getInputProps(fields.discountValue, { type: "number" })}
+          className="h-10 rounded-sm"
           min={1}
           max={MAX_PROMOTION_PERCENTAGE}
           step="any"
@@ -247,12 +249,15 @@ function CreatePromotionForm({
       <div className="grid grid-cols-1 gap-4 min-[400px]:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor={fields.startDate.id}>Start date</Label>
-          <Input {...getInputProps(fields.startDate, { type: "date" })} />
+          <Input
+            {...getInputProps(fields.startDate, { type: "date" })}
+            className="h-10 rounded-sm"
+          />
           <FormError id={fields.startDate.errorId} errors={fields.startDate.errors} />
         </div>
         <div className="space-y-2">
           <Label htmlFor={fields.endDate.id}>End date (inclusive)</Label>
-          <Input {...getInputProps(fields.endDate, { type: "date" })} />
+          <Input {...getInputProps(fields.endDate, { type: "date" })} className="h-10 rounded-sm" />
           <FormError id={fields.endDate.errorId} errors={fields.endDate.errors} />
         </div>
       </div>

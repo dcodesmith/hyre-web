@@ -61,7 +61,8 @@ test("lists, invites, and deactivates fleet chauffeurs", async ({ context, page 
     await page.getByRole("link", { name: "Invite chauffeur" }).click();
     await expect(page).toHaveURL("/fleet-owner/chauffeurs?invite=1");
     await expect(page.getByRole("heading", { name: "Invite a chauffeur" })).toBeVisible();
-    await page.getByLabel("Full name").fill("Grace Hopper");
+    await page.getByLabel("First name").fill("Grace");
+    await page.getByLabel("Last name").fill("Hopper");
     await page.getByLabel("Email address").fill("Grace@Example.com");
     await page.getByLabel("Phone number").fill("+2348098765432");
     await page.getByRole("button", { name: "Send invitation" }).click();
@@ -71,7 +72,8 @@ test("lists, invites, and deactivates fleet chauffeurs", async ({ context, page 
     await expect
       .poll(() => api.requests.chauffeurInvitations.at(-1))
       .toEqual({
-        name: "Grace Hopper",
+        firstName: "Grace",
+        lastName: "Hopper",
         email: "grace@example.com",
         phoneNumber: "+2348098765432",
       });

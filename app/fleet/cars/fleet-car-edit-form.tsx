@@ -116,6 +116,7 @@ export function FleetCarEditForm({ actionData, car }: FleetCarEditFormProps) {
                   <FieldLabel htmlFor={fields.hourlyRate.id}>Hourly rate</FieldLabel>
                   <Input
                     {...getInputProps(fields.hourlyRate, { type: "number" })}
+                    className="h-10 rounded-sm"
                     inputMode="numeric"
                     min={1}
                   />
@@ -126,6 +127,7 @@ export function FleetCarEditForm({ actionData, car }: FleetCarEditFormProps) {
                   <FieldLabel htmlFor={fields.dayRate.id}>Daily rate (12 hours)</FieldLabel>
                   <Input
                     {...getInputProps(fields.dayRate, { type: "number" })}
+                    className="h-10 rounded-sm"
                     inputMode="numeric"
                     min={1}
                   />
@@ -136,6 +138,7 @@ export function FleetCarEditForm({ actionData, car }: FleetCarEditFormProps) {
                   <FieldLabel htmlFor={fields.nightRate.id}>Nightly rate (11pm to 5am)</FieldLabel>
                   <Input
                     {...getInputProps(fields.nightRate, { type: "number" })}
+                    className="h-10 rounded-sm"
                     inputMode="numeric"
                     min={1}
                   />
@@ -146,6 +149,7 @@ export function FleetCarEditForm({ actionData, car }: FleetCarEditFormProps) {
                   <FieldLabel htmlFor={fields.fullDayRate.id}>Full day rate (24 hours)</FieldLabel>
                   <Input
                     {...getInputProps(fields.fullDayRate, { type: "number" })}
+                    className="h-10 rounded-sm"
                     inputMode="numeric"
                     min={1}
                   />
@@ -156,6 +160,7 @@ export function FleetCarEditForm({ actionData, car }: FleetCarEditFormProps) {
                   <FieldLabel htmlFor={fields.airportPickupRate.id}>Airport pickup rate</FieldLabel>
                   <Input
                     {...getInputProps(fields.airportPickupRate, { type: "number" })}
+                    className="h-10 rounded-sm"
                     inputMode="numeric"
                     min={1}
                   />
@@ -196,6 +201,7 @@ export function FleetCarEditForm({ actionData, car }: FleetCarEditFormProps) {
                     <FieldLabel htmlFor={fields.fuelUpgradeRate.id}>Fuel upgrade rate</FieldLabel>
                     <Input
                       {...getInputProps(fields.fuelUpgradeRate, { type: "number" })}
+                      className="h-10 rounded-sm"
                       inputMode="numeric"
                       min={1}
                       placeholder="Required when fuel is not included"
@@ -233,7 +239,7 @@ export function FleetCarEditForm({ actionData, car }: FleetCarEditFormProps) {
                     >
                       <SelectTrigger
                         id={fields.status.id}
-                        className="w-full"
+                        className="h-10 w-full rounded-sm"
                         {...errorAttributes(fields.status.errors, fields.status.errorId)}
                       >
                         <SelectValue />

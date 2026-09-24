@@ -61,6 +61,7 @@ function CreatePriceForm({ addonId }: { readonly addonId: string }) {
         <FieldLabel htmlFor={fields.amount.id}>Amount (NGN)</FieldLabel>
         <Input
           {...getInputProps(fields.amount, { type: "number" })}
+          className="h-10 rounded-sm"
           autoComplete="off"
           inputMode="decimal"
           min="0.01"
@@ -72,6 +73,7 @@ function CreatePriceForm({ addonId }: { readonly addonId: string }) {
         <FieldLabel htmlFor={fields.effectiveSince.id}>Effective from (UTC)</FieldLabel>
         <Input
           {...getInputProps(fields.effectiveSince, { type: "datetime-local" })}
+          className="h-10 rounded-sm"
           autoComplete="off"
         />
         <FieldError errors={fields.effectiveSince.errors} />
@@ -80,6 +82,7 @@ function CreatePriceForm({ addonId }: { readonly addonId: string }) {
         <FieldLabel htmlFor={fields.effectiveUntil.id}>Effective until (optional)</FieldLabel>
         <Input
           {...getInputProps(fields.effectiveUntil, { type: "datetime-local" })}
+          className="h-10 rounded-sm"
           autoComplete="off"
         />
         <FieldError errors={fields.effectiveUntil.errors} />

@@ -189,6 +189,7 @@ function AddStaffDialog({
               <FieldLabel htmlFor={fields.name.id}>Full Name</FieldLabel>
               <Input
                 {...getInputProps(fields.name, { type: "text" })}
+                className="h-10 rounded-sm"
                 autoComplete="name"
                 placeholder="John Doe"
               />
@@ -198,6 +199,7 @@ function AddStaffDialog({
               <FieldLabel htmlFor={fields.email.id}>Email</FieldLabel>
               <Input
                 {...getInputProps(fields.email, { type: "email" })}
+                className="h-10 rounded-sm"
                 autoComplete="email"
                 placeholder="email@example.com"
               />
@@ -207,6 +209,7 @@ function AddStaffDialog({
               <FieldLabel htmlFor={fields.phoneNumber.id}>Phone Number</FieldLabel>
               <Input
                 {...getInputProps(fields.phoneNumber, { type: "tel" })}
+                className="h-10 rounded-sm"
                 autoComplete="tel"
                 placeholder="+1234567890"
               />
