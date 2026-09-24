@@ -84,13 +84,20 @@ async function inviteAction(request: Request, formData: FormData, isOwnerDriver:
 
   if (submission.status !== "success") {
     const idempotencyKey = formData.get("idempotencyKey");
+    const lastName = formData.get("lastName");
+    const missingLastName = typeof lastName !== "string" || lastName.trim() === "";
+    const validationError = Object.values(submission.error ?? {})
+      .flat()
+      .find((message): message is string => typeof message === "string");
     return data<ChauffeurActionData>(
       {
         intent: "invite",
         idempotencyKey: typeof idempotencyKey === "string" ? idempotencyKey : "",
         error:
           formData.get("reinvite") === "1"
-            ? "This invitation has no last name. Use Invite chauffeur and enter the name on their NIN."
+            ? missingLastName
+              ? "This invitation has no last name. Use Invite chauffeur and enter the name on their NIN."
+              : validationError
             : undefined,
         revalidate: false,
         submission: submission.reply(),

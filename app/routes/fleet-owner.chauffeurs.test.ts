@@ -264,6 +264,29 @@ describe("fleet-owner chauffeurs route", () => {
     });
   });
 
+  it("reports the phone validation error when a re-invite last name is present", async () => {
+    const result = await action(
+      actionArgs({
+        intent: "invite",
+        reinvite: "1",
+        firstName: "Ada",
+        lastName: "Lovelace",
+        email: "ada@example.com",
+        phoneNumber: "08012345678",
+        idempotencyKey: IDEMPOTENCY_KEY,
+      }),
+    );
+
+    expect(inviteFleetOwnerChauffeur).not.toHaveBeenCalled();
+    expect(result).toMatchObject({
+      data: {
+        intent: "invite",
+        error: "Use international format, for example +2348012345678",
+      },
+      init: { status: HTTP_STATUS.BAD_REQUEST },
+    });
+  });
+
   it("rejects an owner-driver invitation without calling the API", async () => {
     const result = await action(
       actionArgs(

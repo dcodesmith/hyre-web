@@ -1209,7 +1209,14 @@ async function handleFleetChauffeursRequest(
       invitedAt: "2026-09-11T12:00:00.000Z",
       canReinvite: false,
     };
-    chauffeurs.unshift(invited);
+    const existingIndex = chauffeurs.findIndex(
+      (item) => item.canReinvite && item.email === invited.email,
+    );
+    if (existingIndex === -1) {
+      chauffeurs.unshift(invited);
+    } else {
+      chauffeurs[existingIndex] = { ...invited, id: chauffeurs[existingIndex].id };
+    }
     writeJson(response, 201, invited);
     return true;
   }
