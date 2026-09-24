@@ -44,9 +44,16 @@ test("completes staged fleet-owner onboarding through phone, identity, payout, d
     await expect(page.getByRole("heading", { name: "Verify Your Account" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Verify Your Phone" })).toBeVisible();
 
-    await page.getByLabel("Phone number").fill("+2348012345678");
-    await page.getByRole("button", { name: "Send Verification Code" }).click();
-    await expect(page.getByRole("heading", { name: "Enter the SMS Code" })).toBeVisible();
+    const phone = page.getByLabel("Phone number");
+    const sendCode = page.getByRole("button", { name: "Send Verification Code" });
+    await expect(async () => {
+      await phone.fill("+2348012345678");
+      await expect(phone).toHaveValue("+2348012345678");
+      await sendCode.click();
+      await expect(page.getByRole("heading", { name: "Enter the SMS Code" })).toBeVisible({
+        timeout: 2_000,
+      });
+    }).toPass();
     await expect(page.getByText("Code sent to +2348012345678")).toBeVisible();
 
     await page.getByLabel("Verification code").fill("123456");

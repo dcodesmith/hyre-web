@@ -100,6 +100,12 @@ describe("applyResponsePolicy", () => {
     expect(response.headers.get("x-commit-sha")).toBe("a".repeat(40));
     expect(response.headers.get("content-security-policy")).toContain("default-src 'self'");
     expect(response.headers.get("content-security-policy")).toContain(
+      "https://static.cloudflareinsights.com",
+    );
+    expect(response.headers.get("content-security-policy")).toContain(
+      "https://cloudflareinsights.com",
+    );
+    expect(response.headers.get("content-security-policy")).toContain(
       "img-src 'self' data: blob: https://pub-7f459f6039f54e9b896f12bc832985f5.r2.dev",
     );
     expect(response.headers.get("content-security-policy")).not.toContain("amazonaws.com");

@@ -43,13 +43,13 @@ function contentSecurityPolicy(environment: DeploymentEnvironment) {
   return [
     "default-src 'self'",
     "base-uri 'self'",
-    "connect-src 'self' ws: wss:",
+    "connect-src 'self' ws: wss: https://cloudflareinsights.com",
     "font-src 'self' https://fonts.gstatic.com",
     "form-action 'self'",
     "frame-ancestors 'self'",
     `img-src ${imageSources.join(" ")}`,
     "object-src 'none'",
-    "script-src 'self' 'unsafe-inline'",
+    "script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com",
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   ].join("; ");
 }
