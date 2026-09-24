@@ -1,3 +1,4 @@
+import { env } from "cloudflare:workers";
 import { isbot } from "isbot";
 import { renderToReadableStream } from "react-dom/server";
 import type {
@@ -9,7 +10,10 @@ import type {
 } from "react-router";
 import { ServerRouter } from "react-router";
 
+import { setEdgeClientSecret } from "~/api/api.server";
 import { HTTP_STATUS } from "~/api/http-status";
+
+setEdgeClientSecret((env as { EDGE_CLIENT_SECRET?: string }).EDGE_CLIENT_SECRET);
 
 export const streamTimeout = 5_000;
 
