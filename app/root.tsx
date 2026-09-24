@@ -46,11 +46,13 @@ export function Layout({ children }: LayoutProps) {
         {children}
         <ScrollRestoration />
         <Scripts />
-        <script
-          defer
-          src="https://static.cloudflareinsights.com/beacon.min.js"
-          data-cf-beacon='{"token": "209e0e522608474a954b477dbb1f26de"}'
-        />
+        {import.meta.env.PROD ? (
+          <script
+            defer
+            src="https://static.cloudflareinsights.com/beacon.min.js"
+            data-cf-beacon='{"token": "209e0e522608474a954b477dbb1f26de"}'
+          />
+        ) : null}
       </body>
     </html>
   );
