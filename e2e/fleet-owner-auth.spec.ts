@@ -5,6 +5,7 @@ import {
   startMockFleetOwnerAuthApi,
   stopMockFleetOwnerAuthApi,
 } from "./mock-fleet-owner-auth-api";
+import { revealInSidebar } from "./reveal-sidebar";
 
 async function setCookiePreference(page: Page) {
   await page.addInitScript(() => {
@@ -113,9 +114,7 @@ test("completes fleet-owner OTP login, session loading, and logout", async ({ co
     await expect(page.getByRole("heading", { name: "Documents" })).toBeVisible();
 
     const logoutButton = page.getByRole("button", { name: "Log out" });
-    if (!(await logoutButton.isVisible())) {
-      await page.getByRole("button", { name: "Toggle Sidebar" }).click();
-    }
+    await revealInSidebar(page, logoutButton);
     await logoutButton.click();
 
     await expect(page).toHaveURL("/fleet-owner/login");

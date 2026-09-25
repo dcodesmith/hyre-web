@@ -1,6 +1,7 @@
 import { expect, type Page, test } from "@playwright/test";
 
 import { startMockAdminAuthApi, stopMockAdminAuthApi } from "./mock-admin-auth-api";
+import { revealInSidebar } from "./reveal-sidebar";
 
 async function setCookiePreference(page: Page) {
   await page.addInitScript(() => {
@@ -64,9 +65,7 @@ test("completes staff OTP login, protected shell loading, and logout", async ({
       });
 
     const logoutButton = page.getByRole("button", { name: "Log out" });
-    if (!(await logoutButton.isVisible())) {
-      await page.getByRole("button", { name: "Toggle Sidebar" }).click();
-    }
+    await revealInSidebar(page, logoutButton);
     await logoutButton.click();
 
     await expect(page).toHaveURL("/admin/login");
