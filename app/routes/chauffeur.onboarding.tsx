@@ -29,6 +29,7 @@ import {
   readChauffeurOnboardingSession,
 } from "~/chauffeur/chauffeur-onboarding-session.server";
 import { Button } from "~/components/ui/button";
+import { useRevalidateInterval } from "~/hooks/use-revalidate-interval";
 import { buildPageMetadata } from "~/seo/metadata";
 import type { Route } from "./+types/chauffeur.onboarding";
 
@@ -376,6 +377,7 @@ export default function ChauffeurOnboardingRoute({ actionData, loaderData }: Rou
 
 export function ErrorBoundary() {
   const revalidator = useRevalidator();
+  useRevalidateInterval(4_000);
   return (
     <main className="flex min-h-screen items-center justify-center bg-muted/30 px-4 text-center">
       <div>
