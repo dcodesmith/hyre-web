@@ -47,14 +47,15 @@ function initials(name: string) {
 
 function StatusBadge({ chauffeur }: { readonly chauffeur: FleetOwnerChauffeur }) {
   const config = statusConfig[chauffeur.status];
-  const label = chauffeur.status === "APPROVED" && !chauffeur.isActive ? "Inactive" : config.label;
+  const inactive = chauffeur.status === "APPROVED" && !chauffeur.isActive;
+  const label = inactive ? "Inactive" : chauffeur.canReinvite ? "Invite expired" : config.label;
 
   return (
     <Badge
       variant="outline"
       className={cn(
         "h-6 rounded-md border-none px-2.5 font-semibold ring-1 ring-inset",
-        chauffeur.status === "APPROVED" && !chauffeur.isActive
+        inactive || chauffeur.canReinvite
           ? "bg-gray-50 text-gray-700 ring-gray-600/10"
           : config.className,
       )}

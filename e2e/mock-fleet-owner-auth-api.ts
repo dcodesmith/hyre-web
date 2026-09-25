@@ -367,7 +367,7 @@ const mockFleetChauffeurs = Array.from({ length: 21 }, (_, index) => {
     lastName: approved ? "Adebayo" : String(number).padStart(2, "0"),
     email: `chauffeur${number}@example.com`,
     phoneNumber: `+23480${String(10000000 + number).slice(-8)}`,
-    status: approved ? "APPROVED" : "INVITED",
+    status: approved ? "APPROVED" : number === 2 ? "IDENTITY_VERIFIED" : "INVITED",
     isActive: approved,
     image: null,
     invitedAt: `2026-08-${String(Math.min(number, 28)).padStart(2, "0")}T12:00:00.000Z`,
