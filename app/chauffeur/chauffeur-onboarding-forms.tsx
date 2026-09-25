@@ -1,11 +1,19 @@
 import { getFormProps, getInputProps, useForm } from "@conform-to/react";
 import { getZodConstraint, parseWithZod } from "@conform-to/zod/v4";
 import { CameraIcon, ShieldCheckIcon } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Form, Link, useNavigation } from "react-router";
 import { AuthCheckbox } from "~/auth/auth-form-primitives";
 import { FormError } from "~/components/forms/form-primitives";
 import { Button } from "~/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "~/components/ui/dialog";
 import { Field, FieldDescription, FieldError, FieldLabel } from "~/components/ui/field";
 import { Input } from "~/components/ui/input";
 import { useImageFilePreviews } from "~/hooks/use-image-file-previews";
@@ -18,6 +26,123 @@ import {
 } from "./chauffeur-onboarding-form-schema";
 
 const EMPTY_SELFIE_FILES: readonly File[] = [];
+
+const CAMERA_UNAVAILABLE = "Allow camera access, or upload a passport photograph instead.";
+
+function stopStream(stream: MediaStream | null) {
+  for (const track of stream?.getTracks() ?? []) track.stop();
+}
+
+function SelfieCameraDialog({ onCapture }: { readonly onCapture: (file: File) => void }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const requestRef = useRef(0);
+  const [open, setOpen] = useState(false);
+  const [cameraError, setCameraError] = useState<string>();
+
+  function closeCamera() {
+    requestRef.current += 1;
+    stopStream(streamRef.current);
+    streamRef.current = null;
+    setOpen(false);
+  }
+
+  async function openCamera() {
+    const request = ++requestRef.current;
+    setCameraError(undefined);
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setCameraError(CAMERA_UNAVAILABLE);
+      setOpen(true);
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: { facingMode: "user" },
+      });
+      if (request !== requestRef.current) {
+        stopStream(stream);
+        return;
+      }
+      streamRef.current = stream;
+      if (videoRef.current) videoRef.current.srcObject = stream;
+      setOpen(true);
+    } catch {
+      if (request === requestRef.current) {
+        setCameraError(CAMERA_UNAVAILABLE);
+        setOpen(true);
+      }
+    }
+  }
+
+  function attachVideo(node: HTMLVideoElement | null) {
+    videoRef.current = node;
+    if (node && streamRef.current) node.srcObject = streamRef.current;
+  }
+
+  function capture() {
+    const video = videoRef.current;
+    if (!video || video.videoWidth === 0) return;
+    const canvas = document.createElement("canvas");
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const context = canvas.getContext("2d");
+    if (!context) return;
+    context.drawImage(video, 0, 0);
+    canvas.toBlob(
+      (blob) => {
+        if (!blob) return;
+        onCapture(new File([blob], "selfie.jpg", { type: "image/jpeg" }));
+        closeCamera();
+      },
+      "image/jpeg",
+      0.92,
+    );
+  }
+
+  return (
+    <>
+      <Button type="button" variant="outline" className="w-full" onClick={() => void openCamera()}>
+        <CameraIcon aria-hidden="true" />
+        Take selfie
+      </Button>
+      <Dialog
+        open={open}
+        onOpenChange={(next) => {
+          if (!next) closeCamera();
+        }}
+      >
+        <DialogContent className="overscroll-contain">
+          <DialogHeader>
+            <DialogTitle>Take a selfie</DialogTitle>
+            <DialogDescription>
+              Face the camera in good light, then capture the photo.
+            </DialogDescription>
+          </DialogHeader>
+          {cameraError ? (
+            <p className="text-sm text-destructive" role="alert">
+              {cameraError}
+            </p>
+          ) : (
+            <video
+              ref={attachVideo}
+              autoPlay
+              playsInline
+              muted
+              aria-label="Front camera preview"
+              className="aspect-3/4 w-full rounded-md bg-muted object-cover"
+            />
+          )}
+          <DialogFooter>
+            <Button type="button" onClick={capture} disabled={Boolean(cameraError)}>
+              Capture photo
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
 
 export function ChauffeurConsentForm({
   actionData,
@@ -272,8 +397,19 @@ export function ChauffeurDrivingForm({
   const pending =
     navigation.formMethod != null && navigation.formData?.get("intent") === "verify-driving";
   const [selfie, setSelfie] = useState<File>();
+  const selfieInputRef = useRef<HTMLInputElement>(null);
   const selfieFiles = useMemo(() => (selfie ? [selfie] : EMPTY_SELFIE_FILES), [selfie]);
   const [preview] = useImageFilePreviews(selfieFiles);
+
+  function selectSelfie(file: File) {
+    const input = selfieInputRef.current;
+    if (input) {
+      const transfer = new DataTransfer();
+      transfer.items.add(file);
+      input.files = transfer.files;
+    }
+    setSelfie(file);
+  }
   const [form, fields] = useForm({
     id: "chauffeur-driving",
     lastResult: actionData?.intent === "verify-driving" ? actionData.submission : null,
@@ -311,16 +447,19 @@ export function ChauffeurDrivingForm({
       </Field>
       <Field data-invalid={Boolean(fields.selfie.errors)}>
         <FieldLabel htmlFor={fields.selfie.id}>Passport photograph or selfie</FieldLabel>
-        <Input
-          {...getInputProps(fields.selfie, { type: "file" })}
-          className="h-10 rounded-sm"
-          accept="image/jpeg,image/png,image/webp"
-          capture="user"
-          aria-invalid={fields.selfie.errors ? true : undefined}
-          onChange={(event) => setSelfie(event.currentTarget.files?.[0])}
-        />
+        <div className="flex flex-col gap-2">
+          <SelfieCameraDialog onCapture={selectSelfie} />
+          <Input
+            {...getInputProps(fields.selfie, { type: "file" })}
+            ref={selfieInputRef}
+            className="h-10 rounded-sm"
+            accept="image/jpeg,image/png,image/webp"
+            aria-invalid={fields.selfie.errors ? true : undefined}
+            onChange={(event) => setSelfie(event.currentTarget.files?.[0])}
+          />
+        </div>
         <FieldDescription>
-          Take a clear, front-facing photo in good light. JPEG, PNG, or WebP; maximum 5 MB.
+          Take a selfie or upload a passport photograph. JPEG, PNG, or WebP; maximum 5 MB.
         </FieldDescription>
         <FieldError
           id={fields.selfie.errorId}
