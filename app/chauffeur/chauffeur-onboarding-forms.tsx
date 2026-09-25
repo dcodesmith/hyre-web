@@ -1,14 +1,23 @@
 import { getFormProps, getInputProps, useForm } from "@conform-to/react";
 import { getZodConstraint, parseWithZod } from "@conform-to/zod/v4";
 import { CameraIcon, ShieldCheckIcon } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Form, Link, useNavigation } from "react-router";
 import { AuthCheckbox } from "~/auth/auth-form-primitives";
 import { FormError } from "~/components/forms/form-primitives";
 import { Button } from "~/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "~/components/ui/dialog";
 import { Field, FieldDescription, FieldError, FieldLabel } from "~/components/ui/field";
 import { Input } from "~/components/ui/input";
 import { useImageFilePreviews } from "~/hooks/use-image-file-previews";
+import { useSelfieCamera } from "~/hooks/use-selfie-camera";
 import {
   type ChauffeurOnboardingActionData,
   chauffeurConsentFormSchema,
@@ -18,6 +27,54 @@ import {
 } from "./chauffeur-onboarding-form-schema";
 
 const EMPTY_SELFIE_FILES: readonly File[] = [];
+
+function SelfieCameraDialog({ onCapture }: { readonly onCapture: (file: File) => void }) {
+  const { open, cameraError, openCamera, closeCamera, attachVideo, capture } =
+    useSelfieCamera(onCapture);
+
+  return (
+    <>
+      <Button type="button" variant="outline" className="w-full" onClick={() => void openCamera()}>
+        <CameraIcon aria-hidden="true" />
+        Take selfie
+      </Button>
+      <Dialog
+        open={open}
+        onOpenChange={(next) => {
+          if (!next) closeCamera();
+        }}
+      >
+        <DialogContent className="overscroll-contain">
+          <DialogHeader>
+            <DialogTitle>Take a selfie</DialogTitle>
+            <DialogDescription>
+              Face the camera in good light, then capture the photo.
+            </DialogDescription>
+          </DialogHeader>
+          {cameraError ? (
+            <p className="text-sm text-destructive" role="alert">
+              {cameraError}
+            </p>
+          ) : (
+            <video
+              ref={attachVideo}
+              autoPlay
+              playsInline
+              muted
+              aria-label="Front camera preview"
+              className="aspect-3/4 w-full rounded-md bg-muted object-cover"
+            />
+          )}
+          <DialogFooter>
+            <Button type="button" onClick={capture} disabled={Boolean(cameraError)}>
+              Capture photo
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
 
 export function ChauffeurConsentForm({
   actionData,
@@ -272,8 +329,20 @@ export function ChauffeurDrivingForm({
   const pending =
     navigation.formMethod != null && navigation.formData?.get("intent") === "verify-driving";
   const [selfie, setSelfie] = useState<File>();
+  const selfieInputRef = useRef<HTMLInputElement>(null);
   const selfieFiles = useMemo(() => (selfie ? [selfie] : EMPTY_SELFIE_FILES), [selfie]);
   const [preview] = useImageFilePreviews(selfieFiles);
+
+  function selectSelfie(file: File) {
+    const input = selfieInputRef.current;
+    if (input) {
+      const transfer = new DataTransfer();
+      transfer.items.add(file);
+      input.files = transfer.files;
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+    setSelfie(file);
+  }
   const [form, fields] = useForm({
     id: "chauffeur-driving",
     lastResult: actionData?.intent === "verify-driving" ? actionData.submission : null,
@@ -311,16 +380,19 @@ export function ChauffeurDrivingForm({
       </Field>
       <Field data-invalid={Boolean(fields.selfie.errors)}>
         <FieldLabel htmlFor={fields.selfie.id}>Passport photograph or selfie</FieldLabel>
-        <Input
-          {...getInputProps(fields.selfie, { type: "file" })}
-          className="h-10 rounded-sm"
-          accept="image/jpeg,image/png,image/webp"
-          capture="user"
-          aria-invalid={fields.selfie.errors ? true : undefined}
-          onChange={(event) => setSelfie(event.currentTarget.files?.[0])}
-        />
+        <div className="flex flex-col gap-2">
+          <SelfieCameraDialog onCapture={selectSelfie} />
+          <Input
+            {...getInputProps(fields.selfie, { type: "file" })}
+            ref={selfieInputRef}
+            className="h-10 rounded-sm"
+            accept="image/jpeg,image/png,image/webp"
+            aria-invalid={fields.selfie.errors ? true : undefined}
+            onChange={(event) => setSelfie(event.currentTarget.files?.[0])}
+          />
+        </div>
         <FieldDescription>
-          Take a clear, front-facing photo in good light. JPEG, PNG, or WebP; maximum 5 MB.
+          Take a selfie or upload a passport photograph. JPEG, PNG, or WebP; maximum 5 MB.
         </FieldDescription>
         <FieldError
           id={fields.selfie.errorId}
