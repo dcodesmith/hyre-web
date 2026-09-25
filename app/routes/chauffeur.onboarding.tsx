@@ -29,10 +29,14 @@ import {
   readChauffeurOnboardingSession,
 } from "~/chauffeur/chauffeur-onboarding-session.server";
 import { Button } from "~/components/ui/button";
+import { useRevalidateInterval } from "~/hooks/use-revalidate-interval";
 import { buildPageMetadata } from "~/seo/metadata";
 import type { Route } from "./+types/chauffeur.onboarding";
 
 const PATH = "/chauffeur/onboarding";
+const DRIVING_VERIFICATION_IN_PROGRESS = "CHAUFFEUR_VERIFICATION_IN_PROGRESS";
+const DRIVING_VERIFICATION_IN_PROGRESS_DETAIL =
+  "This chauffeur verification step is still being processed";
 const SENSITIVE_NO_STORE = {
   "Cache-Control": "private, no-store",
   "Referrer-Policy": "no-referrer",
@@ -120,6 +124,22 @@ export async function loader({ request }: Route.LoaderArgs) {
     }
     throw error;
   }
+}
+
+function isDrivingVerificationInProgress(error: unknown) {
+  return (
+    error instanceof ApiRequestError &&
+    error.status === HTTP_STATUS.CONFLICT &&
+    (error.problem.errorCode === DRIVING_VERIFICATION_IN_PROGRESS ||
+      error.problem.detail === DRIVING_VERIFICATION_IN_PROGRESS_DETAIL)
+  );
+}
+
+function drivingPendingResult() {
+  return data<ChauffeurOnboardingActionData>(
+    { intent: "verify-driving", drivingPending: true },
+    { headers: SENSITIVE_NO_STORE },
+  );
 }
 
 function actionError(
@@ -293,11 +313,11 @@ async function drivingAction(request: Request, sessionToken: string, formData: F
       idempotencyKey: submission.value.idempotencyKey,
       formData: body,
     });
-    return data<ChauffeurOnboardingActionData>(
-      { intent: "verify-driving" },
-      { headers: SENSITIVE_NO_STORE },
-    );
+    return drivingPendingResult();
   } catch (error) {
+    if (isDrivingVerificationInProgress(error)) {
+      return drivingPendingResult();
+    }
     return actionError(
       "verify-driving",
       error,
@@ -357,6 +377,7 @@ export default function ChauffeurOnboardingRoute({ actionData, loaderData }: Rou
 
 export function ErrorBoundary() {
   const revalidator = useRevalidator();
+  useRevalidateInterval(4_000);
   return (
     <main className="flex min-h-screen items-center justify-center bg-muted/30 px-4 text-center">
       <div>

@@ -5,6 +5,7 @@ import {
   startMockFleetOwnerAuthApi,
   stopMockFleetOwnerAuthApi,
 } from "./mock-fleet-owner-auth-api";
+import { revealInSidebar } from "./reveal-sidebar";
 
 const TABLE_MIN_WIDTH = 768;
 
@@ -115,9 +116,7 @@ test("sends an owner-driver away from chauffeurs", async ({ context, page }) => 
     await expect(page).toHaveURL("/fleet-owner");
     await expect(page.getByRole("link", { name: "Chauffeurs" })).toHaveCount(0);
     const role = page.getByText("Owner-driver", { exact: true });
-    if (!(await role.isVisible())) {
-      await page.getByRole("button", { name: "Toggle Sidebar" }).click();
-    }
+    await revealInSidebar(page, role);
     await expect(role).toBeVisible();
   } finally {
     await stopMockFleetOwnerAuthApi(api);

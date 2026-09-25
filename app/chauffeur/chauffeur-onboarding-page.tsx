@@ -1,11 +1,14 @@
 import { Clock3Icon, ShieldCheckIcon } from "lucide-react";
+import { useState } from "react";
 
 import type { ChauffeurOnboarding } from "~/api/chauffeurs/schema";
 import { CookieConsentBanner } from "~/components/cookie-consent-banner";
 import { BrandLink } from "~/components/layout/brand-link";
 import { QuestionnaireProgress } from "~/components/questionnaire-progress";
 import { Alert, AlertDescription, AlertTitle } from "~/components/ui/alert";
+import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
+import { useRevalidateInterval } from "~/hooks/use-revalidate-interval";
 import type { ChauffeurOnboardingActionData } from "./chauffeur-onboarding-form-schema";
 import {
   ChauffeurConsentForm,
@@ -13,6 +16,8 @@ import {
   ChauffeurNinForm,
   ChauffeurPhoneForm,
 } from "./chauffeur-onboarding-forms";
+
+const DRIVING_APPROVAL_POLL_MS = 4_000;
 
 const stages = [
   { key: "consent", label: "Consent" },
@@ -45,11 +50,15 @@ function VerificationProgress({ onboarding }: { readonly onboarding: ChauffeurOn
 
 function CurrentStage({
   actionData,
+  awaitingDrivingApproval,
   idempotencyKey,
+  onChangePhoto,
   onboarding,
 }: {
   readonly actionData?: ChauffeurOnboardingActionData;
+  readonly awaitingDrivingApproval: boolean;
   readonly idempotencyKey: string;
+  readonly onChangePhoto: () => void;
   readonly onboarding: ChauffeurOnboarding;
 }) {
   if (!onboarding.steps.consent) {
@@ -110,6 +119,10 @@ function CurrentStage({
   }
 
   if (!onboarding.steps.driving) {
+    if (awaitingDrivingApproval) {
+      return <DrivingApprovalWaiting onChangePhoto={onChangePhoto} />;
+    }
+
     return (
       <>
         <CardHeader>
@@ -144,6 +157,28 @@ function CurrentStage({
   );
 }
 
+function DrivingApprovalWaiting({ onChangePhoto }: { readonly onChangePhoto: () => void }) {
+  useRevalidateInterval(DRIVING_APPROVAL_POLL_MS);
+
+  return (
+    <CardContent className="space-y-4 py-10">
+      <Alert role="status">
+        <Clock3Icon aria-hidden="true" />
+        <AlertTitle>
+          <h2>Checking your photo</h2>
+        </AlertTitle>
+        <AlertDescription>
+          Approval is not instant. Keep this page open while we finish checking your licence and
+          photo.
+        </AlertDescription>
+      </Alert>
+      <Button type="button" variant="outline" className="w-full" onClick={onChangePhoto}>
+        Submit a different photo
+      </Button>
+    </CardContent>
+  );
+}
+
 function UnavailableInvitation() {
   return (
     <Card className="w-full max-w-lg rounded-sm">
@@ -166,6 +201,26 @@ export function ChauffeurOnboardingPage({
   idempotencyKey,
   onboarding,
 }: ChauffeurOnboardingPageProps) {
+  const drivingSubmitted =
+    actionData?.intent === "verify-driving" && actionData.drivingPending === true;
+  // Loader revalidation clears action data, so remember the submit until driving is approved.
+  const [seenActionData, setSeenActionData] = useState(actionData);
+  const [holdingDrivingWait, setHoldingDrivingWait] = useState(drivingSubmitted);
+  const [skippedDrivingWait, setSkippedDrivingWait] = useState(false);
+  if (actionData !== seenActionData) {
+    setSeenActionData(actionData);
+    setSkippedDrivingWait(false);
+    if (drivingSubmitted) {
+      setHoldingDrivingWait(true);
+    }
+  }
+  const awaitingDrivingApproval = holdingDrivingWait && !skippedDrivingWait;
+
+  function showDrivingForm() {
+    setHoldingDrivingWait(false);
+    setSkippedDrivingWait(true);
+  }
+
   return (
     <>
       <a
@@ -208,7 +263,9 @@ export function ChauffeurOnboardingPage({
               <Card className="rounded-sm">
                 <CurrentStage
                   actionData={actionData}
+                  awaitingDrivingApproval={awaitingDrivingApproval}
                   idempotencyKey={idempotencyKey}
+                  onChangePhoto={showDrivingForm}
                   onboarding={onboarding}
                 />
               </Card>

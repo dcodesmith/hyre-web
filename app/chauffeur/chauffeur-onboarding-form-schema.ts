@@ -54,6 +54,7 @@ export type ChauffeurOnboardingIntent =
 
 export type ChauffeurOnboardingActionData = {
   readonly intent: ChauffeurOnboardingIntent;
+  readonly drivingPending?: true;
   readonly error?: string;
   readonly idempotencyKey?: string;
   readonly notice?: string;
