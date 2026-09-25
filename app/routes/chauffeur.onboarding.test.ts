@@ -99,6 +99,7 @@ function apiError(
   detail: string,
   retryAfter?: string,
   kind: ApiRequestError["kind"] = "http",
+  errorCode?: string,
 ) {
   return new ApiRequestError(
     kind,
@@ -108,6 +109,7 @@ function apiError(
       title: "Chauffeur onboarding error",
       status,
       detail,
+      errorCode,
     },
     retryAfter ? new Headers({ "Retry-After": retryAfter }) : undefined,
   );
@@ -544,7 +546,55 @@ describe("chauffeur onboarding route", () => {
     expect(sentSelfie.type).toBe("image/jpeg");
     expect(sent.get("intent")).toBeNull();
     expect(sent.get("idempotencyKey")).toBeNull();
-    expect(result).toMatchObject({ data: { intent: "verify-driving" } });
+    expect(result).toMatchObject({
+      data: { intent: "verify-driving", drivingPending: true },
+    });
+  });
+
+  it.each([
+    ["error code", "CHAUFFEUR_VERIFICATION_IN_PROGRESS", "Verification is still running."],
+    ["detail", undefined, "This chauffeur verification step is still being processed"],
+  ] as const)(
+    "treats an in-progress driving response (%s) as waiting instead of a form error",
+    async (_label, errorCode, detail) => {
+      verifyChauffeurDriving.mockRejectedValueOnce(
+        apiError(HTTP_STATUS.CONFLICT, detail, undefined, "http", errorCode),
+      );
+
+      const { result } = await runAction(drivingFields(), await sessionCookie());
+
+      expect(result).toMatchObject({
+        data: { intent: "verify-driving", drivingPending: true },
+      });
+      if (typeof result !== "object" || result === null || !("data" in result)) {
+        throw new Error("expected action data");
+      }
+      expect(result.data).not.toHaveProperty("error");
+      expect(result.data).not.toHaveProperty("submission");
+    },
+  );
+
+  it("keeps a different driving conflict as a form error", async () => {
+    verifyChauffeurDriving.mockRejectedValueOnce(
+      apiError(
+        HTTP_STATUS.CONFLICT,
+        "This Idempotency-Key was already used",
+        undefined,
+        "http",
+        "CHAUFFEUR_IDEMPOTENCY_KEY_REUSED",
+      ),
+    );
+
+    const { result } = await runAction(drivingFields(), await sessionCookie());
+
+    expect(result).toMatchObject({
+      data: {
+        intent: "verify-driving",
+        error: "This Idempotency-Key was already used",
+        revalidate: false,
+      },
+      init: { status: HTTP_STATUS.CONFLICT },
+    });
   });
 
   it("hides 5xx details and issues a fresh NIN idempotency key", async () => {

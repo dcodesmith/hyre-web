@@ -33,6 +33,9 @@ import { buildPageMetadata } from "~/seo/metadata";
 import type { Route } from "./+types/chauffeur.onboarding";
 
 const PATH = "/chauffeur/onboarding";
+const DRIVING_VERIFICATION_IN_PROGRESS = "CHAUFFEUR_VERIFICATION_IN_PROGRESS";
+const DRIVING_VERIFICATION_IN_PROGRESS_DETAIL =
+  "This chauffeur verification step is still being processed";
 const SENSITIVE_NO_STORE = {
   "Cache-Control": "private, no-store",
   "Referrer-Policy": "no-referrer",
@@ -120,6 +123,22 @@ export async function loader({ request }: Route.LoaderArgs) {
     }
     throw error;
   }
+}
+
+function isDrivingVerificationInProgress(error: unknown) {
+  return (
+    error instanceof ApiRequestError &&
+    error.status === HTTP_STATUS.CONFLICT &&
+    (error.problem.errorCode === DRIVING_VERIFICATION_IN_PROGRESS ||
+      error.problem.detail === DRIVING_VERIFICATION_IN_PROGRESS_DETAIL)
+  );
+}
+
+function drivingPendingResult() {
+  return data<ChauffeurOnboardingActionData>(
+    { intent: "verify-driving", drivingPending: true },
+    { headers: SENSITIVE_NO_STORE },
+  );
 }
 
 function actionError(
@@ -293,11 +312,11 @@ async function drivingAction(request: Request, sessionToken: string, formData: F
       idempotencyKey: submission.value.idempotencyKey,
       formData: body,
     });
-    return data<ChauffeurOnboardingActionData>(
-      { intent: "verify-driving" },
-      { headers: SENSITIVE_NO_STORE },
-    );
+    return drivingPendingResult();
   } catch (error) {
+    if (isDrivingVerificationInProgress(error)) {
+      return drivingPendingResult();
+    }
     return actionError(
       "verify-driving",
       error,
