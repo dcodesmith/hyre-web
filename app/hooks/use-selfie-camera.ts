@@ -1,6 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 
 const CAMERA_UNAVAILABLE = "Allow camera access, or upload a passport photograph instead.";
+const MAX_SELFIE_EDGE = 1024;
+
+export function selfieFrameSize(width: number, height: number) {
+  const scale = Math.min(1, MAX_SELFIE_EDGE / Math.max(width, height));
+  return {
+    width: Math.max(1, Math.round(width * scale)),
+    height: Math.max(1, Math.round(height * scale)),
+  };
+}
 
 function stopStream(stream: MediaStream | null) {
   for (const track of stream?.getTracks() ?? []) track.stop();
@@ -65,15 +74,17 @@ export function useSelfieCamera(onCapture: (file: File) => void) {
   function capture() {
     const video = videoRef.current;
     if (!video || video.videoWidth === 0) return;
+    const request = requestRef.current;
     const canvas = document.createElement("canvas");
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+    const frame = selfieFrameSize(video.videoWidth, video.videoHeight);
+    canvas.width = frame.width;
+    canvas.height = frame.height;
     const context = canvas.getContext("2d");
     if (!context) return;
-    context.drawImage(video, 0, 0);
+    context.drawImage(video, 0, 0, frame.width, frame.height);
     canvas.toBlob(
       (blob) => {
-        if (!blob) return;
+        if (!blob || request !== requestRef.current) return;
         onCapture(new File([blob], "selfie.jpg", { type: "image/jpeg" }));
         closeCamera();
       },
