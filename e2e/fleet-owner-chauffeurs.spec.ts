@@ -58,6 +58,12 @@ test("lists, invites, and deactivates fleet chauffeurs", async ({ context, page 
     await expect(page).toHaveURL("/fleet-owner/chauffeurs?page=2");
 
     await page.goto("/fleet-owner/chauffeurs");
+    const expiredBadge =
+      (page.viewportSize()?.width ?? 0) >= TABLE_MIN_WIDTH
+        ? page.getByRole("table").getByText("Invite expired")
+        : page.getByText("Invite expired").first();
+    await expect(expiredBadge).toBeVisible();
+    await expect(page.getByText("Identity verified")).toHaveCount(0);
     await page.getByRole("button", { name: "Re-invite" }).click();
     await expect
       .poll(() => api.requests.chauffeurInvitations.at(-1))
