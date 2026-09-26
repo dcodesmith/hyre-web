@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
-const CAMERA_UNAVAILABLE = "Allow camera access, or upload a passport photograph instead.";
+const CAMERA_UNAVAILABLE = "Allow camera access to take your selfie.";
 const MAX_SELFIE_EDGE = 1024;
 
 export function selfieFrameSize(width: number, height: number) {

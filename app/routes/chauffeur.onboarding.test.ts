@@ -45,7 +45,12 @@ import {
   createChauffeurOnboardingSession,
 } from "~/chauffeur/chauffeur-onboarding-session.server";
 import type { Route } from "./+types/chauffeur.onboarding";
-import { action, headers, loader, shouldRevalidate } from "./chauffeur.onboarding";
+import ChauffeurOnboardingRoute, {
+  action,
+  headers,
+  loader,
+  shouldRevalidate,
+} from "./chauffeur.onboarding";
 
 const IDEMPOTENCY_KEY = "18aa029c-4bb1-4ca7-b25e-cfc802c4bf8c";
 const FRESH_IDEMPOTENCY_KEY = "9c4e2a71-6d3f-4b18-a5e2-7f1c0d8e4b92";
@@ -712,5 +717,49 @@ describe("chauffeur onboarding route", () => {
     } finally {
       uuid.mockRestore();
     }
+  });
+});
+
+describe("chauffeur onboarding page identity", () => {
+  function pageElement(onboardingId: string | null) {
+    const loaderData: Route.ComponentProps["loaderData"] = onboardingId
+      ? { onboarding: { ...onboarding, id: onboardingId }, idempotencyKey: IDEMPOTENCY_KEY }
+      : { onboarding: null, idempotencyKey: IDEMPOTENCY_KEY };
+    const props: Route.ComponentProps = {
+      params: {},
+      loaderData,
+      actionData: onboardingId ? { intent: "verify-driving", drivingPending: true } : undefined,
+      matches: [
+        {
+          id: "root",
+          params: {},
+          pathname: "/",
+          loaderData: undefined,
+          handle: undefined,
+        },
+        {
+          id: "routes/chauffeur.onboarding",
+          params: {},
+          pathname: PATH,
+          loaderData,
+          handle: undefined,
+        },
+      ],
+    };
+
+    return ChauffeurOnboardingRoute(props);
+  }
+
+  it("keys the page by onboarding id so a new invitation remounts", () => {
+    const firstId = "018f47a2-7b3c-7d4e-8f90-1234567894a1";
+    const secondId = "018f47a2-7b3c-7d4e-8f90-1234567894b2";
+    const first = pageElement(firstId);
+    const second = pageElement(secondId);
+    const unavailable = pageElement(null);
+
+    expect(first.key).toBe(firstId);
+    expect(second.key).toBe(secondId);
+    expect(first.key).not.toBe(second.key);
+    expect(unavailable.key).toBe("unavailable");
   });
 });

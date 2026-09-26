@@ -14,7 +14,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "~/components/ui/dialog";
-import { Field, FieldDescription, FieldError, FieldLabel } from "~/components/ui/field";
+import {
+  Field,
+  FieldDescription,
+  FieldError,
+  FieldLabel,
+  FieldLegend,
+  FieldSet,
+} from "~/components/ui/field";
 import { Input } from "~/components/ui/input";
 import { useImageFilePreviews } from "~/hooks/use-image-file-previews";
 import { useSelfieCamera } from "~/hooks/use-selfie-camera";
@@ -28,13 +35,28 @@ import {
 
 const EMPTY_SELFIE_FILES: readonly File[] = [];
 
-function SelfieCameraDialog({ onCapture }: { readonly onCapture: (file: File) => void }) {
+function SelfieCameraDialog({
+  describedBy,
+  invalid,
+  onCapture,
+}: {
+  readonly describedBy: string;
+  readonly invalid: boolean;
+  readonly onCapture: (file: File) => void;
+}) {
   const { open, cameraError, openCamera, closeCamera, attachVideo, capture } =
     useSelfieCamera(onCapture);
 
   return (
     <>
-      <Button type="button" variant="outline" className="w-full" onClick={() => void openCamera()}>
+      <Button
+        type="button"
+        variant="outline"
+        className="w-full"
+        aria-describedby={describedBy}
+        aria-invalid={invalid || undefined}
+        onClick={() => void openCamera()}
+      >
         <CameraIcon aria-hidden="true" />
         Take selfie
       </Button>
@@ -378,27 +400,36 @@ export function ChauffeurDrivingForm({
           errors={fields.driversLicenseNumber.errors?.map((message) => ({ message }))}
         />
       </Field>
-      <Field data-invalid={Boolean(fields.selfie.errors)}>
-        <FieldLabel htmlFor={fields.selfie.id}>Passport photograph or selfie</FieldLabel>
-        <div className="flex flex-col gap-2">
-          <SelfieCameraDialog onCapture={selectSelfie} />
-          <Input
-            {...getInputProps(fields.selfie, { type: "file" })}
-            ref={selfieInputRef}
-            className="h-10 rounded-sm"
-            accept="image/jpeg,image/png,image/webp"
-            aria-invalid={fields.selfie.errors ? true : undefined}
-            onChange={(event) => setSelfie(event.currentTarget.files?.[0])}
-          />
-        </div>
-        <FieldDescription>
-          Take a selfie or upload a passport photograph. JPEG, PNG, or WebP; maximum 5 MB.
+      <FieldSet
+        className="gap-2 data-[invalid=true]:text-destructive"
+        data-invalid={Boolean(fields.selfie.errors)}
+      >
+        <FieldLegend variant="label">Selfie</FieldLegend>
+        <SelfieCameraDialog
+          describedBy={[
+            `${fields.selfie.id}-description`,
+            fields.selfie.errors ? fields.selfie.errorId : undefined,
+          ]
+            .filter(Boolean)
+            .join(" ")}
+          invalid={Boolean(fields.selfie.errors)}
+          onCapture={selectSelfie}
+        />
+        <input
+          {...getInputProps(fields.selfie, { type: "file", ariaAttributes: false })}
+          ref={selfieInputRef}
+          hidden
+          accept="image/jpeg,image/png,image/webp"
+          onChange={(event) => setSelfie(event.currentTarget.files?.[0])}
+        />
+        <FieldDescription id={`${fields.selfie.id}-description`}>
+          Take a selfie in good light. Maximum 5 MB.
         </FieldDescription>
         <FieldError
           id={fields.selfie.errorId}
           errors={fields.selfie.errors?.map((message) => ({ message }))}
         />
-      </Field>
+      </FieldSet>
       {preview ? (
         <div className="flex items-center gap-3 rounded-lg border bg-muted/30 p-3">
           <img

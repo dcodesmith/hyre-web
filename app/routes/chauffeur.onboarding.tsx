@@ -372,7 +372,13 @@ export function shouldRevalidate({
 }
 
 export default function ChauffeurOnboardingRoute({ actionData, loaderData }: Route.ComponentProps) {
-  return <ChauffeurOnboardingPage actionData={actionData} {...loaderData} />;
+  return (
+    <ChauffeurOnboardingPage
+      key={loaderData.onboarding?.id ?? "unavailable"}
+      actionData={actionData}
+      {...loaderData}
+    />
+  );
 }
 
 export function ErrorBoundary() {

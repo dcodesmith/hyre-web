@@ -4,6 +4,7 @@ import {
   GiftIcon,
   LayoutDashboardIcon,
   LogOutIcon,
+  ScanFaceIcon,
   ShieldCheckIcon,
   SlidersHorizontalIcon,
   UsersIcon,
@@ -42,6 +43,7 @@ export function AdminSidebar({ isLoggingOut, role, user }: AdminSidebarProps) {
   const isOverviewActive = location.pathname === "/admin";
   const isCarsActive = location.pathname.startsWith("/admin/cars");
   const isFinancialsActive = location.pathname.startsWith("/admin/financials");
+  const isInterventionsActive = location.pathname.startsWith("/admin/interventions");
   const isFeesActive = location.pathname === "/admin/fees";
   const isAddonRatesActive = location.pathname === "/admin/addon-rates";
   const isReferralsActive = location.pathname === "/admin/referrals";
@@ -101,6 +103,22 @@ export function AdminSidebar({ isLoggingOut, role, user }: AdminSidebarProps) {
                   >
                     <CarIcon />
                     <span>Car reviews</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={isInterventionsActive}
+                  tooltip="Verification reviews"
+                >
+                  <Link
+                    to="/admin/interventions"
+                    aria-current={isInterventionsActive ? "page" : undefined}
+                    onClick={closeMobileSidebar}
+                  >
+                    <ScanFaceIcon />
+                    <span>Verification reviews</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
