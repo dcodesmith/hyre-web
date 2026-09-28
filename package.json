@@ -26,7 +26,7 @@
     "@conform-to/zod": "^1.21.1",
     "@tanstack/react-table": "^9.2.4",
     "class-variance-authority": "^0.7.1",
-    "cn": "^0.3.0",
+    "cn": "^0.4.0",
     "date-fns": "^4.4.0",
     "isbot": "^5.1.36",
     "lucide-react": "^1.40.0",
