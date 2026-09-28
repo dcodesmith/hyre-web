@@ -1,7 +1,7 @@
 import { type BrowserContext, expect, type Page, test } from "@playwright/test";
 
 import { HTTP_STATUS } from "../app/api/http-status";
-import { clickUntilVisible } from "./click-until";
+import { clickUntilAttribute, clickUntilVisible } from "./click-until";
 import {
   mockReferralSummary,
   startMockReferralApi,
@@ -60,10 +60,10 @@ test("renders crawlable car metadata and booking controls from the fixture", asy
     page.getByRole("button", { name: "Pay Now as Guest" }).filter({ visible: true }),
   ).toBeDisabled();
 
-  await page
+  const fullDay = page
     .getByRole("group", { name: "Booking type" })
-    .getByRole("button", { name: "Full Day" })
-    .click();
+    .getByRole("button", { name: "Full Day" });
+  await clickUntilAttribute(fullDay, "aria-pressed", "true");
   await expect(page).toHaveURL(/bookingType=FULL_DAY/);
   await expect(page.getByLabel("Pickup Time")).toBeVisible();
   await expect(page.getByLabel("Pickup Address")).toBeVisible();
