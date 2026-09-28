@@ -128,6 +128,7 @@ async function handleStagedChauffeurRequest(
   path: string,
   requests: MockChauffeurOnboardingApi["requests"],
   onboarding: MockChauffeurOnboarding,
+  options: { holdDrivingApproval?: boolean },
 ) {
   if (request.method === "GET" && path === "/api/chauffeur-onboarding") {
     writeJson(response, 200, onboarding);
@@ -165,8 +166,10 @@ async function handleStagedChauffeurRequest(
   if (request.method === "POST" && path === "/api/chauffeur-onboarding/driving-verifications") {
     pushIdempotencyKey(request, requests.drivingIdempotencyKeys);
     await readBody(request);
-    onboarding.status = "APPROVED";
-    onboarding.steps.driving = true;
+    if (!options.holdDrivingApproval) {
+      onboarding.status = "APPROVED";
+      onboarding.steps.driving = true;
+    }
     writeJson(response, 200, onboarding);
     return true;
   }
@@ -174,7 +177,10 @@ async function handleStagedChauffeurRequest(
   return false;
 }
 
-export async function startMockChauffeurOnboardingApi(port = 3100) {
+export async function startMockChauffeurOnboardingApi(
+  port = 3100,
+  options: { holdDrivingApproval?: boolean } = {},
+) {
   const requests: MockChauffeurOnboardingApi["requests"] = {
     authorization: [],
     drivingIdempotencyKeys: [],
@@ -194,7 +200,9 @@ export async function startMockChauffeurOnboardingApi(port = 3100) {
       return;
     }
 
-    if (await handleStagedChauffeurRequest(request, response, path, requests, onboarding)) {
+    if (
+      await handleStagedChauffeurRequest(request, response, path, requests, onboarding, options)
+    ) {
       return;
     }
 

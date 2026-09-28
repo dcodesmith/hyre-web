@@ -6,7 +6,6 @@ import { CookieConsentBanner } from "~/components/cookie-consent-banner";
 import { BrandLink } from "~/components/layout/brand-link";
 import { QuestionnaireProgress } from "~/components/questionnaire-progress";
 import { Alert, AlertDescription, AlertTitle } from "~/components/ui/alert";
-import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
 import { useRevalidateInterval } from "~/hooks/use-revalidate-interval";
 import type { ChauffeurOnboardingActionData } from "./chauffeur-onboarding-form-schema";
@@ -52,13 +51,11 @@ function CurrentStage({
   actionData,
   awaitingDrivingApproval,
   idempotencyKey,
-  onChangePhoto,
   onboarding,
 }: {
   readonly actionData?: ChauffeurOnboardingActionData;
   readonly awaitingDrivingApproval: boolean;
   readonly idempotencyKey: string;
-  readonly onChangePhoto: () => void;
   readonly onboarding: ChauffeurOnboarding;
 }) {
   if (!onboarding.steps.consent) {
@@ -120,7 +117,7 @@ function CurrentStage({
 
   if (!onboarding.steps.driving) {
     if (awaitingDrivingApproval) {
-      return <DrivingApprovalWaiting onChangePhoto={onChangePhoto} />;
+      return <DrivingApprovalWaiting />;
     }
 
     return (
@@ -157,7 +154,7 @@ function CurrentStage({
   );
 }
 
-function DrivingApprovalWaiting({ onChangePhoto }: { readonly onChangePhoto: () => void }) {
+function DrivingApprovalWaiting() {
   useRevalidateInterval(DRIVING_APPROVAL_POLL_MS);
 
   return (
@@ -172,9 +169,6 @@ function DrivingApprovalWaiting({ onChangePhoto }: { readonly onChangePhoto: () 
           photo.
         </AlertDescription>
       </Alert>
-      <Button type="button" variant="outline" className="w-full" onClick={onChangePhoto}>
-        Submit a different photo
-      </Button>
     </CardContent>
   );
 }
@@ -206,20 +200,13 @@ export function ChauffeurOnboardingPage({
   // Loader revalidation clears action data, so remember the submit until driving is approved.
   const [seenActionData, setSeenActionData] = useState(actionData);
   const [holdingDrivingWait, setHoldingDrivingWait] = useState(drivingSubmitted);
-  const [skippedDrivingWait, setSkippedDrivingWait] = useState(false);
   if (actionData !== seenActionData) {
     setSeenActionData(actionData);
-    setSkippedDrivingWait(false);
     if (drivingSubmitted) {
       setHoldingDrivingWait(true);
     }
   }
-  const awaitingDrivingApproval = holdingDrivingWait && !skippedDrivingWait;
-
-  function showDrivingForm() {
-    setHoldingDrivingWait(false);
-    setSkippedDrivingWait(true);
-  }
+  const awaitingDrivingApproval = holdingDrivingWait;
 
   return (
     <>
@@ -265,7 +252,6 @@ export function ChauffeurOnboardingPage({
                   actionData={actionData}
                   awaitingDrivingApproval={awaitingDrivingApproval}
                   idempotencyKey={idempotencyKey}
-                  onChangePhoto={showDrivingForm}
                   onboarding={onboarding}
                 />
               </Card>

@@ -80,6 +80,28 @@ describe("validateMutationOrigin", () => {
 });
 
 describe("applyResponsePolicy", () => {
+  it("allows the camera only on the chauffeur onboarding route", () => {
+    const permissionsPolicy = (path: string) =>
+      applyResponsePolicy(new Request(`https://hyre.example${path}`), new Response(null), {
+        environment: "production",
+        requestId: "request-123",
+      }).headers.get("permissions-policy");
+
+    expect(permissionsPolicy("/chauffeur/onboarding")).toBe(
+      "camera=(self), geolocation=(), microphone=()",
+    );
+    expect(permissionsPolicy("/chauffeur/onboarding.data")).toBe(
+      "camera=(self), geolocation=(), microphone=()",
+    );
+    expect(permissionsPolicy("/")).toBe("camera=(), geolocation=(), microphone=()");
+    expect(permissionsPolicy("/admin/interventions")).toBe(
+      "camera=(), geolocation=(), microphone=()",
+    );
+    expect(permissionsPolicy("/chauffeur/onboarding/extra")).toBe(
+      "camera=(), geolocation=(), microphone=()",
+    );
+  });
+
   it("adds security, request ID, timing, and preview noindex headers", () => {
     const response = applyResponsePolicy(
       new Request("https://preview.example/"),

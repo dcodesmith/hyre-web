@@ -30,7 +30,7 @@ export const chauffeurNinFormSchema = z.object({
 export const chauffeurDrivingFormSchema = z
   .object({
     driversLicenseNumber: driversLicenseNumberSchema,
-    selfie: z.file({ error: "Take or upload a clear passport photograph" }),
+    selfie: z.file({ error: "Take a clear selfie" }),
     idempotencyKey: idempotencyKeySchema,
   })
   .superRefine(({ selfie }, context) => {

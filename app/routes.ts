@@ -98,6 +98,11 @@ export default [
     route("cars", "routes/admin.cars.tsx"),
     route("cars/:carId", "routes/admin.cars.$carId.tsx"),
     route("documents/:documentId", "routes/admin.documents.$documentId.ts"),
+    route("interventions", "routes/admin.interventions.tsx"),
+    route(
+      "interventions/:interventionId/evidence/:evidence",
+      "routes/admin.interventions.$interventionId.evidence.$evidence.ts",
+    ),
     route("financials", "routes/admin.financials.tsx"),
     route("financials/refunds/:paymentId", "routes/admin.financials.refunds.$paymentId.tsx"),
     route(

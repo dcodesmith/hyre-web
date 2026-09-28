@@ -87,7 +87,7 @@ test("completes staged chauffeur verification through consent, phone, identity, 
 
     await page.getByLabel("Driver's licence number").fill("ABC12345DE67");
     await expect(page.getByRole("button", { name: "Take selfie" })).toBeVisible();
-    const selfieInput = page.getByLabel("Passport photograph or selfie");
+    const selfieInput = page.locator('input[type="file"]');
     await selfieInput.setInputFiles({
       name: "selfie.jpg",
       mimeType: "image/jpeg",
@@ -112,6 +112,40 @@ test("completes staged chauffeur verification through consent, phone, identity, 
     expect(api.requests.ninIdempotencyKeys[0]).toMatch(
       /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
     );
+  } finally {
+    await stopMockChauffeurOnboardingApi(api);
+  }
+});
+
+test("shows a generic waiting state after driving submit while approval is still pending", async ({
+  page,
+}) => {
+  const api = await startMockChauffeurOnboardingApi(3100, { holdDrivingApproval: true });
+
+  try {
+    await setCookiePreference(page);
+    await page.goto(`/chauffeur/onboarding?token=${MOCK_CHAUFFEUR_INVITE_TOKEN}`);
+    await page.getByRole("checkbox", { name: /Terms of Service/ }).check();
+    await page.getByRole("checkbox", { name: /Privacy Policy/ }).check();
+    await page.getByRole("button", { name: "Agree and continue" }).click();
+    await page.getByRole("button", { name: "Send verification code" }).click();
+    await page.getByLabel("Verification code").fill("123456");
+    await page.getByRole("button", { name: "Verify phone" }).click();
+    await page.getByLabel("National Identification Number (NIN)").fill("12345678901");
+    await page.getByRole("button", { name: "Verify NIN" }).click();
+    await page.getByLabel("Driver's licence number").fill("ABC12345DE67");
+    const selfieInput = page.locator('input[type="file"]');
+    await selfieInput.setInputFiles({
+      name: "selfie.jpg",
+      mimeType: "image/jpeg",
+      buffer: Buffer.from("selfie"),
+    });
+    await page.getByRole("button", { name: "Complete verification" }).click();
+
+    await expect(page.getByRole("heading", { name: "Checking your photo" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Take selfie" })).toHaveCount(0);
+    await expect(page.getByText(/smile|mono|prembly/i)).toHaveCount(0);
+    expect(api.requests.drivingIdempotencyKeys).toHaveLength(1);
   } finally {
     await stopMockChauffeurOnboardingApi(api);
   }

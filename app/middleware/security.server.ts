@@ -117,6 +117,7 @@ export function applyResponsePolicy(
     url.pathname.endsWith(".data") ||
     url.searchParams.has("_routes") ||
     request.headers.get("sec-fetch-dest") === "empty";
+  const allowsCamera = pathname === "/chauffeur/onboarding";
   const hasSensitiveState =
     Boolean(request.headers.get("cookie")) ||
     Boolean(request.headers.get("authorization")) ||
@@ -135,7 +136,10 @@ export function applyResponsePolicy(
   headers.set("Content-Security-Policy", contentSecurityPolicy(options.environment));
   headers.set("Cross-Origin-Opener-Policy", "same-origin");
   headers.set("Cross-Origin-Resource-Policy", "same-origin");
-  headers.set("Permissions-Policy", "camera=(), geolocation=(), microphone=()");
+  headers.set(
+    "Permissions-Policy",
+    `camera=${allowsCamera ? "(self)" : "()"}, geolocation=(), microphone=()`,
+  );
   if (!headers.has("Referrer-Policy")) {
     headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
   }
