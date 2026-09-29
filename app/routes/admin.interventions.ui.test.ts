@@ -167,6 +167,10 @@ describe("admin intervention review UI", () => {
     expect(markup).toContain("Owner-driver face review");
     expect(markup).toContain("Request retake");
     expect(markup).toContain('value="request-retake"');
+    expect(markup).toContain('placeholder="Retake notes"');
+    expect(markup).toContain('aria-label="Retake notes"');
+    expect(markup).toContain('placeholder="Rejection notes"');
+    expect(markup).toContain('aria-label="Rejection notes"');
     expect(markup).toContain(`name="interventionId" value="${ownerFaceId}"`);
     expect(markup).not.toMatch(/retry/i);
     expect(markup).not.toContain("Reveal full licence number");
