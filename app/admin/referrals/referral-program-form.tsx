@@ -18,6 +18,7 @@ import {
 } from "~/components/ui/select";
 import {
   type ReferralProgramActionData,
+  referralProgramFieldsSchema,
   referralProgramFormSchema,
 } from "./referral-program-form-schema";
 
@@ -170,7 +171,7 @@ export function ReferralProgramForm({ program }: { readonly program: ReferralPro
   const [form, fields] = useForm({
     id: "referral-program-form",
     lastResult: fetcher.data?.submission,
-    constraint: getZodConstraint(referralProgramFormSchema),
+    constraint: getZodConstraint(referralProgramFieldsSchema),
     defaultValue: programDefaults(program),
     shouldValidate: "onSubmit",
     shouldRevalidate: "onInput",

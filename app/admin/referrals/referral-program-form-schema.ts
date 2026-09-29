@@ -28,7 +28,7 @@ const creditCapSchema = z.coerce
   .max(99_999_999.99, "Value is too large")
   .multipleOf(0.01, "Use no more than two decimal places");
 
-const referralProgramFieldsSchema = z.object({
+export const referralProgramFieldsSchema = z.object({
   refereeDiscountType: referralIncentiveTypeSchema,
   refereeDiscountAmount: optionalMoneySchema,
   refereeDiscountPercentage: optionalPercentageSchema,
