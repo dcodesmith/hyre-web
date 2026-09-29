@@ -15,6 +15,7 @@ import {
   approveOwnerLicenseIntervention,
   getInterventionEvidence,
   getInterventionLicenseNumber,
+  getVerificationIntervention,
   getVerificationInterventions,
   rejectIntervention,
   requestInterventionSelfieRetake,
@@ -53,6 +54,36 @@ describe("admin intervention BFF", () => {
     );
     expect(init?.method).toBe("GET");
     expect(headers.get("cookie")).toBe("better-auth.session_token=session-1");
+  });
+
+  it("loads one review without a licence number or photo bytes", async () => {
+    const review = {
+      id: interventionId,
+      kind: "CHAUFFEUR_DRIVERS_LICENSE",
+      status: "OPEN",
+      applicantName: "Ada Lovelace",
+      licenseLast4: "DE67",
+      hasSelfie: true,
+      hasNinPortrait: false,
+      document: null,
+      createdAt: "2026-09-26T12:00:00.000Z",
+    };
+    fetchMock.mockResolvedValueOnce(Response.json(review));
+
+    await expect(getVerificationIntervention({ request, interventionId })).resolves.toMatchObject({
+      data: review,
+    });
+
+    const { url, init, headers } = capturedRequest();
+    expect(url).toBe(`https://api.example/api/admin/verification-interventions/${interventionId}`);
+    expect(init?.method).toBe("GET");
+    expect(headers.get("cookie")).toBe("better-auth.session_token=session-1");
+
+    fetchMock.mockResolvedValueOnce(Response.json({ licenseNumber: "ABC12345DE67" }));
+    await expect(getVerificationIntervention({ request, interventionId })).rejects.toMatchObject({
+      kind: "contract",
+      status: 502,
+    });
   });
 
   it("reveals a licence number without putting it in the request", async () => {

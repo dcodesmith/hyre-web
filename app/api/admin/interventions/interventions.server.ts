@@ -4,6 +4,7 @@ import { createApiClient } from "~/api/api.server";
 import {
   interventionLicenseNumberSchema,
   interventionMutationSchema,
+  verificationInterventionSchema,
   verificationInterventionsSchema,
 } from "./schema";
 
@@ -33,6 +34,21 @@ export function getVerificationInterventions({
     request,
     forwardCookie: true,
     schema: verificationInterventionsSchema,
+  });
+}
+
+export function getVerificationIntervention({
+  request,
+  interventionId,
+}: {
+  request: Request;
+  interventionId: string;
+}) {
+  return getApiClient().request({
+    path: `/api/admin/verification-interventions/${encodeURIComponent(interventionId)}`,
+    request,
+    forwardCookie: true,
+    schema: verificationInterventionSchema,
   });
 }
 
