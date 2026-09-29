@@ -88,6 +88,7 @@ test("completes staged chauffeur verification through consent, phone, identity, 
     await page.getByLabel("Driver's licence number").fill("ABC12345DE67");
     await expect(page.getByRole("button", { name: "Take selfie" })).toBeVisible();
     const selfieInput = page.locator('input[type="file"]');
+    await expect(selfieInput).toBeHidden();
     await selfieInput.setInputFiles({
       name: "selfie.jpg",
       mimeType: "image/jpeg",

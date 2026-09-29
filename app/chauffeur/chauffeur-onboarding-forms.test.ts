@@ -66,12 +66,12 @@ describe("chauffeur selfie control", () => {
     expect(button).toContain('aria-invalid="true"');
     expect(button).toMatch(/aria-describedby="[^"]*-description/);
     expect(button).toContain("chauffeur-driving-selfie-error");
-    expect(input).not.toContain("hidden");
+    expect(input).toContain("hidden");
     expect(input).not.toMatch(/aria-invalid=/);
     expect(input).not.toMatch(/aria-describedby=/);
   });
 
-  it("keeps a valid selfie file input free of the button description", () => {
+  it("keeps the captured selfie on a hidden file input", () => {
     const markup = render(false);
     const button = selfieButton(markup);
     const input = fileInput(markup);
@@ -83,7 +83,10 @@ describe("chauffeur selfie control", () => {
     expect(button).toMatch(/aria-describedby="[^"]*-description/);
     expect(button).not.toMatch(/aria-invalid=/);
     expect(input).toContain('type="file"');
-    expect(input).not.toContain("hidden");
+    expect(input).toContain("hidden");
+    expect(input).toContain('aria-hidden="true"');
+    expect(input).toContain('tabindex="-1"');
+    expect(input).not.toMatch(/file:/);
     expect(input).not.toMatch(/aria-invalid=/);
     expect(input).not.toMatch(/aria-describedby=/);
   });

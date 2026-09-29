@@ -68,8 +68,12 @@ export function SelfieField({ field }: SelfieFieldProps) {
           id={field.id}
           name={field.name}
           type="file"
-          className="block w-full text-sm text-muted-foreground file:mr-3 file:rounded-md file:border file:bg-background file:px-3 file:py-2 file:text-sm file:font-medium file:text-foreground"
+          hidden
+          tabIndex={-1}
+          aria-hidden="true"
           accept="image/jpeg,image/png,image/webp"
+          onClick={(event) => event.preventDefault()}
+          onKeyDown={(event) => event.preventDefault()}
           onChange={(event) => setSelfie(event.currentTarget.files?.[0])}
         />
         <FieldDescription id={descriptionId}>
