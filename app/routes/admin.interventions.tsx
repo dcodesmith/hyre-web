@@ -296,6 +296,22 @@ function InterventionCard({
           </Form>
         )}
 
+        {isFace ? (
+          <Form method="post" className="flex flex-col gap-3 rounded-lg border p-4 sm:flex-row">
+            <input type="hidden" name="interventionId" value={intervention.id} />
+            <Input
+              name="notes"
+              required
+              minLength={3}
+              maxLength={2000}
+              placeholder="Retake notes"
+              aria-label="Retake notes"
+            />
+            <Button type="submit" name="intent" value="request-retake" variant="outline">
+              Request retake
+            </Button>
+          </Form>
+        ) : null}
         <Form method="post" className="flex flex-col gap-3 rounded-lg border p-4 sm:flex-row">
           <input type="hidden" name="interventionId" value={intervention.id} />
           <Input
@@ -304,12 +320,8 @@ function InterventionCard({
             minLength={3}
             maxLength={2000}
             placeholder="Rejection notes"
+            aria-label="Rejection notes"
           />
-          {isFace ? (
-            <Button type="submit" name="intent" value="request-retake" variant="outline">
-              Request retake
-            </Button>
-          ) : null}
           <Button type="submit" name="intent" value="reject" variant="destructive">
             <XIcon data-icon="inline-start" />
             Reject
