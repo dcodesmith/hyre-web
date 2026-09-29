@@ -74,7 +74,7 @@ function renderList(
     params: {},
     loaderData,
     actionData: undefined,
-    matches: [],
+    matches: [] as unknown as Route.ComponentProps["matches"],
   };
   return renderToStaticMarkup(createElement(AdminInterventionsRoute, props));
 }
@@ -87,7 +87,7 @@ function renderDetail(
     params: { interventionId: intervention.id },
     loaderData: intervention,
     actionData,
-    matches: [],
+    matches: [] as unknown as DetailRoute.ComponentProps["matches"],
   };
   return renderToStaticMarkup(createElement(AdminInterventionRoute, props));
 }
