@@ -7,26 +7,26 @@ export const interventionKindSchema = z.enum([
   "OWNER_DRIVER_FACE",
 ]);
 
-export const verificationInterventionsSchema = z.object({
-  items: z.array(
-    z.object({
+export const verificationInterventionSchema = z.object({
+  id: z.uuid(),
+  kind: interventionKindSchema,
+  status: z.enum(["OPEN", "AUTO_RESOLVED", "APPROVED", "REJECTED"]),
+  applicantName: z.string(),
+  licenseLast4: z.string().nullable(),
+  hasSelfie: z.boolean(),
+  hasNinPortrait: z.boolean(),
+  document: z
+    .object({
       id: z.uuid(),
-      kind: interventionKindSchema,
-      status: z.enum(["OPEN", "AUTO_RESOLVED", "APPROVED", "REJECTED"]),
-      applicantName: z.string(),
-      licenseLast4: z.string().nullable(),
-      hasSelfie: z.boolean(),
-      hasNinPortrait: z.boolean(),
-      document: z
-        .object({
-          id: z.uuid(),
-          userId: z.uuid().nullable(),
-          status: z.enum(["PENDING", "APPROVED", "REJECTED"]),
-        })
-        .nullable(),
-      createdAt: z.iso.datetime(),
-    }),
-  ),
+      userId: z.uuid().nullable(),
+      status: z.enum(["PENDING", "APPROVED", "REJECTED"]),
+    })
+    .nullable(),
+  createdAt: z.iso.datetime(),
+});
+
+export const verificationInterventionsSchema = z.object({
+  items: z.array(verificationInterventionSchema),
   meta: z.object({
     page: z.number().int().positive(),
     limit: z.number().int().positive(),
@@ -38,6 +38,4 @@ export const verificationInterventionsSchema = z.object({
 export const interventionMutationSchema = z.object({ success: z.literal(true) });
 export const interventionLicenseNumberSchema = z.object({ licenseNumber: z.string().min(1) });
 
-export type VerificationIntervention = z.output<
-  typeof verificationInterventionsSchema
->["items"][number];
+export type VerificationIntervention = z.output<typeof verificationInterventionSchema>;

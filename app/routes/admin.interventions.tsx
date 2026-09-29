@@ -1,56 +1,16 @@
-import { ChevronLeftIcon, ChevronRightIcon, EyeIcon, ShieldCheckIcon, XIcon } from "lucide-react";
-import { data, Form, Link, redirect } from "react-router";
+import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
+import { Link, redirect, useRevalidator } from "react-router";
 import { z } from "zod";
-import {
-  approveIntervention,
-  approveOwnerLicenseIntervention,
-  getInterventionLicenseNumber,
-  getVerificationInterventions,
-  rejectIntervention,
-  requestInterventionSelfieRetake,
-} from "~/api/admin/interventions/interventions.server";
+import { getVerificationInterventions } from "~/api/admin/interventions/interventions.server";
 import type { VerificationIntervention } from "~/api/admin/interventions/schema";
-import { ApiRequestError } from "~/api/api.server";
-import { HTTP_STATUS } from "~/api/http-status";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
-import { Input } from "~/components/ui/input";
+import { Card, CardContent } from "~/components/ui/card";
 import { buildPageMetadata } from "~/seo/metadata";
 import type { Route } from "./+types/admin.interventions";
 
 const NO_STORE = { "Cache-Control": "private, no-store" };
 const INTERVENTIONS_PAGE_SIZE = 20;
-const actionSchema = z.discriminatedUnion("intent", [
-  z.object({ intent: z.literal("reveal"), interventionId: z.uuid() }),
-  z.object({
-    intent: z.literal("approve"),
-    interventionId: z.uuid(),
-    notes: z.string().trim().min(3).max(2000),
-    source: z.string().trim().min(2).max(120),
-    authoritativeSourceAttested: z.string().optional(),
-  }),
-  z.object({
-    intent: z.literal("reject"),
-    interventionId: z.uuid(),
-    notes: z.string().trim().min(3).max(2000),
-  }),
-  z.object({
-    intent: z.literal("request-retake"),
-    interventionId: z.uuid(),
-    notes: z.string().trim().min(3).max(2000),
-  }),
-  z.object({
-    intent: z.literal("approve-document"),
-    interventionId: z.uuid(),
-  }),
-]);
-
-type ActionData = {
-  error?: string;
-  licenseNumber?: string;
-  revealedInterventionId?: string;
-};
 
 export const meta = () =>
   buildPageMetadata({
@@ -82,57 +42,6 @@ export async function loader({ request }: Route.LoaderArgs) {
   return response.data;
 }
 
-export async function action({ request }: Route.ActionArgs) {
-  const submission = actionSchema.safeParse(Object.fromEntries(await request.formData()));
-  if (!submission.success) {
-    return data<ActionData>(
-      { error: submission.error.issues[0]?.message ?? "Invalid review action" },
-      { status: HTTP_STATUS.BAD_REQUEST, headers: NO_STORE },
-    );
-  }
-  try {
-    const action = submission.data;
-    if (action.intent === "reveal") {
-      const response = await getInterventionLicenseNumber(request, action.interventionId);
-      return data<ActionData>(
-        {
-          licenseNumber: response.data.licenseNumber,
-          revealedInterventionId: action.interventionId,
-        },
-        { headers: NO_STORE },
-      );
-    }
-    if (action.intent === "approve-document") {
-      await approveOwnerLicenseIntervention(request, action.interventionId);
-    } else if (action.intent === "approve") {
-      await approveIntervention({
-        request,
-        interventionId: action.interventionId,
-        notes: action.notes,
-        source: action.source,
-        authoritativeSourceAttested: action.authoritativeSourceAttested === "on",
-      });
-    } else if (action.intent === "request-retake") {
-      await requestInterventionSelfieRetake(request, action.interventionId, action.notes);
-    } else {
-      await rejectIntervention(request, action.interventionId, action.notes);
-    }
-    return data<ActionData>({}, { headers: NO_STORE });
-  } catch (error) {
-    const message =
-      error instanceof ApiRequestError && error.status < HTTP_STATUS.INTERNAL_SERVER_ERROR
-        ? error.problem.detail
-        : "Unable to complete this review action. Please try again.";
-    return data<ActionData>(
-      { error: message },
-      {
-        status: error instanceof ApiRequestError ? error.status : HTTP_STATUS.BAD_GATEWAY,
-        headers: NO_STORE,
-      },
-    );
-  }
-}
-
 function kindLabel(kind: VerificationIntervention["kind"]) {
   if (kind === "CHAUFFEUR_FACE") return "Chauffeur face review";
   if (kind === "OWNER_DRIVER_FACE") return "Owner-driver face review";
@@ -142,194 +51,6 @@ function kindLabel(kind: VerificationIntervention["kind"]) {
 
 function interventionsPageHref(page: number) {
   return page > 1 ? `/admin/interventions?page=${page}` : "/admin/interventions";
-}
-
-function FaceEvidence({ intervention }: { readonly intervention: VerificationIntervention }) {
-  return (
-    <div className="grid gap-4 sm:grid-cols-2">
-      {intervention.hasSelfie ? (
-        <figure>
-          <img
-            className="aspect-square w-full rounded-lg border object-cover"
-            src={`/admin/interventions/${intervention.id}/evidence/selfie`}
-            alt="Submitted chauffeur selfie"
-            loading="lazy"
-            decoding="async"
-          />
-          <figcaption className="mt-1 text-xs text-muted-foreground">Submitted selfie</figcaption>
-        </figure>
-      ) : null}
-      {intervention.hasNinPortrait ? (
-        <figure>
-          <img
-            className="aspect-square w-full rounded-lg border object-cover"
-            src={`/admin/interventions/${intervention.id}/evidence/nin-portrait`}
-            alt="Official NIN portrait"
-            loading="lazy"
-            decoding="async"
-          />
-          <figcaption className="mt-1 text-xs text-muted-foreground">NIN portrait</figcaption>
-        </figure>
-      ) : null}
-    </div>
-  );
-}
-
-function InterventionCard({
-  actionData,
-  intervention,
-}: {
-  actionData?: ActionData;
-  intervention: VerificationIntervention;
-}) {
-  const isFace =
-    intervention.kind === "CHAUFFEUR_FACE" || intervention.kind === "OWNER_DRIVER_FACE";
-  const isOwnerLicense = intervention.kind === "OWNER_DRIVER_LICENSE";
-  const revealed =
-    actionData?.revealedInterventionId === intervention.id ? actionData.licenseNumber : undefined;
-
-  return (
-    <Card>
-      <CardHeader>
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <CardTitle>
-              <h2>{intervention.applicantName}</h2>
-            </CardTitle>
-            <CardDescription>{kindLabel(intervention.kind)}</CardDescription>
-          </div>
-          <Badge variant="secondary">Open</Badge>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-5">
-        <dl className="grid gap-3 text-sm sm:grid-cols-2">
-          <div>
-            <dt className="text-muted-foreground">Opened</dt>
-            <dd>{new Date(intervention.createdAt).toLocaleString()}</dd>
-          </div>
-          {!isFace ? (
-            <div>
-              <dt className="text-muted-foreground">Licence</dt>
-              <dd>
-                {intervention.licenseLast4 ? `Ending ${intervention.licenseLast4}` : "Submitted"}
-              </dd>
-            </div>
-          ) : null}
-        </dl>
-
-        {isFace ? (
-          <FaceEvidence intervention={intervention} />
-        ) : !isOwnerLicense ? (
-          <div className="space-y-2">
-            <Form method="post">
-              <input type="hidden" name="intent" value="reveal" />
-              <input type="hidden" name="interventionId" value={intervention.id} />
-              <Button type="submit" variant="outline">
-                <EyeIcon data-icon="inline-start" />
-                Reveal full licence number
-              </Button>
-            </Form>
-            {revealed ? (
-              <output className="block rounded-md border bg-muted px-3 py-2 font-mono text-sm">
-                {revealed}
-              </output>
-            ) : null}
-          </div>
-        ) : null}
-
-        {isOwnerLicense ? (
-          intervention.document ? (
-            <div className="flex flex-wrap gap-2">
-              <Button asChild variant="outline">
-                <a
-                  href={`/admin/documents/${intervention.document.id}`}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  View private licence document
-                </a>
-              </Button>
-              {intervention.document.status !== "APPROVED" ? (
-                <Form method="post">
-                  <input type="hidden" name="intent" value="approve-document" />
-                  <input type="hidden" name="interventionId" value={intervention.id} />
-                  <Button type="submit">
-                    <ShieldCheckIcon data-icon="inline-start" />
-                    Approve document as replacement
-                  </Button>
-                </Form>
-              ) : null}
-            </div>
-          ) : (
-            <p className="text-sm text-destructive">No submitted licence document is available.</p>
-          )
-        ) : (
-          <Form method="post" className="space-y-3 rounded-lg border p-4">
-            <input type="hidden" name="intent" value="approve" />
-            <input type="hidden" name="interventionId" value={intervention.id} />
-            <Input
-              name="source"
-              required
-              placeholder={isFace ? "Visual comparison" : "FRSC or equivalent source"}
-              defaultValue={isFace ? "VISUAL_COMPARISON" : ""}
-              aria-label="Evidence source"
-            />
-            <textarea
-              name="notes"
-              required
-              minLength={3}
-              maxLength={2000}
-              className="min-h-24 w-full rounded-md border bg-transparent px-3 py-2 text-sm"
-              placeholder="Review notes"
-              aria-label="Approval notes"
-            />
-            {!isFace ? (
-              <label className="flex items-start gap-2 text-sm">
-                <input type="checkbox" name="authoritativeSourceAttested" required />I checked the
-                full licence number against an independent authoritative source.
-              </label>
-            ) : null}
-            <Button type="submit">
-              <ShieldCheckIcon data-icon="inline-start" />
-              Approve
-            </Button>
-          </Form>
-        )}
-
-        {isFace ? (
-          <Form method="post" className="flex flex-col gap-3 rounded-lg border p-4 sm:flex-row">
-            <input type="hidden" name="interventionId" value={intervention.id} />
-            <Input
-              name="notes"
-              required
-              minLength={3}
-              maxLength={2000}
-              placeholder="Retake notes"
-              aria-label="Retake notes"
-            />
-            <Button type="submit" name="intent" value="request-retake" variant="outline">
-              Request retake
-            </Button>
-          </Form>
-        ) : null}
-        <Form method="post" className="flex flex-col gap-3 rounded-lg border p-4 sm:flex-row">
-          <input type="hidden" name="interventionId" value={intervention.id} />
-          <Input
-            name="notes"
-            required
-            minLength={3}
-            maxLength={2000}
-            placeholder="Rejection notes"
-            aria-label="Rejection notes"
-          />
-          <Button type="submit" name="intent" value="reject" variant="destructive">
-            <XIcon data-icon="inline-start" />
-            Reject
-          </Button>
-        </Form>
-      </CardContent>
-    </Card>
-  );
 }
 
 function Pagination({ meta }: { readonly meta: Route.ComponentProps["loaderData"]["meta"] }) {
@@ -381,7 +102,7 @@ function Pagination({ meta }: { readonly meta: Route.ComponentProps["loaderData"
   );
 }
 
-export default function AdminInterventionsRoute({ actionData, loaderData }: Route.ComponentProps) {
+export default function AdminInterventionsRoute({ loaderData }: Route.ComponentProps) {
   return (
     <div className="mx-auto max-w-5xl space-y-5">
       <div>
@@ -390,11 +111,6 @@ export default function AdminInterventionsRoute({ actionData, loaderData }: Rout
           Review identity photos and driving credentials that require a staff decision.
         </p>
       </div>
-      {actionData?.error ? (
-        <p role="alert" className="text-sm text-destructive">
-          {actionData.error}
-        </p>
-      ) : null}
       {loaderData.items.length === 0 ? (
         <Card>
           <CardContent className="py-10 text-center text-sm text-muted-foreground">
@@ -403,16 +119,51 @@ export default function AdminInterventionsRoute({ actionData, loaderData }: Rout
         </Card>
       ) : (
         <>
-          {loaderData.items.map((intervention) => (
-            <InterventionCard
-              key={intervention.id}
-              intervention={intervention}
-              actionData={actionData}
-            />
-          ))}
+          <ul className="divide-y overflow-hidden rounded-lg border bg-card">
+            {loaderData.items.map((intervention) => (
+              <li key={intervention.id}>
+                <Link
+                  to={`/admin/interventions/${intervention.id}`}
+                  className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 hover:bg-muted/50"
+                >
+                  <span>
+                    <span className="block font-medium">{intervention.applicantName}</span>
+                    <span className="block text-sm text-muted-foreground">
+                      {kindLabel(intervention.kind)}
+                    </span>
+                  </span>
+                  <span className="flex items-center gap-3 text-sm text-muted-foreground">
+                    <time dateTime={intervention.createdAt}>
+                      {new Date(intervention.createdAt).toLocaleString()}
+                    </time>
+                    <Badge variant="secondary">Open</Badge>
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
           <Pagination meta={loaderData.meta} />
         </>
       )}
+    </div>
+  );
+}
+
+export function ErrorBoundary() {
+  const revalidator = useRevalidator();
+
+  return (
+    <div className="mx-auto flex min-h-80 max-w-lg flex-col items-center justify-center text-center">
+      <h1 className="text-xl font-semibold">Unable to load verification reviews</h1>
+      <p className="mt-2 text-sm text-muted-foreground">Please try again.</p>
+      <Button
+        type="button"
+        className="mt-5"
+        disabled={revalidator.state !== "idle"}
+        onClick={() => revalidator.revalidate()}
+      >
+        {revalidator.state === "idle" ? "Retry" : "Retrying…"}
+      </Button>
     </div>
   );
 }
