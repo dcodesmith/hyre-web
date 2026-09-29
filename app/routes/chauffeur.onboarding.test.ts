@@ -6,6 +6,7 @@ const {
   checkChauffeurPhoneVerification,
   exchangeChauffeurInvitation,
   getChauffeurOnboarding,
+  replaceChauffeurSelfie,
   sendChauffeurPhoneVerification,
   verifyChauffeurDriving,
   verifyChauffeurNin,
@@ -14,6 +15,7 @@ const {
   checkChauffeurPhoneVerification: vi.fn(),
   exchangeChauffeurInvitation: vi.fn(),
   getChauffeurOnboarding: vi.fn(),
+  replaceChauffeurSelfie: vi.fn(),
   sendChauffeurPhoneVerification: vi.fn(),
   verifyChauffeurDriving: vi.fn(),
   verifyChauffeurNin: vi.fn(),
@@ -32,6 +34,7 @@ vi.mock("~/api/chauffeurs/chauffeur-onboarding.server", () => ({
   checkChauffeurPhoneVerification,
   exchangeChauffeurInvitation,
   getChauffeurOnboarding,
+  replaceChauffeurSelfie,
   sendChauffeurPhoneVerification,
   verifyChauffeurDriving,
   verifyChauffeurNin,
@@ -200,6 +203,7 @@ describe("chauffeur onboarding route", () => {
     });
     verifyChauffeurNin.mockResolvedValue({ data: onboarding });
     verifyChauffeurDriving.mockResolvedValue({ data: onboarding });
+    replaceChauffeurSelfie.mockResolvedValue({ data: onboarding });
   });
 
   it("exchanges an invite token, then redirects to the clean URL with an encrypted HttpOnly cookie", async () => {
@@ -324,6 +328,34 @@ describe("chauffeur onboarding route", () => {
       idempotencyKey: IDEMPOTENCY_KEY,
     });
     uuid.mockRestore();
+  });
+
+  it("returns photo review flags from the loader", async () => {
+    const reviewing = {
+      ...onboarding,
+      steps: {
+        ...onboarding.steps,
+        consent: true,
+        phone: true,
+        nin: true,
+        drivingSubmitted: true,
+      },
+    };
+    getChauffeurOnboarding.mockResolvedValueOnce({ data: reviewing });
+    const cookie = await sessionCookie();
+    const result = await loader(
+      loaderArgs(
+        new Request(`https://tripdly.com${PATH}`, {
+          headers: { Cookie: cookie },
+        }),
+      ),
+    );
+
+    expect(result).toMatchObject({
+      onboarding: {
+        steps: { drivingSubmitted: true, rejected: false, selfieRetakeRequired: false },
+      },
+    });
   });
 
   it("clears an expired API session and returns the unavailable state", async () => {
@@ -564,11 +596,40 @@ describe("chauffeur onboarding route", () => {
     });
   });
 
+  it("replaces a selfie through the BFF without forwarding the form intent", async () => {
+    const selfie = new File(["selfie"], "selfie.jpg", { type: "image/jpeg" });
+    const cookie = await sessionCookie();
+    const { request, result } = await runAction(
+      {
+        intent: "replace-selfie",
+        selfie,
+        idempotencyKey: IDEMPOTENCY_KEY,
+      },
+      cookie,
+    );
+
+    expect(replaceChauffeurSelfie).toHaveBeenCalledWith({
+      request,
+      sessionToken: SESSION_TOKEN,
+      idempotencyKey: IDEMPOTENCY_KEY,
+      selfie: expect.any(File),
+    });
+    const sent = replaceChauffeurSelfie.mock.calls[0]?.[0]?.selfie;
+    expect(sent).toBeInstanceOf(File);
+    if (!(sent instanceof File)) {
+      throw new Error("expected selfie File");
+    }
+    expect(sent.name).toBe("selfie.jpg");
+    expect(sent.type).toBe("image/jpeg");
+    expect(verifyChauffeurDriving).not.toHaveBeenCalled();
+    expect(result).toMatchObject({ data: { intent: "replace-selfie" } });
+  });
+
   it.each([
     ["error code", "CHAUFFEUR_VERIFICATION_IN_PROGRESS", "Verification is still running."],
     ["detail", undefined, "This chauffeur verification step is still being processed"],
   ] as const)(
-    "treats an in-progress driving response (%s) as waiting instead of a form error",
+    "accepts an in-progress driving response (%s) without a form error",
     async (_label, errorCode, detail) => {
       verifyChauffeurDriving.mockRejectedValueOnce(
         apiError(HTTP_STATUS.CONFLICT, detail, undefined, "http", errorCode),

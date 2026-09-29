@@ -132,7 +132,11 @@ describe("bookingDetailSchema", () => {
         year: 2019,
         owner: { id: "018f47a2-7b3c-7d4e-8f90-123456789461" },
       },
-      chauffeur: { name: "Bola Adebayo", phoneNumber: "0801" },
+      chauffeur: {
+        name: "Bola Adebayo",
+        phoneNumber: "0801",
+        image: "/images/hero-640.webp",
+      },
       flight: null,
       legs: [
         {
@@ -171,7 +175,10 @@ describe("bookingDetailSchema", () => {
 
     const booking = parsed.data.booking;
     expect(booking.car).toEqual({ make: "Lexus", model: "UX F-Sport", year: 2019 });
-    expect(booking.chauffeur).toEqual({ name: "Bola Adebayo" });
+    expect(booking.chauffeur).toEqual({
+      name: "Bola Adebayo",
+      image: "/images/hero-640.webp",
+    });
     expect(booking.currency).toBe("USD");
     expect(booking.addons).toEqual([
       {
@@ -306,7 +313,11 @@ describe("guest booking access schemas", () => {
       year: 2025,
       images: ["https://cdn.example.com/car.jpg"],
     },
-    chauffeur: { name: "Bola", phoneNumber: "08000000000" },
+    chauffeur: {
+      name: "Bola",
+      phoneNumber: "08000000000",
+      image: "/images/hero-640.webp",
+    },
     legs: [
       {
         id: "018f47a2-7b3c-7d4e-8f90-123456789421",

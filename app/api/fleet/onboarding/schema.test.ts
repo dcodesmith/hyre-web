@@ -9,6 +9,7 @@ import {
   fleetOwnerOnboardingSchema,
   fleetOwnerPayoutVerificationSchema,
   fleetOwnerPhoneVerificationSchema,
+  fleetOwnerSelfieReplacementSchema,
 } from "./schema";
 
 const banks = [
@@ -136,6 +137,24 @@ describe("fleet-owner onboarding API schemas", () => {
       },
       nextAction: "COMPLETE",
     });
+  });
+
+  it("accepts a selfie retake and a terminal rejection as next actions", () => {
+    expect(
+      fleetOwnerOnboardingSchema.parse({
+        ...actionRequiredOnboarding,
+        nextAction: "RETAKE_SELFIE",
+      }).nextAction,
+    ).toBe("RETAKE_SELFIE");
+    expect(
+      fleetOwnerOnboardingSchema.parse({
+        ...actionRequiredOnboarding,
+        nextAction: "REJECTED",
+      }).nextAction,
+    ).toBe("REJECTED");
+    expect(
+      fleetOwnerSelfieReplacementSchema.parse({ status: "COMPLETED", isOwnerDriver: true }),
+    ).toEqual({ status: "COMPLETED", isOwnerDriver: true });
   });
 
   it("rejects onboarding without nextAction", () => {

@@ -17,6 +17,7 @@ import {
   getInterventionLicenseNumber,
   getVerificationInterventions,
   rejectIntervention,
+  requestInterventionSelfieRetake,
 } from "./interventions.server";
 
 const interventionId = "018f47a2-7b3c-7d4e-8f90-1234567894c1";
@@ -108,6 +109,15 @@ describe("admin intervention BFF", () => {
       notes: "Photo does not match",
     });
     expect(capturedRequest().url).toContain("/reject");
+
+    fetchMock.mockClear();
+    fetchMock.mockResolvedValueOnce(Response.json({ success: true }));
+    await requestInterventionSelfieRetake(request, interventionId, "Face is unclear");
+    expect(JSON.parse(String(capturedRequest().init?.body))).toEqual({
+      notes: "Face is unclear",
+    });
+    expect(capturedRequest().url).toContain("/request-retake");
+    expect(capturedRequest().init?.method).toBe("POST");
   });
 
   it("approves an owner-driver licence by intervention id only", async () => {

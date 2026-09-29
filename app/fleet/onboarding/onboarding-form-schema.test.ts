@@ -7,6 +7,7 @@ import {
   onboardingPayoutFormSchema,
   onboardingPhoneCheckFormSchema,
   onboardingPhoneFormSchema,
+  onboardingSelfieReplacementFormSchema,
 } from "./onboarding-form-schema";
 
 const individualIdentity = {
@@ -163,6 +164,24 @@ describe("onboarding form schemas", () => {
     if (parsed.success) return;
 
     expect(parsed.error.issues.find((issue) => issue.path[0] === field)?.message).toBe(message);
+  });
+
+  it("requires a selfie as well as a licence for owner-drivers", () => {
+    const driversLicense = documentFile();
+
+    expect(
+      drivingFieldIssue(
+        {
+          isOwnerDriver: "true",
+          driversLicenseNumber: VALID_LICENSE_NUMBER,
+          driversLicense,
+        },
+        "selfie",
+      ),
+    ).toBe("Take a clear selfie");
+    expect(drivingFieldIssue({ isOwnerDriver: "false", selfie: selfieFile() }, "selfie")).toBe(
+      DRIVER_CREDENTIALS_OWNER_ONLY,
+    );
   });
 
   it("requires a drivers license number and upload for owner-drivers", () => {
@@ -361,5 +380,19 @@ describe("onboarding driver-licence replacement form schema", () => {
     expect(firstIssue({ file: gif })).toBe("Use a JPEG, PNG, WebP, or PDF file");
     expect(firstIssue({ file: oversized })).toBe("File must not exceed 5 MB");
     expect(firstIssue({ file: empty })).toBe("The selected file is empty");
+  });
+});
+
+describe("onboarding selfie replacement form schema", () => {
+  it("requires a JPEG, PNG, or WebP selfie", () => {
+    const selfie = selfieFile();
+
+    expect(onboardingSelfieReplacementFormSchema.parse({ selfie })).toEqual({ selfie });
+    expect(onboardingSelfieReplacementFormSchema.safeParse({}).success).toBe(false);
+    expect(
+      onboardingSelfieReplacementFormSchema.safeParse({
+        selfie: documentFile("selfie.gif", "image/gif"),
+      }).success,
+    ).toBe(false);
   });
 });

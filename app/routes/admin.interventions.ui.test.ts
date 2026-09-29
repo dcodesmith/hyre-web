@@ -156,8 +156,9 @@ const staffMatch = {
 function render(
   actionData?: Route.ComponentProps["actionData"],
   meta: Route.ComponentProps["loaderData"]["meta"] = queue.meta,
+  queueItems: VerificationIntervention[] = items,
 ) {
-  const loaderData = { items, meta };
+  const loaderData = { items: queueItems, meta };
   const props: Route.ComponentProps = {
     params: {},
     loaderData,
@@ -239,6 +240,31 @@ describe("admin intervention review UI", () => {
     expect(markup).not.toContain('name="documentId"');
     expect(markup).not.toMatch(/smile|mono|prembly/i);
     expect(markup).not.toContain("Take selfie");
+  });
+
+  it("offers a retake for an owner-driver face and does not show a retry count", () => {
+    const ownerFaceId = "018f47a2-7b3c-7d4e-8f90-1234567894c5";
+    const markup = render(undefined, { page: 1, limit: 20, total: 1, totalPages: 1 }, [
+      {
+        id: ownerFaceId,
+        kind: "OWNER_DRIVER_FACE",
+        status: "OPEN",
+        applicantName: "Grace Hopper",
+        licenseLast4: null,
+        hasSelfie: true,
+        hasNinPortrait: false,
+        document: null,
+        createdAt,
+      },
+    ]);
+
+    expect(markup).toContain("Owner-driver face review");
+    expect(markup).toContain("Request retake");
+    expect(markup).toContain('value="request-retake"');
+    expect(markup).toContain(`name="interventionId" value="${ownerFaceId}"`);
+    expect(markup).not.toMatch(/retry/i);
+    expect(markup).not.toContain("Reveal full licence number");
+    expect(markup).not.toContain("independent authoritative source");
   });
 
   it("renders accessible pagination for additional review pages", () => {

@@ -136,6 +136,41 @@ function onboardingForStep(step: string | null): FleetOwnerOnboarding {
     };
   }
 
+  if (step === "retake") {
+    return {
+      ...accountOnboarding,
+      accountType: "INDIVIDUAL",
+      isOwnerDriver: true,
+      identity: {
+        status: "SUCCEEDED",
+        legalName: "Ada Lovelace",
+        businessName: null,
+      },
+      bank: {
+        bankName: "GTBank",
+        accountName: "ADA LOVELACE",
+        accountNumber: "******6789",
+        verified: true,
+      },
+      steps: {
+        contact: "VERIFIED",
+        identity: "VERIFIED",
+        payout: "VERIFIED",
+        driving: "COMPLETED",
+        submission: "REVIEW_REQUIRED",
+      },
+      nextAction: "RETAKE_SELFIE",
+    };
+  }
+
+  if (step === "rejected") {
+    return {
+      ...accountOnboarding,
+      status: "ACTION_REQUIRED",
+      nextAction: "REJECTED",
+    };
+  }
+
   if (step === "review") {
     return {
       ...accountOnboarding,

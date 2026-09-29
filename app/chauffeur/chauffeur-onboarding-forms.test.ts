@@ -77,6 +77,9 @@ describe("chauffeur selfie control", () => {
     const input = fileInput(markup);
 
     expect(markup).toContain('data-invalid="false"');
+    expect(markup).toContain(
+      "Take a clear selfie in good light. After approval, this becomes your profile picture.",
+    );
     expect(button).toMatch(/aria-describedby="[^"]*-description/);
     expect(button).not.toMatch(/aria-invalid=/);
     expect(input).toContain('type="file"');

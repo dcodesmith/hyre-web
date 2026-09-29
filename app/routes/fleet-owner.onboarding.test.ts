@@ -5,6 +5,7 @@ const {
   checkFleetOwnerPhoneVerification,
   getFleetOwnerBanks,
   replaceFleetOwnerDriverLicense,
+  replaceFleetOwnerSelfie,
   saveFleetOwnerDrivingCredentials,
   sendFleetOwnerPhoneVerification,
   submitFleetOwnerOnboarding,
@@ -14,6 +15,7 @@ const {
   checkFleetOwnerPhoneVerification: vi.fn(),
   getFleetOwnerBanks: vi.fn(),
   replaceFleetOwnerDriverLicense: vi.fn(),
+  replaceFleetOwnerSelfie: vi.fn(),
   saveFleetOwnerDrivingCredentials: vi.fn(),
   sendFleetOwnerPhoneVerification: vi.fn(),
   submitFleetOwnerOnboarding: vi.fn(),
@@ -29,6 +31,7 @@ vi.mock("~/api/fleet/onboarding/onboarding.server", () => ({
   checkFleetOwnerPhoneVerification,
   getFleetOwnerBanks,
   replaceFleetOwnerDriverLicense,
+  replaceFleetOwnerSelfie,
   saveFleetOwnerDrivingCredentials,
   sendFleetOwnerPhoneVerification,
   submitFleetOwnerOnboarding,
@@ -248,6 +251,9 @@ describe("fleet-owner onboarding route", () => {
     replaceFleetOwnerDriverLicense.mockResolvedValue({
       data: { status: "PENDING" },
     });
+    replaceFleetOwnerSelfie.mockResolvedValue({
+      data: { status: "COMPLETED", isOwnerDriver: true },
+    });
   });
 
   it("loads banks only when nextAction is VERIFY_PAYOUT", async () => {
@@ -411,6 +417,7 @@ describe("fleet-owner onboarding route", () => {
     expect(String(sent.get("isOwnerDriver"))).toBe("false");
     expect(sent.get("driversLicenseNumber")).toBeNull();
     expect(sent.get("driversLicense")).toBeNull();
+    expect(sent.get("selfie")).toBeNull();
     expect(sent.get("intent")).toBeNull();
     expectRedirect(result, "/fleet-owner/onboarding");
   });
@@ -461,6 +468,25 @@ describe("fleet-owner onboarding route", () => {
     const sent = replaceFleetOwnerDriverLicense.mock.calls[0][0].file as File;
     expect(sent.name).toBe("license.pdf");
     expect(sent.type).toBe("application/pdf");
+    expectRedirect(result, "/fleet-owner/onboarding");
+  });
+
+  it("replaces an owner-driver selfie and redirects to onboarding", async () => {
+    const { request, result } = await runAction({
+      intent: "replace-selfie",
+      idempotencyKey: IDEMPOTENCY_KEY,
+      selfie: VALID_SELFIE_FILE,
+    });
+
+    expect(replaceFleetOwnerSelfie).toHaveBeenCalledWith({
+      request,
+      idempotencyKey: IDEMPOTENCY_KEY,
+      selfie: expect.any(File),
+    });
+    const sent = replaceFleetOwnerSelfie.mock.calls[0][0].selfie as File;
+    expect(sent.name).toBe("selfie.jpg");
+    expect(sent.type).toBe("image/jpeg");
+    expect(saveFleetOwnerDrivingCredentials).not.toHaveBeenCalled();
     expectRedirect(result, "/fleet-owner/onboarding");
   });
 

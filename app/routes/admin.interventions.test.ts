@@ -7,12 +7,14 @@ const {
   getInterventionLicenseNumber,
   getVerificationInterventions,
   rejectIntervention,
+  requestInterventionSelfieRetake,
 } = vi.hoisted(() => ({
   approveIntervention: vi.fn(),
   approveOwnerLicenseIntervention: vi.fn(),
   getInterventionLicenseNumber: vi.fn(),
   getVerificationInterventions: vi.fn(),
   rejectIntervention: vi.fn(),
+  requestInterventionSelfieRetake: vi.fn(),
 }));
 
 vi.mock("cloudflare:workers", () => ({
@@ -24,6 +26,7 @@ vi.mock("~/api/admin/interventions/interventions.server", () => ({
   getInterventionLicenseNumber,
   getVerificationInterventions,
   rejectIntervention,
+  requestInterventionSelfieRetake,
 }));
 
 import { ApiRequestError } from "~/api/api.server";
@@ -210,6 +213,22 @@ describe("admin interventions route", () => {
       documentId,
     );
     expect(approvedDocument.data).toEqual({});
+  });
+
+  it("requests a selfie retake without rejecting the review", async () => {
+    requestInterventionSelfieRetake.mockResolvedValue({ data: { success: true } });
+
+    const result = await action(
+      actionArgs({ intent: "request-retake", interventionId, notes: "Face is unclear" }),
+    );
+
+    expect(requestInterventionSelfieRetake).toHaveBeenCalledWith(
+      expect.any(Request),
+      interventionId,
+      "Face is unclear",
+    );
+    expect(rejectIntervention).not.toHaveBeenCalled();
+    expect(result.data).toEqual({});
   });
 
   it("rejects an incomplete review action", async () => {

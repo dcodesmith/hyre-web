@@ -50,11 +50,19 @@ function onboardingForStep(step: string | null): ChauffeurOnboarding | null {
     };
   }
 
-  if (step === "driving") {
+  if (step === "driving" || step === "waiting" || step === "retake" || step === "rejected") {
     return {
       ...invitedOnboarding,
       status: "IDENTITY_VERIFIED",
-      steps: { ...invitedOnboarding.steps, consent: true, phone: true, nin: true },
+      steps: {
+        ...invitedOnboarding.steps,
+        consent: true,
+        phone: true,
+        nin: true,
+        drivingSubmitted: step === "waiting" || step === "rejected",
+        rejected: step === "rejected",
+        selfieRetakeRequired: step === "retake",
+      },
     };
   }
 
