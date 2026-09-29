@@ -132,7 +132,7 @@ function UnderReview({ onboarding }: { readonly onboarding: FleetOwnerOnboarding
           </div>
           <div className="min-w-0 space-y-1">
             <CardTitle>
-              <h2>Verification Under Review</h2>
+              <h2>Submitted for review</h2>
             </CardTitle>
             <CardDescription>
               Your details were received. You can return here to see the latest status.

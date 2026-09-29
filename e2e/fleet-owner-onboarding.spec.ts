@@ -79,7 +79,7 @@ test("completes staged fleet-owner onboarding through phone, identity, payout, d
     await expect(page.getByText("Not required")).toBeVisible();
 
     await page.getByRole("button", { name: "Submit verification" }).click();
-    await expect(page.getByRole("heading", { name: "Verification Under Review" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Submitted for review" })).toBeVisible();
     await expect(page.getByText("Review in progress")).toBeVisible();
   } finally {
     await stopMockFleetOwnerAuthApi(api);

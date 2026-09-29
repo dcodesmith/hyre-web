@@ -168,7 +168,7 @@ describe("fleet owner selfie review screens", () => {
   it("polls while staff are reviewing the account", () => {
     const markup = renderOwner(reviewingOwner);
 
-    expect(markup).toContain("Verification Under Review");
+    expect(markup).toContain("Submitted for review");
     expect(revalidateInterval).toHaveBeenCalledTimes(1);
     expect(revalidateInterval).toHaveBeenCalledWith(4_000);
   });
@@ -182,7 +182,7 @@ describe("fleet owner selfie review screens", () => {
     expect(markup).toContain(
       "Take a clear selfie in good light. After approval, this becomes your profile picture.",
     );
-    expect(markup).not.toContain("Verification Under Review");
+    expect(markup).not.toContain("Submitted for review");
     expect(revalidateInterval).not.toHaveBeenCalled();
   });
 
@@ -195,7 +195,7 @@ describe("fleet owner selfie review screens", () => {
 
     expect(markup).toContain("Verification not approved");
     expect(markup).not.toContain("Submit new selfie");
-    expect(markup).not.toContain("Verification Under Review");
+    expect(markup).not.toContain("Submitted for review");
     expect(revalidateInterval).not.toHaveBeenCalled();
   });
 });

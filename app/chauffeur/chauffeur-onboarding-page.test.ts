@@ -70,14 +70,14 @@ describe("chauffeur driving review screens", () => {
     const waiting = renderPage({ drivingSubmitted: true });
     const submittedAction = renderPage({}, { intent: "verify-driving" });
 
-    expect(waiting).toContain("Checking your photo");
+    expect(waiting).toContain("Submitted for review");
     expect(waiting).not.toContain("Take selfie");
     expect(waiting).not.toContain("Complete verification");
     expect(waiting).not.toMatch(/smile|mono|prembly/i);
     expect(revalidateInterval).toHaveBeenCalledTimes(1);
     expect(revalidateInterval).toHaveBeenCalledWith(4_000);
     expect(submittedAction).toContain("Take selfie");
-    expect(submittedAction).not.toContain("Checking your photo");
+    expect(submittedAction).not.toContain("Submitted for review");
   });
 
   it("keeps the driving form available before a photo is submitted", () => {
@@ -85,7 +85,7 @@ describe("chauffeur driving review screens", () => {
 
     expect(markup).toContain("Verify your driving credentials");
     expect(markup).toContain("Take selfie");
-    expect(markup).not.toContain("Checking your photo");
+    expect(markup).not.toContain("Submitted for review");
     expect(revalidateInterval).not.toHaveBeenCalled();
   });
 
@@ -94,7 +94,7 @@ describe("chauffeur driving review screens", () => {
 
     expect(markup).toContain("Take a new profile photo");
     expect(markup).toContain("Submit new selfie");
-    expect(markup).not.toContain("Checking your photo");
+    expect(markup).not.toContain("Submitted for review");
     expect(markup).not.toContain("Take selfie");
     expect(revalidateInterval).not.toHaveBeenCalled();
   });
@@ -106,7 +106,7 @@ describe("chauffeur driving review screens", () => {
     expect(markup).toContain("Contact your fleet owner for help.");
     expect(markup).not.toContain("Take selfie");
     expect(markup).not.toContain("Submit new selfie");
-    expect(markup).not.toContain("Checking your photo");
+    expect(markup).not.toContain("Submitted for review");
     expect(revalidateInterval).not.toHaveBeenCalled();
   });
 });

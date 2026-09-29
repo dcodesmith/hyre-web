@@ -1,5 +1,4 @@
 import { ChevronLeftIcon, ChevronRightIcon, EyeIcon, ShieldCheckIcon, XIcon } from "lucide-react";
-import { useState } from "react";
 import { data, Form, Link, redirect } from "react-router";
 import { z } from "zod";
 import {
@@ -146,50 +145,31 @@ function interventionsPageHref(page: number) {
 }
 
 function FaceEvidence({ intervention }: { readonly intervention: VerificationIntervention }) {
-  const [visible, setVisible] = useState(false);
-  const evidenceId = `intervention-${intervention.id}-evidence`;
-
   return (
-    <div className="space-y-3">
-      <Button
-        type="button"
-        variant="outline"
-        aria-controls={evidenceId}
-        aria-expanded={visible}
-        onClick={() => setVisible((current) => !current)}
-      >
-        <EyeIcon data-icon="inline-start" aria-hidden="true" />
-        {visible ? "Hide evidence" : "View evidence"}
-      </Button>
-      {visible ? (
-        <div id={evidenceId} className="grid gap-4 sm:grid-cols-2">
-          {intervention.hasSelfie ? (
-            <figure>
-              <img
-                className="aspect-square w-full rounded-lg border object-cover"
-                src={`/admin/interventions/${intervention.id}/evidence/selfie`}
-                alt="Submitted chauffeur selfie"
-                loading="lazy"
-                decoding="async"
-              />
-              <figcaption className="mt-1 text-xs text-muted-foreground">
-                Submitted selfie
-              </figcaption>
-            </figure>
-          ) : null}
-          {intervention.hasNinPortrait ? (
-            <figure>
-              <img
-                className="aspect-square w-full rounded-lg border object-cover"
-                src={`/admin/interventions/${intervention.id}/evidence/nin-portrait`}
-                alt="Official NIN portrait"
-                loading="lazy"
-                decoding="async"
-              />
-              <figcaption className="mt-1 text-xs text-muted-foreground">NIN portrait</figcaption>
-            </figure>
-          ) : null}
-        </div>
+    <div className="grid gap-4 sm:grid-cols-2">
+      {intervention.hasSelfie ? (
+        <figure>
+          <img
+            className="aspect-square w-full rounded-lg border object-cover"
+            src={`/admin/interventions/${intervention.id}/evidence/selfie`}
+            alt="Submitted chauffeur selfie"
+            loading="lazy"
+            decoding="async"
+          />
+          <figcaption className="mt-1 text-xs text-muted-foreground">Submitted selfie</figcaption>
+        </figure>
+      ) : null}
+      {intervention.hasNinPortrait ? (
+        <figure>
+          <img
+            className="aspect-square w-full rounded-lg border object-cover"
+            src={`/admin/interventions/${intervention.id}/evidence/nin-portrait`}
+            alt="Official NIN portrait"
+            loading="lazy"
+            decoding="async"
+          />
+          <figcaption className="mt-1 text-xs text-muted-foreground">NIN portrait</figcaption>
+        </figure>
       ) : null}
     </div>
   );

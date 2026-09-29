@@ -193,7 +193,7 @@ function DrivingApprovalWaiting() {
       <Alert role="status">
         <Clock3Icon aria-hidden="true" />
         <AlertTitle>
-          <h2>Checking your photo</h2>
+          <h2>Submitted for review</h2>
         </AlertTitle>
         <AlertDescription>
           Staff are reviewing your licence and comparing your selfie with your NIN photo. You can

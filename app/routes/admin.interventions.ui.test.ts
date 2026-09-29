@@ -1,80 +1,6 @@
 import { createElement, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { beforeEach, describe, expect, it, vi } from "vitest";
-
-const faceEvidence = vi.hoisted(() => ({
-  visible: false,
-  toggle: undefined as (() => void) | undefined,
-}));
-
-function captureEvidenceToggle(props: unknown) {
-  if (!props || typeof props !== "object") return;
-  const candidate = props as { "aria-controls"?: unknown; onClick?: unknown };
-  if (
-    typeof candidate["aria-controls"] === "string" &&
-    candidate["aria-controls"].endsWith("-evidence") &&
-    typeof candidate.onClick === "function"
-  ) {
-    const onClick = candidate.onClick;
-    faceEvidence.toggle = () => {
-      Reflect.apply(onClick, undefined, []);
-    };
-  }
-}
-
-vi.mock("react/jsx-runtime", async () => {
-  const actual = await vi.importActual<typeof import("react/jsx-runtime")>("react/jsx-runtime");
-  return {
-    ...actual,
-    jsx: (type: unknown, props: unknown, key: unknown) => {
-      captureEvidenceToggle(props);
-      return actual.jsx(type as never, props as never, key as never);
-    },
-    jsxs: (type: unknown, props: unknown, key: unknown) => {
-      captureEvidenceToggle(props);
-      return actual.jsxs(type as never, props as never, key as never);
-    },
-  };
-});
-
-vi.mock("react/jsx-dev-runtime", async () => {
-  const actual =
-    await vi.importActual<typeof import("react/jsx-dev-runtime")>("react/jsx-dev-runtime");
-  return {
-    ...actual,
-    jsxDEV: (
-      type: unknown,
-      props: unknown,
-      key: unknown,
-      isStatic: boolean,
-      source: unknown,
-      self: unknown,
-    ) => {
-      captureEvidenceToggle(props);
-      return actual.jsxDEV(
-        type as never,
-        props as never,
-        key as never,
-        isStatic,
-        source as never,
-        self as never,
-      );
-    },
-  };
-});
-
-vi.mock("react", async () => {
-  const actual = await vi.importActual<typeof import("react")>("react");
-  return {
-    ...actual,
-    useState: () => [
-      faceEvidence.visible,
-      (update: boolean | ((current: boolean) => boolean)) => {
-        faceEvidence.visible = typeof update === "function" ? update(faceEvidence.visible) : update;
-      },
-    ],
-  };
-});
+import { describe, expect, it, vi } from "vitest";
 
 vi.mock("react-router", () => ({
   Form: ({ children, ...props }: { children?: ReactNode; method?: string }) =>
@@ -186,11 +112,6 @@ function render(
 }
 
 describe("admin intervention review UI", () => {
-  beforeEach(() => {
-    faceEvidence.visible = false;
-    faceEvidence.toggle = undefined;
-  });
-
   it("reveals a chauffeur licence only after the reveal action and requires attestation", () => {
     const hidden = render();
     expect(hidden).toContain("Reveal full licence number");
@@ -203,32 +124,17 @@ describe("admin intervention review UI", () => {
     expect(revealed.match(/name="authoritativeSourceAttested"/g)).toHaveLength(1);
   });
 
-  it("loads face evidence only after view evidence and unmounts it when hidden", () => {
-    const hidden = render();
+  it("shows the selfie and NIN portrait side by side", () => {
+    const markup = render();
 
-    expect(hidden).toContain("View evidence");
-    expect(hidden).toContain('aria-expanded="false"');
-    expect(hidden).not.toContain(`/admin/interventions/${faceId}/evidence/`);
-    expect(faceEvidence.toggle).toEqual(expect.any(Function));
-
-    faceEvidence.toggle?.();
-    const shown = render();
-
-    expect(shown).toContain("Hide evidence");
-    expect(shown).toContain('aria-expanded="true"');
-    expect(shown).toContain(
+    expect(markup).not.toContain("View evidence");
+    expect(markup).toContain('class="grid gap-4 sm:grid-cols-2"');
+    expect(markup).toContain(
       `src="/admin/interventions/${faceId}/evidence/selfie" alt="Submitted chauffeur selfie" loading="lazy" decoding="async"`,
     );
-    expect(shown).toContain(
+    expect(markup).toContain(
       `src="/admin/interventions/${faceId}/evidence/nin-portrait" alt="Official NIN portrait" loading="lazy" decoding="async"`,
     );
-
-    faceEvidence.toggle?.();
-    const hiddenAgain = render();
-
-    expect(hiddenAgain).toContain("View evidence");
-    expect(hiddenAgain).not.toContain(`/admin/interventions/${faceId}/evidence/`);
-    expect(hiddenAgain).not.toContain("<img");
   });
 
   it("shows an owner document replacement bound to the intervention", () => {
