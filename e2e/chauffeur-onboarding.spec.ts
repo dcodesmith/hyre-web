@@ -142,7 +142,7 @@ test("shows a generic waiting state after driving submit while approval is still
     });
     await page.getByRole("button", { name: "Complete verification" }).click();
 
-    await expect(page.getByRole("heading", { name: "Checking your photo" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Submitted for review" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Take selfie" })).toHaveCount(0);
     await expect(page.getByText(/smile|mono|prembly/i)).toHaveCount(0);
     expect(api.requests.drivingIdempotencyKeys).toHaveLength(1);

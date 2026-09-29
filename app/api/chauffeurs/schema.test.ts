@@ -21,7 +21,15 @@ const invitedOnboarding = {
   phoneNumber: "+2348012345678",
   fleetOwnerName: "Ada Lovelace",
   status: "INVITED",
-  steps: { consent: false, phone: false, nin: false, driving: false },
+  steps: {
+    consent: false,
+    phone: false,
+    nin: false,
+    driving: false,
+    drivingSubmitted: false,
+    rejected: false,
+    selfieRetakeRequired: false,
+  },
   complianceRequirements,
 } as const;
 
@@ -29,7 +37,15 @@ const approvedOnboarding = {
   ...invitedOnboarding,
   status: "APPROVED",
   fleetOwnerName: null,
-  steps: { consent: true, phone: true, nin: true, driving: true },
+  steps: {
+    consent: true,
+    phone: true,
+    nin: true,
+    driving: true,
+    drivingSubmitted: true,
+    rejected: false,
+    selfieRetakeRequired: false,
+  },
 } as const;
 
 const fleetChauffeur = {

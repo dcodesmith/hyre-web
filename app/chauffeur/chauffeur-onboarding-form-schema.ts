@@ -7,6 +7,18 @@ import { driversLicenseNumberSchema } from "~/schema/drivers-license-number";
 const SELFIE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 const idempotencyKeySchema = z.uuid();
 
+function addSelfieIssues(context: z.RefinementCtx, selfie: File) {
+  addFileValidationIssues({
+    allowedTypes: SELFIE_TYPES,
+    context,
+    emptyMessage: "The selected image is empty",
+    file: selfie,
+    invalidTypeMessage: "Use a JPEG, PNG, or WebP image",
+    oversizedMessage: "Image must not exceed 5 MB",
+    path: ["selfie"],
+  });
+}
+
 export const chauffeurConsentFormSchema = z.object({
   termsAccepted: z.literal("on", { error: "Accept the terms to continue" }),
   privacyAccepted: z.literal("on", { error: "Accept the privacy policy to continue" }),
@@ -34,15 +46,16 @@ export const chauffeurDrivingFormSchema = z
     idempotencyKey: idempotencyKeySchema,
   })
   .superRefine(({ selfie }, context) => {
-    addFileValidationIssues({
-      allowedTypes: SELFIE_TYPES,
-      context,
-      emptyMessage: "The selected image is empty",
-      file: selfie,
-      invalidTypeMessage: "Use a JPEG, PNG, or WebP image",
-      oversizedMessage: "Image must not exceed 5 MB",
-      path: ["selfie"],
-    });
+    addSelfieIssues(context, selfie);
+  });
+
+export const chauffeurSelfieFormSchema = z
+  .object({
+    selfie: z.file({ error: "Take a clear selfie" }),
+    idempotencyKey: idempotencyKeySchema,
+  })
+  .superRefine(({ selfie }, context) => {
+    addSelfieIssues(context, selfie);
   });
 
 export type ChauffeurOnboardingIntent =
@@ -50,11 +63,11 @@ export type ChauffeurOnboardingIntent =
   | "send-phone"
   | "check-phone"
   | "verify-nin"
-  | "verify-driving";
+  | "verify-driving"
+  | "replace-selfie";
 
 export type ChauffeurOnboardingActionData = {
   readonly intent: ChauffeurOnboardingIntent;
-  readonly drivingPending?: true;
   readonly error?: string;
   readonly idempotencyKey?: string;
   readonly notice?: string;

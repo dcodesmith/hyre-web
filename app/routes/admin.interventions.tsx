@@ -1,5 +1,4 @@
 import { ChevronLeftIcon, ChevronRightIcon, EyeIcon, ShieldCheckIcon, XIcon } from "lucide-react";
-import { useState } from "react";
 import { data, Form, Link, redirect } from "react-router";
 import { z } from "zod";
 import {
@@ -8,6 +7,7 @@ import {
   getInterventionLicenseNumber,
   getVerificationInterventions,
   rejectIntervention,
+  requestInterventionSelfieRetake,
 } from "~/api/admin/interventions/interventions.server";
 import type { VerificationIntervention } from "~/api/admin/interventions/schema";
 import { ApiRequestError } from "~/api/api.server";
@@ -32,6 +32,11 @@ const actionSchema = z.discriminatedUnion("intent", [
   }),
   z.object({
     intent: z.literal("reject"),
+    interventionId: z.uuid(),
+    notes: z.string().trim().min(3).max(2000),
+  }),
+  z.object({
+    intent: z.literal("request-retake"),
     interventionId: z.uuid(),
     notes: z.string().trim().min(3).max(2000),
   }),
@@ -107,6 +112,8 @@ export async function action({ request }: Route.ActionArgs) {
         source: action.source,
         authoritativeSourceAttested: action.authoritativeSourceAttested === "on",
       });
+    } else if (action.intent === "request-retake") {
+      await requestInterventionSelfieRetake(request, action.interventionId, action.notes);
     } else {
       await rejectIntervention(request, action.interventionId, action.notes);
     }
@@ -128,6 +135,7 @@ export async function action({ request }: Route.ActionArgs) {
 
 function kindLabel(kind: VerificationIntervention["kind"]) {
   if (kind === "CHAUFFEUR_FACE") return "Chauffeur face review";
+  if (kind === "OWNER_DRIVER_FACE") return "Owner-driver face review";
   if (kind === "OWNER_DRIVER_LICENSE") return "Owner-driver licence review";
   return "Chauffeur licence review";
 }
@@ -137,50 +145,31 @@ function interventionsPageHref(page: number) {
 }
 
 function FaceEvidence({ intervention }: { readonly intervention: VerificationIntervention }) {
-  const [visible, setVisible] = useState(false);
-  const evidenceId = `intervention-${intervention.id}-evidence`;
-
   return (
-    <div className="space-y-3">
-      <Button
-        type="button"
-        variant="outline"
-        aria-controls={evidenceId}
-        aria-expanded={visible}
-        onClick={() => setVisible((current) => !current)}
-      >
-        <EyeIcon data-icon="inline-start" aria-hidden="true" />
-        {visible ? "Hide evidence" : "View evidence"}
-      </Button>
-      {visible ? (
-        <div id={evidenceId} className="grid gap-4 sm:grid-cols-2">
-          {intervention.hasSelfie ? (
-            <figure>
-              <img
-                className="aspect-square w-full rounded-lg border object-cover"
-                src={`/admin/interventions/${intervention.id}/evidence/selfie`}
-                alt="Submitted chauffeur selfie"
-                loading="lazy"
-                decoding="async"
-              />
-              <figcaption className="mt-1 text-xs text-muted-foreground">
-                Submitted selfie
-              </figcaption>
-            </figure>
-          ) : null}
-          {intervention.hasNinPortrait ? (
-            <figure>
-              <img
-                className="aspect-square w-full rounded-lg border object-cover"
-                src={`/admin/interventions/${intervention.id}/evidence/nin-portrait`}
-                alt="Official NIN portrait"
-                loading="lazy"
-                decoding="async"
-              />
-              <figcaption className="mt-1 text-xs text-muted-foreground">NIN portrait</figcaption>
-            </figure>
-          ) : null}
-        </div>
+    <div className="grid gap-4 sm:grid-cols-2">
+      {intervention.hasSelfie ? (
+        <figure>
+          <img
+            className="aspect-square w-full rounded-lg border object-cover"
+            src={`/admin/interventions/${intervention.id}/evidence/selfie`}
+            alt="Submitted chauffeur selfie"
+            loading="lazy"
+            decoding="async"
+          />
+          <figcaption className="mt-1 text-xs text-muted-foreground">Submitted selfie</figcaption>
+        </figure>
+      ) : null}
+      {intervention.hasNinPortrait ? (
+        <figure>
+          <img
+            className="aspect-square w-full rounded-lg border object-cover"
+            src={`/admin/interventions/${intervention.id}/evidence/nin-portrait`}
+            alt="Official NIN portrait"
+            loading="lazy"
+            decoding="async"
+          />
+          <figcaption className="mt-1 text-xs text-muted-foreground">NIN portrait</figcaption>
+        </figure>
       ) : null}
     </div>
   );
@@ -193,7 +182,8 @@ function InterventionCard({
   actionData?: ActionData;
   intervention: VerificationIntervention;
 }) {
-  const isFace = intervention.kind === "CHAUFFEUR_FACE";
+  const isFace =
+    intervention.kind === "CHAUFFEUR_FACE" || intervention.kind === "OWNER_DRIVER_FACE";
   const isOwnerLicense = intervention.kind === "OWNER_DRIVER_LICENSE";
   const revealed =
     actionData?.revealedInterventionId === intervention.id ? actionData.licenseNumber : undefined;
@@ -212,14 +202,10 @@ function InterventionCard({
         </div>
       </CardHeader>
       <CardContent className="space-y-5">
-        <dl className="grid gap-3 text-sm sm:grid-cols-3">
+        <dl className="grid gap-3 text-sm sm:grid-cols-2">
           <div>
             <dt className="text-muted-foreground">Opened</dt>
             <dd>{new Date(intervention.createdAt).toLocaleString()}</dd>
-          </div>
-          <div>
-            <dt className="text-muted-foreground">Automated retries</dt>
-            <dd>{intervention.retryAttempt} of 2</dd>
           </div>
           {!isFace ? (
             <div>
@@ -311,7 +297,6 @@ function InterventionCard({
         )}
 
         <Form method="post" className="flex flex-col gap-3 rounded-lg border p-4 sm:flex-row">
-          <input type="hidden" name="intent" value="reject" />
           <input type="hidden" name="interventionId" value={intervention.id} />
           <Input
             name="notes"
@@ -320,7 +305,12 @@ function InterventionCard({
             maxLength={2000}
             placeholder="Rejection notes"
           />
-          <Button type="submit" variant="destructive">
+          {isFace ? (
+            <Button type="submit" name="intent" value="request-retake" variant="outline">
+              Request retake
+            </Button>
+          ) : null}
+          <Button type="submit" name="intent" value="reject" variant="destructive">
             <XIcon data-icon="inline-start" />
             Reject
           </Button>
@@ -385,7 +375,7 @@ export default function AdminInterventionsRoute({ actionData, loaderData }: Rout
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Verification interventions</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Review onboarding checks that could not be completed automatically.
+          Review identity photos and driving credentials that require a staff decision.
         </p>
       </div>
       {actionData?.error ? (

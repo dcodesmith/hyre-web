@@ -15,6 +15,7 @@ import {
   checkChauffeurPhoneVerification,
   exchangeChauffeurInvitation,
   getChauffeurOnboarding,
+  replaceChauffeurSelfie,
   sendChauffeurPhoneVerification,
   verifyChauffeurDriving,
   verifyChauffeurNin,
@@ -32,7 +33,15 @@ const onboarding = {
   phoneNumber: "+2348012345678",
   fleetOwnerName: "Ada Lovelace",
   status: "INVITED",
-  steps: { consent: false, phone: false, nin: false, driving: false },
+  steps: {
+    consent: false,
+    phone: false,
+    nin: false,
+    driving: false,
+    drivingSubmitted: false,
+    rejected: false,
+    selfieRetakeRequired: false,
+  },
   complianceRequirements: [],
 };
 
@@ -129,7 +138,7 @@ describe("chauffeur onboarding BFF", () => {
       Response.json({
         ...onboarding,
         status: "IDENTITY_VERIFIED",
-        steps: { consent: true, phone: true, nin: true, driving: false },
+        steps: { ...onboarding.steps, consent: true, phone: true, nin: true },
       }),
     );
 
@@ -154,7 +163,14 @@ describe("chauffeur onboarding BFF", () => {
       Response.json({
         ...onboarding,
         status: "APPROVED",
-        steps: { consent: true, phone: true, nin: true, driving: true },
+        steps: {
+          ...onboarding.steps,
+          consent: true,
+          phone: true,
+          nin: true,
+          driving: true,
+          drivingSubmitted: true,
+        },
       }),
     );
     const selfie = new File(["selfie"], "selfie.jpg", { type: "image/jpeg" });
@@ -182,5 +198,28 @@ describe("chauffeur onboarding BFF", () => {
     }
     expect(formData.get("driversLicenseNumber")).toBe("ABC12345DE67");
     expect(formData.get("selfie")).toBe(selfie);
+  });
+
+  it("PUTs a replacement selfie with Idempotency-Key and the bearer session", async () => {
+    fetchMock.mockResolvedValueOnce(Response.json(onboarding));
+    const selfie = new File(["selfie"], "selfie.jpg", { type: "image/jpeg" });
+
+    await replaceChauffeurSelfie({
+      request,
+      sessionToken: SESSION_TOKEN,
+      idempotencyKey: "selfie-1",
+      selfie,
+    });
+
+    const { url, init, headers } = capturedRequest();
+    expect(url).toBe("https://api.example/api/chauffeur-onboarding/selfie");
+    expect(init?.method).toBe("PUT");
+    expect(headers.get("authorization")).toBe(`Bearer ${SESSION_TOKEN}`);
+    expect(headers.get("Idempotency-Key")).toBe("selfie-1");
+    expect(headers.get("cookie")).toBeNull();
+    if (!(init?.body instanceof FormData)) {
+      throw new Error("expected FormData");
+    }
+    expect(init.body.get("selfie")).toBe(selfie);
   });
 });

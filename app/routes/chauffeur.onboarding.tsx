@@ -8,6 +8,7 @@ import {
   checkChauffeurPhoneVerification,
   exchangeChauffeurInvitation,
   getChauffeurOnboarding,
+  replaceChauffeurSelfie,
   sendChauffeurPhoneVerification,
   verifyChauffeurDriving,
   verifyChauffeurNin,
@@ -20,6 +21,7 @@ import {
   chauffeurDrivingFormSchema,
   chauffeurNinFormSchema,
   chauffeurPhoneCodeFormSchema,
+  chauffeurSelfieFormSchema,
 } from "~/chauffeur/chauffeur-onboarding-form-schema";
 import { ChauffeurOnboardingPage } from "~/chauffeur/chauffeur-onboarding-page";
 import {
@@ -137,7 +139,7 @@ function isDrivingVerificationInProgress(error: unknown) {
 
 function drivingPendingResult() {
   return data<ChauffeurOnboardingActionData>(
-    { intent: "verify-driving", drivingPending: true },
+    { intent: "verify-driving" },
     { headers: SENSITIVE_NO_STORE },
   );
 }
@@ -330,6 +332,40 @@ async function drivingAction(request: Request, sessionToken: string, formData: F
   }
 }
 
+async function selfieAction(request: Request, sessionToken: string, formData: FormData) {
+  const submission = parseWithZod(formData, { schema: chauffeurSelfieFormSchema });
+  if (submission.status !== "success") {
+    const idempotencyKey = formData.get("idempotencyKey");
+    return data<ChauffeurOnboardingActionData>(
+      {
+        intent: "replace-selfie",
+        idempotencyKey: typeof idempotencyKey === "string" ? idempotencyKey : "",
+        revalidate: false,
+        submission: submission.reply(),
+      },
+      { status: HTTP_STATUS.BAD_REQUEST, headers: SENSITIVE_NO_STORE },
+    );
+  }
+
+  try {
+    await replaceChauffeurSelfie({
+      request,
+      sessionToken,
+      idempotencyKey: submission.value.idempotencyKey,
+      selfie: submission.value.selfie,
+    });
+    return data<ChauffeurOnboardingActionData>(
+      { intent: "replace-selfie" },
+      { headers: SENSITIVE_NO_STORE },
+    );
+  } catch (error) {
+    return actionError("replace-selfie", error, "Unable to submit your selfie. Please try again.", {
+      idempotencyKey: idempotencyKeyForRetry(error, submission.value.idempotencyKey),
+      submission: submission.reply({ resetForm: false }),
+    });
+  }
+}
+
 export async function action({ request }: Route.ActionArgs) {
   const session = await readChauffeurOnboardingSession(request);
   const formData = await request.formData();
@@ -343,7 +379,8 @@ export async function action({ request }: Route.ActionArgs) {
           intent === "send-phone" ||
           intent === "check-phone" ||
           intent === "verify-nin" ||
-          intent === "verify-driving"
+          intent === "verify-driving" ||
+          intent === "replace-selfie"
             ? intent
             : "accept-consent",
         error: "This verification session has expired. Ask your fleet owner for a new invitation.",
@@ -358,6 +395,7 @@ export async function action({ request }: Route.ActionArgs) {
   if (intent === "check-phone") return checkPhoneAction(request, session.token, formData);
   if (intent === "verify-nin") return ninAction(request, session.token, formData);
   if (intent === "verify-driving") return drivingAction(request, session.token, formData);
+  if (intent === "replace-selfie") return selfieAction(request, session.token, formData);
 
   throw data(null, { status: HTTP_STATUS.BAD_REQUEST, headers: SENSITIVE_NO_STORE });
 }

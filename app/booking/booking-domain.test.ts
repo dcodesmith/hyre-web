@@ -31,7 +31,7 @@ const baseBooking = {
   referralDiscountAmount: 0,
   referralCreditsUsed: 0,
   car: { make: "Lexus", model: "UX F-Sport", year: 2019 },
-  chauffeur: { name: "Bola Adebayo" },
+  chauffeur: { name: "Bola Adebayo", image: "/images/hero-640.webp" },
   flight: null,
   canEdit: false,
   canCancel: false,
@@ -183,6 +183,7 @@ describe("BookingDomain", () => {
     expect(booking.bookingReference).toBe("TD-1001");
     expect(booking.chauffeurName).toBe("Bola Adebayo");
     expect(booking.chauffeurInitials).toBe("BA");
+    expect(booking.chauffeurImage).toBe("/images/hero-640.webp");
     expect(booking.typeDescription).toContain("12-hour duration");
     expect(booking.flight).toBeNull();
   });
@@ -192,6 +193,7 @@ describe("BookingDomain", () => {
 
     expect(booking.chauffeurName).toBe("Not Assigned");
     expect(booking.chauffeurInitials).toBe("NA");
+    expect(booking.chauffeurImage).toBeNull();
   });
 
   it("marks a cancelled booking and its legs as cancelled", () => {

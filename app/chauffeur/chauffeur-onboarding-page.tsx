@@ -1,5 +1,4 @@
-import { Clock3Icon, ShieldCheckIcon } from "lucide-react";
-import { useState } from "react";
+import { Clock3Icon, ShieldCheckIcon, XCircleIcon } from "lucide-react";
 
 import type { ChauffeurOnboarding } from "~/api/chauffeurs/schema";
 import { CookieConsentBanner } from "~/components/cookie-consent-banner";
@@ -14,6 +13,7 @@ import {
   ChauffeurDrivingForm,
   ChauffeurNinForm,
   ChauffeurPhoneForm,
+  ChauffeurSelfieForm,
 } from "./chauffeur-onboarding-forms";
 
 const DRIVING_APPROVAL_POLL_MS = 4_000;
@@ -49,12 +49,10 @@ function VerificationProgress({ onboarding }: { readonly onboarding: ChauffeurOn
 
 function CurrentStage({
   actionData,
-  awaitingDrivingApproval,
   idempotencyKey,
   onboarding,
 }: {
   readonly actionData?: ChauffeurOnboardingActionData;
-  readonly awaitingDrivingApproval: boolean;
   readonly idempotencyKey: string;
   readonly onboarding: ChauffeurOnboarding;
 }) {
@@ -115,8 +113,41 @@ function CurrentStage({
     );
   }
 
+  if (onboarding.steps.rejected) {
+    return (
+      <CardContent className="py-10 text-center">
+        <XCircleIcon className="mx-auto size-10 text-destructive" aria-hidden="true" />
+        <h2 className="mt-4 text-xl font-semibold">Verification not approved</h2>
+        <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">
+          Staff could not approve your driving verification. Contact your fleet owner for help.
+        </p>
+      </CardContent>
+    );
+  }
+
   if (!onboarding.steps.driving) {
-    if (awaitingDrivingApproval) {
+    if (onboarding.steps.selfieRetakeRequired) {
+      return (
+        <>
+          <CardHeader>
+            <CardTitle>
+              <h2>Take a new profile photo</h2>
+            </CardTitle>
+            <CardDescription>
+              Staff could not approve the previous selfie. Submit a clear new one to continue.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ChauffeurSelfieForm
+              actionData={actionData}
+              idempotencyKey={actionData?.idempotencyKey ?? idempotencyKey}
+            />
+          </CardContent>
+        </>
+      );
+    }
+
+    if (onboarding.steps.drivingSubmitted) {
       return <DrivingApprovalWaiting />;
     }
 
@@ -162,11 +193,11 @@ function DrivingApprovalWaiting() {
       <Alert role="status">
         <Clock3Icon aria-hidden="true" />
         <AlertTitle>
-          <h2>Checking your photo</h2>
+          <h2>Submitted for review</h2>
         </AlertTitle>
         <AlertDescription>
-          Approval is not instant. Keep this page open while we finish checking your licence and
-          photo.
+          Staff are reviewing your licence and comparing your selfie with your NIN photo. You can
+          return later to see the decision.
         </AlertDescription>
       </Alert>
     </CardContent>
@@ -195,19 +226,6 @@ export function ChauffeurOnboardingPage({
   idempotencyKey,
   onboarding,
 }: ChauffeurOnboardingPageProps) {
-  const drivingSubmitted =
-    actionData?.intent === "verify-driving" && actionData.drivingPending === true;
-  // Loader revalidation clears action data, so remember the submit until driving is approved.
-  const [seenActionData, setSeenActionData] = useState(actionData);
-  const [holdingDrivingWait, setHoldingDrivingWait] = useState(drivingSubmitted);
-  if (actionData !== seenActionData) {
-    setSeenActionData(actionData);
-    if (drivingSubmitted) {
-      setHoldingDrivingWait(true);
-    }
-  }
-  const awaitingDrivingApproval = holdingDrivingWait;
-
   return (
     <>
       <a
@@ -250,7 +268,6 @@ export function ChauffeurOnboardingPage({
               <Card className="rounded-sm">
                 <CurrentStage
                   actionData={actionData}
-                  awaitingDrivingApproval={awaitingDrivingApproval}
                   idempotencyKey={idempotencyKey}
                   onboarding={onboarding}
                 />

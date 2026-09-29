@@ -7,6 +7,7 @@ import {
   onboardingPayoutFormSchema,
   onboardingPhoneCheckFormSchema,
   onboardingPhoneFormSchema,
+  onboardingSelfieReplacementFormSchema,
 } from "./onboarding-form-schema";
 
 const individualIdentity = {
@@ -35,6 +36,10 @@ const DRIVER_CREDENTIALS_OWNER_ONLY = "Driver credentials are only accepted for 
 
 function documentFile(name = "license.pdf", type = "application/pdf", size = 1024) {
   return new File([new Uint8Array(size)], name, { type });
+}
+
+function selfieFile() {
+  return new File([new Uint8Array(1024)], "selfie.jpg", { type: "image/jpeg" });
 }
 
 function drivingFieldIssue(input: unknown, field: string) {
@@ -161,6 +166,24 @@ describe("onboarding form schemas", () => {
     expect(parsed.error.issues.find((issue) => issue.path[0] === field)?.message).toBe(message);
   });
 
+  it("requires a selfie as well as a licence for owner-drivers", () => {
+    const driversLicense = documentFile();
+
+    expect(
+      drivingFieldIssue(
+        {
+          isOwnerDriver: "true",
+          driversLicenseNumber: VALID_LICENSE_NUMBER,
+          driversLicense,
+        },
+        "selfie",
+      ),
+    ).toBe("Take a clear selfie");
+    expect(drivingFieldIssue({ isOwnerDriver: "false", selfie: selfieFile() }, "selfie")).toBe(
+      DRIVER_CREDENTIALS_OWNER_ONLY,
+    );
+  });
+
   it("requires a drivers license number and upload for owner-drivers", () => {
     const driversLicense = documentFile();
 
@@ -173,6 +196,7 @@ describe("onboarding form schemas", () => {
         isOwnerDriver: "true",
         driversLicenseNumber: VALID_LICENSE_NUMBER,
         driversLicense,
+        selfie: selfieFile(),
       }),
     ).toMatchObject({
       isOwnerDriver: true,
@@ -194,6 +218,7 @@ describe("onboarding form schemas", () => {
         isOwnerDriver: "true",
         driversLicenseNumber: VALID_LICENSE_NUMBER,
         driversLicense,
+        selfie: selfieFile(),
       }).driversLicense,
     ).toBe(driversLicense);
   });
@@ -273,6 +298,7 @@ describe("onboarding form schemas", () => {
         isOwnerDriver: "true",
         driversLicenseNumber: "  abc-12345-de67  ",
         driversLicense,
+        selfie: selfieFile(),
       }),
     ).toMatchObject({
       isOwnerDriver: true,
@@ -314,6 +340,7 @@ describe("onboarding driver-licence replacement form schema", () => {
       isOwnerDriver: "true",
       driversLicenseNumber: VALID_LICENSE_NUMBER,
       driversLicense: file,
+      selfie: selfieFile(),
     });
     if (parsed.success) {
       throw new Error("expected invalid driving document");
@@ -353,5 +380,19 @@ describe("onboarding driver-licence replacement form schema", () => {
     expect(firstIssue({ file: gif })).toBe("Use a JPEG, PNG, WebP, or PDF file");
     expect(firstIssue({ file: oversized })).toBe("File must not exceed 5 MB");
     expect(firstIssue({ file: empty })).toBe("The selected file is empty");
+  });
+});
+
+describe("onboarding selfie replacement form schema", () => {
+  it("requires a JPEG, PNG, or WebP selfie", () => {
+    const selfie = selfieFile();
+
+    expect(onboardingSelfieReplacementFormSchema.parse({ selfie })).toEqual({ selfie });
+    expect(onboardingSelfieReplacementFormSchema.safeParse({}).success).toBe(false);
+    expect(
+      onboardingSelfieReplacementFormSchema.safeParse({
+        selfie: documentFile("selfie.gif", "image/gif"),
+      }).success,
+    ).toBe(false);
   });
 });

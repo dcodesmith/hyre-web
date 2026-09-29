@@ -56,6 +56,8 @@ export const fleetOwnerOnboardingSchema = z.object({
     "VERIFY_IDENTITY",
     "VERIFY_PAYOUT",
     "PROVIDE_DRIVING_CREDENTIALS",
+    "RETAKE_SELFIE",
+    "REJECTED",
     "SUBMIT_ACCOUNT",
     "WAIT_FOR_REVIEW",
     "COMPLETE",
@@ -69,6 +71,11 @@ export const fleetOwnerPhoneVerificationSchema = z.object({
 
 export const fleetOwnerDriverLicenseReplacementSchema = z.object({
   status: z.literal("PENDING"),
+});
+
+export const fleetOwnerSelfieReplacementSchema = z.object({
+  status: z.literal("COMPLETED"),
+  isOwnerDriver: z.literal(true),
 });
 
 export const fleetOwnerIdentityVerificationSchema = z.object({

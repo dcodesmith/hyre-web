@@ -10,6 +10,7 @@ import {
   fleetOwnerOnboardingSchema,
   fleetOwnerPayoutVerificationSchema,
   fleetOwnerPhoneVerificationSchema,
+  fleetOwnerSelfieReplacementSchema,
 } from "./schema";
 
 let apiClient: ReturnType<typeof createApiClient> | undefined;
@@ -176,5 +177,27 @@ export function replaceFleetOwnerDriverLicense({
     forwardCookie: true,
     formData,
     schema: fleetOwnerDriverLicenseReplacementSchema,
+  });
+}
+
+export function replaceFleetOwnerSelfie({
+  request,
+  selfie,
+  idempotencyKey,
+}: {
+  readonly request: Request;
+  readonly selfie: File;
+  readonly idempotencyKey: string;
+}) {
+  const formData = new FormData();
+  formData.set("selfie", selfie);
+  return getApiClient().request({
+    path: "/api/fleet-owner/onboarding/selfie",
+    method: "PUT",
+    request,
+    forwardCookie: true,
+    headers: { "Idempotency-Key": idempotencyKey },
+    formData,
+    schema: fleetOwnerSelfieReplacementSchema,
   });
 }

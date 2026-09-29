@@ -15,6 +15,7 @@ import {
   getFleetOwnerBanks,
   getFleetOwnerOnboarding,
   replaceFleetOwnerDriverLicense,
+  replaceFleetOwnerSelfie,
   saveFleetOwnerDrivingCredentials,
   sendFleetOwnerPhoneVerification,
   submitFleetOwnerOnboarding,
@@ -247,5 +248,26 @@ describe("fleet-owner onboarding BFF", () => {
     expect(formData.get("file")).toBe(file);
     expect(headers.get("cookie")).toBe("better-auth.session_token=session-1");
     expect(headers.get("content-type")).toBeNull();
+  });
+
+  it("PUTs an owner-driver selfie with Idempotency-Key and the session cookie", async () => {
+    fetchMock.mockResolvedValueOnce(Response.json({ status: "COMPLETED", isOwnerDriver: true }));
+    const selfie = new File(["selfie"], "selfie.jpg", { type: "image/jpeg" });
+
+    await replaceFleetOwnerSelfie({
+      request,
+      selfie,
+      idempotencyKey: "selfie-1",
+    });
+
+    const { url, init, headers } = capturedRequest();
+    expect(url).toBe("https://api.example/api/fleet-owner/onboarding/selfie");
+    expect(init?.method).toBe("PUT");
+    expect(headers.get("cookie")).toBe("better-auth.session_token=session-1");
+    expect(headers.get("Idempotency-Key")).toBe("selfie-1");
+    if (!(init?.body instanceof FormData)) {
+      throw new Error("expected FormData");
+    }
+    expect(init.body.get("selfie")).toBe(selfie);
   });
 });

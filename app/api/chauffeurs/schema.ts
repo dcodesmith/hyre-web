@@ -26,6 +26,9 @@ export const chauffeurOnboardingSchema = z.object({
     phone: z.boolean(),
     nin: z.boolean(),
     driving: z.boolean(),
+    drivingSubmitted: z.boolean(),
+    rejected: z.boolean(),
+    selfieRetakeRequired: z.boolean(),
   }),
   complianceRequirements: z.array(chauffeurComplianceRequirementSchema),
 });

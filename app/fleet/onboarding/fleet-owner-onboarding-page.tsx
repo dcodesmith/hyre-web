@@ -1,4 +1,10 @@
-import { Building2Icon, CheckCircle2Icon, Clock3Icon, ShieldCheckIcon } from "lucide-react";
+import {
+  Building2Icon,
+  CheckCircle2Icon,
+  Clock3Icon,
+  ShieldCheckIcon,
+  XCircleIcon,
+} from "lucide-react";
 import { useState } from "react";
 import { Form } from "react-router";
 
@@ -8,6 +14,7 @@ import { StatusBadge } from "~/components/status-badge";
 import { Alert, AlertDescription, AlertTitle } from "~/components/ui/alert";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
+import { useRevalidateInterval } from "~/hooks/use-revalidate-interval";
 import { OnboardingDriverLicenseForm } from "./onboarding-driver-license-form";
 import type { OnboardingActionData } from "./onboarding-form-schema";
 import { OnboardingPhoneCodeForm, OnboardingPhoneForm } from "./onboarding-phone-forms";
@@ -15,6 +22,7 @@ import {
   OnboardingDrivingForm,
   OnboardingIdentityForm,
   OnboardingPayoutForm,
+  OnboardingSelfieForm,
   OnboardingSubmitForm,
 } from "./onboarding-stage-forms";
 
@@ -47,6 +55,8 @@ export function getFleetOwnerOnboardingStage(
       VERIFY_IDENTITY: "identity",
       VERIFY_PAYOUT: "payout",
       PROVIDE_DRIVING_CREDENTIALS: "driving",
+      RETAKE_SELFIE: "driving",
+      REJECTED: "submission",
       SUBMIT_ACCOUNT: "submission",
       WAIT_FOR_REVIEW: "submission",
       COMPLETE: null,
@@ -112,6 +122,7 @@ function PageHeader() {
 }
 
 function UnderReview({ onboarding }: { readonly onboarding: FleetOwnerOnboarding }) {
+  useRevalidateInterval(4_000);
   return (
     <Card className="rounded-sm">
       <CardHeader>
@@ -121,7 +132,7 @@ function UnderReview({ onboarding }: { readonly onboarding: FleetOwnerOnboarding
           </div>
           <div className="min-w-0 space-y-1">
             <CardTitle>
-              <h2>Verification Under Review</h2>
+              <h2>Submitted for review</h2>
             </CardTitle>
             <CardDescription>
               Your details were received. You can return here to see the latest status.
@@ -145,6 +156,20 @@ function UnderReview({ onboarding }: { readonly onboarding: FleetOwnerOnboarding
           </div>
         </div>
         <StatusBadge tone="warning">Review in progress</StatusBadge>
+      </CardContent>
+    </Card>
+  );
+}
+
+function Rejected() {
+  return (
+    <Card className="rounded-sm">
+      <CardContent className="py-10 text-center">
+        <XCircleIcon className="mx-auto size-10 text-destructive" aria-hidden="true" />
+        <h2 className="mt-4 text-xl font-semibold">Verification not approved</h2>
+        <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">
+          Staff could not approve your account verification. Contact support if you need help.
+        </p>
       </CardContent>
     </Card>
   );
@@ -180,8 +205,16 @@ function OnboardingStep({ actionData, banks, idempotencyKey, onboarding }: PageP
     );
   }
 
+  if (nextAction === "REJECTED") {
+    return <Rejected />;
+  }
+
   if (onboarding.requiredActions.includes("UPLOAD_DRIVERS_LICENSE")) {
     return <OnboardingDriverLicenseForm actionData={actionData} />;
+  }
+
+  if (nextAction === "RETAKE_SELFIE") {
+    return <OnboardingSelfieForm actionData={actionData} idempotencyKey={idempotencyKey} />;
   }
 
   if (nextAction === "WAIT_FOR_REVIEW" || onboarding.status === "UNDER_REVIEW") {

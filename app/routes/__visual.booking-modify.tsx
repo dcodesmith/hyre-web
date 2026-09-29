@@ -29,7 +29,7 @@ const fixtureBooking = {
     model: "UX F-Sport",
     year: 2019,
   },
-  chauffeur: { name: "Bola Adebayo" },
+  chauffeur: { name: "Bola Adebayo", image: "/images/hero-640.webp" },
   flight: null,
   canEdit: true,
   canCancel: false,
