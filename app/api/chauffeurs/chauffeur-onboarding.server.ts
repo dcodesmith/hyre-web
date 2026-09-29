@@ -146,3 +146,27 @@ export function verifyChauffeurDriving({
     schema: chauffeurOnboardingSchema,
   });
 }
+
+export function replaceChauffeurSelfie({
+  request,
+  sessionToken,
+  idempotencyKey,
+  selfie,
+}: {
+  readonly request: Request;
+  readonly sessionToken: string;
+  readonly idempotencyKey: string;
+  readonly selfie: File;
+}) {
+  const formData = new FormData();
+  formData.set("selfie", selfie);
+  return getApiClient().request({
+    path: "/api/chauffeur-onboarding/selfie",
+    method: "PUT",
+    request,
+    headers: bearerHeaders(sessionToken, { "Idempotency-Key": idempotencyKey }),
+    formData,
+    timeoutMs: 60_000,
+    schema: chauffeurOnboardingSchema,
+  });
+}

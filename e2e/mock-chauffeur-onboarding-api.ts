@@ -51,7 +51,15 @@ function createOnboarding() {
     phoneNumber: "+2348012345678",
     fleetOwnerName: "Ada Lovelace",
     status: "INVITED" as const,
-    steps: { consent: false, phone: false, nin: false, driving: false },
+    steps: {
+      consent: false,
+      phone: false,
+      nin: false,
+      driving: false,
+      drivingSubmitted: false,
+      rejected: false,
+      selfieRetakeRequired: false,
+    },
     complianceRequirements: [
       { type: "LASDRI", label: "LASDRI card", required: false },
       { type: "LASRRA", label: "LASRRA card", required: false },
@@ -166,6 +174,7 @@ async function handleStagedChauffeurRequest(
   if (request.method === "POST" && path === "/api/chauffeur-onboarding/driving-verifications") {
     pushIdempotencyKey(request, requests.drivingIdempotencyKeys);
     await readBody(request);
+    onboarding.steps.drivingSubmitted = true;
     if (!options.holdDrivingApproval) {
       onboarding.status = "APPROVED";
       onboarding.steps.driving = true;

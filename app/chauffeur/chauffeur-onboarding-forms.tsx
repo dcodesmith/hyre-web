@@ -1,102 +1,21 @@
 import { getFormProps, getInputProps, useForm } from "@conform-to/react";
 import { getZodConstraint, parseWithZod } from "@conform-to/zod/v4";
-import { CameraIcon, ShieldCheckIcon } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { ShieldCheckIcon } from "lucide-react";
 import { Form, Link, useNavigation } from "react-router";
 import { AuthCheckbox } from "~/auth/auth-form-primitives";
 import { FormError } from "~/components/forms/form-primitives";
+import { SelfieField } from "~/components/forms/selfie-field";
 import { Button } from "~/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "~/components/ui/dialog";
-import {
-  Field,
-  FieldDescription,
-  FieldError,
-  FieldLabel,
-  FieldLegend,
-  FieldSet,
-} from "~/components/ui/field";
+import { Field, FieldDescription, FieldError, FieldLabel } from "~/components/ui/field";
 import { Input } from "~/components/ui/input";
-import { useImageFilePreviews } from "~/hooks/use-image-file-previews";
-import { useSelfieCamera } from "~/hooks/use-selfie-camera";
 import {
   type ChauffeurOnboardingActionData,
   chauffeurConsentFormSchema,
   chauffeurDrivingFormSchema,
   chauffeurNinFormSchema,
   chauffeurPhoneCodeFormSchema,
+  chauffeurSelfieFormSchema,
 } from "./chauffeur-onboarding-form-schema";
-
-const EMPTY_SELFIE_FILES: readonly File[] = [];
-
-function SelfieCameraDialog({
-  describedBy,
-  invalid,
-  onCapture,
-}: {
-  readonly describedBy: string;
-  readonly invalid: boolean;
-  readonly onCapture: (file: File) => void;
-}) {
-  const { open, cameraError, openCamera, closeCamera, attachVideo, capture } =
-    useSelfieCamera(onCapture);
-
-  return (
-    <>
-      <Button
-        type="button"
-        variant="outline"
-        className="w-full"
-        aria-describedby={describedBy}
-        aria-invalid={invalid || undefined}
-        onClick={() => void openCamera()}
-      >
-        <CameraIcon aria-hidden="true" />
-        Take selfie
-      </Button>
-      <Dialog
-        open={open}
-        onOpenChange={(next) => {
-          if (!next) closeCamera();
-        }}
-      >
-        <DialogContent className="overscroll-contain">
-          <DialogHeader>
-            <DialogTitle>Take a selfie</DialogTitle>
-            <DialogDescription>
-              Face the camera in good light, then capture the photo.
-            </DialogDescription>
-          </DialogHeader>
-          {cameraError ? (
-            <p className="text-sm text-destructive" role="alert">
-              {cameraError}
-            </p>
-          ) : (
-            <video
-              ref={attachVideo}
-              autoPlay
-              playsInline
-              muted
-              aria-label="Front camera preview"
-              className="aspect-3/4 w-full rounded-md bg-muted object-cover"
-            />
-          )}
-          <DialogFooter>
-            <Button type="button" onClick={capture} disabled={Boolean(cameraError)}>
-              Capture photo
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </>
-  );
-}
 
 export function ChauffeurConsentForm({
   actionData,
@@ -350,21 +269,6 @@ export function ChauffeurDrivingForm({
   const navigation = useNavigation();
   const pending =
     navigation.formMethod != null && navigation.formData?.get("intent") === "verify-driving";
-  const [selfie, setSelfie] = useState<File>();
-  const selfieInputRef = useRef<HTMLInputElement>(null);
-  const selfieFiles = useMemo(() => (selfie ? [selfie] : EMPTY_SELFIE_FILES), [selfie]);
-  const [preview] = useImageFilePreviews(selfieFiles);
-
-  function selectSelfie(file: File) {
-    const input = selfieInputRef.current;
-    if (input) {
-      const transfer = new DataTransfer();
-      transfer.items.add(file);
-      input.files = transfer.files;
-      input.dispatchEvent(new Event("input", { bubbles: true }));
-    }
-    setSelfie(file);
-  }
   const [form, fields] = useForm({
     id: "chauffeur-driving",
     lastResult: actionData?.intent === "verify-driving" ? actionData.submission : null,
@@ -400,56 +304,10 @@ export function ChauffeurDrivingForm({
           errors={fields.driversLicenseNumber.errors?.map((message) => ({ message }))}
         />
       </Field>
-      <FieldSet
-        className="gap-2 data-[invalid=true]:text-destructive"
-        data-invalid={Boolean(fields.selfie.errors)}
-      >
-        <FieldLegend variant="label">Selfie</FieldLegend>
-        <SelfieCameraDialog
-          describedBy={[
-            `${fields.selfie.id}-description`,
-            fields.selfie.errors ? fields.selfie.errorId : undefined,
-          ]
-            .filter(Boolean)
-            .join(" ")}
-          invalid={Boolean(fields.selfie.errors)}
-          onCapture={selectSelfie}
-        />
-        <input
-          {...getInputProps(fields.selfie, { type: "file", ariaAttributes: false })}
-          ref={selfieInputRef}
-          hidden
-          accept="image/jpeg,image/png,image/webp"
-          onChange={(event) => setSelfie(event.currentTarget.files?.[0])}
-        />
-        <FieldDescription id={`${fields.selfie.id}-description`}>
-          Take a selfie in good light. Maximum 5 MB.
-        </FieldDescription>
-        <FieldError
-          id={fields.selfie.errorId}
-          errors={fields.selfie.errors?.map((message) => ({ message }))}
-        />
-      </FieldSet>
-      {preview ? (
-        <div className="flex items-center gap-3 rounded-lg border bg-muted/30 p-3">
-          <img
-            src={preview.url}
-            alt="Selected selfie preview"
-            width={80}
-            height={80}
-            className="size-20 rounded-md object-cover"
-          />
-          <span className="text-sm text-muted-foreground">Photo ready to verify</span>
-        </div>
-      ) : (
-        <div className="flex items-center gap-3 rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
-          <CameraIcon className="size-5" aria-hidden="true" />
-          Your photo stays private and is used only for identity verification.
-        </div>
-      )}
+      <SelfieField field={fields.selfie} />
       <div className="flex gap-2 text-xs text-muted-foreground">
         <ShieldCheckIcon className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-        Your licence, liveness, and identity are checked before your chauffeur account is approved.
+        Staff review your licence and compare your selfie with your NIN photo before approval.
       </div>
       <FormError id={form.errorId} errors={form.errors} />
       {actionData?.intent === "verify-driving" && actionData.error ? (
@@ -457,6 +315,43 @@ export function ChauffeurDrivingForm({
       ) : null}
       <Button type="submit" className="w-full" disabled={pending} aria-live="polite">
         {pending ? "Completing verification…" : "Complete verification"}
+      </Button>
+    </Form>
+  );
+}
+
+export function ChauffeurSelfieForm({
+  actionData,
+  idempotencyKey,
+}: {
+  readonly actionData?: ChauffeurOnboardingActionData;
+  readonly idempotencyKey: string;
+}) {
+  const navigation = useNavigation();
+  const pending =
+    navigation.formMethod != null && navigation.formData?.get("intent") === "replace-selfie";
+  const [form, fields] = useForm({
+    id: "chauffeur-selfie",
+    lastResult: actionData?.intent === "replace-selfie" ? actionData.submission : null,
+    constraint: getZodConstraint(chauffeurSelfieFormSchema),
+    shouldValidate: "onSubmit",
+    shouldRevalidate: "onInput",
+    onValidate({ formData }) {
+      return parseWithZod(formData, { schema: chauffeurSelfieFormSchema });
+    },
+  });
+
+  return (
+    <Form method="post" encType="multipart/form-data" {...getFormProps(form)} className="space-y-5">
+      <input type="hidden" name="intent" value="replace-selfie" />
+      <input type="hidden" name="idempotencyKey" value={idempotencyKey} />
+      <SelfieField field={fields.selfie} />
+      <FormError id={form.errorId} errors={form.errors} />
+      {actionData?.intent === "replace-selfie" && actionData.error ? (
+        <FormError id="selfie-error" errors={[actionData.error]} />
+      ) : null}
+      <Button type="submit" className="w-full" disabled={pending} aria-live="polite">
+        {pending ? "Submitting selfie…" : "Submit new selfie"}
       </Button>
     </Form>
   );

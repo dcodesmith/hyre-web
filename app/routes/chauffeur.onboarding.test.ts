@@ -67,7 +67,15 @@ const onboarding: ChauffeurOnboarding = {
   phoneNumber: PHONE_NUMBER,
   fleetOwnerName: "Ada Lovelace",
   status: "INVITED",
-  steps: { consent: false, phone: false, nin: false, driving: false },
+  steps: {
+    consent: false,
+    phone: false,
+    nin: false,
+    driving: false,
+    drivingSubmitted: false,
+    rejected: false,
+    selfieRetakeRequired: false,
+  },
   complianceRequirements: [],
 };
 
@@ -552,7 +560,7 @@ describe("chauffeur onboarding route", () => {
     expect(sent.get("intent")).toBeNull();
     expect(sent.get("idempotencyKey")).toBeNull();
     expect(result).toMatchObject({
-      data: { intent: "verify-driving", drivingPending: true },
+      data: { intent: "verify-driving" },
     });
   });
 
@@ -569,7 +577,7 @@ describe("chauffeur onboarding route", () => {
       const { result } = await runAction(drivingFields(), await sessionCookie());
 
       expect(result).toMatchObject({
-        data: { intent: "verify-driving", drivingPending: true },
+        data: { intent: "verify-driving" },
       });
       if (typeof result !== "object" || result === null || !("data" in result)) {
         throw new Error("expected action data");
@@ -728,7 +736,7 @@ describe("chauffeur onboarding page identity", () => {
     const props: Route.ComponentProps = {
       params: {},
       loaderData,
-      actionData: onboardingId ? { intent: "verify-driving", drivingPending: true } : undefined,
+      actionData: onboardingId ? { intent: "verify-driving" } : undefined,
       matches: [
         {
           id: "root",

@@ -351,6 +351,7 @@ export function BookingDomain(booking: BookingDetail, now = new Date()) {
     returnLocation: booking.returnLocation,
     chauffeurName: booking.chauffeur?.name || "Not Assigned",
     chauffeurInitials: chauffeurInitials(booking.chauffeur?.name),
+    chauffeurImage: booking.chauffeur?.image ?? null,
     flight:
       booking.type === AIRPORT_PICKUP_BOOKING_TYPE && booking.flight
         ? createFlightView(booking.flight)

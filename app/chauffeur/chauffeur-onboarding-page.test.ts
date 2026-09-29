@@ -16,6 +16,7 @@ vi.mock("./chauffeur-onboarding-forms", () => ({
   ChauffeurDrivingForm: () => "Take selfie",
   ChauffeurNinForm: () => null,
   ChauffeurPhoneForm: () => null,
+  ChauffeurSelfieForm: () => "Submit new selfie",
 }));
 
 import type { ChauffeurOnboarding } from "~/api/chauffeurs/schema";
@@ -28,16 +29,26 @@ const onboarding: ChauffeurOnboarding = {
   phoneNumber: "+2348012345678",
   fleetOwnerName: "Ada Lovelace",
   status: "IDENTITY_VERIFIED",
-  steps: { consent: true, phone: true, nin: true, driving: false },
+  steps: {
+    consent: true,
+    phone: true,
+    nin: true,
+    driving: false,
+    drivingSubmitted: false,
+    rejected: false,
+    selfieRetakeRequired: false,
+  },
   complianceRequirements: [],
 };
 
-function render(drivingPending: boolean) {
+function render(drivingSubmitted: boolean) {
   return renderToStaticMarkup(
     createElement(ChauffeurOnboardingPage, {
       idempotencyKey: "018f47a2-7b3c-7d4e-8f90-1234567894c2",
-      onboarding,
-      actionData: drivingPending ? { intent: "verify-driving", drivingPending: true } : undefined,
+      onboarding: {
+        ...onboarding,
+        steps: { ...onboarding.steps, drivingSubmitted },
+      },
     }),
   );
 }
@@ -65,8 +76,10 @@ describe("chauffeur driving waiting state", () => {
       createElement(ChauffeurOnboardingPage, {
         key: onboarding.id,
         idempotencyKey: "018f47a2-7b3c-7d4e-8f90-1234567894c2",
-        onboarding,
-        actionData: { intent: "verify-driving", drivingPending: true },
+        onboarding: {
+          ...onboarding,
+          steps: { ...onboarding.steps, drivingSubmitted: true },
+        },
       }),
     );
     const nextId = "018f47a2-7b3c-7d4e-8f90-1234567894c9";
@@ -81,5 +94,20 @@ describe("chauffeur driving waiting state", () => {
     expect(waiting).toContain("Checking your photo");
     expect(nextSession).toContain("Take selfie");
     expect(nextSession).not.toContain("Checking your photo");
+  });
+
+  it("shows the retake form when staff request a clearer selfie", () => {
+    const markup = renderToStaticMarkup(
+      createElement(ChauffeurOnboardingPage, {
+        idempotencyKey: "018f47a2-7b3c-7d4e-8f90-1234567894c2",
+        onboarding: {
+          ...onboarding,
+          steps: { ...onboarding.steps, selfieRetakeRequired: true },
+        },
+      }),
+    );
+
+    expect(markup).toContain("Take a new profile photo");
+    expect(markup).toContain("Submit new selfie");
   });
 });

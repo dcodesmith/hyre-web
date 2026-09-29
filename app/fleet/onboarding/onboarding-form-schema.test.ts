@@ -37,6 +37,10 @@ function documentFile(name = "license.pdf", type = "application/pdf", size = 102
   return new File([new Uint8Array(size)], name, { type });
 }
 
+function selfieFile() {
+  return new File([new Uint8Array(1024)], "selfie.jpg", { type: "image/jpeg" });
+}
+
 function drivingFieldIssue(input: unknown, field: string) {
   const parsed = onboardingDrivingFormSchema.safeParse(input);
   if (parsed.success) {
@@ -173,6 +177,7 @@ describe("onboarding form schemas", () => {
         isOwnerDriver: "true",
         driversLicenseNumber: VALID_LICENSE_NUMBER,
         driversLicense,
+        selfie: selfieFile(),
       }),
     ).toMatchObject({
       isOwnerDriver: true,
@@ -194,6 +199,7 @@ describe("onboarding form schemas", () => {
         isOwnerDriver: "true",
         driversLicenseNumber: VALID_LICENSE_NUMBER,
         driversLicense,
+        selfie: selfieFile(),
       }).driversLicense,
     ).toBe(driversLicense);
   });
@@ -273,6 +279,7 @@ describe("onboarding form schemas", () => {
         isOwnerDriver: "true",
         driversLicenseNumber: "  abc-12345-de67  ",
         driversLicense,
+        selfie: selfieFile(),
       }),
     ).toMatchObject({
       isOwnerDriver: true,
@@ -314,6 +321,7 @@ describe("onboarding driver-licence replacement form schema", () => {
       isOwnerDriver: "true",
       driversLicenseNumber: VALID_LICENSE_NUMBER,
       driversLicense: file,
+      selfie: selfieFile(),
     });
     if (parsed.success) {
       throw new Error("expected invalid driving document");

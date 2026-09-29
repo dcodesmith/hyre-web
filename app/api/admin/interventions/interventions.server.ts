@@ -92,6 +92,21 @@ export function rejectIntervention(request: Request, interventionId: string, not
   });
 }
 
+export function requestInterventionSelfieRetake(
+  request: Request,
+  interventionId: string,
+  notes: string,
+) {
+  return getApiClient().request({
+    path: `/api/admin/verification-interventions/${encodeURIComponent(interventionId)}/request-retake`,
+    method: "POST",
+    request,
+    forwardCookie: true,
+    json: { notes },
+    schema: interventionMutationSchema,
+  });
+}
+
 export function approveOwnerLicenseIntervention(request: Request, interventionId: string) {
   return getApiClient().request({
     path: `/api/admin/verification-interventions/${encodeURIComponent(interventionId)}/approve-document`,

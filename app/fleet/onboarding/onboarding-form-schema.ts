@@ -4,6 +4,7 @@ import { addFileValidationIssues } from "~/components/forms/file-validation";
 import { optionalDriversLicenseNumberSchema } from "~/schema/drivers-license-number";
 
 const DOCUMENT_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "application/pdf"]);
+const SELFIE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
 const phoneNumberSchema = z
   .string({ error: "Phone number is required" })
@@ -78,6 +79,18 @@ function addDocumentIssues(
   });
 }
 
+function addSelfieIssues(context: z.RefinementCtx, selfie: File | undefined) {
+  addFileValidationIssues({
+    allowedTypes: SELFIE_TYPES,
+    context,
+    emptyMessage: "The selected image is empty",
+    file: selfie,
+    invalidTypeMessage: "Use a JPEG, PNG, or WebP image",
+    oversizedMessage: "Image must not exceed 5 MB",
+    path: ["selfie"],
+  });
+}
+
 export const onboardingDrivingFormSchema = z
   .object({
     isOwnerDriver: z
@@ -87,8 +100,9 @@ export const onboardingDrivingFormSchema = z
       .transform((value) => value === true || value === "true"),
     driversLicenseNumber: optionalDriversLicenseNumberSchema,
     driversLicense: optionalDocumentSchema,
+    selfie: z.file().optional(),
   })
-  .superRefine(({ driversLicense, driversLicenseNumber, isOwnerDriver }, context) => {
+  .superRefine(({ driversLicense, driversLicenseNumber, isOwnerDriver, selfie }, context) => {
     if (isOwnerDriver && !driversLicenseNumber) {
       context.addIssue({
         code: "custom",
@@ -105,21 +119,42 @@ export const onboardingDrivingFormSchema = z
       });
     }
 
-    if (!isOwnerDriver && (driversLicenseNumber || driversLicense)) {
+    if (isOwnerDriver && !selfie) {
+      context.addIssue({
+        code: "custom",
+        message: "Take a clear selfie",
+        path: ["selfie"],
+      });
+    }
+
+    if (!isOwnerDriver && (driversLicenseNumber || driversLicense || selfie)) {
       context.addIssue({
         code: "custom",
         message: "Driver credentials are only accepted for owner-drivers",
-        path: [driversLicenseNumber ? "driversLicenseNumber" : "driversLicense"],
+        path: [
+          driversLicenseNumber
+            ? "driversLicenseNumber"
+            : driversLicense
+              ? "driversLicense"
+              : "selfie",
+        ],
       });
     }
 
     addDocumentIssues(context, "driversLicense", driversLicense);
+    addSelfieIssues(context, selfie);
   });
 
 export const onboardingDriverLicenseReplacementFormSchema = z
   .object({ file: z.file({ error: "Upload a replacement driver's licence" }) })
   .superRefine(({ file }, context) => {
     addDocumentIssues(context, "file", file);
+  });
+
+export const onboardingSelfieReplacementFormSchema = z
+  .object({ selfie: z.file({ error: "Take a clear selfie" }) })
+  .superRefine(({ selfie }, context) => {
+    addSelfieIssues(context, selfie);
   });
 
 export type OnboardingIdentityFormInput = z.input<typeof onboardingIdentityFormSchema>;
@@ -135,7 +170,8 @@ export type OnboardingActionIntent =
   | "verify-payout"
   | "save-driving"
   | "submit-account"
-  | "replace-driver-license";
+  | "replace-driver-license"
+  | "replace-selfie";
 
 export type OnboardingActionData = {
   readonly intent: OnboardingActionIntent;

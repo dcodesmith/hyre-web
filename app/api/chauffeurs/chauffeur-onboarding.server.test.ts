@@ -32,7 +32,15 @@ const onboarding = {
   phoneNumber: "+2348012345678",
   fleetOwnerName: "Ada Lovelace",
   status: "INVITED",
-  steps: { consent: false, phone: false, nin: false, driving: false },
+  steps: {
+    consent: false,
+    phone: false,
+    nin: false,
+    driving: false,
+    drivingSubmitted: false,
+    rejected: false,
+    selfieRetakeRequired: false,
+  },
   complianceRequirements: [],
 };
 
@@ -129,7 +137,7 @@ describe("chauffeur onboarding BFF", () => {
       Response.json({
         ...onboarding,
         status: "IDENTITY_VERIFIED",
-        steps: { consent: true, phone: true, nin: true, driving: false },
+        steps: { ...onboarding.steps, consent: true, phone: true, nin: true },
       }),
     );
 
@@ -154,7 +162,14 @@ describe("chauffeur onboarding BFF", () => {
       Response.json({
         ...onboarding,
         status: "APPROVED",
-        steps: { consent: true, phone: true, nin: true, driving: true },
+        steps: {
+          ...onboarding.steps,
+          consent: true,
+          phone: true,
+          nin: true,
+          driving: true,
+          drivingSubmitted: true,
+        },
       }),
     );
     const selfie = new File(["selfie"], "selfie.jpg", { type: "image/jpeg" });

@@ -4,6 +4,7 @@ import { type ReactNode, useState } from "react";
 import { Form, useNavigation } from "react-router";
 import type { FleetOwnerBank, FleetOwnerOnboarding } from "~/api/fleet/onboarding/schema";
 import { FormError } from "~/components/forms/form-primitives";
+import { SelfieField } from "~/components/forms/selfie-field";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
 import { fleetOwnerRoleLabel } from "~/fleet/fleet-owner-role";
@@ -25,6 +26,7 @@ import {
   onboardingDrivingFormSchema,
   onboardingIdentityFormSchema,
   onboardingPayoutFormSchema,
+  onboardingSelfieReplacementFormSchema,
 } from "./onboarding-form-schema";
 
 type StageFormProps = {
@@ -225,10 +227,13 @@ export function OnboardingDrivingForm({ actionData, idempotencyKey }: StageFormP
           onChange={setIsOwnerDriver}
         />
         {isOwnerDriver ? (
-          <DriverDocumentFields
-            driversLicenseNumber={fields.driversLicenseNumber}
-            driversLicense={fields.driversLicense}
-          />
+          <>
+            <DriverDocumentFields
+              driversLicenseNumber={fields.driversLicenseNumber}
+              driversLicense={fields.driversLicense}
+            />
+            <SelfieField field={fields.selfie} />
+          </>
         ) : null}
         <FormError id={form.errorId} errors={form.errors} />
         {actionData?.intent === "save-driving" && actionData.error ? (
@@ -236,6 +241,51 @@ export function OnboardingDrivingForm({ actionData, idempotencyKey }: StageFormP
         ) : null}
         <Button type="submit" disabled={pending} aria-live="polite">
           {pending ? "Saving credentials…" : "Save Credentials"}
+        </Button>
+      </Form>
+    </StageCard>
+  );
+}
+
+export function OnboardingSelfieForm({ actionData, idempotencyKey }: StageFormProps) {
+  const navigation = useNavigation();
+  const pending =
+    navigation.formMethod != null && navigation.formData?.get("intent") === "replace-selfie";
+  const [form, fields] = useForm({
+    id: "fleet-owner-selfie",
+    lastResult: actionData?.intent === "replace-selfie" ? actionData.submission : null,
+    constraint: getZodConstraint(onboardingSelfieReplacementFormSchema),
+    shouldValidate: "onSubmit",
+    shouldRevalidate: "onInput",
+    onValidate({ formData }) {
+      return parseWithZod(formData, { schema: onboardingSelfieReplacementFormSchema });
+    },
+  });
+
+  return (
+    <StageCard
+      title="Take a New Profile Photo"
+      description="Staff could not approve the previous selfie. Submit a clear new one to continue."
+    >
+      <Form
+        method="post"
+        encType="multipart/form-data"
+        {...getFormProps(form)}
+        className="space-y-6"
+      >
+        <input type="hidden" name="intent" value="replace-selfie" />
+        <input
+          type="hidden"
+          name="idempotencyKey"
+          value={retryKey(actionData, "replace-selfie", idempotencyKey)}
+        />
+        <SelfieField field={fields.selfie} />
+        <FormError id={form.errorId} errors={form.errors} />
+        {actionData?.intent === "replace-selfie" && actionData.error ? (
+          <FormError id="replace-selfie-error" errors={[actionData.error]} />
+        ) : null}
+        <Button type="submit" disabled={pending} aria-live="polite">
+          {pending ? "Submitting selfie…" : "Submit new selfie"}
         </Button>
       </Form>
     </StageCard>

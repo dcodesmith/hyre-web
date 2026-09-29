@@ -4,6 +4,7 @@ export const interventionKindSchema = z.enum([
   "CHAUFFEUR_DRIVERS_LICENSE",
   "OWNER_DRIVER_LICENSE",
   "CHAUFFEUR_FACE",
+  "OWNER_DRIVER_FACE",
 ]);
 
 export const verificationInterventionsSchema = z.object({
@@ -23,7 +24,6 @@ export const verificationInterventionsSchema = z.object({
           status: z.enum(["PENDING", "APPROVED", "REJECTED"]),
         })
         .nullable(),
-      retryAttempt: z.number().int().nonnegative(),
       createdAt: z.iso.datetime(),
     }),
   ),

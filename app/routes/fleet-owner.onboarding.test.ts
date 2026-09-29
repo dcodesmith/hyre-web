@@ -102,6 +102,7 @@ const MISSING_LICENSE_FILE_MESSAGE = firstIssue(onboardingDrivingFormSchema, {
 const VALID_LICENSE_FILE = new File(["%PDF-1.4 licence"], "license.pdf", {
   type: "application/pdf",
 });
+const VALID_SELFIE_FILE = new File(["selfie"], "selfie.jpg", { type: "image/jpeg" });
 const VALID_LICENSE_NUMBER = "ABC-12345-DE67";
 const CANONICAL_LICENSE_NUMBER = "ABC12345DE67";
 
@@ -171,6 +172,7 @@ const ownerDriverDrivingFields = {
   isOwnerDriver: "true",
   driversLicenseNumber: VALID_LICENSE_NUMBER,
   driversLicense: VALID_LICENSE_FILE,
+  selfie: VALID_SELFIE_FILE,
 } as const;
 
 const validSubmitFields = {
@@ -373,6 +375,7 @@ describe("fleet-owner onboarding route", () => {
       extra: "drop-me",
       bankName: "Evil Bank",
       driversLicense,
+      selfie: VALID_SELFIE_FILE,
     });
 
     expect(saveFleetOwnerDrivingCredentials).toHaveBeenCalledWith({
@@ -384,6 +387,7 @@ describe("fleet-owner onboarding route", () => {
     expect(String(sent.get("isOwnerDriver"))).toBe("true");
     expect(sent.get("driversLicenseNumber")).toBe(CANONICAL_LICENSE_NUMBER);
     expect((sent.get("driversLicense") as File).name).toBe("license.pdf");
+    expect((sent.get("selfie") as File).name).toBe("selfie.jpg");
     expect(sent.get("lasdri")).toBeNull();
     expect(sent.get("intent")).toBeNull();
     expect(sent.get("idempotencyKey")).toBeNull();
@@ -526,7 +530,12 @@ describe("fleet-owner onboarding route", () => {
     ],
     [
       "save-driving licence file",
-      { ...validDrivingFields, isOwnerDriver: "true", driversLicenseNumber: VALID_LICENSE_NUMBER },
+      {
+        ...validDrivingFields,
+        isOwnerDriver: "true",
+        driversLicenseNumber: VALID_LICENSE_NUMBER,
+        selfie: VALID_SELFIE_FILE,
+      },
       saveFleetOwnerDrivingCredentials,
       {
         idempotencyKey: IDEMPOTENCY_KEY,

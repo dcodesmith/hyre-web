@@ -106,7 +106,6 @@ const items: VerificationIntervention[] = [
     hasSelfie: false,
     hasNinPortrait: false,
     document: null,
-    retryAttempt: 0,
     createdAt,
   },
   {
@@ -118,7 +117,6 @@ const items: VerificationIntervention[] = [
     hasSelfie: true,
     hasNinPortrait: true,
     document: null,
-    retryAttempt: 1,
     createdAt,
   },
   {
@@ -130,7 +128,6 @@ const items: VerificationIntervention[] = [
     hasSelfie: false,
     hasNinPortrait: false,
     document: { id: documentId, userId: licenceId, status: "PENDING" },
-    retryAttempt: 0,
     createdAt,
   },
 ];

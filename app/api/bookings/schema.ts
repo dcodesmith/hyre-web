@@ -99,6 +99,7 @@ export const guestBookingDetailSchema = z.object({
     .object({
       name: z.string().nullable(),
       phoneNumber: z.string().nullable(),
+      image: z.string().nullish(),
     })
     .nullable(),
   legs: z.array(
@@ -219,6 +220,7 @@ const bookingDetailResponseSchema = z.object({
   chauffeur: z
     .object({
       name: z.string().nullable(),
+      image: z.string().nullish(),
     })
     .nullish(),
   flight: bookingDetailFlightSchema.nullish(),

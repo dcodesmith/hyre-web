@@ -8,6 +8,7 @@ import {
   checkFleetOwnerPhoneVerification,
   getFleetOwnerBanks,
   replaceFleetOwnerDriverLicense,
+  replaceFleetOwnerSelfie,
   saveFleetOwnerDrivingCredentials,
   sendFleetOwnerPhoneVerification,
   submitFleetOwnerOnboarding,
@@ -31,6 +32,7 @@ import {
   onboardingPayoutFormSchema,
   onboardingPhoneCheckFormSchema,
   onboardingPhoneFormSchema,
+  onboardingSelfieReplacementFormSchema,
 } from "~/fleet/onboarding/onboarding-form-schema";
 import { buildPageMetadata } from "~/seo/metadata";
 import type { Route } from "./+types/fleet-owner.onboarding";
@@ -272,6 +274,8 @@ async function saveDriving(request: Request, formData: FormData) {
   }
   const driversLicense = optionalFile(formData.get("driversLicense"));
   if (driversLicense) sanitized.set("driversLicense", driversLicense);
+  const selfie = optionalFile(formData.get("selfie"));
+  if (selfie) sanitized.set("selfie", selfie);
 
   try {
     await saveFleetOwnerDrivingCredentials({
@@ -331,6 +335,27 @@ async function replaceDriverLicense(request: Request, formData: FormData) {
   }
 }
 
+async function replaceSelfie(request: Request, formData: FormData) {
+  const idempotencyKey = readIdempotencyKey(formData, "replace-selfie");
+  if (typeof idempotencyKey !== "string") return idempotencyKey;
+  const submission = parseWithZod(formData, {
+    schema: onboardingSelfieReplacementFormSchema,
+  });
+  if (submission.status !== "success") {
+    return invalidSubmission("replace-selfie", idempotencyKey, submission);
+  }
+  try {
+    await replaceFleetOwnerSelfie({
+      request,
+      selfie: submission.value.selfie,
+      idempotencyKey,
+    });
+    return redirect("/fleet-owner/onboarding", { headers: NO_STORE });
+  } catch (error) {
+    return stageReply("replace-selfie", idempotencyKey, error, submission);
+  }
+}
+
 export async function action({ request }: Route.ActionArgs) {
   const formData = await request.formData();
   switch (formData.get("intent")) {
@@ -348,6 +373,8 @@ export async function action({ request }: Route.ActionArgs) {
       return submitAccount(request, formData);
     case "replace-driver-license":
       return replaceDriverLicense(request, formData);
+    case "replace-selfie":
+      return replaceSelfie(request, formData);
     default:
       throw data(null, { status: HTTP_STATUS.BAD_REQUEST, headers: NO_STORE });
   }

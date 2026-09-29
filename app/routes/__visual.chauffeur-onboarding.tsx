@@ -13,7 +13,15 @@ const invitedOnboarding = {
   phoneNumber: "+2348012345678",
   fleetOwnerName: "Ada Lovelace",
   status: "INVITED",
-  steps: { consent: false, phone: false, nin: false, driving: false },
+  steps: {
+    consent: false,
+    phone: false,
+    nin: false,
+    driving: false,
+    drivingSubmitted: false,
+    rejected: false,
+    selfieRetakeRequired: false,
+  },
   complianceRequirements: [
     { type: "LASDRI", label: "LASDRI card", required: false },
     { type: "LASRRA", label: "LASRRA card", required: false },
@@ -38,7 +46,7 @@ function onboardingForStep(step: string | null): ChauffeurOnboarding | null {
     return {
       ...invitedOnboarding,
       status: "PHONE_VERIFIED",
-      steps: { consent: true, phone: true, nin: false, driving: false },
+      steps: { ...invitedOnboarding.steps, consent: true, phone: true },
     };
   }
 
@@ -46,7 +54,7 @@ function onboardingForStep(step: string | null): ChauffeurOnboarding | null {
     return {
       ...invitedOnboarding,
       status: "IDENTITY_VERIFIED",
-      steps: { consent: true, phone: true, nin: true, driving: false },
+      steps: { ...invitedOnboarding.steps, consent: true, phone: true, nin: true },
     };
   }
 
@@ -54,7 +62,14 @@ function onboardingForStep(step: string | null): ChauffeurOnboarding | null {
     return {
       ...invitedOnboarding,
       status: "APPROVED",
-      steps: { consent: true, phone: true, nin: true, driving: true },
+      steps: {
+        ...invitedOnboarding.steps,
+        consent: true,
+        phone: true,
+        nin: true,
+        driving: true,
+        drivingSubmitted: true,
+      },
     };
   }
 
