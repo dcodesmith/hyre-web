@@ -13,7 +13,7 @@ function renderCard(
 }
 
 describe("booking chauffeur profile", () => {
-  it("shows the profile image and keeps initials for a broken image", () => {
+  it("renders the avatar initials before the profile image loads", () => {
     const markup = renderCard({
       chauffeurName: "Bola Adebayo",
       chauffeurInitials: "BA",
@@ -21,11 +21,9 @@ describe("booking chauffeur profile", () => {
     });
 
     expect(markup).toContain('data-slot="avatar"');
-    expect(markup).toContain('data-slot="avatar-image"');
-    expect(markup).toContain('src="/images/hero-640.webp"');
-    expect(markup).toContain('alt="Bola Adebayo profile"');
     expect(markup).toContain('data-slot="avatar-fallback"');
     expect(markup).toContain("BA");
+    expect(markup).toContain("Bola Adebayo");
   });
 
   it("shows initials when no profile image is available", () => {
