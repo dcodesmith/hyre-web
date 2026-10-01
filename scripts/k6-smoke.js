@@ -1,5 +1,5 @@
-import http from "k6/http";
 import { check } from "k6";
+import http from "k6/http";
 import { Counter } from "k6/metrics";
 
 const fixtureSkips = new Counter("fixture_skips");
@@ -49,22 +49,19 @@ export default function () {
   check(apiRoot, {
     "API identity is healthy": (response) => response.status === 200,
     "API preview environment is selected": (response) => response.json("environment") === "preview",
-    "API commit matches": (response) =>
-      response.json("deployment.commit") === EXPECTED_API_COMMIT,
+    "API commit matches": (response) => response.json("deployment.commit") === EXPECTED_API_COMMIT,
     "API version matches": (response) =>
       response.json("deployment.version") === EXPECTED_API_VERSION,
   });
 
   const health = safeGet("api", "/health", headers, "health");
   check(health, {
-    "API health is OK": (response) =>
-      response.status === 200 && response.json("status") === "ok",
+    "API health is OK": (response) => response.status === 200 && response.json("status") === "ok",
   });
 
   const home = safeGet("web", "/", headers, "homepage");
   check(home, {
-    "homepage renders": (response) =>
-      response.status === 200 && response.body.includes("Tripdly"),
+    "homepage renders": (response) => response.status === 200 && response.body.includes("Tripdly"),
     "web commit matches": (response) =>
       responseHeader(response, "x-commit-sha") === EXPECTED_WEB_COMMIT,
     "web version matches": (response) =>
@@ -77,12 +74,7 @@ export default function () {
       response.status === 200 && response.body.includes("Tripdly"),
   });
 
-  const categories = safeGet(
-    "api",
-    "/api/cars/categories?limit=20",
-    headers,
-    "categories",
-  );
+  const categories = safeGet("api", "/api/cars/categories?limit=20", headers, "categories");
   check(categories, {
     "categories are readable": (response) =>
       response.status === 200 && Array.isArray(response.json("allCars")),
