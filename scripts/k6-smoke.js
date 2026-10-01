@@ -128,8 +128,7 @@ function safeGet(surface, path, headers, name) {
 }
 
 function assertAllowed(surface, method, path) {
-  const url = new URL(path, "https://smoke.invalid");
-  const pathname = url.pathname;
+  const pathname = pathnameOf(path);
   const isPricingPreview =
     (surface === "web" && pathname === "/api/booking-pricing-preview") ||
     (surface === "api" && pathname === "/api/bookings/pricing-preview");
@@ -158,21 +157,14 @@ function assertAllowed(surface, method, path) {
 
 function previewOrigin(rawValue, kind) {
   const raw = requiredValue(kind === "web" ? "WEB_BASE_URL" : "API_BASE_URL", rawValue);
-  const url = new URL(raw);
-
-  if (
-    url.protocol !== "https:" ||
-    url.username ||
-    url.password ||
-    url.pathname !== "/" ||
-    url.search ||
-    url.hash
-  ) {
+  const match = /^https:\/\/([a-z0-9.-]+)\/?$/i.exec(raw);
+  if (!match) {
     throw new Error(`${kind} base URL must be a bare HTTPS origin`);
   }
+  const hostname = match[1].toLowerCase();
 
-  if (BLOCKED_HOSTS.has(url.hostname) || url.hostname.includes("production")) {
-    throw new Error(`Refusing production hostname: ${url.hostname}`);
+  if (BLOCKED_HOSTS.has(hostname) || hostname.includes("production")) {
+    throw new Error(`Refusing production hostname: ${hostname}`);
   }
 
   const expectedHost =
@@ -180,11 +172,11 @@ function previewOrigin(rawValue, kind) {
       ? /^pr-\d+-hyre-web-preview\.[a-z0-9-]+\.workers\.dev$/
       : /^hyre-worker-nestjs-pr-\d+\.fly\.dev$/;
 
-  if (!expectedHost.test(url.hostname)) {
-    throw new Error(`Refusing non-preview ${kind} hostname: ${url.hostname}`);
+  if (!expectedHost.test(hostname)) {
+    throw new Error(`Refusing non-preview ${kind} hostname: ${hostname}`);
   }
 
-  return url.origin;
+  return `https://${hostname}`;
 }
 
 function requiredValue(name, suppliedValue = __ENV[name]) {
@@ -247,7 +239,7 @@ function generateCarSlug(car) {
 
 function pricingPreviewQuery(carId) {
   const { startDate, endDate } = futureDayWindow();
-  const params = new URLSearchParams({
+  const params = {
     carId,
     bookingType: "DAY",
     startDate,
@@ -255,8 +247,17 @@ function pricingPreviewQuery(carId) {
     pickupTime: "9 AM",
     requiresFullTank: "false",
     useCredits: "0",
-  });
-  return params.toString();
+  };
+  return Object.entries(params)
+    .map(([name, value]) => `${encodeURIComponent(name)}=${encodeURIComponent(value)}`)
+    .join("&");
+}
+
+function pathnameOf(path) {
+  if (!path.startsWith("/") || path.startsWith("//") || path.includes("#")) {
+    throw new Error(`Smoke path must be a same-origin absolute path: ${path}`);
+  }
+  return path.split("?", 1)[0];
 }
 
 function futureDayWindow() {
