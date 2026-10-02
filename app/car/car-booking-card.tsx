@@ -50,6 +50,44 @@ function formatOptionalCalendarDate(value: Date | undefined) {
   return value ? formatZonedDate(value) : "";
 }
 
+function useBookingResumeState(
+  addons: readonly PublicAddon[],
+  searchParams: URLSearchParams,
+  isSignedIn: boolean,
+) {
+  const catalogKey = addons.map((addon) => addon.id).join("|");
+  const [addonSelection, setAddonSelection] = useState(() => {
+    const resumeIds = new Set(searchParams.getAll("addonIds"));
+    return {
+      catalogKey,
+      ids: addons.filter((addon) => resumeIds.has(addon.id)).map((addon) => addon.id),
+    };
+  });
+  const [resumeCredits] = useState(() => {
+    const value = isSignedIn ? searchParams.get("useCredits") : null;
+    if (!value || !/^\d+(?:\.\d{1,2})?$/.test(value)) {
+      return 0;
+    }
+
+    const amount = Number(value);
+    return Number.isFinite(amount) && amount <= 99_999_999.99 ? amount : 0;
+  });
+
+  return {
+    resumeCredits,
+    selectedAddonIds: addonSelection.catalogKey === catalogKey ? addonSelection.ids : [],
+    setAddonSelected(addonId: string, selected: boolean) {
+      setAddonSelection((current) => {
+        const ids = current.catalogKey === catalogKey ? current.ids : [];
+        return {
+          catalogKey,
+          ids: selected ? [...ids, addonId] : ids.filter((id) => id !== addonId),
+        };
+      });
+    },
+  };
+}
+
 function pricingPreviewInput(
   carId: string,
   card: ReturnType<typeof useCarBookingCard>,
@@ -113,6 +151,49 @@ function CarBookingCardPrice({
   );
 }
 
+function BookingCreditsSection({
+  previewReferralCredit,
+  previewCreditsEnabled,
+  setPreviewCreditsEnabled,
+  isSignedIn,
+  bookingCredits,
+  thisBookingCredits,
+}: {
+  readonly previewReferralCredit?: {
+    readonly availableCredits: number;
+    readonly creditLimit: number;
+  };
+  readonly previewCreditsEnabled: boolean;
+  readonly setPreviewCreditsEnabled: (enabled: boolean) => void;
+  readonly isSignedIn: boolean;
+  readonly bookingCredits: ReturnType<typeof useBookingCredits>;
+  readonly thisBookingCredits: number;
+}) {
+  if (previewReferralCredit) {
+    return (
+      <BookingCreditsControl
+        availableCredits={previewReferralCredit.availableCredits}
+        creditLimit={previewReferralCredit.creditLimit}
+        checked={previewCreditsEnabled}
+        onCheckedChange={setPreviewCreditsEnabled}
+      />
+    );
+  }
+
+  if (!isSignedIn || bookingCredits.availableCredits <= 0 || thisBookingCredits <= 0) {
+    return null;
+  }
+
+  return (
+    <BookingCreditsControl
+      availableCredits={bookingCredits.availableCredits}
+      creditLimit={thisBookingCredits}
+      checked={bookingCredits.enabled}
+      onCheckedChange={bookingCredits.setCreditsEnabled}
+    />
+  );
+}
+
 export function CarBookingCard({
   car,
   rates,
@@ -126,14 +207,13 @@ export function CarBookingCard({
   const location = useLocation();
   const navigate = useNavigate();
   const query = parseCarDetailUrl(searchParams);
-  const addonCatalogKey = addons.map((addon) => addon.id).join("|");
-  const [addonSelection, setAddonSelection] = useState({
-    catalogKey: addonCatalogKey,
-    ids: [] as string[],
-  });
-  const [previewCreditsEnabled, setPreviewCreditsEnabled] = useState(false);
-  const selectedAddonIds = addonSelection.catalogKey === addonCatalogKey ? addonSelection.ids : [];
   const isSignedIn = usePublicUser() != null;
+  const { resumeCredits, selectedAddonIds, setAddonSelected } = useBookingResumeState(
+    addons,
+    searchParams,
+    isSignedIn,
+  );
+  const [previewCreditsEnabled, setPreviewCreditsEnabled] = useState(false);
   const initialFromDate = parseOptionalCalendarDate(query.search.from);
   const parsedToDate = parseOptionalCalendarDate(query.search.to);
   const initialToDate = nextToDateOnFromChange(query.bookingType, initialFromDate, parsedToDate);
@@ -187,7 +267,7 @@ export function CarBookingCard({
     },
   );
   const bookingCredits = useBookingCredits(
-    isSignedIn ? (matchedActionPreview?.creditsUsed ?? 0) : 0,
+    isSignedIn ? (matchedActionPreview?.creditsUsed ?? resumeCredits) : 0,
     isSignedIn,
   );
   const requestedCredits = bookingCredits.requestedCredits;
@@ -224,21 +304,16 @@ export function CarBookingCard({
     : pricing.isLoading && lastApplicableCredits.key === applicableCreditsKey
       ? lastApplicableCredits.amount
       : 0;
-  const credits = previewReferralCredit ? (
-    <BookingCreditsControl
-      availableCredits={previewReferralCredit.availableCredits}
-      creditLimit={previewReferralCredit.creditLimit}
-      checked={previewCreditsEnabled}
-      onCheckedChange={setPreviewCreditsEnabled}
+  const credits = (
+    <BookingCreditsSection
+      previewReferralCredit={previewReferralCredit}
+      previewCreditsEnabled={previewCreditsEnabled}
+      setPreviewCreditsEnabled={setPreviewCreditsEnabled}
+      isSignedIn={isSignedIn}
+      bookingCredits={bookingCredits}
+      thisBookingCredits={thisBookingCredits}
     />
-  ) : isSignedIn && bookingCredits.availableCredits > 0 && thisBookingCredits > 0 ? (
-    <BookingCreditsControl
-      availableCredits={bookingCredits.availableCredits}
-      creditLimit={thisBookingCredits}
-      checked={bookingCredits.enabled}
-      onCheckedChange={bookingCredits.setCreditsEnabled}
-    />
-  ) : null;
+  );
   const estimate = estimateBookingCost({
     dayRate: car.dayRate,
     nightRate: car.nightRate,
@@ -286,16 +361,7 @@ export function CarBookingCard({
       addons={addons}
       selectedAddonIds={selectedAddonIds}
       useCredits={requestedCredits}
-      onAddonSelectionChange={(addonId, selected) => {
-        setAddonSelection((current) => {
-          const ids = current.catalogKey === addonCatalogKey ? current.ids : [];
-
-          return {
-            catalogKey: addonCatalogKey,
-            ids: selected ? [...ids, addonId] : ids.filter((id) => id !== addonId),
-          };
-        });
-      }}
+      onAddonSelectionChange={setAddonSelected}
       cost={overlayBookingCostPreview(estimate, preview)}
       preview={preview}
       pricingError={bookingCredits.error ?? (actionPreview ? null : pricing.error)}

@@ -76,7 +76,6 @@ export async function action({ request }: Route.ActionArgs) {
       request,
       body: {
         name: submission.value.name,
-        phoneNumber: submission.value.phoneNumber,
         city: submission.value.city,
         address: submission.value.address,
         marketingConsent: submission.value.marketingConsent,

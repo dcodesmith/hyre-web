@@ -94,9 +94,9 @@ function bookingForm(guest = false) {
   return form;
 }
 
-function runAction(form: FormData) {
+function runAction(form: FormData, search = "") {
   return action({
-    request: new Request(`https://tripdly.com/cars/lexus--${PUBLIC_REF}`, {
+    request: new Request(`https://tripdly.com/cars/lexus--${PUBLIC_REF}${search}`, {
       method: "POST",
       body: form,
     }),
@@ -255,6 +255,77 @@ describe("car booking action", () => {
       data: { currentPricing: undefined },
     });
     expect(createPaymentStatusSession).not.toHaveBeenCalled();
+  });
+
+  it("sends a phone-verification booking failure back with the validated selection", async () => {
+    readAuthUser.mockResolvedValue({ email: "ada@example.com", name: "Ada" });
+    const activeAddon = "018f47a2-7b3c-7d4e-8f90-1234567890b1";
+    const secondAddon = "018f47a2-7b3c-7d4e-8f90-1234567890b2";
+    const staleAddon = "018f47a2-7b3c-7d4e-8f90-1234567890ff";
+    const form = bookingForm();
+    form.append("addonIds", activeAddon);
+    form.append("addonIds", secondAddon);
+    form.set("useCredits", "2500");
+    createBooking.mockRejectedValue(
+      new ApiRequestError("http", 403, {
+        type: "BOOKING_PHONE_VERIFICATION_REQUIRED",
+        title: "Phone verification required",
+        status: 403,
+        detail: "Verify your phone number before booking.",
+        errorCode: "BOOKING_PHONE_VERIFICATION_REQUIRED",
+      }),
+    );
+
+    const response = await runAction(
+      form,
+      `?addonIds=${staleAddon}&useCredits=10&bookingType=DAY`,
+    ).catch((error: unknown) => error);
+
+    expect(response).toBeInstanceOf(Response);
+    expect((response as Response).status).toBe(302);
+    expect((response as Response).headers.get("Cache-Control")).toBe("private, no-store");
+    const location = new URL(
+      (response as Response).headers.get("Location") ?? "",
+      "https://tripdly.com",
+    );
+    expect(location.pathname).toBe("/verify-phone");
+    const redirectTo = new URL(
+      location.searchParams.get("redirectTo") ?? "",
+      "https://tripdly.com",
+    );
+    expect(redirectTo.pathname).toBe(`/cars/lexus--${PUBLIC_REF}`);
+    expect(redirectTo.searchParams.get("bookingType")).toBe("DAY");
+    expect(redirectTo.searchParams.getAll("addonIds")).toEqual([activeAddon, secondAddon]);
+    expect(redirectTo.searchParams.get("useCredits")).toBe("2500");
+    expect(createPaymentStatusSession).not.toHaveBeenCalled();
+  });
+
+  it("drops credits from the phone-verification return path when none were requested", async () => {
+    readAuthUser.mockResolvedValue({ email: "ada@example.com", name: "Ada" });
+    createBooking.mockRejectedValue(
+      new ApiRequestError("http", 403, {
+        type: "BOOKING_PHONE_VERIFICATION_REQUIRED",
+        title: "Phone verification required",
+        status: 403,
+        detail: "Verify your phone number before booking.",
+        errorCode: "BOOKING_PHONE_VERIFICATION_REQUIRED",
+      }),
+    );
+
+    const response = await runAction(bookingForm(), "?useCredits=40").catch(
+      (error: unknown) => error,
+    );
+    const location = new URL(
+      (response as Response).headers.get("Location") ?? "",
+      "https://tripdly.com",
+    );
+    const redirectTo = new URL(
+      location.searchParams.get("redirectTo") ?? "",
+      "https://tripdly.com",
+    );
+
+    expect(redirectTo.searchParams.get("useCredits")).toBeNull();
+    expect(redirectTo.searchParams.getAll("addonIds")).toEqual([]);
   });
 });
 

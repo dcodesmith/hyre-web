@@ -7,6 +7,7 @@ export default function ProfileFixture() {
       profile={{
         name: "Ada Lovelace",
         phoneNumber: "+2348012345678",
+        phoneVerified: true,
         city: "Lagos",
         address: "12 Marina",
         marketingConsent: false,

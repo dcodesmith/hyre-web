@@ -3,26 +3,15 @@ import { z } from "zod";
 import { addFileValidationIssues } from "~/components/forms/file-validation";
 import { optionalDriversLicenseNumberSchema } from "~/schema/drivers-license-number";
 
+export {
+  phoneVerificationCheckSchema as onboardingPhoneCheckFormSchema,
+  phoneVerificationSendSchema as onboardingPhoneFormSchema,
+} from "~/auth/phone-verification-schema";
+
 const DOCUMENT_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "application/pdf"]);
 const SELFIE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
-const phoneNumberSchema = z
-  .string({ error: "Phone number is required" })
-  .trim()
-  .regex(/^\+[1-9]\d{7,14}$/, "Enter a phone number in international format");
-
 const optionalDocumentSchema = z.file().optional();
-
-export const onboardingPhoneFormSchema = z.object({
-  phoneNumber: phoneNumberSchema,
-});
-
-export const onboardingPhoneCheckFormSchema = onboardingPhoneFormSchema.extend({
-  code: z
-    .string({ error: "Verification code is required" })
-    .trim()
-    .regex(/^\d{4,10}$/, "Enter the verification code"),
-});
 
 const ninSchema = z
   .string({ error: "NIN is required" })

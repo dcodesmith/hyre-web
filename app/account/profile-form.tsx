@@ -1,6 +1,6 @@
 import { getFormProps, getInputProps, type SubmissionResult, useForm } from "@conform-to/react";
 import { getZodConstraint, parseWithZod } from "@conform-to/zod/v4";
-import { Form, useNavigation } from "react-router";
+import { Form, Link, useNavigation } from "react-router";
 import { AccountDeletion } from "~/account/account-deletion";
 import { profileFormSchema } from "~/account/profile-form-schema";
 import type { CurrentUserProfile } from "~/api/users/schema";
@@ -9,6 +9,7 @@ import { FormError } from "~/components/forms/form-primitives";
 import { Button } from "~/components/ui/button";
 
 const fieldClassName = "h-9 w-full rounded-md border px-3 text-sm";
+const profilePhoneVerificationUrl = "/verify-phone?redirectTo=%2Fprofile";
 
 type ProfileFields = {
   readonly email: string;
@@ -29,7 +30,6 @@ export function ProfilePage({ email, profile, lastResult }: ProfileFields) {
     shouldRevalidate: "onInput",
     defaultValue: {
       name: profile.name ?? "",
-      phoneNumber: profile.phoneNumber ?? "",
       city: profile.city ?? "",
       address: profile.address ?? "",
       marketingConsent: profile.marketingConsent ? "on" : "",
@@ -38,7 +38,7 @@ export function ProfilePage({ email, profile, lastResult }: ProfileFields) {
       return parseWithZod(formData, { schema: profileFormSchema });
     },
   });
-  const { name, phoneNumber, city, address, marketingConsent } = fields;
+  const { name, city, address, marketingConsent } = fields;
 
   return (
     <div className="w-full">
@@ -77,16 +77,19 @@ export function ProfilePage({ email, profile, lastResult }: ProfileFields) {
           </div>
 
           <div className="space-y-1">
-            <label htmlFor={phoneNumber.id} className="text-sm font-medium">
-              Phone
-            </label>
-            <input
-              {...getInputProps(phoneNumber, { type: "tel" })}
-              autoComplete="tel"
-              placeholder="+1234567890"
-              className={fieldClassName}
-            />
-            <FormError id={phoneNumber.errorId} errors={phoneNumber.errors} />
+            <p className="text-sm font-medium">Phone</p>
+            <div className="flex min-h-9 items-center justify-between gap-3 rounded-md border px-3 text-sm">
+              <span className="min-w-0 truncate">{profile.phoneNumber ?? "Not added"}</span>
+              <span className={profile.phoneVerified ? "text-green-700" : "text-amber-700"}>
+                {profile.phoneVerified ? "Verified" : "Not verified"}
+              </span>
+            </div>
+            <Link
+              to={`${profilePhoneVerificationUrl}${profile.phoneVerified ? "&change=phone" : ""}`}
+              className="inline-block text-sm font-medium text-neutral-900 underline"
+            >
+              {profile.phoneVerified ? "Change phone number" : "Verify phone number"}
+            </Link>
           </div>
 
           <div className="space-y-1">
