@@ -74,6 +74,7 @@ export default [
   layout("routes/_auth.tsx", [
     route("auth", "routes/auth.tsx"),
     route("verify", "routes/verify.tsx"),
+    route("verify-phone", "routes/verify-phone.tsx"),
     route("fleet-owner/login", "routes/fleet-owner.login.tsx"),
     route("fleet-owner/verify", "routes/fleet-owner.verify.tsx"),
     route("admin/login", "routes/admin.login.tsx"),

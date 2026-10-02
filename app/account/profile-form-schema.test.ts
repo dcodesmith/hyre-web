@@ -14,7 +14,6 @@ describe("profileFormSchema", () => {
 
     expect(submission.value).toEqual({
       name: "",
-      phoneNumber: "",
       city: "",
       address: "",
       marketingConsent: false,

@@ -4,6 +4,9 @@ const { readAuthSessionUser } = vi.hoisted(() => ({
   readAuthSessionUser: vi.fn(),
 }));
 
+vi.mock("cloudflare:workers", () => ({
+  env: { API_ORIGIN: "https://api.example" },
+}));
 vi.mock("~/auth/session.server", () => ({ readAuthSessionUser }));
 
 import { redirectAuthenticatedFleetOwner, requireFleetOwner } from "./fleet-owner-session.server";
