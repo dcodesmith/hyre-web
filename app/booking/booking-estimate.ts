@@ -51,6 +51,7 @@ export type BookingCostDisplay = {
   readonly referralDiscountAmount: number;
   readonly creditsUsed: number;
   readonly totalAmount: number;
+  readonly compareAtTotalAmount: number | null;
   readonly savingsAmount: number;
 };
 
@@ -99,6 +100,10 @@ function applyPromotionDiscount(originalRate: number, discountPercent: number) {
 
 function roundMoney(value: number) {
   return Math.round(value * 100) / 100;
+}
+
+function displayedCompareAtTotal(compareAt: number | undefined, payable: number) {
+  return compareAt != null && compareAt > payable ? compareAt : null;
 }
 
 function fuelUpgradeCost({
@@ -248,6 +253,7 @@ export function bookingCostDisplayFromEstimate(estimate: BookingEstimate): Booki
     referralDiscountAmount: 0,
     creditsUsed: 0,
     totalAmount: estimate.finalTotal,
+    compareAtTotalAmount: displayedCompareAtTotal(estimate.originalGrandTotal, estimate.finalTotal),
     savingsAmount: estimate.savingsAmount ?? 0,
   };
 }
@@ -299,6 +305,10 @@ export function overlayBookingCostPreview(
     referralDiscountAmount: preview.referralDiscountAmount,
     creditsUsed: preview.creditsUsed,
     totalAmount: preview.totalAmount,
+    compareAtTotalAmount: displayedCompareAtTotal(
+      preview.compareAtTotalAmount,
+      preview.totalAmount,
+    ),
     savingsAmount: preview.savingsAmount,
   };
 }

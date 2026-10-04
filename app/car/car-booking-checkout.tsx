@@ -76,6 +76,34 @@ function CarBookingPayActions({
   );
 }
 
+function CarBookingMobileTotal({ cost }: { readonly cost: BookingCostDisplay }) {
+  const payable = formatCurrency(cost.totalAmount, cost.currency);
+
+  if (cost.savingsAmount <= 0) {
+    return <span className="text-base font-semibold tabular-nums">{payable}</span>;
+  }
+
+  const savings = formatCurrency(cost.savingsAmount, cost.currency);
+  const compareAt =
+    cost.compareAtTotalAmount == null
+      ? null
+      : formatCurrency(cost.compareAtTotalAmount, cost.currency);
+
+  return (
+    <span className="flex flex-col items-end gap-0.5 text-right">
+      <span className="tabular-nums">
+        {compareAt ? (
+          <span className="mr-2 text-sm font-normal text-gray-400 line-through" aria-hidden="true">
+            {compareAt}
+          </span>
+        ) : null}
+        <span className="text-base font-semibold text-primary">{payable}</span>
+      </span>
+      <span className="text-xs font-medium text-green-700">You save {savings}</span>
+    </span>
+  );
+}
+
 function CarBookingMobilePayBar({
   cost,
   isPaying,
@@ -101,9 +129,7 @@ function CarBookingMobilePayBar({
       <div className="space-y-3 p-4">
         <div className="flex items-center justify-between gap-2">
           <span className="text-sm font-medium text-gray-600">Total</span>
-          <span className="text-right text-base font-semibold tabular-nums">
-            {formatCurrency(cost.totalAmount, cost.currency)}
-          </span>
+          <CarBookingMobileTotal cost={cost} />
         </div>
         <CarBookingPayActions
           isPaying={isPaying}

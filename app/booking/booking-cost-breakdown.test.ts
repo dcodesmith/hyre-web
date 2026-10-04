@@ -25,6 +25,7 @@ const cost: BookingCostDisplay = {
   referralDiscountAmount: 10_000,
   creditsUsed: 4_500,
   totalAmount: 97_625,
+  compareAtTotalAmount: 112_125,
   savingsAmount: 14_500,
 };
 
