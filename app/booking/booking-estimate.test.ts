@@ -195,10 +195,28 @@ describe("overlayBookingCostPreview", () => {
     const display = overlayBookingCostPreview(estimate, null);
 
     expect(display.totalAmount).toBe(118_250);
+    expect(display.compareAtTotalAmount).toBeNull();
+    expect(display.savingsAmount).toBe(0);
     expect(display.addons).toEqual([]);
     expect(display.referralDiscountAmount).toBe(0);
     expect(display.creditsUsed).toBe(0);
     expect(display.rentalRows[0]?.unitPrice).toBe(100_000);
+  });
+
+  it("keeps the estimated compare-at total until a preview arrives", () => {
+    const estimate = estimateBookingCost({
+      ...rates,
+      bookingType: "DAY",
+      units: 1,
+      platformFeeRate: 5,
+      vatRate: 7.5,
+      promotion: { discountValue: 10 },
+    });
+    const display = overlayBookingCostPreview(estimate, null);
+
+    expect(display.totalAmount).toBe(101_587.5);
+    expect(display.compareAtTotalAmount).toBe(112_875);
+    expect(display.savingsAmount).toBe(11_287.5);
   });
 
   it("replaces estimated money with preview values", () => {
@@ -227,7 +245,28 @@ describe("overlayBookingCostPreview", () => {
     expect(display.referralDiscountAmount).toBe(5_000);
     expect(display.creditsUsed).toBe(2_000);
     expect(display.totalAmount).toBe(231_250);
+    expect(display.compareAtTotalAmount).toBe(250_000);
     expect(display.savingsAmount).toBe(18_750);
+  });
+
+  it("drops a compare-at total when the preview has no savings", () => {
+    const estimate = estimateBookingCost({
+      ...rates,
+      bookingType: "DAY",
+      units: 1,
+      platformFeeRate: 5,
+      vatRate: 7.5,
+      promotion: { discountValue: 10 },
+    });
+    const display = overlayBookingCostPreview(estimate, {
+      ...preview,
+      totalAmount: 112_875,
+      compareAtTotalAmount: 112_875,
+      savingsAmount: 0,
+    });
+
+    expect(display.compareAtTotalAmount).toBeNull();
+    expect(display.savingsAmount).toBe(0);
   });
 });
 

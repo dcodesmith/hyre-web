@@ -77,6 +77,7 @@ const cost = {
   referralDiscountAmount: 10_000,
   creditsUsed: 2_500,
   totalAmount: 99_437.5,
+  compareAtTotalAmount: 112_875,
   savingsAmount: 13_437.5,
 };
 
