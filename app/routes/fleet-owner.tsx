@@ -74,6 +74,14 @@ function getPageTitle(pathname: string, isOwnerDriver: boolean) {
     return "Cars";
   }
 
+  if (pathname === "/fleet-owner/bookings") {
+    return "Bookings";
+  }
+
+  if (pathname.startsWith("/fleet-owner/bookings/")) {
+    return "Booking details";
+  }
+
   if (pathname === "/fleet-owner/cars/new") {
     return "Add Car";
   }
