@@ -1,4 +1,5 @@
 import {
+  CalendarDaysIcon,
   CarIcon,
   LayoutDashboardIcon,
   LogOutIcon,
@@ -28,6 +29,7 @@ import {
 
 const navigation = [
   { label: "Dashboard", to: "/fleet-owner", icon: LayoutDashboardIcon, exact: true },
+  { label: "Bookings", to: "/fleet-owner/bookings", icon: CalendarDaysIcon, exact: false },
   { label: "Cars", to: "/fleet-owner/cars", icon: CarIcon, exact: false },
   { label: "Chauffeurs", to: "/fleet-owner/chauffeurs", icon: UsersIcon, exact: false },
   { label: "Promotions", to: "/fleet-owner/promotions", icon: TagIcon, exact: false },

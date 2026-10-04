@@ -84,6 +84,8 @@ export default [
   route("fleet-owner", "routes/fleet-owner.tsx", [
     layout("routes/fleet-owner.dashboard.tsx", [index("routes/fleet-owner._index.tsx")]),
     route("onboarding", "routes/fleet-owner.onboarding.tsx"),
+    route("bookings", "routes/fleet-owner.bookings.tsx"),
+    route("bookings/:bookingId", "routes/fleet-owner.bookings.$bookingId.tsx"),
     route("cars", "routes/fleet-owner.cars.tsx"),
     route("cars/new", "routes/fleet-owner.cars.new.tsx"),
     route("cars/:carId/onboarding", "routes/fleet-owner.cars.$carId.onboarding.tsx"),
