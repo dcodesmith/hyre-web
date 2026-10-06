@@ -35,6 +35,8 @@ import type { Route } from "./+types/cars.$carSlug";
 
 const CAR_CACHE_CONTROL = "public, max-age=60, stale-while-revalidate=300";
 const BOOKING_CREATE_ERROR = "Unable to start payment. Please try again.";
+const CAR_NOT_AVAILABLE_ERROR =
+  "This car is no longer available for the selected time. Please choose another vehicle or time.";
 
 function isMissingCar(error: unknown) {
   return (
@@ -307,14 +309,18 @@ function bookingCreateFailure(
     throw error;
   }
 
+  const errorCode = error.problem.errorCode;
   const message =
-    error.status < HTTP_STATUS.INTERNAL_SERVER_ERROR ? error.problem.detail : BOOKING_CREATE_ERROR;
+    errorCode === "CAR_NOT_AVAILABLE"
+      ? CAR_NOT_AVAILABLE_ERROR
+      : error.status < HTTP_STATUS.INTERNAL_SERVER_ERROR
+        ? error.problem.detail
+        : BOOKING_CREATE_ERROR;
   const currentPricing =
     error.problem.errorCode === "BOOKING_PRICE_CHANGED"
       ? bookingPricingPreviewSchema.safeParse(error.problem.details?.currentPricing).data
       : undefined;
   const currentPricingSelectionKey = currentPricing ? submittedSelectionKey : undefined;
-  const errorCode = error.problem.errorCode;
   const retryAfterSeconds =
     typeof error.problem.details?.retryAfterSeconds === "number"
       ? error.problem.details.retryAfterSeconds

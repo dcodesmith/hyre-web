@@ -234,6 +234,35 @@ describe("car booking action", () => {
     expect(headers.get("X-Request-ID")).toBe("request-1");
   });
 
+  it("maps CAR_NOT_AVAILABLE to the selected-time message", async () => {
+    readAuthUser.mockResolvedValue({ email: "ada@example.com", name: "Ada" });
+    createBooking.mockRejectedValue(
+      new ApiRequestError(
+        "http",
+        409,
+        {
+          type: "CAR_NOT_AVAILABLE",
+          title: "Car Not Available",
+          status: 409,
+          detail:
+            "No chauffeur is available for the selected time. Please choose another vehicle or time.",
+          errorCode: "CAR_NOT_AVAILABLE",
+        },
+        new Headers(),
+      ),
+    );
+
+    const result = await runAction(bookingForm());
+
+    expect(result).toMatchObject({
+      data: { errorCode: "CAR_NOT_AVAILABLE" },
+      init: { status: 409 },
+    });
+    expect(JSON.stringify(result.data.lastResult)).toContain(
+      "This car is no longer available for the selected time. Please choose another vehicle or time.",
+    );
+  });
+
   it("does not send a guest to checkout without a status credential", async () => {
     readAuthUser.mockResolvedValue(null);
     createBooking.mockResolvedValue({
