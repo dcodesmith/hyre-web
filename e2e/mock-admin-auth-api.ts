@@ -74,6 +74,7 @@ const mockAdminCar = {
   serviceTier: "LUXURY",
   passengerCapacity: 4,
   pricingIncludesFuel: false,
+  vehicleVerification: null,
   owner: {
     id: "018f47a2-7b3c-7d4e-8f90-123456789461",
     name: "Fleet Owner",

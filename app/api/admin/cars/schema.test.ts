@@ -60,6 +60,7 @@ const adminCar = {
       userId: null,
     },
   ],
+  vehicleVerification: null,
 } as const;
 
 describe("admin car API schema", () => {
@@ -70,6 +71,49 @@ describe("admin car API schema", () => {
     };
 
     expect(adminCarsResponseSchema.parse(response)).toEqual(response);
+  });
+
+  it("defaults a missing vehicleVerification to null", () => {
+    const { vehicleVerification: _, ...carWithoutVerification } = adminCar;
+    const response = {
+      cars: [carWithoutVerification],
+      meta: { page: 1, limit: 20, total: 1, totalPages: 1 },
+    };
+
+    expect(adminCarsResponseSchema.parse(response).cars[0]?.vehicleVerification).toBeNull();
+  });
+
+  it("defaults missing vehicleVerification.providerWarnings to an empty array", () => {
+    const response = {
+      cars: [
+        {
+          ...adminCar,
+          vehicleVerification: {},
+        },
+      ],
+      meta: { page: 1, limit: 20, total: 1, totalPages: 1 },
+    };
+
+    expect(adminCarsResponseSchema.parse(response).cars[0]?.vehicleVerification).toEqual({
+      providerWarnings: [],
+    });
+  });
+
+  it("accepts populated provider warnings from the worker", () => {
+    const warnings = ["NHTSA returned a partial VIN decode (codes: 1, 400)."];
+    const response = {
+      cars: [
+        {
+          ...adminCar,
+          vehicleVerification: { providerWarnings: warnings },
+        },
+      ],
+      meta: { page: 1, limit: 20, total: 1, totalPages: 1 },
+    };
+
+    expect(adminCarsResponseSchema.parse(response).cars[0]?.vehicleVerification).toEqual({
+      providerWarnings: warnings,
+    });
   });
 
   it("rejects assets that omit moderation fields", () => {

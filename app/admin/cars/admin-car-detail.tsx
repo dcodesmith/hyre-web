@@ -105,6 +105,19 @@ export function AdminCarDetail({
         </Alert>
       ) : null}
 
+      {car.vehicleVerification?.providerWarnings.length ? (
+        <Alert>
+          <AlertTitle>Vehicle verification needs attention</AlertTitle>
+          <AlertDescription>
+            <ul className="list-disc space-y-1 pl-5">
+              {car.vehicleVerification.providerWarnings.map((warning) => (
+                <li key={warning}>{warning}</li>
+              ))}
+            </ul>
+          </AlertDescription>
+        </Alert>
+      ) : null}
+
       <Card>
         <CardHeader>
           <CardTitle>
