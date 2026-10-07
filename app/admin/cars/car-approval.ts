@@ -22,6 +22,7 @@ export type AdminCarDetailData = Pick<
   | "model"
   | "passengerCapacity"
   | "registrationNumber"
+  | "vehicleVerification"
   | "vehicleType"
   | "year"
 > & {
@@ -116,6 +117,7 @@ export function toAdminCarDetailData(car: AdminCar): AdminCarDetailData {
     },
     passengerCapacity: car.passengerCapacity,
     registrationNumber: car.registrationNumber,
+    vehicleVerification: car.vehicleVerification,
     vehicleType: car.vehicleType,
     year: car.year,
   };

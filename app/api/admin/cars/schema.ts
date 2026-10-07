@@ -42,6 +42,10 @@ const adminCarDocumentSchema = z.object({
   userId: z.uuid().nullable(),
 });
 
+const adminVehicleVerificationSchema = z.object({
+  providerWarnings: z.array(z.string()).default([]),
+});
+
 export const adminCarSchema = z.object({
   id: z.uuid(),
   publicRef: z.string().regex(/^[0-9a-f]{16}$/),
@@ -72,6 +76,7 @@ export const adminCarSchema = z.object({
     username: z.string().nullable(),
     email: z.email(),
   }),
+  vehicleVerification: adminVehicleVerificationSchema.nullable(),
   images: z.array(adminCarImageSchema),
   documents: z.array(adminCarDocumentSchema),
 });
