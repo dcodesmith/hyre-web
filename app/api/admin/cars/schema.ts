@@ -76,7 +76,7 @@ export const adminCarSchema = z.object({
     username: z.string().nullable(),
     email: z.email(),
   }),
-  vehicleVerification: adminVehicleVerificationSchema.nullable(),
+  vehicleVerification: adminVehicleVerificationSchema.nullable().default(null),
   images: z.array(adminCarImageSchema),
   documents: z.array(adminCarDocumentSchema),
 });

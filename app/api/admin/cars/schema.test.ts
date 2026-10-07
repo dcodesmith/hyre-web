@@ -73,6 +73,16 @@ describe("admin car API schema", () => {
     expect(adminCarsResponseSchema.parse(response)).toEqual(response);
   });
 
+  it("defaults a missing vehicleVerification to null", () => {
+    const { vehicleVerification: _, ...carWithoutVerification } = adminCar;
+    const response = {
+      cars: [carWithoutVerification],
+      meta: { page: 1, limit: 20, total: 1, totalPages: 1 },
+    };
+
+    expect(adminCarsResponseSchema.parse(response).cars[0]?.vehicleVerification).toBeNull();
+  });
+
   it("defaults missing vehicleVerification.providerWarnings to an empty array", () => {
     const response = {
       cars: [
