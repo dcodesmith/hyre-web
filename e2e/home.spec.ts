@@ -88,7 +88,7 @@ test("hides the mobile nav after scrolling, then shows it again", async ({ page,
 test("opens the AI search dialog from the homepage", async ({ page }) => {
   await setCookiePreference(page);
   await page.goto("/");
-  const trigger = page.getByRole("button", { name: "Search by AI" });
+  const trigger = page.getByRole("button", { name: "Do more with AI Mode" });
   await clickUntilVisible(trigger, page.getByRole("dialog", { name: "Search by AI" }));
   await expect(page.getByLabel("Describe your search")).toBeVisible();
 });
