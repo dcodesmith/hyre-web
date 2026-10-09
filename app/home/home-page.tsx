@@ -229,6 +229,7 @@ export function HomePage({ fleet }: HomePageProps) {
               className="size-full object-cover"
             />
           </picture>
+          <div className="absolute inset-0 bg-linear-to-b from-black/50 via-black/30 to-black/60" />
         </div>
 
         <div
