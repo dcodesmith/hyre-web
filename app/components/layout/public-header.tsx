@@ -1,10 +1,13 @@
 import { cn } from "cn";
+import { useState } from "react";
 import { useLocation } from "react-router";
 import type { User } from "~/auth/user";
 import { UserNav } from "~/auth/user-nav";
 import { BrandLink } from "~/components/layout/brand-link";
 import { useHeroScroll } from "~/hooks/use-hero-scroll";
+import { CompactSearchBar } from "~/search/compact-search-bar";
 import { SearchForm } from "~/search/search-form";
+import { SearchModal } from "~/search/search-modal";
 
 export function PublicHeader({ user }: { readonly user: User | null }) {
   const { pathname } = useLocation();
@@ -12,6 +15,7 @@ export function PublicHeader({ user }: { readonly user: User | null }) {
   const { hasScrolled } = useHeroScroll(isHeroPage);
   const isTransparent = isHeroPage && !hasScrolled;
   const showCompactSearch = isHeroPage && hasScrolled;
+  const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
 
   return (
     <header
@@ -32,13 +36,19 @@ export function PublicHeader({ user }: { readonly user: User | null }) {
 
       {showCompactSearch ? (
         <div className="mx-4 flex max-w-3xl flex-1 flex-col items-center">
-          <div className="w-full">
+          <div className="w-full lg:hidden">
+            <CompactSearchBar onClick={() => setIsSearchModalOpen(true)} />
+          </div>
+          <div className="hidden w-full lg:block">
             <SearchForm isCompact />
           </div>
         </div>
       ) : null}
 
       <UserNav user={user} isTransparent={isTransparent} />
+      {isSearchModalOpen ? (
+        <SearchModal isOpen onClose={() => setIsSearchModalOpen(false)} />
+      ) : null}
     </header>
   );
 }

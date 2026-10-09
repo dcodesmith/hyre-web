@@ -52,11 +52,7 @@ export function SearchModal({
           <DialogDescription>Search for chauffeur-driven vehicles</DialogDescription>
         </DialogHeader>
         <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-6">
-          <SearchForm
-            context="modal"
-            preserveFilterParams={preserveFilterParams}
-            onSearchComplete={onClose}
-          />
+          <SearchForm preserveFilterParams={preserveFilterParams} onSearchComplete={onClose} />
           <div className="mt-4 flex justify-center">
             <AiSearchModal />
           </div>

@@ -83,22 +83,35 @@ test("keeps filters and drops booking fields when booking type changes", async (
   await page.goto(`/search?from=${from}&to=${to}&bookingType=DAY&vehicleType=SUV`);
 
   const isMobile = (viewport?.width ?? 0) < 768;
-  const nightTab = isMobile
-    ? page.getByRole("dialog").getByRole("button", { name: "Night" })
-    : page.locator('form[action="/search"]').first().getByRole("button", { name: "Night" });
 
   if (isMobile) {
     await clickUntilVisible(
       page.getByRole("button", { name: /Same Day|When do you need a ride/ }),
       page.getByRole("dialog"),
     );
-  }
+    const nightTab = page.getByRole("dialog").getByRole("button", { name: "Night" });
+    await expect(async () => {
+      await nightTab.scrollIntoViewIfNeeded();
+      await nightTab.click();
+      expect(page.url()).toMatch(/bookingType=NIGHT/);
+    }).toPass();
+  } else {
+    const bookingType = page
+      .locator('form[action="/search"]')
+      .first()
+      .getByRole("combobox", { name: "Booking type" });
+    const nightOption = page.getByRole("option", { name: "Night (6 hours)" });
+    await expect(async () => {
+      if (page.url().includes("bookingType=NIGHT")) {
+        return;
+      }
 
-  await expect(async () => {
-    await nightTab.scrollIntoViewIfNeeded();
-    await nightTab.click();
-    expect(page.url()).toMatch(/bookingType=NIGHT/);
-  }).toPass();
+      await bookingType.focus();
+      await bookingType.press("ArrowDown");
+      await nightOption.click({ timeout: 1_500 });
+    }).toPass();
+    await expect(page).toHaveURL(/bookingType=NIGHT/);
+  }
 
   const params = new URL(page.url()).searchParams;
   expect(params.get("vehicleType")).toBe("SUV");

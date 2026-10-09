@@ -201,14 +201,14 @@ export function HomePage({ fleet }: HomePageProps) {
 
       <section
         className={cn(
-          "w-full overflow-hidden bg-gray-950 transition-[height,opacity,padding] duration-300 ease-out motion-reduce:transition-none",
+          "w-full overflow-hidden bg-white transition-[height,opacity] duration-300 ease-out motion-reduce:transition-none md:bg-gray-950",
           containerClass,
           heroOpacity,
         )}
       >
         <div
           className={cn(
-            "absolute inset-0 transition-opacity duration-300",
+            "absolute inset-x-0 top-0 h-[411px] transition-opacity duration-300 md:inset-0 md:h-full",
             isDesktopCollapsed ? "opacity-0" : "opacity-100",
           )}
         >
@@ -239,51 +239,45 @@ export function HomePage({ fleet }: HomePageProps) {
           )}
         />
 
-        <div
-          className={cn(
-            "relative z-10 mx-auto flex h-full max-w-4xl flex-col items-center px-4 transition-[padding] duration-300 motion-reduce:transition-none",
-            isDesktopCollapsed ? "justify-center py-4" : "justify-center pt-16 md:pt-20",
-          )}
-        >
+        <div className="relative z-10 mx-auto h-full w-full md:flex md:max-w-4xl md:flex-col md:items-center md:justify-center md:px-4">
           <div
             className={cn(
-              "overflow-hidden transition-[max-height,opacity,margin] duration-300 motion-reduce:transition-none",
-              isDesktopCollapsed || isMobileScrolled
-                ? "mb-0 max-h-0 opacity-0"
-                : "mb-6 max-h-40 opacity-100",
+              "absolute top-[122px] left-1/2 w-[calc(100%_-_32px)] max-w-[361px] -translate-x-1/2 text-white tracking-[-0.43px] transition-[max-height,opacity,margin] duration-300 motion-reduce:transition-none md:static md:mb-8 md:w-auto md:max-w-none md:translate-x-0",
+              isDesktopCollapsed ? "md:mb-0 md:max-h-0 md:opacity-0" : "md:max-h-40 md:opacity-100",
             )}
           >
-            <h1 className="mb-3 text-center text-3xl font-bold text-white md:text-4xl lg:text-5xl">
+            <h1 className="text-center text-[30px] leading-[30px] font-bold md:text-[48px] md:leading-[48px] md:whitespace-nowrap">
               Your Ride, Your Choice
             </h1>
-            <p className="max-w-2xl text-center text-base leading-relaxed text-white/90 md:text-lg">
+            <p className="mx-auto mt-2 w-full max-w-[337px] text-center text-sm leading-6 md:w-[458px] md:max-w-none md:text-base md:leading-7">
               Comfort. Safety. Professional. Every ride.
             </p>
           </div>
 
           <div
             className={cn(
-              "w-full max-w-2xl space-y-3 transition-[max-height,opacity] duration-300 motion-reduce:transition-none",
+              "absolute top-[301px] right-4 left-4 transition-[max-height,opacity] duration-300 motion-reduce:transition-none md:static md:right-auto md:left-auto md:w-full md:max-w-2xl",
               isDesktopCollapsed && "md:max-h-0 md:overflow-hidden md:opacity-0",
             )}
           >
             <SearchForm />
-            <div className="flex justify-center">
-              <AiSearchModal />
-            </div>
+          </div>
+
+          <div className="absolute top-[666px] left-1/2 hidden -translate-x-1/2 md:block">
+            <AiSearchModal variant="hero" />
           </div>
 
           <div
             className={cn(
-              "flex flex-wrap justify-center gap-4 overflow-hidden text-white transition-[max-height,opacity,margin] duration-300 motion-reduce:transition-none md:gap-6",
-              isDesktopCollapsed ? "mt-0 max-h-0 opacity-0" : "mt-6 max-h-20 opacity-100",
+              "font-search absolute top-[639px] left-1/2 flex h-8 -translate-x-1/2 items-center gap-5 rounded-full px-4 py-2 text-sm leading-none font-medium whitespace-nowrap text-gray-700 backdrop-blur-[10px] transition-[max-height,opacity] duration-300 motion-reduce:transition-none md:top-auto md:bottom-6 md:text-gray-100",
+              isDesktopCollapsed ? "md:max-h-0 md:opacity-0" : "md:max-h-20 md:opacity-100",
             )}
           >
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1">
               <ShieldCheck aria-hidden="true" className="size-4 text-green-400 md:size-5" />
               <span>Vetted fleet owners</span>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1">
               <Fingerprint aria-hidden="true" className="size-4 text-orange-400 md:size-5" />
               <span>Secure booking</span>
             </div>

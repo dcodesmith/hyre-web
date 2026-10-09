@@ -3,9 +3,9 @@ import { Loader2, Search } from "lucide-react";
 import { useNavigation } from "react-router";
 import type { SearchFlight } from "~/api/flights/schema";
 import { BookingTypeInput } from "~/booking/booking-type-input";
-import { getToDateMinDate } from "~/booking/dates";
-import { SingleDatePicker } from "~/booking/single-date-picker";
 import { AIRPORT_PICKUP_BOOKING_TYPE, type BookingType } from "~/booking/types";
+import { Button } from "~/components/ui/button";
+import { SearchDateRangePicker, SearchSingleDatePicker } from "~/search/search-date-picker";
 
 interface AirportSearchFieldsProps {
   readonly isCompact: boolean;
@@ -26,8 +26,7 @@ interface StandardSearchFieldsProps {
   readonly toDate: Date | undefined;
   readonly pickupTime: string | undefined;
   readonly fallbackDate: Date;
-  readonly onFromDateChange: (date: Date | undefined) => void;
-  readonly onToDateChange: (date: Date | undefined) => void;
+  readonly onRangeChange: (from: Date | undefined, to: Date | undefined) => void;
   readonly onPickupTimeChange: (value: string) => void;
 }
 
@@ -37,37 +36,22 @@ export function SearchButton({ isCompact }: { readonly isCompact: boolean }) {
   const searchButtonText = isSearching ? "Searching…" : "Search";
 
   return (
-    <div
+    <Button
+      type="submit"
+      aria-label={isSearching ? "Searching" : "Search for vehicles"}
+      disabled={isSearching}
       className={cn(
-        "flex items-center justify-center",
-        isCompact ? "flex-none px-2 py-2" : "min-h-15 w-full px-4 py-3 sm:px-3 md:w-auto md:py-2",
+        "gap-2 rounded-md px-4 text-sm leading-5 font-medium shadow-[0_1px_1px_rgba(0,0,0,0.05)]",
+        isCompact ? "h-12 w-[119px] shrink-0" : "h-13 w-full",
       )}
     >
-      <button
-        type="submit"
-        aria-label={isSearching ? "Searching" : "Search for vehicles"}
-        disabled={isSearching}
-        className={cn(
-          "inline-flex cursor-pointer items-center justify-center rounded-full bg-primary font-semibold text-primary-foreground transition-colors duration-300 hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 motion-reduce:transition-none",
-          isCompact
-            ? "size-9 p-0"
-            : "h-12 w-full gap-2 px-6 py-2 text-sm md:w-auto md:px-8 md:text-base",
-        )}
-      >
-        {isSearching ? (
-          <Loader2
-            className={cn("animate-spin", isCompact ? "size-4" : "size-5")}
-            aria-hidden="true"
-          />
-        ) : (
-          <Search
-            className={cn(isCompact ? "size-4" : "mr-2 size-5 shrink-0")}
-            aria-hidden="true"
-          />
-        )}
-        {isCompact ? null : <span className="md:hidden">{searchButtonText}</span>}
-      </button>
-    </div>
+      {isSearching ? (
+        <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+      ) : (
+        <Search className="size-4" aria-hidden="true" />
+      )}
+      <span>{searchButtonText}</span>
+    </Button>
   );
 }
 
@@ -82,49 +66,28 @@ export function AirportSearchFields({
   onFlightNumberChange,
   onFlightNumberBlur,
 }: AirportSearchFieldsProps) {
-  if (isCompact) {
-    return (
-      <div className="flex flex-1 items-stretch divide-x divide-gray-300">
-        <div className="flex flex-1 items-center py-2 pr-3 pl-4">
-          <SingleDatePicker
-            className="w-full"
-            bookingType={AIRPORT_PICKUP_BOOKING_TYPE}
-            date={fromDate}
-            onDateChange={onFromDateChange}
-            isCompact
-            label="Date"
-          />
-        </div>
-        <div className="flex flex-1 items-center px-3 py-2">
-          <BookingTypeInput
-            bookingType={AIRPORT_PICKUP_BOOKING_TYPE}
-            pickupTime={undefined}
-            flightNumber={flightNumber}
-            fromDate={fromDate}
-            fallbackDate={fallbackDate}
-            validatedFlight={validatedFlight}
-            flightError={flightError}
-            onFlightNumberChange={onFlightNumberChange}
-            onFlightNumberBlur={onFlightNumberBlur}
-            isCompact
-          />
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <>
-      <div className="flex min-h-15 flex-1 items-center px-4 py-3 sm:px-6">
-        <SingleDatePicker
-          className="w-full"
+    <div
+      className={cn(
+        isCompact
+          ? "contents"
+          : "flex h-[130px] w-full flex-col gap-3 rounded-lg border border-gray-200 bg-white px-4 py-3",
+      )}
+    >
+      <div className={cn(isCompact && "h-full w-[113px] shrink-0")}>
+        <SearchSingleDatePicker
           bookingType={AIRPORT_PICKUP_BOOKING_TYPE}
           date={fromDate}
           onDateChange={onFromDateChange}
-          label="Date"
+          compact={isCompact}
         />
       </div>
-      <div className="flex min-h-15 flex-1 items-center border-t px-4 py-3 sm:px-6 md:border-t-0 md:border-l md:border-gray-200">
+      <div
+        className={cn(
+          isCompact ? "h-full w-px shrink-0 bg-gray-300" : "h-0 border-t border-gray-200",
+        )}
+      />
+      <div className={cn(isCompact && "h-full w-[122px] shrink-0")}>
         <BookingTypeInput
           bookingType={AIRPORT_PICKUP_BOOKING_TYPE}
           pickupTime={undefined}
@@ -135,9 +98,10 @@ export function AirportSearchFields({
           flightError={flightError}
           onFlightNumberChange={onFlightNumberChange}
           onFlightNumberBlur={onFlightNumberBlur}
+          presentation={isCompact ? "compact" : "card"}
         />
       </div>
-    </>
+    </div>
   );
 }
 
@@ -148,73 +112,33 @@ export function StandardSearchFields({
   toDate,
   pickupTime,
   fallbackDate,
-  onFromDateChange,
-  onToDateChange,
+  onRangeChange,
   onPickupTimeChange,
 }: StandardSearchFieldsProps) {
-  if (isCompact) {
-    return (
-      <div className="flex flex-1 items-stretch divide-x divide-gray-300">
-        <div className="flex flex-1 items-center py-2 pr-3 pl-4">
-          <SingleDatePicker
-            className="w-full"
-            bookingType={bookingType}
-            date={fromDate}
-            onDateChange={onFromDateChange}
-            isCompact
-            label="From"
-          />
-        </div>
-        <div className="flex flex-1 items-center px-3 py-2">
-          <SingleDatePicker
-            className="w-full"
-            bookingType={bookingType}
-            date={toDate}
-            onDateChange={onToDateChange}
-            isCompact
-            label="To"
-            minDate={getToDateMinDate(bookingType, fromDate)}
-            disabled={!fromDate}
-          />
-        </div>
-        <div className="flex flex-1 items-center px-3 py-2">
-          <BookingTypeInput
-            bookingType={bookingType}
-            pickupTime={pickupTime}
-            flightNumber=""
-            fromDate={fromDate}
-            fallbackDate={fallbackDate}
-            onPickupTimeChange={onPickupTimeChange}
-            isCompact
-          />
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div key={bookingType} className="grid min-h-15 w-full flex-1 grid-cols-2 md:grid-cols-3">
-      <div className="flex min-w-0 items-center border-r border-gray-200 px-4 py-3 sm:px-6">
-        <SingleDatePicker
-          className="w-full"
+    <div
+      key={bookingType}
+      className={cn(
+        isCompact
+          ? "contents"
+          : "flex h-[130px] w-full flex-col gap-3 rounded-lg border border-gray-200 bg-white px-4 py-3",
+      )}
+    >
+      <div className={cn(isCompact && "h-full w-[113px] shrink-0")}>
+        <SearchDateRangePicker
           bookingType={bookingType}
-          date={fromDate}
-          onDateChange={onFromDateChange}
-          label="From"
+          fromDate={fromDate}
+          toDate={toDate}
+          onRangeChange={onRangeChange}
+          compact={isCompact}
         />
       </div>
-      <div className="flex min-w-0 items-center px-4 py-3 sm:px-6">
-        <SingleDatePicker
-          className="w-full"
-          bookingType={bookingType}
-          date={toDate}
-          onDateChange={onToDateChange}
-          label="To"
-          minDate={getToDateMinDate(bookingType, fromDate)}
-          disabled={!fromDate}
-        />
-      </div>
-      <div className="col-span-2 flex min-h-15 min-w-0 items-center border-t border-gray-200 px-4 py-3 sm:px-6 md:col-span-1 md:border-t-0 md:border-l">
+      <div
+        className={cn(
+          isCompact ? "h-full w-px shrink-0 bg-gray-300" : "h-0 border-t border-gray-200",
+        )}
+      />
+      <div className={cn(isCompact && "h-full w-[122px] shrink-0")}>
         <BookingTypeInput
           bookingType={bookingType}
           pickupTime={pickupTime}
@@ -222,6 +146,7 @@ export function StandardSearchFields({
           fromDate={fromDate}
           fallbackDate={fallbackDate}
           onPickupTimeChange={onPickupTimeChange}
+          presentation={isCompact ? "compact" : "card"}
         />
       </div>
     </div>

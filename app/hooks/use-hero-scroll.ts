@@ -95,12 +95,12 @@ export function useHeroScroll(enabled = true) {
 }
 
 export function getHeroHeightClasses(isDesktopCollapsed: boolean) {
-  const desktopHeight = "md:h-[540px]";
+  const desktopHeight = "md:h-[829px]";
   const containerClass =
-    "relative top-0 right-0 left-0 z-40 h-auto py-6 md:fixed md:top-0 md:h-[540px] md:py-0";
+    "relative top-0 right-0 left-0 z-40 h-[707px] md:fixed md:top-0 md:h-[829px]";
   const heroOpacity = isDesktopCollapsed ? "md:pointer-events-none md:opacity-0" : "md:opacity-100";
   const contentTransform = isDesktopCollapsed
-    ? "md:-translate-y-[440px] md:-mb-[440px]"
+    ? "md:-translate-y-[729px] md:-mb-[729px]"
     : "md:translate-y-0";
 
   return { desktopHeight, containerClass, heroOpacity, contentTransform };
