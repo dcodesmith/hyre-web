@@ -33,7 +33,11 @@ interface AiSearchActionData {
   readonly error: string | null;
 }
 
-export function AiSearchModal() {
+interface AiSearchModalProps {
+  readonly variant?: "default" | "hero";
+}
+
+export function AiSearchModal({ variant = "default" }: AiSearchModalProps) {
   const queryFieldId = useId();
   const errorId = useId();
   const fetcher = useFetcher<AiSearchActionData>();
@@ -59,10 +63,22 @@ export function AiSearchModal() {
       <DialogTrigger asChild>
         <button
           type="button"
-          className="inline-flex items-center gap-2 rounded-full bg-linear-to-r from-neutral-900 to-neutral-700 px-4 py-2 text-sm font-medium text-white shadow-sm ring-1 ring-white/50 transition-[box-shadow,background-image] hover:from-neutral-800 hover:to-neutral-600 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 motion-reduce:transition-none"
+          className={cn(
+            "inline-flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+            variant === "hero"
+              ? "font-search rounded-lg bg-neutral-900 px-6 py-3 text-left text-gray-300"
+              : "rounded-full bg-linear-to-r from-neutral-900 to-neutral-700 px-4 py-2 text-sm font-medium text-white shadow-sm ring-1 ring-white/50 transition-[box-shadow,background-image] hover:from-neutral-800 hover:to-neutral-600 hover:shadow-md motion-reduce:transition-none",
+          )}
         >
-          <Sparkles aria-hidden="true" className="size-4" />
-          Search by AI
+          <Sparkles aria-hidden="true" className={cn(variant === "hero" ? "size-6" : "size-4")} />
+          {variant === "hero" ? (
+            <span className="flex flex-col gap-1 text-xs leading-none">
+              <span className="font-semibold">Do more with AI Mode</span>
+              <span className="font-normal">Just tell us what you want</span>
+            </span>
+          ) : (
+            "Search by AI"
+          )}
         </button>
       </DialogTrigger>
       <DialogContent className={dialogContentClasses} showCloseButton>

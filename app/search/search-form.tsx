@@ -2,8 +2,7 @@ import { cn } from "cn";
 import { useState } from "react";
 import { Form, useLocation, useNavigate, useSearchParams } from "react-router";
 import { isCompleteFlightNumber } from "~/booking/airport-pickup";
-import { BookingTypeTabs } from "~/booking/booking-type-tabs";
-import { isValidToDateSelection, nextToDateOnFromChange } from "~/booking/dates";
+import { nextToDateOnFromChange } from "~/booking/dates";
 import { nextPickupTimeOnFromChange } from "~/booking/pickup";
 import {
   AIRPORT_PICKUP_BOOKING_TYPE,
@@ -12,6 +11,7 @@ import {
   NIGHT_BOOKING_TYPE,
 } from "~/booking/types";
 import { useAirportPickup } from "~/hooks/use-airport-pickup";
+import { SearchBookingTypeSelect, SearchBookingTypeTabs } from "~/search/search-booking-type-tabs";
 import {
   AirportSearchFields,
   SearchButton,
@@ -26,7 +26,6 @@ import { formatZonedDate, parseZonedCalendarDate } from "~/time/timezone";
 
 interface SearchFormProps {
   readonly isCompact?: boolean;
-  readonly context?: "hero" | "modal";
   readonly preserveFilterParams?: boolean;
   readonly onSearchComplete?: () => void;
 }
@@ -49,7 +48,6 @@ type SearchFormState = {
 
 function SearchFormFields({
   isCompact = false,
-  context = "hero",
   preserveFilterParams = false,
   onSearchComplete,
   initialBookingType,
@@ -126,16 +124,27 @@ function SearchFormFields({
     lookupFlight(value, fromDate);
   };
 
-  const handleToDateChange = (date: Date | undefined) => {
-    if (!isValidToDateSelection(bookingType, fromDate, date)) {
-      return;
-    }
-
-    setState((current) => ({ ...current, toDate: date }));
+  const handleRangeChange = (from: Date | undefined, to: Date | undefined) => {
+    setState((current) => ({
+      ...current,
+      fromDate: from,
+      toDate: to,
+      pickupTime: nextPickupTimeOnFromChange({
+        bookingType: current.bookingType,
+        fromDate: from,
+        currentPickupTime: current.pickupTime,
+        fallbackDate,
+      }),
+    }));
   };
 
   return (
-    <Form method="get" action="/search" className="w-full text-left" onSubmit={onSearchComplete}>
+    <Form
+      method="get"
+      action="/search"
+      className="font-search w-full text-left"
+      onSubmit={onSearchComplete}
+    >
       <input type="hidden" name="bookingType" value={bookingType} />
       {fromDate ? <input type="hidden" name="from" value={formatZonedDate(fromDate)} /> : null}
       {toDate ? <input type="hidden" name="to" value={formatZonedDate(toDate)} /> : null}
@@ -149,44 +158,20 @@ function SearchFormFields({
           })
         : null}
 
-      {isCompact ? null : (
-        <div className="mb-4 max-h-24 overflow-hidden opacity-100 transition-[max-height,opacity] duration-300 motion-reduce:transition-none">
-          <BookingTypeTabs
-            value={bookingType}
-            onValueChange={handleBookingTypeChange}
-            variant={context}
-          />
-        </div>
-      )}
-
-      <div className="w-full">
-        <div
-          className={cn(
-            "border border-gray-200 bg-white transition-shadow duration-300 motion-reduce:transition-none",
-            isCompact
-              ? "rounded-full shadow-md hover:shadow-lg"
-              : "rounded-3xl shadow-2xl hover:shadow-xl md:rounded-full",
-          )}
-        >
-          <div
-            className={cn(
-              "flex items-stretch",
-              isCompact ? "flex-row divide-x divide-gray-300" : "flex-col md:flex-row",
-            )}
-          >
-            {isCompact ? (
-              <div className="flex flex-none items-center py-2 pr-3 pl-4">
-                <BookingTypeTabs
-                  value={bookingType}
-                  onValueChange={handleBookingTypeChange}
-                  variant="compact"
-                />
-              </div>
-            ) : null}
-
+      <div
+        className={cn(
+          isCompact
+            ? "mx-auto h-17.5 w-full max-w-161 rounded-lg border border-gray-300 bg-white px-4 py-2"
+            : "flex h-[326px] w-full flex-col items-center gap-6 rounded-lg bg-gray-50 px-4 py-6 ring-1 ring-inset ring-gray-200 md:h-[330px]",
+        )}
+      >
+        {isCompact ? (
+          <div className="flex h-full w-full items-center gap-4">
+            <SearchBookingTypeSelect value={bookingType} onValueChange={handleBookingTypeChange} />
+            <div className="h-full w-px shrink-0 bg-gray-300" />
             {isAirportPickup ? (
               <AirportSearchFields
-                isCompact={isCompact}
+                isCompact
                 fromDate={fromDate}
                 flightNumber={flightNumber}
                 fallbackDate={fallbackDate}
@@ -198,29 +183,52 @@ function SearchFormFields({
               />
             ) : (
               <StandardSearchFields
-                isCompact={isCompact}
+                isCompact
                 bookingType={bookingType}
                 fromDate={fromDate}
                 toDate={toDate}
                 pickupTime={pickupTime}
                 fallbackDate={fallbackDate}
-                onFromDateChange={handleFromDateChange}
-                onToDateChange={handleToDateChange}
+                onRangeChange={handleRangeChange}
                 onPickupTimeChange={(value) =>
                   setState((current) => ({ ...current, pickupTime: value }))
                 }
               />
             )}
-            <div
-              className={cn(
-                "flex items-center justify-center self-stretch",
-                isCompact ? "" : "border-t md:border-t-0 md:border-l md:border-gray-200",
-              )}
-            >
-              <SearchButton isCompact={isCompact} />
-            </div>
+            <SearchButton isCompact />
           </div>
-        </div>
+        ) : (
+          <>
+            <SearchBookingTypeTabs value={bookingType} onValueChange={handleBookingTypeChange} />
+            {isAirportPickup ? (
+              <AirportSearchFields
+                isCompact={false}
+                fromDate={fromDate}
+                flightNumber={flightNumber}
+                fallbackDate={fallbackDate}
+                validatedFlight={airportPickup.flight}
+                flightError={airportPickup.flightError}
+                onFromDateChange={handleFromDateChange}
+                onFlightNumberChange={handleFlightNumberChange}
+                onFlightNumberBlur={handleFlightNumberBlur}
+              />
+            ) : (
+              <StandardSearchFields
+                isCompact={false}
+                bookingType={bookingType}
+                fromDate={fromDate}
+                toDate={toDate}
+                pickupTime={pickupTime}
+                fallbackDate={fallbackDate}
+                onRangeChange={handleRangeChange}
+                onPickupTimeChange={(value) =>
+                  setState((current) => ({ ...current, pickupTime: value }))
+                }
+              />
+            )}
+            <SearchButton isCompact={false} />
+          </>
+        )}
       </div>
     </Form>
   );
@@ -228,7 +236,6 @@ function SearchFormFields({
 
 export function SearchForm({
   isCompact = false,
-  context = "hero",
   preserveFilterParams = false,
   onSearchComplete,
 }: SearchFormProps) {
@@ -247,7 +254,6 @@ export function SearchForm({
     <SearchFormFields
       key={resetKey}
       isCompact={isCompact}
-      context={context}
       preserveFilterParams={preserveFilterParams}
       onSearchComplete={onSearchComplete}
       initialBookingType={initialBookingType}

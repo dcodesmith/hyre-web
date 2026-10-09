@@ -26,6 +26,7 @@ interface BookingTimeSelectProps {
   readonly containerClassName?: string;
   readonly contentClassName?: string;
   readonly labelClassName?: string;
+  readonly label?: string;
   readonly showLabel?: boolean;
   readonly placeholder?: string;
   readonly now?: Date;
@@ -46,6 +47,7 @@ export function BookingTimeSelect({
   containerClassName,
   contentClassName,
   labelClassName = "text-xs font-semibold leading-tight text-gray-700",
+  label = "Pickup Time",
   showLabel = false,
   placeholder = "Select pickup time",
   now,
@@ -136,7 +138,7 @@ export function BookingTimeSelect({
       <div className={cn(containerClassName, "[&_select]:hidden")}>
         {showLabel ? (
           <label htmlFor={triggerId} className={cn(labelClassName, "cursor-pointer")}>
-            Pickup Time
+            {label}
           </label>
         ) : null}
         {select}
