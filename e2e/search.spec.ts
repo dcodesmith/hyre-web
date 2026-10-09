@@ -100,7 +100,8 @@ test("keeps filters and drops booking fields when booking type changes", async (
       .locator('form[action="/search"]')
       .first()
       .getByRole("combobox", { name: "Booking type" });
-    await bookingType.click();
+    await bookingType.focus();
+    await page.keyboard.press("Enter");
     await page.getByRole("option", { name: "Night (6 hours)" }).click();
     await expect(page).toHaveURL(/bookingType=NIGHT/);
   }
