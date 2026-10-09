@@ -249,8 +249,7 @@ export function HomePage({ fleet }: HomePageProps) {
               Your Ride, Your Choice
             </h1>
             <p className="mx-auto mt-2 w-full max-w-[337px] text-center text-sm leading-6 font-semibold md:w-[458px] md:max-w-none md:text-base md:leading-7">
-              Find the right car for every journey. Browse a range of cars, choose when you need it,
-              and book with ease.
+              Comfort. Safety. Professional. Every ride.
             </p>
           </div>
 
