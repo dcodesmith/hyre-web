@@ -292,7 +292,7 @@ export function HomePage({ fleet }: HomePageProps) {
       />
 
       <div className={cn("transition-transform duration-300", contentTransform)}>
-        <div className="relative z-0 space-y-6 bg-white pt-8 md:pt-12">
+        <div className="relative z-0 space-y-6 bg-white md:pt-12">
           <div className="space-y-6">
             {fleet && fleet.categories.length > 0 ? (
               <div className="mx-auto max-w-350 px-4 md:px-8">
