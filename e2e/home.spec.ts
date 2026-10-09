@@ -85,10 +85,22 @@ test("hides the mobile nav after scrolling, then shows it again", async ({ page,
   await expect(nav).toBeInViewport();
 });
 
-test("opens the AI search dialog from the homepage", async ({ page }) => {
+test("opens the AI search dialog from the homepage", async ({ page, viewport }) => {
   await setCookiePreference(page);
   await page.goto("/");
-  const trigger = page.getByRole("button", { name: "Do more with AI Mode" });
+
+  if ((viewport?.width ?? 0) < 768) {
+    await page.evaluate(() => window.scrollTo(0, 200));
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(100);
+    await clickUntilVisible(
+      page.getByRole("button", { name: "When do you need a ride?" }),
+      page.getByRole("dialog", { name: "Search" }),
+    );
+  }
+
+  const trigger = page.getByRole("button", {
+    name: (viewport?.width ?? 0) < 768 ? "Search by AI" : "Do more with AI Mode",
+  });
   await clickUntilVisible(trigger, page.getByRole("dialog", { name: "Search by AI" }));
   await expect(page.getByLabel("Describe your search")).toBeVisible();
 });
