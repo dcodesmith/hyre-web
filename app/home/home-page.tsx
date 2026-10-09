@@ -249,7 +249,7 @@ export function HomePage({ fleet }: HomePageProps) {
             <h1 className="text-center text-[30px] leading-[30px] font-bold md:text-[48px] md:leading-[48px] md:whitespace-nowrap">
               Your Ride, Your Choice
             </h1>
-            <p className="mx-auto mt-2 w-full max-w-[337px] text-center text-sm leading-6 font-semibold md:w-[458px] md:max-w-none md:text-base md:leading-7">
+            <p className="mx-auto mt-2 w-full max-w-[337px] text-center text-sm leading-6 md:w-[458px] md:max-w-none md:text-base md:leading-7">
               Comfort. Safety. Professional. Every ride.
             </p>
           </div>
