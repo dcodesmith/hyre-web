@@ -71,7 +71,7 @@ export function AirportSearchFields({
       className={cn(
         isCompact
           ? "contents"
-          : "flex h-[130px] w-full flex-col gap-3 rounded-lg border border-gray-200 bg-white px-4 py-3",
+          : "flex h-auto w-full flex-col gap-2 rounded-md border border-gray-200 bg-white px-4 py-2",
       )}
     >
       <div className={cn(isCompact && "h-full w-[113px] shrink-0")}>
@@ -121,7 +121,7 @@ export function StandardSearchFields({
       className={cn(
         isCompact
           ? "contents"
-          : "flex h-[130px] w-full flex-col gap-3 rounded-lg border border-gray-200 bg-white px-4 py-3",
+          : "flex h-auto w-full flex-col gap-2 rounded-md border border-gray-200 bg-white px-4 py-2",
       )}
     >
       <div className={cn(isCompact && "h-full w-[113px] shrink-0")}>

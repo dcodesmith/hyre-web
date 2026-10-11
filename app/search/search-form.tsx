@@ -162,7 +162,7 @@ function SearchFormFields({
         className={cn(
           isCompact
             ? "mx-auto h-17.5 w-full max-w-161 rounded-lg border border-gray-300 bg-white px-4 py-2"
-            : "flex h-[326px] w-full flex-col items-center gap-6 rounded-lg bg-gray-50 px-4 py-6 ring-1 ring-inset ring-gray-200 md:h-[330px]",
+            : "flex h-auto w-full flex-col items-center gap-2 rounded-md bg-gray-50 p-4 ring-1 ring-inset ring-gray-200",
         )}
       >
         {isCompact ? (

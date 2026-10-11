@@ -75,7 +75,7 @@ function AirportPickupInput({
         <label htmlFor={flightNumberId} className={labelClassName}>
           Flight number
         </label>
-        <div className={cn("flex min-w-0 items-center", isCompact ? "w-full" : "flex-1")}>
+        <div className={cn("flex min-w-0 items-center h-4", isCompact ? "w-full" : "flex-1")}>
           <FlightNumberAutocomplete
             id={flightNumberId}
             value={flightNumber}
@@ -111,7 +111,7 @@ export function BookingTypeInput({
   const containerClassName = cn(
     isCompact
       ? "flex h-full min-w-0 flex-col items-start justify-center gap-2 px-3 py-2"
-      : "flex w-full items-center justify-between gap-4 py-3",
+      : "flex w-full items-center justify-between gap-4 py-2",
   );
   const labelClassName = "shrink-0 text-sm leading-none font-semibold text-gray-800";
   const valueClassName = cn(
@@ -123,7 +123,7 @@ export function BookingTypeInput({
     return (
       <div className={containerClassName}>
         <div className={labelClassName}>Time</div>
-        <div className="text-sm leading-none font-normal text-gray-800">11:00 PM</div>
+        <div className="text-sm leading-none font-normal h-4 text-gray-800">11:00 PM</div>
       </div>
     );
   }
