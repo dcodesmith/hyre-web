@@ -239,14 +239,14 @@ export function HomePage({ fleet }: HomePageProps) {
           )}
         />
 
-        <div className="relative z-10 mx-auto h-full w-full md:flex md:max-w-4xl md:flex-col md:items-center md:justify-center md:px-4">
+        <div className="relative z-10 mx-auto h-full w-full md:flex md:max-w-4xl md:flex-col md:items-center md:justify-start md:px-4 md:pt-28 md:pb-6">
           <div
             className={cn(
               "absolute top-[122px] left-1/2 w-[calc(100%_-_32px)] max-w-[361px] -translate-x-1/2 text-white tracking-[-0.43px] transition-[max-height,opacity,margin] duration-300 motion-reduce:transition-none md:static md:mb-8 md:w-auto md:max-w-none md:translate-x-0",
               isDesktopCollapsed ? "md:mb-0 md:max-h-0 md:opacity-0" : "md:max-h-40 md:opacity-100",
             )}
           >
-            <h1 className="text-center text-[30px] leading-[30px] font-bold md:text-[48px] md:leading-[48px] md:whitespace-nowrap">
+            <h1 className="text-center text-3xl leading-[30px] font-bold md:text-5xl md:leading-[48px] md:whitespace-nowrap">
               Your Ride, Your Choice
             </h1>
             <p className="mx-auto mt-2 w-full max-w-[337px] text-center text-sm leading-6 md:w-[458px] md:max-w-none md:text-base md:leading-7">
@@ -256,30 +256,25 @@ export function HomePage({ fleet }: HomePageProps) {
 
           <div
             className={cn(
-              "absolute top-[301px] right-4 left-4 transition-[max-height,opacity] duration-300 motion-reduce:transition-none md:static md:right-auto md:left-auto md:w-full md:max-w-2xl",
+              "absolute top-[301px] right-4 left-4 flex flex-col items-center gap-2 md:gap-4 transition-[max-height,opacity] duration-300 motion-reduce:transition-none md:static md:right-auto md:left-auto md:w-full md:max-w-xl",
               isDesktopCollapsed && "md:max-h-0 md:overflow-hidden md:opacity-0",
             )}
           >
-            <SearchForm />
-          </div>
-
-          <div className="absolute top-[666px] left-1/2 hidden -translate-x-1/2 md:block">
-            <AiSearchModal variant="hero" />
-          </div>
-
-          <div
-            className={cn(
-              "font-search absolute top-[639px] left-1/2 flex h-8 -translate-x-1/2 items-center gap-5 rounded-full px-4 py-2 text-sm leading-none font-medium whitespace-nowrap text-gray-700 backdrop-blur-[10px] transition-[max-height,opacity] duration-300 motion-reduce:transition-none md:top-auto md:bottom-6 md:text-gray-100",
-              isDesktopCollapsed ? "md:max-h-0 md:opacity-0" : "md:max-h-20 md:opacity-100",
-            )}
-          >
-            <div className="flex items-center gap-1">
-              <ShieldCheck aria-hidden="true" className="size-4 text-green-400 md:size-5" />
-              <span>Vetted fleet owners</span>
+            <div className="w-full">
+              <SearchForm />
             </div>
-            <div className="flex items-center gap-1">
-              <Fingerprint aria-hidden="true" className="size-4 text-orange-400 md:size-5" />
-              <span>Secure booking</span>
+            <div className="hidden md:block">
+              <AiSearchModal variant="hero" />
+            </div>
+            <div className="font-search flex h-8 items-center gap-5 rounded-full px-4 py-2 text-sm leading-none font-medium whitespace-nowrap text-gray-700 md:text-gray-100">
+              <div className="flex items-center gap-1">
+                <ShieldCheck aria-hidden="true" className="size-4 text-green-400 md:size-5" />
+                <span>Vetted fleet owners</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <Fingerprint aria-hidden="true" className="size-4 text-orange-400 md:size-5" />
+                <span>Secure booking</span>
+              </div>
             </div>
           </div>
         </div>
@@ -292,7 +287,7 @@ export function HomePage({ fleet }: HomePageProps) {
       />
 
       <div className={cn("transition-transform duration-300", contentTransform)}>
-        <div className="relative z-0 space-y-6 bg-white md:pt-12">
+        <div className="relative z-0 space-y-6 bg-white md:pt-8">
           <div className="space-y-6">
             {fleet && fleet.categories.length > 0 ? (
               <div className="mx-auto max-w-350 px-4 md:px-8">

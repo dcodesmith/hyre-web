@@ -86,18 +86,18 @@ const SearchDateTrigger = forwardRef<HTMLButtonElement, SearchDateTriggerProps>(
           "flex w-full min-w-0 items-center gap-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
           compact
             ? "h-full flex-col items-start justify-center gap-2 px-3 py-2"
-            : "justify-between py-3",
+            : "justify-between py-2",
           className,
         )}
       >
-        <span id={labelId} className="shrink-0 text-sm leading-none font-semibold text-gray-800">
+        <span id={labelId} className="shrink-0 leading-none font-semibold text-gray-800">
           {label}
         </span>
         <span className={cn("flex min-w-0 items-center gap-1", compact ? "w-full" : "justify-end")}>
           <span
             id={valueId}
             className={cn(
-              "truncate text-sm leading-none font-normal md:text-base",
+              "truncate leading-none font-normal text-sm",
               compact && "md:text-sm",
               value ? "text-gray-800" : "text-gray-400",
             )}
