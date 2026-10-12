@@ -194,7 +194,7 @@ function SearchResults({ result }: { readonly result: CarSearchResponse }) {
 
   return (
     <>
-      <div className="flex items-center justify-between gap-4 py-0 pb-2 sm:py-4 md:mb-1.5 md:py-0">
+      <div className="flex items-center justify-between gap-4 py-0 pb-2 sm:py-4 md:mb-4 md:py-0">
         <h1 className="m-0 font-semibold leading-5">
           {isUpdatingResults ? <Skeleton className="h-5 w-32" /> : resultsHeading}
         </h1>
