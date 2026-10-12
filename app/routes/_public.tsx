@@ -14,6 +14,7 @@ export async function loader({ request }: Route.LoaderArgs) {
 export default function PublicLayout({ loaderData }: Route.ComponentProps) {
   const { pathname } = useLocation();
   const isHeroPage = pathname === "/";
+  const isSearchPage = pathname === "/search";
   const isCarDetail = pathname.startsWith("/cars/") || pathname.startsWith("/__visual/car");
 
   return (
@@ -31,7 +32,7 @@ export default function PublicLayout({ loaderData }: Route.ComponentProps) {
           tabIndex={-1}
           className={cn(
             "min-h-125 flex-1 text-sm",
-            isHeroPage ? "md:pt-0" : "md:pt-17.25",
+            isHeroPage ? "md:pt-0" : isSearchPage ? "md:pt-[126px]" : "md:pt-17.25",
             isCarDetail && "lg:container lg:mx-auto lg:px-4",
           )}
         >
