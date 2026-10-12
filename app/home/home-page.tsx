@@ -190,7 +190,7 @@ export function HomePage({ fleet }: HomePageProps) {
       <HomeStructuredData />
 
       {isMobileScrolled ? (
-        <div className="fixed top-0 right-0 left-0 z-50 border-b border-gray-200 bg-white px-4 py-3 shadow-md md:hidden">
+        <div className="fixed top-0 right-0 left-0 z-50 border-b border-gray-200 bg-gray-100 px-4 pt-3 pb-4 shadow-md md:hidden">
           <CompactSearchBar onClick={() => setIsSearchModalOpen(true)} />
         </div>
       ) : null}

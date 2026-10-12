@@ -21,10 +21,14 @@ export function PublicHeader({ user }: { readonly user: User | null }) {
     <header
       className={cn(
         "fixed inset-x-0 top-0 z-50 hidden justify-between transition-all duration-300 md:flex",
-        showCompactSearch ? "items-start px-4 py-4" : "h-14 items-center px-4 md:h-17.25",
+        showCompactSearch
+          ? "h-[126px] items-center px-4 py-4"
+          : "h-14 items-center px-4 md:h-17.25",
         isTransparent
           ? "border-b border-transparent bg-transparent"
-          : "border-b border-gray-200 bg-white shadow-sm",
+          : showCompactSearch
+            ? "border-b border-gray-200 bg-gray-100 shadow-sm"
+            : "border-b border-gray-200 bg-white shadow-sm",
       )}
     >
       <BrandLink
