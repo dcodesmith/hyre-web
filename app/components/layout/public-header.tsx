@@ -44,14 +44,9 @@ export function PublicHeader({ user }: { readonly user: User | null }) {
       />
 
       {isSearchPage ? (
-        <div className="pointer-events-none absolute inset-x-0 top-1/2 flex -translate-y-1/2 justify-center px-10">
+        <div className="pointer-events-none absolute inset-x-0 top-1/2 flex -translate-y-1/2 justify-center px-4 lg:px-10">
           <div className="pointer-events-auto w-full max-w-161">
-            <div className="lg:hidden">
-              <CompactSearchBar onClick={() => setIsSearchModalOpen(true)} />
-            </div>
-            <div className="hidden lg:block">
-              <SearchForm isCompact preserveFilterParams />
-            </div>
+            <SearchForm isCompact preserveFilterParams />
           </div>
         </div>
       ) : null}
