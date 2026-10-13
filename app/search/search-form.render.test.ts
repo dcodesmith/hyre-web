@@ -33,6 +33,8 @@ vi.mock("~/booking/booking-time-select", () => ({
 
 vi.mock("~/components/ui/popover", () => ({
   Popover: ({ children }: { children?: ReactNode }) => createElement("div", null, children),
+  PopoverAnchor: ({ asChild, children }: { asChild?: boolean; children?: ReactNode }) =>
+    asChild && children ? children : createElement("div", null, children),
   PopoverTrigger: ({ asChild, children }: { asChild?: boolean; children?: ReactNode }) =>
     asChild && children ? children : createElement("button", { type: "button" }, children),
   PopoverContent: ({ children }: { children?: ReactNode }) => createElement("div", null, children),

@@ -84,7 +84,7 @@ function AirportPickupInput({
             </label>
             <div
               className={cn(
-                "flex h-4 min-w-0 items-center gap-2 overflow-hidden",
+                "flex h-4 min-w-0 items-center gap-2",
                 isCompact ? "w-full" : "flex-1 justify-end",
               )}
             >
