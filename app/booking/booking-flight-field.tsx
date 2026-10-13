@@ -117,6 +117,7 @@ export function FlightNumberAutocomplete({
       {anchor ? <PopoverAnchor asChild>{anchor(trigger)}</PopoverAnchor> : trigger}
       <PopoverContent
         id={listId}
+        role="listbox"
         side="bottom"
         align="start"
         avoidCollisions={!anchor}

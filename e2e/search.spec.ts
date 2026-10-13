@@ -67,7 +67,7 @@ test("carries homepage booking params onto /search", async ({ page, viewport }) 
 
   if ((viewport?.width ?? 0) < 768) {
     await expect(
-      page.getByRole("button", { name: /When do you need a ride|Airport/ }),
+      page.getByRole("button", { name: "Select dates • Airport • BA123" }),
     ).toBeVisible();
   } else {
     await expect(page.locator('form[action="/search"]').first()).toBeVisible();
