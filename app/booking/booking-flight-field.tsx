@@ -134,6 +134,7 @@ export function FlightNumberAutocomplete({
               id={`${listId}-option-${airline.id}`}
               type="button"
               role="option"
+              tabIndex={-1}
               aria-selected={index === optionIndex}
               className={`flex w-full items-center justify-between gap-3 rounded p-2 text-left text-sm hover:bg-gray-100 focus-visible:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${index === optionIndex ? "bg-gray-100" : ""}`}
               onMouseDown={(event) => event.preventDefault()}
