@@ -1,7 +1,7 @@
 import { cn } from "cn";
-import { ChevronDown, ChevronRight, X } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { forwardRef, useId, useRef, useState } from "react";
-import type { DateRange } from "react-day-picker";
+import { type DateRange, type MonthCaptionProps, useDayPicker } from "react-day-picker";
 import {
   getDisabledBookableDays,
   getEarliestBookableDate,
@@ -57,14 +57,74 @@ const calendarClassNames = {
 };
 
 const mobileDateDialogClassName =
-  "font-search top-0 left-0 block h-[100dvh] w-screen max-w-none translate-x-0 translate-y-0 gap-0 overflow-y-auto rounded-none bg-white p-6 text-gray-950 shadow-none ring-0 data-open:slide-in-from-bottom-full data-closed:slide-out-to-bottom-full sm:max-w-none md:top-1/2 md:left-1/2 md:max-h-[calc(100dvh-2rem)] md:w-auto md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-2xl md:shadow-xl md:ring-1 md:ring-black/5 md:data-open:slide-in-from-bottom-0 md:data-closed:slide-out-to-bottom-0";
+  "font-search top-[92px] left-1/2 z-60 block h-auto w-[min(353px,calc(100%-40px))] max-w-none -translate-x-1/2 translate-y-0 gap-0 overflow-visible rounded-2xl bg-white p-6 text-gray-950 shadow-none ring-0 motion-reduce:animate-none sm:max-w-none md:top-1/2 md:max-h-[calc(100dvh-2rem)] md:w-auto md:-translate-y-1/2 md:overflow-y-auto md:shadow-xl md:ring-1 md:ring-black/5";
 
-function MobileDateDialogClose() {
+// Flattened scrim from the mobile calendar frame. The 23% overlay token still shows the search sheet.
+const dateDialogOverlayClassName = "z-60 bg-[#c8c9ce] md:bg-black/30";
+
+// 92px card offset plus 48px of card padding. The close button sits outside the card.
+const mobileDateScrollClassName =
+  "max-h-[calc(100dvh-140px)] overflow-y-auto overscroll-contain md:max-h-none md:overflow-visible";
+
+const sheetCloseClassName =
+  "absolute z-10 inline-flex size-8 touch-manipulation items-center justify-center rounded-full border border-gray-200 bg-white text-gray-900 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2";
+
+export function SearchSheetClose({
+  className,
+  label,
+}: {
+  readonly className?: string;
+  readonly label: string;
+}) {
   return (
-    <DialogClose className="absolute top-6 right-0 z-10 inline-flex size-6 items-center justify-center text-gray-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:hidden">
+    <DialogClose aria-label={label} className={cn(sheetCloseClassName, className)}>
       <X className="size-4" aria-hidden="true" />
-      <span className="sr-only">Close date picker</span>
     </DialogClose>
+  );
+}
+
+const monthNavButtonClassName =
+  "inline-flex size-8 touch-manipulation items-center justify-center rounded-md text-gray-900 transition-colors hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50";
+
+function SearchMonthCaption({
+  calendarMonth: _calendarMonth,
+  children,
+  className,
+  displayIndex: _displayIndex,
+  ...props
+}: MonthCaptionProps) {
+  const { goToMonth, labels, nextMonth, previousMonth } = useDayPicker();
+
+  return (
+    <div className={cn(className, "flex h-9 w-full items-center justify-between")} {...props}>
+      <button
+        type="button"
+        aria-label={labels.labelPrevious(previousMonth)}
+        disabled={!previousMonth}
+        onClick={() => {
+          if (previousMonth) {
+            goToMonth(previousMonth);
+          }
+        }}
+        className={monthNavButtonClassName}
+      >
+        <ChevronLeft className="size-4" aria-hidden="true" />
+      </button>
+      <span className="text-sm leading-5 font-medium text-gray-900">{children}</span>
+      <button
+        type="button"
+        aria-label={labels.labelNext(nextMonth)}
+        disabled={!nextMonth}
+        onClick={() => {
+          if (nextMonth) {
+            goToMonth(nextMonth);
+          }
+        }}
+        className={monthNavButtonClassName}
+      >
+        <ChevronRight className="size-4" aria-hidden="true" />
+      </button>
+    </div>
   );
 }
 
@@ -135,6 +195,7 @@ function DateDisplayInput({
         readOnly
         value={value}
         placeholder={placeholder}
+        autoComplete="off"
         className="h-9 w-full rounded-md border border-gray-300 bg-white px-3 text-sm text-gray-900 shadow-[0_1px_1px_rgba(0,0,0,0.05)] outline-none placeholder:text-gray-400 focus-visible:border-gray-900 focus-visible:ring-2 focus-visible:ring-gray-900/20"
       />
     </label>
@@ -230,39 +291,43 @@ export function SearchDateRangePicker({
       <DialogContent
         aria-describedby={undefined}
         showCloseButton={false}
-        overlayClassName="bg-black/30"
+        overlayClassName={dateDialogOverlayClassName}
         className={cn(mobileDateDialogClassName, "md:h-[435px] md:w-[589px] md:max-w-[589px]")}
       >
         <DialogTitle className="sr-only">Select booking dates</DialogTitle>
-        <MobileDateDialogClose />
-        <div className="mb-[23px] flex gap-4">
-          <DateDisplayInput
-            label="Start date"
-            value={fromDate ? formatCompactPickerDate(fromDate) : ""}
-            placeholder="Select date"
-          />
-          <DateDisplayInput
-            label="End date"
-            value={toDate ? formatCompactPickerDate(toDate) : ""}
-            placeholder="Select date"
-          />
+        <SearchSheetClose className="-top-10 right-0 md:hidden" label="Close date picker" />
+        <div className={mobileDateScrollClassName}>
+          <div className="mb-[23px] flex gap-4">
+            <DateDisplayInput
+              label="Start date"
+              value={fromDate ? formatCompactPickerDate(fromDate) : ""}
+              placeholder="Select date"
+            />
+            <DateDisplayInput
+              label="End date"
+              value={toDate ? formatCompactPickerDate(toDate) : ""}
+              placeholder="Select date"
+            />
+          </div>
+          {isOpen ? (
+            <Calendar
+              autoFocus
+              mode="range"
+              timeZone={SERVICE_TIMEZONE}
+              selected={selected}
+              defaultMonth={fromDate ?? earliestDate}
+              onSelect={handleSelect}
+              numberOfMonths={2}
+              min={requiresDifferentEndDate ? 1 : 0}
+              excludeDisabled
+              hideNavigation
+              disabled={getDisabledBookableDays(earliestDate)}
+              className="w-full bg-white p-0"
+              classNames={calendarClassNames}
+              components={{ MonthCaption: SearchMonthCaption }}
+            />
+          ) : null}
         </div>
-        {isOpen ? (
-          <Calendar
-            autoFocus
-            mode="range"
-            timeZone={SERVICE_TIMEZONE}
-            selected={selected}
-            defaultMonth={fromDate ?? earliestDate}
-            onSelect={handleSelect}
-            numberOfMonths={2}
-            min={requiresDifferentEndDate ? 1 : 0}
-            excludeDisabled
-            disabled={getDisabledBookableDays(earliestDate)}
-            className="w-full bg-white p-0"
-            classNames={calendarClassNames}
-          />
-        ) : null}
       </DialogContent>
     </Dialog>
   );
@@ -297,34 +362,38 @@ export function SearchSingleDatePicker({
       <DialogContent
         aria-describedby={undefined}
         showCloseButton={false}
-        overlayClassName="bg-black/30"
+        overlayClassName={dateDialogOverlayClassName}
         className={cn(mobileDateDialogClassName, "md:h-auto md:w-[361px] md:max-w-[361px]")}
       >
         <DialogTitle className="sr-only">Select arrival date</DialogTitle>
-        <MobileDateDialogClose />
-        <div className="mb-[23px] flex">
-          <DateDisplayInput
-            label="When"
-            value={date ? formatCompactPickerDate(date) : ""}
-            placeholder="Select date"
-          />
+        <SearchSheetClose className="-top-10 right-0 md:hidden" label="Close date picker" />
+        <div className={mobileDateScrollClassName}>
+          <div className="mb-[23px] flex">
+            <DateDisplayInput
+              label="When"
+              value={date ? formatCompactPickerDate(date) : ""}
+              placeholder="Select date"
+            />
+          </div>
+          {isOpen ? (
+            <Calendar
+              autoFocus
+              mode="single"
+              timeZone={SERVICE_TIMEZONE}
+              selected={date}
+              defaultMonth={date ?? earliestDate}
+              onSelect={handleSelect}
+              numberOfMonths={1}
+              hideNavigation
+              disabled={getDisabledBookableDays(
+                getToDateMinDate(bookingType, earliestDate) ?? earliestDate,
+              )}
+              className="w-full bg-white p-0"
+              classNames={calendarClassNames}
+              components={{ MonthCaption: SearchMonthCaption }}
+            />
+          ) : null}
         </div>
-        {isOpen ? (
-          <Calendar
-            autoFocus
-            mode="single"
-            timeZone={SERVICE_TIMEZONE}
-            selected={date}
-            defaultMonth={date ?? earliestDate}
-            onSelect={handleSelect}
-            numberOfMonths={1}
-            disabled={getDisabledBookableDays(
-              getToDateMinDate(bookingType, earliestDate) ?? earliestDate,
-            )}
-            className="w-full bg-white p-0"
-            classNames={calendarClassNames}
-          />
-        ) : null}
       </DialogContent>
     </Dialog>
   );
