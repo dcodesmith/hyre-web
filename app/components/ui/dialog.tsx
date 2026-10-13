@@ -43,10 +43,12 @@ function DialogContent({
   children,
   showCloseButton = true,
   overlayClassName,
+  closeClassName,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean;
   overlayClassName?: string;
+  closeClassName?: string;
 }) {
   return (
     <DialogPortal>
@@ -63,7 +65,10 @@ function DialogContent({
         {showCloseButton ? (
           <DialogPrimitive.Close
             data-slot="dialog-close"
-            className="absolute top-4 right-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-none disabled:pointer-events-none"
+            className={cn(
+              "absolute top-4 right-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-none disabled:pointer-events-none",
+              closeClassName,
+            )}
           >
             <XIcon className="size-4" />
             <span className="sr-only">Close</span>

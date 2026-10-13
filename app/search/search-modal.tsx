@@ -9,6 +9,7 @@ import {
   DialogTrigger,
 } from "~/components/ui/dialog";
 import { AiSearchModal } from "~/search/ai-search-modal";
+import { SearchSheetClose } from "~/search/search-date-picker";
 import { SearchForm } from "~/search/search-form";
 
 interface SearchModalProps {
@@ -20,7 +21,7 @@ interface SearchModalProps {
 }
 
 const dialogContentClasses = cn(
-  "flex w-full flex-col gap-0 p-0 pt-4",
+  "flex w-full flex-col gap-0 p-0 md:pt-4",
   "inset-0 max-h-none max-w-none translate-x-0 translate-y-0 rounded-none sm:max-w-none",
   "duration-200 data-open:!zoom-in-100 data-closed:!zoom-out-100",
   "md:inset-auto md:top-1/2 md:left-1/2 md:h-auto md:max-h-[calc(100dvh-2rem)] md:max-w-2xl md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-lg",
@@ -46,12 +47,17 @@ export function SearchModal({
       }}
     >
       {trigger ? <DialogTrigger asChild>{trigger}</DialogTrigger> : null}
-      <DialogContent className={dialogContentClasses} showCloseButton>
+      <DialogContent
+        className={dialogContentClasses}
+        showCloseButton
+        closeClassName="max-md:hidden"
+      >
+        <SearchSheetClose className="top-3 right-4 md:hidden" label="Close search" />
         <DialogHeader className="sr-only">
           <DialogTitle>Search</DialogTitle>
           <DialogDescription>Search for chauffeur-driven vehicles</DialogDescription>
         </DialogHeader>
-        <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-6">
+        <div className="flex-1 overflow-y-auto overscroll-contain px-4 pt-14 pb-6 md:py-6">
           <SearchForm preserveFilterParams={preserveFilterParams} onSearchComplete={onClose} />
           <div className="mt-4 flex justify-center">
             <AiSearchModal />

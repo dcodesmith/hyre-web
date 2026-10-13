@@ -132,6 +132,7 @@ function Calendar({
         ...classNames,
       }}
       components={{
+        ...components,
         Root: ({ className, rootRef, ...props }) => (
           <div data-slot="calendar" ref={rootRef} className={cn(className)} {...props} />
         ),
@@ -148,7 +149,6 @@ function Calendar({
             <div className="flex size-9 items-center justify-center text-center">{children}</div>
           </td>
         ),
-        ...components,
       }}
       {...props}
     />
