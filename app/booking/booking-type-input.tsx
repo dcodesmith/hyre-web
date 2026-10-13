@@ -122,7 +122,7 @@ export function BookingTypeInput({
   if (bookingType === NIGHT_BOOKING_TYPE) {
     return (
       <div className={containerClassName}>
-        <div className={labelClassName}>Time</div>
+        <div className={labelClassName}>{isCompact ? "Pickup" : "Time"}</div>
         <div className="text-sm leading-none font-normal h-4 text-gray-800">11:00 PM</div>
       </div>
     );
@@ -153,7 +153,7 @@ export function BookingTypeInput({
       name="pickupTime"
       containerClassName={containerClassName}
       labelClassName={labelClassName}
-      label="Time"
+      label={isCompact ? "Pickup" : "Time"}
       className={cn(valueClassName, "[&_svg]:block", !isCompact && "[&_svg]:-rotate-90")}
       showLabel
       placeholder={isCompact ? "Select time" : "Select pickup time"}

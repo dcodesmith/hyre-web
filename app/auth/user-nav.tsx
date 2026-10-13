@@ -17,9 +17,13 @@ import {
 export function UserNav({
   user,
   isTransparent = false,
+  loginLabel = "Register or Log in",
+  loginClassName,
 }: {
   readonly user: User | null;
   readonly isTransparent?: boolean;
+  readonly loginLabel?: string;
+  readonly loginClassName?: string;
 }) {
   const logoutFormRef = useRef<HTMLFormElement>(null);
   const navigation = useNavigation();
@@ -35,9 +39,10 @@ export function UserNav({
           "h-9 transition-colors duration-300",
           isTransparent &&
             "border-white/40 bg-white/20 text-white hover:bg-white/30 hover:text-white",
+          loginClassName,
         )}
       >
-        <Link to="/auth">Register or Log in</Link>
+        <Link to="/auth">{loginLabel}</Link>
       </Button>
     );
   }

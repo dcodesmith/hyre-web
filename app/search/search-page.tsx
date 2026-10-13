@@ -20,7 +20,6 @@ import { CarSkeleton } from "~/search/car-skeleton";
 import { CompactSearchBar } from "~/search/compact-search-bar";
 import { PaginationControl } from "~/search/pagination-control";
 import { SearchFilters } from "~/search/search-filters";
-import { SearchForm } from "~/search/search-form";
 import { buildResultsHeading } from "~/search/search-heading";
 import { SearchModal } from "~/search/search-modal";
 import {
@@ -195,8 +194,8 @@ function SearchResults({ result }: { readonly result: CarSearchResponse }) {
 
   return (
     <>
-      <div className="flex items-center justify-between gap-4 pb-2 py-0 sm:py-4">
-        <h1 className="font-semibold">
+      <div className="flex items-center justify-between gap-4 py-0 pb-2 sm:py-4 md:mb-4 md:py-0">
+        <h1 className="m-0 font-semibold leading-5">
           {isUpdatingResults ? <Skeleton className="h-5 w-32" /> : resultsHeading}
         </h1>
         <SearchFilters
@@ -260,24 +259,17 @@ export function SearchPage({ result }: SearchPageProps) {
 
   return (
     <div className="min-h-screen">
-      <div className="fixed top-0 right-0 left-0 z-30 border-b-0 bg-white shadow-sm md:top-17.25 md:border-b md:border-gray-200">
-        <div className="mx-auto max-w-7xl px-4 py-4">
-          <div className="mx-auto hidden max-w-4xl md:block">
-            <SearchForm isCompact preserveFilterParams />
-          </div>
-          <div className="md:hidden">
-            <SearchModal
-              isOpen={isSearchModalOpen}
-              onOpen={() => setIsSearchModalOpen(true)}
-              onClose={() => setIsSearchModalOpen(false)}
-              trigger={<CompactSearchBar />}
-              preserveFilterParams
-            />
-          </div>
-        </div>
+      <div className="fixed top-0 right-0 left-0 z-30 border-b-0 bg-gray-100 px-4 py-4 shadow-sm md:hidden">
+        <SearchModal
+          isOpen={isSearchModalOpen}
+          onOpen={() => setIsSearchModalOpen(true)}
+          onClose={() => setIsSearchModalOpen(false)}
+          trigger={<CompactSearchBar />}
+          preserveFilterParams
+        />
       </div>
 
-      <div className="mx-auto my-24 w-full px-4 sm:max-w-160 md:max-w-3xl lg:max-w-5xl xl:max-w-7xl">
+      <div className="mx-auto my-24 w-full px-4 sm:max-w-160 md:mt-3.5 md:mb-0 md:max-w-3xl lg:max-w-5xl xl:max-w-7xl">
         {result ? (
           <SearchResults key={resultsKey} result={result} />
         ) : (
