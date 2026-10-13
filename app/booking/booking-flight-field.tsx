@@ -1,4 +1,4 @@
-import { useId, useState } from "react";
+import { type ReactElement, type ReactNode, useId, useState } from "react";
 
 import type { SearchFlight } from "~/api/flights/schema";
 import {
@@ -9,7 +9,7 @@ import {
 } from "~/booking/airlines";
 import { formatFlightRoute, formatLagosClock } from "~/booking/airport-pickup";
 import { Label } from "~/components/ui/label";
-import { Popover, PopoverContent, PopoverTrigger } from "~/components/ui/popover";
+import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from "~/components/ui/popover";
 
 interface FlightNumberAutocompleteProps {
   readonly id?: string;
@@ -20,6 +20,7 @@ interface FlightNumberAutocompleteProps {
   readonly placeholder?: string;
   readonly "aria-invalid"?: boolean;
   readonly "aria-describedby"?: string;
+  readonly anchor?: (trigger: ReactNode) => ReactElement;
 }
 
 interface BookingFlightFieldProps {
@@ -42,12 +43,15 @@ export function FlightNumberAutocomplete({
   placeholder = "e.g. BA74, DL54…",
   "aria-invalid": ariaInvalid,
   "aria-describedby": ariaDescribedBy,
+  anchor,
 }: FlightNumberAutocompleteProps) {
   const generatedId = useId();
   const listId = `${id ?? generatedId}-suggestions`;
   const [open, setOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(0);
   const suggestions = filterAirlines(value);
   const listOpen = open && suggestions.length > 0;
+  const optionIndex = suggestions.length === 0 ? 0 : activeIndex % suggestions.length;
 
   const handleSelect = (airline: Airline) => {
     const next = formatAirlineFlight(airline, extractFlightDigits(value, airline));
@@ -56,47 +60,85 @@ export function FlightNumberAutocomplete({
     onBlur?.(next);
   };
 
+  const trigger = (
+    <PopoverTrigger asChild>
+      <input
+        id={id}
+        type="text"
+        role="combobox"
+        aria-autocomplete="list"
+        aria-expanded={listOpen}
+        aria-controls={listId}
+        aria-activedescendant={
+          listOpen ? `${listId}-option-${suggestions[optionIndex]?.id}` : undefined
+        }
+        value={value}
+        onChange={(event) => {
+          const next = event.target.value;
+          onChange(next);
+          setActiveIndex(0);
+          setOpen(next.trim().length >= 2);
+        }}
+        onBlur={(event) => onBlur?.(event.target.value)}
+        onKeyDown={(event) => {
+          if (!listOpen) {
+            return;
+          }
+
+          if (event.key === "ArrowDown") {
+            event.preventDefault();
+            setActiveIndex((current) => (current + 1) % suggestions.length);
+          } else if (event.key === "ArrowUp") {
+            event.preventDefault();
+            setActiveIndex((current) => (current - 1 + suggestions.length) % suggestions.length);
+          } else if (event.key === "Enter") {
+            const airline = suggestions[optionIndex];
+            if (airline) {
+              event.preventDefault();
+              handleSelect(airline);
+            }
+          } else if (event.key === "Escape") {
+            event.preventDefault();
+            setOpen(false);
+          }
+        }}
+        placeholder={placeholder}
+        autoComplete="off"
+        spellCheck={false}
+        aria-invalid={ariaInvalid}
+        aria-describedby={ariaDescribedBy}
+        className={className}
+      />
+    </PopoverTrigger>
+  );
+
   return (
     <Popover open={listOpen} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <input
-          id={id}
-          type="text"
-          role="combobox"
-          aria-autocomplete="list"
-          aria-expanded={listOpen}
-          aria-controls={listId}
-          value={value}
-          onChange={(event) => {
-            const next = event.target.value;
-            onChange(next);
-            setOpen(next.trim().length >= 2);
-          }}
-          onBlur={(event) => onBlur?.(event.target.value)}
-          placeholder={placeholder}
-          autoComplete="off"
-          spellCheck={false}
-          aria-invalid={ariaInvalid}
-          aria-describedby={ariaDescribedBy}
-          className={className}
-        />
-      </PopoverTrigger>
+      {anchor ? <PopoverAnchor asChild>{anchor(trigger)}</PopoverAnchor> : trigger}
       <PopoverContent
         id={listId}
+        role="listbox"
+        side="bottom"
         align="start"
+        avoidCollisions={!anchor}
         onOpenAutoFocus={(event) => event.preventDefault()}
-        className="w-[var(--radix-popover-trigger-width)] p-1"
+        className="z-50 w-[var(--radix-popover-trigger-width)] p-1"
       >
-        {suggestions.map((airline) => {
+        {suggestions.map((airline, index) => {
           const digits = extractFlightDigits(value, airline);
           const flightNumber = formatAirlineFlight(airline, digits);
 
           return (
             <button
               key={airline.id}
+              id={`${listId}-option-${airline.id}`}
               type="button"
-              className="flex w-full items-center justify-between gap-3 rounded p-2 text-left text-sm hover:bg-gray-100 focus-visible:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+              role="option"
+              tabIndex={-1}
+              aria-selected={index === optionIndex}
+              className={`flex w-full items-center justify-between gap-3 rounded p-2 text-left text-sm hover:bg-gray-100 focus-visible:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${index === optionIndex ? "bg-gray-100" : ""}`}
               onMouseDown={(event) => event.preventDefault()}
+              onMouseEnter={() => setActiveIndex(index)}
               onClick={() => handleSelect(airline)}
             >
               <span className="font-semibold">{flightNumber}</span>

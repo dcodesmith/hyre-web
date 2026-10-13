@@ -216,7 +216,7 @@ test("shows airport pickup flight and address fields when a from date is present
     await flightNumber.click();
     await flightNumber.fill("");
     await flightNumber.pressSequentially("BA");
-    await expect(page.getByRole("button", { name: /British Airways/ })).toBeVisible();
+    await expect(page.getByRole("option", { name: /British Airways/ })).toBeVisible();
   }).toPass();
 });
 
