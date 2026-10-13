@@ -62,6 +62,10 @@ const mobileDateDialogClassName =
 // Flattened scrim from the mobile calendar frame. The 23% overlay token still shows the search sheet.
 const dateDialogOverlayClassName = "z-60 bg-[#c8c9ce] md:bg-black/30";
 
+// 92px card offset plus 48px of card padding. The close button sits outside the card.
+const mobileDateScrollClassName =
+  "max-h-[calc(100dvh-140px)] overflow-y-auto overscroll-contain md:max-h-none md:overflow-visible";
+
 const sheetCloseClassName =
   "absolute z-10 inline-flex size-8 touch-manipulation items-center justify-center rounded-full border border-gray-200 bg-white text-gray-900 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2";
 
@@ -292,7 +296,7 @@ export function SearchDateRangePicker({
       >
         <DialogTitle className="sr-only">Select booking dates</DialogTitle>
         <SearchSheetClose className="-top-10 right-0 md:hidden" label="Close date picker" />
-        <div className="max-h-[calc(100dvh-108px)] overflow-y-auto overscroll-contain md:max-h-none md:overflow-visible">
+        <div className={mobileDateScrollClassName}>
           <div className="mb-[23px] flex gap-4">
             <DateDisplayInput
               label="Start date"
@@ -363,7 +367,7 @@ export function SearchSingleDatePicker({
       >
         <DialogTitle className="sr-only">Select arrival date</DialogTitle>
         <SearchSheetClose className="-top-10 right-0 md:hidden" label="Close date picker" />
-        <div className="max-h-[calc(100dvh-108px)] overflow-y-auto overscroll-contain md:max-h-none md:overflow-visible">
+        <div className={mobileDateScrollClassName}>
           <div className="mb-[23px] flex">
             <DateDisplayInput
               label="When"
