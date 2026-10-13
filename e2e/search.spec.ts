@@ -58,6 +58,7 @@ test("carries homepage booking params onto /search", async ({ page, viewport }) 
   await expect(searchForm.getByLabel("Flight Number")).toBeVisible();
   await expect(page).toHaveURL("/");
   await searchForm.getByLabel("Flight Number").fill("BA123");
+  await page.keyboard.press("Escape");
   await searchForm.getByRole("button", { name: "Search for vehicles" }).click();
 
   await expect(page).toHaveURL(/\/search\?/);
