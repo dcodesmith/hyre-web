@@ -1,7 +1,5 @@
 import { cn } from "cn";
-import { Mail, MapPin, Phone } from "lucide-react";
 import { Link } from "react-router";
-import { FacebookIcon, InstagramIcon, XIcon } from "~/components/icons/social-icons";
 import { LEGAL_CONSTANTS } from "~/content/legal";
 
 const serviceLinks = [
@@ -29,7 +27,6 @@ const companyLinks = [
   { to: "/referrals", label: "Referral Program" },
   { to: "/faq", label: "FAQ" },
   { to: "/help", label: "Help Center" },
-  { to: "/contact", label: "Contact Us" },
   { to: "/safety", label: "Safety & Security" },
 ] as const;
 
@@ -40,28 +37,91 @@ const legalLinks = [
   { to: "/accessibility", label: "Accessibility" },
 ] as const;
 
-const linkClassName = "text-sm text-gray-600 transition-colors hover:text-gray-900";
+const socialLinks = [
+  {
+    href: "https://facebook.com/tripdly",
+    label: "Tripdly on Facebook",
+    src: "/footer/facebook.svg",
+  },
+  {
+    href: "https://instagram.com/tripdly",
+    label: "Tripdly on Instagram",
+    src: "/footer/instagram.svg",
+  },
+  { href: "https://x.com/tripdly", label: "Tripdly on X", src: "/footer/x.svg" },
+  {
+    href: "https://linkedin.com/company/tripdly",
+    label: "Tripdly on LinkedIn",
+    src: "/footer/linkedin.svg",
+  },
+  // ponytail: @tripdly matches the other profiles; replace when a real YouTube URL exists
+  { href: "https://youtube.com/@tripdly", label: "Tripdly on YouTube", src: "/footer/youtube.svg" },
+] as const;
+
+const linkClassName =
+  "rounded-sm touch-manipulation transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black";
 
 interface FooterLink {
   readonly label: string;
   readonly to: string;
 }
 
-interface FooterLinkListProps {
+function FooterColumn({
+  title,
+  links,
+}: {
+  readonly title: string;
   readonly links: readonly FooterLink[];
+}) {
+  const headingId = `footer-${title.toLowerCase().replaceAll(" ", "-")}`;
+
+  return (
+    <nav aria-labelledby={headingId} className="flex shrink-0 flex-col gap-3">
+      <h2 id={headingId} className="text-pretty font-semibold">
+        {title}
+      </h2>
+      <ul className="flex flex-col gap-4">
+        {links.map((link) => (
+          <li key={link.to}>
+            <Link to={link.to} className={linkClassName}>
+              {link.label}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  );
 }
 
-function FooterLinkList({ links }: FooterLinkListProps) {
+function StoreBadge({
+  src,
+  caption,
+  title,
+}: {
+  readonly src: string;
+  readonly caption: string;
+  readonly title: string;
+}) {
   return (
-    <ul className="flex flex-col gap-2.5">
-      {links.map((link) => (
-        <li key={link.to}>
-          <Link to={link.to} className={linkClassName}>
-            {link.label}
-          </Link>
-        </li>
-      ))}
-    </ul>
+    <div className="inline-flex items-center gap-[11.55px] rounded-[7.7px] bg-white/5 px-[11.55px] py-[7.7px] font-[Outfit,var(--font-sans)] text-white lg:gap-[12.965px] lg:rounded-[8.643px] lg:px-[12.965px] lg:py-[8.643px]">
+      <img
+        src={src}
+        alt=""
+        width={29}
+        height={35}
+        loading="lazy"
+        aria-hidden="true"
+        className="h-[30.79px] w-[26.17px] lg:h-[34.574px] lg:w-[29.387px]"
+      />
+      <span className="whitespace-nowrap">
+        <span className="block text-[11.55px] leading-[16.36px] font-normal lg:text-[12.965px] lg:leading-[18.367px]">
+          {caption}
+        </span>
+        <span className="block text-[19.25px] leading-[22.13px] font-semibold lg:text-[21.609px] lg:leading-[24.85px]">
+          {title}
+        </span>
+      </span>
+    </div>
   );
 }
 
@@ -69,122 +129,98 @@ export function PublicFooter({ isCarDetailPage = false }: { readonly isCarDetail
   return (
     <footer
       className={cn(
-        "border-t border-gray-200 bg-gray-50",
+        "bg-black font-sans text-sm leading-5 text-gray-200",
         isCarDetailPage ? "hidden lg:mt-10 lg:block" : "pb-24 md:pb-0",
       )}
     >
-      <div className="mx-auto max-w-7xl px-4 py-12 md:px-6 lg:px-8">
-        <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-4 lg:gap-12">
-          <div className="flex flex-col gap-4">
-            <h2 translate="no" className="font-brand text-lg font-bold">
-              {LEGAL_CONSTANTS.companyName}
+      <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-[73px] px-5 pt-10 pb-[105px] lg:px-10 lg:pt-[119px] lg:pb-[109px]">
+        <div className="grid grid-cols-1 gap-12 md:grid-cols-2 lg:flex lg:items-start lg:justify-between">
+          <FooterColumn title="Popular Services" links={serviceLinks} />
+          <FooterColumn title="Vehicle Categories" links={categoryLinks} />
+          <FooterColumn title="Company" links={companyLinks} />
+          <section aria-labelledby="footer-contact" className="flex shrink-0 flex-col gap-3">
+            <h2 id="footer-contact" className="text-pretty font-semibold">
+              Contact Us
             </h2>
-            <p className="text-sm leading-relaxed text-gray-600">
-              Professional chauffeur services with vetted drivers and premium vehicles. Your comfort
-              and safety are our priority.
+            <ul className="flex flex-col gap-4">
+              <li>
+                <a href={`mailto:${LEGAL_CONSTANTS.supportEmail}`} className={linkClassName}>
+                  {LEGAL_CONSTANTS.supportEmail}
+                </a>
+              </li>
+              <li>
+                <a href={`tel:${LEGAL_CONSTANTS.supportPhone}`} className={linkClassName}>
+                  {LEGAL_CONSTANTS.supportPhoneDisplay}
+                </a>
+              </li>
+            </ul>
+            <nav aria-label="Social" className="flex gap-3">
+              {socialLinks.map((link) => (
+                <a
+                  key={link.href}
+                  href={link.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-sm touch-manipulation transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black"
+                >
+                  <img
+                    src={link.src}
+                    alt={link.label}
+                    width={24}
+                    height={24}
+                    loading="lazy"
+                    className="size-6"
+                  />
+                </a>
+              ))}
+            </nav>
+          </section>
+        </div>
+
+        <div className="flex flex-col gap-8 lg:flex-row lg:items-start lg:justify-between">
+          <div className="flex max-w-[500px] flex-col gap-6">
+            <div className="flex flex-col gap-2">
+              <p translate="no" className="font-brand text-[30px] leading-9 font-bold text-white">
+                {LEGAL_CONSTANTS.companyName}
+              </p>
+              <p>
+                {LEGAL_CONSTANTS.companyName} offers professional chauffeur services across Nigeria
+                with a diverse fleet of luxury sedans, executive SUVs, and budget-friendly vehicles.
+                Whether you need airport pickup, full-day charter, or hourly rentals, our vetted
+                drivers ensure safe, comfortable, and reliable transportation.
+              </p>
+            </div>
+            <p className="flex items-center gap-2">
+              <img
+                src="/footer/nigeria.svg"
+                alt=""
+                width={24}
+                height={24}
+                loading="lazy"
+                aria-hidden="true"
+                className="size-6"
+              />
+              Lagos, Nigeria
             </p>
-            <div className="flex gap-4">
-              <a
-                href="https://facebook.com/tripdly"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-gray-400 transition-colors hover:text-gray-600"
-                aria-label="Tripdly on Facebook"
-              >
-                <FacebookIcon className="size-5" />
-              </a>
-              <a
-                href="https://instagram.com/tripdly"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-gray-400 transition-colors hover:text-gray-600"
-                aria-label="Tripdly on Instagram"
-              >
-                <InstagramIcon className="size-5" />
-              </a>
-              <a
-                href="https://x.com/tripdly"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-gray-400 transition-colors hover:text-gray-600"
-                aria-label="Tripdly on X"
-              >
-                <XIcon className="size-5" />
-              </a>
-            </div>
           </div>
-
-          <div>
-            <h2 className="mb-4 font-semibold text-gray-900">Popular Services</h2>
-            <FooterLinkList links={serviceLinks} />
+          {/* ponytail: badges are not links until App Store and Play URLs exist */}
+          <div className="flex flex-wrap items-start gap-[17px] lg:gap-[19.107px]">
+            <StoreBadge src="/footer/apple.svg" caption="Download on the" title="App Store" />
+            <StoreBadge src="/footer/google-play.svg" caption="GET IT ON" title="Google Play" />
           </div>
-
-          <div>
-            <h2 className="mb-4 font-semibold text-gray-900">Vehicle Categories</h2>
-            <FooterLinkList links={categoryLinks} />
-          </div>
-
-          <div>
-            <h2 className="mb-4 font-semibold text-gray-900">Company</h2>
-            <FooterLinkList links={companyLinks} />
-          </div>
-        </div>
-
-        <div className="mt-12 grid grid-cols-1 gap-6 border-t border-gray-200 pt-8 md:grid-cols-3">
-          <div className="flex items-start gap-3">
-            <MapPin aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-gray-400" />
-            <div>
-              <p className="text-sm font-medium text-gray-900">Visit Us</p>
-              <p className="mt-1 text-sm text-gray-600">Lagos, Nigeria</p>
-            </div>
-          </div>
-          <div className="flex items-start gap-3">
-            <Phone aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-gray-400" />
-            <div>
-              <p className="text-sm font-medium text-gray-900">Call Us</p>
-              <a
-                href={`tel:${LEGAL_CONSTANTS.supportPhone}`}
-                className="mt-1 block text-sm text-gray-600 hover:text-gray-900"
-              >
-                {LEGAL_CONSTANTS.supportPhoneDisplay}
-              </a>
-            </div>
-          </div>
-          <div className="flex items-start gap-3">
-            <Mail aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-gray-400" />
-            <div>
-              <p className="text-sm font-medium text-gray-900">Email Us</p>
-              <a
-                href={`mailto:${LEGAL_CONSTANTS.supportEmail}`}
-                className="mt-1 block text-sm text-gray-600 hover:text-gray-900"
-              >
-                {LEGAL_CONSTANTS.supportEmail}
-              </a>
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-12 border-t border-gray-200 pt-8">
-          <h2 className="mb-3 font-semibold text-gray-900">Premium Chauffeur Service in Nigeria</h2>
-          <p className="max-w-4xl text-sm leading-relaxed text-gray-600">
-            {LEGAL_CONSTANTS.companyName} offers professional chauffeur services across Nigeria with
-            a diverse fleet of luxury sedans, executive SUVs, and budget-friendly vehicles. Whether
-            you need airport pickup, full-day charter, or hourly rentals, our vetted drivers ensure
-            safe, comfortable, and reliable transportation.
-          </p>
         </div>
       </div>
 
-      <div className="border-t border-gray-200 bg-gray-100">
-        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 px-4 py-6 md:flex-row md:px-6 lg:px-8">
-          <p className="text-center text-sm text-gray-600 md:text-left">
+      <div className="bg-[#1e2023]">
+        <div className="mx-auto flex h-20 w-full max-w-[1440px] flex-col justify-center gap-[17px] px-[15px] text-xs leading-3 text-gray-300 lg:flex-row lg:items-center lg:justify-between lg:px-10">
+          <p>
             ©{" "}
             <span data-visual-dynamic suppressHydrationWarning>
               {new Date().getFullYear()}
             </span>{" "}
             <span translate="no">{LEGAL_CONSTANTS.companyName}</span>. All rights reserved.
           </p>
-          <nav aria-label="Legal" className="flex flex-wrap justify-center gap-6">
+          <nav aria-label="Legal" className="flex flex-wrap gap-x-[17px] lg:gap-6">
             {legalLinks.map((link) => (
               <Link key={link.to} to={link.to} className={linkClassName}>
                 {link.label}
