@@ -235,7 +235,7 @@ test("sends a list fixture row to login for its booking", async ({ page }) => {
 test("renders the bookings list fixture and empty tab", async ({ page }) => {
   await page.goto("/__visual/bookings");
 
-  await expect(page.getByRole("heading", { name: "Your Bookings" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Bookings" })).toBeVisible();
   await expect(page.getByRole("link", { name: /Completed/ })).toHaveAttribute(
     "aria-current",
     "page",

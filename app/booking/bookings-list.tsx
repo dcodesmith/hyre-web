@@ -1,77 +1,80 @@
 import { cn } from "cn";
-import { ChevronRight } from "lucide-react";
+import { Calendar, ChevronRight, Clock } from "lucide-react";
 import { Link } from "react-router";
 import type { BookingListItem, BookingsByStatus } from "~/api/bookings/schema";
 import {
   BOOKING_LIST_STATUSES,
   type BookingListStatus,
   bookingListStatusLabel,
-  formatBookingListDateTime,
+  formatBookingListDateRange,
+  formatBookingListTime,
 } from "~/booking/bookings-url";
 import { formatCurrency } from "~/money/currency";
 
-function BookingRow({ booking }: { readonly booking: BookingListItem }) {
+function BookingRow({
+  booking,
+  showDivider,
+}: {
+  readonly booking: BookingListItem;
+  readonly showDivider: boolean;
+}) {
   const imageUrl = booking.car.images[0]?.url;
   const title = `${booking.car.make} ${booking.car.model}`;
-  const startLabel = formatBookingListDateTime(booking.startDate);
-  const endLabel = formatBookingListDateTime(booking.endDate);
+  const dateLabel = formatBookingListDateRange(booking.startDate, booking.endDate);
+  const timeLabel = formatBookingListTime(booking.startDate);
 
   return (
-    <li className="border-b last:border-0">
+    <li className="border-gray-200 md:border-b md:last:border-b-0">
+      {showDivider ? (
+        <div aria-hidden="true" className="my-4 h-px w-full bg-gray-200 md:hidden" />
+      ) : null}
       <Link
         to={`/bookings/${booking.id}`}
         prefetch="intent"
-        className="flex flex-col justify-between px-2 py-4 sm:flex-row"
+        className="flex flex-col justify-between sm:flex-row md:p-6"
       >
-        <div className="flex w-full min-w-0 items-center gap-4">
+        <div className="flex w-full min-w-0 items-start gap-2 md:gap-5">
           {imageUrl ? (
             <img
               src={imageUrl}
               alt={`${title} (${booking.car.year})`}
-              width={40}
-              height={40}
+              width={68}
+              height={84}
               loading="lazy"
-              className="h-10 w-10 shrink-0 rounded-full object-cover"
+              className="h-[84px] w-[68px] shrink-0 rounded object-cover md:h-[86px] md:w-[114px]"
             />
           ) : (
-            <div aria-hidden="true" className="h-10 w-10 shrink-0 rounded-full bg-gray-100" />
+            <div
+              aria-hidden="true"
+              className="h-[84px] w-[68px] shrink-0 rounded bg-gray-200 md:h-[86px] md:w-[114px]"
+            />
           )}
-          <div className="min-w-0 space-y-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <h2 className="text-pretty text-sm font-semibold">
-                {title} ({booking.car.year}) -{" "}
-                <span translate="no" className="italic text-gray-500">
-                  {booking.bookingReference}
-                </span>
-              </h2>
-              {booking.status === "COMPLETED" ? (
-                <span
-                  className={cn(
-                    "inline-flex items-center rounded-sm border px-2.5 py-0.5 text-xs font-semibold",
-                    booking.reviewed
-                      ? "border-green-200 bg-green-50 text-green-700"
-                      : "border-amber-200 bg-amber-50 text-amber-700",
-                  )}
-                >
-                  {booking.reviewed ? "Reviewed" : "Review Pending"}
-                </span>
-              ) : null}
-            </div>
-            <div className="space-y-1 text-pretty text-sm text-gray-600">
-              <p className="hidden sm:block">
-                {startLabel} to {endLabel}
-              </p>
-              <p className="block sm:hidden">{startLabel}</p>
-              <p className="block sm:hidden">{endLabel}</p>
-              <p className="text-pretty text-sm font-semibold tabular-nums">
-                {formatCurrency(booking.totalAmount, booking.currency ?? undefined)}
-              </p>
+          <div className="flex min-w-0 flex-col gap-1">
+            <p translate="no" className="text-xs leading-none font-bold text-green-600 md:text-sm">
+              {booking.bookingReference}
+            </p>
+            <h2 className="text-sm leading-5 font-semibold text-pretty text-gray-900">
+              {title} ({booking.car.year})
+            </h2>
+            <p className="text-sm leading-5 font-semibold text-pretty text-gray-900 tabular-nums">
+              {formatCurrency(booking.totalAmount, booking.currency ?? undefined)}
+            </p>
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs leading-5 text-gray-900 md:text-sm">
+              <span className="inline-flex items-center gap-1">
+                <Calendar aria-hidden="true" className="h-4 w-4 shrink-0" />
+                {dateLabel}
+              </span>
+              <span aria-hidden="true" className="h-3.5 w-px bg-gray-400 md:h-4" />
+              <span className="inline-flex items-center gap-1">
+                <Clock aria-hidden="true" className="h-4 w-4 shrink-0" />
+                {timeLabel}
+              </span>
             </div>
           </div>
         </div>
 
-        <div className="mt-2 flex flex-col items-center justify-center gap-2 sm:mt-0 sm:flex-row">
-          <ChevronRight aria-hidden="true" className="hidden h-4 w-4 text-gray-500 sm:block" />
+        <div className="mt-2 hidden items-center justify-center gap-2 sm:mt-0 sm:flex sm:flex-row">
+          <ChevronRight aria-hidden="true" className="h-4 w-4 text-gray-500" />
         </div>
       </Link>
     </li>
@@ -90,12 +93,11 @@ export function BookingsList({
   return (
     <div className="w-full">
       <div className="mx-auto max-w-4xl px-4 py-4 md:py-6">
-        <h1 className="mb-4 text-pretty text-2xl font-bold">Your Bookings</h1>
+        <h1 className="mb-4 text-2xl leading-9 font-semibold tracking-tight text-gray-900 md:mb-6 md:text-3xl md:tracking-normal">
+          Bookings
+        </h1>
 
-        <nav
-          aria-label="Booking status"
-          className="flex h-10 items-center justify-start space-x-4 overflow-x-auto rounded-md bg-white p-0 text-muted-foreground"
-        >
+        <nav aria-label="Booking status" className="flex items-center gap-4 overflow-x-auto">
           {BOOKING_LIST_STATUSES.map((tabStatus) => {
             const isCurrent = tabStatus === status;
 
@@ -106,24 +108,26 @@ export function BookingsList({
                 prefetch="intent"
                 aria-current={isCurrent ? "page" : undefined}
                 className={cn(
-                  "inline-flex touch-manipulation items-center justify-center gap-1 rounded border px-3 py-1.5 text-sm font-medium whitespace-nowrap antialiased ring-offset-background transition-[color,background-color,border-color,box-shadow] hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none motion-reduce:transition-none",
-                  isCurrent && "border-primary bg-background text-foreground shadow-sm",
+                  "inline-flex shrink-0 touch-manipulation items-center justify-center rounded border border-gray-300 bg-white px-3 py-1.5 text-xs leading-5 font-medium whitespace-nowrap text-gray-900 shadow-sm ring-offset-background transition-[color,background-color,border-color,box-shadow] hover:bg-gray-50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none motion-reduce:transition-none md:text-sm",
+                  isCurrent && "border-gray-900 bg-gray-900 text-white hover:bg-gray-900",
                 )}
               >
-                {bookingListStatusLabel(tabStatus)}
-                <span>({bookings[tabStatus]?.length ?? 0})</span>
+                {bookingListStatusLabel(tabStatus)} ({bookings[tabStatus]?.length ?? 0})
               </Link>
             );
           })}
         </nav>
 
-        <div className="mt-2 rounded border border-gray-200 shadow-md" aria-live="polite">
+        <div
+          className="mt-4 rounded-lg border border-gray-200 p-4 shadow-[0_4px_20px_rgb(0_0_0/0.25)] md:mt-[30px] md:p-0 md:shadow-[0_4px_10px_rgb(0_0_0/0.08)]"
+          aria-live="polite"
+        >
           {rows.length === 0 ? (
             <p className="py-8 text-center text-gray-500">No {status.toLowerCase()} bookings</p>
           ) : (
             <ul className="flex flex-col">
-              {rows.map((booking) => (
-                <BookingRow key={booking.id} booking={booking} />
+              {rows.map((booking, index) => (
+                <BookingRow key={booking.id} booking={booking} showDivider={index > 0} />
               ))}
             </ul>
           )}
