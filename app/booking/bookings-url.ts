@@ -1,4 +1,4 @@
-import { ordinalDay, SERVICE_TIMEZONE } from "~/time/timezone";
+import { SERVICE_TIMEZONE } from "~/time/timezone";
 
 export const BOOKING_LIST_STATUSES = ["ACTIVE", "CONFIRMED", "COMPLETED", "CANCELLED"] as const;
 
@@ -20,9 +20,9 @@ export function bookingListStatusLabel(status: BookingListStatus) {
   return `${status.charAt(0)}${status.slice(1).toLowerCase()}`;
 }
 
-const bookingDateTimeFormat = new Intl.DateTimeFormat("en-US", {
+const bookingListPartsFormat = new Intl.DateTimeFormat("en-US", {
   timeZone: SERVICE_TIMEZONE,
-  month: "long",
+  month: "short",
   day: "numeric",
   year: "numeric",
   hour: "numeric",
@@ -30,17 +30,50 @@ const bookingDateTimeFormat = new Intl.DateTimeFormat("en-US", {
   hour12: true,
 });
 
-/** hireApp `format(toZonedTime(date, Africa/Lagos), "PPPp")`. */
-export function formatBookingListDateTime(value: string) {
+function bookingListParts(value: string) {
   const date = new Date(value);
 
   if (Number.isNaN(date.getTime())) {
-    return value;
+    return null;
   }
 
   const parts = Object.fromEntries(
-    bookingDateTimeFormat.formatToParts(date).map((part) => [part.type, part.value]),
+    bookingListPartsFormat.formatToParts(date).map((part) => [part.type, part.value]),
   );
 
-  return `${parts.month} ${ordinalDay(Number(parts.day))}, ${parts.year} at ${parts.hour}:${parts.minute} ${parts.dayPeriod}`;
+  return {
+    month: parts.month ?? "",
+    day: parts.day ?? "",
+    year: parts.year ?? "",
+    time: `${parts.hour}:${parts.minute} ${parts.dayPeriod}`,
+  };
+}
+
+/** Short Lagos date range, such as "Oct 9 - 10". */
+export function formatBookingListDateRange(startValue: string, endValue: string) {
+  const start = bookingListParts(startValue);
+  const end = bookingListParts(endValue);
+
+  if (!start || !end) {
+    return startValue;
+  }
+
+  if (start.year === end.year && start.month === end.month && start.day === end.day) {
+    return `${start.month} ${start.day}`;
+  }
+
+  if (start.year === end.year && start.month === end.month) {
+    return `${start.month} ${start.day} - ${end.day}`;
+  }
+
+  if (start.year === end.year) {
+    return `${start.month} ${start.day} - ${end.month} ${end.day}`;
+  }
+
+  return `${start.month} ${start.day}, ${start.year} - ${end.month} ${end.day}, ${end.year}`;
+}
+
+/** Pickup clock time in Lagos, such as "11:00 AM". */
+export function formatBookingListTime(value: string) {
+  return bookingListParts(value)?.time ?? value;
 }
