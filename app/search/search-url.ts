@@ -47,6 +47,8 @@ const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 12;
 const MAX_LIMIT = 50;
 const MAX_MAKES = 20;
+const SEARCH_ID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export interface SearchFilterValues {
   vehicleTypes: VehicleType[];
@@ -60,6 +62,7 @@ export interface SearchFilterValues {
 }
 
 export interface SearchUrlQuery extends SearchFilterValues {
+  searchId: string | null;
   q: string | null;
   color: string | null;
   model: string | null;
@@ -116,6 +119,7 @@ export function parseSearchUrl(searchParams: URLSearchParams): SearchUrlQuery {
 
   return {
     ...filters,
+    searchId: parseSearchId(searchParams.get("searchId")),
     q: parseOptionalText(searchParams.get("q")),
     color: parseOptionalText(searchParams.get("color")),
     model: parseOptionalText(searchParams.get("model")),
@@ -151,6 +155,7 @@ export function applySearchFiltersToParams(
 export function serializeSearchUrl(query: SearchUrlQuery): URLSearchParams {
   const params = applySearchFiltersToParams(new URLSearchParams(), query);
 
+  setOrDelete(params, "searchId", query.searchId);
   setOrDelete(params, "q", query.q);
   setOrDelete(params, "color", query.color);
   setOrDelete(params, "model", query.model);
@@ -177,6 +182,7 @@ export function serializeSearchUrl(query: SearchUrlQuery): URLSearchParams {
 
 export function toApiSearchParams(query: SearchUrlQuery): URLSearchParams {
   const params = serializeSearchUrl(query);
+  params.delete("searchId");
   params.set("page", String(query.page));
   params.set("limit", String(query.limit));
 
@@ -212,6 +218,7 @@ export function buildBookingTypeSearchPath(
   }
 
   params.set("bookingType", bookingType);
+  params.delete("searchId");
   params.delete("page");
   params.delete("countOnly");
 
@@ -334,6 +341,11 @@ function parseOptionalText(value: string | null): string | null {
   const trimmed = value?.trim();
 
   return trimmed || null;
+}
+
+function parseSearchId(value: string | null): string | null {
+  const trimmed = parseOptionalText(value);
+  return trimmed && SEARCH_ID_PATTERN.test(trimmed) ? trimmed : null;
 }
 
 function parseDateParam(value: string | null): string | null {

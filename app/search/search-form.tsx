@@ -151,7 +151,7 @@ function SearchFormFields({
       {isAirportPickup ? <input type="hidden" name="flightNumber" value={flightNumber} /> : null}
       {isNight ? <input type="hidden" name="pickupTime" value="11 PM" /> : null}
       {preserveFilterParams
-        ? ["q", "color", "model", ...SEARCH_FILTER_PARAM_KEYS].map((key) => {
+        ? ["searchId", "q", "color", "model", ...SEARCH_FILTER_PARAM_KEYS].map((key) => {
             const value = searchParams.get(key);
 
             return value ? <input key={key} type="hidden" name={key} value={value} /> : null;

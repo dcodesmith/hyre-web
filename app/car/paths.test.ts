@@ -103,12 +103,12 @@ describe("car paths", () => {
         "NIGHT",
         {
           preserveSearch: new URLSearchParams(
-            "bookingType=DAY&from=2026-08-20&vehicleType=SUV&page=2",
+            "searchId=01994a1d-4263-7000-8000-000000000010&bookingType=DAY&from=2026-08-20&vehicleType=SUV&page=2",
           ),
         },
       ),
     ).toBe(
-      "/cars/2019-black-lexus-ux-f-sport--0123456789abcdef?vehicleType=SUV&from=2026-08-20&bookingType=NIGHT",
+      "/cars/2019-black-lexus-ux-f-sport--0123456789abcdef?searchId=01994a1d-4263-7000-8000-000000000010&vehicleType=SUV&from=2026-08-20&bookingType=NIGHT",
     );
   });
 

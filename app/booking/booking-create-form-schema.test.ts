@@ -299,6 +299,15 @@ describe("create booking payload", () => {
     expect(toCreateBookingBody(value)).toMatchObject({ flightNumber: "BA74" });
   });
 
+  it("copies a valid searchId onto the create body and omits it otherwise", () => {
+    const searchId = "01994a1d-4263-7000-8000-000000000010";
+    const withSearchId = signedIn.parse({ ...signedInDay(), searchId });
+
+    expect(toCreateBookingBody(withSearchId)).toMatchObject({ searchId });
+    expect(toCreateBookingBody(signedIn.parse(signedInDay()))).not.toHaveProperty("searchId");
+    expect(signedIn.safeParse({ ...signedInDay(), searchId: "not-a-uuid" }).success).toBe(false);
+  });
+
   it("sends a same-day DAY window from pickup through 12 hours later", () => {
     const window = toBookingApiWindow({
       bookingType: "DAY",

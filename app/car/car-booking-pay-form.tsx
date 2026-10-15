@@ -30,6 +30,7 @@ function isCarBookingSubmit(formAction: string | undefined) {
 
 export function CarBookingPayForm({
   carId,
+  searchId,
   bookingType,
   from,
   to,
@@ -54,6 +55,7 @@ export function CarBookingPayForm({
   tripDuration,
 }: {
   readonly carId: string;
+  readonly searchId?: string | null;
   readonly bookingType: BookingType;
   readonly from: string;
   readonly to: string;
@@ -123,6 +125,7 @@ export function CarBookingPayForm({
       }}
     >
       <input type="hidden" name="carId" value={carId} />
+      {searchId ? <input type="hidden" name="searchId" value={searchId} /> : null}
       <input ref={idempotencyKeyRef} type="hidden" name="idempotencyKey" />
       <input type="hidden" name="expectedTotalAmount" value={expectedBookingTotalAmount(preview)} />
       <input type="hidden" name="bookingType" value={bookingType} />

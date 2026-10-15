@@ -27,6 +27,7 @@ export type GetCarCategoriesOptions = {
 export type SearchCarsOptions = {
   request?: Request;
   search: URLSearchParams;
+  searchId?: string | null;
 };
 
 export type ListPublicSitemapCarsOptions = {
@@ -54,6 +55,7 @@ export function searchCars(options: SearchCarsOptions) {
   return getApiClient().request({
     path: `/api/cars/search?${options.search}`,
     request: options.request,
+    headers: options.searchId ? { "X-Search-Id": options.searchId } : undefined,
     schema: carSearchResponseSchema,
   });
 }

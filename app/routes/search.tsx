@@ -68,6 +68,7 @@ export async function loader({ request }: Route.LoaderArgs) {
     const response = await searchCars({
       request,
       search: toApiSearchParams(query),
+      searchId: query.countOnly ? undefined : query.searchId,
     });
 
     return data(

@@ -28,10 +28,23 @@ describe("search URL contract", () => {
       to: "2026-08-21",
       pickupTime: "9 AM",
       vehicleTypes: ["SUV"],
+      searchId: null,
       page: 1,
       limit: 12,
       countOnly: false,
     });
+  });
+
+  it("keeps a valid searchId on the browser URL and omits it from the API query", () => {
+    const searchId = "01994a1d-4263-7000-8000-000000000010";
+    const query = parseSearchUrl(
+      new URLSearchParams(`searchId=${searchId}&bookingType=DAY&from=2026-08-20&to=2026-08-21`),
+    );
+
+    expect(query.searchId).toBe(searchId);
+    expect(serializeSearchUrl(query).get("searchId")).toBe(searchId);
+    expect(toApiSearchParams(query).has("searchId")).toBe(false);
+    expect(parseSearchUrl(new URLSearchParams("searchId=not-a-uuid")).searchId).toBeNull();
   });
 
   it("parses comma-separated filters, boolean flags, and ISO dates", () => {
@@ -147,6 +160,15 @@ describe("search URL contract", () => {
 
     expect(countActiveSearchFilters(filters)).toBe(2);
     expect(clearSearchFiltersPath(params)).toBe("/search?from=2026-08-20&bookingType=NIGHT");
+    expect(
+      clearSearchFiltersPath(
+        new URLSearchParams(
+          "searchId=01994a1d-4263-7000-8000-000000000010&from=2026-08-20&bookingType=NIGHT&vehicleType=SUV",
+        ),
+      ),
+    ).toBe(
+      "/search?searchId=01994a1d-4263-7000-8000-000000000010&from=2026-08-20&bookingType=NIGHT",
+    );
   });
 
   it("keeps filters and drops booking fields when booking type changes", () => {
@@ -155,7 +177,7 @@ describe("search URL contract", () => {
       buildBookingTypeSearchPath(
         "NIGHT",
         new URLSearchParams(
-          "from=2026-08-20&to=2026-08-21&bookingType=DAY&pickupTime=9%20AM&vehicleType=SUV&dealsOnly=1&page=2",
+          "searchId=01994a1d-4263-7000-8000-000000000010&from=2026-08-20&to=2026-08-21&bookingType=DAY&pickupTime=9%20AM&vehicleType=SUV&dealsOnly=1&page=2",
         ),
       ),
     ).toBe("/search?vehicleType=SUV&dealsOnly=1&bookingType=NIGHT");
@@ -169,6 +191,14 @@ describe("search URL contract", () => {
     expect(shouldRevalidateSearch(current, next)).toBe(false);
     expect(shouldRevalidateSearch(current, new URLSearchParams("countOnly=1"))).toBe(false);
     expect(shouldRevalidateSearch(current, new URLSearchParams("countOnly=true"))).toBe(false);
+    expect(
+      shouldRevalidateSearch(
+        current,
+        new URLSearchParams(
+          "vehicleType=SUV&bookingType=DAY&searchId=01994a1d-4263-7000-8000-000000000010",
+        ),
+      ),
+    ).toBe(false);
   });
 
   it("revalidates search when dates or price filters make booking type affect the list", () => {

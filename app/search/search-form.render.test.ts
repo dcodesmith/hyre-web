@@ -87,7 +87,7 @@ describe("SearchForm", () => {
 
   it("preserves active filter params as hidden inputs on the search page", () => {
     router.searchParams = new URLSearchParams(
-      "bookingType=DAY&from=2026-08-20&vehicleType=SUV&dealsOnly=1",
+      "searchId=01994a1d-4263-7000-8000-000000000010&bookingType=DAY&from=2026-08-20&vehicleType=SUV&dealsOnly=1",
     );
     router.pathname = "/search";
 
@@ -95,6 +95,8 @@ describe("SearchForm", () => {
       createElement(SearchForm, { isCompact: false, preserveFilterParams: true }),
     );
 
+    expect(markup).toContain('name="searchId"');
+    expect(markup).toContain('value="01994a1d-4263-7000-8000-000000000010"');
     expect(markup).toContain('name="vehicleType"');
     expect(markup).toContain('value="SUV"');
     expect(markup).toContain('name="dealsOnly"');

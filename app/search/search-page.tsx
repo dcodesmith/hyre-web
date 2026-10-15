@@ -1,4 +1,4 @@
-import { type RefObject, useState } from "react";
+import { type RefObject, useEffect, useState } from "react";
 import { Link, useNavigation, useSearchParams } from "react-router";
 
 import type { CarSearchResponse, SearchCar } from "~/api/cars/schema";
@@ -254,8 +254,18 @@ function SearchResults({ result }: { readonly result: CarSearchResponse }) {
 
 export function SearchPage({ result }: SearchPageProps) {
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const resultsKey = searchResultsIdentity(searchParams);
+
+  useEffect(() => {
+    if (!result?.searchId || searchParams.get("searchId") === result.searchId) {
+      return;
+    }
+
+    const nextSearchParams = new URLSearchParams(searchParams);
+    nextSearchParams.set("searchId", result.searchId);
+    setSearchParams(nextSearchParams, { replace: true, preventScrollReset: true });
+  }, [result?.searchId, searchParams, setSearchParams]);
 
   return (
     <div className="min-h-screen">
