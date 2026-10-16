@@ -350,6 +350,7 @@ export function CarBookingCard({
   return (
     <CarBookingPayForm
       carId={car.id}
+      searchId={query.search.searchId}
       bookingType={card.bookingType}
       from={formatOptionalCalendarDate(card.fromDate)}
       to={formatOptionalCalendarDate(card.toDate)}

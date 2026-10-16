@@ -86,15 +86,18 @@ function renderPayForm({
   isPricingLoading,
   pricingError,
   useCredits,
+  searchId,
 }: {
   readonly preview: BookingPricingPreview | null;
   readonly isPricingLoading: boolean;
   readonly pricingError?: string | null;
   readonly useCredits?: number;
+  readonly searchId?: string;
 }) {
   return renderToStaticMarkup(
     createElement(CarBookingPayForm, {
       carId: "018f47a2-7b3c-7d4e-8f90-1234567890ab",
+      searchId,
       bookingType: "DAY",
       from: "2026-09-01",
       to: "2026-09-01",
@@ -128,6 +131,20 @@ describe("CarBookingPayForm credits", () => {
     expect(markup).toContain('value="2500"');
     expect(markup).toContain('name="expectedTotalAmount"');
     expect(markup).toContain('value="99437.5"');
+  });
+
+  it("writes searchId into the hidden create payload when present", () => {
+    const searchId = "01994a1d-4263-7000-8000-000000000010";
+    const withSearchId = renderPayForm({
+      preview,
+      isPricingLoading: false,
+      searchId,
+    });
+    const withoutSearchId = renderPayForm({ preview, isPricingLoading: false });
+
+    expect(withSearchId).toContain('name="searchId"');
+    expect(withSearchId).toContain(`value="${searchId}"`);
+    expect(withoutSearchId).not.toContain('name="searchId"');
   });
 
   it("cannot pay while credit balance or pricing is loading", () => {

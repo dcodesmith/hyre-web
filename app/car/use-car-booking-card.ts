@@ -20,6 +20,7 @@ import { buildCurrentCarDetailSearchPath, type CarDetailUrlQuery } from "~/car/c
 import { formatZonedDate } from "~/time/timezone";
 
 type QueryOverrides = {
+  readonly searchId?: string | null;
   readonly from?: string | null;
   readonly to?: string | null;
   readonly pickupTime?: string | null;
@@ -37,6 +38,7 @@ export function bookingTypeChangeOverrides(
     currentType === AIRPORT_PICKUP_BOOKING_TYPE || nextType === AIRPORT_PICKUP_BOOKING_TYPE;
 
   return {
+    searchId: null,
     from: null,
     to: null,
     pickupTime: null,
@@ -70,6 +72,7 @@ function nextCarBookingQuery(
     search: {
       ...query.search,
       bookingType,
+      searchId: pickOverride(overrides.searchId, query.search.searchId),
       from: pickOverride(overrides.from, query.search.from),
       to: pickOverride(overrides.to, query.search.to),
       pickupTime: pickOverride(overrides.pickupTime, query.search.pickupTime),

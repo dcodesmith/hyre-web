@@ -3,8 +3,13 @@ import { describe, expect, it } from "vitest";
 import { bookingTypeChangeOverrides } from "~/car/use-car-booking-card";
 
 describe("bookingTypeChangeOverrides", () => {
+  it("starts a new search journey when the booking type changes", () => {
+    expect(bookingTypeChangeOverrides("DAY", "NIGHT").searchId).toBeNull();
+  });
+
   it("keeps pickup and drop-off addresses when switching DAY to NIGHT", () => {
     expect(bookingTypeChangeOverrides("DAY", "NIGHT")).toEqual({
+      searchId: null,
       from: null,
       to: null,
       pickupTime: null,

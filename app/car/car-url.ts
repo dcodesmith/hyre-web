@@ -93,6 +93,7 @@ export function buildBookingTypeCarPath(
   return buildCarDetailSearchPath(car, {
     search: {
       ...current.search,
+      searchId: null,
       bookingType,
       from: null,
       to: null,

@@ -77,6 +77,7 @@ function buildBookingFormSchema(isGuest: boolean) {
     .object({
       carId: z.uuid({ error: "Car ID is invalid" }),
       idempotencyKey: z.uuid("Please retry this booking."),
+      searchId: z.uuid().optional(),
       expectedTotalAmount: z
         .string({ error: "Confirm the current price before paying." })
         .trim()
@@ -316,6 +317,10 @@ export function toCreateBookingBody(
     sameLocation,
     expectedTotalAmount,
   };
+
+  if (value.searchId) {
+    body.searchId = value.searchId;
+  }
 
   if (!sameLocation) {
     body.dropOffAddress = value.dropOffAddress;

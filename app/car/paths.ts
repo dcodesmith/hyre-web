@@ -24,6 +24,7 @@ const categorySectionIds: Readonly<Record<CarCategory["name"], string>> = {
 const PUBLIC_REF_IN_SLUG_PATTERN = /--([0-9a-f]{16})$/;
 
 const PRESERVED_SEARCH_KEYS = [
+  "searchId",
   "q",
   "color",
   "model",

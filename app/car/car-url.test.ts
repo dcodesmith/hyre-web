@@ -64,19 +64,20 @@ describe("car detail URL contract", () => {
   it("serializes booking and filters without review sheet state", () => {
     const query = parseCarDetailUrl(
       new URLSearchParams(
-        "bookingType=NIGHT&from=2026-08-20&to=2026-08-21&vehicleType=SUV&reviews=1&reviewsPage=2",
+        "searchId=01994a1d-4263-7000-8000-000000000010&bookingType=NIGHT&from=2026-08-20&to=2026-08-21&vehicleType=SUV&reviews=1&reviewsPage=2",
       ),
     );
 
+    expect(query.search.searchId).toBe("01994a1d-4263-7000-8000-000000000010");
     expect(buildCarDetailSearchPath(car, query)).toBe(
-      "/cars/2019-black-lexus-ux-f-sport--0123456789abcdef?vehicleType=SUV&from=2026-08-20&to=2026-08-21&bookingType=NIGHT",
+      "/cars/2019-black-lexus-ux-f-sport--0123456789abcdef?vehicleType=SUV&searchId=01994a1d-4263-7000-8000-000000000010&from=2026-08-20&to=2026-08-21&bookingType=NIGHT",
     );
   });
 
   it("clears dates and addresses when the booking type changes", () => {
     const query = parseCarDetailUrl(
       new URLSearchParams(
-        "bookingType=DAY&from=2026-08-20&to=2026-08-21&vehicleType=SUV&pickupAddress=12+Glover+Road",
+        "searchId=01994a1d-4263-7000-8000-000000000010&bookingType=DAY&from=2026-08-20&to=2026-08-21&vehicleType=SUV&pickupAddress=12+Glover+Road",
       ),
     );
 

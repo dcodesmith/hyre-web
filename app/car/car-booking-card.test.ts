@@ -114,4 +114,13 @@ describe("CarBookingCard resume state", () => {
     expect(creditValue(renderCard("useCredits=2500.50"))).toBe("2500.5");
     expect(creditValue(renderCard("useCredits=2500", false))).toBe("0");
   });
+
+  it("forwards searchId from the car URL into the pay form", () => {
+    const searchId = "01994a1d-4263-7000-8000-000000000010";
+    const markup = renderCard(`searchId=${searchId}&bookingType=DAY`);
+
+    expect(markup).toContain('name="searchId"');
+    expect(markup).toContain(`value="${searchId}"`);
+    expect(renderCard("bookingType=DAY")).not.toContain('name="searchId"');
+  });
 });

@@ -71,6 +71,7 @@ const searchPaginationSchema = z.object({
 });
 
 export const carSearchResponseSchema = z.object({
+  searchId: z.uuid().optional(),
   cars: z.array(searchCarSchema),
   filters: searchFiltersSchema,
   facets: searchFacetsSchema.nullable(),

@@ -1,5 +1,5 @@
 import { type RefObject, useState } from "react";
-import { Link, useNavigation, useSearchParams } from "react-router";
+import { Link, useNavigation } from "react-router";
 
 import type { CarSearchResponse, SearchCar } from "~/api/cars/schema";
 import { calculateBookingUnits } from "~/booking/dates";
@@ -16,6 +16,7 @@ import {
 } from "~/components/ui/empty";
 import { Skeleton } from "~/components/ui/skeleton";
 import { useInfiniteScroll } from "~/hooks/use-infinite-scroll";
+import { useSearchJourneyUrl } from "~/hooks/use-search-journey-url";
 import { CarSkeleton } from "~/search/car-skeleton";
 import { CompactSearchBar } from "~/search/compact-search-bar";
 import { PaginationControl } from "~/search/pagination-control";
@@ -167,8 +168,13 @@ function isSearchResultsUpdate(
   return searchResultsIdentity(searchParams) !== searchResultsIdentity(nextSearchParams);
 }
 
-function SearchResults({ result }: { readonly result: CarSearchResponse }) {
-  const [searchParams] = useSearchParams();
+function SearchResults({
+  result,
+  searchParams,
+}: {
+  readonly result: CarSearchResponse;
+  readonly searchParams: URLSearchParams;
+}) {
   const navigation = useNavigation();
   const query = parseSearchUrl(searchParams);
   const bookingType: BookingType = query.bookingType ?? DAY_BOOKING_TYPE;
@@ -254,7 +260,7 @@ function SearchResults({ result }: { readonly result: CarSearchResponse }) {
 
 export function SearchPage({ result }: SearchPageProps) {
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
-  const [searchParams] = useSearchParams();
+  const searchParams = useSearchJourneyUrl(result?.searchId);
   const resultsKey = searchResultsIdentity(searchParams);
 
   return (
@@ -271,7 +277,7 @@ export function SearchPage({ result }: SearchPageProps) {
 
       <div className="mx-auto my-24 w-full px-4 sm:max-w-160 md:mt-3.5 md:mb-0 md:max-w-3xl lg:max-w-5xl xl:max-w-7xl">
         {result ? (
-          <SearchResults key={resultsKey} result={result} />
+          <SearchResults key={resultsKey} result={result} searchParams={searchParams} />
         ) : (
           <Empty className="rounded-xl border border-amber-200 bg-amber-50 px-6 py-10">
             <EmptyHeader>
