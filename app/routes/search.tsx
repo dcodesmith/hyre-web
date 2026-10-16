@@ -70,6 +70,7 @@ export async function loader({ request }: Route.LoaderArgs) {
       search: toApiSearchParams(query),
       searchId: query.countOnly ? undefined : query.searchId,
     });
+    const hasSearchJourney = !query.countOnly && Boolean(query.searchId || response.data.searchId);
 
     return data(
       {
@@ -77,7 +78,9 @@ export async function loader({ request }: Route.LoaderArgs) {
       },
       {
         headers: {
-          "Cache-Control": response.headers.get("Cache-Control") ?? SEARCH_CACHE_CONTROL,
+          "Cache-Control": hasSearchJourney
+            ? "private, no-store"
+            : (response.headers.get("Cache-Control") ?? SEARCH_CACHE_CONTROL),
         },
       },
     );

@@ -44,6 +44,12 @@ describe("search URL contract", () => {
     expect(query.searchId).toBe(searchId);
     expect(serializeSearchUrl(query).get("searchId")).toBe(searchId);
     expect(toApiSearchParams(query).has("searchId")).toBe(false);
+    expect(
+      parseSearchUrl(new URLSearchParams("searchId=00000000-0000-0000-0000-000000000000")).searchId,
+    ).toBe("00000000-0000-0000-0000-000000000000");
+    expect(
+      parseSearchUrl(new URLSearchParams("searchId=ffffffff-ffff-ffff-ffff-ffffffffffff")).searchId,
+    ).toBe("ffffffff-ffff-ffff-ffff-ffffffffffff");
     expect(parseSearchUrl(new URLSearchParams("searchId=not-a-uuid")).searchId).toBeNull();
   });
 

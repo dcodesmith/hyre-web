@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { BOOKING_TYPE_OPTIONS, type BookingType } from "~/booking/types";
 import { formatZonedDate, parseZonedCalendarDate } from "~/time/timezone";
 
@@ -47,8 +48,7 @@ const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 12;
 const MAX_LIMIT = 50;
 const MAX_MAKES = 20;
-const SEARCH_ID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const searchIdSchema = z.uuid();
 
 export interface SearchFilterValues {
   vehicleTypes: VehicleType[];
@@ -345,7 +345,7 @@ function parseOptionalText(value: string | null): string | null {
 
 function parseSearchId(value: string | null): string | null {
   const trimmed = parseOptionalText(value);
-  return trimmed && SEARCH_ID_PATTERN.test(trimmed) ? trimmed : null;
+  return trimmed && searchIdSchema.safeParse(trimmed).success ? trimmed : null;
 }
 
 function parseDateParam(value: string | null): string | null {
