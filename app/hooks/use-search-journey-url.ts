@@ -1,10 +1,12 @@
 import { useEffect } from "react";
 import { useNavigation, useSearchParams } from "react-router";
+import { parseSearchId } from "~/search/search-url";
 
 export function useSearchJourneyUrl(searchId: string | undefined) {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigation = useNavigation();
   const currentSearchId = searchParams.get("searchId");
+  const validCurrentSearchId = parseSearchId(currentSearchId);
   const canSync = navigation.state === "idle";
   const pendingSearchId = navigation.location
     ? new URLSearchParams(navigation.location.search).get("searchId")
@@ -12,7 +14,7 @@ export function useSearchJourneyUrl(searchId: string | undefined) {
   const canUseResult = canSync || pendingSearchId === searchId;
 
   useEffect(() => {
-    if (!canSync || !searchId || currentSearchId === searchId) {
+    if (!canSync || !searchId || validCurrentSearchId) {
       return;
     }
 
@@ -24,9 +26,9 @@ export function useSearchJourneyUrl(searchId: string | undefined) {
       },
       { replace: true, preventScrollReset: true },
     );
-  }, [canSync, currentSearchId, searchId, setSearchParams]);
+  }, [canSync, searchId, setSearchParams, validCurrentSearchId]);
 
-  if (!canUseResult || !searchId || currentSearchId === searchId) {
+  if (!canUseResult || !searchId || validCurrentSearchId) {
     return searchParams;
   }
 

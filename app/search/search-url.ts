@@ -343,7 +343,7 @@ function parseOptionalText(value: string | null): string | null {
   return trimmed || null;
 }
 
-function parseSearchId(value: string | null): string | null {
+export function parseSearchId(value: string | null): string | null {
   const trimmed = parseOptionalText(value);
   return trimmed && searchIdSchema.safeParse(trimmed).success ? trimmed : null;
 }
