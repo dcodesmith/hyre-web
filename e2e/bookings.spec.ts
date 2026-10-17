@@ -128,15 +128,8 @@ test("renders the cancellable booking fixture and confirm dialog", async ({ page
   const actionsMenu = page.getByRole("button", { name: "Booking actions" });
   await expect(actionsMenu).toBeVisible();
   await expect(page.getByRole("link", { name: "Download Receipt" })).toHaveCount(0);
-  await expect(async () => {
-    if (await confirmDialog.isVisible()) {
-      return;
-    }
-
-    await actionsMenu.click();
-    await cancelTrigger.click();
-    await expect(confirmDialog).toBeVisible();
-  }).toPass();
+  await clickUntilVisible(actionsMenu, cancelTrigger);
+  await clickUntilVisible(cancelTrigger, confirmDialog);
 
   await expect(page).toHaveURL(/\/__visual\/booking-cancel$/);
   await expect(page.getByText("This action cannot be undone")).toBeVisible();
@@ -156,15 +149,8 @@ test("closes the cancel dialog after a successful confirm", async ({ page }) => 
   const cancelTrigger = page.getByRole("menuitem", { name: "Cancel Booking" });
   const confirmDialog = page.getByRole("dialog", { name: "Cancel Booking" });
   const actionsMenu = page.getByRole("button", { name: "Booking actions" });
-  await expect(async () => {
-    if (await confirmDialog.isVisible()) {
-      return;
-    }
-
-    await actionsMenu.click();
-    await cancelTrigger.click();
-    await expect(confirmDialog).toBeVisible();
-  }).toPass();
+  await clickUntilVisible(actionsMenu, cancelTrigger);
+  await clickUntilVisible(cancelTrigger, confirmDialog);
 
   await page.getByRole("button", { name: "Yes, Cancel Booking" }).click();
 
