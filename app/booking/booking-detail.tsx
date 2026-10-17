@@ -105,7 +105,7 @@ export function BookingDetailPage({
             <BookingTimelineCard
               legs={booking.legs}
               extendPath={
-                !isGuest && detail.legs.some((leg) => leg.canExtend)
+                !isGuest && detail.legs.some((leg) => leg.canExtend && leg.maxExtendableHours > 0)
                   ? `/bookings/${encodeURIComponent(detail.id)}/extend`
                   : undefined
               }
