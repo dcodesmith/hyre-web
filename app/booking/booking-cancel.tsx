@@ -1,8 +1,9 @@
 import { cn } from "cn";
-import { Loader2 } from "lucide-react";
+import { Loader2, MoreHorizontal } from "lucide-react";
 import { useState } from "react";
 import { useFetcher } from "react-router";
 import type { BookingDetail } from "~/api/bookings/schema";
+import { Button } from "~/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -10,6 +11,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "~/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "~/components/ui/dropdown-menu";
 
 export type BookingCancelActionData = {
   error?: string;
@@ -18,10 +25,6 @@ export type BookingCancelActionData = {
 
 const focusRingClassName =
   "focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none";
-const triggerClassName = cn(
-  "inline-flex h-9 w-full items-center justify-center gap-2 rounded-sm border border-input bg-background px-3 text-sm font-medium text-red-600 hover:bg-accent hover:text-red-700",
-  focusRingClassName,
-);
 const outlineButtonClassName = cn(
   "inline-flex h-10 items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50",
   focusRingClassName,
@@ -61,31 +64,30 @@ export function BookingCancelCard({
   const showConfirm = confirmOpen && fetcher.data?.ok !== true;
 
   return (
-    <>
-      <section className="rounded border bg-card text-card-foreground shadow-sm">
-        <div className="p-4">
-          <div className="space-y-2">
-            {cancelError && !showConfirm ? (
-              <CancelError key={cancelError} message={cancelError} />
-            ) : null}
-            <button
-              type="button"
-              className={triggerClassName}
-              disabled={isBusy}
-              onClick={() => setConfirmOpen(true)}
-            >
-              {isBusy ? (
-                <>
-                  <CancelSpinner className="h-4 w-4" />
-                  Cancelling…
-                </>
-              ) : (
-                "Cancel Booking"
-              )}
-            </button>
-          </div>
-        </div>
-      </section>
+    <div className="flex flex-col items-start gap-2 sm:items-end">
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            type="button"
+            variant="outline"
+            className="size-12 rounded-md border-gray-200 bg-white p-1 shadow-sm"
+            aria-label="Booking actions"
+            disabled={isBusy}
+          >
+            <MoreHorizontal aria-hidden="true" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem
+            variant="destructive"
+            disabled={isBusy}
+            onSelect={() => setConfirmOpen(true)}
+          >
+            Cancel Booking
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      {cancelError && !showConfirm ? <CancelError key={cancelError} message={cancelError} /> : null}
 
       <Dialog
         open={showConfirm}
@@ -141,6 +143,6 @@ export function BookingCancelCard({
           </fetcher.Form>
         </DialogContent>
       </Dialog>
-    </>
+    </div>
   );
 }

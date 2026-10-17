@@ -53,10 +53,42 @@ const fixtureBooking = {
   ],
 } satisfies BookingDetail;
 
-export default function BookingDetailFixture() {
+const fullPaymentBooking = {
+  ...fixtureBooking,
+  fuelUpgradeCost: 5_000,
+  referralDiscountAmount: 3_000,
+  referralCreditsUsed: 5_000,
+  legs: [
+    {
+      ...fixtureBooking.legs[0],
+      legEndTime: "2026-07-02T22:00:00.000Z",
+      extensions: [
+        {
+          id: "018f47a2-7b3c-7d4e-8f90-123456789411",
+          status: "ACTIVE",
+          paymentStatus: "PAID" as const,
+          extendedDurationHours: 2,
+          netTotal: 20_000,
+        },
+      ],
+    },
+  ],
+} satisfies BookingDetail;
+
+export function loader({ request }: { readonly request: Request }) {
+  const showFullPayment = new URL(request.url).searchParams.get("payment") === "full";
+
+  return { booking: showFullPayment ? fullPaymentBooking : fixtureBooking };
+}
+
+export default function BookingDetailFixture({
+  loaderData,
+}: {
+  readonly loaderData: ReturnType<typeof loader>;
+}) {
   return (
     <BookingDetailPage
-      booking={fixtureBooking}
+      booking={loaderData.booking}
       canDownloadReceipt
       reviewAvailability="available"
       now="2026-08-01T12:00:00.000Z"

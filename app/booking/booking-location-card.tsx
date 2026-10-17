@@ -1,36 +1,36 @@
 import { MapPin } from "lucide-react";
-import { DetailCard, DetailCardBody, DetailCardHeader } from "~/booking/booking-detail-card";
+import {
+  ConnectedStops,
+  DetailCard,
+  DetailCardBody,
+  DetailCardHeader,
+  DetailCardIcon,
+} from "~/booking/booking-detail-card";
 import type { BookingView } from "~/booking/booking-domain";
+
+function LocationStop({ label, value }: { readonly label: string; readonly value: string }) {
+  return (
+    <div className="space-y-1">
+      <p className="text-sm leading-5 font-medium text-gray-500">{label}</p>
+      <p className="text-sm leading-6 font-medium break-words text-gray-900">{value}</p>
+    </div>
+  );
+}
 
 export function BookingLocationCard({ booking }: { readonly booking: BookingView }) {
   return (
     <DetailCard>
       <DetailCardHeader>
-        <MapPin className="h-5 w-5 text-blue-600" aria-hidden="true" />
+        <DetailCardIcon>
+          <MapPin aria-hidden="true" />
+        </DetailCardIcon>
         Location Details
       </DetailCardHeader>
       <DetailCardBody>
-        <div className="space-y-4">
-          <div className="flex items-start gap-3">
-            <div className="mt-2 h-2 w-2 shrink-0 rounded-full bg-green-500" />
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-slate-600">Pickup Location</p>
-              <p className="text-sm font-semibold break-words text-slate-900">
-                {booking.pickupLocation}
-              </p>
-            </div>
-          </div>
-          <hr className="h-px w-full border-0 bg-border" />
-          <div className="flex items-start gap-3">
-            <div className="mt-2 h-2 w-2 shrink-0 rounded-full bg-red-500" />
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-slate-600">Return Location</p>
-              <p className="text-sm font-semibold break-words text-slate-900">
-                {booking.returnLocation}
-              </p>
-            </div>
-          </div>
-        </div>
+        <ConnectedStops
+          first={<LocationStop label="Pickup location" value={booking.pickupLocation} />}
+          second={<LocationStop label="Drop-off location" value={booking.returnLocation} />}
+        />
       </DetailCardBody>
     </DetailCard>
   );

@@ -1,8 +1,45 @@
+import { cn } from "cn";
 import { CreditCard, Download } from "lucide-react";
-import { DetailCard, DetailCardBody, DetailCardHeader } from "~/booking/booking-detail-card";
+import {
+  DetailCard,
+  DetailCardBody,
+  DetailCardHeader,
+  DetailCardIcon,
+} from "~/booking/booking-detail-card";
 import type { BookingPaymentView } from "~/booking/booking-domain";
 import { Button } from "~/components/ui/button";
 import { formatCurrency } from "~/money/currency";
+
+function PaymentRow({
+  label,
+  value,
+  discount = false,
+}: {
+  readonly label: string;
+  readonly value: string;
+  readonly discount?: boolean;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3 text-sm">
+      <span
+        className={cn(
+          "min-w-0 leading-5 font-medium break-words",
+          discount ? "text-green-600" : "text-gray-500",
+        )}
+      >
+        {label}
+      </span>
+      <span
+        className={cn(
+          "shrink-0 leading-6 font-medium tabular-nums",
+          discount ? "text-green-600" : "text-gray-900",
+        )}
+      >
+        {value}
+      </span>
+    </div>
+  );
+}
 
 function PaymentAddonRows({
   addons,
@@ -12,15 +49,11 @@ function PaymentAddonRows({
   readonly moneyLabel: (value: number) => string;
 }) {
   return addons.map((addon) => (
-    <div key={addon.code} className="flex justify-between gap-3">
-      <span className="min-w-0 break-words text-sm text-slate-600">
-        {addon.name}
-        {addon.quantity > 1 ? ` (${addon.quantity})` : ""}
-      </span>
-      <span className="shrink-0 text-sm font-medium tabular-nums">
-        {moneyLabel(addon.totalPrice)}
-      </span>
-    </div>
+    <PaymentRow
+      key={addon.code}
+      label={`${addon.name}${addon.quantity > 1 ? ` (${addon.quantity})` : ""}`}
+      value={moneyLabel(addon.totalPrice)}
+    />
   ));
 }
 
@@ -36,79 +69,62 @@ export function BookingPaymentCard({
   return (
     <DetailCard>
       <DetailCardHeader>
-        <CreditCard className="h-5 w-5 text-blue-600" aria-hidden="true" />
+        <DetailCardIcon>
+          <CreditCard aria-hidden="true" />
+        </DetailCardIcon>
         Payment Summary
       </DetailCardHeader>
       <DetailCardBody>
         <div className="space-y-3">
           {payment.breakdownAvailable ? (
             <>
-              <div className="flex justify-between text-sm">
-                <span className="text-slate-600">
-                  Net Total ({payment.dayCount} {payment.dayLabel})
-                </span>
-                <span className="font-medium tabular-nums">{moneyLabel(payment.netTotal)}</span>
-              </div>
+              <PaymentRow
+                label={`Net Total (${payment.dayCount} ${payment.dayLabel})`}
+                value={moneyLabel(payment.netTotal)}
+              />
               {payment.extensionNetTotal > 0 ? (
-                <div className="flex justify-between">
-                  <span className="text-sm text-slate-600">
-                    Extension ({payment.totalExtendedHours} hours)
-                  </span>
-                  <span className="text-sm font-medium tabular-nums">
-                    {moneyLabel(payment.extensionNetTotal)}
-                  </span>
-                </div>
+                <PaymentRow
+                  label={`Extension (${payment.totalExtendedHours} hours)`}
+                  value={moneyLabel(payment.extensionNetTotal)}
+                />
               ) : null}
               <PaymentAddonRows addons={payment.addons} moneyLabel={moneyLabel} />
               {payment.fuelUpgradeCost > 0 ? (
-                <div className="flex justify-between">
-                  <span className="text-sm text-slate-600">Fuel Upgrade</span>
-                  <span className="text-sm font-medium tabular-nums">
-                    {moneyLabel(payment.fuelUpgradeCost)}
-                  </span>
-                </div>
+                <PaymentRow label="Fuel Upgrade" value={moneyLabel(payment.fuelUpgradeCost)} />
               ) : null}
               {payment.referralDiscountAmount > 0 ? (
-                <div className="flex justify-between">
-                  <span className="text-sm text-green-600">Referral Discount</span>
-                  <span className="text-sm font-medium tabular-nums text-green-600">
-                    -{moneyLabel(payment.referralDiscountAmount)}
-                  </span>
-                </div>
+                <PaymentRow
+                  label="Referral Discount"
+                  value={`-${moneyLabel(payment.referralDiscountAmount)}`}
+                  discount
+                />
               ) : null}
               {payment.referralCreditsUsed > 0 ? (
-                <div className="flex justify-between">
-                  <span className="text-sm text-green-600">Referral Credits Used</span>
-                  <span className="text-sm font-medium tabular-nums text-green-600">
-                    -{moneyLabel(payment.referralCreditsUsed)}
-                  </span>
-                </div>
+                <PaymentRow
+                  label="Referral Credits Used"
+                  value={`-${moneyLabel(payment.referralCreditsUsed)}`}
+                  discount
+                />
               ) : null}
               {payment.platformCustomerServiceFeeAmount > 0 ? (
-                <div className="flex justify-between">
-                  <span className="text-sm text-slate-600">
-                    Platform Fee ({payment.platformFeePercent}%)
-                  </span>
-                  <span className="text-sm font-medium tabular-nums">
-                    {moneyLabel(payment.platformCustomerServiceFeeAmount)}
-                  </span>
-                </div>
+                <PaymentRow
+                  label={`Platform Fee (${payment.platformFeePercent}%)`}
+                  value={moneyLabel(payment.platformCustomerServiceFeeAmount)}
+                />
               ) : null}
-              <div className="flex justify-between">
-                <span className="text-sm text-slate-600">VAT ({payment.vatRatePercent}%)</span>
-                <span className="text-sm font-medium tabular-nums">
-                  {moneyLabel(payment.vatAmount)}
-                </span>
-              </div>
-              <hr className="h-px w-full border-0 bg-border" />
+              <PaymentRow
+                label={`VAT (${payment.vatRatePercent}%)`}
+                value={moneyLabel(payment.vatAmount)}
+              />
             </>
-          ) : null}
-          {payment.breakdownAvailable ? null : (
+          ) : (
             <PaymentAddonRows addons={payment.addons} moneyLabel={moneyLabel} />
           )}
-          <div className="flex justify-between font-bold">
-            <span>Total Amount</span>
-            <span className="tabular-nums">{moneyLabel(payment.totalAmount)}</span>
+          <div className="flex items-center justify-between gap-3 border-t border-gray-200 pt-4 text-sm text-gray-900">
+            <span className="leading-5 font-semibold">Total Amount</span>
+            <span className="leading-6 font-medium tabular-nums">
+              {moneyLabel(payment.totalAmount)}
+            </span>
           </div>
           {receiptPath ? (
             <Button asChild variant="outline" className="w-full">

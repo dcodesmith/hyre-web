@@ -3,7 +3,12 @@ import { useState } from "react";
 import { useFetcher } from "react-router";
 
 import type { CustomerReview } from "~/api/reviews/schema";
-import { DetailCard, DetailCardBody, DetailCardHeader } from "~/booking/booking-detail-card";
+import {
+  DetailCard,
+  DetailCardBody,
+  DetailCardHeader,
+  DetailCardIcon,
+} from "~/booking/booking-detail-card";
 import { DetailStarRating } from "~/car/compact-star-rating";
 import { FormError } from "~/components/forms/form-primitives";
 import { Button } from "~/components/ui/button";
@@ -117,7 +122,9 @@ function ReviewForm({
   return (
     <DetailCard>
       <DetailCardHeader>
-        <Star className="h-5 w-5 text-blue-600" aria-hidden="true" />
+        <DetailCardIcon>
+          <Star aria-hidden="true" />
+        </DetailCardIcon>
         <h2>{isEditing ? "Edit Your Review" : "Share Your Experience"}</h2>
       </DetailCardHeader>
       <DetailCardBody>
@@ -228,7 +235,9 @@ function ExistingReview({
   return (
     <DetailCard>
       <DetailCardHeader>
-        <Star className="h-5 w-5 text-blue-600" aria-hidden="true" />
+        <DetailCardIcon>
+          <Star aria-hidden="true" />
+        </DetailCardIcon>
         <h2>Your Review</h2>
       </DetailCardHeader>
       <DetailCardBody>
@@ -293,7 +302,9 @@ function ReviewAvailabilityNotice({
     <div id="review" className="scroll-mt-6">
       <DetailCard>
         <DetailCardHeader>
-          <Star className="h-5 w-5 text-blue-600" aria-hidden="true" />
+          <DetailCardIcon>
+            <Star aria-hidden="true" />
+          </DetailCardIcon>
           <h2>{message.heading}</h2>
         </DetailCardHeader>
         <DetailCardBody>
@@ -347,7 +358,9 @@ export function BookingReview({
     <div id="review" className="scroll-mt-6">
       <DetailCard>
         <DetailCardHeader>
-          <Star className="h-5 w-5 text-blue-600" aria-hidden="true" />
+          <DetailCardIcon>
+            <Star aria-hidden="true" />
+          </DetailCardIcon>
           <h2>Share Your Experience</h2>
         </DetailCardHeader>
         <DetailCardBody>

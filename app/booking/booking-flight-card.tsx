@@ -3,6 +3,7 @@ import {
   DetailCard,
   DetailCardBody,
   DetailCardHeader,
+  DetailCardIcon,
   OutlineBadge,
 } from "~/booking/booking-detail-card";
 import type { BookingFlightView } from "~/booking/booking-domain";
@@ -21,7 +22,9 @@ export function BookingFlightCard({ flight }: { readonly flight: BookingFlightVi
   return (
     <DetailCard>
       <DetailCardHeader>
-        <Plane className="h-5 w-5 text-blue-600" aria-hidden="true" />
+        <DetailCardIcon>
+          <Plane aria-hidden="true" />
+        </DetailCardIcon>
         Flight Information
       </DetailCardHeader>
       <DetailCardBody>

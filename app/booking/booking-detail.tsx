@@ -6,7 +6,6 @@ import { authPath } from "~/auth/referer";
 import { BookingCancelCard } from "~/booking/booking-cancel";
 import { BookingChauffeurCard } from "~/booking/booking-chauffeur-card";
 import { BookingDomain } from "~/booking/booking-domain";
-import { BookingExtendCard } from "~/booking/booking-extend-card";
 import { BookingFlightCard } from "~/booking/booking-flight-card";
 import { BookingHeader } from "~/booking/booking-header";
 import { BookingLocationCard } from "~/booking/booking-location-card";
@@ -69,7 +68,19 @@ export function BookingDetailPage({
               <ArrowLeft className="h-5 w-5 text-black" aria-hidden="true" />
             </Link>
           </div>
-          <BookingHeader booking={booking} />
+          <BookingHeader
+            booking={booking}
+            actions={
+              !isGuest && (detail.canEdit || detail.canCancel) ? (
+                <>
+                  {detail.canEdit ? <BookingModifyCard booking={detail} now={now} /> : null}
+                  {detail.canCancel ? (
+                    <BookingCancelCard paymentStatus={detail.paymentStatus} />
+                  ) : null}
+                </>
+              ) : null
+            }
+          />
         </div>
 
         {isGuest ? (
@@ -89,9 +100,16 @@ export function BookingDetailPage({
           <p className="text-sm text-blue-800">{booking.typeDescription}</p>
         </div>
 
-        <div className="grid gap-4 md:gap-6 lg:grid-cols-3">
-          <div className="space-y-6 lg:col-span-2">
-            <BookingTimelineCard legs={booking.legs} />
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
+          <div className="space-y-4">
+            <BookingTimelineCard
+              legs={booking.legs}
+              extendPath={
+                !isGuest && detail.legs.some((leg) => leg.canExtend)
+                  ? `/bookings/${encodeURIComponent(detail.id)}/extend`
+                  : undefined
+              }
+            />
             <BookingLocationCard booking={booking} />
             {!isGuest && reviewAvailability !== "hidden" && detail.status === "COMPLETED" ? (
               <BookingReview
@@ -102,17 +120,10 @@ export function BookingDetailPage({
             ) : null}
           </div>
 
-          <div className="space-y-6">
+          <div className="space-y-4">
             <BookingChauffeurCard booking={booking} />
             {booking.flight ? <BookingFlightCard flight={booking.flight} /> : null}
             <BookingPaymentCard payment={booking.payment} receiptPath={receiptPath} />
-            {!isGuest && detail.legs.some((leg) => leg.canExtend) ? (
-              <BookingExtendCard bookingId={detail.id} />
-            ) : null}
-            {!isGuest && detail.canEdit ? <BookingModifyCard booking={detail} now={now} /> : null}
-            {!isGuest && detail.canCancel ? (
-              <BookingCancelCard paymentStatus={detail.paymentStatus} />
-            ) : null}
           </div>
         </div>
       </div>
