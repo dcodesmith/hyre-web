@@ -130,7 +130,7 @@ export function PublicFooter({ isCarDetailPage = false }: { readonly isCarDetail
     <footer
       className={cn(
         "bg-black font-sans text-sm leading-5 text-gray-200",
-        isCarDetailPage ? "hidden lg:mt-10 lg:block" : "pb-24 md:pb-0",
+        isCarDetailPage && "hidden lg:mt-10 lg:block",
       )}
     >
       <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-[73px] px-5 pt-10 pb-[105px] lg:px-10 lg:pt-[119px] lg:pb-[109px]">

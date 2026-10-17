@@ -3,20 +3,26 @@ import type { ReactNode } from "react";
 
 export function DetailCard({ children }: { readonly children: ReactNode }) {
   return (
-    <section className="rounded border bg-card text-card-foreground shadow-sm">{children}</section>
+    <section className="overflow-hidden rounded border border-gray-200 bg-white text-gray-900">
+      {children}
+    </section>
   );
 }
 
 export function DetailCardHeader({ children }: { readonly children: ReactNode }) {
   return (
-    <div className="flex items-center gap-2 p-4 text-sm leading-none font-semibold tracking-tight md:text-base">
+    <div className="flex items-center gap-2 border-b border-gray-200 bg-gray-50 p-4 text-base leading-6 font-semibold text-gray-900">
       {children}
     </div>
   );
 }
 
 export function DetailCardBody({ children }: { readonly children: ReactNode }) {
-  return <div className="p-4 pt-0">{children}</div>;
+  return <div className="p-4">{children}</div>;
+}
+
+export function DetailCardIcon({ children }: { readonly children: ReactNode }) {
+  return <span className="text-gray-900 [&_svg]:size-6">{children}</span>;
 }
 
 export function OutlineBadge({
@@ -35,5 +41,48 @@ export function OutlineBadge({
     >
       {children}
     </span>
+  );
+}
+
+export function ConnectedStops({
+  first,
+  second,
+  firstDotClassName = "bg-gray-300",
+  secondDotClassName = "bg-gray-300",
+  anchorClassName = "h-5",
+  lineClassName = "-my-1",
+}: {
+  readonly first: ReactNode;
+  readonly second: ReactNode;
+  readonly firstDotClassName?: string;
+  readonly secondDotClassName?: string;
+  /** Height of the text row each dot is centered on. */
+  readonly anchorClassName?: string;
+  /** Pulls the connector into the anchor rows so it meets the dots. */
+  readonly lineClassName?: string;
+}) {
+  return (
+    <div>
+      <div className="flex gap-[3px]">
+        <div className="flex w-[18px] shrink-0 flex-col items-center">
+          <div className={cn("flex w-full shrink-0 items-center justify-center", anchorClassName)}>
+            <span className={cn("size-3 shrink-0 rounded-full", firstDotClassName)} />
+          </div>
+          <span className={cn("w-px flex-1 bg-gray-300", lineClassName)} />
+        </div>
+        <div className="min-w-0 flex-1 pb-4">{first}</div>
+      </div>
+      <div className="flex gap-[3px]">
+        <div
+          className={cn(
+            "flex w-[18px] shrink-0 items-center justify-center self-start",
+            anchorClassName,
+          )}
+        >
+          <span className={cn("size-3 shrink-0 rounded-full", secondDotClassName)} />
+        </div>
+        <div className="min-w-0 flex-1">{second}</div>
+      </div>
+    </div>
   );
 }

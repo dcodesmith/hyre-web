@@ -123,19 +123,13 @@ test("renders the cancellable booking fixture and confirm dialog", async ({ page
   await setCookiePreference(page);
   await page.goto("/__visual/booking-cancel");
 
-  const cancelTrigger = page.getByRole("button", { name: "Cancel Booking" });
+  const cancelTrigger = page.getByRole("menuitem", { name: "Cancel Booking" });
   const confirmDialog = page.getByRole("dialog", { name: "Cancel Booking" });
-  await expect(cancelTrigger).toBeVisible();
+  const actionsMenu = page.getByRole("button", { name: "Booking actions" });
+  await expect(actionsMenu).toBeVisible();
   await expect(page.getByRole("link", { name: "Download Receipt" })).toHaveCount(0);
-  await expect(async () => {
-    if (await confirmDialog.isVisible()) {
-      return;
-    }
-
-    await cancelTrigger.scrollIntoViewIfNeeded();
-    await cancelTrigger.click();
-    await expect(confirmDialog).toBeVisible();
-  }).toPass();
+  await clickUntilVisible(actionsMenu, cancelTrigger);
+  await clickUntilVisible(cancelTrigger, confirmDialog);
 
   await expect(page).toHaveURL(/\/__visual\/booking-cancel$/);
   await expect(page.getByText("This action cannot be undone")).toBeVisible();
@@ -152,17 +146,11 @@ test("closes the cancel dialog after a successful confirm", async ({ page }) => 
   await setCookiePreference(page);
   await page.goto("/__visual/booking-cancel");
 
-  const cancelTrigger = page.getByRole("button", { name: "Cancel Booking" });
+  const cancelTrigger = page.getByRole("menuitem", { name: "Cancel Booking" });
   const confirmDialog = page.getByRole("dialog", { name: "Cancel Booking" });
-  await expect(async () => {
-    if (await confirmDialog.isVisible()) {
-      return;
-    }
-
-    await cancelTrigger.scrollIntoViewIfNeeded();
-    await cancelTrigger.click();
-    await expect(confirmDialog).toBeVisible();
-  }).toPass();
+  const actionsMenu = page.getByRole("button", { name: "Booking actions" });
+  await clickUntilVisible(actionsMenu, cancelTrigger);
+  await clickUntilVisible(cancelTrigger, confirmDialog);
 
   await page.getByRole("button", { name: "Yes, Cancel Booking" }).click();
 
@@ -174,8 +162,8 @@ test("modifies a booking", async ({ page }) => {
   await setCookiePreference(page);
   await page.goto("/__visual/booking-modify");
 
-  const modifyTrigger = page.getByRole("button", { name: "Modify Booking" });
-  const dialog = page.getByRole("dialog", { name: "Modify Booking" });
+  const modifyTrigger = page.getByRole("button", { name: "Edit Booking" });
+  const dialog = page.getByRole("dialog", { name: "Edit Booking" });
   await clickUntilVisible(modifyTrigger, dialog);
   await expect(dialog.getByLabel("Pickup address")).toHaveValue("Murtala Muhammed Airport, Ikeja");
 
@@ -190,7 +178,7 @@ test("modifies a booking", async ({ page }) => {
   await expect(page.locator("output")).toHaveText("Booking updated successfully.");
 
   await clickUntilVisible(modifyTrigger, dialog);
-  await dialog.locator("form").getByRole("button", { name: "Close" }).click();
+  await dialog.locator("form").getByRole("button", { name: "Cancel" }).click();
   await expect(dialog).toHaveCount(0);
 });
 

@@ -1,3 +1,4 @@
+import { cn } from "cn";
 import { Loader2, MapPin } from "lucide-react";
 import { useId, useState } from "react";
 
@@ -16,6 +17,8 @@ interface AddressAutocompleteProps {
   readonly readOnly?: boolean;
   readonly "aria-invalid"?: boolean;
   readonly "aria-describedby"?: string;
+  readonly className?: string;
+  readonly contentClassName?: string;
 }
 
 export function AddressAutocomplete({
@@ -27,6 +30,8 @@ export function AddressAutocomplete({
   readOnly = false,
   "aria-invalid": ariaInvalid,
   "aria-describedby": ariaDescribedBy,
+  className,
+  contentClassName,
 }: AddressAutocompleteProps) {
   const listId = useId();
   const [query, setQuery] = useState(value);
@@ -64,7 +69,10 @@ export function AddressAutocomplete({
         spellCheck={false}
         aria-invalid={ariaInvalid}
         aria-describedby={ariaDescribedBy}
-        className="flex h-10 w-full cursor-not-allowed rounded-md border border-input bg-gray-50 px-3 text-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
+        className={cn(
+          "flex h-10 w-full cursor-not-allowed rounded-md border border-input bg-gray-50 px-3 text-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50",
+          className,
+        )}
       />
     );
   }
@@ -93,7 +101,10 @@ export function AddressAutocomplete({
               setOpen(next.trim().length >= 2);
               onValueChange?.(next);
             }}
-            className="flex h-10 w-full rounded-md border border-input bg-transparent px-3 text-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
+            className={cn(
+              "flex h-10 w-full rounded-md border border-input bg-transparent px-3 text-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50",
+              className,
+            )}
           />
           {isLoadingSuggestions || isResolving ? (
             <Loader2
@@ -107,7 +118,7 @@ export function AddressAutocomplete({
         id={listId}
         align="start"
         onOpenAutoFocus={(event) => event.preventDefault()}
-        className="w-(--radix-popover-trigger-width) p-1"
+        className={cn("w-(--radix-popover-trigger-width) p-1", contentClassName)}
       >
         {suggestions.map((suggestion) => (
           <button

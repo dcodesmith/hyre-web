@@ -45,8 +45,8 @@ test("requests and opens a read-only guest booking", async ({ context, page }) =
     await expect(page.getByText("Protocol service")).toBeVisible();
     await expect(page.getByText("Total Amount")).toBeVisible();
     await expect(page.getByRole("link", { name: "Back to booking lookup" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Cancel Booking" })).toHaveCount(0);
-    await expect(page.getByRole("button", { name: "Modify Booking" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Edit Booking" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Booking actions" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Write a Review" })).toHaveCount(0);
     await expect(page.getByRole("link", { name: "Extend Trip" })).toHaveCount(0);
     const receiptPath = `/bookings/${MOCK_GUEST_BOOKING_ID}/receipt`;
