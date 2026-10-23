@@ -90,6 +90,9 @@ describe("CarBookingCheckout mobile total", () => {
     expect(markup).toContain("Pay Now");
     expect(markup).not.toContain("fixed inset-x-0");
     expect(markup).not.toContain("Trip Details");
+    const panelId = markup.match(/aria-controls="([^"]+)"/)?.[1];
+    expect(panelId).toBeTruthy();
+    expect(markup).toContain(`id="${panelId}"`);
   });
 
   it("shows airport trip details after the flight and drop-off are known", () => {

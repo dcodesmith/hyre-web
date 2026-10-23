@@ -1,5 +1,5 @@
 import { ChevronDown, Loader2 } from "lucide-react";
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useId, useState } from "react";
 import { Link } from "react-router";
 import type { TripDurationResponse } from "~/api/flights/schema";
 import { BookingCostBreakdown } from "~/booking/booking-cost-breakdown";
@@ -85,6 +85,7 @@ function BookServiceSection({
   readonly tripDuration: TripDurationResponse | null;
 }) {
   const [open, setOpen] = useState(true);
+  const panelId = useId();
 
   return (
     <section className={serviceCardClassName}>
@@ -93,6 +94,7 @@ function BookServiceSection({
           type="button"
           className="flex w-full items-center justify-between gap-3 rounded-md text-left text-base font-semibold leading-5 text-gray-900 hover:text-gray-700 focus-visible:ring-3 focus-visible:ring-ring/50"
           aria-expanded={open}
+          aria-controls={panelId}
           onClick={() => setOpen((current) => !current)}
         >
           Book a service
@@ -102,18 +104,19 @@ function BookServiceSection({
           />
         </button>
       </h2>
-      {open ? (
-        <div className="mt-4 flex flex-col gap-6 border-t border-gray-200 pt-6">
-          <div className="hidden lg:block">{price}</div>
-          {schedule}
-          {guest}
-          {phone}
-          {addons}
-          {tripArrivalTime && tripDuration ? (
-            <TripDetails arrivalTime={tripArrivalTime} duration={tripDuration} />
-          ) : null}
-        </div>
-      ) : null}
+      <div
+        id={panelId}
+        className={`mt-4 flex-col gap-6 border-t border-gray-200 pt-6 ${open ? "flex" : "hidden"}`}
+      >
+        <div className="hidden lg:block">{price}</div>
+        {schedule}
+        {guest}
+        {phone}
+        {addons}
+        {tripArrivalTime && tripDuration ? (
+          <TripDetails arrivalTime={tripArrivalTime} duration={tripDuration} />
+        ) : null}
+      </div>
     </section>
   );
 }

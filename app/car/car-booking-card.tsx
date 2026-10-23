@@ -356,7 +356,7 @@ export function CarBookingCard({
   return (
     <>
       <div className="order-2 px-4 pb-4 lg:hidden">{mobilePrice}</div>
-      <div className="order-4 px-4 lg:sticky lg:top-4 lg:order-none lg:col-start-2 lg:row-start-2 lg:px-0">
+      <div className="order-4 px-4 lg:sticky lg:top-4 lg:order-none lg:col-start-2 lg:row-start-2 lg:self-start lg:px-0">
         <CarBookingPayForm
           carId={car.id}
           searchId={query.search.searchId}

@@ -158,6 +158,32 @@ test("hides referral credit when a signed-in customer has no balance", async ({
   }
 });
 
+test("uses Enter to send and verify a signed-in customer's phone", async ({ context, page }) => {
+  const api = await startMockReferralApi(mockReferralSummary, 3100, {
+    phoneVerified: false,
+  });
+
+  try {
+    await setCookiePreference(page);
+    await signInCustomer(context);
+    await page.goto(
+      "/__visual/car?bookingType=DAY&from=2026-09-01&to=2026-09-01&pickupTime=9%20AM&pickupAddress=Lekki&sameLocation=true",
+    );
+    const bookingUrl = page.url();
+
+    await page.getByLabel("Phone Number").press("Enter");
+    await expect(page.getByLabel("Enter Verification Code")).toBeVisible();
+    expect(page.url()).toBe(bookingUrl);
+
+    await page.getByLabel("Enter Verification Code").fill("123456");
+    await page.getByLabel("Enter Verification Code").press("Enter");
+    await expect(page.getByText("Phone number verified")).toBeVisible();
+    expect(page.url()).toBe(bookingUrl);
+  } finally {
+    await stopMockReferralApi(api);
+  }
+});
+
 test("opens the review sheet without changing the car URL", async ({ page }) => {
   await setCookiePreference(page);
   await page.goto("/__visual/car?bookingType=DAY");
@@ -307,10 +333,18 @@ test("selects an add-on and includes it in preview and checkout FormData", async
   await expect(addon).toBeChecked();
   await previewRequest;
 
-  const addonIds = await page
-    .locator("form")
-    .filter({ has: page.getByRole("checkbox", { name: /Protocol service/ }) })
-    .evaluate((form) => [...new FormData(form as HTMLFormElement).getAll("addonIds")]);
+  await page.getByRole("button", { name: "Book a service" }).click();
+  await expect(page.getByRole("button", { name: "Book a service" })).toHaveAttribute(
+    "aria-expanded",
+    "false",
+  );
+  const addonInput = page.locator(`input[name="addonIds"][value="${addonId}"]`);
+  await expect(addonInput).toBeHidden();
+  await expect(addonInput).toBeChecked();
+
+  const addonIds = await addonInput.evaluate((input) => [
+    ...new FormData((input as HTMLInputElement).form ?? undefined).getAll("addonIds"),
+  ]);
   expect(addonIds).toEqual([addonId]);
 });
 

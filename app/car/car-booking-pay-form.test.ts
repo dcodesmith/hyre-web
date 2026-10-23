@@ -21,6 +21,12 @@ vi.mock("react-router", () => ({
   }) => createElement("a", { href: to, ...props }, children),
   useLocation: () => ({ pathname: "/cars/lexus--0123456789abcdef", search: "" }),
   useNavigation: () => ({ formMethod: undefined, formAction: undefined }),
+  useFetcher: () => ({
+    state: "idle",
+    data: undefined,
+    load: vi.fn(),
+    submit: vi.fn(),
+  }),
 }));
 
 vi.mock("~/auth/use-public-user", () => ({

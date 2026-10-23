@@ -98,15 +98,22 @@ export function useAirportPickup({
     const params = new URLSearchParams({ destination: nextDestination });
     void durationFetcher.load(`/api/calculate-trip-duration?${params}`);
   });
+  const clearDuration = useEffectEvent(() => {
+    durationFetcher.reset();
+  });
 
   useEffect(() => {
     const next = destination?.trim();
 
-    if (!next || durationFetcher.state !== "idle") {
+    if (!next) {
+      lastDestinationRef.current = null;
+      if (durationFetcher.state === "idle" && durationFetcher.data) {
+        clearDuration();
+      }
       return;
     }
 
-    if (lastDestinationRef.current === next && durationFetcher.data) {
+    if (lastDestinationRef.current === next) {
       return;
     }
 

@@ -74,6 +74,33 @@ export function BookingPhoneVerificationForm({
   const phoneInvalid = phoneError != null || Boolean(fieldErrors?.phoneNumber?.length);
   const codeInvalid = codeError != null || Boolean(fieldErrors?.code?.length);
 
+  const sendPhone = () => {
+    if (pending) {
+      return;
+    }
+
+    const message = phoneValidationMessage(phoneNumber);
+    setPhoneError(message);
+    if (message) {
+      return;
+    }
+    setEditingNumber(false);
+    onSend(toE164Phone(phoneNumber) ?? phoneNumber);
+  };
+
+  const verifyCode = () => {
+    if (pending) {
+      return;
+    }
+
+    if (!/^\d{4,10}$/.test(code.trim())) {
+      setCodeError("Invalid code entered");
+      return;
+    }
+    setCodeError(null);
+    onCheck(toE164Phone(phoneNumber) ?? phoneNumber, code.trim());
+  };
+
   if (awaitingCode) {
     return (
       <div className="space-y-2">
@@ -104,6 +131,12 @@ export function BookingPhoneVerificationForm({
               placeholder="6-digit code"
               aria-invalid={codeInvalid ? true : undefined}
               className={`${bookingPhoneInputClassName} ${codeInvalid ? "border-red-500" : ""}`}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  verifyCode();
+                }
+              }}
               onChange={(event) => {
                 setCode(event.target.value);
                 if (codeError) {
@@ -131,14 +164,7 @@ export function BookingPhoneVerificationForm({
             type="button"
             className="h-10 w-24 shrink-0 rounded-md"
             disabled={pending}
-            onClick={() => {
-              if (!/^\d{4,10}$/.test(code.trim())) {
-                setCodeError("Invalid code entered");
-                return;
-              }
-              setCodeError(null);
-              onCheck(toE164Phone(phoneNumber) ?? phoneNumber, code.trim());
-            }}
+            onClick={verifyCode}
           >
             {pending ? "Verifying…" : "Verify"}
           </Button>
@@ -165,6 +191,12 @@ export function BookingPhoneVerificationForm({
           placeholder={PHONE_EXAMPLE}
           aria-invalid={phoneInvalid ? true : undefined}
           className={`${bookingPhoneInputClassName} ${phoneInvalid ? "border-red-500" : ""}`}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              sendPhone();
+            }
+          }}
           onChange={(event) => {
             setPhoneNumber(event.target.value);
             if (phoneError) {
@@ -176,15 +208,7 @@ export function BookingPhoneVerificationForm({
           type="button"
           className="h-10 shrink-0 rounded-md px-4"
           disabled={pending}
-          onClick={() => {
-            const message = phoneValidationMessage(phoneNumber);
-            setPhoneError(message);
-            if (message) {
-              return;
-            }
-            setEditingNumber(false);
-            onSend(toE164Phone(phoneNumber) ?? phoneNumber);
-          }}
+          onClick={sendPhone}
         >
           {pending ? "Sending…" : "Send code"}
         </Button>
