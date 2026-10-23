@@ -46,7 +46,8 @@ test("renders crawlable car metadata and booking controls from the fixture", asy
   await expect(
     page.getByRole("heading", { name: "Cost Breakdown" }).filter({ visible: true }).first(),
   ).toBeVisible();
-  await expect(page.getByText("₦90,000 × 1 day").filter({ visible: true }).first()).toBeVisible();
+  await expect(page.getByText("Same day").filter({ visible: true }).first()).toBeVisible();
+  await expect(page.getByText("(12 hours) x 1").filter({ visible: true }).first()).toBeVisible();
   await expect(
     page.getByText("Platform Fee (5.0%)").filter({ visible: true }).first(),
   ).toBeVisible();
@@ -55,9 +56,9 @@ test("renders crawlable car metadata and booking controls from the fixture", asy
   await expect(page.getByLabel("Email")).toBeVisible();
   await expect(page.getByLabel("Phone Number")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Referral credit" })).toHaveCount(0);
-  await expect(page.getByRole("checkbox", { name: /Apply referral credit/ })).toHaveCount(0);
+  await expect(page.getByRole("checkbox", { name: /Referral credit/ })).toHaveCount(0);
   await expect(
-    page.getByRole("button", { name: "Pay Now as Guest" }).filter({ visible: true }),
+    page.getByRole("button", { name: "Pay Now", exact: true }).filter({ visible: true }),
   ).toBeDisabled();
 
   const fullDay = page
@@ -67,9 +68,10 @@ test("renders crawlable car metadata and booking controls from the fixture", asy
   await expect(page).toHaveURL(/bookingType=FULL_DAY/);
   await expect(page.getByLabel("Pickup Time")).toBeVisible();
   await expect(page.getByLabel("Pickup Address")).toBeVisible();
-  await expect(page.getByText("₦144,000 × 1 full day").filter({ visible: true })).toBeVisible();
+  await expect(page.getByText("Full day").filter({ visible: true })).toBeVisible();
+  await expect(page.getByText("(24 hours) x 1").filter({ visible: true })).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "Pay Now as Guest" }).filter({ visible: true }),
+    page.getByRole("button", { name: "Pay Now", exact: true }).filter({ visible: true }),
   ).toBeDisabled();
 
   if ((viewport?.width ?? 0) >= 1024) {
@@ -82,12 +84,13 @@ test("shows referral credit on the visual credits fixture", async ({ page }) => 
   await setCookiePreference(page);
   await page.goto("/__visual/car?bookingType=DAY&credits=true");
 
-  await expect(page.getByRole("heading", { name: "Referral credit" })).toBeVisible();
-  await expect(page.getByRole("checkbox", { name: /Apply referral credit/ })).toBeVisible();
-  await expect(page.getByText("-₦12,500", { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Apply Referral Credit" })).toBeVisible();
+  await expect(page.getByRole("checkbox", { name: /Referral credit/ })).toBeVisible();
+  await expect(page.getByText("₦12,500 available to use")).toBeVisible();
+  await expect(page.getByText("₦15,000", { exact: true })).toBeVisible();
   await expect(
-    page.getByText("Your available credit is ₦15,000. You can use ₦12,500 for this booking.", {
-      exact: true,
+    page.getByRole("button", {
+      name: "Your available credit is ₦15,000. You can use ₦12,500 for this booking.",
     }),
   ).toBeVisible();
 });
@@ -112,12 +115,13 @@ test("shows referral credit after loading a signed-in customer's usable balance"
     );
     await creditsResponse;
 
-    await expect(page.getByRole("heading", { name: "Referral credit" })).toBeVisible();
-    await expect(page.getByRole("checkbox", { name: /Apply referral credit/ })).toBeVisible();
-    await expect(page.getByText("-₦12,500", { exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Apply Referral Credit" })).toBeVisible();
+    await expect(page.getByRole("checkbox", { name: /Referral credit/ })).toBeVisible();
+    await expect(page.getByText("₦12,500 available to use")).toBeVisible();
+    await expect(page.getByText("₦15,000", { exact: true })).toBeVisible();
     await expect(
-      page.getByText("Your available credit is ₦15,000. You can use ₦12,500 for this booking.", {
-        exact: true,
+      page.getByRole("button", {
+        name: "Your available credit is ₦15,000. You can use ₦12,500 for this booking.",
       }),
     ).toBeVisible();
   } finally {
@@ -146,7 +150,7 @@ test("hides referral credit when a signed-in customer has no balance", async ({
     await creditsResponse;
 
     await expect(page.getByRole("heading", { name: "Referral credit" })).toHaveCount(0);
-    await expect(page.getByRole("checkbox", { name: /Apply referral credit/ })).toHaveCount(0);
+    await expect(page.getByRole("checkbox", { name: /Referral credit/ })).toHaveCount(0);
   } finally {
     await stopMockReferralApi(api);
   }
@@ -192,15 +196,18 @@ test("shows airport pickup flight and address fields when a from date is present
   ).toBeVisible();
   await expect(page.getByText("Platform Fee (5.0%)").filter({ visible: true })).toBeVisible();
   await expect(page.getByText("VAT (7.5%)").filter({ visible: true })).toBeVisible();
-  await expect(page.getByText("Total", { exact: true }).filter({ visible: true })).toBeVisible();
+  await expect(page.getByText("Order Total:").filter({ visible: true })).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "Pay Now as Guest" }).filter({ visible: true }),
+    page.getByRole("button", { name: "Pay Now", exact: true }).filter({ visible: true }),
   ).toBeVisible();
   await expect(page.getByLabel("Name")).toBeVisible();
   await expect(page.getByLabel("Email")).toBeVisible();
   await expect(page.getByLabel("Phone Number")).toBeVisible();
 
-  await page.getByRole("button", { name: "Pay Now as Guest" }).filter({ visible: true }).click();
+  await page
+    .getByRole("button", { name: "Pay Now", exact: true })
+    .filter({ visible: true })
+    .click();
   await expect(page.getByLabel("Name")).toHaveAttribute("aria-invalid", "true");
   await expect(page.getByLabel("Email")).toHaveAttribute("aria-invalid", "true");
   await expect(page.getByLabel("Phone Number")).toHaveAttribute("aria-invalid", "true");
@@ -253,7 +260,7 @@ test("invalidates an edited address and disables checkout", async ({ page }) => 
   await expect(pickupAddress).toHaveValue("X");
   await expect(page.locator('input[type="hidden"][name="pickupAddress"]')).toHaveValue("");
 
-  const pay = page.getByRole("button", { name: "Pay Now as Guest" }).filter({ visible: true });
+  const pay = page.getByRole("button", { name: "Pay Now", exact: true }).filter({ visible: true });
   await expect(pay).toBeDisabled();
 });
 
@@ -264,59 +271,28 @@ test("selects an add-on and includes it in preview and checkout FormData", async
     "/__visual/car?bookingType=DAY&from=2026-09-01&to=2026-09-01&pickupTime=9%20AM&pickupAddress=Lekki&sameLocation=true",
   );
 
-  const addonHeading = page.getByRole("heading", { name: "Add-ons" }).filter({ visible: true });
-  const guestHeading = page
-    .getByRole("heading", { name: "Guest Details" })
+  const serviceHeading = page
+    .getByRole("heading", { name: "Book a service" })
     .filter({ visible: true });
+  const addonHeading = page.getByRole("heading", { name: "Add-ons" }).filter({ visible: true });
   const costHeading = page
     .getByRole("heading", { name: "Cost Breakdown" })
     .filter({ visible: true })
     .first();
   const addon = page.getByRole("checkbox", { name: /Protocol service/ }).filter({ visible: true });
+  await expect(serviceHeading).toBeVisible();
   await expect(addonHeading).toBeVisible();
   await expect(addon).toBeVisible();
 
+  const serviceTop = (await serviceHeading.boundingBox())?.y ?? 0;
   const addonsTop = (await addonHeading.boundingBox())?.y ?? 0;
   const costTop = (await costHeading.boundingBox())?.y ?? 0;
+  const phone = page.getByLabel("Phone Number");
+  const phoneTop = (await phone.boundingBox())?.y ?? 0;
+  expect(serviceTop).toBeLessThan(phoneTop);
+  expect(phoneTop).toBeLessThan(addonsTop);
   expect(addonsTop).toBeLessThan(costTop);
-  const addonSection = page.locator("section[aria-labelledby='booking-addons-heading']");
-  const addonBorderTopWidth = await addonSection.evaluate((element) =>
-    Number.parseFloat(getComputedStyle(element).borderTopWidth),
-  );
-  if ((page.viewportSize()?.width ?? 0) < 1024) {
-    await expect(guestHeading).toBeVisible();
-    const guestTop = (await guestHeading.boundingBox())?.y ?? 0;
-    expect(guestTop).toBeLessThan(addonsTop);
-    expect(addonBorderTopWidth).toBe(0);
-  } else {
-    expect(addonBorderTopWidth).toBeGreaterThan(0);
-    const phone = page.getByLabel("Phone Number");
-    const phoneBox = await phone.boundingBox();
-    const addonsBox = await addonSection.boundingBox();
-    expect((addonsBox?.y ?? 0) - ((phoneBox?.y ?? 0) + (phoneBox?.height ?? 0))).toBeGreaterThan(8);
-
-    const [addonLuminance, footerLuminance] = await addonSection.evaluate((element) => {
-      const sampleLuminance = (el: Element) => {
-        const color = getComputedStyle(el).backgroundColor;
-        const canvas = document.createElement("canvas");
-        canvas.width = 1;
-        canvas.height = 1;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) {
-          return 0;
-        }
-        ctx.fillStyle = "#ffffff";
-        ctx.fillRect(0, 0, 1, 1);
-        ctx.fillStyle = color;
-        ctx.fillRect(0, 0, 1, 1);
-        const [red = 0, green = 0, blue = 0] = ctx.getImageData(0, 0, 1, 1).data;
-        return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
-      };
-      const footer = document.querySelector("[data-slot=card-footer]");
-      return [sampleLuminance(element), footer ? sampleLuminance(footer) : 0];
-    });
-    expect(addonLuminance).toBeGreaterThan(footerLuminance);
-  }
+  await expect(page.locator("[data-slot=card-footer]")).toHaveCount(0);
 
   const previewRequest = page.waitForRequest((request) => {
     const url = new URL(request.url());

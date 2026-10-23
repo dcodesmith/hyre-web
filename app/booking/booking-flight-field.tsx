@@ -1,3 +1,4 @@
+import { ArrowRight } from "lucide-react";
 import { type ReactElement, type ReactNode, useId, useState } from "react";
 
 import type { SearchFlight } from "~/api/flights/schema";
@@ -7,7 +8,7 @@ import {
   filterAirlines,
   formatAirlineFlight,
 } from "~/booking/airlines";
-import { formatFlightRoute, formatLagosClock } from "~/booking/airport-pickup";
+import { formatLagosClock } from "~/booking/airport-pickup";
 import { Label } from "~/components/ui/label";
 import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from "~/components/ui/popover";
 
@@ -192,14 +193,14 @@ export function BookingFlightField({
         </p>
       ) : null}
       {flight && !error ? (
-        <div
-          id={statusId}
-          className="mt-0 rounded-sm border border-green-200 bg-green-50 p-2"
-          aria-live="polite"
-        >
-          <div className="flex items-start gap-2 text-xs text-green-700">
-            <span>{formatFlightRoute(flight)}</span>
-            <span>{formatLagosClock(flight.arrivalTime)}</span>
+        <div id={statusId} aria-live="polite">
+          <div className="flex items-center gap-1 rounded-md border border-emerald-400 bg-emerald-50 p-2 text-sm leading-5 text-emerald-800">
+            <span>{flight.originIATA?.trim() || flight.origin.trim()}</span>
+            <ArrowRight aria-hidden="true" className="size-4 shrink-0" />
+            <span>
+              {flight.destinationIATA?.trim() || flight.destination.trim()}{" "}
+              {formatLagosClock(flight.arrivalTime)}
+            </span>
           </div>
           {warning ? <p className="mt-1 text-xs text-orange-600">{warning}</p> : null}
         </div>

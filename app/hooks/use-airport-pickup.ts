@@ -25,15 +25,18 @@ export function useAirportPickup({
   onFlightFound,
   flightNumber,
   date,
+  destination,
 }: {
   readonly onFlightFound?: (flight: SearchFlight) => void;
   readonly flightNumber?: string | null;
   readonly date?: string | null;
+  readonly destination?: string | null;
 } = {}) {
   const flightFetcher = useFetcher<SearchFlightLoaderData>();
   const durationFetcher = useFetcher<TripDurationLoaderData>();
   const lastAppliedFlightIdRef = useRef<string | null>(null);
   const lastRequestedKeyRef = useRef<string | null>(null);
+  const lastDestinationRef = useRef<string | null>(null);
 
   const notifyFlightFound = useEffectEvent((flight: SearchFlight) => {
     onFlightFound?.(flight);
@@ -91,6 +94,26 @@ export function useAirportPickup({
     notifyFlightFound(flight);
   }, [flightFetcher.data, flightFetcher.state]);
 
+  const requestDuration = useEffectEvent((nextDestination: string) => {
+    const params = new URLSearchParams({ destination: nextDestination });
+    void durationFetcher.load(`/api/calculate-trip-duration?${params}`);
+  });
+
+  useEffect(() => {
+    const next = destination?.trim();
+
+    if (!next || durationFetcher.state !== "idle") {
+      return;
+    }
+
+    if (lastDestinationRef.current === next && durationFetcher.data) {
+      return;
+    }
+
+    lastDestinationRef.current = next;
+    requestDuration(next);
+  }, [destination, durationFetcher.data, durationFetcher.state]);
+
   const flightResult = flightFetcher.state === "idle" ? flightFetcher.data : undefined;
   const durationResult = durationFetcher.state === "idle" ? durationFetcher.data : undefined;
 
@@ -107,11 +130,19 @@ export function useAirportPickup({
     flight: flightResult?.flight ?? null,
     flightError: flightResult?.error ?? null,
     flightWarning: flightResult?.warning ?? null,
-    calculateDuration: (destination: string) => {
-      const params = new URLSearchParams({ destination });
+    calculateDuration: (nextDestination: string) => {
+      const next = nextDestination.trim();
+
+      if (!next) {
+        return;
+      }
+
+      lastDestinationRef.current = next;
+      const params = new URLSearchParams({ destination: next });
       void durationFetcher.load(`/api/calculate-trip-duration?${params}`);
     },
     resetDuration: () => {
+      lastDestinationRef.current = null;
       durationFetcher.reset();
     },
     tripDuration: durationResult?.duration ?? null,

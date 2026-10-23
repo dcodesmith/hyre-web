@@ -67,7 +67,7 @@ export function BookingLocationFields({
               onCheckedChange={(checked) => onSameLocationChange(checked === true)}
             />
             <span className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-              Drop-off location same as pickup
+              Use the same address for drop-off
             </span>
           </Label>
         </div>

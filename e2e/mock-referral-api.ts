@@ -75,6 +75,27 @@ export async function startMockReferralApi(summary = mockReferralSummary, port =
       return;
     }
 
+    if (request.method === "GET" && requestPath(request) === "/api/users/me") {
+      if (!hasSessionCookie(request)) {
+        response.writeHead(401, { "content-type": "application/json" });
+        response.end(JSON.stringify({ status: 401, detail: "Unauthorized" }));
+        return;
+      }
+
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(
+        JSON.stringify({
+          name: "Ada Customer",
+          phoneNumber: "+2348012345678",
+          phoneVerified: true,
+          city: "Lagos",
+          address: null,
+          marketingConsent: false,
+        }),
+      );
+      return;
+    }
+
     if (request.method === "GET" && requestPath(request) === "/api/referrals/user") {
       if (!hasSessionCookie(request)) {
         response.writeHead(401, { "content-type": "application/json" });

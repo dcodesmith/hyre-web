@@ -26,20 +26,21 @@ function renderControl({
 describe("BookingCreditsControl", () => {
   it("renders a standalone referral credit section with available and usable amounts", () => {
     const markup = renderControl();
-    const applyLabel = "Apply referral credit";
-    const usableAmount = "-₦12,500";
+    const applyLabel = "Referral credit";
+    const usableAmount = "₦12,500 available to use";
+    const availableAmount = "₦15,000";
     const helperCopy = "Your available credit is ₦15,000. You can use ₦12,500 for this booking.";
 
     expect(markup).toContain('id="referral-credit-heading"');
-    expect(markup).toContain("Referral credit");
+    expect(markup).toContain("Apply Referral Credit");
     expect(markup).toContain('role="checkbox"');
     expect(markup).toContain('aria-checked="false"');
     expect(markup).toContain('id="apply-referral-credit"');
     expect(markup).toContain('for="apply-referral-credit"');
     expect(markup).toContain(applyLabel);
-    expect(markup.indexOf(usableAmount)).toBeGreaterThan(markup.indexOf(applyLabel));
-    expect(markup.indexOf(usableAmount)).toBeLessThan(markup.indexOf(helperCopy));
-    expect(markup).toContain(helperCopy);
+    expect(markup).toContain(usableAmount);
+    expect(markup).toContain(availableAmount);
+    expect(markup).toContain(`aria-label="${helperCopy}"`);
     expect(markup).not.toContain("Use booking credits");
     expect(markup).not.toContain("Wallet");
     expect(markup).not.toContain('role="switch"');

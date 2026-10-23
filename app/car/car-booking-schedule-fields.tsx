@@ -57,7 +57,7 @@ function BookingDatesRow({ card }: { readonly card: CardState }) {
         date={card.fromDate}
         onDateChange={card.handleFromDateChange}
         showLabel={false}
-        placeholder="From date"
+        placeholder="Start date"
       />
       <SingleDatePicker
         className="flex-1"
@@ -66,7 +66,7 @@ function BookingDatesRow({ card }: { readonly card: CardState }) {
         onDateChange={card.handleToDateChange}
         minDate={getToDateMinDate(card.bookingType, card.fromDate)}
         showLabel={false}
-        placeholder="To date"
+        placeholder="End date"
         disabled={!card.fromDate}
       />
     </div>
@@ -116,6 +116,7 @@ function BookingTripFields({
         date={card.fromDate ?? card.fallbackDate}
         bookingType={card.bookingType}
         value={card.pickupTime}
+        placeholder="Select time"
         onValueChange={card.handlePickupTimeChange}
       />
     </div>

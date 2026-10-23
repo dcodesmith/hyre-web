@@ -44,6 +44,7 @@ export default [
   route("api/calculate-trip-duration", "routes/api.calculate-trip-duration.ts"),
   route("api/booking-pricing-preview", "routes/api.booking-pricing-preview.ts"),
   route("api/referral-credits", "routes/api.referral-credits.ts"),
+  route("api/phone-verification", "routes/api.phone-verification.ts"),
   route("api/ai-search", "routes/api.ai-search.ts"),
   route("api/account/delete", "routes/api.account.delete.ts"),
   route("robots.txt", "routes/robots.txt.ts"),

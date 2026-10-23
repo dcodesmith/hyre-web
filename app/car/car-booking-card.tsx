@@ -1,5 +1,4 @@
 import type { SubmissionResult } from "@conform-to/react";
-import { Tag } from "lucide-react";
 import { useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router";
 
@@ -24,7 +23,6 @@ import { CarBookingPayForm } from "~/car/car-booking-pay-form";
 import { CarBookingScheduleFields } from "~/car/car-booking-schedule-fields";
 import { buildCurrentCarDetailSearchPath, parseCarDetailUrl } from "~/car/car-url";
 import { useCarBookingCard } from "~/car/use-car-booking-card";
-import { CardHeader, CardTitle } from "~/components/ui/card";
 import { useAirportPickup } from "~/hooks/use-airport-pickup";
 import { useBookingPricingPreview } from "~/hooks/use-booking-pricing-preview";
 import { formatZonedDate, parseZonedCalendarDate } from "~/time/timezone";
@@ -125,29 +123,26 @@ function CarBookingCardPrice({
   readonly hasPromotion: boolean;
   readonly promotionLabel: string | null;
 }) {
+  const suffix = rateLabel.replace("/ ", "/");
+
   return (
-    <CardHeader className="px-4 py-4 lg:px-6">
-      <CardTitle className="font-semibold leading-none tracking-tight">
-        <span className="text-lg" aria-live="polite">
-          {showPromoPrice ? (
-            <span className="mr-1.5 text-gray-400 line-through">{listRateLabel}</span>
-          ) : null}
-          <span className={showPromoPrice ? "text-red-600" : ""}>{displayRateLabel}</span>
-          <span className="text-sm font-normal text-gray-500">
-            {" "}
-            {rateLabel.replace("/", "per")}
-          </span>
-          {hasPromotion && promotionLabel ? (
-            <span className="ml-2 inline-flex items-center gap-1 align-middle rounded-full bg-red-500/95 px-2 py-1.5 shadow-md">
-              <Tag aria-hidden="true" className="h-3 w-3 shrink-0 text-white" />
-              <span className="text-xs font-semibold leading-none text-white">
-                {promotionLabel}
-              </span>
-            </span>
-          ) : null}
+    <p
+      className="flex flex-wrap items-baseline gap-2 text-xl leading-5 tabular-nums"
+      aria-live="polite"
+    >
+      {showPromoPrice ? (
+        <span className="font-medium text-gray-400 line-through">{listRateLabel}</span>
+      ) : null}
+      <span>
+        <span
+          className={showPromoPrice ? "font-semibold text-red-500" : "font-semibold text-gray-900"}
+        >
+          {displayRateLabel}
         </span>
-      </CardTitle>
-    </CardHeader>
+        <span className="font-normal text-gray-500"> {suffix}</span>
+      </span>
+      {hasPromotion && promotionLabel ? <span className="sr-only">{promotionLabel}</span> : null}
+    </p>
   );
 }
 
@@ -222,6 +217,7 @@ export function CarBookingCard({
   const airportPickup = useAirportPickup({
     flightNumber: airportSearch?.flightNumber,
     date: airportSearch?.from,
+    destination: airportSearch ? query.dropOffAddress : null,
     onFlightFound: (flight) => {
       const latest = parseCarDetailUrl(new URLSearchParams(window.location.search));
 
@@ -337,6 +333,16 @@ export function CarBookingCard({
       promotionLabel={card.view.promotionLabel}
     />
   );
+  const mobilePrice = (
+    <CarBookingCardPrice
+      showPromoPrice={card.view.showPromoPrice}
+      listRateLabel={card.view.listRateLabel}
+      displayRateLabel={card.view.displayRateLabel}
+      rateLabel={card.view.rateLabel}
+      hasPromotion={card.view.hasPromotion}
+      promotionLabel={card.view.promotionLabel}
+    />
+  );
   const schedule = (
     <CarBookingScheduleFields
       card={card}
@@ -348,33 +354,38 @@ export function CarBookingCard({
   );
 
   return (
-    <CarBookingPayForm
-      carId={car.id}
-      searchId={query.search.searchId}
-      bookingType={card.bookingType}
-      from={formatOptionalCalendarDate(card.fromDate)}
-      to={formatOptionalCalendarDate(card.toDate)}
-      pickupTime={card.pickupTime ?? ""}
-      flightNumber={card.flightNumber}
-      pickupAddress={card.pickupAddress}
-      dropOffAddress={card.dropOffAddress}
-      sameLocation={card.sameLocation}
-      addons={addons}
-      selectedAddonIds={selectedAddonIds}
-      useCredits={requestedCredits}
-      onAddonSelectionChange={setAddonSelected}
-      cost={overlayBookingCostPreview(estimate, preview)}
-      preview={preview}
-      pricingError={bookingCredits.error ?? (actionPreview ? null : pricing.error)}
-      isPricingLoading={(actionPreview ? false : pricing.isLoading) || bookingCredits.isLoading}
-      lastResult={lastResult}
-      price={price}
-      schedule={schedule}
-      credits={credits}
-      tripArrivalTime={
-        card.isAirportPickup && airportPickup.flight ? airportPickup.flight.arrivalTime : null
-      }
-      tripDuration={card.isAirportPickup ? airportPickup.tripDuration : null}
-    />
+    <>
+      <div className="order-2 px-4 pb-4 lg:hidden">{mobilePrice}</div>
+      <div className="order-4 px-4 lg:sticky lg:top-4 lg:order-none lg:col-start-2 lg:row-start-2 lg:px-0">
+        <CarBookingPayForm
+          carId={car.id}
+          searchId={query.search.searchId}
+          bookingType={card.bookingType}
+          from={formatOptionalCalendarDate(card.fromDate)}
+          to={formatOptionalCalendarDate(card.toDate)}
+          pickupTime={card.pickupTime ?? ""}
+          flightNumber={card.flightNumber}
+          pickupAddress={card.pickupAddress}
+          dropOffAddress={card.dropOffAddress}
+          sameLocation={card.sameLocation}
+          addons={addons}
+          selectedAddonIds={selectedAddonIds}
+          useCredits={requestedCredits}
+          onAddonSelectionChange={setAddonSelected}
+          cost={overlayBookingCostPreview(estimate, preview)}
+          preview={preview}
+          pricingError={bookingCredits.error ?? (actionPreview ? null : pricing.error)}
+          isPricingLoading={(actionPreview ? false : pricing.isLoading) || bookingCredits.isLoading}
+          lastResult={lastResult}
+          price={price}
+          schedule={schedule}
+          credits={credits}
+          tripArrivalTime={
+            card.isAirportPickup && airportPickup.flight ? airportPickup.flight.arrivalTime : null
+          }
+          tripDuration={card.isAirportPickup ? airportPickup.tripDuration : null}
+        />
+      </div>
+    </>
   );
 }

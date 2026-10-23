@@ -135,18 +135,19 @@ export function CarDetailPage({
         ) : null}
       </div>
 
-      <div className="lg:max-w-6xl lg:space-y-4 lg:mx-auto lg:pt-4">
-        <div className="gap-2 hidden lg:flex">
+      <div className="lg:max-w-6xl lg:mx-auto lg:pt-4">
+        <div className="mb-4 hidden gap-2 lg:flex">
           <Link to={backToSearch} className="hover:underline">
             &larr; Back to search results
           </Link>
         </div>
-        <h1 className="px-4 lg:px-0 mt-3 lg:mt-0 text-xl sm:text-2xl lg:text-3xl font-bold mb-2 lg:mb-4">
-          {car.make} {car.model} - {car.year}
-        </h1>
 
-        <div className="lg:grid lg:grid-cols-[3fr_2fr] lg:gap-4">
-          <div className="flex flex-col gap-4">
+        <div className="flex flex-col lg:grid lg:grid-cols-[3fr_2fr] lg:gap-4">
+          <h1 className="order-1 px-4 mt-3 text-xl font-bold sm:text-2xl lg:col-span-2 lg:mt-0 lg:mb-0 lg:px-0 lg:text-3xl">
+            {car.make} {car.model} - {car.year}
+          </h1>
+
+          <div className="order-3 flex flex-col gap-4 lg:order-none lg:col-start-1 lg:row-start-2">
             <div className="hidden lg:block">
               <CarGallery images={images} carName={carName} priority />
               {canOpenReviews ? (
@@ -173,17 +174,15 @@ export function CarDetailPage({
             />
           </div>
 
-          <div className="px-4 lg:px-0 lg:sticky lg:top-4">
-            <CarBookingCard
-              car={car}
-              rates={rates}
-              addons={addons}
-              lastResult={lastResult}
-              currentPricing={currentPricing}
-              currentPricingSelectionKey={currentPricingSelectionKey}
-              previewReferralCredit={previewReferralCredit}
-            />
-          </div>
+          <CarBookingCard
+            car={car}
+            rates={rates}
+            addons={addons}
+            lastResult={lastResult}
+            currentPricing={currentPricing}
+            currentPricingSelectionKey={currentPricingSelectionKey}
+            previewReferralCredit={previewReferralCredit}
+          />
         </div>
 
         {canOpenReviews && reviews ? (
