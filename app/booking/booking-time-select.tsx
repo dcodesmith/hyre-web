@@ -87,7 +87,7 @@ export function BookingTimeSelect({
     >
       <SelectTrigger
         id={triggerId}
-        aria-label={showLabel ? undefined : placeholder}
+        aria-label={showLabel || id ? undefined : placeholder}
         aria-invalid={ariaInvalid}
         aria-describedby={ariaDescribedBy}
         aria-required={required === true ? true : undefined}

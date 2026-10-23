@@ -104,10 +104,12 @@ export function CarBookingPayForm({
     ...(form.errors ?? []),
   ];
 
+  const bookingActionQuery = new URLSearchParams(location.search).toString();
+
   return (
     <Form
       method="post"
-      action={`${location.pathname}${location.search}`}
+      action={bookingActionQuery ? `${location.pathname}?${bookingActionQuery}` : location.pathname}
       {...getFormProps(form)}
       className="contents"
       onSubmitCapture={(event) => {

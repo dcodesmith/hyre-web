@@ -31,26 +31,19 @@ export async function loader({ request }: Route.LoaderArgs) {
       throw error;
     }
 
-    if (
-      error instanceof ZodError ||
-      (error instanceof ApiRequestError && error.status < HTTP_STATUS.INTERNAL_SERVER_ERROR)
-    ) {
-      return data(
-        {
-          flight: null,
-          warning: null,
-          error:
-            error instanceof ZodError
-              ? (error.issues[0]?.message ?? "Invalid request")
-              : error.problem.detail,
-        },
-        {
-          status: error instanceof ZodError ? HTTP_STATUS.BAD_REQUEST : error.status,
-          headers: NO_STORE,
-        },
-      );
-    }
+    const message =
+      error instanceof ZodError
+        ? (error.issues[0]?.message ?? "Invalid request")
+        : error instanceof ApiRequestError && error.status < HTTP_STATUS.INTERNAL_SERVER_ERROR
+          ? error.problem.detail
+          : "Unable to look up that flight. Please try again.";
+    const status =
+      error instanceof ZodError
+        ? HTTP_STATUS.BAD_REQUEST
+        : error instanceof ApiRequestError
+          ? error.status
+          : HTTP_STATUS.BAD_GATEWAY;
 
-    throw error;
+    return data({ flight: null, warning: null, error: message }, { status, headers: NO_STORE });
   }
 }

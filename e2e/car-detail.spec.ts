@@ -52,8 +52,8 @@ test("renders crawlable car metadata and booking controls from the fixture", asy
     page.getByText("Platform Fee (5.0%)").filter({ visible: true }).first(),
   ).toBeVisible();
   await expect(page.getByText("VAT (7.5%)").filter({ visible: true }).first()).toBeVisible();
-  await expect(page.getByLabel("Name")).toBeVisible();
-  await expect(page.getByLabel("Email")).toBeVisible();
+  await expect(page.getByLabel("Full Name")).toBeVisible();
+  await expect(page.getByLabel("Email Address")).toBeVisible();
   await expect(page.getByLabel("Phone Number")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Referral credit" })).toHaveCount(0);
   await expect(page.getByRole("checkbox", { name: /Referral credit/ })).toHaveCount(0);
@@ -68,7 +68,7 @@ test("renders crawlable car metadata and booking controls from the fixture", asy
   await expect(page).toHaveURL(/bookingType=FULL_DAY/);
   await expect(page.getByLabel("Pickup Time")).toBeVisible();
   await expect(page.getByLabel("Pickup Address")).toBeVisible();
-  await expect(page.getByText("Full day").filter({ visible: true })).toBeVisible();
+  await expect(page.getByText("Full day", { exact: true }).filter({ visible: true })).toBeVisible();
   await expect(page.getByText("(24 hours) x 1").filter({ visible: true })).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Pay Now", exact: true }).filter({ visible: true }),
@@ -87,7 +87,8 @@ test("shows referral credit on the visual credits fixture", async ({ page }) => 
   await expect(page.getByRole("heading", { name: "Apply Referral Credit" })).toBeVisible();
   await expect(page.getByRole("checkbox", { name: /Referral credit/ })).toBeVisible();
   await expect(page.getByText("₦12,500 available to use")).toBeVisible();
-  await expect(page.getByText("₦15,000", { exact: true })).toBeVisible();
+  const referralCredit = page.getByRole("region", { name: "Apply Referral Credit" });
+  await expect(referralCredit.getByText("₦15,000", { exact: true })).toBeVisible();
   await expect(
     page.getByRole("button", {
       name: "Your available credit is ₦15,000. You can use ₦12,500 for this booking.",
@@ -118,7 +119,8 @@ test("shows referral credit after loading a signed-in customer's usable balance"
     await expect(page.getByRole("heading", { name: "Apply Referral Credit" })).toBeVisible();
     await expect(page.getByRole("checkbox", { name: /Referral credit/ })).toBeVisible();
     await expect(page.getByText("₦12,500 available to use")).toBeVisible();
-    await expect(page.getByText("₦15,000", { exact: true })).toBeVisible();
+    const referralCredit = page.getByRole("region", { name: "Apply Referral Credit" });
+    await expect(referralCredit.getByText("₦15,000", { exact: true })).toBeVisible();
     await expect(
       page.getByRole("button", {
         name: "Your available credit is ₦15,000. You can use ₦12,500 for this booking.",
@@ -200,18 +202,18 @@ test("shows airport pickup flight and address fields when a from date is present
   await expect(
     page.getByRole("button", { name: "Pay Now", exact: true }).filter({ visible: true }),
   ).toBeVisible();
-  await expect(page.getByLabel("Name")).toBeVisible();
-  await expect(page.getByLabel("Email")).toBeVisible();
+  await expect(page.getByLabel("Full Name")).toBeVisible();
+  await expect(page.getByLabel("Email Address")).toBeVisible();
   await expect(page.getByLabel("Phone Number")).toBeVisible();
 
   await page
     .getByRole("button", { name: "Pay Now", exact: true })
     .filter({ visible: true })
     .click();
-  await expect(page.getByLabel("Name")).toHaveAttribute("aria-invalid", "true");
-  await expect(page.getByLabel("Email")).toHaveAttribute("aria-invalid", "true");
+  await expect(page.getByLabel("Full Name")).toHaveAttribute("aria-invalid", "true");
+  await expect(page.getByLabel("Email Address")).toHaveAttribute("aria-invalid", "true");
   await expect(page.getByLabel("Phone Number")).toHaveAttribute("aria-invalid", "true");
-  await expect(page.getByLabel("Name")).toHaveClass(/border-red-500/);
+  await expect(page.getByLabel("Full Name")).toHaveClass(/border-red-500/);
   const duplicateIds = await page.locator("[id]").evaluateAll((elements) => {
     const ids = elements.map((element) => element.id);
     return ids.filter((id, index) => ids.indexOf(id) !== index);
@@ -233,13 +235,13 @@ test("keeps guest details when booking URL state changes", async ({ page }) => {
     "/__visual/car?bookingType=DAY&from=2026-09-01&to=2026-09-01&pickupTime=9%20AM&pickupAddress=Lekki&sameLocation=true",
   );
 
-  await page.getByLabel("Name").fill("Ada Lovelace");
-  await page.getByLabel("Email").fill("ada@example.com");
+  await page.getByLabel("Full Name").fill("Ada Lovelace");
+  await page.getByLabel("Email Address").fill("ada@example.com");
   await page.getByLabel("Phone Number").fill("08012345678");
   await page.getByRole("button", { name: "24 Hours" }).click();
 
-  await expect(page.getByLabel("Name")).toHaveValue("Ada Lovelace");
-  await expect(page.getByLabel("Email")).toHaveValue("ada@example.com");
+  await expect(page.getByLabel("Full Name")).toHaveValue("Ada Lovelace");
+  await expect(page.getByLabel("Email Address")).toHaveValue("ada@example.com");
   await expect(page.getByLabel("Phone Number")).toHaveValue("08012345678");
 });
 
