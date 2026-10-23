@@ -82,6 +82,27 @@ describe("useBookingPhoneVerification", () => {
     expect(latest.visible).toBeNull();
   });
 
+  it("stays ready for the code while the page revalidates after a send", () => {
+    fetcher.state = "loading";
+    fetcher.data = {
+      intent: "send-phone",
+      phoneNumber: "+2348012345678",
+      phoneVerified: false,
+      maskedPhoneNumber: "+234••••5678",
+      notice: "Code sent.",
+      error: null,
+      fieldErrors: null,
+    };
+    renderToStaticMarkup(createElement(Probe));
+
+    expect(latest.pending).toBe(false);
+    expect(latest.visible?.maskedPhoneNumber).toBe("+234••••5678");
+
+    fetcher.state = "submitting";
+    renderToStaticMarkup(createElement(Probe));
+    expect(latest.pending).toBe(true);
+  });
+
   it("posts a code check without putting the number on the booking form", () => {
     fetcher.data = {
       intent: "send-phone",

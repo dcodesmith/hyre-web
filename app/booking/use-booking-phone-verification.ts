@@ -44,7 +44,7 @@ export function useBookingPhoneVerification() {
 
   return {
     visible,
-    pending: fetcher.state !== "idle",
+    pending: fetcher.state === "submitting",
     send,
     check,
   };
