@@ -74,31 +74,32 @@ export function BookingPhoneVerificationForm({
   const phoneInvalid = phoneError != null || Boolean(fieldErrors?.phoneNumber?.length);
   const codeInvalid = codeError != null || Boolean(fieldErrors?.code?.length);
 
-  const sendPhone = () => {
+  const sendPhone = (value = phoneNumber) => {
     if (pending) {
       return;
     }
 
-    const message = phoneValidationMessage(phoneNumber);
+    const message = phoneValidationMessage(value);
     setPhoneError(message);
     if (message) {
       return;
     }
     setEditingNumber(false);
-    onSend(toE164Phone(phoneNumber) ?? phoneNumber);
+    onSend(toE164Phone(value) ?? value);
   };
 
-  const verifyCode = () => {
+  const verifyCode = (value = code) => {
     if (pending) {
       return;
     }
 
-    if (!/^\d{4,10}$/.test(code.trim())) {
+    const nextCode = value.trim();
+    if (!/^\d{4,10}$/.test(nextCode)) {
       setCodeError("Invalid code entered");
       return;
     }
     setCodeError(null);
-    onCheck(toE164Phone(phoneNumber) ?? phoneNumber, code.trim());
+    onCheck(toE164Phone(phoneNumber) ?? phoneNumber, nextCode);
   };
 
   if (awaitingCode) {
@@ -134,7 +135,7 @@ export function BookingPhoneVerificationForm({
               onKeyDown={(event) => {
                 if (event.key === "Enter") {
                   event.preventDefault();
-                  verifyCode();
+                  verifyCode(event.currentTarget.value);
                 }
               }}
               onChange={(event) => {
@@ -164,7 +165,7 @@ export function BookingPhoneVerificationForm({
             type="button"
             className="h-10 w-24 shrink-0 rounded-md"
             disabled={pending}
-            onClick={verifyCode}
+            onClick={() => verifyCode()}
           >
             {pending ? "Verifying…" : "Verify"}
           </Button>
@@ -194,7 +195,7 @@ export function BookingPhoneVerificationForm({
           onKeyDown={(event) => {
             if (event.key === "Enter") {
               event.preventDefault();
-              sendPhone();
+              sendPhone(event.currentTarget.value);
             }
           }}
           onChange={(event) => {
@@ -208,7 +209,7 @@ export function BookingPhoneVerificationForm({
           type="button"
           className="h-10 shrink-0 rounded-md px-4"
           disabled={pending}
-          onClick={sendPhone}
+          onClick={() => sendPhone()}
         >
           {pending ? "Sending…" : "Send code"}
         </Button>
