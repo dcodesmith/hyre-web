@@ -1,5 +1,5 @@
 import { cn } from "cn";
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 import { Form, useLocation, useNavigate, useSearchParams } from "react-router";
 import { isCompleteFlightNumber } from "~/booking/airport-pickup";
 import { nextToDateOnFromChange } from "~/booking/dates";
@@ -28,6 +28,7 @@ interface SearchFormProps {
   readonly isCompact?: boolean;
   readonly preserveFilterParams?: boolean;
   readonly onSearchComplete?: () => void;
+  readonly renderTripArea?: (bookingType: BookingType) => ReactNode;
 }
 
 interface SearchFormFieldsProps extends SearchFormProps {
@@ -50,6 +51,7 @@ function SearchFormFields({
   isCompact = false,
   preserveFilterParams = false,
   onSearchComplete,
+  renderTripArea,
   initialBookingType,
   initialFromDate,
   initialToDate,
@@ -200,6 +202,7 @@ function SearchFormFields({
         ) : (
           <>
             <SearchBookingTypeTabs value={bookingType} onValueChange={handleBookingTypeChange} />
+            {renderTripArea?.(bookingType)}
             {isAirportPickup ? (
               <AirportSearchFields
                 isCompact={false}
@@ -238,6 +241,7 @@ export function SearchForm({
   isCompact = false,
   preserveFilterParams = false,
   onSearchComplete,
+  renderTripArea,
 }: SearchFormProps) {
   const [searchParams] = useSearchParams();
   const query = parseSearchUrl(searchParams);
@@ -256,6 +260,7 @@ export function SearchForm({
       isCompact={isCompact}
       preserveFilterParams={preserveFilterParams}
       onSearchComplete={onSearchComplete}
+      renderTripArea={renderTripArea}
       initialBookingType={initialBookingType}
       initialFromDate={query.from ? parseZonedCalendarDate(query.from) : undefined}
       initialToDate={query.to ? parseZonedCalendarDate(query.to) : undefined}
