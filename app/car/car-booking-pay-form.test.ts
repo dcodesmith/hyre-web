@@ -125,6 +125,7 @@ function renderPayForm({
       credits: null,
       tripArrivalTime: null,
       tripDuration: null,
+      tripDurationError: null,
     }),
   );
 }

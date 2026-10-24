@@ -384,6 +384,7 @@ export function CarBookingCard({
             card.isAirportPickup && airportPickup.flight ? airportPickup.flight.arrivalTime : null
           }
           tripDuration={card.isAirportPickup ? airportPickup.tripDuration : null}
+          tripDurationError={card.isAirportPickup ? airportPickup.tripDurationError : null}
         />
       </div>
     </>

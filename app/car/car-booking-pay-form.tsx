@@ -54,6 +54,7 @@ export function CarBookingPayForm({
   credits,
   tripArrivalTime,
   tripDuration,
+  tripDurationError,
 }: {
   readonly carId: string;
   readonly searchId?: string | null;
@@ -79,6 +80,7 @@ export function CarBookingPayForm({
   readonly credits: ReactNode;
   readonly tripArrivalTime: string | null;
   readonly tripDuration: TripDurationResponse | null;
+  readonly tripDurationError: string | null;
 }) {
   const location = useLocation();
   const navigation = useNavigation();
@@ -155,6 +157,7 @@ export function CarBookingPayForm({
         schedule={schedule}
         tripArrivalTime={tripArrivalTime}
         tripDuration={tripDuration}
+        tripDurationError={tripDurationError}
         bookingType={bookingType}
         checkout={{
           guest: isSignedIn ? null : (

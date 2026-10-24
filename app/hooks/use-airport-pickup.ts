@@ -153,5 +153,6 @@ export function useAirportPickup({
       durationFetcher.reset();
     },
     tripDuration: durationResult?.duration ?? null,
+    tripDurationError: durationResult?.error ?? null,
   };
 }

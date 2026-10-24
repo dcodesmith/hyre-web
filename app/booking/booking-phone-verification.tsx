@@ -1,5 +1,5 @@
 import { Check } from "lucide-react";
-import { useState } from "react";
+import { type KeyboardEvent, useState } from "react";
 
 import { useBookingPhoneVerification } from "~/booking/use-booking-phone-verification";
 import { FormError } from "~/components/forms/form-primitives";
@@ -8,6 +8,10 @@ import { Label } from "~/components/ui/label";
 import type { PhoneVerificationData } from "~/routes/api.phone-verification";
 
 const PHONE_EXAMPLE = "+234 803 123 4675";
+
+function isImeEnter(event: KeyboardEvent<HTMLInputElement>) {
+  return event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229;
+}
 
 export const bookingPhoneInputClassName =
   "flex h-10 w-full rounded-md border border-input bg-transparent px-3 text-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50";
@@ -133,10 +137,11 @@ export function BookingPhoneVerificationForm({
               aria-invalid={codeInvalid ? true : undefined}
               className={`${bookingPhoneInputClassName} ${codeInvalid ? "border-red-500" : ""}`}
               onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  event.preventDefault();
-                  verifyCode(event.currentTarget.value);
+                if (event.key !== "Enter" || isImeEnter(event)) {
+                  return;
                 }
+                event.preventDefault();
+                verifyCode(event.currentTarget.value);
               }}
               onChange={(event) => {
                 setCode(event.target.value);
@@ -193,10 +198,11 @@ export function BookingPhoneVerificationForm({
           aria-invalid={phoneInvalid ? true : undefined}
           className={`${bookingPhoneInputClassName} ${phoneInvalid ? "border-red-500" : ""}`}
           onKeyDown={(event) => {
-            if (event.key === "Enter") {
-              event.preventDefault();
-              sendPhone(event.currentTarget.value);
+            if (event.key !== "Enter" || isImeEnter(event)) {
+              return;
             }
+            event.preventDefault();
+            sendPhone(event.currentTarget.value);
           }}
           onChange={(event) => {
             setPhoneNumber(event.target.value);

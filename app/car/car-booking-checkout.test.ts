@@ -47,6 +47,7 @@ function renderCheckout(
   trip: {
     readonly tripArrivalTime: string | null;
     readonly tripDuration: TripDurationResponse | null;
+    readonly tripDurationError?: string | null;
   } = {
     tripArrivalTime: null,
     tripDuration: null,
@@ -58,6 +59,7 @@ function renderCheckout(
       schedule: null,
       tripArrivalTime: trip.tripArrivalTime,
       tripDuration: trip.tripDuration,
+      tripDurationError: trip.tripDurationError ?? null,
       bookingType: "DAY",
       checkout: {
         guest: null,
@@ -90,6 +92,7 @@ describe("CarBookingCheckout mobile total", () => {
     expect(markup).toContain("Pay Now");
     expect(markup).not.toContain("fixed inset-x-0");
     expect(markup).not.toContain("Trip Details");
+    expect(markup).not.toContain("Unable to estimate the drive");
     const panelId = markup.match(/aria-controls="([^"]+)"/)?.[1];
     expect(panelId).toBeTruthy();
     expect(markup).toContain(`id="${panelId}"`);
@@ -112,6 +115,18 @@ describe("CarBookingCheckout mobile total", () => {
     expect(markup).toContain("12.8 km");
     expect(markup).toContain("Estimated Drop-off");
     expect(markup).toContain("8:06 PM");
+    expect(markup).not.toContain("Unable to estimate the drive");
+  });
+
+  it("shows a drive estimate error when the duration is unavailable", () => {
+    const markup = renderCheckout(cost, {
+      tripArrivalTime: "2026-10-23T17:45:00.000Z",
+      tripDuration: null,
+      tripDurationError: "Unable to estimate the drive. Please try again.",
+    });
+
+    expect(markup).toContain("Unable to estimate the drive. Please try again.");
+    expect(markup).not.toContain("Trip Details");
   });
 
   it("shows only the payable total when nothing is saved", () => {

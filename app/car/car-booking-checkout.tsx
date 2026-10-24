@@ -75,6 +75,7 @@ function BookServiceSection({
   addons,
   tripArrivalTime,
   tripDuration,
+  tripDurationError,
 }: {
   readonly price: ReactNode;
   readonly schedule: ReactNode;
@@ -83,6 +84,7 @@ function BookServiceSection({
   readonly addons: ReactNode;
   readonly tripArrivalTime: string | null;
   readonly tripDuration: TripDurationResponse | null;
+  readonly tripDurationError: string | null;
 }) {
   const [open, setOpen] = useState(true);
   const panelId = useId();
@@ -115,6 +117,8 @@ function BookServiceSection({
         {addons}
         {tripArrivalTime && tripDuration ? (
           <TripDetails arrivalTime={tripArrivalTime} duration={tripDuration} />
+        ) : tripDurationError ? (
+          <FormError errors={[tripDurationError]} />
         ) : null}
       </div>
     </section>
@@ -126,6 +130,7 @@ export function CarBookingCheckout({
   schedule,
   tripArrivalTime,
   tripDuration,
+  tripDurationError,
   bookingType,
   checkout,
 }: {
@@ -133,6 +138,7 @@ export function CarBookingCheckout({
   readonly schedule: ReactNode;
   readonly tripArrivalTime: string | null;
   readonly tripDuration: TripDurationResponse | null;
+  readonly tripDurationError: string | null;
   readonly bookingType: BookingType;
   readonly checkout: CheckoutState;
 }) {
@@ -146,6 +152,7 @@ export function CarBookingCheckout({
         addons={checkout.addons}
         tripArrivalTime={tripArrivalTime}
         tripDuration={tripDuration}
+        tripDurationError={tripDurationError}
       />
       {checkout.credits}
       <section className="-mx-4 mt-4 space-y-6 border-t border-gray-200 bg-gray-100 px-4 py-4 shadow-[0_8px_50px_rgba(0,0,0,0.07)] lg:mx-0 lg:mt-0 lg:rounded-lg lg:border lg:px-6 lg:py-6">
