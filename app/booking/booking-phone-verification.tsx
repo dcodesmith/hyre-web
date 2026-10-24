@@ -226,8 +226,11 @@ export function BookingPhoneVerificationForm({
   );
 }
 
-export function BookingPhoneVerification() {
-  const phone = useBookingPhoneVerification();
+export function BookingPhoneVerification({
+  phone,
+}: {
+  readonly phone: ReturnType<typeof useBookingPhoneVerification>;
+}) {
   const result = phone.visible;
 
   if (!result) {

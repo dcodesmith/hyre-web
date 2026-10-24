@@ -17,6 +17,7 @@ import {
 import { BookingGuestFields } from "~/booking/booking-guest-fields";
 import { BookingPhoneVerification } from "~/booking/booking-phone-verification";
 import { type BookingType, NIGHT_BOOKING_TYPE } from "~/booking/types";
+import { useBookingPhoneVerification } from "~/booking/use-booking-phone-verification";
 import { CarBookingAddons } from "~/car/car-booking-addons";
 import { CarBookingCheckout } from "~/car/car-booking-checkout";
 
@@ -85,6 +86,7 @@ export function CarBookingPayForm({
   const location = useLocation();
   const navigation = useNavigation();
   const isSignedIn = usePublicUser() != null;
+  const phoneVerification = useBookingPhoneVerification();
   const schema = createBookingFormSchema(!isSignedIn);
   const idempotencyKeyRef = useRef<HTMLInputElement>(null);
   const attemptRef = useRef<BookingAttempt | null>(null);
@@ -100,7 +102,9 @@ export function CarBookingPayForm({
   const hasResolvedAddresses =
     pickupAddress.trim().length > 0 && (sameLocation || dropOffAddress.trim().length > 0);
   const canPay =
-    canAuthorizeBookingPayment(preview, isPricingLoading, pricingError) && hasResolvedAddresses;
+    canAuthorizeBookingPayment(preview, isPricingLoading, pricingError) &&
+    hasResolvedAddresses &&
+    (!isSignedIn || phoneVerification.phoneVerified);
   const bookingErrors = [
     ...Object.values(fields).flatMap((field) => field.errors ?? []),
     ...(form.errors ?? []),
@@ -177,7 +181,7 @@ export function CarBookingPayForm({
                 onSelectionChange={onAddonSelectionChange}
               />
             ) : null,
-          phone: isSignedIn ? <BookingPhoneVerification /> : null,
+          phone: isSignedIn ? <BookingPhoneVerification phone={phoneVerification} /> : null,
           credits,
           cost,
           pricingError,

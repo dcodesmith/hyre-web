@@ -45,6 +45,7 @@ export function useBookingPhoneVerification() {
   return {
     visible,
     pending: fetcher.state === "submitting",
+    phoneVerified: result?.phoneVerified === true,
     send,
     check,
   };

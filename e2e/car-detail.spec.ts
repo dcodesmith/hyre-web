@@ -170,6 +170,10 @@ test("uses Enter to send and verify a signed-in customer's phone", async ({ cont
       "/__visual/car?bookingType=DAY&from=2026-09-01&to=2026-09-01&pickupTime=9%20AM&pickupAddress=Lekki&sameLocation=true",
     );
     const bookingUrl = page.url();
+    const payNow = page.getByRole("button", { name: "Pay Now", exact: true });
+
+    await expect(page.getByText("Order Total:")).toBeVisible();
+    await expect(payNow).toBeDisabled();
 
     await page.getByLabel("Phone Number").press("Enter");
     await expect(page.getByLabel("Enter Verification Code")).toBeVisible();
@@ -178,6 +182,7 @@ test("uses Enter to send and verify a signed-in customer's phone", async ({ cont
     await page.getByLabel("Enter Verification Code").fill("123456");
     await page.getByLabel("Enter Verification Code").press("Enter");
     await expect(page.getByText("Phone number verified")).toBeVisible();
+    await expect(payNow).toBeEnabled();
     expect(page.url()).toBe(bookingUrl);
   } finally {
     await stopMockReferralApi(api);

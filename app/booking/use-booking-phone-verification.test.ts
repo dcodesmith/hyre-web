@@ -49,6 +49,27 @@ describe("useBookingPhoneVerification", () => {
     fetcher.submit.mockReset();
   });
 
+  it("treats a signed-in phone as verified only after the profile says so", () => {
+    renderToStaticMarkup(createElement(Probe));
+    expect(latest.phoneVerified).toBe(false);
+
+    fetcher.data = {
+      intent: null,
+      phoneNumber: "+2348012345678",
+      phoneVerified: false,
+      maskedPhoneNumber: null,
+      notice: null,
+      error: null,
+      fieldErrors: null,
+    };
+    renderToStaticMarkup(createElement(Probe));
+    expect(latest.phoneVerified).toBe(false);
+
+    fetcher.data = { ...fetcher.data, phoneVerified: true };
+    renderToStaticMarkup(createElement(Probe));
+    expect(latest.phoneVerified).toBe(true);
+  });
+
   it("hides the row until a profile says the number is unverified", () => {
     renderToStaticMarkup(createElement(Probe));
     expect(latest.visible).toBeNull();

@@ -1,6 +1,11 @@
 import { createElement, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const session = vi.hoisted(() => ({
+  signedIn: true,
+  phoneVerified: true as boolean | undefined,
+}));
 
 vi.mock("react-router", () => ({
   Form: ({
@@ -23,14 +28,25 @@ vi.mock("react-router", () => ({
   useNavigation: () => ({ formMethod: undefined, formAction: undefined }),
   useFetcher: () => ({
     state: "idle",
-    data: undefined,
+    data:
+      session.phoneVerified === undefined
+        ? undefined
+        : {
+            intent: null,
+            phoneNumber: "+2348012345678",
+            phoneVerified: session.phoneVerified,
+            maskedPhoneNumber: null,
+            notice: null,
+            error: null,
+            fieldErrors: null,
+          },
     load: vi.fn(),
     submit: vi.fn(),
   }),
 }));
 
 vi.mock("~/auth/use-public-user", () => ({
-  usePublicUser: () => ({ email: "ada@example.com", name: "Ada" }),
+  usePublicUser: () => (session.signedIn ? { email: "ada@example.com", name: "Ada" } : null),
 }));
 
 import type { BookingPricingPreview } from "~/api/bookings/schema";
@@ -131,6 +147,11 @@ function renderPayForm({
 }
 
 describe("CarBookingPayForm credits", () => {
+  beforeEach(() => {
+    session.signedIn = true;
+    session.phoneVerified = true;
+  });
+
   it("writes requested credits into the hidden create payload", () => {
     const markup = renderPayForm({ preview, isPricingLoading: false, useCredits: 2_500 });
 
@@ -160,6 +181,24 @@ describe("CarBookingPayForm credits", () => {
 
     const ready = renderPayForm({ preview, isPricingLoading: false });
     expect(ready).not.toContain('disabled=""');
+  });
+
+  it("keeps Pay Now disabled until a signed-in phone is verified", () => {
+    session.phoneVerified = undefined;
+    expect(renderPayForm({ preview, isPricingLoading: false })).toContain('disabled=""');
+
+    session.phoneVerified = false;
+    expect(renderPayForm({ preview, isPricingLoading: false })).toContain('disabled=""');
+
+    session.phoneVerified = true;
+    expect(renderPayForm({ preview, isPricingLoading: false })).not.toContain('disabled=""');
+  });
+
+  it("lets a guest pay without a verified phone", () => {
+    session.signedIn = false;
+    session.phoneVerified = undefined;
+
+    expect(renderPayForm({ preview, isPricingLoading: false })).not.toContain('disabled=""');
   });
 
   it("keeps the API preview as the payable total", () => {
