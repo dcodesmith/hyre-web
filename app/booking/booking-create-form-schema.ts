@@ -15,6 +15,7 @@ import { parseZonedCalendarDate, zonedDateAt } from "~/time/timezone";
 
 export const GUEST_NAME_ERROR = "Name must be at least 2 characters";
 export const GUEST_PHONE_ERROR = "Phone must be at least 10 digits";
+export const GUEST_PHONE_VERIFICATION_ERROR = "Verify your phone number";
 export const PICKUP_TIME_ERROR = "Please select a pickup time";
 export const FLIGHT_NUMBER_ERROR = "Flight number is required for airport pickup bookings.";
 export const PICKUP_ADDRESS_ERROR = "Pickup address is required.";
@@ -39,6 +40,10 @@ const guestInfoSchema = z.object({
     .toLowerCase()
     .pipe(z.email(EMAIL_INVALID_ERROR)),
   phoneNumber: z.string({ error: GUEST_PHONE_ERROR }).trim().min(10, GUEST_PHONE_ERROR).max(32),
+  phoneVerificationToken: z
+    .string({ error: GUEST_PHONE_VERIFICATION_ERROR })
+    .min(1, GUEST_PHONE_VERIFICATION_ERROR)
+    .max(128),
 });
 
 const bookingAddonIdsSchema = z
@@ -49,12 +54,18 @@ const bookingAddonIdsSchema = z
 
 function addGuestIssues(
   ctx: z.RefinementCtx,
-  data: { name?: string; email?: string; phoneNumber?: string },
+  data: {
+    name?: string;
+    email?: string;
+    phoneNumber?: string;
+    phoneVerificationToken?: string;
+  },
 ) {
   const guest = guestInfoSchema.safeParse({
     name: data.name ?? "",
     email: data.email ?? "",
     phoneNumber: data.phoneNumber ?? "",
+    phoneVerificationToken: data.phoneVerificationToken ?? "",
   });
 
   if (guest.success) {
@@ -93,6 +104,7 @@ function buildBookingFormSchema(isGuest: boolean) {
       name: z.string().optional(),
       email: z.string().optional(),
       phoneNumber: z.string().optional(),
+      phoneVerificationToken: z.string().optional(),
       addonIds: bookingAddonIdsSchema,
       useCredits: z.coerce.number().min(0).max(99_999_999.99).multipleOf(0.01).default(0),
     })
@@ -146,6 +158,7 @@ function buildBookingFormSchema(isGuest: boolean) {
         delete booking.name;
         delete booking.email;
         delete booking.phoneNumber;
+        delete booking.phoneVerificationToken;
         return { ...booking, pickupAddress };
       }
 
@@ -153,6 +166,7 @@ function buildBookingFormSchema(isGuest: boolean) {
         name: data.name ?? "",
         email: data.email ?? "",
         phoneNumber: data.phoneNumber ?? "",
+        phoneVerificationToken: data.phoneVerificationToken ?? "",
       });
 
       return { ...data, ...guest, pickupAddress };
@@ -330,10 +344,11 @@ export function toCreateBookingBody(
     body.flightNumber = normalizeFlightNumber(value.flightNumber);
   }
 
-  if (value.name && value.email && value.phoneNumber) {
+  if (value.name && value.email && value.phoneNumber && value.phoneVerificationToken) {
     body.guestName = value.name;
     body.guestEmail = value.email;
     body.guestPhone = value.phoneNumber;
+    body.guestPhoneVerificationToken = value.phoneVerificationToken;
   }
 
   return body;

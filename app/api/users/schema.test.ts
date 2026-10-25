@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { currentUserProfileSchema, phoneVerificationSchema } from "./schema";
+import {
+  currentUserProfileSchema,
+  guestPhoneVerificationSchema,
+  phoneVerificationSchema,
+} from "./schema";
 
 const profile = {
   name: "Ada Lovelace",
@@ -70,5 +74,20 @@ describe("phoneVerificationSchema", () => {
         .success,
     ).toBe(false);
     expect(phoneVerificationSchema.safeParse({ status: "PENDING" }).success).toBe(false);
+  });
+});
+
+describe("guestPhoneVerificationSchema", () => {
+  it("accepts a guest check with or without a proof token", () => {
+    expect(
+      guestPhoneVerificationSchema.parse({ status: "PENDING", phoneNumber: "+234******5678" }),
+    ).toEqual({ status: "PENDING", phoneNumber: "+234******5678" });
+    expect(
+      guestPhoneVerificationSchema.parse({
+        status: "VERIFIED",
+        phoneNumber: "+2348012345678",
+        verificationToken: "proof-token",
+      }).verificationToken,
+    ).toBe("proof-token");
   });
 });

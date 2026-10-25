@@ -12,8 +12,10 @@ vi.stubGlobal("fetch", fetchMock);
 
 import {
   checkCurrentUserPhoneVerification,
+  checkGuestPhoneVerification,
   getCurrentUserProfile,
   sendCurrentUserPhoneVerification,
+  sendGuestPhoneVerification,
 } from "./users.server";
 
 const profile = {
@@ -114,6 +116,57 @@ describe("current user phone verification client", () => {
       phoneNumber: "+2348012345678",
       code: "123456",
     });
+  });
+
+  it("posts a guest phone verification send without forwarding cookies", async () => {
+    fetchMock.mockResolvedValueOnce(
+      Response.json({ status: "PENDING", phoneNumber: "+234******5678" }),
+    );
+
+    const response = await sendGuestPhoneVerification({
+      request: signedInRequest("/cars/lexus"),
+      phoneNumber: "+2348012345678",
+    });
+
+    expect(response.data).toEqual({ status: "PENDING", phoneNumber: "+234******5678" });
+    const init = requestInit(fetchMock.mock.calls[0] ?? []);
+    expect(String(fetchMock.mock.calls[0]?.[0])).toBe(
+      "https://api.example/api/bookings/guest-phone-verifications",
+    );
+    expect(init.method).toBe("POST");
+    expect(JSON.parse(init.body ?? "")).toEqual({ phoneNumber: "+2348012345678" });
+    expect(init.headers.get("cookie")).toBeNull();
+  });
+
+  it("posts a guest phone verification check without forwarding cookies", async () => {
+    fetchMock.mockResolvedValueOnce(
+      Response.json({
+        status: "VERIFIED",
+        phoneNumber: "+2348012345678",
+        verificationToken: "proof-token",
+      }),
+    );
+
+    const response = await checkGuestPhoneVerification({
+      request: signedInRequest("/cars/lexus"),
+      phoneNumber: "+2348012345678",
+      code: "123456",
+    });
+
+    expect(response.data).toEqual({
+      status: "VERIFIED",
+      phoneNumber: "+2348012345678",
+      verificationToken: "proof-token",
+    });
+    const init = requestInit(fetchMock.mock.calls[0] ?? []);
+    expect(String(fetchMock.mock.calls[0]?.[0])).toBe(
+      "https://api.example/api/bookings/guest-phone-verification-checks",
+    );
+    expect(JSON.parse(init.body ?? "")).toEqual({
+      phoneNumber: "+2348012345678",
+      code: "123456",
+    });
+    expect(init.headers.get("cookie")).toBeNull();
   });
 
   it("rejects a phone verification response outside the contract", async () => {

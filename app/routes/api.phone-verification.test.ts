@@ -4,17 +4,27 @@ const {
   getCurrentUserProfile,
   sendCurrentUserPhoneVerification,
   checkCurrentUserPhoneVerification,
+  sendGuestPhoneVerification,
+  checkGuestPhoneVerification,
+  readAuthUser,
 } = vi.hoisted(() => ({
   getCurrentUserProfile: vi.fn(),
   sendCurrentUserPhoneVerification: vi.fn(),
   checkCurrentUserPhoneVerification: vi.fn(),
+  sendGuestPhoneVerification: vi.fn(),
+  checkGuestPhoneVerification: vi.fn(),
+  readAuthUser: vi.fn(),
 }));
 
 vi.mock("~/api/users/users.server", () => ({
   getCurrentUserProfile,
   sendCurrentUserPhoneVerification,
   checkCurrentUserPhoneVerification,
+  sendGuestPhoneVerification,
+  checkGuestPhoneVerification,
 }));
+
+vi.mock("~/auth/session.server", () => ({ readAuthUser }));
 
 import { ApiRequestError } from "~/api/api.server";
 import { HTTP_STATUS } from "~/api/http-status";
@@ -62,11 +72,15 @@ describe("phone verification resource", () => {
     getCurrentUserProfile.mockReset();
     sendCurrentUserPhoneVerification.mockReset();
     checkCurrentUserPhoneVerification.mockReset();
+    sendGuestPhoneVerification.mockReset();
+    checkGuestPhoneVerification.mockReset();
+    readAuthUser.mockReset();
+    readAuthUser.mockResolvedValue({ email: "ada@example.com", name: "Ada" });
   });
 
-  it("hides the row when the request has no session", async () => {
+  it("returns unverified when the request has no session", async () => {
     await expect(runLoader("")).resolves.toMatchObject({
-      data: { phoneVerified: true, intent: null, error: null },
+      data: { phoneVerified: false, intent: null, error: null },
     });
     expect(getCurrentUserProfile).not.toHaveBeenCalled();
   });
@@ -110,11 +124,11 @@ describe("phone verification resource", () => {
     });
   });
 
-  it("hides the row when the profile request is unauthorized", async () => {
+  it("returns unverified when the profile request is unauthorized", async () => {
     getCurrentUserProfile.mockRejectedValue(apiError(HTTP_STATUS.UNAUTHORIZED, "Unauthorized"));
 
     await expect(runLoader()).resolves.toMatchObject({
-      data: { phoneVerified: true, intent: null },
+      data: { phoneVerified: false, intent: null },
     });
   });
 
@@ -136,11 +150,37 @@ describe("phone verification resource", () => {
       data: {
         intent: "send-phone",
         phoneVerified: false,
+        verificationToken: null,
         maskedPhoneNumber: "+234••••5678",
         notice: "Code sent to +234••••5678.",
         error: null,
       },
     });
+    expect(sendCurrentUserPhoneVerification).toHaveBeenCalledOnce();
+    expect(sendGuestPhoneVerification).not.toHaveBeenCalled();
+  });
+
+  it("sends a guest code when the session cookie does not resolve to a user", async () => {
+    readAuthUser.mockResolvedValue(null);
+    sendGuestPhoneVerification.mockResolvedValue({
+      data: { status: "PENDING", phoneNumber: "+234••••5678" },
+    });
+
+    await expect(
+      runAction({ intent: "send-phone", phoneNumber: "+2348012345678" }),
+    ).resolves.toMatchObject({
+      data: {
+        intent: "send-phone",
+        phoneVerified: false,
+        verificationToken: null,
+        notice: "Code sent to +234••••5678.",
+      },
+    });
+    expect(sendGuestPhoneVerification).toHaveBeenCalledWith({
+      request: expect.any(Request),
+      phoneNumber: "+2348012345678",
+    });
+    expect(sendCurrentUserPhoneVerification).not.toHaveBeenCalled();
   });
 
   it("rejects a phone number that is not in international format", async () => {
@@ -173,10 +213,62 @@ describe("phone verification resource", () => {
       data: {
         intent: "check-phone",
         phoneVerified: true,
+        verificationToken: null,
         phoneNumber: "+2348012345678",
         notice: null,
       },
     });
+    expect(checkGuestPhoneVerification).not.toHaveBeenCalled();
+  });
+
+  it("marks a guest verified only when the check returns a string proof", async () => {
+    readAuthUser.mockResolvedValue(null);
+    checkGuestPhoneVerification.mockResolvedValue({
+      data: { status: "VERIFIED", phoneNumber: "+2348012345678" },
+    });
+
+    await expect(
+      runAction({
+        intent: "check-phone",
+        phoneNumber: "+2348012345678",
+        code: "123456",
+      }),
+    ).resolves.toMatchObject({
+      data: { phoneVerified: false, verificationToken: null },
+    });
+
+    checkGuestPhoneVerification.mockResolvedValue({
+      data: { status: "VERIFIED", phoneNumber: "+2348012345678", verificationToken: 12 },
+    });
+
+    await expect(
+      runAction({
+        intent: "check-phone",
+        phoneNumber: "+2348012345678",
+        code: "123456",
+      }),
+    ).resolves.toMatchObject({
+      data: { phoneVerified: false, verificationToken: null },
+    });
+
+    checkGuestPhoneVerification.mockResolvedValue({
+      data: {
+        status: "VERIFIED",
+        phoneNumber: "+2348012345678",
+        verificationToken: "proof-token",
+      },
+    });
+
+    await expect(
+      runAction({
+        intent: "check-phone",
+        phoneNumber: "+2348012345678",
+        code: "123456",
+      }),
+    ).resolves.toMatchObject({
+      data: { phoneVerified: true, verificationToken: "proof-token" },
+    });
+    expect(checkCurrentUserPhoneVerification).not.toHaveBeenCalled();
   });
 
   it("returns a field error for an invalid code", async () => {

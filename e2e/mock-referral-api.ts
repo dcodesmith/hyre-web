@@ -117,6 +117,30 @@ export async function startMockReferralApi(
       return;
     }
 
+    if (
+      request.method === "POST" &&
+      requestPath(request) === "/api/bookings/guest-phone-verifications"
+    ) {
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(JSON.stringify({ status: "PENDING", phoneNumber: "+234******5678" }));
+      return;
+    }
+
+    if (
+      request.method === "POST" &&
+      requestPath(request) === "/api/bookings/guest-phone-verification-checks"
+    ) {
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(
+        JSON.stringify({
+          status: "VERIFIED",
+          phoneNumber: "+234******5678",
+          verificationToken: "guest-proof-token",
+        }),
+      );
+      return;
+    }
+
     if (request.method === "GET" && requestPath(request) === "/api/referrals/user") {
       if (!hasSessionCookie(request)) {
         response.writeHead(401, { "content-type": "application/json" });

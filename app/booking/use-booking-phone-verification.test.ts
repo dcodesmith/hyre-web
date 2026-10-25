@@ -1,4 +1,5 @@
-import { createElement } from "react";
+import { act, createElement, useState } from "react";
+import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -13,6 +14,7 @@ const fetcher = vi.hoisted(() => ({
         intent: "send-phone" | "check-phone" | null;
         phoneNumber: string | null;
         phoneVerified: boolean;
+        verificationToken?: string | null;
         maskedPhoneNumber: string | null;
         notice: string | null;
         error: string | null;
@@ -173,6 +175,165 @@ describe("useBookingPhoneVerification", () => {
     expect(latest.phoneVerified).toBe(true);
     expect(latest.result?.phoneNumber).toBe("+2348012345678");
     expect(fetcher.load).not.toHaveBeenCalled();
+  });
+
+  it("uses a guest verification result without loading a profile", () => {
+    page.signedIn = false;
+    fetcher.data = {
+      intent: "check-phone",
+      phoneNumber: "+2348012345678",
+      phoneVerified: true,
+      verificationToken: "proof-token",
+      maskedPhoneNumber: "+234••••5678",
+      notice: null,
+      error: null,
+      fieldErrors: null,
+    };
+    renderToStaticMarkup(createElement(Probe));
+
+    expect(fetcher.load).not.toHaveBeenCalled();
+    expect(latest.phoneVerified).toBe(true);
+    expect(latest.result?.verificationToken).toBe("proof-token");
+  });
+
+  it("drops a guest proof that completes after the user signs in", async () => {
+    const globals = globalThis as {
+      window?: Window;
+      IS_REACT_ACT_ENVIRONMENT?: boolean;
+    };
+    const previousWindow = globals.window;
+    const previousActFlag = globals.IS_REACT_ACT_ENVIRONMENT;
+    globals.IS_REACT_ACT_ENVIRONMENT = true;
+    globals.window = {
+      event: undefined,
+      HTMLIFrameElement: function HTMLIFrameElement() {},
+    } as unknown as Window;
+    page.signedIn = false;
+    const guestResult = {
+      intent: "check-phone" as const,
+      phoneNumber: "+2348012345678",
+      phoneVerified: true,
+      verificationToken: "guest-proof-token",
+      maskedPhoneNumber: "+234••••5678",
+      notice: null,
+      error: null,
+      fieldErrors: null,
+    };
+    const signedInProfile = {
+      intent: null,
+      phoneNumber: "+2348099999999",
+      phoneVerified: false,
+      verificationToken: null,
+      maskedPhoneNumber: null,
+      notice: null,
+      error: null,
+      fieldErrors: null,
+    };
+    fetcher.data = {
+      ...guestResult,
+      intent: "send-phone",
+      phoneVerified: false,
+      verificationToken: null,
+    };
+
+    function AuthProbe() {
+      latest = useBookingPhoneVerification();
+      return null;
+    }
+
+    const root = createRoot({
+      nodeType: 1,
+      tagName: "DIV",
+      namespaceURI: null,
+      addEventListener() {},
+      removeEventListener() {},
+      ownerDocument: null,
+    } as unknown as Element);
+
+    try {
+      await act(async () => {
+        root.render(createElement(AuthProbe));
+      });
+      expect(latest.phoneVerified).toBe(false);
+      expect(fetcher.load).not.toHaveBeenCalled();
+
+      fetcher.state = "submitting";
+      page.signedIn = true;
+      await act(async () => {
+        root.render(createElement(AuthProbe));
+      });
+      expect(fetcher.load).not.toHaveBeenCalled();
+      expect(latest.result).toBeNull();
+      expect(latest.phoneVerified).toBe(false);
+      expect(latest.visible).toBeNull();
+
+      fetcher.state = "idle";
+      fetcher.data = guestResult;
+      await act(async () => {
+        root.render(createElement(AuthProbe));
+      });
+      expect(fetcher.load).toHaveBeenCalledTimes(1);
+      expect(fetcher.load).toHaveBeenCalledWith("/api/phone-verification");
+      expect(latest.result).toBeNull();
+      expect(latest.phoneVerified).toBe(false);
+
+      fetcher.data = signedInProfile;
+      await act(async () => {
+        root.render(createElement(AuthProbe));
+      });
+      expect(latest.result).toBe(signedInProfile);
+      expect(latest.phoneVerified).toBe(false);
+      expect(latest.result?.verificationToken).toBeNull();
+      expect(latest.visible?.phoneNumber).toBe("+2348099999999");
+    } finally {
+      await act(async () => {
+        root.unmount();
+      });
+      globals.window = previousWindow;
+      globals.IS_REACT_ACT_ENVIRONMENT = previousActFlag;
+    }
+  });
+
+  it("keeps a signed-in code send when the profile loader revalidates", () => {
+    fetcher.data = {
+      intent: "send-phone",
+      phoneNumber: "+2348012345678",
+      phoneVerified: false,
+      verificationToken: null,
+      maskedPhoneNumber: "+234••••5678",
+      notice: "Code sent.",
+      error: null,
+      fieldErrors: null,
+    };
+    let renders = 0;
+
+    function RevalidateProbe() {
+      renders += 1;
+      const verification = useBookingPhoneVerification();
+      const [step, setStep] = useState(0);
+      if (step === 0) {
+        fetcher.data = {
+          intent: null,
+          phoneNumber: "+2348012345678",
+          phoneVerified: true,
+          verificationToken: null,
+          maskedPhoneNumber: null,
+          notice: null,
+          error: null,
+          fieldErrors: null,
+        };
+        setStep(1);
+      }
+      latest = verification;
+      return null;
+    }
+
+    renderToStaticMarkup(createElement(RevalidateProbe));
+
+    expect(renders).toBe(2);
+    expect(latest.phoneVerified).toBe(false);
+    expect(latest.visible?.intent).toBe("send-phone");
+    expect(latest.visible?.maskedPhoneNumber).toBe("+234••••5678");
   });
 
   it("posts a code check without putting the number on the booking form", () => {

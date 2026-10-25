@@ -6,13 +6,16 @@ import { hasSessionCookie } from "~/api/auth/cookie-relay.server";
 import { HTTP_STATUS } from "~/api/http-status";
 import {
   checkCurrentUserPhoneVerification,
+  checkGuestPhoneVerification,
   getCurrentUserProfile,
   sendCurrentUserPhoneVerification,
+  sendGuestPhoneVerification,
 } from "~/api/users/users.server";
 import {
   phoneVerificationCheckSchema,
   phoneVerificationSendSchema,
 } from "~/auth/phone-verification-schema";
+import { readAuthUser } from "~/auth/session.server";
 import type { Route } from "./+types/api.phone-verification";
 
 const NO_STORE = { "Cache-Control": "private, no-store" };
@@ -22,6 +25,7 @@ export type PhoneVerificationData = {
   readonly intent: "send-phone" | "check-phone" | null;
   readonly phoneNumber: string | null;
   readonly phoneVerified: boolean;
+  readonly verificationToken?: string | null;
   readonly maskedPhoneNumber: string | null;
   readonly notice: string | null;
   readonly error: string | null;
@@ -36,10 +40,30 @@ function verifiedProfile(phoneNumber: string | null): PhoneVerificationData {
     intent: null,
     phoneNumber,
     phoneVerified: true,
+    verificationToken: null,
     maskedPhoneNumber: null,
     notice: null,
     error: null,
     fieldErrors: null,
+  };
+}
+
+function unverifiedProfile(phoneNumber: string | null = null): PhoneVerificationData {
+  return {
+    ...verifiedProfile(phoneNumber),
+    phoneVerified: false,
+  };
+}
+
+function verificationStatus(
+  result: { readonly status: "PENDING" | "VERIFIED"; readonly verificationToken?: unknown },
+  signedIn: boolean,
+) {
+  const verificationToken =
+    typeof result.verificationToken === "string" ? result.verificationToken : null;
+  return {
+    phoneVerified: result.status === "VERIFIED" && (signedIn || verificationToken != null),
+    verificationToken,
   };
 }
 
@@ -67,6 +91,7 @@ function failure(
       intent,
       phoneNumber,
       phoneVerified: false,
+      verificationToken: null,
       maskedPhoneNumber,
       notice: null,
       error: invalidCode ? null : message,
@@ -81,7 +106,7 @@ function failure(
 
 export async function loader({ request }: Route.LoaderArgs) {
   if (!hasSessionCookie(request.headers.get("Cookie"))) {
-    return data(verifiedProfile(null), { headers: NO_STORE });
+    return data(unverifiedProfile(), { headers: NO_STORE });
   }
 
   try {
@@ -93,6 +118,7 @@ export async function loader({ request }: Route.LoaderArgs) {
             intent: null,
             phoneNumber: profile.phoneNumber,
             phoneVerified: false,
+            verificationToken: null,
             maskedPhoneNumber: null,
             notice: null,
             error: null,
@@ -105,7 +131,7 @@ export async function loader({ request }: Route.LoaderArgs) {
       throw error;
     }
     if (error instanceof ApiRequestError && error.status === HTTP_STATUS.UNAUTHORIZED) {
-      return data(verifiedProfile(null), { headers: NO_STORE });
+      return data(unverifiedProfile(), { headers: NO_STORE });
     }
 
     return data<PhoneVerificationData>(
@@ -113,6 +139,7 @@ export async function loader({ request }: Route.LoaderArgs) {
         intent: null,
         phoneNumber: null,
         phoneVerified: false,
+        verificationToken: null,
         maskedPhoneNumber: null,
         notice: null,
         error: error instanceof ApiRequestError ? error.problem.detail : VERIFY_ERROR,
@@ -127,11 +154,8 @@ export async function loader({ request }: Route.LoaderArgs) {
 }
 
 export async function action({ request }: Route.ActionArgs) {
-  if (!hasSessionCookie(request.headers.get("Cookie"))) {
-    return data(verifiedProfile(null), { status: HTTP_STATUS.UNAUTHORIZED, headers: NO_STORE });
-  }
-
-  const formData = await request.formData();
+  const [user, formData] = await Promise.all([readAuthUser(request), request.formData()]);
+  const signedIn = user != null;
   const intent = formData.get("intent");
   if (intent !== "send-phone" && intent !== "check-phone") {
     return data<PhoneVerificationData>(
@@ -139,6 +163,7 @@ export async function action({ request }: Route.ActionArgs) {
         intent: null,
         phoneNumber: null,
         phoneVerified: false,
+        verificationToken: null,
         maskedPhoneNumber: null,
         notice: null,
         error: "Choose whether to send or check a verification code.",
@@ -161,6 +186,7 @@ export async function action({ request }: Route.ActionArgs) {
           intent,
           phoneNumber,
           phoneVerified: false,
+          verificationToken: null,
           maskedPhoneNumber,
           notice: null,
           error: null,
@@ -172,16 +198,21 @@ export async function action({ request }: Route.ActionArgs) {
 
     try {
       const result = (
-        await sendCurrentUserPhoneVerification({
-          request,
-          phoneNumber: submission.value.phoneNumber,
-        })
+        signedIn
+          ? await sendCurrentUserPhoneVerification({
+              request,
+              phoneNumber: submission.value.phoneNumber,
+            })
+          : await sendGuestPhoneVerification({
+              request,
+              phoneNumber: submission.value.phoneNumber,
+            })
       ).data;
       return data<PhoneVerificationData>(
         {
           intent,
           phoneNumber: submission.value.phoneNumber,
-          phoneVerified: result.status === "VERIFIED",
+          ...verificationStatus(result, signedIn),
           maskedPhoneNumber: result.phoneNumber,
           notice: result.status === "VERIFIED" ? null : `Code sent to ${result.phoneNumber}.`,
           error: null,
@@ -203,6 +234,7 @@ export async function action({ request }: Route.ActionArgs) {
         intent,
         phoneNumber,
         phoneVerified: false,
+        verificationToken: null,
         maskedPhoneNumber,
         notice: null,
         error: null,
@@ -217,17 +249,23 @@ export async function action({ request }: Route.ActionArgs) {
 
   try {
     const result = (
-      await checkCurrentUserPhoneVerification({
-        request,
-        phoneNumber: submission.value.phoneNumber,
-        code: submission.value.code,
-      })
+      signedIn
+        ? await checkCurrentUserPhoneVerification({
+            request,
+            phoneNumber: submission.value.phoneNumber,
+            code: submission.value.code,
+          })
+        : await checkGuestPhoneVerification({
+            request,
+            phoneNumber: submission.value.phoneNumber,
+            code: submission.value.code,
+          })
     ).data;
     return data<PhoneVerificationData>(
       {
         intent,
         phoneNumber: submission.value.phoneNumber,
-        phoneVerified: result.status === "VERIFIED",
+        ...verificationStatus(result, signedIn),
         maskedPhoneNumber: result.phoneNumber,
         notice:
           result.status === "VERIFIED"

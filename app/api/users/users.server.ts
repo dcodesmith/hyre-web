@@ -1,7 +1,11 @@
 import { env } from "cloudflare:workers";
 
 import { createApiClient } from "../api.server";
-import { currentUserProfileSchema, phoneVerificationSchema } from "./schema";
+import {
+  currentUserProfileSchema,
+  guestPhoneVerificationSchema,
+  phoneVerificationSchema,
+} from "./schema";
 
 let apiClient: ReturnType<typeof createApiClient> | undefined;
 
@@ -78,5 +82,39 @@ export function checkCurrentUserPhoneVerification({
     forwardCookie: true,
     json: { phoneNumber, code },
     schema: phoneVerificationSchema,
+  });
+}
+
+export function sendGuestPhoneVerification({
+  request,
+  phoneNumber,
+}: {
+  readonly request: Request;
+  readonly phoneNumber: string;
+}) {
+  return getApiClient().request({
+    path: "/api/bookings/guest-phone-verifications",
+    method: "POST",
+    request,
+    json: { phoneNumber },
+    schema: guestPhoneVerificationSchema,
+  });
+}
+
+export function checkGuestPhoneVerification({
+  request,
+  phoneNumber,
+  code,
+}: {
+  readonly request: Request;
+  readonly phoneNumber: string;
+  readonly code: string;
+}) {
+  return getApiClient().request({
+    path: "/api/bookings/guest-phone-verification-checks",
+    method: "POST",
+    request,
+    json: { phoneNumber, code },
+    schema: guestPhoneVerificationSchema,
   });
 }

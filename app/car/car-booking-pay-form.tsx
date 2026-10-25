@@ -7,7 +7,7 @@ import type { BookingPricingPreview } from "~/api/bookings/schema";
 import type { TripDurationResponse } from "~/api/flights/schema";
 import { PhoneVerification } from "~/auth/phone-verification";
 import { authPath } from "~/auth/referer";
-import { usePhoneVerification } from "~/auth/use-phone-verification";
+import { phoneVerificationFromProfile, usePhoneVerification } from "~/auth/use-phone-verification";
 import { usePublicUser } from "~/auth/use-public-user";
 import { type BookingAttempt, resolveBookingAttempt } from "~/booking/booking-attempt";
 import { createBookingFormSchema } from "~/booking/booking-create-form-schema";
@@ -86,7 +86,11 @@ export function CarBookingPayForm({
   const location = useLocation();
   const navigation = useNavigation();
   const isSignedIn = usePublicUser() != null;
-  const phoneVerification = usePhoneVerification();
+  const phoneVerification = usePhoneVerification(
+    isSignedIn
+      ? undefined
+      : phoneVerificationFromProfile({ phoneNumber: null, phoneVerified: false }),
+  );
   const schema = createBookingFormSchema(!isSignedIn);
   const idempotencyKeyRef = useRef<HTMLInputElement>(null);
   const attemptRef = useRef<BookingAttempt | null>(null);
@@ -104,7 +108,7 @@ export function CarBookingPayForm({
   const canPay =
     canAuthorizeBookingPayment(preview, isPricingLoading, pricingError) &&
     hasResolvedAddresses &&
-    (!isSignedIn || phoneVerification.phoneVerified);
+    phoneVerification.phoneVerified;
   const bookingErrors = [
     ...Object.values(fields).flatMap((field) => field.errors ?? []),
     ...(form.errors ?? []),
@@ -150,6 +154,20 @@ export function CarBookingPayForm({
       <input type="hidden" name="dropOffAddress" value={dropOffAddress} />
       <input type="hidden" name="sameLocation" value={sameLocation ? "true" : "false"} />
       <input type="hidden" name="useCredits" value={useCredits} />
+      {!isSignedIn ? (
+        <>
+          <input
+            type="hidden"
+            name="phoneNumber"
+            value={phoneVerification.result?.phoneNumber ?? ""}
+          />
+          <input
+            type="hidden"
+            name="phoneVerificationToken"
+            value={phoneVerification.result?.verificationToken ?? ""}
+          />
+        </>
+      ) : null}
       {bookingErrors.length > 0 ? (
         <span id={form.errorId} className="sr-only">
           {bookingErrors.join(" ")}
@@ -169,7 +187,6 @@ export function CarBookingPayForm({
               fields={{
                 name: fields.name,
                 email: fields.email,
-                phoneNumber: fields.phoneNumber,
               }}
             />
           ),
@@ -181,9 +198,7 @@ export function CarBookingPayForm({
                 onSelectionChange={onAddonSelectionChange}
               />
             ) : null,
-          phone: isSignedIn ? (
-            <PhoneVerification phone={phoneVerification} hideWhenVerified />
-          ) : null,
+          phone: <PhoneVerification phone={phoneVerification} hideWhenVerified />,
           credits,
           cost,
           pricingError,

@@ -34,6 +34,7 @@ interface CarBookingCardProps {
   readonly lastResult?: SubmissionResult<string[]>;
   readonly currentPricing?: BookingPricingPreview;
   readonly currentPricingSelectionKey?: string;
+  readonly phoneVerificationResetKey?: string;
   readonly previewReferralCredit?: {
     readonly availableCredits: number;
     readonly creditLimit: number;
@@ -196,6 +197,7 @@ export function CarBookingCard({
   lastResult,
   currentPricing,
   currentPricingSelectionKey,
+  phoneVerificationResetKey,
   previewReferralCredit,
 }: CarBookingCardProps) {
   const [searchParams] = useSearchParams();
@@ -358,6 +360,7 @@ export function CarBookingCard({
       <div className="order-2 px-4 pb-4 lg:hidden">{mobilePrice}</div>
       <div className="order-4 px-4 lg:sticky lg:top-4 lg:order-none lg:col-start-2 lg:row-start-2 lg:self-start lg:px-0">
         <CarBookingPayForm
+          key={phoneVerificationResetKey}
           carId={car.id}
           searchId={query.search.searchId}
           bookingType={card.bookingType}
