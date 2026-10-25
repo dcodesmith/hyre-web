@@ -1,15 +1,14 @@
 import { getFormProps, getInputProps, type SubmissionResult, useForm } from "@conform-to/react";
 import { getZodConstraint, parseWithZod } from "@conform-to/zod/v4";
-import { Form, Link, useNavigation } from "react-router";
+import { Form, useNavigation } from "react-router";
 import { AccountDeletion } from "~/account/account-deletion";
 import { profileFormSchema } from "~/account/profile-form-schema";
 import type { CurrentUserProfile } from "~/api/users/schema";
 import { AuthCheckbox } from "~/auth/auth-form-primitives";
+import { bookingPhoneInputClassName, PhoneVerification } from "~/auth/phone-verification";
+import { phoneVerificationFromProfile, usePhoneVerification } from "~/auth/use-phone-verification";
 import { FormError } from "~/components/forms/form-primitives";
 import { Button } from "~/components/ui/button";
-
-const fieldClassName = "h-9 w-full rounded-md border px-3 text-sm";
-const profilePhoneVerificationUrl = "/verify-phone?redirectTo=%2Fprofile";
 
 type ProfileFields = {
   readonly email: string;
@@ -39,6 +38,7 @@ export function ProfilePage({ email, profile, lastResult }: ProfileFields) {
     },
   });
   const { name, city, address, marketingConsent } = fields;
+  const phone = usePhoneVerification(phoneVerificationFromProfile(profile));
 
   return (
     <div className="w-full">
@@ -60,7 +60,7 @@ export function ProfilePage({ email, profile, lastResult }: ProfileFields) {
               readOnly
               disabled
               autoComplete="email"
-              className={`${fieldClassName} disabled:opacity-50`}
+              className={bookingPhoneInputClassName}
             />
           </div>
 
@@ -71,26 +71,12 @@ export function ProfilePage({ email, profile, lastResult }: ProfileFields) {
             <input
               {...getInputProps(name, { type: "text" })}
               autoComplete="name"
-              className={fieldClassName}
+              className={bookingPhoneInputClassName}
             />
             <FormError id={name.errorId} errors={name.errors} />
           </div>
 
-          <div className="space-y-1">
-            <p className="text-sm font-medium">Phone</p>
-            <div className="flex min-h-9 items-center justify-between gap-3 rounded-md border px-3 text-sm">
-              <span className="min-w-0 truncate">{profile.phoneNumber ?? "Not added"}</span>
-              <span className={profile.phoneVerified ? "text-green-700" : "text-amber-700"}>
-                {profile.phoneVerified ? "Verified" : "Not verified"}
-              </span>
-            </div>
-            <Link
-              to={`${profilePhoneVerificationUrl}${profile.phoneVerified ? "&change=phone" : ""}`}
-              className="inline-block text-sm font-medium text-neutral-900 underline"
-            >
-              {profile.phoneVerified ? "Change phone number" : "Verify phone number"}
-            </Link>
-          </div>
+          <PhoneVerification phone={phone} allowChange />
 
           <div className="space-y-1">
             <label htmlFor={city.id} className="text-sm font-medium">
@@ -99,7 +85,7 @@ export function ProfilePage({ email, profile, lastResult }: ProfileFields) {
             <input
               {...getInputProps(city, { type: "text" })}
               autoComplete="address-level2"
-              className={fieldClassName}
+              className={bookingPhoneInputClassName}
             />
             <FormError id={city.errorId} errors={city.errors} />
           </div>
@@ -111,7 +97,7 @@ export function ProfilePage({ email, profile, lastResult }: ProfileFields) {
             <input
               {...getInputProps(address, { type: "text" })}
               autoComplete="street-address"
-              className={fieldClassName}
+              className={bookingPhoneInputClassName}
             />
             <FormError id={address.errorId} errors={address.errors} />
           </div>

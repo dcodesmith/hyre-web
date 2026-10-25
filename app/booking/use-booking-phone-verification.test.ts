@@ -31,12 +31,14 @@ vi.mock("~/auth/use-public-user", () => ({
   usePublicUser: () => (page.signedIn ? { email: "ada@example.com", name: "Ada" } : null),
 }));
 
+import { phoneVerificationFromProfile } from "~/auth/use-phone-verification";
+
 import { useBookingPhoneVerification } from "./use-booking-phone-verification";
 
 let latest: ReturnType<typeof useBookingPhoneVerification>;
 
-function Probe() {
-  latest = useBookingPhoneVerification();
+function Probe({ initial }: { initial?: Parameters<typeof useBookingPhoneVerification>[0] } = {}) {
+  latest = useBookingPhoneVerification(initial);
   return null;
 }
 
@@ -122,6 +124,22 @@ describe("useBookingPhoneVerification", () => {
     fetcher.state = "submitting";
     renderToStaticMarkup(createElement(Probe));
     expect(latest.pending).toBe(true);
+  });
+
+  it("can seed a profile before the fetcher returns", () => {
+    page.signedIn = false;
+    renderToStaticMarkup(
+      createElement(Probe, {
+        initial: phoneVerificationFromProfile({
+          phoneNumber: "+2348012345678",
+          phoneVerified: true,
+        }),
+      }),
+    );
+
+    expect(latest.phoneVerified).toBe(true);
+    expect(latest.result?.phoneNumber).toBe("+2348012345678");
+    expect(fetcher.load).not.toHaveBeenCalled();
   });
 
   it("posts a code check without putting the number on the booking form", () => {

@@ -54,51 +54,37 @@ describe("redirectAuthenticatedUser", () => {
     expect(getCurrentUserProfile).not.toHaveBeenCalled();
   });
 
-  it("sends a verified user to the safe requested path", async () => {
+  it("sends a signed-in user to the safe requested path", async () => {
     getCurrentUserProfile.mockResolvedValue(profile(true));
 
-    const response = await redirectOf(
+    const verified = await redirectOf(
       new Request("https://tripdly.com/auth?redirectTo=%2Fcars%2Flexus-ux", {
         headers: { Cookie: session },
       }),
     );
 
-    expect(response).toBeInstanceOf(Response);
-    expect((response as Response).status).toBe(302);
-    expect((response as Response).headers.get("Location")).toBe("/cars/lexus-ux");
-    expect((response as Response).headers.get("Cache-Control")).toBe("private, no-store");
-  });
+    expect(verified).toBeInstanceOf(Response);
+    expect((verified as Response).status).toBe(302);
+    expect((verified as Response).headers.get("Location")).toBe("/cars/lexus-ux");
+    expect((verified as Response).headers.get("Cache-Control")).toBe("private, no-store");
 
-  it("sends an unverified user to phone verification and keeps a safe redirect", async () => {
     getCurrentUserProfile.mockResolvedValue(profile(false));
-
-    const response = await redirectOf(
+    const unverified = await redirectOf(
       new Request("https://tripdly.com/verify?redirectTo=%2Fcars%2Flexus-ux%3Ffrom%3D2026-09-01", {
         headers: { Cookie: session },
       }),
     );
-
-    expect((response as Response).headers.get("Location")).toBe(
-      "/verify-phone?redirectTo=%2Fcars%2Flexus-ux%3Ffrom%3D2026-09-01",
-    );
+    expect((unverified as Response).headers.get("Location")).toBe("/cars/lexus-ux?from=2026-09-01");
   });
 
-  it("drops unsafe redirect targets for verified and unverified users", async () => {
-    getCurrentUserProfile.mockResolvedValueOnce(profile(true));
-    const verified = await redirectOf(
+  it("drops unsafe redirect targets", async () => {
+    getCurrentUserProfile.mockResolvedValue(profile(false));
+    const response = await redirectOf(
       new Request("https://tripdly.com/auth?redirectTo=%2F%2Fevil.example", {
         headers: { Cookie: session },
       }),
     );
-    expect((verified as Response).headers.get("Location")).toBe("/");
-
-    getCurrentUserProfile.mockResolvedValueOnce(profile(false));
-    const unverified = await redirectOf(
-      new Request("https://tripdly.com/auth?redirectTo=https%3A%2F%2Fevil.example", {
-        headers: { Cookie: session },
-      }),
-    );
-    expect((unverified as Response).headers.get("Location")).toBe("/verify-phone");
+    expect((response as Response).headers.get("Location")).toBe("/");
   });
 
   it("treats an unauthorized profile lookup as a guest", async () => {

@@ -28,7 +28,7 @@ describe("customer email verification", () => {
     verifySignInOtp.mockReset();
   });
 
-  it("sends a successful email OTP to phone verification and keeps redirectTo", async () => {
+  it("sends a successful email OTP to the requested destination", async () => {
     const apiHeaders = new Headers();
     apiHeaders.append(
       "Set-Cookie",
@@ -69,11 +69,11 @@ describe("customer email verification", () => {
       (response as Response).headers.get("location") ?? "",
       "https://tripdly.com",
     );
-    expect(location.pathname).toBe("/verify-phone");
-    expect(location.searchParams.get("redirectTo")).toBe("/cars/lexus-ux?from=2026-09-01");
+    expect(location.pathname).toBe("/cars/lexus-ux");
+    expect(location.searchParams.get("from")).toBe("2026-09-01");
   });
 
-  it("does not carry an unsafe redirect into the phone step", async () => {
+  it("does not follow an unsafe redirect after email verification", async () => {
     verifySignInOtp.mockResolvedValue({
       data: {
         user: {
@@ -95,6 +95,6 @@ describe("customer email verification", () => {
 
     const response = await action(routeArgs(request)).catch((error: unknown) => error);
 
-    expect((response as Response).headers.get("location")).toBe("/verify-phone");
+    expect((response as Response).headers.get("location")).toBe("/");
   });
 });

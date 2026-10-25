@@ -27,11 +27,8 @@ test("renders the profile form fixture", async ({ page }) => {
   await expect(page.getByLabel("Email")).toBeDisabled();
   await expect(page.getByLabel("Name")).toHaveValue("Ada Lovelace");
   await expect(page.getByText("+2348012345678", { exact: true })).toBeVisible();
-  await expect(page.getByText("Verified", { exact: true })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Change phone number" })).toHaveAttribute(
-    "href",
-    "/verify-phone?redirectTo=%2Fprofile&change=phone",
-  );
+  await expect(page.getByText("Phone number verified")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Change phone number" })).toBeVisible();
   await expect(page.getByRole("checkbox", { name: /Marketing communications/ })).not.toBeChecked();
   await expect(page.getByRole("button", { name: "Save Changes" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Danger Zone" })).toBeVisible();

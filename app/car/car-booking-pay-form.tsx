@@ -5,7 +5,9 @@ import { Form, useLocation, useNavigation } from "react-router";
 import type { PublicAddon } from "~/api/addons/schema";
 import type { BookingPricingPreview } from "~/api/bookings/schema";
 import type { TripDurationResponse } from "~/api/flights/schema";
+import { PhoneVerification } from "~/auth/phone-verification";
 import { authPath } from "~/auth/referer";
+import { usePhoneVerification } from "~/auth/use-phone-verification";
 import { usePublicUser } from "~/auth/use-public-user";
 import { type BookingAttempt, resolveBookingAttempt } from "~/booking/booking-attempt";
 import { createBookingFormSchema } from "~/booking/booking-create-form-schema";
@@ -15,9 +17,7 @@ import {
   expectedBookingTotalAmount,
 } from "~/booking/booking-estimate";
 import { BookingGuestFields } from "~/booking/booking-guest-fields";
-import { BookingPhoneVerification } from "~/booking/booking-phone-verification";
 import { type BookingType, NIGHT_BOOKING_TYPE } from "~/booking/types";
-import { useBookingPhoneVerification } from "~/booking/use-booking-phone-verification";
 import { CarBookingAddons } from "~/car/car-booking-addons";
 import { CarBookingCheckout } from "~/car/car-booking-checkout";
 
@@ -86,7 +86,7 @@ export function CarBookingPayForm({
   const location = useLocation();
   const navigation = useNavigation();
   const isSignedIn = usePublicUser() != null;
-  const phoneVerification = useBookingPhoneVerification();
+  const phoneVerification = usePhoneVerification();
   const schema = createBookingFormSchema(!isSignedIn);
   const idempotencyKeyRef = useRef<HTMLInputElement>(null);
   const attemptRef = useRef<BookingAttempt | null>(null);
@@ -181,7 +181,9 @@ export function CarBookingPayForm({
                 onSelectionChange={onAddonSelectionChange}
               />
             ) : null,
-          phone: isSignedIn ? <BookingPhoneVerification phone={phoneVerification} /> : null,
+          phone: isSignedIn ? (
+            <PhoneVerification phone={phoneVerification} hideWhenVerified />
+          ) : null,
           credits,
           cost,
           pricingError,
