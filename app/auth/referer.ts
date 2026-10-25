@@ -75,7 +75,7 @@ export function safeAdminRedirectPath(value: string | null | undefined) {
 }
 
 export function authPath(
-  path: "/auth" | "/verify" | "/verify-phone",
+  path: "/auth" | "/verify",
   query: { redirectTo?: string | null; ref?: string | null } = {},
 ) {
   const params = new URLSearchParams();

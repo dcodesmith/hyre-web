@@ -167,7 +167,7 @@ test("modifies a booking", async ({ page }) => {
   await clickUntilVisible(modifyTrigger, dialog);
   await expect(dialog.getByLabel("Pickup address")).toHaveValue("Murtala Muhammed Airport, Ikeja");
 
-  const pickupTime = dialog.getByRole("combobox", { name: "Select pickup time" });
+  const pickupTime = dialog.getByRole("combobox", { name: "Pickup Time" });
   await expect(pickupTime).toContainText("9:30 AM");
   await expect(dialog.locator('input[name="pickupTime"]')).toHaveCount(0);
   await pickupTime.click();

@@ -1,6 +1,6 @@
 import type { PendingOtp } from "~/auth/auth-form-schema";
 import { redirectAuthenticatedUser } from "~/auth/guest-only.server";
-import { authPath } from "~/auth/referer";
+import { authPath, safeRedirectPath } from "~/auth/referer";
 import { VerifyForm } from "~/auth/verify-form";
 import {
   handleOtpVerification,
@@ -32,9 +32,7 @@ const verificationFlow = {
   scope: "user",
   loginHref,
   successRedirect(request: Request) {
-    return authPath("/verify-phone", {
-      redirectTo: new URL(request.url).searchParams.get("redirectTo"),
-    });
+    return safeRedirectPath(new URL(request.url).searchParams.get("redirectTo"));
   },
 } satisfies OtpVerificationFlow;
 

@@ -51,7 +51,12 @@ function hasSessionCookie(request: IncomingMessage) {
   return request.headers.cookie?.includes("better-auth.session_token=") === true;
 }
 
-export async function startMockReferralApi(summary = mockReferralSummary, port = 3100) {
+export async function startMockReferralApi(
+  summary = mockReferralSummary,
+  port = 3100,
+  { phoneVerified = true }: { readonly phoneVerified?: boolean } = {},
+) {
+  let currentPhoneVerified = phoneVerified;
   const server = createServer((request, response) => {
     if (request.method === "GET" && requestPath(request) === "/auth/session") {
       if (!hasSessionCookie(request)) {
@@ -72,6 +77,43 @@ export async function startMockReferralApi(summary = mockReferralSummary, port =
           session: {},
         }),
       );
+      return;
+    }
+
+    if (request.method === "GET" && requestPath(request) === "/api/users/me") {
+      if (!hasSessionCookie(request)) {
+        response.writeHead(401, { "content-type": "application/json" });
+        response.end(JSON.stringify({ status: 401, detail: "Unauthorized" }));
+        return;
+      }
+
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(
+        JSON.stringify({
+          name: "Ada Customer",
+          phoneNumber: "+2348012345678",
+          phoneVerified: currentPhoneVerified,
+          city: "Lagos",
+          address: null,
+          marketingConsent: false,
+        }),
+      );
+      return;
+    }
+
+    if (request.method === "POST" && requestPath(request) === "/api/users/me/phone-verifications") {
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(JSON.stringify({ status: "PENDING", phoneNumber: "+234******5678" }));
+      return;
+    }
+
+    if (
+      request.method === "POST" &&
+      requestPath(request) === "/api/users/me/phone-verification-checks"
+    ) {
+      currentPhoneVerified = true;
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(JSON.stringify({ status: "VERIFIED", phoneNumber: "+2348012345678" }));
       return;
     }
 

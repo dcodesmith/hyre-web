@@ -78,7 +78,7 @@ describe("current user phone verification client", () => {
     );
 
     const response = await sendCurrentUserPhoneVerification({
-      request: signedInRequest("/verify-phone"),
+      request: signedInRequest("/profile"),
       phoneNumber: "+2348012345678",
     });
 
@@ -99,7 +99,7 @@ describe("current user phone verification client", () => {
     );
 
     const response = await checkCurrentUserPhoneVerification({
-      request: signedInRequest("/verify-phone"),
+      request: signedInRequest("/profile"),
       phoneNumber: "+2348012345678",
       code: "123456",
     });
@@ -121,7 +121,7 @@ describe("current user phone verification client", () => {
 
     await expect(
       sendCurrentUserPhoneVerification({
-        request: signedInRequest("/verify-phone"),
+        request: signedInRequest("/profile"),
         phoneNumber: "+2348012345678",
       }),
     ).rejects.toMatchObject({

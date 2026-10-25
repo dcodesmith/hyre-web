@@ -12,43 +12,36 @@ export function TripDetails({ arrivalTime, duration }: TripDetailsProps) {
   const details = buildTripDetails(arrivalTime, duration);
 
   return (
-    <div className="w-full lg:border-b lg:border-gray-200 lg:pb-4">
-      <div className="mb-2 flex items-center gap-2">
-        <h3 className="text-sm font-semibold">Trip Details</h3>
-        <p className="flex items-center gap-1 text-xs font-normal text-gray-500">
-          <Info className="size-3.5 shrink-0" aria-hidden="true" />
-          Times are estimates
-        </p>
+    <div className="w-full">
+      <div className="mb-3 flex items-center gap-2">
+        <h3 className="text-sm font-semibold leading-5">Trip Details</h3>
+        <Info className="size-4 text-gray-400" aria-label="Times are estimates" />
       </div>
-      <div className="transform-gpu rounded border border-neutral-200 bg-white px-4 py-4 shadow-xl inset-shadow-sm lg:rounded-none lg:border-none lg:bg-transparent lg:px-0 lg:py-0 lg:shadow-none lg:inset-shadow-none">
-        <dl className="space-y-1.5 text-sm text-gray-950">
-          <div className="flex justify-between gap-3">
-            <dt className="text-gray-600">Flight Arrival</dt>
-            <dd className="font-medium tabular-nums">{details.arrivalTime}</dd>
-          </div>
-          <div className="flex justify-between gap-3">
-            <dt className="text-gray-600">Pickup Time</dt>
-            <dd className="font-medium tabular-nums">{details.pickupTime}</dd>
-          </div>
-          <div className="flex justify-between gap-3">
-            <dt className="text-gray-600">Estimated Drive</dt>
-            <dd className="font-medium tabular-nums">
-              {details.driveText}
-              {details.isEstimate ? (
-                <span className="text-xs text-gray-500"> (estimated)</span>
-              ) : null}
-            </dd>
-          </div>
-          <div className="flex justify-between gap-3">
-            <dt className="text-gray-600">Distance</dt>
-            <dd className="font-medium tabular-nums">{details.distanceText}</dd>
-          </div>
-          <div className="flex justify-between gap-3 border-t border-gray-200 pt-1">
-            <dt className="font-semibold text-gray-600">Estimated Drop-off</dt>
-            <dd className="font-semibold tabular-nums">{details.dropOffTime}</dd>
-          </div>
-        </dl>
-      </div>
+      <dl className="flex flex-col gap-2.5 rounded-lg border border-gray-200 px-3 py-4 text-sm leading-6 text-gray-900">
+        <div className="flex justify-between gap-3">
+          <dt>Flight Arrival</dt>
+          <dd className="font-medium tabular-nums">{details.arrivalTime}</dd>
+        </div>
+        <div className="flex justify-between gap-3">
+          <dt>Pickup Time</dt>
+          <dd className="font-medium tabular-nums">{details.pickupTime}</dd>
+        </div>
+        <div className="flex justify-between gap-3">
+          <dt>Estimated Drive</dt>
+          <dd className="font-medium tabular-nums">
+            {details.driveText}
+            {details.isEstimate ? <span className="sr-only"> estimated</span> : null}
+          </dd>
+        </div>
+        <div className="flex justify-between gap-3">
+          <dt>Distance</dt>
+          <dd className="font-medium tabular-nums">{details.distanceText}</dd>
+        </div>
+        <div className="flex justify-between gap-3 border-t border-gray-200 pt-2.5 font-medium">
+          <dt>Estimated Drop-off</dt>
+          <dd className="tabular-nums">{details.dropOffTime}</dd>
+        </div>
+      </dl>
     </div>
   );
 }

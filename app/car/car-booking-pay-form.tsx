@@ -5,7 +5,9 @@ import { Form, useLocation, useNavigation } from "react-router";
 import type { PublicAddon } from "~/api/addons/schema";
 import type { BookingPricingPreview } from "~/api/bookings/schema";
 import type { TripDurationResponse } from "~/api/flights/schema";
+import { PhoneVerification } from "~/auth/phone-verification";
 import { authPath } from "~/auth/referer";
+import { usePhoneVerification } from "~/auth/use-phone-verification";
 import { usePublicUser } from "~/auth/use-public-user";
 import { type BookingAttempt, resolveBookingAttempt } from "~/booking/booking-attempt";
 import { createBookingFormSchema } from "~/booking/booking-create-form-schema";
@@ -53,6 +55,7 @@ export function CarBookingPayForm({
   credits,
   tripArrivalTime,
   tripDuration,
+  tripDurationError,
 }: {
   readonly carId: string;
   readonly searchId?: string | null;
@@ -78,10 +81,12 @@ export function CarBookingPayForm({
   readonly credits: ReactNode;
   readonly tripArrivalTime: string | null;
   readonly tripDuration: TripDurationResponse | null;
+  readonly tripDurationError: string | null;
 }) {
   const location = useLocation();
   const navigation = useNavigation();
   const isSignedIn = usePublicUser() != null;
+  const phoneVerification = usePhoneVerification();
   const schema = createBookingFormSchema(!isSignedIn);
   const idempotencyKeyRef = useRef<HTMLInputElement>(null);
   const attemptRef = useRef<BookingAttempt | null>(null);
@@ -97,16 +102,20 @@ export function CarBookingPayForm({
   const hasResolvedAddresses =
     pickupAddress.trim().length > 0 && (sameLocation || dropOffAddress.trim().length > 0);
   const canPay =
-    canAuthorizeBookingPayment(preview, isPricingLoading, pricingError) && hasResolvedAddresses;
+    canAuthorizeBookingPayment(preview, isPricingLoading, pricingError) &&
+    hasResolvedAddresses &&
+    (!isSignedIn || phoneVerification.phoneVerified);
   const bookingErrors = [
     ...Object.values(fields).flatMap((field) => field.errors ?? []),
     ...(form.errors ?? []),
   ];
 
+  const bookingActionQuery = new URLSearchParams(location.search).toString();
+
   return (
     <Form
       method="post"
-      action={`${location.pathname}${location.search}`}
+      action={bookingActionQuery ? `${location.pathname}?${bookingActionQuery}` : location.pathname}
       {...getFormProps(form)}
       className="contents"
       onSubmitCapture={(event) => {
@@ -152,6 +161,7 @@ export function CarBookingPayForm({
         schedule={schedule}
         tripArrivalTime={tripArrivalTime}
         tripDuration={tripDuration}
+        tripDurationError={tripDurationError}
         bookingType={bookingType}
         checkout={{
           guest: isSignedIn ? null : (
@@ -171,6 +181,9 @@ export function CarBookingPayForm({
                 onSelectionChange={onAddonSelectionChange}
               />
             ) : null,
+          phone: isSignedIn ? (
+            <PhoneVerification phone={phoneVerification} hideWhenVerified />
+          ) : null,
           credits,
           cost,
           pricingError,

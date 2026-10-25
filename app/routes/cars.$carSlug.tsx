@@ -11,7 +11,6 @@ import { HTTP_STATUS } from "~/api/http-status";
 import { loadPublicRates } from "~/api/rates/rates.server";
 import { getCarReviews } from "~/api/reviews/reviews.server";
 import { AUTH_NO_STORE } from "~/auth/guest-only.server";
-import { authPath } from "~/auth/referer";
 import { readAuthUser } from "~/auth/session.server";
 import { createBookingFormSchema, toCreateBookingBody } from "~/booking/booking-create-form-schema";
 import { bookingPricingSelectionKey } from "~/booking/booking-estimate";
@@ -233,26 +232,6 @@ export async function action({ request, params }: Route.ActionArgs) {
       idempotencyKey: submission.value.idempotencyKey,
     });
   } catch (error) {
-    if (
-      error instanceof ApiRequestError &&
-      error.problem.errorCode === "BOOKING_PHONE_VERIFICATION_REQUIRED"
-    ) {
-      const url = new URL(request.url);
-      url.searchParams.delete("addonIds");
-      for (const addonId of submission.value.addonIds) {
-        url.searchParams.append("addonIds", addonId);
-      }
-      if (submission.value.useCredits > 0) {
-        url.searchParams.set("useCredits", String(submission.value.useCredits));
-      } else {
-        url.searchParams.delete("useCredits");
-      }
-
-      throw redirect(authPath("/verify-phone", { redirectTo: `${url.pathname}${url.search}` }), {
-        headers: AUTH_NO_STORE,
-      });
-    }
-
     return bookingCreateFailure(
       error,
       (message) => submission.reply({ formErrors: [message] }),

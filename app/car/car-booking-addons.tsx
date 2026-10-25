@@ -12,14 +12,12 @@ export function CarBookingAddons({
   readonly onSelectionChange: (addonId: string, selected: boolean) => void;
 }) {
   return (
-    <section
-      aria-labelledby="booking-addons-heading"
-      className="mt-4 lg:mt-0 lg:border-t lg:bg-gray-50 lg:px-6 lg:py-4"
-    >
-      <h3 id="booking-addons-heading" className="mb-2 text-sm font-semibold">
-        Add-ons
+    <section aria-labelledby="booking-addons-heading">
+      <h3 id="booking-addons-heading" className="mb-2 text-sm leading-5">
+        <span className="font-semibold">Add-ons </span>
+        <span className="font-normal">(optional)</span>
       </h3>
-      <div className="space-y-3 rounded border border-neutral-200 bg-white px-4 py-4 shadow-xl inset-shadow-sm transform-gpu lg:rounded-none lg:border-none lg:bg-transparent lg:px-0 lg:py-0 lg:shadow-none lg:inset-shadow-none">
+      <div className="space-y-3 rounded-lg border border-gray-200 px-3 py-4">
         {addons.map((addon) => {
           const inputId = `booking-addon-${addon.id}`;
           const selected = selectedIds.includes(addon.id);
@@ -43,7 +41,7 @@ export function CarBookingAddons({
                   </span>
                 </span>
                 {addon.description ? (
-                  <span className="mt-0.5 block text-xs leading-4 text-muted-foreground">
+                  <span className="mt-0.5 block text-sm leading-6 text-gray-900">
                     {addon.description}
                   </span>
                 ) : null}
