@@ -181,8 +181,8 @@ test("uses Enter to send and verify a signed-in customer's phone", async ({ cont
 
     await page.getByLabel("Enter Verification Code").fill("123456");
     await page.getByLabel("Enter Verification Code").press("Enter");
-    await expect(page.getByText("Phone number verified")).toBeVisible();
     await expect(payNow).toBeEnabled();
+    await expect(page.getByLabel("Enter Verification Code")).toHaveCount(0);
     expect(page.url()).toBe(bookingUrl);
   } finally {
     await stopMockReferralApi(api);

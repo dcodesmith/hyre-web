@@ -1,4 +1,4 @@
-import { useEffect, useEffectEvent } from "react";
+import { useEffect, useEffectEvent, useRef } from "react";
 import { useFetcher } from "react-router";
 
 import { usePublicUser } from "~/auth/use-public-user";
@@ -19,9 +19,17 @@ export function phoneVerificationFromProfile(profile: {
   };
 }
 
+export function nextPhoneActionResult(
+  current: PhoneVerificationData | null,
+  data: PhoneVerificationData | null | undefined,
+) {
+  return data?.intent != null ? data : current;
+}
+
 export function usePhoneVerification(initial?: PhoneVerificationData | null) {
   const signedIn = usePublicUser() != null;
   const fetcher = useFetcher<PhoneVerificationData>();
+  const lastActionRef = useRef<PhoneVerificationData | null>(null);
   const loadProfile = useEffectEvent(() => {
     if (fetcher.state === "idle" && !fetcher.data) {
       void fetcher.load("/api/phone-verification");
@@ -34,7 +42,15 @@ export function usePhoneVerification(initial?: PhoneVerificationData | null) {
     }
   }, [signedIn]);
 
-  const result = signedIn ? (fetcher.data ?? initial ?? null) : (initial ?? null);
+  if (!signedIn) {
+    lastActionRef.current = null;
+  } else {
+    lastActionRef.current = nextPhoneActionResult(lastActionRef.current, fetcher.data);
+  }
+
+  const result = signedIn
+    ? (lastActionRef.current ?? fetcher.data ?? initial ?? null)
+    : (initial ?? null);
   const visible = result && !(result.phoneVerified && result.intent == null) ? result : null;
 
   function send(phoneNumber: string) {

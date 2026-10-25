@@ -56,6 +56,7 @@ export async function startMockReferralApi(
   port = 3100,
   { phoneVerified = true }: { readonly phoneVerified?: boolean } = {},
 ) {
+  let currentPhoneVerified = phoneVerified;
   const server = createServer((request, response) => {
     if (request.method === "GET" && requestPath(request) === "/auth/session") {
       if (!hasSessionCookie(request)) {
@@ -91,7 +92,7 @@ export async function startMockReferralApi(
         JSON.stringify({
           name: "Ada Customer",
           phoneNumber: "+2348012345678",
-          phoneVerified,
+          phoneVerified: currentPhoneVerified,
           city: "Lagos",
           address: null,
           marketingConsent: false,
@@ -110,6 +111,7 @@ export async function startMockReferralApi(
       request.method === "POST" &&
       requestPath(request) === "/api/users/me/phone-verification-checks"
     ) {
+      currentPhoneVerified = true;
       response.writeHead(200, { "content-type": "application/json" });
       response.end(JSON.stringify({ status: "VERIFIED", phoneNumber: "+2348012345678" }));
       return;

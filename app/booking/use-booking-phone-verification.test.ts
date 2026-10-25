@@ -31,7 +31,7 @@ vi.mock("~/auth/use-public-user", () => ({
   usePublicUser: () => (page.signedIn ? { email: "ada@example.com", name: "Ada" } : null),
 }));
 
-import { phoneVerificationFromProfile } from "~/auth/use-phone-verification";
+import { nextPhoneActionResult, phoneVerificationFromProfile } from "~/auth/use-phone-verification";
 
 import { useBookingPhoneVerification } from "./use-booking-phone-verification";
 
@@ -41,6 +41,39 @@ function Probe({ initial }: { initial?: Parameters<typeof useBookingPhoneVerific
   latest = useBookingPhoneVerification(initial);
   return null;
 }
+
+describe("nextPhoneActionResult", () => {
+  const sent = {
+    intent: "send-phone" as const,
+    phoneNumber: "+2348012345678",
+    phoneVerified: false,
+    maskedPhoneNumber: "+234••••5678",
+    notice: "Code sent.",
+    error: null,
+    fieldErrors: null,
+  };
+  const checked = {
+    ...sent,
+    intent: "check-phone" as const,
+    phoneVerified: true,
+    notice: null,
+  };
+  const loaded = {
+    ...sent,
+    intent: null,
+    maskedPhoneNumber: null,
+    notice: null,
+  };
+
+  it("keeps a send or check when the profile loader revalidates", () => {
+    expect(nextPhoneActionResult(sent, { ...loaded, phoneVerified: false })).toEqual(sent);
+    expect(nextPhoneActionResult(checked, { ...loaded, phoneVerified: true })).toEqual(checked);
+  });
+
+  it("takes a new send or check over the last action", () => {
+    expect(nextPhoneActionResult(sent, checked)).toEqual(checked);
+  });
+});
 
 describe("useBookingPhoneVerification", () => {
   beforeEach(() => {
