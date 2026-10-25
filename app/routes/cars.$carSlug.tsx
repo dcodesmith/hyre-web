@@ -171,6 +171,7 @@ export async function action({ request, params }: Route.ActionArgs) {
         lastResult: submission.reply(),
         currentPricing: undefined,
         currentPricingSelectionKey: undefined,
+        phoneVerificationResetKey: undefined,
       },
       { status: HTTP_STATUS.BAD_REQUEST, headers: AUTH_NO_STORE },
     );
@@ -201,6 +202,7 @@ export async function action({ request, params }: Route.ActionArgs) {
         lastResult: submission.reply({ formErrors: ["This car is no longer available."] }),
         currentPricing: undefined,
         currentPricingSelectionKey: undefined,
+        phoneVerificationResetKey: undefined,
       },
       { status: HTTP_STATUS.BAD_REQUEST, headers: AUTH_NO_STORE },
     );
@@ -214,6 +216,7 @@ export async function action({ request, params }: Route.ActionArgs) {
         lastResult: submission.reply({ formErrors: [BOOKING_CREATE_ERROR] }),
         currentPricing: undefined,
         currentPricingSelectionKey: undefined,
+        phoneVerificationResetKey: undefined,
       },
       { status: HTTP_STATUS.BAD_REQUEST, headers: AUTH_NO_STORE },
     );
@@ -245,6 +248,7 @@ export async function action({ request, params }: Route.ActionArgs) {
         lastResult: submission.reply({ formErrors: [BOOKING_CREATE_ERROR] }),
         currentPricing: undefined,
         currentPricingSelectionKey: undefined,
+        phoneVerificationResetKey: undefined,
       },
       { status: HTTP_STATUS.BAD_GATEWAY, headers: AUTH_NO_STORE },
     );
@@ -278,6 +282,7 @@ function bookingCreateFailure(
         currentPricing: undefined,
         currentPricingSelectionKey: undefined,
         errorCode: undefined,
+        phoneVerificationResetKey: undefined,
         retryAfterSeconds: undefined,
       },
       { status: HTTP_STATUS.BAD_GATEWAY, headers: AUTH_NO_STORE },
@@ -319,6 +324,8 @@ function bookingCreateFailure(
       currentPricing,
       currentPricingSelectionKey,
       errorCode,
+      phoneVerificationResetKey:
+        errorCode === "BOOKING_PHONE_VERIFICATION_REQUIRED" ? crypto.randomUUID() : undefined,
       retryAfterSeconds,
     },
     {
@@ -338,6 +345,7 @@ export default function CarDetail({ loaderData, actionData }: Route.ComponentPro
       lastResult={actionData?.lastResult}
       currentPricing={actionData?.currentPricing}
       currentPricingSelectionKey={actionData?.currentPricingSelectionKey}
+      phoneVerificationResetKey={actionData?.phoneVerificationResetKey}
     />
   );
 }

@@ -5,7 +5,11 @@ import { AccountDeletion } from "~/account/account-deletion";
 import { profileFormSchema } from "~/account/profile-form-schema";
 import type { CurrentUserProfile } from "~/api/users/schema";
 import { AuthCheckbox } from "~/auth/auth-form-primitives";
-import { bookingPhoneInputClassName, PhoneVerification } from "~/auth/phone-verification";
+import {
+  bookingPhoneInputClassName,
+  PhoneVerification,
+  PhoneVerificationRoot,
+} from "~/auth/phone-verification";
 import { phoneVerificationFromProfile, usePhoneVerification } from "~/auth/use-phone-verification";
 import { FormError } from "~/components/forms/form-primitives";
 import { Button } from "~/components/ui/button";
@@ -44,80 +48,87 @@ export function ProfilePage({ email, profile, lastResult }: ProfileFields) {
     <div className="w-full">
       <div className="mx-auto max-w-4xl px-4 py-4 md:py-6">
         <h1 className="mb-4 text-pretty text-2xl font-bold">Edit Profile</h1>
-        <Form method="post" {...getFormProps(form)} className="max-w-md space-y-4">
-          {lastResult?.status === "success" ? (
-            <output className="block text-sm text-green-700">Saved.</output>
-          ) : null}
+        <PhoneVerificationRoot>
+          <Form method="post" {...getFormProps(form)} className="max-w-md space-y-4">
+            {lastResult?.status === "success" ? (
+              <output className="block text-sm text-green-700">Saved.</output>
+            ) : null}
 
-          <div className="space-y-1">
-            <label htmlFor="profile-email" className="text-sm font-medium">
-              Email
-            </label>
-            <input
-              id="profile-email"
-              type="email"
-              value={email}
-              readOnly
-              disabled
-              autoComplete="email"
-              className={bookingPhoneInputClassName}
-            />
-          </div>
+            <div className="space-y-1">
+              <label htmlFor="profile-email" className="text-sm font-medium">
+                Email
+              </label>
+              <input
+                id="profile-email"
+                type="email"
+                value={email}
+                readOnly
+                disabled
+                autoComplete="email"
+                className={bookingPhoneInputClassName}
+              />
+            </div>
 
-          <div className="space-y-1">
-            <label htmlFor={name.id} className="text-sm font-medium">
-              Name
-            </label>
-            <input
-              {...getInputProps(name, { type: "text" })}
-              autoComplete="name"
-              className={bookingPhoneInputClassName}
-            />
-            <FormError id={name.errorId} errors={name.errors} />
-          </div>
+            <div className="space-y-1">
+              <label htmlFor={name.id} className="text-sm font-medium">
+                Name
+              </label>
+              <input
+                {...getInputProps(name, { type: "text" })}
+                autoComplete="name"
+                className={bookingPhoneInputClassName}
+              />
+              <FormError id={name.errorId} errors={name.errors} />
+            </div>
 
-          <PhoneVerification phone={phone} allowChange />
+            <PhoneVerification phone={phone} allowChange />
 
-          <div className="space-y-1">
-            <label htmlFor={city.id} className="text-sm font-medium">
-              City
-            </label>
-            <input
-              {...getInputProps(city, { type: "text" })}
-              autoComplete="address-level2"
-              className={bookingPhoneInputClassName}
-            />
-            <FormError id={city.errorId} errors={city.errors} />
-          </div>
+            <div className="space-y-1">
+              <label htmlFor={city.id} className="text-sm font-medium">
+                City
+              </label>
+              <input
+                {...getInputProps(city, { type: "text" })}
+                autoComplete="address-level2"
+                className={bookingPhoneInputClassName}
+              />
+              <FormError id={city.errorId} errors={city.errors} />
+            </div>
 
-          <div className="space-y-1">
-            <label htmlFor={address.id} className="text-sm font-medium">
-              Address
-            </label>
-            <input
-              {...getInputProps(address, { type: "text" })}
-              autoComplete="street-address"
-              className={bookingPhoneInputClassName}
-            />
-            <FormError id={address.errorId} errors={address.errors} />
-          </div>
+            <div className="space-y-1">
+              <label htmlFor={address.id} className="text-sm font-medium">
+                Address
+              </label>
+              <input
+                {...getInputProps(address, { type: "text" })}
+                autoComplete="street-address"
+                className={bookingPhoneInputClassName}
+              />
+              <FormError id={address.errorId} errors={address.errors} />
+            </div>
 
-          <label htmlFor={marketingConsent.id} className="flex cursor-pointer items-start gap-2.5">
-            <AuthCheckbox {...getInputProps(marketingConsent, { type: "checkbox", value: "on" })} />
-            <span>
-              <span className="block text-sm font-medium">Marketing communications</span>
-              <span className="block text-sm text-muted-foreground">
-                Receive updates about new features, promotions, and travel tips.
+            <label
+              htmlFor={marketingConsent.id}
+              className="flex cursor-pointer items-start gap-2.5"
+            >
+              <AuthCheckbox
+                {...getInputProps(marketingConsent, { type: "checkbox", value: "on" })}
+              />
+              <span>
+                <span className="block text-sm font-medium">Marketing communications</span>
+                <span className="block text-sm text-muted-foreground">
+                  Receive updates about new features, promotions, and travel tips.
+                </span>
               </span>
-            </span>
-          </label>
+            </label>
 
-          <FormError id={form.errorId} errors={form.errors} />
+            <FormError id={form.errorId} errors={form.errors} />
 
-          <Button type="submit" disabled={isSaving}>
-            {isSaving ? "Saving…" : "Save Changes"}
-          </Button>
-        </Form>
+            <Button type="submit" disabled={isSaving}>
+              {isSaving ? "Saving…" : "Save Changes"}
+            </Button>
+          </Form>
+        </PhoneVerificationRoot>
         <AccountDeletion />
       </div>
     </div>

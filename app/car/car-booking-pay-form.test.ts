@@ -5,6 +5,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const session = vi.hoisted(() => ({
   signedIn: true,
   phoneVerified: true as boolean | undefined,
+  verificationToken: null as string | null,
+  intent: null as null | "send-phone" | "check-phone",
 }));
 
 vi.mock("react-router", () => ({
@@ -32,9 +34,10 @@ vi.mock("react-router", () => ({
       session.phoneVerified === undefined
         ? undefined
         : {
-            intent: null,
+            intent: session.intent,
             phoneNumber: "+2348012345678",
             phoneVerified: session.phoneVerified,
+            verificationToken: session.verificationToken,
             maskedPhoneNumber: null,
             notice: null,
             error: null,
@@ -150,6 +153,8 @@ describe("CarBookingPayForm credits", () => {
   beforeEach(() => {
     session.signedIn = true;
     session.phoneVerified = true;
+    session.verificationToken = null;
+    session.intent = null;
   });
 
   it("writes requested credits into the hidden create payload", () => {
@@ -191,14 +196,31 @@ describe("CarBookingPayForm credits", () => {
     expect(renderPayForm({ preview, isPricingLoading: false })).toContain('disabled=""');
 
     session.phoneVerified = true;
-    expect(renderPayForm({ preview, isPricingLoading: false })).not.toContain('disabled=""');
+    const verified = renderPayForm({ preview, isPricingLoading: false });
+    expect(verified).not.toContain('disabled=""');
+    expect(verified).not.toContain("Phone Number");
+    expect(verified).not.toContain('name="phoneVerificationToken"');
   });
 
-  it("lets a guest pay without a verified phone", () => {
+  it("keeps Pay Now disabled until a guest check returns a verification token", () => {
     session.signedIn = false;
     session.phoneVerified = undefined;
 
-    expect(renderPayForm({ preview, isPricingLoading: false })).not.toContain('disabled=""');
+    const unverified = renderPayForm({ preview, isPricingLoading: false });
+    expect(unverified).toContain('disabled=""');
+    expect(unverified).toContain("Phone Number");
+    expect(unverified).toContain('name="phoneVerificationToken" value=""');
+
+    session.phoneVerified = false;
+    session.intent = "send-phone";
+    expect(renderPayForm({ preview, isPricingLoading: false })).toContain('disabled=""');
+
+    session.phoneVerified = true;
+    session.intent = "check-phone";
+    session.verificationToken = "proof-token";
+    const verified = renderPayForm({ preview, isPricingLoading: false });
+    expect(verified).not.toContain('disabled=""');
+    expect(verified).toContain('name="phoneVerificationToken" value="proof-token"');
   });
 
   it("keeps the API preview as the payable total", () => {

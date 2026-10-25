@@ -179,10 +179,47 @@ test("uses Enter to send and verify a signed-in customer's phone", async ({ cont
     await expect(page.getByLabel("Enter Verification Code")).toBeVisible();
     expect(page.url()).toBe(bookingUrl);
 
-    await page.getByLabel("Enter Verification Code").fill("123456");
-    await page.getByLabel("Enter Verification Code").press("Enter");
+    const code = page.getByLabel("Enter Verification Code");
+    await code.fill("123456");
+    await expect(code).toHaveValue("123456");
+    await code.press("Enter");
     await expect(payNow).toBeEnabled();
-    await expect(page.getByLabel("Enter Verification Code")).toHaveCount(0);
+    await expect(code).toHaveCount(0);
+    expect(page.url()).toBe(bookingUrl);
+  } finally {
+    await stopMockReferralApi(api);
+  }
+});
+
+test("uses Enter to verify a guest phone before Pay Now enables", async ({ page }) => {
+  const api = await startMockReferralApi();
+
+  try {
+    await setCookiePreference(page);
+    await page.goto(
+      "/__visual/car?bookingType=DAY&from=2026-09-01&to=2026-09-01&pickupTime=9%20AM&pickupAddress=Lekki&sameLocation=true",
+    );
+    const bookingUrl = page.url();
+    const payNow = page.getByRole("button", { name: "Pay Now", exact: true });
+
+    await expect(page.getByText("Order Total:")).toBeVisible();
+    await page.getByLabel("Full Name").fill("Ada Lovelace");
+    await page.getByLabel("Email Address").fill("ada@example.com");
+    await expect(payNow).toBeDisabled();
+
+    const phone = page.getByLabel("Phone Number");
+    await phone.fill("08012345678");
+    await expect(phone).toHaveValue("08012345678");
+    await phone.press("Enter");
+    await expect(page.getByLabel("Enter Verification Code")).toBeVisible();
+    expect(page.url()).toBe(bookingUrl);
+
+    const code = page.getByLabel("Enter Verification Code");
+    await code.fill("123456");
+    await expect(code).toHaveValue("123456");
+    await code.press("Enter");
+    await expect(payNow).toBeEnabled();
+    await expect(code).toHaveCount(0);
     expect(page.url()).toBe(bookingUrl);
   } finally {
     await stopMockReferralApi(api);
@@ -232,19 +269,10 @@ test("shows airport pickup flight and address fields when a from date is present
   await expect(page.getByText("Order Total:").filter({ visible: true })).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Pay Now", exact: true }).filter({ visible: true }),
-  ).toBeVisible();
+  ).toBeDisabled();
   await expect(page.getByLabel("Full Name")).toBeVisible();
   await expect(page.getByLabel("Email Address")).toBeVisible();
   await expect(page.getByLabel("Phone Number")).toBeVisible();
-
-  await page
-    .getByRole("button", { name: "Pay Now", exact: true })
-    .filter({ visible: true })
-    .click();
-  await expect(page.getByLabel("Full Name")).toHaveAttribute("aria-invalid", "true");
-  await expect(page.getByLabel("Email Address")).toHaveAttribute("aria-invalid", "true");
-  await expect(page.getByLabel("Phone Number")).toHaveAttribute("aria-invalid", "true");
-  await expect(page.getByLabel("Full Name")).toHaveClass(/border-red-500/);
   const duplicateIds = await page.locator("[id]").evaluateAll((elements) => {
     const ids = elements.map((element) => element.id);
     return ids.filter((id, index) => ids.indexOf(id) !== index);

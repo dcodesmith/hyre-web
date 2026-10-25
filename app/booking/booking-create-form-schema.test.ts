@@ -10,6 +10,7 @@ import {
   FLIGHT_NUMBER_ERROR,
   GUEST_NAME_ERROR,
   GUEST_PHONE_ERROR,
+  GUEST_PHONE_VERIFICATION_ERROR,
   NIGHT_PICKUP_TIME,
   PICKUP_ADDRESS_ERROR,
   PICKUP_TIME_ERROR,
@@ -45,7 +46,7 @@ describe("createBookingFormSchema", () => {
     });
   });
 
-  it("requires guest name, email, and phone", () => {
+  it("requires guest name, email, phone, and a verification proof", () => {
     const result = guest.safeParse(signedInDay());
 
     expect(result.success).toBe(false);
@@ -57,6 +58,7 @@ describe("createBookingFormSchema", () => {
     expect(fields.name?.[0]).toBe(GUEST_NAME_ERROR);
     expect(fields.email?.[0]).toBe(EMAIL_INVALID_ERROR);
     expect(fields.phoneNumber?.[0]).toBe(GUEST_PHONE_ERROR);
+    expect(fields.phoneVerificationToken?.[0]).toBe(GUEST_PHONE_VERIFICATION_ERROR);
   });
 
   it("maps empty guest fields from FormData the way Conform submits them", () => {
@@ -84,6 +86,7 @@ describe("createBookingFormSchema", () => {
     expect(submission.error?.name).toContain(GUEST_NAME_ERROR);
     expect(submission.error?.email).toContain(EMAIL_INVALID_ERROR);
     expect(submission.error?.phoneNumber).toContain(GUEST_PHONE_ERROR);
+    expect(submission.error?.phoneVerificationToken).toContain(GUEST_PHONE_VERIFICATION_ERROR);
   });
 
   it("reports pickup, flight, drop-off, and guest errors together", () => {
@@ -115,6 +118,7 @@ describe("createBookingFormSchema", () => {
     expect(submission.error?.name).toContain(GUEST_NAME_ERROR);
     expect(submission.error?.email).toContain(EMAIL_INVALID_ERROR);
     expect(submission.error?.phoneNumber).toContain(GUEST_PHONE_ERROR);
+    expect(submission.error?.phoneVerificationToken).toContain(GUEST_PHONE_VERIFICATION_ERROR);
   });
 
   it("requires pickup time for day bookings and a flight for airport", () => {
@@ -202,6 +206,7 @@ describe("create booking payload", () => {
       name: "Ada Lovelace",
       email: "  Ada@Tripdly.com ",
       phoneNumber: "08012345678",
+      phoneVerificationToken: "proof-token",
     });
     const preview = toPricingPreviewBody(value);
     const create = toCreateBookingBody(value, "120000.00");
@@ -222,6 +227,7 @@ describe("create booking payload", () => {
       guestName: "Ada Lovelace",
       guestEmail: "ada@tripdly.com",
       guestPhone: "08012345678",
+      guestPhoneVerificationToken: "proof-token",
       addonIds: [],
     });
     expect(create).not.toHaveProperty("dropOffAddress");
@@ -279,12 +285,14 @@ describe("create booking payload", () => {
       name: "Submitted Name",
       email: "submitted@example.com",
       phoneNumber: "08012345678",
+      phoneVerificationToken: "proof-token",
     });
 
     const body = toCreateBookingBody(value);
     expect(body).not.toHaveProperty("guestName");
     expect(body).not.toHaveProperty("guestEmail");
     expect(body).not.toHaveProperty("guestPhone");
+    expect(body).not.toHaveProperty("guestPhoneVerificationToken");
   });
 
   it("submits the canonical flight number", () => {

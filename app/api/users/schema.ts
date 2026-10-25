@@ -14,4 +14,8 @@ export const phoneVerificationSchema = z.object({
   phoneNumber: z.string(),
 });
 
+export const guestPhoneVerificationSchema = phoneVerificationSchema.extend({
+  verificationToken: z.string().optional(),
+});
+
 export type CurrentUserProfile = z.output<typeof currentUserProfileSchema>;

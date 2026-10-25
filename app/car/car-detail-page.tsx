@@ -27,6 +27,7 @@ interface CarDetailPageProps {
   readonly lastResult?: SubmissionResult<string[]>;
   readonly currentPricing?: BookingPricingPreview;
   readonly currentPricingSelectionKey?: string;
+  readonly phoneVerificationResetKey?: string;
   readonly previewReferralCredit?: {
     readonly availableCredits: number;
     readonly creditLimit: number;
@@ -77,6 +78,7 @@ export function CarDetailPage({
   lastResult,
   currentPricing,
   currentPricingSelectionKey,
+  phoneVerificationResetKey,
   previewReferralCredit,
 }: CarDetailPageProps) {
   const [searchParams] = useSearchParams();
@@ -181,6 +183,7 @@ export function CarDetailPage({
             lastResult={lastResult}
             currentPricing={currentPricing}
             currentPricingSelectionKey={currentPricingSelectionKey}
+            phoneVerificationResetKey={phoneVerificationResetKey}
             previewReferralCredit={previewReferralCredit}
           />
         </div>

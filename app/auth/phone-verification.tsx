@@ -1,5 +1,13 @@
 import { Check } from "lucide-react";
-import { type KeyboardEvent, useState } from "react";
+import {
+  createContext,
+  type FormEvent,
+  type ReactNode,
+  useContext,
+  useId,
+  useRef,
+  useState,
+} from "react";
 
 import { usePhoneVerification } from "~/auth/use-phone-verification";
 import { FormError } from "~/components/forms/form-primitives";
@@ -9,8 +17,66 @@ import type { PhoneVerificationData } from "~/routes/api.phone-verification";
 
 const PHONE_EXAMPLE = "+234 803 123 4675";
 
-function isImeEnter(event: KeyboardEvent<HTMLInputElement>) {
-  return event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229;
+type PhoneEntrySubmit = (formData: FormData) => void;
+
+const PhoneEntryContext = createContext<{
+  readonly formId: string;
+  readonly submitRef: { current: PhoneEntrySubmit };
+} | null>(null);
+
+export function PhoneVerificationRoot({ children }: { readonly children: ReactNode }) {
+  const formId = `phone-entry-${useId().replaceAll(":", "")}`;
+  const submitRef = useRef<PhoneEntrySubmit>(() => {});
+
+  return (
+    <PhoneEntryContext.Provider value={{ formId, submitRef }}>
+      <form
+        id={formId}
+        hidden
+        onSubmit={(event: FormEvent<HTMLFormElement>) => {
+          event.preventDefault();
+          submitRef.current(new FormData(event.currentTarget));
+        }}
+      />
+      {children}
+    </PhoneEntryContext.Provider>
+  );
+}
+
+function PhoneEntryForm({
+  className,
+  children,
+  onSubmit,
+}: {
+  readonly className: string;
+  readonly children: ReactNode;
+  readonly onSubmit: PhoneEntrySubmit;
+}) {
+  const entry = useContext(PhoneEntryContext);
+  if (entry) {
+    entry.submitRef.current = onSubmit;
+  }
+
+  if (!entry) {
+    return (
+      <form
+        className={className}
+        onSubmit={(event: FormEvent<HTMLFormElement>) => {
+          event.preventDefault();
+          event.stopPropagation();
+          onSubmit(new FormData(event.currentTarget));
+        }}
+      >
+        {children}
+      </form>
+    );
+  }
+
+  return <div className={className}>{children}</div>;
+}
+
+function usePhoneControlForm() {
+  return useContext(PhoneEntryContext)?.formId;
 }
 
 export const bookingPhoneInputClassName =
@@ -84,16 +150,16 @@ export function PhoneVerificationForm({
   readonly onSend: (phoneNumber: string) => void;
   readonly onCheck: (phoneNumber: string, code: string) => void;
 }) {
-  const [phoneNumber, setPhoneNumber] = useState(initialPhoneNumber);
-  const [code, setCode] = useState("");
   const [editingNumber, setEditingNumber] = useState(false);
   const [phoneError, setPhoneError] = useState<string | null>(null);
   const [codeError, setCodeError] = useState<string | null>(null);
   const awaitingCode = maskedPhoneNumber != null && !editingNumber;
   const phoneInvalid = phoneError != null || Boolean(fieldErrors?.phoneNumber?.length);
   const codeInvalid = codeError != null || Boolean(fieldErrors?.code?.length);
+  const submittedPhone = toE164Phone(initialPhoneNumber) ?? initialPhoneNumber;
+  const controlForm = usePhoneControlForm();
 
-  const sendPhone = (value = phoneNumber) => {
+  const sendPhone = (value: string) => {
     if (pending) {
       return;
     }
@@ -107,7 +173,7 @@ export function PhoneVerificationForm({
     onSend(toE164Phone(value) ?? value);
   };
 
-  const verifyCode = (value = code) => {
+  const verifyCode = (value: string) => {
     if (pending) {
       return;
     }
@@ -118,12 +184,15 @@ export function PhoneVerificationForm({
       return;
     }
     setCodeError(null);
-    onCheck(toE164Phone(phoneNumber) ?? phoneNumber, nextCode);
+    onCheck(submittedPhone, nextCode);
   };
 
   if (awaitingCode) {
     return (
-      <div className="space-y-2">
+      <PhoneEntryForm
+        className="space-y-2"
+        onSubmit={(formData) => verifyCode(String(formData.get("code") ?? ""))}
+      >
         <div className="space-y-1">
           <Label htmlFor="booking-phone-code" className="block font-semibold leading-5">
             Enter Verification Code
@@ -143,23 +212,17 @@ export function PhoneVerificationForm({
           <div className="min-w-0 flex-1 space-y-1">
             <input
               id="booking-phone-code"
+              name="code"
+              form={controlForm}
               type="text"
               inputMode="numeric"
               autoComplete="one-time-code"
               spellCheck={false}
-              value={code}
+              defaultValue=""
               placeholder="6-digit code"
               aria-invalid={codeInvalid ? true : undefined}
               className={`${bookingPhoneInputClassName} ${codeInvalid ? "border-red-500" : ""}`}
-              onKeyDown={(event) => {
-                if (event.key !== "Enter" || isImeEnter(event)) {
-                  return;
-                }
-                event.preventDefault();
-                verifyCode(event.currentTarget.value);
-              }}
               onChange={(event) => {
-                setCode(event.target.value);
                 if (codeError) {
                   const nextCode = event.target.value.trim();
                   setCodeError(/^\d{4,10}$/.test(nextCode) ? null : "Invalid code entered");
@@ -172,7 +235,7 @@ export function PhoneVerificationForm({
                 type="button"
                 className="text-gray-900 underline"
                 disabled={pending}
-                onClick={() => onSend(toE164Phone(phoneNumber) ?? phoneNumber)}
+                onClick={() => onSend(submittedPhone)}
               >
                 Resend code
               </button>
@@ -182,21 +245,24 @@ export function PhoneVerificationForm({
             {notice ? <span className="sr-only">{notice}</span> : null}
           </div>
           <Button
-            type="button"
+            type="submit"
+            form={controlForm}
             className="h-10 w-24 shrink-0 rounded-md"
             disabled={pending}
-            onClick={() => verifyCode()}
           >
             {pending ? "Verifying…" : "Verify"}
           </Button>
         </div>
         {error ? <FormError errors={[error]} /> : null}
-      </div>
+      </PhoneEntryForm>
     );
   }
 
   return (
-    <div className="space-y-1">
+    <PhoneEntryForm
+      className="space-y-1"
+      onSubmit={(formData) => sendPhone(String(formData.get("phone") ?? ""))}
+    >
       <Label htmlFor="booking-phone-number" className="block font-semibold leading-5">
         Phone Number
       </Label>
@@ -204,40 +270,34 @@ export function PhoneVerificationForm({
       <div className="flex items-center gap-2">
         <input
           id="booking-phone-number"
+          name="phone"
+          form={controlForm}
           type="tel"
           inputMode="tel"
           autoComplete="tel"
           spellCheck={false}
-          value={phoneNumber}
+          defaultValue={initialPhoneNumber}
           placeholder={PHONE_EXAMPLE}
           aria-invalid={phoneInvalid ? true : undefined}
           className={`${bookingPhoneInputClassName} ${phoneInvalid ? "border-red-500" : ""}`}
-          onKeyDown={(event) => {
-            if (event.key !== "Enter" || isImeEnter(event)) {
-              return;
-            }
-            event.preventDefault();
-            sendPhone(event.currentTarget.value);
-          }}
           onChange={(event) => {
-            setPhoneNumber(event.target.value);
             if (phoneError) {
               setPhoneError(phoneValidationMessage(event.target.value));
             }
           }}
         />
         <Button
-          type="button"
+          type="submit"
+          form={controlForm}
           className="h-10 shrink-0 rounded-md px-4"
           disabled={pending}
-          onClick={() => sendPhone()}
         >
           {pending ? "Sending…" : "Send code"}
         </Button>
       </div>
       <FormError errors={phoneError ? [phoneError] : fieldErrors?.phoneNumber} />
       {error ? <FormError errors={[error]} /> : null}
-    </div>
+    </PhoneEntryForm>
   );
 }
 

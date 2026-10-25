@@ -1,4 +1,4 @@
-import { useEffect, useEffectEvent, useRef } from "react";
+import { useEffect, useRef } from "react";
 import { useFetcher } from "react-router";
 
 import { usePublicUser } from "~/auth/use-public-user";
@@ -12,6 +12,7 @@ export function phoneVerificationFromProfile(profile: {
     intent: null,
     phoneNumber: profile.phoneNumber,
     phoneVerified: profile.phoneVerified,
+    verificationToken: null,
     maskedPhoneNumber: null,
     notice: null,
     error: null,
@@ -30,28 +31,39 @@ export function usePhoneVerification(initial?: PhoneVerificationData | null) {
   const signedIn = usePublicUser() != null;
   const fetcher = useFetcher<PhoneVerificationData>();
   const lastActionRef = useRef<PhoneVerificationData | null>(null);
-  const loadProfile = useEffectEvent(() => {
-    if (fetcher.state === "idle" && !fetcher.data) {
-      void fetcher.load("/api/phone-verification");
-    }
-  });
+  const lastSignedInRef = useRef(signedIn);
+  const dataBeforeAuthChangeRef = useRef<PhoneVerificationData | undefined>(undefined);
+  const awaitingProfileRef = useRef(signedIn && !fetcher.data);
 
-  useEffect(() => {
-    if (signedIn) {
-      loadProfile();
-    }
-  }, [signedIn]);
-
-  if (!signedIn) {
+  const authChanged = lastSignedInRef.current !== signedIn;
+  if (authChanged) {
     lastActionRef.current = null;
+    lastSignedInRef.current = signedIn;
+    dataBeforeAuthChangeRef.current = fetcher.data;
+    awaitingProfileRef.current = signedIn;
   } else {
-    lastActionRef.current = nextPhoneActionResult(lastActionRef.current, fetcher.data);
+    const freshData = fetcher.data === dataBeforeAuthChangeRef.current ? undefined : fetcher.data;
+    if (awaitingProfileRef.current && freshData?.intent === null) {
+      awaitingProfileRef.current = false;
+    }
+    if (!awaitingProfileRef.current) {
+      lastActionRef.current = nextPhoneActionResult(lastActionRef.current, freshData);
+    }
   }
 
-  const result = signedIn
-    ? (lastActionRef.current ?? fetcher.data ?? initial ?? null)
-    : (initial ?? null);
+  const freshData = fetcher.data === dataBeforeAuthChangeRef.current ? undefined : fetcher.data;
+  const currentData = awaitingProfileRef.current ? undefined : freshData;
+  const result = lastActionRef.current ?? currentData ?? initial ?? null;
   const visible = result && !(result.phoneVerified && result.intent == null) ? result : null;
+  const shouldLoadProfile =
+    signedIn && fetcher.state === "idle" && (awaitingProfileRef.current || !fetcher.data);
+  const loadProfile = fetcher.load;
+
+  useEffect(() => {
+    if (shouldLoadProfile) {
+      void loadProfile("/api/phone-verification");
+    }
+  }, [loadProfile, shouldLoadProfile]);
 
   function send(phoneNumber: string) {
     void fetcher.submit(

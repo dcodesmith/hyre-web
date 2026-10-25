@@ -37,6 +37,8 @@ describe("BookingPhoneVerificationForm", () => {
     expect(markup).toContain('spellCheck="false"');
     expect(markup).toContain("Send code");
     expect(markup).toContain('id="booking-phone-number"');
+    expect(markup).toContain('name="phone"');
+    expect(markup).toContain("<form");
     expect(markup).not.toContain('name="phoneNumber"');
     expect(markup).not.toContain("Verification code");
   });
@@ -61,6 +63,7 @@ describe("BookingPhoneVerificationForm", () => {
     expect(markup).toContain("6-digit code");
     expect(markup).toContain("Resend code");
     expect(markup).toContain('id="booking-phone-code"');
+    expect(markup).toContain('name="code"');
     expect(markup).toContain("Verify");
   });
 });

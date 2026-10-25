@@ -90,6 +90,7 @@ function bookingForm(guest = false) {
     form.set("name", "Ada Lovelace");
     form.set("email", "ada@example.com");
     form.set("phoneNumber", "08012345678");
+    form.set("phoneVerificationToken", "proof-token");
   }
   return form;
 }
@@ -134,6 +135,7 @@ describe("car booking action", () => {
         body: expect.objectContaining({
           expectedTotalAmount: "112875",
           guestName: "Ada Lovelace",
+          guestPhoneVerificationToken: "proof-token",
           callbackUrl: "https://tripdly.com/bookings/payment-status",
           addonIds: [],
           requiresFullTank: false,
@@ -165,6 +167,7 @@ describe("car booking action", () => {
     expect(body).not.toHaveProperty("guestEmail");
     expect(body).not.toHaveProperty("guestName");
     expect(body).not.toHaveProperty("guestPhone");
+    expect(body).not.toHaveProperty("guestPhoneVerificationToken");
     expect(body.addonIds).toEqual([]);
   });
 
@@ -226,12 +229,14 @@ describe("car booking action", () => {
         currentPricing: { totalAmount: 115000 },
         currentPricingSelectionKey: "DAY|2026-09-01|2026-09-01|9 AM|",
         errorCode: "BOOKING_PRICE_CHANGED",
+        phoneVerificationResetKey: undefined,
       },
       init: { status: 409 },
     });
     const headers = new Headers(result.init?.headers);
     expect(headers.get("Retry-After")).toBe("3");
     expect(headers.get("X-Request-ID")).toBe("request-1");
+    expect(result.data.phoneVerificationResetKey).toBeUndefined();
   });
 
   it("maps CAR_NOT_AVAILABLE to the selected-time message", async () => {
@@ -304,6 +309,9 @@ describe("car booking action", () => {
       data: { errorCode: "BOOKING_PHONE_VERIFICATION_REQUIRED" },
       init: { status: 403 },
     });
+    expect(result.data.phoneVerificationResetKey).toEqual(
+      expect.stringMatching(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i),
+    );
     expect(JSON.stringify(result.data.lastResult)).toContain(
       "Verify your phone number before booking.",
     );
