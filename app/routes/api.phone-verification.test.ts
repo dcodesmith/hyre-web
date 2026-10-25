@@ -28,7 +28,7 @@ vi.mock("~/auth/session.server", () => ({ readAuthUser }));
 
 import { ApiRequestError } from "~/api/api.server";
 import { HTTP_STATUS } from "~/api/http-status";
-import { action, loader } from "./api.phone-verification";
+import { action, loader, shouldRevalidate } from "./api.phone-verification";
 
 function apiError(
   status: number,
@@ -66,6 +66,30 @@ function runAction(body: Record<string, string>, cookie = "better-auth.session_t
     context: {},
   } as Parameters<typeof action>[0]);
 }
+
+describe("phone verification revalidation", () => {
+  const args = {
+    defaultShouldRevalidate: true,
+  } as Parameters<typeof shouldRevalidate>[0];
+
+  it("keeps a send or check result instead of reloading the profile", () => {
+    expect(
+      shouldRevalidate({
+        ...args,
+        formAction: "/api/phone-verification",
+      }),
+    ).toBe(false);
+  });
+
+  it("reloads the profile after another action", () => {
+    expect(
+      shouldRevalidate({
+        ...args,
+        formAction: "/cars/lexus-ux",
+      }),
+    ).toBe(true);
+  });
+});
 
 describe("phone verification resource", () => {
   beforeEach(() => {

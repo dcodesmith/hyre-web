@@ -1,5 +1,5 @@
 import { parseWithZod } from "@conform-to/zod/v4";
-import { data } from "react-router";
+import { data, type ShouldRevalidateFunctionArgs } from "react-router";
 
 import { ApiRequestError } from "~/api/api.server";
 import { hasSessionCookie } from "~/api/auth/cookie-relay.server";
@@ -104,6 +104,15 @@ function failure(
       headers: NO_STORE,
     },
   );
+}
+
+export function shouldRevalidate({
+  formAction,
+  defaultShouldRevalidate,
+}: ShouldRevalidateFunctionArgs) {
+  // A send or check revalidates this loader and would replace the action
+  // result with the profile before the booking card can read it.
+  return formAction?.includes("/api/phone-verification") ? false : defaultShouldRevalidate;
 }
 
 export async function loader({ request }: Route.LoaderArgs) {
