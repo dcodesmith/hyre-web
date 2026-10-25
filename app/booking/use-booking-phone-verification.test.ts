@@ -37,7 +37,7 @@ import { useBookingPhoneVerification } from "./use-booking-phone-verification";
 
 let latest: ReturnType<typeof useBookingPhoneVerification>;
 
-function Probe({ initial }: { initial?: Parameters<typeof useBookingPhoneVerification>[0] } = {}) {
+function Probe({ initial }: { initial?: Parameters<typeof useBookingPhoneVerification>[0] }) {
   latest = useBookingPhoneVerification(initial);
   return null;
 }
