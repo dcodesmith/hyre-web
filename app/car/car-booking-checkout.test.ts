@@ -90,7 +90,7 @@ describe("CarBookingCheckout mobile total", () => {
     expect(markup).toContain("₦5,912.50");
     expect(markup).toContain("line-through");
     expect(markup).toContain("Pay Now");
-    expect(markup).toContain("fixed inset-x-0 bottom-0");
+    expect(markup).toContain("fixed inset-x-0 bottom-0 z-50 flex max-h-dvh");
     expect(markup).toContain(">Total<");
     expect(markup).not.toContain("Trip Details");
     expect(markup).not.toContain("Unable to estimate the drive");

@@ -113,14 +113,14 @@ function CarBookingMobilePayBar({
   return (
     <div
       ref={barRef}
-      className="fixed inset-x-0 bottom-0 z-50 rounded-t-xl border-t bg-white pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_20px_rgba(0,0,0,0.1)] lg:hidden"
+      className="fixed inset-x-0 bottom-0 z-50 flex max-h-dvh flex-col overflow-hidden rounded-t-xl border-t bg-white pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_20px_rgba(0,0,0,0.1)] lg:hidden"
     >
       {bookingErrors.length > 0 ? (
-        <div className="border-b border-red-200 bg-red-50 px-4 py-2">
+        <div className="min-h-0 flex-1 overflow-y-auto border-b border-red-200 bg-red-50 px-4 py-2">
           <FormError id={errorId} errors={bookingErrors} />
         </div>
       ) : null}
-      <div className="space-y-3 p-4">
+      <div className="shrink-0 space-y-3 p-4">
         <div className="flex items-center justify-between gap-2">
           <span className="text-sm font-medium text-gray-600">Total</span>
           <CarBookingMobileTotal cost={cost} />

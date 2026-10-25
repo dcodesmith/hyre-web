@@ -238,6 +238,20 @@ describe("phone verification resource", () => {
     });
 
     checkGuestPhoneVerification.mockResolvedValue({
+      data: { status: "VERIFIED", phoneNumber: "+2348012345678", verificationToken: "" },
+    });
+
+    await expect(
+      runAction({
+        intent: "check-phone",
+        phoneNumber: "+2348012345678",
+        code: "123456",
+      }),
+    ).resolves.toMatchObject({
+      data: { phoneVerified: false, verificationToken: null },
+    });
+
+    checkGuestPhoneVerification.mockResolvedValue({
       data: { status: "VERIFIED", phoneNumber: "+2348012345678", verificationToken: 12 },
     });
 

@@ -60,7 +60,9 @@ function verificationStatus(
   signedIn: boolean,
 ) {
   const verificationToken =
-    typeof result.verificationToken === "string" ? result.verificationToken : null;
+    typeof result.verificationToken === "string" && result.verificationToken.length > 0
+      ? result.verificationToken
+      : null;
   return {
     phoneVerified: result.status === "VERIFIED" && (signedIn || verificationToken != null),
     verificationToken,
