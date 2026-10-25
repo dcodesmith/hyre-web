@@ -179,10 +179,12 @@ test("uses Enter to send and verify a signed-in customer's phone", async ({ cont
     await expect(page.getByLabel("Enter Verification Code")).toBeVisible();
     expect(page.url()).toBe(bookingUrl);
 
-    await page.getByLabel("Enter Verification Code").fill("123456");
-    await page.getByLabel("Enter Verification Code").press("Enter");
+    const code = page.getByLabel("Enter Verification Code");
+    await code.fill("123456");
+    await expect(code).toHaveValue("123456");
+    await code.press("Enter");
     await expect(payNow).toBeEnabled();
-    await expect(page.getByLabel("Enter Verification Code")).toHaveCount(0);
+    await expect(code).toHaveCount(0);
     expect(page.url()).toBe(bookingUrl);
   } finally {
     await stopMockReferralApi(api);
@@ -207,14 +209,17 @@ test("uses Enter to verify a guest phone before Pay Now enables", async ({ page 
 
     const phone = page.getByLabel("Phone Number");
     await phone.fill("08012345678");
+    await expect(phone).toHaveValue("08012345678");
     await phone.press("Enter");
     await expect(page.getByLabel("Enter Verification Code")).toBeVisible();
     expect(page.url()).toBe(bookingUrl);
 
-    await page.getByLabel("Enter Verification Code").fill("123456");
-    await page.getByLabel("Enter Verification Code").press("Enter");
+    const code = page.getByLabel("Enter Verification Code");
+    await code.fill("123456");
+    await expect(code).toHaveValue("123456");
+    await code.press("Enter");
     await expect(payNow).toBeEnabled();
-    await expect(page.getByLabel("Enter Verification Code")).toHaveCount(0);
+    await expect(code).toHaveCount(0);
     expect(page.url()).toBe(bookingUrl);
   } finally {
     await stopMockReferralApi(api);

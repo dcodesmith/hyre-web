@@ -5,7 +5,7 @@ import { Form, useLocation, useNavigation } from "react-router";
 import type { PublicAddon } from "~/api/addons/schema";
 import type { BookingPricingPreview } from "~/api/bookings/schema";
 import type { TripDurationResponse } from "~/api/flights/schema";
-import { PhoneVerification } from "~/auth/phone-verification";
+import { PhoneVerification, PhoneVerificationRoot } from "~/auth/phone-verification";
 import { authPath } from "~/auth/referer";
 import { phoneVerificationFromProfile, usePhoneVerification } from "~/auth/use-phone-verification";
 import { usePublicUser } from "~/auth/use-public-user";
@@ -117,101 +117,108 @@ export function CarBookingPayForm({
   const bookingActionQuery = new URLSearchParams(location.search).toString();
 
   return (
-    <Form
-      method="post"
-      action={bookingActionQuery ? `${location.pathname}?${bookingActionQuery}` : location.pathname}
-      {...getFormProps(form)}
-      className="contents"
-      onSubmitCapture={(event) => {
-        if (!canPay) {
-          event.preventDefault();
-          return;
+    <PhoneVerificationRoot>
+      <Form
+        method="post"
+        action={
+          bookingActionQuery ? `${location.pathname}?${bookingActionQuery}` : location.pathname
         }
+        {...getFormProps(form)}
+        onSubmitCapture={(event) => {
+          if (!canPay) {
+            event.preventDefault();
+            return;
+          }
 
-        if (idempotencyKeyRef.current) {
-          attemptRef.current = resolveBookingAttempt(
-            attemptRef.current,
-            new FormData(event.currentTarget),
-          );
-          idempotencyKeyRef.current.value = attemptRef.current.key;
-        }
-      }}
-    >
-      <input type="hidden" name="carId" value={carId} />
-      {searchId ? <input type="hidden" name="searchId" value={searchId} /> : null}
-      <input ref={idempotencyKeyRef} type="hidden" name="idempotencyKey" />
-      <input type="hidden" name="expectedTotalAmount" value={expectedBookingTotalAmount(preview)} />
-      <input type="hidden" name="bookingType" value={bookingType} />
-      <input type="hidden" name="from" value={from} />
-      <input type="hidden" name="to" value={to} />
-      <input
-        type="hidden"
-        name="pickupTime"
-        value={bookingType === NIGHT_BOOKING_TYPE ? "11 PM" : pickupTime}
-      />
-      <input type="hidden" name="flightNumber" value={flightNumber} />
-      <input type="hidden" name="pickupAddress" value={pickupAddress} />
-      <input type="hidden" name="dropOffAddress" value={dropOffAddress} />
-      <input type="hidden" name="sameLocation" value={sameLocation ? "true" : "false"} />
-      <input type="hidden" name="useCredits" value={useCredits} />
-      {!isSignedIn ? (
-        <>
-          <input
-            type="hidden"
-            name="phoneNumber"
-            value={phoneVerification.result?.phoneNumber ?? ""}
-          />
-          <input
-            type="hidden"
-            name="phoneVerificationToken"
-            value={phoneVerification.result?.verificationToken ?? ""}
-          />
-        </>
-      ) : null}
-      {bookingErrors.length > 0 ? (
-        <span id={form.errorId} className="sr-only">
-          {bookingErrors.join(" ")}
-        </span>
-      ) : null}
-
-      <CarBookingCheckout
-        price={price}
-        schedule={schedule}
-        tripArrivalTime={tripArrivalTime}
-        tripDuration={tripDuration}
-        tripDurationError={tripDurationError}
-        bookingType={bookingType}
-        checkout={{
-          guest: isSignedIn ? null : (
-            <BookingGuestFields
-              fields={{
-                name: fields.name,
-                email: fields.email,
-              }}
-            />
-          ),
-          addons:
-            addons.length > 0 ? (
-              <CarBookingAddons
-                addons={addons}
-                selectedIds={selectedAddonIds}
-                onSelectionChange={onAddonSelectionChange}
-              />
-            ) : null,
-          phone: <PhoneVerification phone={phoneVerification} hideWhenVerified />,
-          credits,
-          cost,
-          pricingError,
-          canPay,
-          errorId: form.errorId,
-          bookingErrors,
-          isPaying,
-          isSignedIn,
-          signInHref: authPath("/auth", {
-            redirectTo: `${location.pathname}${location.search}`,
-          }),
+          if (idempotencyKeyRef.current) {
+            attemptRef.current = resolveBookingAttempt(
+              attemptRef.current,
+              new FormData(event.currentTarget),
+            );
+            idempotencyKeyRef.current.value = attemptRef.current.key;
+          }
         }}
-      />
-    </Form>
+      >
+        <input type="hidden" name="carId" value={carId} />
+        {searchId ? <input type="hidden" name="searchId" value={searchId} /> : null}
+        <input ref={idempotencyKeyRef} type="hidden" name="idempotencyKey" />
+        <input
+          type="hidden"
+          name="expectedTotalAmount"
+          value={expectedBookingTotalAmount(preview)}
+        />
+        <input type="hidden" name="bookingType" value={bookingType} />
+        <input type="hidden" name="from" value={from} />
+        <input type="hidden" name="to" value={to} />
+        <input
+          type="hidden"
+          name="pickupTime"
+          value={bookingType === NIGHT_BOOKING_TYPE ? "11 PM" : pickupTime}
+        />
+        <input type="hidden" name="flightNumber" value={flightNumber} />
+        <input type="hidden" name="pickupAddress" value={pickupAddress} />
+        <input type="hidden" name="dropOffAddress" value={dropOffAddress} />
+        <input type="hidden" name="sameLocation" value={sameLocation ? "true" : "false"} />
+        <input type="hidden" name="useCredits" value={useCredits} />
+        {!isSignedIn ? (
+          <>
+            <input
+              type="hidden"
+              name="phoneNumber"
+              value={phoneVerification.result?.phoneNumber ?? ""}
+            />
+            <input
+              type="hidden"
+              name="phoneVerificationToken"
+              value={phoneVerification.result?.verificationToken ?? ""}
+            />
+          </>
+        ) : null}
+        {bookingErrors.length > 0 ? (
+          <span id={form.errorId} className="sr-only">
+            {bookingErrors.join(" ")}
+          </span>
+        ) : null}
+
+        <CarBookingCheckout
+          price={price}
+          schedule={schedule}
+          tripArrivalTime={tripArrivalTime}
+          tripDuration={tripDuration}
+          tripDurationError={tripDurationError}
+          bookingType={bookingType}
+          checkout={{
+            guest: isSignedIn ? null : (
+              <BookingGuestFields
+                fields={{
+                  name: fields.name,
+                  email: fields.email,
+                }}
+              />
+            ),
+            addons:
+              addons.length > 0 ? (
+                <CarBookingAddons
+                  addons={addons}
+                  selectedIds={selectedAddonIds}
+                  onSelectionChange={onAddonSelectionChange}
+                />
+              ) : null,
+            phone: <PhoneVerification phone={phoneVerification} hideWhenVerified />,
+            credits,
+            cost,
+            pricingError,
+            canPay,
+            errorId: form.errorId,
+            bookingErrors,
+            isPaying,
+            isSignedIn,
+            signInHref: authPath("/auth", {
+              redirectTo: `${location.pathname}${location.search}`,
+            }),
+          }}
+        />
+      </Form>
+    </PhoneVerificationRoot>
   );
 }
