@@ -172,7 +172,7 @@ test("uses Enter to send and verify a signed-in customer's phone", async ({ cont
     const bookingUrl = page.url();
     const payNow = page.getByRole("button", { name: "Pay Now", exact: true });
 
-    await expect(page.getByText("Order Total:")).toBeVisible();
+    await expect(page.getByText("Order Total:").filter({ visible: true })).toBeVisible();
     await expect(payNow).toBeDisabled();
 
     await page.getByLabel("Phone Number").press("Enter");
@@ -202,7 +202,7 @@ test("uses Enter to verify a guest phone before Pay Now enables", async ({ page 
     const bookingUrl = page.url();
     const payNow = page.getByRole("button", { name: "Pay Now", exact: true });
 
-    await expect(page.getByText("Order Total:")).toBeVisible();
+    await expect(page.getByText("Order Total:").filter({ visible: true })).toBeVisible();
     await page.getByLabel("Full Name").fill("Ada Lovelace");
     await page.getByLabel("Email Address").fill("ada@example.com");
     await expect(payNow).toBeDisabled();
@@ -366,11 +366,22 @@ test("selects an add-on and includes it in preview and checkout FormData", async
   await expect(addon).toBeChecked();
   await previewRequest;
 
+  const orderTotal = page
+    .locator('section[class~="lg:hidden"]')
+    .filter({ hasText: "Order Total:" });
+  const orderTotalSpacer = page.locator('div[aria-hidden="true"][class="lg:hidden"]');
+  const isMobileViewport = (page.viewportSize()?.width ?? 0) < 1024;
+
   await page.getByRole("button", { name: "Book a service" }).click();
   await expect(page.getByRole("button", { name: "Book a service" })).toHaveAttribute(
     "aria-expanded",
     "false",
   );
+  if (isMobileViewport) {
+    await expect(orderTotal).toHaveClass(/\brelative\b/);
+    await expect.poll(() => orderTotalSpacer.evaluate((element) => element.offsetHeight)).toBe(0);
+  }
+
   const addonInput = page.locator(`input[name="addonIds"][value="${addonId}"]`);
   await expect(addonInput).toBeHidden();
   await expect(addonInput).toBeChecked();
@@ -379,6 +390,28 @@ test("selects an add-on and includes it in preview and checkout FormData", async
     ...new FormData((input as HTMLInputElement).form ?? undefined).getAll("addonIds"),
   ]);
   expect(addonIds).toEqual([addonId]);
+
+  await page.getByRole("button", { name: "Book a service" }).click();
+  await expect(page.getByRole("button", { name: "Book a service" })).toHaveAttribute(
+    "aria-expanded",
+    "true",
+  );
+  if (isMobileViewport) {
+    await expect(orderTotal).toBeVisible();
+    await expect(orderTotal).toHaveClass(/\bfixed\b/);
+    await expect
+      .poll(() => orderTotal.evaluate((element) => element.offsetHeight))
+      .toBeGreaterThan(0);
+    await expect
+      .poll(async () => {
+        const [spacerHeight, panelHeight] = await Promise.all([
+          orderTotalSpacer.evaluate((element) => element.offsetHeight),
+          orderTotal.evaluate((element) => element.offsetHeight),
+        ]);
+        return spacerHeight === panelHeight;
+      })
+      .toBe(true);
+  }
 });
 
 test("returns 404 for a malformed public car ref", async ({ page }) => {
