@@ -189,7 +189,7 @@ export function CarBookingCheckout({
         >
           <BookingOrderTotal cost={checkout.cost} />
           {checkout.pricingError ? <FormError errors={[checkout.pricingError]} /> : null}
-          <FormError id={checkout.errorId} errors={checkout.bookingErrors} />
+          <FormError id={`${checkout.errorId}-mobile`} errors={checkout.bookingErrors} />
           <CarBookingPayActions
             isPaying={checkout.isPaying}
             isSignedIn={checkout.isSignedIn}
