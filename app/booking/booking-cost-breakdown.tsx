@@ -143,9 +143,27 @@ export function BookingCostBreakdown({
           value={cost.vatAmount}
           currency={currency}
         />
+        {cost.creditsUsed > 0 ? (
+          <div className="contents lg:hidden">
+            <div className="flex justify-between gap-3 text-sm leading-6">
+              <dt>Subtotal</dt>
+              <dd className="font-medium tabular-nums">{formatCurrency(subtotal, currency)}</dd>
+            </div>
+            <div className="flex items-center justify-between gap-3 text-sm leading-6">
+              <dt className="flex items-center gap-1">
+                <span className="flex size-5 items-center justify-center rounded-full bg-red-500 text-white">
+                  <Tag aria-hidden="true" className="size-3" />
+                </span>
+                Referral credit
+              </dt>
+              <dd className="font-medium tabular-nums text-red-500">
+                -{formatCurrency(cost.creditsUsed, currency)}
+              </dd>
+            </div>
+          </div>
+        ) : null}
       </dl>
-      <hr className="my-4 border-gray-300" />
-      <div className="rounded-lg bg-white px-3 py-4">
+      <div className="mt-4 hidden rounded-lg bg-white px-3 py-4 lg:block">
         <dl className="flex flex-col gap-2.5">
           {cost.creditsUsed > 0 ? (
             <>
@@ -181,5 +199,26 @@ export function BookingCostBreakdown({
         </dl>
       </div>
     </section>
+  );
+}
+
+export function BookingOrderTotal({ cost }: { readonly cost: BookingCostDisplay }) {
+  return (
+    <div className="w-full rounded-lg bg-white px-3 py-4">
+      <dl className="flex flex-col gap-2.5">
+        <div className="flex items-center justify-between gap-3">
+          <dt className="text-sm font-semibold leading-5 text-gray-900">Order Total:</dt>
+          <dd className="text-base font-semibold leading-6 tabular-nums text-gray-900">
+            {formatCurrency(cost.totalAmount, cost.currency)}
+          </dd>
+        </div>
+        {cost.savingsAmount > 0 ? (
+          <div className="flex justify-between gap-3 text-sm font-medium leading-none text-emerald-500">
+            <dt>You save</dt>
+            <dd className="tabular-nums">{formatCurrency(cost.savingsAmount, cost.currency)}</dd>
+          </div>
+        ) : null}
+      </dl>
+    </div>
   );
 }

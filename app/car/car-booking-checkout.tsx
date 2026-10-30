@@ -1,15 +1,14 @@
 import { ChevronDown, Loader2 } from "lucide-react";
-import { type ReactNode, type Ref, useId, useState } from "react";
+import { type ReactNode, useId, useState } from "react";
 import { Link } from "react-router";
 import type { TripDurationResponse } from "~/api/flights/schema";
-import { BookingCostBreakdown } from "~/booking/booking-cost-breakdown";
+import { BookingCostBreakdown, BookingOrderTotal } from "~/booking/booking-cost-breakdown";
 import type { BookingCostDisplay } from "~/booking/booking-estimate";
 import { TripDetails } from "~/booking/trip-details";
 import type { BookingType } from "~/booking/types";
 import { FormError } from "~/components/forms/form-primitives";
 import { Button } from "~/components/ui/button";
 import { useElementHeight } from "~/hooks/use-element-height";
-import { formatCurrency } from "~/money/currency";
 
 const serviceCardClassName =
   "rounded-lg border border-gray-200 bg-white px-4 py-6 shadow-[0_4px_20px_rgba(0,0,0,0.07)] lg:px-6";
@@ -41,7 +40,7 @@ function CarBookingPayActions({
   readonly canPay: boolean;
 }) {
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex w-full flex-col gap-6 lg:gap-2">
       <Button
         type="submit"
         className="h-12 w-full rounded-md bg-neutral-950 px-4 text-white hover:bg-neutral-800 disabled:bg-neutral-500 disabled:opacity-100"
@@ -55,11 +54,11 @@ function CarBookingPayActions({
         )}
       </Button>
       {isSignedIn ? null : (
-        <div className="flex items-center justify-center text-sm">
-          <span>Have an account?</span>
+        <div className="flex items-center justify-center text-sm leading-5 lg:leading-normal">
+          <span className="text-gray-500 lg:text-inherit">Have an account?</span>
           <Link
             to={signInHref}
-            className="inline-flex h-10 items-center px-1 font-medium underline"
+            className="px-1 font-medium text-neutral-950 underline lg:inline-flex lg:h-10 lg:items-center lg:text-inherit"
           >
             Sign in to book
           </Link>
@@ -69,74 +68,9 @@ function CarBookingPayActions({
   );
 }
 
-function CarBookingMobileTotal({ cost }: { readonly cost: BookingCostDisplay }) {
-  const payable = formatCurrency(cost.totalAmount, cost.currency);
-
-  if (cost.savingsAmount <= 0) {
-    return <span className="text-base font-semibold tabular-nums">{payable}</span>;
-  }
-
-  const compareAt =
-    cost.compareAtTotalAmount == null
-      ? null
-      : formatCurrency(cost.compareAtTotalAmount, cost.currency);
-
-  return (
-    <span className="flex flex-col items-end gap-0.5 text-right">
-      <span className="tabular-nums">
-        {compareAt ? (
-          <span className="mr-2 text-sm font-normal text-gray-400 line-through" aria-hidden="true">
-            {compareAt}
-          </span>
-        ) : null}
-        <span className="text-base font-semibold text-primary">{payable}</span>
-      </span>
-      <span className="text-xs font-medium text-green-700">
-        You save {formatCurrency(cost.savingsAmount, cost.currency)}
-      </span>
-    </span>
-  );
-}
-
-function CarBookingMobilePayBar({
-  cost,
-  isPaying,
-  isSignedIn,
-  signInHref,
-  errorId,
-  bookingErrors,
-  canPay,
-  barRef,
-}: Omit<CheckoutState, "guest" | "phone" | "addons" | "credits" | "pricingError"> & {
-  readonly barRef: Ref<HTMLDivElement>;
-}) {
-  return (
-    <div
-      ref={barRef}
-      className="fixed inset-x-0 bottom-0 z-50 flex max-h-dvh flex-col overflow-hidden rounded-t-xl border-t bg-white pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_20px_rgba(0,0,0,0.1)] lg:hidden"
-    >
-      {bookingErrors.length > 0 ? (
-        <div className="min-h-0 flex-1 overflow-y-auto border-b border-red-200 bg-red-50 px-4 py-2">
-          <FormError id={errorId} errors={bookingErrors} />
-        </div>
-      ) : null}
-      <div className="shrink-0 space-y-3 p-4">
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-sm font-medium text-gray-600">Total</span>
-          <CarBookingMobileTotal cost={cost} />
-        </div>
-        <CarBookingPayActions
-          isPaying={isPaying}
-          isSignedIn={isSignedIn}
-          signInHref={signInHref}
-          canPay={canPay}
-        />
-      </div>
-    </div>
-  );
-}
-
 function BookServiceSection({
+  open,
+  onOpenChange,
   price,
   schedule,
   guest,
@@ -146,6 +80,8 @@ function BookServiceSection({
   tripDuration,
   tripDurationError,
 }: {
+  readonly open: boolean;
+  readonly onOpenChange: (open: boolean) => void;
   readonly price: ReactNode;
   readonly schedule: ReactNode;
   readonly guest: ReactNode;
@@ -155,7 +91,6 @@ function BookServiceSection({
   readonly tripDuration: TripDurationResponse | null;
   readonly tripDurationError: string | null;
 }) {
-  const [open, setOpen] = useState(true);
   const panelId = useId();
 
   return (
@@ -166,7 +101,7 @@ function BookServiceSection({
           className="flex w-full items-center justify-between gap-3 rounded-md text-left text-base font-semibold leading-5 text-gray-900 hover:text-gray-700 focus-visible:ring-3 focus-visible:ring-ring/50"
           aria-expanded={open}
           aria-controls={panelId}
-          onClick={() => setOpen((current) => !current)}
+          onClick={() => onOpenChange(!open)}
         >
           Book a service
           <ChevronDown
@@ -211,11 +146,14 @@ export function CarBookingCheckout({
   readonly bookingType: BookingType;
   readonly checkout: CheckoutState;
 }) {
-  const mobilePayBar = useElementHeight<HTMLDivElement>();
+  const [serviceOpen, setServiceOpen] = useState(true);
+  const orderTotal = useElementHeight<HTMLElement>();
 
   return (
     <div className="flex flex-col gap-4">
       <BookServiceSection
+        open={serviceOpen}
+        onOpenChange={setServiceOpen}
         price={price}
         schedule={schedule}
         guest={checkout.guest}
@@ -226,30 +164,40 @@ export function CarBookingCheckout({
         tripDurationError={tripDurationError}
       />
       {checkout.credits}
-      <section className="-mx-4 mt-4 space-y-6 border-t border-gray-200 bg-gray-100 px-4 py-4 shadow-[0_8px_50px_rgba(0,0,0,0.07)] lg:mx-0 lg:mt-0 lg:rounded-lg lg:border lg:px-6 lg:py-6">
-        <BookingCostBreakdown cost={checkout.cost} bookingType={bookingType} />
-        {checkout.pricingError ? <FormError errors={[checkout.pricingError]} /> : null}
-        <div className="hidden space-y-6 lg:block">
-          <FormError id={`${checkout.errorId}-desktop`} errors={checkout.bookingErrors} />
+      <div className="-mx-4 bg-gray-100 lg:mx-0 lg:rounded-lg lg:border lg:border-gray-200 lg:px-6 lg:py-6 lg:shadow-[0_8px_50px_rgba(0,0,0,0.07)]">
+        <div className="px-4 py-4 lg:px-0 lg:py-0">
+          <BookingCostBreakdown cost={checkout.cost} bookingType={bookingType} />
+          <div className="mt-6 hidden space-y-6 lg:block">
+            {checkout.pricingError ? <FormError errors={[checkout.pricingError]} /> : null}
+            <FormError id={`${checkout.errorId}-desktop`} errors={checkout.bookingErrors} />
+            <CarBookingPayActions
+              isPaying={checkout.isPaying}
+              isSignedIn={checkout.isSignedIn}
+              signInHref={checkout.signInHref}
+              canPay={checkout.canPay}
+            />
+          </div>
+        </div>
+        <div
+          className="lg:hidden"
+          style={{ height: serviceOpen ? orderTotal.height : 0 }}
+          aria-hidden="true"
+        />
+        <section
+          ref={orderTotal.ref}
+          className={`${serviceOpen ? "fixed inset-x-0 bottom-0 z-50 shadow-[0_8px_50px_rgba(0,0,0,0.07)]" : "relative"} flex flex-col gap-6 border-t border-gray-200 bg-gray-100 px-4 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:hidden`}
+        >
+          <BookingOrderTotal cost={checkout.cost} />
+          {checkout.pricingError ? <FormError errors={[checkout.pricingError]} /> : null}
+          <FormError id={checkout.errorId} errors={checkout.bookingErrors} />
           <CarBookingPayActions
             isPaying={checkout.isPaying}
             isSignedIn={checkout.isSignedIn}
             signInHref={checkout.signInHref}
             canPay={checkout.canPay}
           />
-        </div>
-      </section>
-      <div className="lg:hidden" style={{ height: mobilePayBar.height }} aria-hidden="true" />
-      <CarBookingMobilePayBar
-        cost={checkout.cost}
-        isPaying={checkout.isPaying}
-        isSignedIn={checkout.isSignedIn}
-        signInHref={checkout.signInHref}
-        errorId={`${checkout.errorId}-mobile`}
-        bookingErrors={checkout.bookingErrors}
-        canPay={checkout.canPay}
-        barRef={mobilePayBar.ref}
-      />
+        </section>
+      </div>
     </div>
   );
 }
