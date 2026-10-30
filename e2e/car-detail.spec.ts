@@ -370,14 +370,17 @@ test("selects an add-on and includes it in preview and checkout FormData", async
     .locator('section[class~="lg:hidden"]')
     .filter({ hasText: "Order Total:" });
   const orderTotalSpacer = page.locator('div[aria-hidden="true"][class="lg:hidden"]');
+  const isMobileViewport = (page.viewportSize()?.width ?? 0) < 1024;
 
   await page.getByRole("button", { name: "Book a service" }).click();
   await expect(page.getByRole("button", { name: "Book a service" })).toHaveAttribute(
     "aria-expanded",
     "false",
   );
-  await expect(orderTotal).toHaveClass(/\brelative\b/);
-  await expect.poll(() => orderTotalSpacer.evaluate((element) => element.offsetHeight)).toBe(0);
+  if (isMobileViewport) {
+    await expect(orderTotal).toHaveClass(/\brelative\b/);
+    await expect.poll(() => orderTotalSpacer.evaluate((element) => element.offsetHeight)).toBe(0);
+  }
 
   const addonInput = page.locator(`input[name="addonIds"][value="${addonId}"]`);
   await expect(addonInput).toBeHidden();
@@ -393,16 +396,22 @@ test("selects an add-on and includes it in preview and checkout FormData", async
     "aria-expanded",
     "true",
   );
-  await expect(orderTotal).toHaveClass(/\bfixed\b/);
-  await expect
-    .poll(async () => {
-      const [spacerHeight, panelHeight] = await Promise.all([
-        orderTotalSpacer.evaluate((element) => element.offsetHeight),
-        orderTotal.evaluate((element) => element.offsetHeight),
-      ]);
-      return spacerHeight === panelHeight;
-    })
-    .toBe(true);
+  if (isMobileViewport) {
+    await expect(orderTotal).toBeVisible();
+    await expect(orderTotal).toHaveClass(/\bfixed\b/);
+    await expect
+      .poll(() => orderTotal.evaluate((element) => element.offsetHeight))
+      .toBeGreaterThan(0);
+    await expect
+      .poll(async () => {
+        const [spacerHeight, panelHeight] = await Promise.all([
+          orderTotalSpacer.evaluate((element) => element.offsetHeight),
+          orderTotal.evaluate((element) => element.offsetHeight),
+        ]);
+        return spacerHeight === panelHeight;
+      })
+      .toBe(true);
+  }
 });
 
 test("returns 404 for a malformed public car ref", async ({ page }) => {
