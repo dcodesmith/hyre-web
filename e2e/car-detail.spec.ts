@@ -371,6 +371,9 @@ test("selects an add-on and includes it in preview and checkout FormData", async
     "aria-expanded",
     "false",
   );
+  await expect(
+    page.locator('section[class~="lg:hidden"]').filter({ hasText: "Order Total:" }),
+  ).toHaveClass(/\brelative\b/);
   const addonInput = page.locator(`input[name="addonIds"][value="${addonId}"]`);
   await expect(addonInput).toBeHidden();
   await expect(addonInput).toBeChecked();
