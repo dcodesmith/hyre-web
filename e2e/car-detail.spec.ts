@@ -172,7 +172,7 @@ test("uses Enter to send and verify a signed-in customer's phone", async ({ cont
     const bookingUrl = page.url();
     const payNow = page.getByRole("button", { name: "Pay Now", exact: true });
 
-    await expect(page.getByText("Order Total:")).toBeVisible();
+    await expect(page.getByText("Order Total:").filter({ visible: true })).toBeVisible();
     await expect(payNow).toBeDisabled();
 
     await page.getByLabel("Phone Number").press("Enter");
@@ -202,7 +202,7 @@ test("uses Enter to verify a guest phone before Pay Now enables", async ({ page 
     const bookingUrl = page.url();
     const payNow = page.getByRole("button", { name: "Pay Now", exact: true });
 
-    await expect(page.getByText("Order Total:")).toBeVisible();
+    await expect(page.getByText("Order Total:").filter({ visible: true })).toBeVisible();
     await page.getByLabel("Full Name").fill("Ada Lovelace");
     await page.getByLabel("Email Address").fill("ada@example.com");
     await expect(payNow).toBeDisabled();
