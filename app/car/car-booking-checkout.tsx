@@ -185,7 +185,7 @@ export function CarBookingCheckout({
         />
         <section
           ref={orderTotal.ref}
-          className={`${serviceOpen ? "fixed inset-x-0 bottom-0 z-50 shadow-[0_8px_50px_rgba(0,0,0,0.07)]" : "relative"} flex flex-col gap-6 border-t border-gray-200 bg-gray-100 px-4 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:hidden`}
+          className={`${serviceOpen ? "fixed inset-x-0 bottom-0 z-50 max-h-[100dvh] overflow-y-auto shadow-[0_8px_50px_rgba(0,0,0,0.07)]" : "relative"} flex flex-col gap-6 border-t border-gray-200 bg-gray-100 px-4 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:hidden`}
         >
           <BookingOrderTotal cost={checkout.cost} />
           {checkout.pricingError ? <FormError errors={[checkout.pricingError]} /> : null}
