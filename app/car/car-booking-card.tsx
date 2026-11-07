@@ -140,7 +140,7 @@ function CarBookingCardPrice({
   if (layout === "mobile") {
     return (
       <p
-        className="flex flex-wrap items-baseline text-xl leading-5 tabular-nums"
+        className="flex flex-wrap items-baseline text-sm leading-5 tabular-nums"
         aria-live="polite"
       >
         {showPromoPrice ? (
@@ -383,7 +383,7 @@ export function CarBookingCard({
 
   return (
     <>
-      <div className="order-2 px-4 pb-4 lg:hidden">{mobilePrice}</div>
+      <div className="order-2 pr-6 pb-4 pl-4 lg:hidden">{mobilePrice}</div>
       <div className="order-4 px-4 lg:sticky lg:top-4 lg:order-none lg:col-start-2 lg:row-start-2 lg:self-start lg:px-0">
         <CarBookingPayForm
           key={phoneVerificationResetKey}
