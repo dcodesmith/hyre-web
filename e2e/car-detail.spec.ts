@@ -34,9 +34,9 @@ test("renders crawlable car metadata and booking controls from the fixture", asy
   const response = await page.goto("/__visual/car?bookingType=DAY");
 
   expect(response?.status()).toBe(HTTP_STATUS.OK);
-  await expect(
-    page.getByRole("heading", { level: 1, name: "Lexus UX F-Sport - 2019" }),
-  ).toBeVisible();
+  const carHeadingName =
+    (viewport?.width ?? 0) >= 1024 ? "Lexus UX F-Sport - 2019" : "Lexus UX F-Sport (2019)";
+  await expect(page.getByRole("heading", { level: 1, name: carHeadingName })).toBeVisible();
   await expect(page.getByRole("button", { name: "Same Day" })).toHaveAttribute(
     "aria-pressed",
     "true",
