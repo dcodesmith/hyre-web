@@ -145,7 +145,7 @@ export function CarDetailPage({
         </div>
 
         <div className="flex flex-col lg:grid lg:grid-cols-[3fr_2fr] lg:gap-4">
-          <h1 className="order-1 mt-4 mb-1 pl-4 pr-6 text-xl font-bold leading-7 sm:text-2xl sm:leading-8 lg:col-span-2 lg:mt-0 lg:mb-0 lg:px-0 lg:text-3xl lg:leading-9">
+          <h1 className="order-1 mt-4 mb-2 pl-4 pr-6 text-xl font-bold leading-7 sm:text-2xl sm:leading-8 lg:col-span-2 lg:mt-0 lg:mb-0 lg:px-0 lg:text-3xl lg:leading-9">
             {car.make} {car.model}
             <span className="lg:hidden"> ({car.year})</span>
             <span className="hidden lg:inline"> - {car.year}</span>

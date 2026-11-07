@@ -140,7 +140,7 @@ function CarBookingCardPrice({
   if (layout === "mobile") {
     return (
       <p
-        className="flex flex-wrap items-baseline text-sm leading-5 tabular-nums"
+        className="flex flex-wrap items-baseline text-[16px] leading-6 tabular-nums"
         aria-live="polite"
       >
         {showPromoPrice ? (
