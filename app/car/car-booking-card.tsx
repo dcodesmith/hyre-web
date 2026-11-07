@@ -109,6 +109,12 @@ function pricingPreviewInput(
   };
 }
 
+const TRAILING_ZERO_CENTS = /\.00$/;
+
+function priceAmount(label: string) {
+  return label.replace(TRAILING_ZERO_CENTS, "");
+}
+
 function CarBookingCardPrice({
   showPromoPrice,
   listRateLabel,
@@ -116,6 +122,7 @@ function CarBookingCardPrice({
   rateLabel,
   hasPromotion,
   promotionLabel,
+  layout = "card",
 }: {
   readonly showPromoPrice: boolean;
   readonly listRateLabel: string;
@@ -123,8 +130,30 @@ function CarBookingCardPrice({
   readonly rateLabel: string;
   readonly hasPromotion: boolean;
   readonly promotionLabel: string | null;
+  readonly layout?: "card" | "mobile";
 }) {
   const suffix = rateLabel.replace("/ ", "/");
+  const saleClassName = showPromoPrice
+    ? "font-semibold text-red-500"
+    : "font-semibold text-gray-900";
+
+  if (layout === "mobile") {
+    return (
+      <p
+        className="flex flex-wrap items-baseline text-[16px] leading-6 tabular-nums"
+        aria-live="polite"
+      >
+        {showPromoPrice ? (
+          <span className="mr-2 font-medium text-gray-400 line-through">
+            {priceAmount(listRateLabel)}
+          </span>
+        ) : null}
+        <span className={saleClassName}>{priceAmount(displayRateLabel)}</span>
+        <span className="ml-1 font-normal text-gray-500">{suffix}</span>
+        {hasPromotion && promotionLabel ? <span className="sr-only">{promotionLabel}</span> : null}
+      </p>
+    );
+  }
 
   return (
     <p
@@ -135,11 +164,7 @@ function CarBookingCardPrice({
         <span className="font-medium text-gray-400 line-through">{listRateLabel}</span>
       ) : null}
       <span>
-        <span
-          className={showPromoPrice ? "font-semibold text-red-500" : "font-semibold text-gray-900"}
-        >
-          {displayRateLabel}
-        </span>
+        <span className={saleClassName}>{displayRateLabel}</span>
         <span className="font-normal text-gray-500"> {suffix}</span>
       </span>
       {hasPromotion && promotionLabel ? <span className="sr-only">{promotionLabel}</span> : null}
@@ -337,6 +362,7 @@ export function CarBookingCard({
   );
   const mobilePrice = (
     <CarBookingCardPrice
+      layout="mobile"
       showPromoPrice={card.view.showPromoPrice}
       listRateLabel={card.view.listRateLabel}
       displayRateLabel={card.view.displayRateLabel}
@@ -357,7 +383,7 @@ export function CarBookingCard({
 
   return (
     <>
-      <div className="order-2 px-4 pb-4 lg:hidden">{mobilePrice}</div>
+      <div className="order-2 pr-6 pb-4 pl-4 lg:hidden">{mobilePrice}</div>
       <div className="order-4 px-4 lg:sticky lg:top-4 lg:order-none lg:col-start-2 lg:row-start-2 lg:self-start lg:px-0">
         <CarBookingPayForm
           key={phoneVerificationResetKey}
