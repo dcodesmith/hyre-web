@@ -1,11 +1,15 @@
 import { cn } from "cn";
-import type { ReactNode } from "react";
+import type { ComponentProps, ReactNode } from "react";
 
-export function DetailCard({ children }: { readonly children: ReactNode }) {
+export function DetailCard({ className, ...props }: ComponentProps<"section">) {
   return (
-    <section className="overflow-hidden rounded border border-gray-200 bg-white text-gray-900">
-      {children}
-    </section>
+    <section
+      className={cn(
+        "overflow-hidden rounded border border-gray-200 bg-white text-gray-900",
+        className,
+      )}
+      {...props}
+    />
   );
 }
 

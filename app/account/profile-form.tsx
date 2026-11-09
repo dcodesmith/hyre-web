@@ -1,18 +1,22 @@
 import { getFormProps, getInputProps, type SubmissionResult, useForm } from "@conform-to/react";
 import { getZodConstraint, parseWithZod } from "@conform-to/zod/v4";
-import { Form, useNavigation } from "react-router";
+import { ArrowLeft } from "lucide-react";
+import { Form, Link, useNavigation } from "react-router";
 import { AccountDeletion } from "~/account/account-deletion";
 import { profileFormSchema } from "~/account/profile-form-schema";
 import type { CurrentUserProfile } from "~/api/users/schema";
-import { AuthCheckbox } from "~/auth/auth-form-primitives";
-import {
-  bookingPhoneInputClassName,
-  PhoneVerification,
-  PhoneVerificationRoot,
-} from "~/auth/phone-verification";
+import { PhoneVerification, PhoneVerificationRoot } from "~/auth/phone-verification";
 import { phoneVerificationFromProfile, usePhoneVerification } from "~/auth/use-phone-verification";
-import { FormError } from "~/components/forms/form-primitives";
+import { DetailCard, DetailCardBody, DetailCardHeader } from "~/booking/booking-detail-card";
 import { Button } from "~/components/ui/button";
+import { Field, FieldError, FieldLabel } from "~/components/ui/field";
+import { Input } from "~/components/ui/input";
+import { Separator } from "~/components/ui/separator";
+import { Switch } from "~/components/ui/switch";
+
+const onboardingInputClassName = "h-10 rounded-sm";
+const profileButtonClassName =
+  "h-12 w-[152px] rounded-md bg-[#171717] px-4 py-2 text-sm leading-5 font-medium text-[#fafafa] shadow-[0_1px_2px_0_rgba(0,0,0,0.05)] hover:bg-[#171717]";
 
 type ProfileFields = {
   readonly email: string;
@@ -46,90 +50,148 @@ export function ProfilePage({ email, profile, lastResult }: ProfileFields) {
 
   return (
     <div className="w-full">
-      <div className="mx-auto max-w-4xl px-4 py-4 md:py-6">
-        <h1 className="mb-4 text-pretty text-2xl font-bold">Edit Profile</h1>
+      <div className="mx-auto w-full max-w-[571px] px-5 pt-[60px] pb-[66px] md:px-0 md:pt-[79px] md:pb-[103px]">
+        <Link
+          to="/"
+          aria-label="Back to home"
+          className="mb-4 inline-flex size-6 items-center justify-center text-gray-900 md:hidden"
+        >
+          <ArrowLeft aria-hidden="true" className="size-6" />
+        </Link>
+        <header>
+          <h1 className="text-pretty text-2xl leading-9 font-semibold text-[#111827] md:text-3xl">
+            Your Profile
+          </h1>
+          <p className="mt-1 text-sm leading-5 text-[#4b5563] md:mt-2 md:text-base">
+            Update your information and manage your account
+          </p>
+        </header>
         <PhoneVerificationRoot>
-          <Form method="post" {...getFormProps(form)} className="max-w-md space-y-4">
-            {lastResult?.status === "success" ? (
-              <output className="block text-sm text-green-700">Saved.</output>
-            ) : null}
+          <Form method="post" {...getFormProps(form)} className="mt-8 md:mt-12">
+            <DetailCard>
+              <DetailCardHeader>
+                <h2>Personal Information</h2>
+              </DetailCardHeader>
+              <DetailCardBody>
+                <div className="profile-fields">
+                  {lastResult?.status === "success" ? (
+                    <output className="mb-5 block text-sm text-green-700">Saved.</output>
+                  ) : null}
 
-            <div className="space-y-1">
-              <label htmlFor="profile-email" className="text-sm font-medium">
-                Email
-              </label>
-              <input
-                id="profile-email"
-                type="email"
-                value={email}
-                readOnly
-                disabled
-                autoComplete="email"
-                className={bookingPhoneInputClassName}
-              />
-            </div>
+                  <div className="space-y-5 text-foreground" data-profile-fields="uniform">
+                    <Field data-invalid={Boolean(name.errors)}>
+                      <FieldLabel htmlFor={name.id}>Name</FieldLabel>
+                      <Input
+                        {...getInputProps(name, { type: "text" })}
+                        className={onboardingInputClassName}
+                        autoComplete="name"
+                        placeholder="Enter name"
+                        aria-invalid={name.errors ? true : undefined}
+                      />
+                      <FieldError
+                        id={name.errorId}
+                        errors={name.errors?.map((message) => ({ message }))}
+                      />
+                    </Field>
 
-            <div className="space-y-1">
-              <label htmlFor={name.id} className="text-sm font-medium">
-                Name
-              </label>
-              <input
-                {...getInputProps(name, { type: "text" })}
-                autoComplete="name"
-                className={bookingPhoneInputClassName}
-              />
-              <FormError id={name.errorId} errors={name.errors} />
-            </div>
+                    <Field data-disabled>
+                      <FieldLabel htmlFor="profile-email">Email</FieldLabel>
+                      <Input
+                        id="profile-email"
+                        type="email"
+                        value={email}
+                        readOnly
+                        disabled
+                        autoComplete="email"
+                        className={onboardingInputClassName}
+                      />
+                    </Field>
 
-            <PhoneVerification phone={phone} allowChange />
+                    <PhoneVerification phone={phone} allowChange appearance="profile" />
 
-            <div className="space-y-1">
-              <label htmlFor={city.id} className="text-sm font-medium">
-                City
-              </label>
-              <input
-                {...getInputProps(city, { type: "text" })}
-                autoComplete="address-level2"
-                className={bookingPhoneInputClassName}
-              />
-              <FormError id={city.errorId} errors={city.errors} />
-            </div>
+                    <Field data-invalid={Boolean(city.errors)}>
+                      <FieldLabel htmlFor={city.id}>City</FieldLabel>
+                      <Input
+                        {...getInputProps(city, { type: "text" })}
+                        className={onboardingInputClassName}
+                        autoComplete="address-level2"
+                        placeholder="Enter city"
+                        aria-invalid={city.errors ? true : undefined}
+                      />
+                      <FieldError
+                        id={city.errorId}
+                        errors={city.errors?.map((message) => ({ message }))}
+                      />
+                    </Field>
 
-            <div className="space-y-1">
-              <label htmlFor={address.id} className="text-sm font-medium">
-                Address
-              </label>
-              <input
-                {...getInputProps(address, { type: "text" })}
-                autoComplete="street-address"
-                className={bookingPhoneInputClassName}
-              />
-              <FormError id={address.errorId} errors={address.errors} />
-            </div>
+                    <Field data-invalid={Boolean(address.errors)}>
+                      <FieldLabel htmlFor={address.id}>Address</FieldLabel>
+                      <Input
+                        {...getInputProps(address, { type: "text" })}
+                        className={onboardingInputClassName}
+                        autoComplete="street-address"
+                        placeholder="Enter address"
+                        aria-invalid={address.errors ? true : undefined}
+                      />
+                      <FieldError
+                        id={address.errorId}
+                        errors={address.errors?.map((message) => ({ message }))}
+                      />
+                    </Field>
+                  </div>
 
-            <label
-              htmlFor={marketingConsent.id}
-              className="flex cursor-pointer items-start gap-2.5"
-            >
-              <AuthCheckbox
-                {...getInputProps(marketingConsent, { type: "checkbox", value: "on" })}
-              />
-              <span>
-                <span className="block text-sm font-medium">Marketing communications</span>
-                <span className="block text-sm text-muted-foreground">
-                  Receive updates about new features, promotions, and travel tips.
-                </span>
-              </span>
-            </label>
+                  <FieldError
+                    className="mt-5"
+                    id={form.errorId}
+                    errors={form.errors?.map((message) => ({ message }))}
+                  />
 
-            <FormError id={form.errorId} errors={form.errors} />
-
-            <Button type="submit" disabled={isSaving}>
-              {isSaving ? "Saving…" : "Save Changes"}
-            </Button>
+                  <div className="profile-after-phone mt-6 transition-transform md:mt-8">
+                    <Button
+                      type="submit"
+                      className={profileButtonClassName}
+                      disabled={isSaving}
+                      aria-live="polite"
+                    >
+                      {isSaving ? "Saving…" : "Save Changes"}
+                    </Button>
+                  </div>
+                </div>
+              </DetailCardBody>
+            </DetailCard>
           </Form>
+
+          <DetailCard className="mt-8">
+            <DetailCardHeader>
+              <h2>Privacy and Security</h2>
+            </DetailCardHeader>
+            <DetailCardBody>
+              <div className="flex items-start justify-between gap-8">
+                <label htmlFor={marketingConsent.id} className="min-w-0 cursor-pointer">
+                  <span className="block text-sm leading-5 font-semibold text-[#111827]">
+                    Marketing communications
+                  </span>
+                  <span className="mt-1 block text-sm leading-5 text-[#4b5563]">
+                    Receive updates about new features, promotions, and travel tips.
+                  </span>
+                </label>
+                <Switch
+                  id={marketingConsent.id}
+                  name={marketingConsent.name}
+                  value="on"
+                  defaultChecked={profile.marketingConsent}
+                  form={form.id}
+                  aria-label="Marketing communications"
+                  className="h-6! w-11! bg-[#e5e7eb] data-checked:bg-[#111827] [&_[data-slot=switch-thumb]]:size-5! [&_[data-slot=switch-thumb]]:shadow-[0_1px_3px_0_rgba(0,0,0,0.1),0_1px_2px_0_rgba(0,0,0,0.06)] data-checked:[&_[data-slot=switch-thumb]]:translate-x-[22px]!"
+                />
+              </div>
+              <Separator className="mt-3 bg-[#e5e7eb] md:mt-8" />
+              <div className="mt-8">
+                <AccountDeletion />
+              </div>
+            </DetailCardBody>
+          </DetailCard>
         </PhoneVerificationRoot>
-        <AccountDeletion />
       </div>
     </div>
   );

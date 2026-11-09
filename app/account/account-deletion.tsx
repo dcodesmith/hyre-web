@@ -43,17 +43,22 @@ export function AccountDeletion() {
   const error = fetcher.data?.error;
 
   return (
-    <section className="mt-6 max-w-md border-t border-red-200 pt-4">
-      <div className="space-y-2">
-        <h2 className="text-sm font-medium text-red-600">Danger Zone</h2>
-        <p className="text-sm text-muted-foreground">
-          Once you delete your account, there is no going back. Your profile and identity data will
-          be permanently removed, and your booking history will be anonymized for records.
-        </p>
+    <section>
+      <div className="space-y-5">
+        <div className="space-y-1">
+          <h3 className="text-sm leading-5 font-semibold text-[#111827]">
+            Delete Tripidly Account?
+          </h3>
+          <p className="text-sm leading-5 text-[#4b5563]">
+            Once you delete your account, there is no going back. Your profile and identity data
+            will be permanently removed, and your booking history will be anonymized for records.
+          </p>
+        </div>
         {error && !confirmOpen ? <DeletionError key={error} message={error} /> : null}
         <Button
           type="button"
           variant="destructive"
+          className="h-12"
           disabled={isDeleting}
           onClick={() => setConfirmOpen(true)}
         >

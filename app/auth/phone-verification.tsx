@@ -1,3 +1,4 @@
+import { cn } from "cn";
 import { Check } from "lucide-react";
 import {
   createContext,
@@ -12,6 +13,8 @@ import {
 import { usePhoneVerification } from "~/auth/use-phone-verification";
 import { FormError } from "~/components/forms/form-primitives";
 import { Button } from "~/components/ui/button";
+import { FieldLabel } from "~/components/ui/field";
+import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
 import type { PhoneVerificationData } from "~/routes/api.phone-verification";
 
@@ -81,6 +84,77 @@ function usePhoneControlForm() {
 
 export const bookingPhoneInputClassName =
   "flex h-10 w-full rounded-md border border-input bg-transparent px-3 text-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50";
+const profilePhoneInputClassName = "h-10 rounded-sm";
+const profilePhoneButtonClassName =
+  "h-10 shrink-0 rounded-md bg-[#171717] px-3.5 py-2.5 text-sm leading-5 font-medium text-[#fafafa] shadow-[0_1px_2px_0_rgba(0,0,0,0.05)] hover:bg-[#171717]";
+const profilePhoneLabelClassName = "text-sm leading-5 font-semibold text-[#111827]";
+
+type PhoneVerificationAppearance = "default" | "onboarding" | "profile";
+
+function PhoneControlLabel({
+  appearance,
+  htmlFor,
+  children,
+}: {
+  readonly appearance: PhoneVerificationAppearance;
+  readonly htmlFor?: string;
+  readonly children: ReactNode;
+}) {
+  if (appearance === "default") {
+    return (
+      <Label htmlFor={htmlFor} className="block font-semibold leading-5">
+        {children}
+      </Label>
+    );
+  }
+
+  return (
+    <FieldLabel
+      htmlFor={htmlFor}
+      className={appearance === "profile" ? profilePhoneLabelClassName : undefined}
+    >
+      {children}
+    </FieldLabel>
+  );
+}
+
+function phoneInputClassName(appearance: PhoneVerificationAppearance, invalid: boolean) {
+  const appearanceClassName = {
+    default: bookingPhoneInputClassName,
+    onboarding: "h-10 rounded-sm",
+    profile: profilePhoneInputClassName,
+  }[appearance];
+
+  return cn(appearanceClassName, invalid && "border-red-500");
+}
+
+function phoneButtonClassName(appearance: PhoneVerificationAppearance, defaultClassName: string) {
+  if (appearance === "profile") {
+    return profilePhoneButtonClassName;
+  }
+  if (appearance === "onboarding") {
+    return undefined;
+  }
+  return defaultClassName;
+}
+
+function PhoneNumberTitle({ appearance }: { readonly appearance: PhoneVerificationAppearance }) {
+  return (
+    <div className={appearance === "profile" ? "space-y-1" : "contents"}>
+      <PhoneControlLabel appearance={appearance} htmlFor="booking-phone-number">
+        Phone Number
+      </PhoneControlLabel>
+      <p
+        className={cn(
+          "text-sm leading-5",
+          appearance === "profile" ? "text-[#374151]" : "text-gray-700",
+        )}
+      >
+        We’ll send you a code to verify this number
+      </p>
+    </div>
+  );
+}
 
 export function toE164Phone(value: string) {
   const compact = value.replace(/[\s()-]/g, "");
@@ -100,28 +174,42 @@ export function phoneValidationMessage(value: string) {
 function VerifiedPhone({
   phoneNumber,
   onChangeNumber,
+  appearance = "default",
 }: {
   readonly phoneNumber: string;
   readonly onChangeNumber?: () => void;
+  readonly appearance?: PhoneVerificationAppearance;
 }) {
   return (
     <div className="flex flex-col gap-2">
-      <Label className="block text-sm font-semibold leading-5">Phone Number</Label>
-      <div className="flex items-center gap-4 rounded border border-emerald-700 bg-emerald-100 px-3.5 py-3">
-        <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-emerald-700 text-white">
+      <PhoneControlLabel appearance={appearance}>Phone Number</PhoneControlLabel>
+      <div
+        className={cn(
+          "flex items-center gap-4 rounded border px-3.5 py-3",
+          appearance === "profile"
+            ? "border-[#047857] bg-[#d1fae5]"
+            : "border-emerald-700 bg-emerald-100",
+        )}
+      >
+        <span
+          className={cn(
+            "flex size-8 shrink-0 items-center justify-center rounded-full text-white",
+            appearance === "profile" ? "bg-[#047857]" : "bg-emerald-700",
+          )}
+        >
           <Check aria-hidden="true" className="size-4" />
         </span>
         <span className="min-w-0">
-          <span className="block truncate text-sm font-medium leading-5 text-gray-900">
+          <span className="block truncate text-sm font-medium leading-5 text-[#111827]">
             {phoneNumber}
           </span>
-          <span className="block text-xs leading-5 text-gray-900">Phone number verified</span>
+          <span className="block text-xs leading-5 text-[#111827]">Phone number verified</span>
         </span>
       </div>
       {onChangeNumber ? (
         <button
           type="button"
-          className="self-start text-sm font-medium text-neutral-900 underline"
+          className="self-start text-sm leading-5 font-medium text-[#171717] underline"
           onClick={onChangeNumber}
         >
           Change phone number
@@ -140,6 +228,7 @@ export function PhoneVerificationForm({
   pending,
   onSend,
   onCheck,
+  appearance = "default",
 }: {
   readonly initialPhoneNumber: string;
   readonly maskedPhoneNumber: string | null;
@@ -149,6 +238,7 @@ export function PhoneVerificationForm({
   readonly pending: boolean;
   readonly onSend: (phoneNumber: string) => void;
   readonly onCheck: (phoneNumber: string, code: string) => void;
+  readonly appearance?: PhoneVerificationAppearance;
 }) {
   const [editingNumber, setEditingNumber] = useState(false);
   const [phoneError, setPhoneError] = useState<string | null>(null);
@@ -190,13 +280,13 @@ export function PhoneVerificationForm({
   if (awaitingCode) {
     return (
       <PhoneEntryForm
-        className="space-y-2"
+        className={appearance === "profile" ? "min-h-24 space-y-2" : "space-y-2"}
         onSubmit={(formData) => verifyCode(String(formData.get("code") ?? ""))}
       >
         <div className="space-y-1">
-          <Label htmlFor="booking-phone-code" className="block font-semibold leading-5">
+          <PhoneControlLabel appearance={appearance} htmlFor="booking-phone-code">
             Enter Verification Code
-          </Label>
+          </PhoneControlLabel>
           <p className="text-sm leading-5 text-gray-700" aria-live="polite">
             We sent a code to {maskedPhoneNumber}{" "}
             <button
@@ -210,7 +300,7 @@ export function PhoneVerificationForm({
         </div>
         <div className="flex items-start gap-2">
           <div className="min-w-0 flex-1 space-y-1">
-            <input
+            <Input
               id="booking-phone-code"
               name="code"
               form={controlForm}
@@ -221,7 +311,7 @@ export function PhoneVerificationForm({
               defaultValue=""
               placeholder="6-digit code"
               aria-invalid={codeInvalid ? true : undefined}
-              className={`${bookingPhoneInputClassName} ${codeInvalid ? "border-red-500" : ""}`}
+              className={phoneInputClassName(appearance, codeInvalid)}
               onChange={(event) => {
                 if (codeError) {
                   const nextCode = event.target.value.trim();
@@ -247,7 +337,7 @@ export function PhoneVerificationForm({
           <Button
             type="submit"
             form={controlForm}
-            className="h-10 w-24 shrink-0 rounded-md"
+            className={phoneButtonClassName(appearance, "h-10 w-24 shrink-0 rounded-md")}
             disabled={pending}
           >
             {pending ? "Verifying…" : "Verify"}
@@ -260,15 +350,12 @@ export function PhoneVerificationForm({
 
   return (
     <PhoneEntryForm
-      className="space-y-1"
+      className={appearance === "profile" ? "min-h-24 space-y-2" : "space-y-1"}
       onSubmit={(formData) => sendPhone(String(formData.get("phone") ?? ""))}
     >
-      <Label htmlFor="booking-phone-number" className="block font-semibold leading-5">
-        Phone Number
-      </Label>
-      <p className="text-sm leading-5 text-gray-700">We’ll send you a code to verify this number</p>
+      <PhoneNumberTitle appearance={appearance} />
       <div className="flex items-center gap-2">
-        <input
+        <Input
           id="booking-phone-number"
           name="phone"
           form={controlForm}
@@ -279,7 +366,7 @@ export function PhoneVerificationForm({
           defaultValue={initialPhoneNumber}
           placeholder={PHONE_EXAMPLE}
           aria-invalid={phoneInvalid ? true : undefined}
-          className={`${bookingPhoneInputClassName} ${phoneInvalid ? "border-red-500" : ""}`}
+          className={phoneInputClassName(appearance, phoneInvalid)}
           onChange={(event) => {
             if (phoneError) {
               setPhoneError(phoneValidationMessage(event.target.value));
@@ -289,7 +376,7 @@ export function PhoneVerificationForm({
         <Button
           type="submit"
           form={controlForm}
-          className="h-10 shrink-0 rounded-md px-4"
+          className={phoneButtonClassName(appearance, "h-10 shrink-0 rounded-md px-4")}
           disabled={pending}
         >
           {pending ? "Sending…" : "Send code"}
@@ -319,10 +406,12 @@ export function PhoneVerification({
   phone,
   hideWhenVerified = false,
   allowChange = false,
+  appearance = "default",
 }: {
   readonly phone: ReturnType<typeof usePhoneVerification>;
   readonly hideWhenVerified?: boolean;
   readonly allowChange?: boolean;
+  readonly appearance?: PhoneVerificationAppearance;
 }) {
   const result = phone.result;
   const [changingNumber, setChangingNumber] = useState(false);
@@ -346,31 +435,37 @@ export function PhoneVerification({
 
   if (result.phoneVerified && !change.changing) {
     return (
-      <VerifiedPhone
-        phoneNumber={result.phoneNumber ?? result.maskedPhoneNumber ?? ""}
-        onChangeNumber={
-          allowChange
-            ? () => {
-                setChangingNumber(true);
-                setFreshChange(true);
-              }
-            : undefined
-        }
-      />
+      <div data-phone-verification-state="verified">
+        <VerifiedPhone
+          phoneNumber={result.phoneNumber ?? result.maskedPhoneNumber ?? ""}
+          appearance={appearance}
+          onChangeNumber={
+            allowChange
+              ? () => {
+                  setChangingNumber(true);
+                  setFreshChange(true);
+                }
+              : undefined
+          }
+        />
+      </div>
     );
   }
 
   return (
-    <PhoneVerificationForm
-      key={`${result.phoneNumber ?? ""}:${change.fresh ? "change" : (result.maskedPhoneNumber ?? "")}`}
-      initialPhoneNumber={result.phoneNumber ?? ""}
-      maskedPhoneNumber={change.fresh ? null : result.maskedPhoneNumber}
-      notice={result.notice}
-      error={result.error}
-      fieldErrors={result.fieldErrors}
-      pending={phone.pending}
-      onSend={phone.send}
-      onCheck={phone.check}
-    />
+    <div data-phone-verification-state={change.changing ? "changing" : "unverified"}>
+      <PhoneVerificationForm
+        key={`${result.phoneNumber ?? ""}:${change.fresh ? "change" : (result.maskedPhoneNumber ?? "")}`}
+        initialPhoneNumber={result.phoneNumber ?? ""}
+        maskedPhoneNumber={change.fresh ? null : result.maskedPhoneNumber}
+        notice={result.notice}
+        error={result.error}
+        fieldErrors={result.fieldErrors}
+        pending={phone.pending}
+        onSend={phone.send}
+        onCheck={phone.check}
+        appearance={appearance}
+      />
+    </div>
   );
 }
