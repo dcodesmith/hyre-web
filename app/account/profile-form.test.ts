@@ -55,6 +55,9 @@ describe("ProfilePage phone", () => {
     expect(markup.match(/data-profile-fields=/g)).toHaveLength(1);
     expect(markup).toContain('data-profile-fields="uniform"');
     expect(markup).toContain("space-y-5 text-foreground");
+    expect(markup.match(/placeholder="Enter name"/g)).toHaveLength(1);
+    expect(markup).toContain('placeholder="Enter city"');
+    expect(markup).toContain('placeholder="Enter address"');
     expect(markup).not.toContain("data-profile-standard-fields");
     expect(markup).toContain(
       "overflow-hidden rounded border border-gray-200 bg-white text-gray-900",

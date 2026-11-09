@@ -115,7 +115,7 @@ export function ProfilePage({ email, profile, lastResult }: ProfileFields) {
                         {...getInputProps(city, { type: "text" })}
                         className={onboardingInputClassName}
                         autoComplete="address-level2"
-                        placeholder="Enter name"
+                        placeholder="Enter city"
                         aria-invalid={city.errors ? true : undefined}
                       />
                       <FieldError
@@ -130,7 +130,7 @@ export function ProfilePage({ email, profile, lastResult }: ProfileFields) {
                         {...getInputProps(address, { type: "text" })}
                         className={onboardingInputClassName}
                         autoComplete="street-address"
-                        placeholder="Enter name"
+                        placeholder="Enter address"
                         aria-invalid={address.errors ? true : undefined}
                       />
                       <FieldError
