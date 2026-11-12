@@ -1,7 +1,6 @@
 import { getFormProps, getInputProps, type SubmissionResult, useForm } from "@conform-to/react";
 import { getZodConstraint, parseWithZod } from "@conform-to/zod/v4";
-import { ArrowLeft } from "lucide-react";
-import { Form, Link, useNavigation } from "react-router";
+import { Form, useNavigation } from "react-router";
 import { AccountDeletion } from "~/account/account-deletion";
 import { profileFormSchema } from "~/account/profile-form-schema";
 import type { CurrentUserProfile } from "~/api/users/schema";
@@ -50,16 +49,9 @@ export function ProfilePage({ email, profile, lastResult }: ProfileFields) {
 
   return (
     <div className="w-full">
-      <div className="mx-auto w-full max-w-[571px] px-5 pt-[60px] pb-[66px] md:px-0 md:pt-[79px] md:pb-[103px]">
-        <Link
-          to="/"
-          aria-label="Back to home"
-          className="mb-4 inline-flex size-6 items-center justify-center text-gray-900 md:hidden"
-        >
-          <ArrowLeft aria-hidden="true" className="size-6" />
-        </Link>
-        <header>
-          <h1 className="text-pretty text-2xl leading-9 font-semibold text-[#111827] md:text-3xl">
+      <div className="mx-auto w-full max-w-[571px] px-4 pt-4 pb-24 md:px-0 md:pt-6 md:pb-6">
+        <header className="mb-4 md:mb-6">
+          <h1 className="text-2xl leading-9 font-semibold tracking-tight text-pretty text-gray-900 md:text-3xl md:tracking-normal">
             Your Profile
           </h1>
           <p className="mt-1 text-sm leading-5 text-[#4b5563] md:mt-2 md:text-base">
@@ -67,7 +59,7 @@ export function ProfilePage({ email, profile, lastResult }: ProfileFields) {
           </p>
         </header>
         <PhoneVerificationRoot>
-          <Form method="post" {...getFormProps(form)} className="mt-8 md:mt-12">
+          <Form method="post" {...getFormProps(form)}>
             <DetailCard>
               <DetailCardHeader>
                 <h2>Personal Information</h2>

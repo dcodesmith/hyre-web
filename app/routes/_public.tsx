@@ -2,7 +2,7 @@ import { cn } from "cn";
 import { Outlet, useLocation } from "react-router";
 import { readAuthUser } from "~/auth/session.server";
 import { CookieConsentBanner } from "~/components/cookie-consent-banner";
-import { PublicFooter } from "~/components/layout/public-footer";
+import { hidesPublicFooter, PublicFooter } from "~/components/layout/public-footer";
 import { PublicHeader } from "~/components/layout/public-header";
 import { PublicMobileNav } from "~/components/layout/public-mobile-nav";
 import type { Route } from "./+types/_public";
@@ -16,6 +16,7 @@ export default function PublicLayout({ loaderData }: Route.ComponentProps) {
   const isHeroPage = pathname === "/";
   const isSearchPage = pathname === "/search";
   const isCarDetail = pathname.startsWith("/cars/") || pathname.startsWith("/__visual/car");
+  const showFooter = !hidesPublicFooter(pathname);
 
   return (
     <>
@@ -38,7 +39,7 @@ export default function PublicLayout({ loaderData }: Route.ComponentProps) {
         >
           <Outlet />
         </main>
-        <PublicFooter isCarDetailPage={isCarDetail} />
+        {showFooter ? <PublicFooter isCarDetailPage={isCarDetail} /> : null}
       </div>
       {isCarDetail ? null : <PublicMobileNav user={loaderData.user} />}
       <CookieConsentBanner />
