@@ -125,6 +125,22 @@ function StoreBadge({
   );
 }
 
+export function hidesPublicFooter(pathname: string) {
+  if (pathname === "/profile" || pathname === "/referrals") {
+    return true;
+  }
+
+  if (pathname === "/bookings" || pathname.startsWith("/bookings/")) {
+    return true;
+  }
+
+  return (
+    pathname.startsWith("/__visual/profile") ||
+    pathname.startsWith("/__visual/referrals") ||
+    pathname.startsWith("/__visual/booking")
+  );
+}
+
 export function PublicFooter({ isCarDetailPage = false }: { readonly isCarDetailPage?: boolean }) {
   return (
     <footer

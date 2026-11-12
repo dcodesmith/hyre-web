@@ -44,6 +44,9 @@ describe("ProfilePage phone", () => {
 
     expect(markup).toContain("Your Profile");
     expect(markup).toContain("Update your information and manage your account");
+    expect(markup).not.toContain("Back to home");
+    expect(markup).not.toContain("pt-[60px]");
+    expect(markup).not.toContain("pt-[79px]");
     expect(markup).toContain("Personal Information");
     expect(markup).toContain("Privacy and Security");
     expect(markup).toContain("Delete Tripidly Account?");
