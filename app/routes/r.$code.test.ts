@@ -28,4 +28,16 @@ describe("referral share redirect", () => {
     expect(response).toBeInstanceOf(Response);
     expect((response as Response).status).toBe(404);
   });
+
+  it.each(["ABCD1230", "ABCD123I", "ABCD123O"])(
+    "returns not found when the code contains excluded character: %s",
+    async (code) => {
+      const response = await Promise.resolve()
+        .then(() => runLoader(code))
+        .catch((error: unknown) => error);
+
+      expect(response).toBeInstanceOf(Response);
+      expect((response as Response).status).toBe(404);
+    },
+  );
 });

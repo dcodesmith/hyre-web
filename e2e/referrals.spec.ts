@@ -70,14 +70,16 @@ test("renders referral details and copies the referral code", async ({ page }) =
   await expect(page.getByText("Available Credits")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Your Referral History" })).toBeVisible();
 
+  const referralCodeField = page.getByLabel("Your Referral Code").locator("..");
   await clickUntilVisible(
-    page.getByLabel("Your Referral Code").locator("..").getByRole("button", { name: "Copy" }),
-    page.getByRole("button", { name: "Copied!" }),
+    referralCodeField.getByRole("button", { name: "Copy" }),
+    referralCodeField.getByRole("button", { name: "Copied!" }),
   );
 
+  const referralLinkField = page.getByLabel("Your Referral Link").locator("..");
   await clickUntilVisible(
-    page.getByLabel("Your Referral Link").locator("..").getByRole("button", { name: "Copy" }),
-    page.getByRole("button", { name: "Copied!" }),
+    referralLinkField.getByRole("button", { name: "Copy" }),
+    referralLinkField.getByRole("button", { name: "Copied!" }),
   );
 });
 
