@@ -183,18 +183,13 @@ export function ProfilePage({ email, profile, lastResult }: ProfileFields) {
               <div className="mt-8">
                 <AccountDeletion />
               </div>
-              <Form method="post" action="/logout" className="mt-8">
-                <Button
-                  type="submit"
-                  variant="outline"
-                  className="h-12"
-                  disabled={isLoggingOut}
-                >
-                  {isLoggingOut ? "Logging out…" : "Log out"}
-                </Button>
-              </Form>
             </DetailCardBody>
           </DetailCard>
+          <Form method="post" action="/logout" className="mt-8">
+            <Button type="submit" variant="outline" className="h-12" disabled={isLoggingOut}>
+              {isLoggingOut ? "Logging out…" : "Log out"}
+            </Button>
+          </Form>
         </PhoneVerificationRoot>
       </div>
     </div>
