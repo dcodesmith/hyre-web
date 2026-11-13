@@ -4,6 +4,7 @@ import { Form, useNavigation } from "react-router";
 import { AccountDeletion } from "~/account/account-deletion";
 import { profileFormSchema } from "~/account/profile-form-schema";
 import type { CurrentUserProfile } from "~/api/users/schema";
+import { isLogoutFormAction } from "~/auth/logout-navigation";
 import { PhoneVerification, PhoneVerificationRoot } from "~/auth/phone-verification";
 import { phoneVerificationFromProfile, usePhoneVerification } from "~/auth/use-phone-verification";
 import { DetailCard, DetailCardBody, DetailCardHeader } from "~/booking/booking-detail-card";
@@ -25,6 +26,7 @@ type ProfileFields = {
 
 export function ProfilePage({ email, profile, lastResult }: ProfileFields) {
   const navigation = useNavigation();
+  const isLoggingOut = navigation.formMethod != null && isLogoutFormAction(navigation.formAction);
   const isSaving =
     navigation.formMethod != null &&
     navigation.formAction != null &&
@@ -183,6 +185,11 @@ export function ProfilePage({ email, profile, lastResult }: ProfileFields) {
               </div>
             </DetailCardBody>
           </DetailCard>
+          <Form method="post" action="/logout" className="mt-8">
+            <Button type="submit" variant="outline" className="h-12" disabled={isLoggingOut}>
+              {isLoggingOut ? "Logging out…" : "Log out"}
+            </Button>
+          </Form>
         </PhoneVerificationRoot>
       </div>
     </div>

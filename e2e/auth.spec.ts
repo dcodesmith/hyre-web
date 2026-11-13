@@ -8,15 +8,18 @@ test("guest navigation offers login and hides log out", async ({ page, viewport 
 
   if ((viewport?.width ?? 0) < 768) {
     const nav = page.getByRole("navigation", { name: "Primary" });
-    await expect(nav.getByRole("link", { name: "Log in" })).toBeVisible();
-    await expect(nav.getByRole("link", { name: "Bookings" })).toHaveCount(0);
+    await expect(nav.getByRole("link", { name: "Tripdly" })).toBeVisible();
+    await expect(nav.getByRole("link", { name: "Bookings" })).toBeVisible();
+    await expect(nav.getByRole("link", { name: "Referrals" })).toBeVisible();
+    await expect(nav.getByRole("link", { name: "Login" })).toBeVisible();
     await expect(nav.getByRole("link", { name: "Profile" })).toHaveCount(0);
     await expect(nav.getByRole("button", { name: "Log out" })).toHaveCount(0);
   } else {
-    await expect(page.getByRole("link", { name: "Register or Log in" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "Bookings" })).toHaveCount(0);
-    await expect(page.getByRole("link", { name: "Profile" })).toHaveCount(0);
-    await expect(page.getByRole("button", { name: "Log out" })).toHaveCount(0);
+    const header = page.getByRole("banner");
+    await expect(header.getByRole("link", { name: "Register or Log in" })).toBeVisible();
+    await expect(header.getByRole("link", { name: "Bookings" })).toHaveCount(0);
+    await expect(header.getByRole("link", { name: "Profile" })).toHaveCount(0);
+    await expect(header.getByRole("button", { name: "Log out" })).toHaveCount(0);
   }
 });
 
