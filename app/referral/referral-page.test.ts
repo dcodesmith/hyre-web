@@ -40,6 +40,8 @@ describe("ReferralPage", () => {
 
     expect(markup).toContain("No referral history");
     expect(markup).toContain("Your referral history will appear here.");
+    expect(markup).toContain("See how it works");
+    expect(markup).not.toContain('href="#referral-invite"');
     expect(markup).not.toContain("<table");
   });
 

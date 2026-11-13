@@ -126,9 +126,7 @@ export function ReferralPage({
         </h1>
         <p className="text-sm font-medium">
           <span className="text-neutral-500">New to Tripidly? </span>
-          <a className="underline underline-offset-2" href="#referral-invite">
-            See how it works
-          </a>
+          <span className="underline underline-offset-2">See how it works</span>
         </p>
       </header>
 
@@ -144,7 +142,7 @@ export function ReferralPage({
         </Alert>
       ) : null}
 
-      <Card id="referral-invite" className={cardClassName}>
+      <Card className={cardClassName}>
         <CardHeader className="border-b border-neutral-200 px-4 py-4">
           <h2 className="text-base leading-6 font-semibold text-neutral-900">
             Invite friends and Earn
