@@ -172,7 +172,7 @@ export function ReferralPage({
                       id="referral-code"
                       value={referralCode}
                       readOnly
-                      className={bookingPhoneInputClassName}
+                      className={`${bookingPhoneInputClassName} min-w-0`}
                     />
                     <Button
                       type="button"
@@ -203,7 +203,7 @@ export function ReferralPage({
                       id="referral-share-link"
                       value={shareLink}
                       readOnly
-                      className={bookingPhoneInputClassName}
+                      className={`${bookingPhoneInputClassName} min-w-0`}
                     />
                     <Button
                       type="button"

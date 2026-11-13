@@ -56,6 +56,7 @@ describe("ReferralPage", () => {
     expect(
       markup.match(/flex h-10 w-full rounded-md border border-input bg-transparent/g),
     ).toHaveLength(2);
+    expect(markup.match(/min-w-0/g)).toHaveLength(2);
     expect(markup.match(/h-10 rounded-md px-3\.5/g)).toHaveLength(2);
     expect(markup).toContain('class="flex flex-wrap items-center gap-2"');
     expect(markup).toMatch(
