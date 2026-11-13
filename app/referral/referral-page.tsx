@@ -2,10 +2,10 @@ import { AlertCircle, Copy, EyeOff } from "lucide-react";
 import { useState } from "react";
 import type { ReferralSummary } from "~/api/referrals/schema";
 import { DetailCard, DetailCardBody, DetailCardHeader } from "~/booking/booking-detail-card";
+import { bookingPhoneInputClassName } from "~/booking/booking-phone-verification";
 import { Alert, AlertDescription, AlertTitle } from "~/components/ui/alert";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent } from "~/components/ui/card";
-import { Input } from "~/components/ui/input";
 import {
   Table,
   TableBody,
@@ -148,7 +148,7 @@ export function ReferralPage({
           <h2>Invite friends and Earn</h2>
         </DetailCardHeader>
         <DetailCardBody>
-          <div className="grid min-h-[456px] gap-8 md:min-h-[216px] md:grid-cols-[316px_minmax(0,1fr)] md:gap-6">
+          <div className="grid gap-6 md:h-52 md:grid-cols-[316px_minmax(0,1fr)]">
             <div className="relative h-52 overflow-hidden rounded-lg border border-neutral-200 bg-neutral-900 p-5 text-white">
               <p className="text-sm font-medium text-neutral-300">Available Credits</p>
               <p className="mt-1 text-3xl leading-8 font-semibold tabular-nums">
@@ -161,22 +161,22 @@ export function ReferralPage({
               />
             </div>
 
-            <div className="space-y-6">
+            <div className="flex flex-col gap-6 md:h-full md:justify-between md:gap-0">
               {referralCode ? (
                 <div className="space-y-2">
                   <label htmlFor="referral-code" className="text-sm font-semibold text-neutral-900">
                     Your Referral Code
                   </label>
                   <div className="flex gap-2">
-                    <Input
+                    <input
                       id="referral-code"
                       value={referralCode}
                       readOnly
-                      className="h-11 bg-neutral-50"
+                      className={`${bookingPhoneInputClassName} min-w-0`}
                     />
                     <Button
                       type="button"
-                      className="h-11 rounded-md px-3.5"
+                      className="h-10 rounded-md px-3.5"
                       onClick={() => copyToClipboard(referralCode, "code")}
                     >
                       <Copy aria-hidden="true" />
@@ -199,52 +199,56 @@ export function ReferralPage({
                     Your Referral Link
                   </label>
                   <div className="flex gap-2">
-                    <Input
+                    <input
                       id="referral-share-link"
                       value={shareLink}
                       readOnly
-                      className="h-11 bg-neutral-50"
+                      className={`${bookingPhoneInputClassName} min-w-0`}
                     />
                     <Button
                       type="button"
-                      className="h-11 rounded-md px-3.5"
+                      className="h-10 rounded-md px-3.5"
                       onClick={() => copyToClipboard(shareLink, "link")}
                     >
                       <Copy aria-hidden="true" />
                       {copiedTarget === "link" ? "Copied!" : "Copy"}
                     </Button>
                   </div>
-                  <div className="flex flex-wrap items-center gap-2 pt-1">
-                    <span className="text-xs font-semibold text-neutral-500">SHARE VIA:</span>
-                    <a
-                      href={whatsappShareUrl(shareLink)}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center gap-1 rounded-xl border border-neutral-300 px-2 py-1 text-xs"
-                    >
-                      <img src="/referrals/whatsapp.svg" alt="" />
-                      Whatsapp
-                    </a>
-                    <a
-                      href={telegramShareUrl(shareLink)}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center gap-1 rounded-xl border border-neutral-300 px-2 py-1 text-xs"
-                    >
-                      <img src="/referrals/telegram.svg" alt="" />
-                      Telegram
-                    </a>
-                  </div>
                 </div>
               ) : null}
 
-              <div className="text-xs font-medium" aria-live="polite">
-                {copiedTarget ? <span className="text-green-700">Copied to clipboard.</span> : null}
-              </div>
-              {copyError ? (
-                <p className="text-xs font-medium text-red-600" role="alert">
-                  {copyError}
-                </p>
+              {shareLink ? (
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs font-semibold text-neutral-500">SHARE VIA:</span>
+                  <a
+                    href={whatsappShareUrl(shareLink)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 rounded-xl border border-neutral-300 px-2 py-1 text-xs"
+                  >
+                    <img src="/referrals/whatsapp.svg" alt="" />
+                    Whatsapp
+                  </a>
+                  <a
+                    href={telegramShareUrl(shareLink)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 rounded-xl border border-neutral-300 px-2 py-1 text-xs"
+                  >
+                    <img src="/referrals/telegram.svg" alt="" />
+                    Telegram
+                  </a>
+                  <span className="text-xs font-medium" aria-live="polite">
+                    {copiedTarget ? (
+                      <span className="text-green-700">Copied to clipboard.</span>
+                    ) : null}
+                  </span>
+                  {copyError ? (
+                    <span className="text-xs font-medium text-red-600" role="alert">
+                      {copyError}
+                    </span>
+                  ) : null}
+                </div>
               ) : null}
             </div>
           </div>

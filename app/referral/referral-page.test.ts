@@ -53,6 +53,22 @@ describe("ReferralPage", () => {
     expect(markup.match(/class="p-4"/g)).toHaveLength(2);
     expect(markup.match(/shadow-none/g)).toHaveLength(4);
     expect(markup).not.toContain("shadow-sm");
+    expect(
+      markup.match(/flex h-10 w-full rounded-md border border-input bg-transparent/g),
+    ).toHaveLength(2);
+    expect(markup.match(/min-w-0/g)).toHaveLength(2);
+    expect(markup.match(/h-10 rounded-md px-3\.5/g)).toHaveLength(2);
+    expect(markup).toContain("grid gap-6 md:h-52");
+    expect(markup).not.toContain("min-h-[456px]");
+    expect(markup).toContain('class="flex flex-col gap-6 md:h-full md:justify-between md:gap-0"');
+    expect(markup).not.toContain('class="flex h-full flex-col justify-between"');
+    expect(markup).toContain('class="flex flex-wrap items-center gap-2"');
+    expect(markup).toMatch(
+      /id="referral-share-link"[\s\S]*?<\/button><\/div><\/div><div class="flex flex-wrap items-center gap-2"><span class="text-xs font-semibold text-neutral-500">SHARE VIA:<\/span>/,
+    );
+    expect(markup).not.toContain("h-11 bg-neutral-50");
+    expect(markup).not.toContain('class="space-y-6"');
+    expect(markup).not.toContain("items-center gap-2 pt-1");
     expect(markup).not.toContain("<table");
   });
 
