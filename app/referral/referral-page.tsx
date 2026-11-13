@@ -161,7 +161,7 @@ export function ReferralPage({
               />
             </div>
 
-            <div className="space-y-6">
+            <div className="flex h-full flex-col justify-between">
               {referralCode ? (
                 <div className="space-y-2">
                   <label htmlFor="referral-code" className="text-sm font-semibold text-neutral-900">
@@ -238,16 +238,17 @@ export function ReferralPage({
                     <img src="/referrals/telegram.svg" alt="" />
                     Telegram
                   </a>
+                  <span className="text-xs font-medium" aria-live="polite">
+                    {copiedTarget ? (
+                      <span className="text-green-700">Copied to clipboard.</span>
+                    ) : null}
+                  </span>
+                  {copyError ? (
+                    <span className="text-xs font-medium text-red-600" role="alert">
+                      {copyError}
+                    </span>
+                  ) : null}
                 </div>
-              ) : null}
-
-              <div className="text-xs font-medium" aria-live="polite">
-                {copiedTarget ? <span className="text-green-700">Copied to clipboard.</span> : null}
-              </div>
-              {copyError ? (
-                <p className="text-xs font-medium text-red-600" role="alert">
-                  {copyError}
-                </p>
               ) : null}
             </div>
           </div>
