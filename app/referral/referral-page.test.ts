@@ -58,9 +58,10 @@ describe("ReferralPage", () => {
     ).toHaveLength(2);
     expect(markup.match(/min-w-0/g)).toHaveLength(2);
     expect(markup.match(/h-10 rounded-md px-3\.5/g)).toHaveLength(2);
-    expect(markup).toContain("md:h-52 md:min-h-0");
-    expect(markup).not.toContain("md:min-h-[216px]");
-    expect(markup).toContain('class="flex h-full flex-col justify-between"');
+    expect(markup).toContain("grid gap-6 md:h-52");
+    expect(markup).not.toContain("min-h-[456px]");
+    expect(markup).toContain('class="flex flex-col gap-6 md:h-full md:justify-between md:gap-0"');
+    expect(markup).not.toContain('class="flex h-full flex-col justify-between"');
     expect(markup).toContain('class="flex flex-wrap items-center gap-2"');
     expect(markup).toMatch(
       /id="referral-share-link"[\s\S]*?<\/button><\/div><\/div><div class="flex flex-wrap items-center gap-2"><span class="text-xs font-semibold text-neutral-500">SHARE VIA:<\/span>/,

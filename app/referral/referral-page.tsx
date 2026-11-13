@@ -148,7 +148,7 @@ export function ReferralPage({
           <h2>Invite friends and Earn</h2>
         </DetailCardHeader>
         <DetailCardBody>
-          <div className="grid min-h-[456px] gap-8 md:h-52 md:min-h-0 md:grid-cols-[316px_minmax(0,1fr)] md:gap-6">
+          <div className="grid gap-6 md:h-52 md:grid-cols-[316px_minmax(0,1fr)]">
             <div className="relative h-52 overflow-hidden rounded-lg border border-neutral-200 bg-neutral-900 p-5 text-white">
               <p className="text-sm font-medium text-neutral-300">Available Credits</p>
               <p className="mt-1 text-3xl leading-8 font-semibold tabular-nums">
@@ -161,7 +161,7 @@ export function ReferralPage({
               />
             </div>
 
-            <div className="flex h-full flex-col justify-between">
+            <div className="flex flex-col gap-6 md:h-full md:justify-between md:gap-0">
               {referralCode ? (
                 <div className="space-y-2">
                   <label htmlFor="referral-code" className="text-sm font-semibold text-neutral-900">
