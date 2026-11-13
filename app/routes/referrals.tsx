@@ -39,12 +39,11 @@ export async function loader({ request }: Route.LoaderArgs) {
   try {
     const { data: summary } = await getCurrentUserReferralSummary({ request });
     const shareLink = summary.referralCode
-      ? new URL(`/auth?ref=${encodeURIComponent(summary.referralCode)}`, env.APP_ORIGIN).toString()
+      ? new URL(`/r/${encodeURIComponent(summary.referralCode)}`, env.APP_ORIGIN).toString()
       : null;
     const pageSummary: ReferralPageSummary = {
       referralCode: summary.referralCode,
       programEnabled: summary.programEnabled,
-      discount: summary.discount,
       stats: {
         totalReferrals: summary.stats.totalReferrals,
         totalRewardsGranted: summary.stats.totalRewardsGranted,
@@ -57,13 +56,6 @@ export async function loader({ request }: Route.LoaderArgs) {
         name,
         email,
         createdAt,
-      })),
-      rewards: summary.rewards.map(({ id, amount, status, createdAt, refereeName }) => ({
-        id,
-        amount,
-        status,
-        createdAt,
-        refereeName,
       })),
     };
 

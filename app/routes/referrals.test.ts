@@ -45,7 +45,6 @@ const summary = {
 const pageSummary = {
   referralCode: summary.referralCode,
   programEnabled: summary.programEnabled,
-  discount: summary.discount,
   stats: {
     totalReferrals: summary.stats.totalReferrals,
     totalRewardsGranted: summary.stats.totalRewardsGranted,
@@ -54,7 +53,6 @@ const pageSummary = {
     availableCredits: summary.stats.availableCredits,
   },
   referrals: summary.referrals,
-  rewards: summary.rewards,
 };
 
 function runLoader(cookie = "better-auth.session_token=test-session") {
@@ -104,7 +102,7 @@ describe("referrals loader", () => {
 
     await expect(runLoader()).resolves.toEqual({
       summary: pageSummary,
-      shareLink: "https://tripdly.com/auth?ref=ABCD1234",
+      shareLink: "https://tripdly.com/r/ABCD1234",
     });
     expect(getCurrentUserReferralSummary).toHaveBeenCalledWith({
       request: expect.any(Request),
@@ -125,7 +123,7 @@ describe("referrals loader", () => {
     });
   });
 
-  it("forwards a paused programme and a generic null offer", async () => {
+  it("forwards a paused programme", async () => {
     getCurrentUserReferralSummary.mockResolvedValueOnce({
       data: { ...summary, programEnabled: false, discountAmount: null, discount: null },
       status: HTTP_STATUS.OK,
@@ -133,22 +131,8 @@ describe("referrals loader", () => {
     });
 
     await expect(runLoader()).resolves.toEqual({
-      summary: { ...pageSummary, programEnabled: false, discount: null },
-      shareLink: "https://tripdly.com/auth?ref=ABCD1234",
-    });
-  });
-
-  it("forwards a percentage first-booking offer", async () => {
-    const discount = { type: "PERCENTAGE" as const, percentage: 10, maxAmount: 20_000 };
-    getCurrentUserReferralSummary.mockResolvedValueOnce({
-      data: { ...summary, discountAmount: null, discount },
-      status: HTTP_STATUS.OK,
-      headers: new Headers(),
-    });
-
-    await expect(runLoader()).resolves.toEqual({
-      summary: { ...pageSummary, discount },
-      shareLink: "https://tripdly.com/auth?ref=ABCD1234",
+      summary: { ...pageSummary, programEnabled: false },
+      shareLink: "https://tripdly.com/r/ABCD1234",
     });
   });
 });

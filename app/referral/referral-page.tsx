@@ -1,18 +1,25 @@
-import { cn } from "cn";
-import { AlertTriangle, Clipboard, Gift, Share2, Sparkles, Users, Wallet } from "lucide-react";
+import { AlertCircle, Copy, EyeOff } from "lucide-react";
+import { useState } from "react";
 import type { ReferralSummary } from "~/api/referrals/schema";
-import { Badge } from "~/components/ui/badge";
+import { DetailCard, DetailCardBody, DetailCardHeader } from "~/booking/booking-detail-card";
+import { Alert, AlertDescription, AlertTitle } from "~/components/ui/alert";
 import { Button } from "~/components/ui/button";
-import { Card, CardContent, CardHeader } from "~/components/ui/card";
+import { Card, CardContent } from "~/components/ui/card";
+import { Input } from "~/components/ui/input";
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "~/components/ui/table";
 import { formatCurrency } from "~/money/currency";
 
-import { shareReferralLink } from "./share-referral-link";
 import { useCopyFeedback } from "./use-copy-feedback";
 
-export type ReferralPageSummary = Pick<
-  ReferralSummary,
-  "referralCode" | "programEnabled" | "discount"
-> & {
+export type ReferralPageSummary = Pick<ReferralSummary, "referralCode" | "programEnabled"> & {
   readonly stats: Pick<
     ReferralSummary["stats"],
     | "totalReferrals"
@@ -24,12 +31,6 @@ export type ReferralPageSummary = Pick<
   readonly referrals: ReadonlyArray<
     Pick<ReferralSummary["referrals"][number], "id" | "name" | "email" | "createdAt">
   >;
-  readonly rewards: ReadonlyArray<
-    Pick<
-      ReferralSummary["rewards"][number],
-      "id" | "amount" | "status" | "createdAt" | "refereeName"
-    >
-  >;
 };
 
 const referralDateFormatter = new Intl.DateTimeFormat("en-NG", {
@@ -39,78 +40,42 @@ const referralDateFormatter = new Intl.DateTimeFormat("en-NG", {
   timeZone: "Africa/Lagos",
 });
 
-const cardClassName = "gap-0 rounded border border-neutral-200 py-0 shadow-sm ring-0";
-const statIcons = {
-  totalReferrals: <Users aria-hidden="true" className="size-4.5 text-blue-500" />,
-  rewardsEarned: <Gift aria-hidden="true" className="size-4.5 text-green-500" />,
-  pendingRewards: <Sparkles aria-hidden="true" className="size-4.5 text-orange-500" />,
-  usedCredits: <Wallet aria-hidden="true" className="size-4.5 text-red-500" />,
-  availableCredits: <Wallet aria-hidden="true" className="size-4.5 text-purple-500" />,
-} as const;
+const creditBalanceFormatter = new Intl.NumberFormat("en-NG", {
+  style: "currency",
+  currency: "NGN",
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+const HISTORY_PAGE_SIZE = 5;
+const statCardClassName = "gap-0 rounded-lg border border-neutral-200 py-0 shadow-none ring-0";
 
 function formatReferralDate(value: string) {
   return referralDateFormatter.format(new Date(value));
 }
 
-function describeCustomerDiscount(discount: ReferralPageSummary["discount"]) {
-  if (!discount) {
-    return "a first-booking discount";
-  }
-
-  return discount.type === "FIXED"
-    ? `${formatCurrency(discount.amount)} off their first eligible booking`
-    : `${discount.percentage}% off, up to ${formatCurrency(discount.maxAmount)}, on their first eligible booking`;
+function whatsappShareUrl(shareLink: string) {
+  return `https://wa.me/?text=${encodeURIComponent(
+    `Book your first Tripdly trip with my referral link: ${shareLink}`,
+  )}`;
 }
 
-function rewardStatusClassName(status: ReferralPageSummary["rewards"][number]["status"]) {
-  switch (status) {
-    case "RELEASED":
-      return "bg-green-100 text-green-700";
-    case "PENDING":
-      return "bg-orange-100 text-orange-700";
-    case "REVERSED":
-      return "bg-red-100 text-red-700";
-  }
+function telegramShareUrl(shareLink: string) {
+  return `https://t.me/share/url?url=${encodeURIComponent(
+    shareLink,
+  )}&text=${encodeURIComponent("Book your first Tripdly trip with my referral link.")}`;
 }
 
-function StatCard({
-  label,
-  value,
-  icon,
-}: {
-  readonly label: string;
-  readonly value: string | number;
-  readonly icon: React.ReactNode;
-}) {
+function StatCard({ label, value }: { readonly label: string; readonly value: string | number }) {
   return (
-    <Card className={cardClassName}>
-      <CardContent className="p-4">
-        <div className="mb-3 flex size-9 items-center justify-center rounded-full bg-neutral-100">
-          {icon}
+    <Card className={statCardClassName}>
+      <CardContent className="flex min-h-32 flex-col justify-between p-4">
+        <span aria-hidden="true" className="size-8 rounded-full bg-neutral-100" />
+        <div className="space-y-1">
+          <p className="text-xl leading-5 font-semibold text-neutral-950 tabular-nums">{value}</p>
+          <p className="text-xs leading-3 font-medium text-neutral-500">{label}</p>
         </div>
-        <p className="text-xl font-bold text-neutral-950 tabular-nums">{value}</p>
-        <p className="mt-1 text-xs font-medium text-neutral-500">{label}</p>
       </CardContent>
     </Card>
-  );
-}
-
-function RewardRow({ reward }: { readonly reward: ReferralPageSummary["rewards"][number] }) {
-  return (
-    <li className="flex items-center justify-between rounded border border-neutral-200 p-3">
-      <div className="min-w-0 flex-1 pr-3">
-        <p className="text-base font-semibold text-neutral-950 tabular-nums">
-          {formatCurrency(reward.amount)}
-        </p>
-        <p className="mt-0.5 truncate text-sm text-neutral-500">From {reward.refereeName}</p>
-      </div>
-      <div className="shrink-0 text-right">
-        <Badge className={cn("capitalize", rewardStatusClassName(reward.status))}>
-          {reward.status.toLowerCase()}
-        </Badge>
-        <p className="mt-1 text-xs text-neutral-500">{formatReferralDate(reward.createdAt)}</p>
-      </div>
-    </li>
   );
 }
 
@@ -122,222 +87,251 @@ export function ReferralPage({
   readonly shareLink: string | null;
 }) {
   const { copiedTarget, copyError, copyToClipboard } = useCopyFeedback();
+  const [historyPage, setHistoryPage] = useState(1);
   const { referralCode } = summary;
-
+  const historyPageCount = Math.max(1, Math.ceil(summary.referrals.length / HISTORY_PAGE_SIZE));
+  const visibleReferrals = summary.referrals.slice(
+    (historyPage - 1) * HISTORY_PAGE_SIZE,
+    historyPage * HISTORY_PAGE_SIZE,
+  );
   const stats = [
     {
-      label: "Total Referrals",
-      value: summary.stats.totalReferrals,
-      icon: statIcons.totalReferrals,
-    },
-    {
-      label: "Rewards Earned",
+      label: "Rewards earned",
       value: formatCurrency(summary.stats.totalRewardsGranted),
-      icon: statIcons.rewardsEarned,
     },
     {
       label: "Pending Rewards",
       value: formatCurrency(summary.stats.totalRewardsPending),
-      icon: statIcons.pendingRewards,
     },
     {
-      label: "Used credit",
+      label: "Used Credits",
       value: formatCurrency(summary.stats.totalUsed),
-      icon: statIcons.usedCredits,
     },
     {
-      label: "Available credit",
-      value: formatCurrency(summary.stats.availableCredits),
-      icon: statIcons.availableCredits,
-    },
-  ];
-
-  const steps = [
-    {
-      title: "Share your code",
-      body: "Send your referral code or link to friends",
-    },
-    {
-      title: "They sign up",
-      body: "Friends create an account using your code",
-    },
-    {
-      title: "Both get rewards",
-      body: `They get ${describeCustomerDiscount(summary.discount)}. You earn referral credit after they complete that booking.`,
+      label: "Total Referrals",
+      value: summary.stats.totalReferrals,
     },
   ];
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6 px-4 py-6 pb-24 md:py-8">
-      <header>
-        <h1 className="text-3xl font-bold text-neutral-950">Referral Program</h1>
-        <p className="mt-2 text-base text-neutral-500">
-          Invite friends and earn rewards when they book their first trip!
+    <section
+      aria-labelledby="referral-page-title"
+      className="mx-auto max-w-4xl space-y-4 px-5 py-6 pb-24 md:px-4 md:py-12"
+    >
+      <header className="mb-2 flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
+        <h1
+          id="referral-page-title"
+          className="text-2xl leading-9 font-semibold text-neutral-900 md:text-3xl"
+        >
+          Referral Program
+        </h1>
+        <p className="text-sm font-medium">
+          <span className="text-neutral-500">New to Tripidly? </span>
+          <span className="underline underline-offset-2">See how it works</span>
         </p>
       </header>
 
       {!summary.programEnabled ? (
-        <div className="rounded border border-yellow-200 bg-yellow-50 p-4 text-yellow-800">
-          <div className="flex items-center gap-2">
-            <AlertTriangle aria-hidden="true" className="size-4.5" />
-            <p className="font-semibold">Referral Program Temporarily Disabled</p>
-          </div>
-          <p className="mt-1 text-sm text-yellow-700">
+        <Alert className="rounded-md border-yellow-500 bg-yellow-50 p-4 text-yellow-600 md:mb-4">
+          <AlertCircle aria-hidden="true" className="size-4" />
+          <AlertTitle className="text-base leading-4">
+            Referral program temporarily closed
+          </AlertTitle>
+          <AlertDescription className="text-yellow-600">
             New referrals cannot be processed at this time.
-          </p>
-        </div>
+          </AlertDescription>
+        </Alert>
       ) : null}
 
-      <Card className={cardClassName}>
-        <CardHeader className="border-b border-neutral-100 px-5 py-4">
-          <h2 className="flex items-center gap-2 text-lg font-semibold text-neutral-950">
-            <Gift aria-hidden="true" className="size-5" />
-            Your Referral Code
-          </h2>
-        </CardHeader>
-        <CardContent className="space-y-4 p-5">
-          {referralCode ? (
-            <>
-              <div className="flex items-center justify-between gap-3 rounded bg-neutral-100 p-4">
-                <code className="min-w-0 flex-1 font-mono text-lg font-bold tracking-wider break-all text-neutral-950">
-                  <span className="sr-only">Referral code: </span>
-                  {referralCode}
-                </code>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => copyToClipboard(referralCode, "code")}
-                >
-                  <Clipboard aria-hidden="true" className="size-4" />
-                  {copiedTarget === "code" ? "Copied!" : "Copy"}
-                </Button>
-              </div>
+      <DetailCard>
+        <DetailCardHeader>
+          <h2>Invite friends and Earn</h2>
+        </DetailCardHeader>
+        <DetailCardBody>
+          <div className="grid min-h-[456px] gap-8 md:min-h-[216px] md:grid-cols-[316px_minmax(0,1fr)] md:gap-6">
+            <div className="relative h-52 overflow-hidden rounded-lg border border-neutral-200 bg-neutral-900 p-5 text-white">
+              <p className="text-sm font-medium text-neutral-300">Available Credits</p>
+              <p className="mt-1 text-3xl leading-8 font-semibold tabular-nums">
+                {creditBalanceFormatter.format(summary.stats.availableCredits)}
+              </p>
+              <img src="/referrals/credit-bag.svg" alt="" className="absolute bottom-3 left-1" />
+              <EyeOff
+                aria-hidden="true"
+                className="absolute top-5 right-5 size-4 text-neutral-300"
+              />
+            </div>
+
+            <div className="space-y-6">
+              {referralCode ? (
+                <div className="space-y-2">
+                  <label htmlFor="referral-code" className="text-sm font-semibold text-neutral-900">
+                    Your Referral Code
+                  </label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="referral-code"
+                      value={referralCode}
+                      readOnly
+                      className="h-11 bg-neutral-50"
+                    />
+                    <Button
+                      type="button"
+                      className="h-11 rounded-md px-3.5"
+                      onClick={() => copyToClipboard(referralCode, "code")}
+                    >
+                      <Copy aria-hidden="true" />
+                      {copiedTarget === "code" ? "Copied!" : "Copy"}
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-neutral-500">
+                  Your referral code is being generated. Please refresh the page.
+                </p>
+              )}
 
               {shareLink ? (
                 <div className="space-y-2">
                   <label
                     htmlFor="referral-share-link"
-                    className="text-sm font-semibold text-neutral-800"
+                    className="text-sm font-semibold text-neutral-900"
                   >
-                    Share Link:
+                    Your Referral Link
                   </label>
                   <div className="flex gap-2">
-                    <input
+                    <Input
                       id="referral-share-link"
                       value={shareLink}
                       readOnly
-                      className="h-10 min-w-0 flex-1 rounded-md border border-neutral-200 bg-white px-3 text-sm text-neutral-700"
+                      className="h-11 bg-neutral-50"
                     />
                     <Button
                       type="button"
-                      variant="outline"
-                      size="icon-lg"
-                      aria-label="Copy referral link"
+                      className="h-11 rounded-md px-3.5"
                       onClick={() => copyToClipboard(shareLink, "link")}
                     >
-                      <Clipboard aria-hidden="true" className="size-4" />
-                    </Button>
-                    <Button
-                      type="button"
-                      aria-label="Share referral link"
-                      onClick={() =>
-                        shareReferralLink({
-                          shareLink,
-                          share: navigator.share?.bind(navigator),
-                          copyLink: (value) => copyToClipboard(value, "link"),
-                        })
-                      }
-                      className="w-10 px-0 md:w-auto md:px-3"
-                    >
-                      <Share2 aria-hidden="true" className="size-4" />
-                      <span className="hidden md:inline">Share</span>
+                      <Copy aria-hidden="true" />
+                      {copiedTarget === "link" ? "Copied!" : "Copy"}
                     </Button>
                   </div>
-                  <p className="min-h-4 text-xs font-medium" aria-live="polite">
-                    {copiedTarget === "link" ? (
-                      <span className="text-green-700">Referral link copied to clipboard.</span>
-                    ) : null}
-                  </p>
+                  <div className="flex flex-wrap items-center gap-2 pt-1">
+                    <span className="text-xs font-semibold text-neutral-500">SHARE VIA:</span>
+                    <a
+                      href={whatsappShareUrl(shareLink)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 rounded-xl border border-neutral-300 px-2 py-1 text-xs"
+                    >
+                      <img src="/referrals/whatsapp.svg" alt="" />
+                      Whatsapp
+                    </a>
+                    <a
+                      href={telegramShareUrl(shareLink)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 rounded-xl border border-neutral-300 px-2 py-1 text-xs"
+                    >
+                      <img src="/referrals/telegram.svg" alt="" />
+                      Telegram
+                    </a>
+                  </div>
                 </div>
               ) : null}
-            </>
-          ) : (
-            <p className="text-sm text-neutral-500">
-              Your referral code is being generated. Please refresh the page.
-            </p>
-          )}
-          {copyError ? (
-            <p className="text-xs font-medium text-red-600" role="alert">
-              {copyError}
-            </p>
-          ) : null}
-        </CardContent>
-      </Card>
 
-      <section
-        aria-label="Referral statistics"
-        className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5"
-      >
+              <div className="text-xs font-medium" aria-live="polite">
+                {copiedTarget ? <span className="text-green-700">Copied to clipboard.</span> : null}
+              </div>
+              {copyError ? (
+                <p className="text-xs font-medium text-red-600" role="alert">
+                  {copyError}
+                </p>
+              ) : null}
+            </div>
+          </div>
+        </DetailCardBody>
+      </DetailCard>
+
+      <section aria-label="Referral statistics" className="grid grid-cols-2 gap-4 md:grid-cols-4">
         {stats.map((stat) => (
           <StatCard key={stat.label} {...stat} />
         ))}
       </section>
 
-      {summary.rewards.length > 0 ? (
-        <Card className={cardClassName}>
-          <CardHeader className="border-b border-neutral-100 px-5 py-4">
-            <h2 className="text-lg font-semibold text-neutral-950">Recent Rewards</h2>
-          </CardHeader>
-          <CardContent className="p-5">
-            <ul className="space-y-3">
-              {summary.rewards.slice(0, 5).map((reward) => (
-                <RewardRow key={reward.id} reward={reward} />
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
-      ) : null}
-
-      {summary.referrals.length > 0 ? (
-        <Card className={cardClassName}>
-          <CardHeader className="border-b border-neutral-100 px-5 py-4">
-            <h2 className="text-lg font-semibold text-neutral-950">Your Referrals</h2>
-          </CardHeader>
-          <CardContent className="p-5">
-            <ul className="space-y-3">
-              {summary.referrals.map((referral) => (
-                <li key={referral.id} className="rounded border border-neutral-200 p-3">
-                  <p className="text-base font-semibold text-neutral-950">
-                    {referral.name || referral.email}
-                  </p>
-                  <p className="mt-0.5 text-sm text-neutral-500">{referral.email}</p>
-                  <p className="mt-2 text-xs text-neutral-500">
-                    Joined {formatReferralDate(referral.createdAt)}
-                  </p>
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
-      ) : null}
-
-      <Card className={cardClassName}>
-        <CardHeader className="border-b border-neutral-100 px-5 py-4">
-          <h2 className="text-lg font-semibold text-neutral-950">How it works</h2>
-        </CardHeader>
-        <CardContent className="grid gap-4 p-5 md:grid-cols-3">
-          {steps.map((step, index) => (
-            <div key={step.title} className="rounded p-2 text-center">
-              <div className="mx-auto flex size-8 items-center justify-center rounded-full bg-neutral-950 text-sm font-bold text-white">
-                {index + 1}
-              </div>
-              <h3 className="mt-2 font-semibold text-neutral-950">{step.title}</h3>
-              <p className="mt-1 text-sm text-neutral-500">{step.body}</p>
+      <DetailCard className="min-h-[545px] md:min-h-[398px]">
+        <DetailCardHeader>
+          <h2>Your Referral History</h2>
+        </DetailCardHeader>
+        <DetailCardBody>
+          {summary.referrals.length > 0 ? (
+            <div className="space-y-4">
+              <Table>
+                <TableCaption className="sr-only">
+                  People who joined using your referral code
+                </TableCaption>
+                <TableHeader className="bg-neutral-100">
+                  <TableRow>
+                    <TableHead scope="col" className="text-xs font-semibold">
+                      Name
+                    </TableHead>
+                    <TableHead scope="col" className="text-xs font-semibold">
+                      Email
+                    </TableHead>
+                    <TableHead scope="col" className="text-xs font-semibold">
+                      Joined
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {visibleReferrals.map((referral) => (
+                    <TableRow key={referral.id}>
+                      <TableCell>{referral.name || "—"}</TableCell>
+                      <TableCell>{referral.email}</TableCell>
+                      <TableCell>{formatReferralDate(referral.createdAt)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              <nav
+                aria-label="Referral history pagination"
+                className="flex items-center justify-between gap-4"
+              >
+                <p className="text-sm">
+                  Page {historyPage}/{historyPageCount}
+                </p>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={historyPage === 1}
+                    onClick={() => setHistoryPage((page) => page - 1)}
+                  >
+                    Previous
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={historyPage === historyPageCount}
+                    onClick={() => setHistoryPage((page) => page + 1)}
+                  >
+                    Next
+                  </Button>
+                </div>
+              </nav>
             </div>
-          ))}
-        </CardContent>
-      </Card>
-    </div>
+          ) : (
+            <div className="flex min-h-80 flex-col items-center justify-center px-2 text-center">
+              <img src="/referrals/empty-history.svg" alt="" />
+              <h3 className="mt-4 text-base font-semibold text-neutral-900">No referral history</h3>
+              <p className="mt-1 max-w-72 text-sm text-neutral-600">
+                Your referral history will appear here. You can share your referral link to get
+                started
+              </p>
+            </div>
+          )}
+        </DetailCardBody>
+      </DetailCard>
+    </section>
   );
 }

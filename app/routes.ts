@@ -49,6 +49,7 @@ export default [
   route("api/account/delete", "routes/api.account.delete.ts"),
   route("robots.txt", "routes/robots.txt.ts"),
   route("sitemap.xml", "routes/sitemap.xml.ts"),
+  route("r/:code", "routes/r.$code.ts"),
   route("chauffeur/onboarding", "routes/chauffeur.onboarding.tsx"),
   ...visualChauffeurRoutes,
   layout("routes/_public.tsx", [

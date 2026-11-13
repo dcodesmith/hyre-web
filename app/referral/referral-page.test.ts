@@ -15,7 +15,6 @@ import { ReferralPage, type ReferralPageSummary } from "./referral-page";
 const summary: ReferralPageSummary = {
   referralCode: "ADA2026X",
   programEnabled: true,
-  discount: { type: "FIXED", amount: 10_000 },
   stats: {
     totalReferrals: 1,
     totalRewardsGranted: 10_000,
@@ -24,46 +23,68 @@ const summary: ReferralPageSummary = {
     availableCredits: 10_000,
   },
   referrals: [],
-  rewards: [],
 };
 
 function renderPage(overrides: Partial<ReferralPageSummary> = {}) {
   return renderToStaticMarkup(
     createElement(ReferralPage, {
       summary: { ...summary, ...overrides },
-      shareLink: "https://tripdly.com/auth?ref=ADA2026X",
+      shareLink: "https://tripdly.com/r/ADA2026X",
     }),
   );
 }
 
-describe("ReferralPage offer copy", () => {
-  it("describes a fixed first-booking discount", () => {
+describe("ReferralPage", () => {
+  it("renders the empty referral history", () => {
     const markup = renderPage();
 
-    expect(markup).toContain("₦10,000 off their first eligible booking");
-    expect(markup).toContain("Available credit");
-    expect(markup).toContain("Used credit");
-  });
-
-  it("describes a percentage first-booking discount with a cap", () => {
+    expect(markup).toContain("No referral history");
+    expect(markup).toContain("Your referral history will appear here.");
+    expect(markup).toContain("See how it works");
+    expect(markup).not.toContain('href="#referral-invite"');
     expect(
-      renderPage({
-        discount: { type: "PERCENTAGE", percentage: 10, maxAmount: 20_000 },
-      }),
-    ).toContain("10% off, up to ₦20,000, on their first eligible booking");
+      markup.match(/overflow-hidden rounded border border-gray-200 bg-white text-gray-900/g),
+    ).toHaveLength(2);
+    expect(
+      markup.match(
+        /flex items-center gap-2 border-b border-gray-200 bg-gray-50 p-4 text-base leading-6 font-semibold text-gray-900/g,
+      ),
+    ).toHaveLength(2);
+    expect(markup.match(/class="p-4"/g)).toHaveLength(2);
+    expect(markup.match(/shadow-none/g)).toHaveLength(4);
+    expect(markup).not.toContain("shadow-sm");
+    expect(markup).not.toContain("<table");
   });
 
-  it("uses generic copy when the offer is null", () => {
-    expect(renderPage({ discount: null })).toContain(
-      "They get a first-booking discount. You earn referral credit after they complete that booking.",
-    );
+  it("renders populated history with only reliably mapped referral data", () => {
+    const markup = renderPage({
+      referrals: [
+        {
+          id: "018f47a2-7b3c-7d4e-8f90-123456789431",
+          name: "Grace Hopper",
+          email: "g***@example.com",
+          createdAt: "2026-08-20T12:00:00.000Z",
+        },
+      ],
+    });
+
+    expect(markup).toContain("<table");
+    expect(markup).toContain("Grace Hopper");
+    expect(markup).toContain("g***@example.com");
+    expect(markup).toContain("Joined");
+    expect(markup).toContain("Page 1/1");
+    expect(markup).not.toContain("Amount Earned");
+    expect(markup).not.toContain("more-horizontal");
   });
 
-  it("shows the paused programme banner without hiding the code", () => {
+  it("shows the disabled-program banner without hiding sharing", () => {
     const markup = renderPage({ programEnabled: false });
 
-    expect(markup).toContain("Referral Program Temporarily Disabled");
+    expect(markup).toContain("Referral program temporarily closed");
     expect(markup).toContain("New referrals cannot be processed at this time.");
     expect(markup).toContain("ADA2026X");
+    expect(markup).toContain("https://tripdly.com/r/ADA2026X");
+    expect(markup).toContain("Whatsapp");
+    expect(markup).toContain("Telegram");
   });
 });
