@@ -2,10 +2,10 @@ import { AlertCircle, Copy, EyeOff } from "lucide-react";
 import { useState } from "react";
 import type { ReferralSummary } from "~/api/referrals/schema";
 import { DetailCard, DetailCardBody, DetailCardHeader } from "~/booking/booking-detail-card";
+import { bookingPhoneInputClassName } from "~/booking/booking-phone-verification";
 import { Alert, AlertDescription, AlertTitle } from "~/components/ui/alert";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent } from "~/components/ui/card";
-import { Input } from "~/components/ui/input";
 import {
   Table,
   TableBody,
@@ -168,15 +168,15 @@ export function ReferralPage({
                     Your Referral Code
                   </label>
                   <div className="flex gap-2">
-                    <Input
+                    <input
                       id="referral-code"
                       value={referralCode}
                       readOnly
-                      className="h-11 bg-neutral-50"
+                      className={bookingPhoneInputClassName}
                     />
                     <Button
                       type="button"
-                      className="h-11 rounded-md px-3.5"
+                      className="h-10 rounded-md px-3.5"
                       onClick={() => copyToClipboard(referralCode, "code")}
                     >
                       <Copy aria-hidden="true" />
@@ -199,22 +199,22 @@ export function ReferralPage({
                     Your Referral Link
                   </label>
                   <div className="flex gap-2">
-                    <Input
+                    <input
                       id="referral-share-link"
                       value={shareLink}
                       readOnly
-                      className="h-11 bg-neutral-50"
+                      className={bookingPhoneInputClassName}
                     />
                     <Button
                       type="button"
-                      className="h-11 rounded-md px-3.5"
+                      className="h-10 rounded-md px-3.5"
                       onClick={() => copyToClipboard(shareLink, "link")}
                     >
                       <Copy aria-hidden="true" />
                       {copiedTarget === "link" ? "Copied!" : "Copy"}
                     </Button>
                   </div>
-                  <div className="flex flex-wrap items-center gap-2 pt-1">
+                  <div className="flex flex-wrap items-center gap-2">
                     <span className="text-xs font-semibold text-neutral-500">SHARE VIA:</span>
                     <a
                       href={whatsappShareUrl(shareLink)}
