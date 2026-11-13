@@ -45,17 +45,16 @@ test("loads the signed-in referral summary from the API", async ({ context, page
 
     await expect(page).toHaveURL(/\/referrals$/);
     await expect(page.getByRole("heading", { name: "Referral Program" })).toBeVisible();
-    await expect(page.locator("code")).toContainText(MOCK_REFERRAL_CODE);
+    await expect(page.getByLabel("Your Referral Code")).toHaveValue(MOCK_REFERRAL_CODE);
     // wrangler.jsonc APP_ORIGIN, not Playwright's :5174 origin
-    await expect(page.getByLabel("Share Link:")).toHaveValue(
-      `http://localhost:5173/auth?ref=${MOCK_REFERRAL_CODE}`,
+    await expect(page.getByLabel("Your Referral Link")).toHaveValue(
+      `http://localhost:5173/r/${MOCK_REFERRAL_CODE}`,
     );
-    await expect(page.getByLabel("Share Link:")).not.toHaveValue(
-      "https://api.example/auth?ref=ABCD2345",
+    await expect(page.getByLabel("Your Referral Link")).not.toHaveValue(
+      "https://api.example/r/ABCD2345",
     );
-    await expect(page.getByLabel("Referral statistics")).toContainText("Available credit");
-    await expect(page.getByRole("heading", { name: "Recent Rewards" })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Your Referrals" })).toBeVisible();
+    await expect(page.getByText("Available Credits")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Your Referral History" })).toBeVisible();
   } finally {
     await stopMockReferralApi(api);
   }
@@ -67,20 +66,18 @@ test("renders referral details and copies the referral code", async ({ page }) =
   await page.goto("/__visual/referrals");
 
   await expect(page.getByRole("heading", { name: "Referral Program" })).toBeVisible();
-  await expect(page.locator("code")).toContainText("ADA2026X");
-  await expect(page.getByLabel("Referral statistics")).toContainText("Available credit");
-  await expect(page.getByRole("heading", { name: "Recent Rewards" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Your Referrals" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "How it works" })).toBeVisible();
+  await expect(page.getByLabel("Your Referral Code")).toHaveValue("ADA2026X");
+  await expect(page.getByText("Available Credits")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Your Referral History" })).toBeVisible();
 
   await clickUntilVisible(
-    page.getByRole("button", { name: "Copy", exact: true }),
+    page.getByLabel("Your Referral Code").locator("..").getByRole("button", { name: "Copy" }),
     page.getByRole("button", { name: "Copied!" }),
   );
 
   await clickUntilVisible(
-    page.getByRole("button", { name: "Copy referral link" }),
-    page.getByText("Referral link copied to clipboard."),
+    page.getByLabel("Your Referral Link").locator("..").getByRole("button", { name: "Copy" }),
+    page.getByRole("button", { name: "Copied!" }),
   );
 });
 
@@ -88,6 +85,6 @@ test("shows when the referral program is disabled", async ({ page }) => {
   await setCookiePreference(page);
   await page.goto("/__visual/referrals?disabled=true");
 
-  await expect(page.getByText("Referral Program Temporarily Disabled")).toBeVisible();
+  await expect(page.getByText("Referral program temporarily closed")).toBeVisible();
   await expect(page.getByText("New referrals cannot be processed at this time.")).toBeVisible();
 });
