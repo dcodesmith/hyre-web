@@ -42,6 +42,17 @@ describe("ReferralPage", () => {
     expect(markup).toContain("Your referral history will appear here.");
     expect(markup).toContain("See how it works");
     expect(markup).not.toContain('href="#referral-invite"');
+    expect(
+      markup.match(/overflow-hidden rounded border border-gray-200 bg-white text-gray-900/g),
+    ).toHaveLength(2);
+    expect(
+      markup.match(
+        /flex items-center gap-2 border-b border-gray-200 bg-gray-50 p-4 text-base leading-6 font-semibold text-gray-900/g,
+      ),
+    ).toHaveLength(2);
+    expect(markup.match(/class="p-4"/g)).toHaveLength(2);
+    expect(markup.match(/shadow-none/g)).toHaveLength(4);
+    expect(markup).not.toContain("shadow-sm");
     expect(markup).not.toContain("<table");
   });
 

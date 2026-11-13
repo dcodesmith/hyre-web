@@ -69,6 +69,25 @@ test("renders referral details and copies the referral code", async ({ page }) =
   await expect(page.getByLabel("Your Referral Code")).toHaveValue("ADA2026X");
   await expect(page.getByText("Available Credits")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Your Referral History" })).toBeVisible();
+  const inviteCard = page
+    .getByRole("heading", { name: "Invite friends and Earn" })
+    .locator("..")
+    .locator("..");
+  const historyCard = page
+    .getByRole("heading", { name: "Your Referral History" })
+    .locator("..")
+    .locator("..");
+  await expect(inviteCard).toHaveClass(
+    /overflow-hidden rounded border border-gray-200 bg-white text-gray-900/,
+  );
+  await expect(historyCard).toHaveClass(
+    /overflow-hidden rounded border border-gray-200 bg-white text-gray-900/,
+  );
+  const statCards = page.getByLabel("Referral statistics").locator('[data-slot="card"]');
+  await expect(statCards).toHaveCount(4);
+  for (const statCard of await statCards.all()) {
+    await expect(statCard).toHaveClass(/shadow-none/);
+  }
 
   const referralCodeField = page.getByLabel("Your Referral Code").locator("..");
   await clickUntilVisible(
