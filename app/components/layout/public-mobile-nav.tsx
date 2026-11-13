@@ -1,8 +1,7 @@
 import { cn } from "cn";
-import { Calendar, Gift, Home, LogIn, LogOut, User as UserIcon } from "lucide-react";
+import { Calendar, Gift, Home, LogIn, User as UserIcon } from "lucide-react";
 import type { ReactNode } from "react";
-import { Form, NavLink, useLocation, useNavigation } from "react-router";
-import { isLogoutFormAction } from "~/auth/logout-navigation";
+import { NavLink, useLocation } from "react-router";
 import type { User } from "~/auth/user";
 import { LEGAL_CONSTANTS } from "~/content/legal";
 import { useHeroScroll } from "~/hooks/use-hero-scroll";
@@ -14,13 +13,22 @@ function NavGlyph({ children }: { readonly children: ReactNode }) {
   return <span className="mb-1 flex size-6 items-center justify-center">{children}</span>;
 }
 
+export function mobileNavLinks(signedIn: boolean) {
+  return [
+    { to: "/", label: LEGAL_CONSTANTS.companyName, icon: Home },
+    { to: "/bookings", label: "Bookings", icon: Calendar },
+    { to: "/referrals", label: "Referrals", icon: Gift },
+    signedIn
+      ? { to: "/profile", label: "Profile", icon: UserIcon }
+      : { to: "/auth", label: "Login", icon: LogIn },
+  ];
+}
+
 export function PublicMobileNav({ user }: { readonly user: User | null }) {
   const { pathname } = useLocation();
-  const navigation = useNavigation();
   const hideOnScroll = pathname === "/" || pathname === "/search";
   const { hasScrolled } = useHeroScroll(hideOnScroll);
   const isHidden = hideOnScroll && hasScrolled;
-  const isLoggingOut = navigation.formMethod != null && isLogoutFormAction(navigation.formAction);
 
   return (
     <nav
@@ -32,93 +40,32 @@ export function PublicMobileNav({ user }: { readonly user: User | null }) {
         isHidden ? "pointer-events-none translate-y-[calc(100%+2rem)]" : "translate-y-0",
       )}
     >
-      <div
-        className={cn(
-          "mx-auto flex min-h-13 items-center justify-around py-2",
-          user ? "max-w-full px-4" : "max-w-md px-24",
-        )}
-      >
-        <NavLink
-          to="/"
-          end
-          prefetch="intent"
-          className={({ isActive }) => cn(itemClassName, isActive && "font-semibold text-primary")}
-        >
-          <NavGlyph>
-            <Home aria-hidden="true" className="size-4" />
-          </NavGlyph>
-          <span translate="no" className="max-w-full truncate text-xs font-medium">
-            {LEGAL_CONSTANTS.companyName}
-          </span>
-        </NavLink>
-        {user ? (
-          <>
+      <div className="mx-auto flex min-h-13 max-w-full items-center justify-around px-4 py-2">
+        {mobileNavLinks(user != null).map((link) => {
+          const Icon = link.icon;
+
+          return (
             <NavLink
-              to="/bookings"
+              key={link.to}
+              to={link.to}
+              end={link.to === "/"}
               prefetch="intent"
               className={({ isActive }) =>
                 cn(itemClassName, isActive && "font-semibold text-primary")
               }
             >
               <NavGlyph>
-                <Calendar aria-hidden="true" className="size-4" />
+                <Icon aria-hidden="true" className="size-4" />
               </NavGlyph>
-              <span className="max-w-full truncate text-xs font-medium">Bookings</span>
-            </NavLink>
-            <NavLink
-              to="/referrals"
-              prefetch="intent"
-              className={({ isActive }) =>
-                cn(itemClassName, isActive && "font-semibold text-primary")
-              }
-            >
-              <NavGlyph>
-                <Gift aria-hidden="true" className="size-4" />
-              </NavGlyph>
-              <span className="max-w-full truncate text-xs font-medium">Referrals</span>
-            </NavLink>
-            <NavLink
-              to="/profile"
-              prefetch="intent"
-              className={({ isActive }) =>
-                cn(itemClassName, isActive && "font-semibold text-primary")
-              }
-            >
-              <NavGlyph>
-                <UserIcon aria-hidden="true" className="size-4" />
-              </NavGlyph>
-              <span className="max-w-full truncate text-xs font-medium">Profile</span>
-            </NavLink>
-            <Form method="post" action="/logout" className="flex min-w-0 flex-1">
-              <button
-                type="submit"
-                disabled={isLoggingOut}
-                aria-label={isLoggingOut ? "Logging out" : "Log out"}
-                className={itemClassName}
+              <span
+                translate={link.to === "/" ? "no" : undefined}
+                className="max-w-full truncate text-xs font-medium"
               >
-                <NavGlyph>
-                  <LogOut aria-hidden="true" className="size-4" />
-                </NavGlyph>
-                <span className="max-w-full truncate text-xs font-medium">
-                  {isLoggingOut ? "Logging out…" : "Log out"}
-                </span>
-              </button>
-            </Form>
-          </>
-        ) : (
-          <NavLink
-            to="/auth"
-            prefetch="intent"
-            className={({ isActive }) =>
-              cn(itemClassName, isActive && "font-semibold text-primary")
-            }
-          >
-            <NavGlyph>
-              <LogIn aria-hidden="true" className="size-4" />
-            </NavGlyph>
-            <span className="max-w-full truncate text-xs font-medium">Log in</span>
-          </NavLink>
-        )}
+                {link.label}
+              </span>
+            </NavLink>
+          );
+        })}
       </div>
     </nav>
   );
