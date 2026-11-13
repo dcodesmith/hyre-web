@@ -214,27 +214,30 @@ export function ReferralPage({
                       {copiedTarget === "link" ? "Copied!" : "Copy"}
                     </Button>
                   </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-xs font-semibold text-neutral-500">SHARE VIA:</span>
-                    <a
-                      href={whatsappShareUrl(shareLink)}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center gap-1 rounded-xl border border-neutral-300 px-2 py-1 text-xs"
-                    >
-                      <img src="/referrals/whatsapp.svg" alt="" />
-                      Whatsapp
-                    </a>
-                    <a
-                      href={telegramShareUrl(shareLink)}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center gap-1 rounded-xl border border-neutral-300 px-2 py-1 text-xs"
-                    >
-                      <img src="/referrals/telegram.svg" alt="" />
-                      Telegram
-                    </a>
-                  </div>
+                </div>
+              ) : null}
+
+              {shareLink ? (
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs font-semibold text-neutral-500">SHARE VIA:</span>
+                  <a
+                    href={whatsappShareUrl(shareLink)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 rounded-xl border border-neutral-300 px-2 py-1 text-xs"
+                  >
+                    <img src="/referrals/whatsapp.svg" alt="" />
+                    Whatsapp
+                  </a>
+                  <a
+                    href={telegramShareUrl(shareLink)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 rounded-xl border border-neutral-300 px-2 py-1 text-xs"
+                  >
+                    <img src="/referrals/telegram.svg" alt="" />
+                    Telegram
+                  </a>
                 </div>
               ) : null}
 
