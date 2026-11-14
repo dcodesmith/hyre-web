@@ -86,7 +86,7 @@ export default function FaqPage() {
               orientation="vertical"
               className="flex flex-col gap-8 md:flex-row"
             >
-              <TabsList className="h-auto w-full shrink-0 gap-1 overflow-x-auto bg-transparent p-0 md:sticky md:top-21.25 md:w-64 md:self-start md:overflow-x-visible">
+              <TabsList className="h-auto w-full shrink-0 gap-1 overflow-x-auto bg-transparent p-0 md:sticky md:top-[142px] md:w-64 md:self-start md:overflow-x-visible">
                 {FAQ_CATEGORIES.map((category) => (
                   <TabsTrigger
                     key={category.id}
