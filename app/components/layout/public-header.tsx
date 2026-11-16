@@ -28,10 +28,10 @@ export function PublicHeader({ user }: { readonly user: User | null }) {
             ? "h-[126px] px-4 py-4"
             : isTransparent
               ? "h-14 px-4 md:h-17.25"
-              : "h-[126px] px-4",
+              : "h-[70px] px-4",
         isTransparent
           ? "border-b border-transparent bg-transparent"
-          : cn("border-b border-gray-200 bg-gray-100", showCompactSearch && "shadow-sm"),
+          : "border-b border-gray-200 bg-gray-100",
       )}
     >
       <BrandLink
