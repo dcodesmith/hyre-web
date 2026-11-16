@@ -185,7 +185,7 @@ export function BookingCostBreakdown({
             </>
           ) : null}
           <div className="flex items-center justify-between gap-3">
-            <dt className="text-sm font-semibold leading-5">Order Total:</dt>
+            <dt className="text-sm font-semibold leading-5">Order Total</dt>
             <dd className="text-base font-semibold leading-6 tabular-nums">
               {formatCurrency(cost.totalAmount, currency)}
             </dd>
@@ -207,7 +207,7 @@ export function BookingOrderTotal({ cost }: { readonly cost: BookingCostDisplay 
     <div className="w-full rounded-lg bg-white px-3 py-4">
       <dl className="flex flex-col gap-2.5">
         <div className="flex items-center justify-between gap-3">
-          <dt className="text-sm font-semibold leading-5 text-gray-900">Order Total:</dt>
+          <dt className="text-sm font-semibold leading-5 text-gray-900">Order Total</dt>
           <dd className="text-base font-semibold leading-6 tabular-nums text-gray-900">
             {formatCurrency(cost.totalAmount, cost.currency)}
           </dd>

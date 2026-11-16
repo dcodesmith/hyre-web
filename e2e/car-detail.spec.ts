@@ -172,7 +172,7 @@ test("uses Enter to send and verify a signed-in customer's phone", async ({ cont
     const bookingUrl = page.url();
     const payNow = page.getByRole("button", { name: "Pay Now", exact: true });
 
-    await expect(page.getByText("Order Total:").filter({ visible: true })).toBeVisible();
+    await expect(page.getByText("Order Total").filter({ visible: true })).toBeVisible();
     await expect(payNow).toBeDisabled();
 
     await page.getByLabel("Phone Number").press("Enter");
@@ -202,7 +202,7 @@ test("uses Enter to verify a guest phone before Pay Now enables", async ({ page 
     const bookingUrl = page.url();
     const payNow = page.getByRole("button", { name: "Pay Now", exact: true });
 
-    await expect(page.getByText("Order Total:").filter({ visible: true })).toBeVisible();
+    await expect(page.getByText("Order Total").filter({ visible: true })).toBeVisible();
     await page.getByLabel("Full Name").fill("Ada Lovelace");
     await page.getByLabel("Email Address").fill("ada@example.com");
     await expect(payNow).toBeDisabled();
@@ -266,7 +266,7 @@ test("shows airport pickup flight and address fields when a from date is present
   ).toBeVisible();
   await expect(page.getByText("Platform Fee (5.0%)").filter({ visible: true })).toBeVisible();
   await expect(page.getByText("VAT (7.5%)").filter({ visible: true })).toBeVisible();
-  await expect(page.getByText("Order Total:").filter({ visible: true })).toBeVisible();
+  await expect(page.getByText("Order Total").filter({ visible: true })).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Pay Now", exact: true }).filter({ visible: true }),
   ).toBeDisabled();
@@ -366,9 +366,7 @@ test("selects an add-on and includes it in preview and checkout FormData", async
   await expect(addon).toBeChecked();
   await previewRequest;
 
-  const orderTotal = page
-    .locator('section[class~="lg:hidden"]')
-    .filter({ hasText: "Order Total:" });
+  const orderTotal = page.locator('section[class~="lg:hidden"]').filter({ hasText: "Order Total" });
   const orderTotalSpacer = page.locator('div[aria-hidden="true"][class="lg:hidden"]');
   const isMobileViewport = (page.viewportSize()?.width ?? 0) < 1024;
 
