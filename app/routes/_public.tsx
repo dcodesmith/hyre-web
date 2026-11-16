@@ -33,7 +33,7 @@ export default function PublicLayout({ loaderData }: Route.ComponentProps) {
           tabIndex={-1}
           className={cn(
             "min-h-125 flex-1 text-sm",
-            isHeroPage ? "md:pt-0" : isSearchPage ? "md:pt-[126px]" : "md:pt-17.25",
+            isHeroPage ? "md:pt-0" : isSearchPage ? "md:pt-[126px]" : "md:pt-[70px]",
             isCarDetail && "lg:container lg:mx-auto lg:px-4",
           )}
         >

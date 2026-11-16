@@ -5,7 +5,7 @@
   "main": "./workers/app.ts",
   "preview_urls": true,
   "vars": {
-    "API_ORIGIN": "http://127.0.0.1:3000",
+    "API_ORIGIN": "https://hyre-worker-nestjs.fly.dev",
     "APP_ENV": "local",
     "APP_ORIGIN": "http://localhost:5173",
     "DEPLOYMENT_COMMIT": "local",

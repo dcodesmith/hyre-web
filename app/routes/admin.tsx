@@ -73,7 +73,7 @@ export default function AdminLayout({ loaderData }: Route.ComponentProps) {
       <SidebarProvider>
         <AdminSidebar isLoggingOut={isLoggingOut} role={loaderData.role} user={loaderData.user} />
         <SidebarInset>
-          <header className="sticky top-0 z-10 flex h-12 shrink-0 items-center gap-2 border-b bg-background transition-[width,height] ease-linear">
+          <header className="sticky top-0 z-10 flex h-12 shrink-0 items-center gap-2 border-b bg-background transition-[width,height] ease-linear md:h-[126px] md:border-gray-200 md:bg-gray-100">
             <div className="flex w-full items-center gap-1 px-4 lg:gap-2 lg:px-6">
               <SidebarTrigger className="-ml-1" />
               <Separator orientation="vertical" className="mx-2 data-[orientation=vertical]:h-4" />

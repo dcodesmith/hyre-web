@@ -235,8 +235,8 @@ export function ChauffeurOnboardingPage({
         Skip to main content
       </a>
       <div className="min-h-screen bg-muted/30">
-        <header className="border-b bg-background">
-          <div className="mx-auto flex h-16 max-w-5xl items-center px-4 sm:px-6">
+        <header className="border-b bg-background md:flex md:h-[126px] md:items-center md:border-gray-200 md:bg-gray-100 md:px-4">
+          <div className="mx-auto flex h-16 max-w-5xl items-center px-4 sm:px-6 md:mx-0 md:h-auto md:max-w-none md:px-0">
             <BrandLink />
           </div>
         </header>
