@@ -14,6 +14,10 @@ describe("phoneValidationMessage", () => {
     expect(phoneValidationMessage("12345")).toBe("Invalid phone number");
     expect(phoneValidationMessage("")).toBe("Invalid phone number");
   });
+
+  it("rejects ambiguous international trunk-prefix notation", () => {
+    expect(phoneValidationMessage("+44 (0)20 7946 0958")).toBe("Invalid phone number");
+  });
 });
 
 describe("BookingPhoneVerificationForm", () => {
@@ -33,7 +37,7 @@ describe("BookingPhoneVerificationForm", () => {
 
     expect(markup).toContain("Phone Number");
     expect(markup).toContain("send you a code to verify this number");
-    expect(markup).toContain("+234 803 123 4675");
+    expect(markup).toContain("+2348031234675");
     expect(markup).toContain('spellCheck="false"');
     expect(markup).toContain("Send code");
     expect(markup).toContain('id="booking-phone-number"');

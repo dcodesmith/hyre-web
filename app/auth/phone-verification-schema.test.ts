@@ -6,10 +6,19 @@ import {
 } from "./phone-verification-schema";
 
 describe("phone verification schemas", () => {
-  it("accepts a trimmed E.164 number and rejects local or short numbers", () => {
+  it("normalizes formatted E.164 numbers and rejects local or short numbers", () => {
     expect(phoneVerificationSendSchema.parse({ phoneNumber: " +2348012345678 " })).toEqual({
       phoneNumber: "+2348012345678",
     });
+    expect(phoneVerificationSendSchema.parse({ phoneNumber: "+234 813 603 0498" })).toEqual({
+      phoneNumber: "+2348136030498",
+    });
+    expect(phoneVerificationSendSchema.parse({ phoneNumber: "+234 (801) 234-5678" })).toEqual({
+      phoneNumber: "+2348012345678",
+    });
+    expect(
+      phoneVerificationSendSchema.safeParse({ phoneNumber: "+44 (0)20 7946 0958" }).success,
+    ).toBe(false);
     expect(phoneVerificationSendSchema.safeParse({ phoneNumber: "08012345678" }).success).toBe(
       false,
     );

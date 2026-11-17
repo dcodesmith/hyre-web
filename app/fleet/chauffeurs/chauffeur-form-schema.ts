@@ -1,6 +1,8 @@
 import type { SubmissionResult } from "@conform-to/react";
 import { z } from "zod";
 
+import { phoneNumberSchema } from "~/auth/phone-verification-schema";
+
 export const inviteChauffeurFormSchema = z.object({
   firstName: z.string({ error: "First name is required" }).trim().min(1).max(80),
   lastName: z.string({ error: "Last name is required" }).trim().min(1).max(80),
@@ -9,10 +11,7 @@ export const inviteChauffeurFormSchema = z.object({
     .trim()
     .toLowerCase()
     .pipe(z.email("Enter a valid email address")),
-  phoneNumber: z
-    .string({ error: "Phone number is required" })
-    .trim()
-    .regex(/^\+[1-9]\d{7,14}$/, "Use international format, for example +2348012345678"),
+  phoneNumber: phoneNumberSchema,
   idempotencyKey: z.uuid(),
 });
 

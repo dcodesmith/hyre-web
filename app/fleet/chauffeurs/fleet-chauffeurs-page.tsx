@@ -129,7 +129,7 @@ function InviteChauffeurForm({
           className="h-10 rounded-sm"
           autoComplete="tel"
           inputMode="tel"
-          placeholder="+234 801 234 5678…"
+          placeholder="+2348012345678"
         />
         <FieldDescription>Use international format, including the country code.</FieldDescription>
         <FieldError
