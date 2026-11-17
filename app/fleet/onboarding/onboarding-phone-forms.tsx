@@ -31,7 +31,7 @@ function PhoneNumberControl({
         className="h-10 rounded-sm"
         inputMode="tel"
         autoComplete="tel"
-        placeholder="+234 801 234 5678…"
+        placeholder="+2348012345678"
         aria-invalid={field.errors ? true : undefined}
       />
       <FieldError id={field.errorId} errors={field.errors?.map((message) => ({ message }))} />
@@ -76,7 +76,7 @@ export function OnboardingPhoneForm({
             <Input
               {...getInputProps(fields.phoneNumber, { type: "tel" })}
               className="h-10 rounded-sm"
-              placeholder="+234 801 234 5678…"
+              placeholder="+2348012345678"
               inputMode="tel"
               autoComplete="tel"
               aria-invalid={fields.phoneNumber.errors ? true : undefined}

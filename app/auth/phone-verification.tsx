@@ -18,7 +18,7 @@ import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
 import type { PhoneVerificationData } from "~/routes/api.phone-verification";
 
-const PHONE_EXAMPLE = "+234 803 123 4675";
+const PHONE_EXAMPLE = "+2348031234675";
 
 type PhoneEntrySubmit = (formData: FormData) => void;
 

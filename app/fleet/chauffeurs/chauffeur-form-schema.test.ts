@@ -13,13 +13,13 @@ const validInvite = {
 };
 
 describe("fleet chauffeur form schemas", () => {
-  it("trims both names, lowercases email, and accepts E.164 phones", () => {
+  it("normalizes names, email, and formatted E.164 phones", () => {
     expect(
       inviteChauffeurFormSchema.parse({
         firstName: "  Bola  ",
         lastName: "  Adebayo  ",
         email: " Bola@Example.com ",
-        phoneNumber: " +2348012345678 ",
+        phoneNumber: "+234 (801) 234-5678",
         idempotencyKey: IDEMPOTENCY_KEY,
       }),
     ).toEqual(validInvite);
@@ -42,7 +42,7 @@ describe("fleet chauffeur form schemas", () => {
       firstName: expect.any(Array),
       lastName: expect.any(Array),
       email: ["Enter a valid email address"],
-      phoneNumber: ["Use international format, for example +2348012345678"],
+      phoneNumber: ["Enter a phone number in international format"],
     });
   });
 

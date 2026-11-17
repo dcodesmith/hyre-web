@@ -283,10 +283,10 @@ describe("fleet-owner onboarding route", () => {
     },
   );
 
-  it("sends an E.164 phone verification", async () => {
+  it("normalizes and sends an E.164 phone verification", async () => {
     const { request, result } = await runAction({
       intent: "send-phone",
-      phoneNumber: PHONE_NUMBER,
+      phoneNumber: "+234 801 234-5678",
     });
 
     expect(sendFleetOwnerPhoneVerification).toHaveBeenCalledWith({

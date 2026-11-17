@@ -221,7 +221,7 @@ describe("fleet-owner chauffeurs route", () => {
       firstName: "  Bola  ",
       lastName: "  Adebayo  ",
       email: " Bola@Example.com ",
-      phoneNumber: "+2348012345678",
+      phoneNumber: "+234 (801) 234-5678",
       idempotencyKey: IDEMPOTENCY_KEY,
     });
 
@@ -281,7 +281,7 @@ describe("fleet-owner chauffeurs route", () => {
     expect(result).toMatchObject({
       data: {
         intent: "invite",
-        error: "Use international format, for example +2348012345678",
+        error: "Enter a phone number in international format",
       },
       init: { status: HTTP_STATUS.BAD_REQUEST },
     });
