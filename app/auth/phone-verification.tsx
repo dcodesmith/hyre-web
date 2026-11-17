@@ -10,6 +10,7 @@ import {
   useState,
 } from "react";
 
+import { phoneNumberSchema } from "~/auth/phone-verification-schema";
 import { usePhoneVerification } from "~/auth/use-phone-verification";
 import { FormError } from "~/components/forms/form-primitives";
 import { Button } from "~/components/ui/button";
@@ -157,10 +158,12 @@ function PhoneNumberTitle({ appearance }: { readonly appearance: PhoneVerificati
 }
 
 export function toE164Phone(value: string) {
-  const compact = value.replace(/[\s()-]/g, "");
-  if (/^\+[1-9]\d{7,14}$/.test(compact)) {
-    return compact;
+  const internationalPhone = phoneNumberSchema.safeParse(value);
+  if (internationalPhone.success) {
+    return internationalPhone.data;
   }
+
+  const compact = value.replace(/[\s()-]/g, "");
   if (/^0\d{10}$/.test(compact)) {
     return `+234${compact.slice(1)}`;
   }

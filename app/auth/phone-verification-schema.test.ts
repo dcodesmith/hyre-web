@@ -16,6 +16,9 @@ describe("phone verification schemas", () => {
     expect(phoneVerificationSendSchema.parse({ phoneNumber: "+234 (801) 234-5678" })).toEqual({
       phoneNumber: "+2348012345678",
     });
+    expect(
+      phoneVerificationSendSchema.safeParse({ phoneNumber: "+44 (0)20 7946 0958" }).success,
+    ).toBe(false);
     expect(phoneVerificationSendSchema.safeParse({ phoneNumber: "08012345678" }).success).toBe(
       false,
     );

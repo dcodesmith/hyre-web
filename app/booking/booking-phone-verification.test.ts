@@ -14,6 +14,10 @@ describe("phoneValidationMessage", () => {
     expect(phoneValidationMessage("12345")).toBe("Invalid phone number");
     expect(phoneValidationMessage("")).toBe("Invalid phone number");
   });
+
+  it("rejects ambiguous international trunk-prefix notation", () => {
+    expect(phoneValidationMessage("+44 (0)20 7946 0958")).toBe("Invalid phone number");
+  });
 });
 
 describe("BookingPhoneVerificationForm", () => {
