@@ -1,4 +1,4 @@
-import { type BrowserContext, expect, type Page, test } from "@playwright/test";
+import { type BrowserContext, expect, type Locator, type Page, test } from "@playwright/test";
 
 import { HTTP_STATUS } from "../app/api/http-status";
 import { clickUntilAttribute, clickUntilVisible } from "./click-until";
@@ -14,6 +14,14 @@ async function setCookiePreference(page: Page) {
   await page.addInitScript((key) => {
     localStorage.setItem(key, JSON.stringify({ analytics: false, timestamp: 1 }));
   }, consentKey);
+}
+
+async function movesWithScroll(page: Page, locator: Locator) {
+  await page.evaluate(() => window.scrollTo(0, 0));
+  const before = (await locator.boundingBox())?.y;
+  await page.evaluate(() => window.scrollBy(0, 200));
+  const after = (await locator.boundingBox())?.y;
+  return before !== undefined && after !== undefined && Math.round(before) !== Math.round(after);
 }
 
 async function signInCustomer(context: BrowserContext) {
@@ -366,8 +374,10 @@ test("selects an add-on and includes it in preview and checkout FormData", async
   await expect(addon).toBeChecked();
   await previewRequest;
 
-  const orderTotal = page.locator('section[class~="lg:hidden"]').filter({ hasText: "Order Total" });
-  const orderTotalSpacer = page.locator('div[aria-hidden="true"][class="lg:hidden"]');
+  const orderTotal = page
+    .getByRole("button", { name: "Pay Now", exact: true })
+    .filter({ visible: true })
+    .locator("xpath=ancestor::section[1]");
   const isMobileViewport = (page.viewportSize()?.width ?? 0) < 1024;
 
   await page.getByRole("button", { name: "Book a service" }).click();
@@ -376,8 +386,7 @@ test("selects an add-on and includes it in preview and checkout FormData", async
     "false",
   );
   if (isMobileViewport) {
-    await expect(orderTotal).toHaveClass(/\brelative\b/);
-    await expect.poll(() => orderTotalSpacer.evaluate((element) => element.offsetHeight)).toBe(0);
+    await expect.poll(() => movesWithScroll(page, orderTotal)).toBe(true);
   }
 
   const addonInput = page.locator(`input[name="addonIds"][value="${addonId}"]`);
@@ -395,20 +404,8 @@ test("selects an add-on and includes it in preview and checkout FormData", async
     "true",
   );
   if (isMobileViewport) {
-    await expect(orderTotal).toBeVisible();
-    await expect(orderTotal).toHaveClass(/\bfixed\b/);
-    await expect
-      .poll(() => orderTotal.evaluate((element) => element.offsetHeight))
-      .toBeGreaterThan(0);
-    await expect
-      .poll(async () => {
-        const [spacerHeight, panelHeight] = await Promise.all([
-          orderTotalSpacer.evaluate((element) => element.offsetHeight),
-          orderTotal.evaluate((element) => element.offsetHeight),
-        ]);
-        return spacerHeight === panelHeight;
-      })
-      .toBe(true);
+    await expect(orderTotal).toBeInViewport();
+    await expect.poll(() => movesWithScroll(page, orderTotal)).toBe(false);
   }
 });
 

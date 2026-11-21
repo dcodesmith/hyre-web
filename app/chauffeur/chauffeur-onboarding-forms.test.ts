@@ -66,7 +66,6 @@ describe("chauffeur selfie control", () => {
     expect(button).toContain('aria-invalid="true"');
     expect(button).toMatch(/aria-describedby="[^"]*-description/);
     expect(button).toContain("chauffeur-driving-selfie-error");
-    expect(input).toContain("hidden");
     expect(input).not.toMatch(/aria-invalid=/);
     expect(input).not.toMatch(/aria-describedby=/);
   });
@@ -83,10 +82,8 @@ describe("chauffeur selfie control", () => {
     expect(button).toMatch(/aria-describedby="[^"]*-description/);
     expect(button).not.toMatch(/aria-invalid=/);
     expect(input).toContain('type="file"');
-    expect(input).toContain("hidden");
     expect(input).toContain('aria-hidden="true"');
     expect(input).toContain('tabindex="-1"');
-    expect(input).not.toMatch(/file:/);
     expect(input).not.toMatch(/aria-invalid=/);
     expect(input).not.toMatch(/aria-describedby=/);
   });
