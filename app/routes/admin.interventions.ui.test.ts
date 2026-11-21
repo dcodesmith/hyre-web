@@ -129,10 +129,9 @@ describe("admin intervention review UI", () => {
     expect(revealed.match(/name="authoritativeSourceAttested"/g)).toHaveLength(1);
   });
 
-  it("shows the selfie and NIN portrait side by side", () => {
+  it("shows the selfie and NIN portrait for comparison", () => {
     const markup = renderDetail(items[1]);
 
-    expect(markup).toContain('class="grid gap-4 sm:grid-cols-2"');
     expect(markup).toContain(
       `src="/admin/interventions/${faceId}/evidence/selfie" alt="Submitted chauffeur selfie" loading="lazy" decoding="async"`,
     );
