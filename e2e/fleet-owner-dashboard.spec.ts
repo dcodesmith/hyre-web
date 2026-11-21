@@ -1,6 +1,15 @@
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 
+import { clickUntilVisible } from "./click-until";
 import { startMockFleetOwnerAuthApi, stopMockFleetOwnerAuthApi } from "./mock-fleet-owner-auth-api";
+
+async function choosePeriod(page: Page, name: string) {
+  const trigger = page.getByRole("combobox", { name: "Period" });
+  const option = page.getByRole("option", { name, exact: true });
+
+  await clickUntilVisible(trigger, option);
+  await option.click();
+}
 
 test("shows and filters the fleet-owner dashboard across viewports", async ({ context, page }) => {
   const api = await startMockFleetOwnerAuthApi();
@@ -42,8 +51,7 @@ test("shows and filters the fleet-owner dashboard across viewports", async ({ co
       .toEqual({ range: "30d", groupBy: "week" });
     await expect(page.getByRole("button", { name: "Apply" })).toBeDisabled();
 
-    await page.getByRole("combobox", { name: "Period" }).click();
-    await page.getByRole("option", { name: "Last 7 days" }).click();
+    await choosePeriod(page, "Last 7 days");
     await expect(page.getByRole("button", { name: "Apply" })).toBeEnabled();
     await page.getByRole("button", { name: "Apply" }).click();
 
@@ -53,8 +61,7 @@ test("shows and filters the fleet-owner dashboard across viewports", async ({ co
       .poll(() => api.requests.earningsQueries.at(-1))
       .toEqual({ range: "7d", groupBy: "day" });
 
-    await page.getByRole("combobox", { name: "Period" }).click();
-    await page.getByRole("option", { name: "Last 90 days" }).click();
+    await choosePeriod(page, "Last 90 days");
     await page.getByRole("button", { name: "Apply" }).click();
 
     await expect(page).toHaveURL("/fleet-owner?range=90d");
