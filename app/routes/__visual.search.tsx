@@ -1,7 +1,121 @@
+import { cn } from "cn";
+import { useState } from "react";
 import type { CarSearchResponse } from "~/api/cars/schema";
+import { type BookingType, NIGHT_BOOKING_TYPE } from "~/booking/types";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectList,
+  SelectTrigger,
+  SelectValue,
+} from "~/components/ui/select-aria";
+import { SearchForm } from "~/search/search-form";
 import { SearchPage } from "~/search/search-page";
 
 const recentListingCreatedAt = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString();
+
+type TripArea = "LOCAL" | "INTERSTATE";
+
+const INTERSTATE_DESTINATIONS = [
+  { code: "NG-OG", label: "Ogun" },
+  { code: "NG-OY", label: "Oyo" },
+  { code: "NG-OS", label: "Osun" },
+  { code: "NG-ON", label: "Ondo" },
+  { code: "NG-KW", label: "Kwara" },
+] as const;
+
+function TripAreaPrototype({ bookingType }: { readonly bookingType: BookingType }) {
+  const [requestedArea, setRequestedArea] = useState<TripArea>("INTERSTATE");
+  const [destinationState, setDestinationState] = useState("");
+  const isNight = bookingType === NIGHT_BOOKING_TYPE;
+  const tripArea: TripArea = isNight ? "LOCAL" : requestedArea;
+
+  return (
+    <fieldset className="w-full rounded-md border border-gray-200 bg-white p-3">
+      <legend className="sr-only">Trip area</legend>
+      <div className="flex min-w-0 items-center gap-2">
+        <div className="grid shrink-0 grid-cols-2 rounded-md bg-gray-100 p-1">
+          {(
+            [
+              ["LOCAL", "Within Lagos"],
+              ["INTERSTATE", "Interstate"],
+            ] as const
+          ).map(([value, label]) => {
+            const isSelected = tripArea === value;
+            const isDisabled = isNight && value === "INTERSTATE";
+
+            return (
+              <button
+                key={value}
+                type="button"
+                aria-pressed={isSelected}
+                disabled={isDisabled}
+                onClick={() => setRequestedArea(value)}
+                className={cn(
+                  "h-9 rounded px-2 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
+                  isSelected
+                    ? "bg-white text-gray-950 shadow-sm ring-1 ring-gray-200"
+                    : "text-gray-600 hover:text-gray-950",
+                  isDisabled && "cursor-not-allowed opacity-40",
+                )}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="ml-auto flex min-w-0 flex-1 justify-end">
+          {isNight ? (
+            <p
+              className="truncate text-right text-xs text-gray-600"
+              title="Night bookings are available within Lagos only."
+            >
+              Night bookings are available within Lagos only.
+            </p>
+          ) : tripArea === "INTERSTATE" ? (
+            <>
+              <label id="prototype-destination-state-label" className="sr-only">
+                Destination state
+              </label>
+              <Select
+                aria-labelledby="prototype-destination-state-label"
+                placeholder="Select a state"
+                selectedKey={destinationState || null}
+                onSelectionChange={(key) => setDestinationState(String(key))}
+              >
+                <SelectTrigger className="font-search h-10 w-full border-gray-300 bg-white data-[size=default]:h-10">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="font-search">
+                  <SelectList>
+                    {INTERSTATE_DESTINATIONS.map((state) => (
+                      <SelectItem key={state.code} id={state.code}>
+                        {state.label} State
+                      </SelectItem>
+                    ))}
+                  </SelectList>
+                </SelectContent>
+              </Select>
+            </>
+          ) : (
+            <p
+              className="truncate text-right text-xs text-gray-500"
+              title="Pickup and travel remain within Lagos State."
+            >
+              Pickup and travel remain within Lagos State.
+            </p>
+          )}
+        </div>
+      </div>
+    </fieldset>
+  );
+}
+
+function renderTripAreaPrototype(bookingType: BookingType) {
+  return <TripAreaPrototype key={bookingType} bookingType={bookingType} />;
+}
 
 const fixtureResult = {
   cars: [
@@ -99,5 +213,23 @@ const fixtureResult = {
 } satisfies CarSearchResponse;
 
 export default function SearchFixture() {
-  return <SearchPage result={fixtureResult} />;
+  return (
+    <>
+      <section className="bg-gray-950 px-4 pt-24 pb-8 md:pt-8">
+        <div className="mx-auto max-w-xl">
+          <div className="mb-4 text-white">
+            <p className="text-xs font-semibold tracking-wide text-orange-300 uppercase">
+              Interstate placement prototype
+            </p>
+            <h1 className="mt-1 text-xl font-semibold">Search before choosing a vehicle</h1>
+            <p className="mt-1 text-sm text-gray-300">
+              Shown with Interstate selected; the production default remains Within Lagos.
+            </p>
+          </div>
+          <SearchForm renderTripArea={renderTripAreaPrototype} />
+        </div>
+      </section>
+      <SearchPage result={fixtureResult} />
+    </>
+  );
 }
