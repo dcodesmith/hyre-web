@@ -44,7 +44,7 @@ function onboardingForStep(step: string | null): FleetOwnerOnboarding {
     };
   }
 
-  if (step === "phone" || step === "phone-code") {
+  if (step === "phone" || step === "phone-code" || step === "phone-error") {
     return {
       ...accountOnboarding,
       phone: { number: "+2348012345678", verified: false },
@@ -68,7 +68,7 @@ function onboardingForStep(step: string | null): FleetOwnerOnboarding {
     };
   }
 
-  if (step === "driving") {
+  if (step === "driving" || step === "driving-yes") {
     return {
       ...accountOnboarding,
       accountType: "INDIVIDUAL",
@@ -93,27 +93,33 @@ function onboardingForStep(step: string | null): FleetOwnerOnboarding {
     };
   }
 
-  if (step === "submit" || step === "submit-skipped") {
+  if (step === "submit" || step === "submit-skipped" || step === "submit-business") {
+    const isBusiness = step === "submit-business";
+    const isDriver = step === "submit" || isBusiness;
     return {
       ...accountOnboarding,
-      accountType: "INDIVIDUAL",
-      isOwnerDriver: step === "submit",
+      accountType: isBusiness ? "BUSINESS" : "INDIVIDUAL",
+      isOwnerDriver: isDriver,
       identity: {
         status: "SUCCEEDED",
         legalName: "Ada Lovelace",
-        businessName: null,
+        businessName: isBusiness ? "Bamboo Ventures Ltd" : null,
       },
       bank: {
         bankName: "GTBank",
-        accountName: "ADA LOVELACE",
+        accountName: isBusiness ? "BAMBOO VENTURES LTD" : "ADA LOVELACE",
         accountNumber: "******6789",
         verified: false,
+      },
+      documents: {
+        driversLicense: isDriver ? "PENDING" : null,
+        lasdri: null,
       },
       steps: {
         contact: "VERIFIED",
         identity: "VERIFIED",
         payout: "VERIFIED",
-        driving: step === "submit" ? "COMPLETED" : "SKIPPED",
+        driving: isDriver ? "COMPLETED" : "SKIPPED",
         submission: "PENDING",
       },
       nextAction: "SUBMIT_ACCOUNT",
@@ -220,6 +226,24 @@ function actionDataForStep(step: string | null): OnboardingActionData | undefine
     };
   }
 
+  if (step === "phone-error") {
+    return {
+      intent: "send-phone",
+      error: "This phone is already in use for a customer account and cannot be verified",
+      phoneNumber: "+2348012345678",
+    };
+  }
+
+  if (step === "driving-yes") {
+    return {
+      intent: "save-driving",
+      submission: {
+        status: "error",
+        initialValue: { isOwnerDriver: "true" },
+      } as OnboardingActionData["submission"],
+    };
+  }
+
   return undefined;
 }
 
@@ -228,7 +252,11 @@ export default function FleetOnboardingFixture() {
   const step = searchParams.get("step");
 
   return (
-    <main id="main-content" tabIndex={-1} className="min-h-screen bg-muted/30 px-4 py-8 sm:px-6">
+    <main
+      id="main-content"
+      tabIndex={-1}
+      className="min-h-screen bg-background px-5 py-10 sm:px-6 sm:py-20"
+    >
       <FleetOwnerOnboardingPage
         actionData={actionDataForStep(step)}
         banks={BANKS}

@@ -1,12 +1,11 @@
-import { getFormProps, getInputProps, useForm } from "@conform-to/react";
+import { getFormProps, useForm } from "@conform-to/react";
 import { getZodConstraint, parseWithZod } from "@conform-to/zod/v4";
 import { FileUpIcon } from "lucide-react";
 import { Form, useNavigation } from "react-router";
 import { FormError } from "~/components/forms/form-primitives";
 import { Button } from "~/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
-import { Field, FieldDescription, FieldError, FieldLabel } from "~/components/ui/field";
-import { Input } from "~/components/ui/input";
+import { Separator } from "~/components/ui/separator";
+import { OnboardingLicenseUploadField } from "./onboarding-driving-fields";
 import {
   type OnboardingActionData,
   onboardingDriverLicenseReplacementFormSchema,
@@ -33,44 +32,40 @@ export function OnboardingDriverLicenseForm({
   });
 
   return (
-    <Card className="rounded-sm">
-      <CardHeader>
-        <CardTitle>
-          <h2>Replace Driver&apos;s Licence</h2>
-        </CardTitle>
-        <CardDescription>
-          The previous file was rejected. Upload a clear replacement for review.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <Form
-          method="post"
-          encType="multipart/form-data"
-          {...getFormProps(form)}
-          className="space-y-5"
-        >
-          <input type="hidden" name="intent" value="replace-driver-license" />
-          <Field data-invalid={Boolean(fields.file.errors)}>
-            <FieldLabel htmlFor={fields.file.id}>Driver&apos;s licence</FieldLabel>
-            <Input
-              {...getInputProps(fields.file, { type: "file" })}
-              className="h-10 rounded-sm"
-              accept="image/jpeg,image/png,image/webp,application/pdf"
-              aria-invalid={fields.file.errors ? true : undefined}
-            />
-            <FieldDescription>JPEG, PNG, WebP, or PDF. Maximum size: 5&nbsp;MB.</FieldDescription>
-            <FieldError id={fields.file.errorId} errors={fields.file.errors} />
-          </Field>
-          <FormError id={form.errorId} errors={form.errors} />
-          {actionData?.intent === "replace-driver-license" && actionData.error ? (
-            <FormError id="replace-driver-license-error" errors={[actionData.error]} />
-          ) : null}
-          <Button type="submit" disabled={pending} aria-live="polite">
-            <FileUpIcon data-icon="inline-start" />
-            {pending ? "Uploading licence…" : "Upload Replacement"}
-          </Button>
-        </Form>
-      </CardContent>
-    </Card>
+    <Form
+      method="post"
+      encType="multipart/form-data"
+      {...getFormProps(form)}
+      className="flex flex-col gap-14"
+    >
+      <div className="flex flex-col gap-5">
+        <Separator />
+        <div className="flex flex-col gap-0.5">
+          <h2 className="text-xl font-semibold leading-7 text-foreground">
+            Replace driver&apos;s licence
+          </h2>
+          <p className="text-sm leading-5 text-muted-foreground">
+            The previous file was rejected. Upload a clear replacement for review.
+          </p>
+        </div>
+
+        <input type="hidden" name="intent" value="replace-driver-license" />
+        <OnboardingLicenseUploadField field={fields.file} label="Driver's licence" />
+        <FormError id={form.errorId} errors={form.errors} />
+        {actionData?.intent === "replace-driver-license" && actionData.error ? (
+          <FormError id="replace-driver-license-error" errors={[actionData.error]} />
+        ) : null}
+      </div>
+
+      <Button
+        type="submit"
+        disabled={pending}
+        aria-live="polite"
+        className="h-12 w-full rounded-md"
+      >
+        <FileUpIcon data-icon="inline-start" aria-hidden="true" />
+        {pending ? "Uploading licence…" : "Upload replacement"}
+      </Button>
+    </Form>
   );
 }
