@@ -143,7 +143,7 @@ export default function FleetOwnerLayout({ loaderData }: Route.ComponentProps) {
         <main
           id="main-content"
           tabIndex={-1}
-          className="min-h-screen bg-muted/30 px-4 py-8 sm:px-6"
+          className="min-h-screen bg-background px-5 py-10 sm:px-6 sm:py-20"
         >
           <Outlet context={loaderData} />
         </main>

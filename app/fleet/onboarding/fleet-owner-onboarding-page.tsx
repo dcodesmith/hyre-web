@@ -9,11 +9,10 @@ import { useState } from "react";
 import { Form } from "react-router";
 
 import type { FleetOwnerBank, FleetOwnerOnboarding } from "~/api/fleet/onboarding/schema";
-import { QuestionnaireProgress } from "~/components/questionnaire-progress";
 import { StatusBadge } from "~/components/status-badge";
 import { Alert, AlertDescription, AlertTitle } from "~/components/ui/alert";
 import { Button } from "~/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
+import { Separator } from "~/components/ui/separator";
 import { useRevalidateInterval } from "~/hooks/use-revalidate-interval";
 import { OnboardingDriverLicenseForm } from "./onboarding-driver-license-form";
 import type { OnboardingActionData } from "./onboarding-form-schema";
@@ -23,8 +22,8 @@ import {
   OnboardingIdentityForm,
   OnboardingPayoutForm,
   OnboardingSelfieForm,
-  OnboardingSubmitForm,
 } from "./onboarding-stage-forms";
+import { OnboardingSubmitForm } from "./onboarding-submit-form";
 
 type PageProps = {
   readonly actionData?: OnboardingActionData;
@@ -34,11 +33,11 @@ type PageProps = {
 };
 
 const stages = [
-  { key: "contact", label: "Contact" },
-  { key: "identity", label: "Identity" },
-  { key: "payout", label: "Payout" },
-  { key: "driving", label: "Driving" },
-  { key: "submission", label: "Submit" },
+  { key: "contact", label: "Phone verification", stepNumber: 1, progress: 20 },
+  { key: "identity", label: "Confirm your identity", stepNumber: 2, progress: 40 },
+  { key: "payout", label: "Payout Information", stepNumber: 3, progress: 60 },
+  { key: "driving", label: "Driving credentials", stepNumber: 4, progress: 80 },
+  { key: "submission", label: "Review and submit", stepNumber: 5, progress: 100 },
 ] as const;
 
 export function getFleetOwnerOnboardingStage(
@@ -91,32 +90,45 @@ export function getFleetOwnerOnboardingProgress(
   }));
 }
 
-function OnboardingProgress({ onboarding }: { readonly onboarding: FleetOwnerOnboarding }) {
+function OnboardingHeader({ onboarding }: { readonly onboarding: FleetOwnerOnboarding }) {
   const currentStage = getFleetOwnerOnboardingStage(onboarding);
+  const activeStage = stages.find((stage) => stage.key === currentStage) ?? stages[0];
 
   return (
-    <QuestionnaireProgress
-      ariaLabel="Fleet owner onboarding progress"
-      currentStage={currentStage}
-      stages={getFleetOwnerOnboardingProgress(onboarding)}
-    />
-  );
-}
-
-function PageHeader() {
-  return (
-    <header className="mx-auto mb-6 flex w-full max-w-3xl flex-wrap items-center justify-between gap-4">
-      <div>
-        <p className="text-sm font-semibold tracking-wide text-primary">TRIPDLY FLEET</p>
-        <h1 className="mt-1 text-balance text-2xl font-semibold tracking-tight sm:text-3xl">
-          Verify Your Account
+    <header className="flex flex-col gap-1">
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="text-2xl font-semibold leading-8 tracking-tight text-foreground sm:text-3xl sm:leading-9 sm:tracking-normal">
+          Become a fleet owner
         </h1>
+        <Form method="post" action="/fleet-owner/logout" className="shrink-0">
+          <Button type="submit" variant="ghost" size="sm">
+            Sign out
+          </Button>
+        </Form>
       </div>
-      <Form method="post" action="/fleet-owner/logout">
-        <Button type="submit" variant="ghost" size="sm">
-          Sign out
-        </Button>
-      </Form>
+      <div className="flex items-center gap-1.5 text-xs font-medium">
+        <span className="text-muted-foreground">
+          {activeStage.stepNumber} of {stages.length} steps
+        </span>
+        <span className="text-muted-foreground" aria-hidden="true">
+          /
+        </span>
+        <span className="text-foreground">{activeStage.label}</span>
+      </div>
+      <div
+        role="progressbar"
+        aria-label="Fleet owner onboarding progress"
+        aria-valuemin={1}
+        aria-valuemax={stages.length}
+        aria-valuenow={activeStage.stepNumber}
+        aria-valuetext={`Step ${activeStage.stepNumber} of ${stages.length}: ${activeStage.label}`}
+        className="mt-2 h-2 w-full overflow-hidden rounded-full bg-muted"
+      >
+        <div
+          className="h-full rounded-full bg-foreground transition-[width] duration-300"
+          style={{ width: `${activeStage.progress}%` }}
+        />
+      </div>
     </header>
   );
 }
@@ -124,54 +136,54 @@ function PageHeader() {
 function UnderReview({ onboarding }: { readonly onboarding: FleetOwnerOnboarding }) {
   useRevalidateInterval(4_000);
   return (
-    <Card className="rounded-sm">
-      <CardHeader>
-        <div className="flex items-center gap-3">
-          <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-700">
-            <Clock3Icon className="size-5" aria-hidden="true" />
-          </div>
-          <div className="min-w-0 space-y-1">
-            <CardTitle>
-              <h2>Submitted for review</h2>
-            </CardTitle>
-            <CardDescription>
-              Your details were received. You can return here to see the latest status.
-            </CardDescription>
-          </div>
+    <section className="flex flex-col gap-5">
+      <Separator />
+      <div className="flex items-start gap-3">
+        <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-700">
+          <Clock3Icon className="size-5" aria-hidden="true" />
         </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid gap-3 rounded-lg border p-4 text-sm sm:grid-cols-2">
-          <div>
-            <p className="text-muted-foreground">Identity</p>
-            <p className="mt-1 break-words font-medium">
-              {onboarding.identity?.legalName ?? "Submitted"}
-            </p>
-          </div>
-          <div>
-            <p className="text-muted-foreground">Bank account</p>
-            <p className="mt-1 break-words font-medium">
-              {onboarding.bank?.accountName ?? "Submitted"}
-            </p>
-          </div>
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <h2 className="text-xl font-semibold leading-7 text-foreground">Submitted for review</h2>
+          <p className="text-sm leading-5 text-muted-foreground">
+            Your details were received. You can return here to see the latest status.
+          </p>
         </div>
+      </div>
+
+      <dl className="divide-y divide-border rounded-sm border border-border bg-background">
+        <div className="flex items-center justify-between gap-4 p-4 text-sm">
+          <dt className="shrink-0 text-muted-foreground">Identity</dt>
+          <dd className="min-w-0 text-right font-medium break-words text-foreground">
+            {onboarding.identity?.legalName ?? "Submitted"}
+          </dd>
+        </div>
+        <div className="flex items-center justify-between gap-4 p-4 text-sm">
+          <dt className="shrink-0 text-muted-foreground">Bank account</dt>
+          <dd className="min-w-0 text-right font-medium break-words text-foreground">
+            {onboarding.bank?.accountName ?? "Submitted"}
+          </dd>
+        </div>
+      </dl>
+
+      <div>
         <StatusBadge tone="warning">Review in progress</StatusBadge>
-      </CardContent>
-    </Card>
+      </div>
+    </section>
   );
 }
 
 function Rejected() {
   return (
-    <Card className="rounded-sm">
-      <CardContent className="py-10 text-center">
+    <section className="flex flex-col gap-5">
+      <Separator />
+      <div className="rounded-sm border border-border bg-background px-6 py-10 text-center">
         <XCircleIcon className="mx-auto size-10 text-destructive" aria-hidden="true" />
-        <h2 className="mt-4 text-xl font-semibold">Verification not approved</h2>
+        <h2 className="mt-4 text-xl font-semibold text-foreground">Verification not approved</h2>
         <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">
           Staff could not approve your account verification. Contact support if you need help.
         </p>
-      </CardContent>
-    </Card>
+      </div>
+    </section>
   );
 }
 
@@ -181,13 +193,16 @@ function OnboardingStep({ actionData, banks, idempotencyKey, onboarding }: PageP
 
   if (nextAction === "VERIFY_EMAIL") {
     return (
-      <Alert role="note">
-        <Building2Icon aria-hidden="true" />
-        <AlertTitle>Verify your email first</AlertTitle>
-        <AlertDescription>
-          Finish email verification, then reload this page to continue.
-        </AlertDescription>
-      </Alert>
+      <section className="flex flex-col gap-5">
+        <Separator />
+        <Alert role="note">
+          <Building2Icon aria-hidden="true" />
+          <AlertTitle>Verify your email first</AlertTitle>
+          <AlertDescription>
+            Finish email verification, then reload this page to continue.
+          </AlertDescription>
+        </Alert>
+      </section>
     );
   }
 
@@ -227,7 +242,7 @@ function OnboardingStep({ actionData, banks, idempotencyKey, onboarding }: PageP
 
   if (nextAction === "VERIFY_PAYOUT") {
     return (
-      <>
+      <div className="flex flex-col gap-6">
         <Alert
           role="note"
           className={
@@ -250,7 +265,7 @@ function OnboardingStep({ actionData, banks, idempotencyKey, onboarding }: PageP
           idempotencyKey={idempotencyKey}
           onboarding={onboarding}
         />
-      </>
+      </div>
     );
   }
 
@@ -273,11 +288,12 @@ export function FleetOwnerOnboardingPage({
   idempotencyKey,
   onboarding,
 }: PageProps) {
+  const currentStage = getFleetOwnerOnboardingStage(onboarding);
+
   return (
-    <>
-      <PageHeader />
-      <div className="mx-auto w-full max-w-3xl space-y-5">
-        <OnboardingProgress onboarding={onboarding} />
+    <div className="mx-auto flex w-full max-w-[460px] flex-col gap-6">
+      <OnboardingHeader onboarding={onboarding} />
+      {currentStage === "contact" ? (
         <Alert role="note">
           <ShieldCheckIcon aria-hidden="true" />
           <AlertTitle>Why we verify</AlertTitle>
@@ -286,13 +302,13 @@ export function FleetOwnerOnboardingPage({
             our verification providers.
           </AlertDescription>
         </Alert>
-        <OnboardingStep
-          actionData={actionData}
-          banks={banks}
-          idempotencyKey={idempotencyKey}
-          onboarding={onboarding}
-        />
-      </div>
-    </>
+      ) : null}
+      <OnboardingStep
+        actionData={actionData}
+        banks={banks}
+        idempotencyKey={idempotencyKey}
+        onboarding={onboarding}
+      />
+    </div>
   );
 }

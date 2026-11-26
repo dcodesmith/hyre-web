@@ -3,9 +3,9 @@ import { getZodConstraint, parseWithZod } from "@conform-to/zod/v4";
 import { Form, useNavigation } from "react-router";
 import { FormError } from "~/components/forms/form-primitives";
 import { Button } from "~/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
 import { Field, FieldDescription, FieldError, FieldLabel } from "~/components/ui/field";
 import { Input } from "~/components/ui/input";
+import { Separator } from "~/components/ui/separator";
 import {
   type OnboardingActionData,
   onboardingPhoneCheckFormSchema,
@@ -60,52 +60,66 @@ export function OnboardingPhoneForm({
     },
   });
 
+  const actionError = actionData?.intent === "send-phone" ? actionData.error : undefined;
+  const phoneErrors = [...(fields.phoneNumber.errors ?? []), ...(actionError ? [actionError] : [])];
+  const hasPhoneError = phoneErrors.length > 0;
+
   return (
-    <Card className="rounded-sm">
-      <CardHeader>
-        <CardTitle>
-          <h2>Verify Your Phone</h2>
-        </CardTitle>
-        <CardDescription>We will send a one-time code by SMS.</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <Form method="post" {...getFormProps(form)} className="space-y-5">
-          <input type="hidden" name="intent" value="send-phone" />
-          <Field data-invalid={Boolean(fields.phoneNumber.errors)}>
-            <FieldLabel htmlFor={fields.phoneNumber.id}>Phone number</FieldLabel>
-            <Input
-              {...getInputProps(fields.phoneNumber, { type: "tel" })}
-              className="h-10 rounded-sm"
-              placeholder="+2348012345678"
-              inputMode="tel"
-              autoComplete="tel"
-              aria-invalid={fields.phoneNumber.errors ? true : undefined}
-            />
-            <FieldDescription>
-              Use international format, including the country code.
+    <Form method="post" {...getFormProps(form)} className="flex flex-col gap-14">
+      <div className="flex flex-col gap-5">
+        <Separator />
+        <div className="flex flex-col gap-0.5">
+          <h2 className="text-xl font-semibold leading-7 text-foreground">
+            Verify your phone number
+          </h2>
+          <p className="text-sm leading-5 text-muted-foreground">
+            We&apos;ll send you a code to verify this number is yours
+          </p>
+        </div>
+
+        <input type="hidden" name="intent" value="send-phone" />
+        <Field data-invalid={hasPhoneError}>
+          <FieldLabel htmlFor={fields.phoneNumber.id}>Phone number</FieldLabel>
+          <Input
+            {...getInputProps(fields.phoneNumber, { type: "tel" })}
+            className="h-10 rounded-sm"
+            placeholder="+2348012345678"
+            inputMode="tel"
+            autoComplete="tel"
+            aria-invalid={hasPhoneError || undefined}
+          />
+          {hasPhoneError ? (
+            <FieldError id={fields.phoneNumber.errorId} errors={phoneErrors} className="text-xs" />
+          ) : (
+            <FieldDescription className="text-xs">
+              Phone number must begin in country code format e.g +2348012345678
             </FieldDescription>
-            <FieldError
-              id={fields.phoneNumber.errorId}
-              errors={fields.phoneNumber.errors?.map((message) => ({ message }))}
-            />
-          </Field>
-          <FormError id={form.errorId} errors={form.errors} />
-          {actionData?.intent === "send-phone" && actionData.error ? (
-            <FormError id="send-phone-error" errors={[actionData.error]} />
-          ) : null}
-          <div className="flex flex-wrap items-center gap-2">
-            <Button type="submit" disabled={pending} aria-live="polite">
-              {pending ? "Sending code…" : "Send Verification Code"}
-            </Button>
-            {onHaveCode ? (
-              <Button type="button" variant="ghost" onClick={onHaveCode}>
-                I Already Have a Code
-              </Button>
-            ) : null}
-          </div>
-        </Form>
-      </CardContent>
-    </Card>
+          )}
+        </Field>
+        <FormError id={form.errorId} errors={form.errors} />
+      </div>
+
+      <div className="flex flex-col gap-4">
+        <Button
+          type="submit"
+          disabled={pending}
+          aria-live="polite"
+          className="h-12 w-full rounded-md"
+        >
+          {pending ? "Sending code…" : "Send verification code"}
+        </Button>
+        {onHaveCode ? (
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={onHaveCode}
+            className="h-12 w-full rounded-md"
+          >
+            I already have a code
+          </Button>
+        ) : null}
+      </div>
+    </Form>
   );
 }
 
@@ -132,67 +146,76 @@ export function OnboardingPhoneCodeForm({
     },
   });
 
+  const checkError = actionData?.intent === "check-phone" ? actionData.error : undefined;
+  const codeErrors = [...(fields.code.errors ?? []), ...(checkError ? [checkError] : [])];
+  const hasCodeError = codeErrors.length > 0;
+
   return (
-    <Card className="rounded-sm">
-      <CardHeader>
-        <CardTitle>
-          <h2>Enter the SMS Code</h2>
-        </CardTitle>
-        <CardDescription>
-          {actionData?.notice ?? "Use the code sent to your phone."}
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <Form method="post" {...getFormProps(form)} className="space-y-5">
+    <div className="flex flex-col gap-4">
+      <Form method="post" {...getFormProps(form)} className="flex flex-col gap-14">
+        <div className="flex flex-col gap-5">
+          <Separator />
+          <div className="flex flex-col gap-0.5">
+            <h2 className="text-xl font-semibold leading-7 text-foreground">
+              Enter verification code
+            </h2>
+            <p className="text-sm leading-5 text-muted-foreground">
+              {actionData?.notice ??
+                "We just sent a code to your phone number, enter code to continue"}
+            </p>
+          </div>
+
           <input type="hidden" name="intent" value="check-phone" />
           <PhoneNumberControl field={fields.phoneNumber} phoneNumber={phoneNumber} />
-          <Field data-invalid={Boolean(fields.code.errors)}>
+          <Field data-invalid={hasCodeError}>
             <FieldLabel htmlFor={fields.code.id}>Verification code</FieldLabel>
             <Input
               {...getInputProps(fields.code, { type: "text" })}
               className="h-10 rounded-sm"
+              placeholder="Enter 6-digit code"
               inputMode="numeric"
               autoComplete="one-time-code"
               maxLength={10}
               spellCheck={false}
-              aria-invalid={fields.code.errors ? true : undefined}
+              aria-invalid={hasCodeError || undefined}
             />
-            <FieldError
-              id={fields.code.errorId}
-              errors={fields.code.errors?.map((message) => ({ message }))}
-            />
+            <FieldError id={fields.code.errorId} errors={codeErrors} className="text-xs" />
           </Field>
           <FormError id={form.errorId} errors={form.errors} />
-          {actionData?.intent === "check-phone" && actionData.error ? (
-            <FormError id="check-phone-error" errors={[actionData.error]} />
+          {actionData?.intent === "send-phone" && actionData.error ? (
+            <FormError id="resend-phone-error" errors={[actionData.error]} />
           ) : null}
-          <div className="flex flex-wrap items-center gap-2">
-            <Button type="submit" disabled={pending || resending} aria-live="polite">
-              {pending ? "Verifying…" : "Verify Phone"}
+        </div>
+
+        <div className="flex flex-col gap-4">
+          <Button
+            type="submit"
+            disabled={pending || resending}
+            aria-live="polite"
+            className="h-12 w-full rounded-md"
+          >
+            {pending ? "Verifying…" : "Verify phone"}
+          </Button>
+          {phoneNumber ? (
+            <Button
+              type="submit"
+              form="fleet-owner-phone-resend"
+              variant="ghost"
+              disabled={pending || resending}
+              aria-live="polite"
+              className="h-12 w-full rounded-md"
+            >
+              {resending ? "Resending…" : "Resend code"}
             </Button>
-            {phoneNumber ? (
-              <Button
-                type="submit"
-                form="fleet-owner-phone-resend"
-                variant="ghost"
-                disabled={pending || resending}
-                aria-live="polite"
-              >
-                {resending ? "Resending…" : "Resend Code"}
-              </Button>
-            ) : null}
-          </div>
+          ) : null}
+        </div>
+      </Form>
+      {phoneNumber ? (
+        <Form id="fleet-owner-phone-resend" method="post" hidden>
+          <input type="hidden" name="intent" value="send-phone" />
+          <input type="hidden" name="phoneNumber" value={phoneNumber} />
         </Form>
-        {phoneNumber ? (
-          <Form id="fleet-owner-phone-resend" method="post" hidden>
-            <input type="hidden" name="intent" value="send-phone" />
-            <input type="hidden" name="phoneNumber" value={phoneNumber} />
-          </Form>
-        ) : null}
-        {actionData?.intent === "send-phone" && actionData.error ? (
-          <FormError id="resend-phone-error" errors={[actionData.error]} />
-        ) : null}
-      </CardContent>
-    </Card>
+      ) : null}
+    </div>
   );
 }

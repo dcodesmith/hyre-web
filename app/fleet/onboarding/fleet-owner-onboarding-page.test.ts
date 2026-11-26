@@ -176,12 +176,10 @@ describe("fleet owner selfie review screens", () => {
   it("shows the selfie retake form when that is the next action", () => {
     const markup = renderOwner({ ...reviewingOwner, nextAction: "RETAKE_SELFIE" });
 
-    expect(markup).toContain("Take a New Profile Photo");
+    expect(markup).toContain("Take a new profile photo");
     expect(markup).toContain("Submit new selfie");
     expect(markup).toContain('name="intent" value="replace-selfie"');
-    expect(markup).toContain(
-      "Take a clear selfie in good light. After approval, this becomes your profile picture.",
-    );
+    expect(markup).toContain("This becomes your profile picture once you&#x27;re approved");
     expect(markup).not.toContain("Submitted for review");
     expect(revalidateInterval).not.toHaveBeenCalled();
   });
@@ -197,5 +195,54 @@ describe("fleet owner selfie review screens", () => {
     expect(markup).not.toContain("Submit new selfie");
     expect(markup).not.toContain("Submitted for review");
     expect(revalidateInterval).not.toHaveBeenCalled();
+  });
+
+  it("shows the Why we verify alert only on Step 1", () => {
+    const stepOneMarkup = renderOwner({
+      ...reviewingOwner,
+      status: "ACTION_REQUIRED",
+      phone: { number: null, verified: false },
+      steps: {
+        contact: "PENDING",
+        identity: "PENDING",
+        payout: "PENDING",
+        driving: "PENDING",
+        submission: "PENDING",
+      },
+      nextAction: "VERIFY_PHONE",
+    });
+    const stepTwoMarkup = renderOwner({
+      ...reviewingOwner,
+      status: "ACTION_REQUIRED",
+      nextAction: "VERIFY_IDENTITY",
+    });
+
+    expect(stepOneMarkup).toContain("Why we verify");
+    expect(stepOneMarkup).toContain("1 of 5 steps");
+    expect(stepTwoMarkup).not.toContain("Why we verify");
+    expect(stepTwoMarkup).toContain("2 of 5 steps");
+  });
+
+  it("renders grouped review sections on Step 5", () => {
+    const markup = renderOwner({
+      ...reviewingOwner,
+      status: "ACTION_REQUIRED",
+      accountType: "BUSINESS",
+      identity: {
+        status: "SUCCEEDED",
+        legalName: "Ada Lovelace",
+        businessName: "Bamboo Ventures Ltd",
+      },
+      nextAction: "SUBMIT_ACCOUNT",
+    });
+
+    expect(markup).toContain("5 of 5 steps");
+    expect(markup).toContain("Review and submit");
+    expect(markup).toContain("Phone number");
+    expect(markup).toContain("Identity");
+    expect(markup).toContain("Payout account");
+    expect(markup).toContain("Driving credentials");
+    expect(markup).toContain("Bamboo Ventures Ltd");
+    expect(markup).toContain("Submit details");
   });
 });

@@ -1,13 +1,11 @@
 import { getFormProps, useForm } from "@conform-to/react";
 import { getZodConstraint, parseWithZod } from "@conform-to/zod/v4";
-import { type ReactNode, useState } from "react";
+import { useState } from "react";
 import { Form, useNavigation } from "react-router";
 import type { FleetOwnerBank, FleetOwnerOnboarding } from "~/api/fleet/onboarding/schema";
 import { FormError } from "~/components/forms/form-primitives";
-import { SelfieField } from "~/components/forms/selfie-field";
 import { Button } from "~/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
-import { fleetOwnerRoleLabel } from "~/fleet/fleet-owner-role";
+import { Separator } from "~/components/ui/separator";
 import {
   AccountTypeFields,
   BankFields,
@@ -16,6 +14,7 @@ import {
   NinField,
   OwnerDriverFields,
 } from "./onboarding-account-fields";
+import { OnboardingSelfieCard } from "./onboarding-driving-fields";
 import {
   type OnboardingActionData,
   type OnboardingDrivingFormInput,
@@ -40,33 +39,20 @@ function retryKey(actionData: OnboardingActionData | undefined, intent: string, 
     : fallback;
 }
 
-function drivingSummary(onboarding: FleetOwnerOnboarding) {
-  if (onboarding.steps.driving === "SKIPPED") {
-    return "Not required";
-  }
-
-  return onboarding.isOwnerDriver ? "Owner-driver" : "Will add a chauffeur later";
-}
-
-function StageCard({
+function SectionHeading({
   title,
   description,
-  children,
 }: {
   readonly title: string;
   readonly description?: string;
-  readonly children: ReactNode;
 }) {
   return (
-    <Card className="rounded-sm">
-      <CardHeader>
-        <CardTitle>
-          <h2>{title}</h2>
-        </CardTitle>
-        {description ? <CardDescription>{description}</CardDescription> : null}
-      </CardHeader>
-      <CardContent>{children}</CardContent>
-    </Card>
+    <div className="flex flex-col gap-0.5">
+      <h2 className="text-xl font-semibold leading-7 text-foreground">{title}</h2>
+      {description ? (
+        <p className="text-sm leading-5 text-muted-foreground">{description}</p>
+      ) : null}
+    </div>
   );
 }
 
@@ -97,15 +83,14 @@ export function OnboardingIdentityForm({ actionData, idempotencyKey }: StageForm
   });
 
   return (
-    <StageCard
-      title="Verify Your Identity"
-      description={
-        accountType === "BUSINESS"
-          ? "Business accounts are checked against CAC. The representative's NIN is also required."
-          : undefined
-      }
-    >
-      <Form key={form.id} method="post" {...getFormProps(form)} className="space-y-6">
+    <Form key={form.id} method="post" {...getFormProps(form)} className="flex flex-col gap-14">
+      <div className="flex flex-col gap-5">
+        <Separator />
+        <SectionHeading
+          title="Select account type"
+          description="What kind of account do you want to set up?"
+        />
+
         <input type="hidden" name="intent" value="verify-identity" />
         <input
           type="hidden"
@@ -113,25 +98,29 @@ export function OnboardingIdentityForm({ actionData, idempotencyKey }: StageForm
           value={retryKey(actionData, "verify-identity", idempotencyKey)}
         />
         <AccountTypeFields field={fields.accountType} onChange={setAccountType} />
-        <div className="grid gap-5 sm:grid-cols-2">
-          <NinField field={fields.nin} accountType={accountType} />
-          {accountType === "BUSINESS" ? (
-            <BusinessFields
-              businessName={fields.businessName}
-              registrationNumber={fields.registrationNumber}
-              registrationType={fields.registrationType}
-            />
-          ) : null}
-        </div>
+        {accountType === "BUSINESS" ? (
+          <BusinessFields
+            businessName={fields.businessName}
+            registrationNumber={fields.registrationNumber}
+            registrationType={fields.registrationType}
+          />
+        ) : null}
+        <NinField field={fields.nin} accountType={accountType} />
         <FormError id={form.errorId} errors={form.errors} />
         {actionData?.intent === "verify-identity" && actionData.error ? (
           <FormError id="verify-identity-error" errors={[actionData.error]} />
         ) : null}
-        <Button type="submit" disabled={pending} aria-live="polite">
-          {pending ? "Verifying identity…" : "Verify Identity"}
-        </Button>
-      </Form>
-    </StageCard>
+      </div>
+
+      <Button
+        type="submit"
+        disabled={pending}
+        aria-live="polite"
+        className="h-12 w-full rounded-md"
+      >
+        {pending ? "Verifying identity…" : "Verify Identity"}
+      </Button>
+    </Form>
   );
 }
 
@@ -159,15 +148,18 @@ export function OnboardingPayoutForm({
   });
 
   return (
-    <StageCard
-      title="Add Payout Details"
-      description={
-        onboarding.accountType === "BUSINESS"
-          ? "The bank account name must match the CAC business name."
-          : "The bank account name must match the verified identity."
-      }
-    >
-      <Form method="post" {...getFormProps(form)} className="space-y-6">
+    <Form method="post" {...getFormProps(form)} className="flex flex-col gap-14">
+      <div className="flex flex-col gap-5">
+        <Separator />
+        <SectionHeading
+          title="Set payout account"
+          description={
+            onboarding.accountType === "BUSINESS"
+              ? "The bank account name must match the CAC business name."
+              : "The bank account name must match the verified identity."
+          }
+        />
+
         <input type="hidden" name="intent" value="verify-payout" />
         <input
           type="hidden"
@@ -179,11 +171,17 @@ export function OnboardingPayoutForm({
         {actionData?.intent === "verify-payout" && actionData.error ? (
           <FormError id="verify-payout-error" errors={[actionData.error]} />
         ) : null}
-        <Button type="submit" disabled={pending} aria-live="polite">
-          {pending ? "Verifying payout…" : "Verify Payout"}
-        </Button>
-      </Form>
-    </StageCard>
+      </div>
+
+      <Button
+        type="submit"
+        disabled={pending}
+        aria-live="polite"
+        className="h-12 w-full rounded-md"
+      >
+        {pending ? "Verifying payout…" : "Add Bank"}
+      </Button>
+    </Form>
   );
 }
 
@@ -208,13 +206,19 @@ export function OnboardingDrivingForm({ actionData, idempotencyKey }: StageFormP
   });
 
   return (
-    <StageCard title="Driving Credentials">
-      <Form
-        method="post"
-        encType="multipart/form-data"
-        {...getFormProps(form)}
-        className="space-y-6"
-      >
+    <Form
+      method="post"
+      encType="multipart/form-data"
+      {...getFormProps(form)}
+      className="flex flex-col gap-14"
+    >
+      <div className="flex flex-col gap-5">
+        <Separator />
+        <SectionHeading
+          title="Driving credentials"
+          description="Will you drive this car yourself?"
+        />
+
         <input type="hidden" name="intent" value="save-driving" />
         <input
           type="hidden"
@@ -232,18 +236,25 @@ export function OnboardingDrivingForm({ actionData, idempotencyKey }: StageFormP
               driversLicenseNumber={fields.driversLicenseNumber}
               driversLicense={fields.driversLicense}
             />
-            <SelfieField field={fields.selfie} />
+            <Separator />
+            <OnboardingSelfieCard field={fields.selfie} />
           </>
         ) : null}
         <FormError id={form.errorId} errors={form.errors} />
         {actionData?.intent === "save-driving" && actionData.error ? (
           <FormError id="save-driving-error" errors={[actionData.error]} />
         ) : null}
-        <Button type="submit" disabled={pending} aria-live="polite">
-          {pending ? "Saving credentials…" : "Save Credentials"}
-        </Button>
-      </Form>
-    </StageCard>
+      </div>
+
+      <Button
+        type="submit"
+        disabled={pending}
+        aria-live="polite"
+        className="h-12 w-full rounded-md"
+      >
+        {pending ? "Saving credentials…" : "Save and continue"}
+      </Button>
+    </Form>
   );
 }
 
@@ -263,93 +274,40 @@ export function OnboardingSelfieForm({ actionData, idempotencyKey }: StageFormPr
   });
 
   return (
-    <StageCard
-      title="Take a New Profile Photo"
-      description="Staff could not approve the previous selfie. Submit a clear new one to continue."
+    <Form
+      method="post"
+      encType="multipart/form-data"
+      {...getFormProps(form)}
+      className="flex flex-col gap-14"
     >
-      <Form
-        method="post"
-        encType="multipart/form-data"
-        {...getFormProps(form)}
-        className="space-y-6"
-      >
+      <div className="flex flex-col gap-5">
+        <Separator />
+        <SectionHeading
+          title="Take a new profile photo"
+          description="Staff could not approve the previous selfie. Submit a clear new one to continue."
+        />
+
         <input type="hidden" name="intent" value="replace-selfie" />
         <input
           type="hidden"
           name="idempotencyKey"
           value={retryKey(actionData, "replace-selfie", idempotencyKey)}
         />
-        <SelfieField field={fields.selfie} />
+        <OnboardingSelfieCard field={fields.selfie} />
         <FormError id={form.errorId} errors={form.errors} />
         {actionData?.intent === "replace-selfie" && actionData.error ? (
           <FormError id="replace-selfie-error" errors={[actionData.error]} />
         ) : null}
-        <Button type="submit" disabled={pending} aria-live="polite">
-          {pending ? "Submitting selfie…" : "Submit new selfie"}
-        </Button>
-      </Form>
-    </StageCard>
-  );
-}
+      </div>
 
-export function OnboardingSubmitForm({
-  actionData,
-  idempotencyKey,
-  onboarding,
-}: StageFormProps & { readonly onboarding: FleetOwnerOnboarding }) {
-  const navigation = useNavigation();
-  const pending =
-    navigation.formMethod != null && navigation.formData?.get("intent") === "submit-account";
-
-  return (
-    <StageCard
-      title="Review and Submit"
-      description="Confirm these details, then submit for review."
-    >
-      <dl className="mb-6 grid gap-3 rounded-sm border p-4 text-sm sm:grid-cols-2">
-        <div>
-          <dt className="text-muted-foreground">Account</dt>
-          <dd className="mt-1 font-medium">{fleetOwnerRoleLabel(onboarding)}</dd>
-        </div>
-        <div>
-          <dt className="text-muted-foreground">Identity</dt>
-          <dd className="mt-1 wrap-break-words font-medium">
-            {onboarding.identity?.legalName ?? "Verified"}
-          </dd>
-        </div>
-        {onboarding.identity?.businessName ? (
-          <div>
-            <dt className="text-muted-foreground">Business</dt>
-            <dd className="mt-1 wrap-break-words font-medium">
-              {onboarding.identity.businessName}
-            </dd>
-          </div>
-        ) : null}
-        <div>
-          <dt className="text-muted-foreground">Bank account</dt>
-          <dd className="mt-1 wrap-break-words font-medium">
-            {onboarding.bank?.accountName ?? "Verified"}
-          </dd>
-        </div>
-        <div>
-          <dt className="text-muted-foreground">Driving</dt>
-          <dd className="mt-1 font-medium">{drivingSummary(onboarding)}</dd>
-        </div>
-      </dl>
-      <Form method="post" className="space-y-4">
-        <input type="hidden" name="intent" value="submit-account" />
-        <input
-          type="hidden"
-          name="idempotencyKey"
-          value={retryKey(actionData, "submit-account", idempotencyKey)}
-        />
-        {actionData?.intent === "submit-account" && actionData.error ? (
-          <FormError id="submit-account-error" errors={[actionData.error]} />
-        ) : null}
-        <Button type="submit" disabled={pending} aria-live="polite">
-          {pending ? "Submitting…" : "Submit verification"}
-        </Button>
-      </Form>
-    </StageCard>
+      <Button
+        type="submit"
+        disabled={pending}
+        aria-live="polite"
+        className="h-12 w-full rounded-md"
+      >
+        {pending ? "Submitting selfie…" : "Submit new selfie"}
+      </Button>
+    </Form>
   );
 }
